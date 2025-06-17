@@ -1,0 +1,111 @@
+:root {
+  --stickyBackground: #5bc0de;
+  --borderColor: #C9D1DC;
+}
+
+/* Basic styling */
+.table-wrapper {
+  height: 320px;
+  border: 1px solid var(--borderColor);
+  overflow: auto;
+}
+
+table {
+  border-spacing: 0;
+  width: 100%;
+}
+
+thead {
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+tbody {
+  font-size: 14px;
+}
+
+th, td {
+  padding: 18px 14px;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--borderColor);
+  position: relative;
+    border: 1px solid var(--borderColor); /* Tambahkan border untuk semua sel */
+
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+/* Sticky header row */
+tr.sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* Aktif saat discroll */
+tr.sticky-header.scrolled {
+  background: var(--stickyBackground);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+/* Sticky first column */
+th.sticky {
+ position: sticky;
+  left: 0;
+  z-index: 5;
+  background: #5bc0de;
+  transition: background 0.3s ease;
+}
+td.sticky {
+    position: sticky;
+  left: 0;
+  z-index: 5;
+  background: white;
+  transition: background 0.3s ease;
+
+}
+
+/* Aktifkan warna saat scroll juga */
+tr.sticky-header.scrolled th.sticky,
+tr.sticky-header.scrolled td.sticky {
+  background: var(--stickyBackground);
+}
+
+/* Shadow effect */
+th.sticky::after,
+td.sticky::after {
+  content: "";
+  position: absolute;
+  right: -6px;
+  top: 0;
+  bottom: -1px;
+  width: 5px;
+  /* border-left: 1px solid var(--borderColor); */
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.08) 0%, rgba(0, 0, 0, 0) 100%);
+}
+
+th.sticky::before,
+td.sticky::before {
+  content: "";
+  /* position: absolute;
+  left: -6px;
+  top: 0;
+  bottom: -1px;
+  width: 5px; */
+
+  border-right: 1px solid var(--borderColor);
+  background: #5bc0de;
+
+}
+
+thead tr.sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #5bc0de;
+}
+th{
+    /* color: white; */
+}
