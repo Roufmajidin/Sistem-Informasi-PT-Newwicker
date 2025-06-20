@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\KaryawanController;
 use App\Http\Controllers\MarketingController;
 use App\Http\Controllers\pdfController;
 use Illuminate\Support\Facades\Route;
@@ -20,3 +21,8 @@ Route::post('/productss/import', [MarketingController::class, 'importb'])->name(
 Route::post('/productss/importImage', [MarketingController::class, 'importImage'])->name('products.importImage');
 Route::post('/marketing/items/update', [MarketingController::class, 'update'])->name('marketing.items.update');
 Route::post('/buyers/update', [MarketingController::class, 'updateInline']);
+// karyawan routing
+Route::get('/karyawan', [KaryawanController::class, 'index'])->name('karyawan.index');
+Route::post('/karyawan/import', [KaryawanController::class, 'import'])->name('karyawan.import');
+Route::post('/karyawan/check-existing-names', [KaryawanController::class, 'checkExistingNames'])->name('karyawan.check_existing_names');
+Route::post('/karyawan/bulk-save', [KaryawanController::class, 'bulkSave'])->name('karyawan.bulk_save');

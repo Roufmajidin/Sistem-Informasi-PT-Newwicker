@@ -269,7 +269,7 @@ class MarketingController extends Controller
     $value = $request->input('value');
 
     $allowed = [
-        'description', 'article_nr', 'remark', 'cushion', 'glass_orMirror', 'materials',
+        'description', 'article_nr', 'remark', 'cushion', 'glass_orMirror', 'materials      ',
         'weight_capacity', 'finishes_color', 'usd_selling_price',
         'packing_dimention', 'nw', 'gw', 'cbm', 'accessories',
         'picture_of_accessories', 'finish_steps', 'harga_supplier',

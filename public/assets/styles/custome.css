@@ -55,7 +55,7 @@ th.sticky {
  position: sticky;
   left: 0;
   z-index: 5;
-  background: #5bc0de;
+  background: #6887ff;
   transition: background 0.3s ease;
 }
 td.sticky {
@@ -96,7 +96,7 @@ td.sticky::before {
   width: 5px; */
 
   border-right: 1px solid var(--borderColor);
-  background: #5bc0de;
+  background: #6887ff;
 
 }
 
@@ -104,8 +104,8 @@ thead tr.sticky-header {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: #5bc0de;
+  background: #6887ff;
 }
-th{
-    /* color: white; */
-}
+.small-font-table {
+    font-size: 10px;
+  }
