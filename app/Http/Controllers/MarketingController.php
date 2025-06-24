@@ -8,6 +8,7 @@ use App\Models\Buyyer;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class MarketingController extends Controller
 {
@@ -104,15 +105,15 @@ class MarketingController extends Controller
                     'sh'                     => (int) ($temp['sh'] ?? 0),
                     'sd'                     => (int) ($temp['sd'] ?? 0),
                     'ah'                     => (int) ($temp['ah'] ?? 0),
-                    'weight_capacity'        => (int) ($temp['weight_capacity_kg_lt'] ?? 0),
+                    'weight_capacity'        => ($temp['weight_capacity_kg_lt'] ?? 0),
                     'materials'              => $temp['materials'] ?? '',
                     'finishes_color'         => $temp['finishes_color'] ?? '',
                     'weaving_composition'    => $temp['weaving_composition'] ?? '',
                     'usd_selling_price'      => (int) ($temp['usd_selling_price'] ?? 0),
                     'packing_dimention'      => $temp['packing_dimention_cm'] ?? '',
-                    'nw'                     => (int) ($temp['nw'] ?? 0),
-                    'gw'                     => (int) ($temp['gw'] ?? 0),
-                    'cbm'                    => (int) ($temp['cbm'] ?? 0),
+                    'nw'                     => ($temp['nw'] ?? 0),
+                    'gw'                     => ($temp['gw'] ?? 0),
+                    'cbm'                    => ($temp['cbm'] ?? 0),
                     'accessories'            => $temp['accessories'] ?? '',
                     'picture_of_accessories' => $temp['picture_of_accessories'] ?? '',
                     'leather'                => $temp['leather'] ?? '',
@@ -144,11 +145,16 @@ class MarketingController extends Controller
 
     public function importImage(Request $request)
     {
-        $file  = $request->file('file'); // File Excel yang diupload
-        $range = explode(' ', $request->input('range'));
+        $id_buyer = $request->input('buyer_id'); // <- ambil dari form
+        $file     = $request->file('file');      // File Excel yang diupload
+        $range    = explode(' ', $request->input('range'));
+// kirim buyer_id juga
+        // $import = new ProductImport($file->getPathname(), $range[0], $range[1]);
+        $import      = new ProductImport($id_buyer, $range[0], $range[1]);
+        $spreadsheet = IOFactory::load($file->getPathname());
+        $drawings    = iterator_to_array($spreadsheet->getActiveSheet()->getDrawingCollection());
 
-        $import = new ProductImport($file->getPathname(), $range[0], $range[1]);
-
+        $import->setDrawings($drawings);
         // $import->import($file);
         Excel::import($import, $file);
 
@@ -204,23 +210,23 @@ class MarketingController extends Controller
         return 'storage/products/' . $filename;
     }
 
-  public function import(Request $request)
-{
-    $request->validate([
-        'file' => 'required|mimes:xlsx,xls,csv',
-        'range' => 'required|string'
-    ]);
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file'  => 'required|mimes:xlsx,xls,csv',
+            'range' => 'required|string',
+        ]);
 
-    // range misalnya diberi "A C"
-    $range = explode(' ', $request->input('range'));
+        // range misalnya diberi "A C"
+        $range = explode(' ', $request->input('range'));
 
-    $photoColumn = $range[0] ?? '';
-    $codeColumn = $range[1] ?? '';
+        $photoColumn = $range[0] ?? '';
+        $codeColumn  = $range[1] ?? '';
 
-    Excel::import(new ProductImport($request->file('file')->getPathname(), $photoColumn, $codeColumn));
+        Excel::import(new ProductImport($request->file('file')->getPathname(), $photoColumn, $codeColumn));
 
-    return redirect()->back()->with('success', 'Produk berhasil diimport!');
-}
+        return redirect()->back()->with('success', 'Produk berhasil diimport!');
+    }
 
     public function create()
     {
@@ -242,49 +248,49 @@ class MarketingController extends Controller
     {
         //
         $buyer = Barangs::where('buyer_id', $id)->get();
-        $db = Buyyer::find($id);
+        $db    = Buyyer::find($id);
         // dd($db);
         return view('pages.detail_buyer', compact('buyer', 'db'));
     }
 
     public function update(Request $request)
     {
-    	if($request->ajax()){
+        if ($request->ajax()) {
 
-	      $d= 	Barangs::find($request->input('pk'))->update([$request->input('name') => $request->input('value')]);
+            $d = Barangs::find($request->input('pk'))->update([$request->input('name') => $request->input('value')]);
 
             dd($d);
             // return response()->json(['success' => true]);
-    	}
+        }
     }
     public function updateInline(Request $request)
-{
-    $buyer = Barangs::find($request->input('pk'));
+    {
+        $buyer = Barangs::find($request->input('pk'));
 
-    if (!$buyer) {
-        return response()->json(['status' => 'error', 'msg' => 'Data not found.']);
+        if (! $buyer) {
+            return response()->json(['status' => 'error', 'msg' => 'Data not found.']);
+        }
+
+        $field = $request->input('name');
+        $value = $request->input('value');
+
+        $allowed = [
+            'description', 'article_nr', 'remark', 'cushion', 'glass_orMirror', 'materials      ',
+            'weight_capacity', 'finishes_color', 'usd_selling_price',
+            'packing_dimention', 'nw', 'gw', 'cbm', 'accessories',
+            'picture_of_accessories', 'finish_steps', 'harga_supplier',
+            'loadability', 'electricity', 'comment_visit','w','d','h'
+        ];
+
+        if (! in_array($field, $allowed)) {
+            return response()->json(['status' => 'error', 'msg' => 'Invalid field.']);
+        }
+
+        $buyer->$field = $value;
+        $buyer->save();
+
+        return response()->json(['status' => 'success']);
     }
-
-    $field = $request->input('name');
-    $value = $request->input('value');
-
-    $allowed = [
-        'description', 'article_nr', 'remark', 'cushion', 'glass_orMirror', 'materials      ',
-        'weight_capacity', 'finishes_color', 'usd_selling_price',
-        'packing_dimention', 'nw', 'gw', 'cbm', 'accessories',
-        'picture_of_accessories', 'finish_steps', 'harga_supplier',
-        'loadability', 'electricity', 'comment_visit'
-    ];
-
-    if (!in_array($field, $allowed)) {
-        return response()->json(['status' => 'error', 'msg' => 'Invalid field.']);
-    }
-
-    $buyer->$field = $value;
-    $buyer->save();
-
-    return response()->json(['status' => 'success']);
-}
 
     /**
      * Show the form for editing the specified resource.
@@ -297,7 +303,6 @@ class MarketingController extends Controller
     /**
      * Update the specified resource in storage.
      */
-
 
     /**
      * Remove the specified resource from storage.

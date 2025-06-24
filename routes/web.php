@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\KaryawanController;
 use App\Http\Controllers\MarketingController;
 use App\Http\Controllers\pdfController;
@@ -23,6 +24,15 @@ Route::post('/marketing/items/update', [MarketingController::class, 'update'])->
 Route::post('/buyers/update', [MarketingController::class, 'updateInline']);
 // karyawan routing
 Route::get('/karyawan', [KaryawanController::class, 'index'])->name('karyawan.index');
+Route::get('/karyawan-absen', [KaryawanController::class, 'absenkaryawan'])->name('karyawan.absen');
 Route::post('/karyawan/import', [KaryawanController::class, 'import'])->name('karyawan.import');
 Route::post('/karyawan/check-existing-names', [KaryawanController::class, 'checkExistingNames'])->name('karyawan.check_existing_names');
 Route::post('/karyawan/bulk-save', [KaryawanController::class, 'bulkSave'])->name('karyawan.bulk_save');
+Route::post('/absen/update', [KaryawanController::class, 'updateAbsen'])->name('absen.update');
+Route::get('/absen/filter', [KaryawanController::class, 'filter'])->name('absen.filter');
+
+Route::post('/login', [AuthController::class, 'login']);
+Route::post('/logout', [AuthController::class, 'logout']);
+Route::get('/me', [AuthController::class, 'me'])->middleware('auth');
+Route::get('/scan', [KaryawanController::class, 'scan'])->name('karyawan.scan');
+Route::get('/login', [KaryawanController::class, 'login'])->name('karyawan.login');

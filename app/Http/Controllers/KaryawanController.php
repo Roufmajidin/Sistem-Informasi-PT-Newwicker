@@ -2,13 +2,14 @@
 namespace App\Http\Controllers;
 
 use App\Imports\KaryawanImport;
+use App\Models\Absen;
 use App\Models\Karyawan;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
-use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
+use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
 class KaryawanController extends Controller
 {
@@ -69,6 +70,23 @@ class KaryawanController extends Controller
     {
         //
     }
+    public function absenkaryawan()
+    {
+        //
+        $karyawans = User::with(['absens'])->get();
+
+        $today       = Carbon::now();
+        $year        = $today->year;
+        $month       = $today->month;
+        $daysInMonth = $today->daysInMonth;
+
+        $today       = Carbon::now();
+        $year        = $today->year;
+        $month       = $today->month;
+        $daysInMonth = $today->daysInMonth;
+
+        return view('pages.karyawan.absen', compact('karyawans', 'daysInMonth', 'month', 'year'));
+    }
     public function import(Request $request)
     {
         try {
@@ -95,7 +113,7 @@ class KaryawanController extends Controller
                     : $row[11],
                 ];
             }
-            Log::info('Import triggered', $data);
+            // Log::info('Import triggered', $data);
 
             return response()->json([
                 'success' => true,
@@ -151,7 +169,7 @@ class KaryawanController extends Controller
                 'alamat'            => $row['alamat'],
                 'status_perkawinan' => $row['status_perkawinan'],
                 'divisi_id'         => $row['divisi'],
-            'status'            => $row['status_karyawan'],
+                'status'            => $row['status_karyawan'],
                 'lokasi'            => $row['lokasi'],
                 'tanggal_join'      => (function ($tgl) {
                     if (is_numeric($tgl)) {
@@ -170,5 +188,46 @@ class KaryawanController extends Controller
             'inserted' => count($inserted),
         ]);
     }
+    public function scan()
+    {
+        return view('pages.karyawan.scan');
+    }
+    public function login()
+    {
+        return view('pages.karyawan.login');
+    }
+    public function updateAbsen(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'tanggal' => 'required|date',
+            'status'  => 'required|in:izin,cuti,sakit',
+        ]);
+
+        $absen = Absen::firstOrCreate([
+            'user_id' => $request->user_id,
+            'tanggal' => $request->tanggal,
+        ]);
+
+        $absen->keterangan = $request->status;
+        $absen->save();
+
+        return redirect()->back()->with('success', 'Status absen diperbarui.');
+    }
+
+  public function filter(Request $request)
+{
+    $month = $request->month ?? now()->month;
+    $year = $request->year ?? now()->year;
+    $daysInMonth = Carbon::createFromDate($year, $month)->daysInMonth;
+
+    $karyawans = User::with('absens')->get();
+
+    // Gunakan view string (tanpa partial) — render langsung sebagai string
+    $html = view('pages.karyawan.absen-table', compact('karyawans', 'month', 'year', 'daysInMonth'))->render();
+
+    return response()->json(['html' => $html]);
+}
+
 
 }

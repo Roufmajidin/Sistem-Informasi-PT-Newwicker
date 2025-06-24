@@ -20,7 +20,7 @@
                             <input type="file" id="fileUpload" name="file" style="display: none;">
                         </form>
 
-                        <span class="m-r-sm">Short:</span>
+                        <span class="">Short:</span>
                         <div class="btn-group dropdown">
                             <button class="btn white btn-sm">Filter</button>
                             <button class="btn white btn-sm dropdown-toggle" data-toggle="dropdown"></button>
@@ -79,9 +79,7 @@
             </div>
         </div>
     </div>
-</div>
-
-<!-- Modal hasil import -->
+    <!-- Modal hasil import -->
 <div class="modal fade" id="importResultModal" tabindex="-1" role="dialog">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -94,12 +92,15 @@
             <div class="modal-body" id="resultTableBody">
 
             </div>
-            <div class="text-right mt-3">
+            <div class="text-right mb-2 mr-2">
                 <button class="btn btn-sm btn-success" id="btnBulkSave">Simpan Data Baru</button>
             </div>
         </div>
     </div>
 </div>
+</div>
+
+
 
 <!-- JS -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>

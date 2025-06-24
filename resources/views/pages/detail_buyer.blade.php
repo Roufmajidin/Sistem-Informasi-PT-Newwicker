@@ -19,17 +19,22 @@
                 <table>
                     <thead style="background-color:#5bc0de">
 
-                        <tr class="sticky-header"  style="font-size: 12px;">
-                            <th >No.</th>
-                            <th  >Photo</th>
-                            <th >buyer_s_code</th>
-                            <th  class="sticky">Description</th>
+                        <tr class="sticky-header" style="font-size: 12px;">
+                            <th>No.</th>
+                            <th>Photo</th>
+                            <th>buyer_s_code</th>
+                            <th class="sticky">Description</th>
                             <th style="font-size: 10px;">Article Nr.</th>
                             <th style="font-size: 10px;">Remark</th>
+                              <th style="font-size: 10px;">W</th>
+                            <th style="font-size: 10px;">D</th>
+                            <th style="font-size: 10px;">H</th>
                             <th style="font-size: 10px;">Materials</th>
+
                             <th style="font-size: 10px;">Cushion</th>
                             <th style="font-size: 10px;">glass/mirror</th>
                             <th style="font-size: 10px;">Weight Capacity (Kg/Lt)</th>
+
                             <th style="font-size: 10px;">Finsihing Color of Item</th>
                             <th style="font-size: 10px;">USD Selling price</th>
                             <th colspan="1" style="font-size: 10px;">packing Dimension</th>
@@ -74,9 +79,11 @@
 
                             @endphp
                             <td style="font-size: 10px;">{{ $no++ }}</td>
-                            <td><img  src="{{ asset($imagePath) }}" alt="product" width="60"></td>
+                            <td>
+                                <img src="{{ asset('storage/' . $i->photo) }}" alt="product" width="60">
 
-                            <td  style="font-size: 10px;">
+                            </td>
+                            <td style="font-size: 10px;">
                                 <a href="#" class="editable-buyer_s_code" data-name="buyer_s_code" data-pk="{{ $i->id }}" data-type="text" data-url="/post-name" data-title="Enter Buyer Code">
                                     {{ $i->buyer_s_code ?: '-' }}
                                 </a>
@@ -96,6 +103,25 @@
                                     {{ $i->remark ?: '-' }}
                                 </a>
                             </td>
+                              <!-- wdh -->
+                              <td style="font-size: 10px;">
+                                <a href="#" class="editable-w" data-name="w" data-pk="{{ $i->id }}" data-type="text" data-url="/buyers/update" data-title="Enter W Capacity">
+                                    {{ $i->w ?: '-' }}
+                                </a>
+                            </td>
+
+  <td style="font-size: 10px;">
+                                <a href="#" class="editable-d" data-name="d" data-pk="{{ $i->id }}" data-type="text" data-url="/buyers/update" data-title="Enter D Capacity">
+                                    {{ $i->d ?: '-' }}
+                                </a>
+                            </td>
+                              <td style="font-size: 10px;">
+                                <a href="#" class="editable-h" data-name="h" data-pk="{{ $i->id }}" data-type="text" data-url="/buyers/update" data-title="Enter H Capacity">
+                                    {{ $i->h ?: '-' }}
+                                </a>
+                            </td>
+
+                            <!--  -->
                             <td style="font-size: 10px;">
                                 <a href="#" class="editable-materials" data-name="materials" data-pk="{{ $i->id }}" data-type="text" data-url="/buyers/update" data-title="Enter Glass/Mirror">
                                     {{ $i->materials ?: '-' }}
@@ -118,6 +144,7 @@
                                     {{ $i->weight_capacity ?: '-' }}
                                 </a>
                             </td>
+
                             <td style="font-size: 10px;">
                                 <a href="#" class="editable-finishes_color" data-name="finishes_color" data-pk="{{ $i->id }}" data-type="text" data-url="/buyers/update" data-title="Enter Finishes Color">
                                     {{ $i->finishes_color ?: '-' }}
@@ -197,18 +224,18 @@
 </div>
 </div>
 <script>
-document.addEventListener("DOMContentLoaded", function () {
-  const tableWrapper = document.querySelector(".table-wrapper");
-  const headerCells = document.querySelectorAll("thead th");
+    document.addEventListener("DOMContentLoaded", function() {
+        const tableWrapper = document.querySelector(".table-wrapper");
+        const headerCells = document.querySelectorAll("thead th");
 
-  tableWrapper.addEventListener("scroll", function () {
-    if (tableWrapper.scrollTop > 0) {
-      headerCells.forEach(th => th.classList.add("scrolled"));
-    } else {
-      headerCells.forEach(th => th.classList.remove("scrolled"));
-    }
-  });
-});
+        tableWrapper.addEventListener("scroll", function() {
+            if (tableWrapper.scrollTop > 0) {
+                headerCells.forEach(th => th.classList.add("scrolled"));
+            } else {
+                headerCells.forEach(th => th.classList.remove("scrolled"));
+            }
+        });
+    });
 </script>
 <script>
     $(document).ready(function() {
