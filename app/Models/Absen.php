@@ -15,7 +15,7 @@ class Absen extends Model
         'latitude',
         'longitude',
         'foto',
-        'fotokeluar',
+        'foto_keluar',
     ];
 
     public function user()
