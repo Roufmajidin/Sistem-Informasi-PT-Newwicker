@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers;
 
 use App\Models\Absen;
@@ -92,29 +91,33 @@ class AbsenController extends Controller
 {
     public function absen(Request $request)
     {
-        // $request->validate([
-        //     'latitude'  => 'required|numeric',
-        //     'longitude' => 'required|numeric',
-        //     'foto'      => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
-        // ]);
-   if (! $request->user()) {
-        return response()->json(['message' => 'Token tidak valid'], 401);
-    }
+        // Validasi input
+        $request->validate([
+            'latitude'  => 'required|numeric',
+            'longitude' => 'required|numeric',
+            'foto'      => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+        ]);
+
+        // Autentikasi user
+        if (! $request->user()) {
+            return response()->json(['message' => 'Token tidak valid'], 401);
+        }
 
         $user  = $request->user();
         $today = now()->toDateString();
 
         $absen = Absen::where('user_id', $user->id)
-                      ->where('tanggal', $today)
-                      ->first();
+            ->where('tanggal', $today)
+            ->first();
 
+        // Upload satu kali saja (foto masuk atau keluar)
         $fotoPath = null;
         if ($request->hasFile('foto')) {
             $fotoPath = $request->file('foto')->store('absen_foto', 'public');
         }
 
         if (! $absen) {
-            // Absen masuk
+            // Absen Masuk
             Absen::create([
                 'user_id'    => $user->id,
                 'tanggal'    => $today,
@@ -127,18 +130,19 @@ class AbsenController extends Controller
 
             return response()->json(['message' => 'Absen masuk tercatat'], 201);
         } else {
-            // Cek waktu sebelum absen keluar
+            // Validasi jam untuk absen keluar
             if (now()->format('H:i') < '17:00') {
                 return response()->json([
                     'message' => 'Belum bisa absen keluar. Minimal pukul 17:00.',
                 ], 403);
             }
 
+            // Absen Keluar
             $absen->update([
-                'jam_keluar' => now()->format('H:i:s'),
-                'latitude'   => $request->latitude,
-                'longitude'  => $request->longitude,
-                'foto_keluar'       => $fotoPath ?? $absen->foto,
+                'jam_keluar'  => now()->format('H:i:s'),
+                'latitude'    => $request->latitude,
+                'longitude'   => $request->longitude,
+                'foto_keluar' => $fotoPath,
             ]);
 
             return response()->json(['message' => 'Absen keluar tercatat'], 200);
