@@ -92,11 +92,11 @@ class AbsenController extends Controller
     public function absen(Request $request)
     {
         // Validasi input
-        $request->validate([
-            'latitude'  => 'required|numeric',
-            'longitude' => 'required|numeric',
-            'foto'      => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
-        ]);
+        // $request->validate([
+        //     'latitude'  => 'required|numeric',
+        //     'longitude' => 'required|numeric',
+        //     'foto'      => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+        // ]);
 
         // Autentikasi user
         if (! $request->user()) {
@@ -140,8 +140,8 @@ class AbsenController extends Controller
             // Absen Keluar
             $absen->update([
                 'jam_keluar'  => now()->format('H:i:s'),
-                'latitude'    => $request->latitude,
-                'longitude'   => $request->longitude,
+                'latitude_k'  => $request->latitude,
+                'longitude_k' => $request->longitude,
                 'foto_keluar' => $fotoPath,
             ]);
 

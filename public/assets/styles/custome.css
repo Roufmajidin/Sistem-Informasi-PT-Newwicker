@@ -1,111 +1,141 @@
-:root {
-  --stickyBackground: #5bc0de;
-  --borderColor: #C9D1DC;
+    :root {
+        --stickyBackground: #5bc0de;
+        --borderColor: #C9D1DC;
+        font-family: 'Poppins', sans-serif;
+
+    }
+
+    body {
+        font-family: 'Poppins', sans-serif;
+    }
+
+    /* Basic styling */
+    .table-wrapper {
+        height: 500px;
+        border: 1px solid var(--borderColor);
+        overflow: auto;
+    }
+
+    table {
+        border-spacing: 0;
+        width: 100%;
+    }
+
+    thead {
+        font-size: 12px;
+        /* text-transform: uppercase; */
+    }
+
+    tbody {
+        font-size: 14px;
+        font-family: 'Poppins', sans-serif;
+
+    }
+
+    th,
+    td {
+        padding: 18px 14px;
+        white-space: nowrap;
+        border-bottom: 1px solid var(--borderColor);
+        position: relative;
+        border: 1px solid var(--borderColor);
+        /* Tambahkan border untuk semua sel */
+        font-family: 'Poppins', sans-serif;
+        font-weight: 100;
+        /* color: white; */
+
+    }
+
+    tr:last-child td {
+        border-bottom: none;
+    }
+
+    /* Sticky header row */
+    tr.sticky-header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        font-family: 'Poppins', sans-serif;
+
+    }
+
+    /* Aktif saat discroll */
+    tr.sticky-header.scrolled {
+        background: var(--stickyBackground);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    }
+
+    /* Sticky first column */
+    th.sticky {
+        position: sticky;
+        left: 0;
+        z-index: 5;
+        background: #2e3e4e ;
+        transition: background 0.3s ease;
+    }
+
+    td.sticky {
+        position: sticky;
+        left: 0;
+        z-index: 5;
+        background: white;
+        transition: background 0.3s ease;
+
+    }
+
+    /* Aktifkan warna saat scroll juga */
+    tr.sticky-header.scrolled th.sticky,
+    tr.sticky-header.scrolled td.sticky {
+        background: var(--stickyBackground);
+    }
+
+    /* Shadow effect */
+    th.sticky::after,
+    td.sticky::after {
+        content: "";
+        position: absolute;
+        right: -6px;
+        top: 0;
+        bottom: -1px;
+        width: 5px;
+        /* border-left: 1px solid var(--borderColor); */
+        background: linear-gradient(90deg, rgba(0, 0, 0, 0.08) 0%, rgba(0, 0, 0, 0) 100%);
+    }
+
+    th.sticky::before,
+    td.sticky::before {
+        content: "";
+        /* position: absolute;
+    left: -6px;
+    top: 0;
+    bottom: -1px;
+    width: 5px; */
+
+        border-right: 1px solid var(--borderColor);
+        background: #2e3e4e ;
+
+    }
+
+    thead tr.sticky-header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: #2e3e4e ;
+    }
+
+    .small-font-table {
+        font-size: 10px;
+    }
+.editable-picture_of_accessories {
+  text-decoration: none !important;
 }
-
-/* Basic styling */
-.table-wrapper {
-  height: 320px;
-  border: 1px solid var(--borderColor);
-  overflow: auto;
+a.editable,
+a[class^="editable-"],
+a[class*=" editable-"] {
+  text-decoration: none !important;
+  border-bottom: none !important;
 }
-
-table {
-  border-spacing: 0;
-  width: 100%;
+.editable-input-lg {
+    width: 300px;/* ubah sesuai kebutuhan */
+    max-width: 100%;
 }
-
-thead {
-  font-size: 12px;
-  text-transform: uppercase;
-}
-
-tbody {
-  font-size: 14px;
-}
-
-th, td {
-  padding: 18px 14px;
-  white-space: nowrap;
-  border-bottom: 1px solid var(--borderColor);
-  position: relative;
-    border: 1px solid var(--borderColor); /* Tambahkan border untuk semua sel */
-
-}
-
-tr:last-child td {
-  border-bottom: none;
-}
-
-/* Sticky header row */
-tr.sticky-header {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-/* Aktif saat discroll */
-tr.sticky-header.scrolled {
-  background: var(--stickyBackground);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
-}
-
-/* Sticky first column */
-th.sticky {
- position: sticky;
-  left: 0;
-  z-index: 5;
-  background: #6887ff;
-  transition: background 0.3s ease;
-}
-td.sticky {
-    position: sticky;
-  left: 0;
-  z-index: 5;
-  background: white;
-  transition: background 0.3s ease;
-
-}
-
-/* Aktifkan warna saat scroll juga */
-tr.sticky-header.scrolled th.sticky,
-tr.sticky-header.scrolled td.sticky {
-  background: var(--stickyBackground);
-}
-
-/* Shadow effect */
-th.sticky::after,
-td.sticky::after {
-  content: "";
-  position: absolute;
-  right: -6px;
-  top: 0;
-  bottom: -1px;
-  width: 5px;
-  /* border-left: 1px solid var(--borderColor); */
-  background: linear-gradient(90deg, rgba(0, 0, 0, 0.08) 0%, rgba(0, 0, 0, 0) 100%);
-}
-
-th.sticky::before,
-td.sticky::before {
-  content: "";
-  /* position: absolute;
-  left: -6px;
-  top: 0;
-  bottom: -1px;
-  width: 5px; */
-
-  border-right: 1px solid var(--borderColor);
-  background: #6887ff;
-
-}
-
-thead tr.sticky-header {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: #6887ff;
-}
-.small-font-table {
-    font-size: 10px;
-  }

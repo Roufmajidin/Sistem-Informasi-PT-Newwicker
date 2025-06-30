@@ -33,6 +33,7 @@
     <!-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.3/css/bootstrap.min.css" /> -->
     <!-- <link href="{{asset('assets/editable/css/bootstrap.min.css')}}}}" rel="stylesheet"> -->
     <script src="{{asset('assets/editable/js/bootstrap.min.js')}}"></script>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
 </head>
 
@@ -167,6 +168,11 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
 
             <!-- endbuild -->
+             <!-- <link href="{{asset('assets/edit/bootstrap/css/bootstrap.css')}}" rel="stylesheet"> -->
+<!-- <script src="{{asset('assets/edit/jquery/jquery-1.8.2.min.js')}}"></script> -->
+<!-- <script src="{{asset('assets/edit/bootstrap-editable/js/bootstrap-editable.min.js')}}"></script> --> -->
+<!-- <script src="{{asset('assets/edit/bootstrap/js/bootstrap.min.js')}}"></script>
+<link href="{{asset('assets/edit/bootstrap-editable/css/bootstrap-editable.css')}}" rel="stylesheet">
 </body>
 
 </html>

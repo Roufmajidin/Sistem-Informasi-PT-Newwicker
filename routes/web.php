@@ -30,6 +30,7 @@ Route::post('/karyawan/check-existing-names', [KaryawanController::class, 'check
 Route::post('/karyawan/bulk-save', [KaryawanController::class, 'bulkSave'])->name('karyawan.bulk_save');
 Route::post('/absen/update', [KaryawanController::class, 'updateAbsen'])->name('absen.update');
 Route::get('/absen/filter', [KaryawanController::class, 'filter'])->name('absen.filter');
+Route::get('/absen/new', [KaryawanController::class, 'new'])->name('absen.new');
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout']);

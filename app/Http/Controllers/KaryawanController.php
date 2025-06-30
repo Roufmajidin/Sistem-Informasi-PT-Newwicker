@@ -9,7 +9,6 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
-use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
 class KaryawanController extends Controller
 {
@@ -98,6 +97,8 @@ class KaryawanController extends Controller
                     continue;
                 }
                 // skip header
+                $tanggal = Date::excelToDateTimeObject($row[11])->format('Y-m-d');
+
                 $data[] = [
                     'nama_lengkap'         => $row[1],
                     'nik'                  => $row[2],
@@ -108,10 +109,9 @@ class KaryawanController extends Controller
                     'divisi'               => $row[8],
                     'status_karyawan'      => $row[9],
                     'lokasi'               => $row[10],
-                    'tanggal_join'         => is_numeric($row[11])
-                    ? Carbon::instance(ExcelDate::excelToDateTimeObject($row[11]))->format('Y-m-d')
-                    : $row[11],
+                    'tanggal_join'         => $row[11] == null ? '' : $tanggal,
                 ];
+
             }
             // Log::info('Import triggered', $data);
 
@@ -145,49 +145,76 @@ class KaryawanController extends Controller
 
         return response()->json($found);
     }
+
     public function bulkSave(Request $request)
     {
         $rows     = $request->input('rows', []);
         $inserted = [];
+        $updated  = [];
 
         foreach ($rows as $row) {
-            if (empty($row['nama_lengkap'])) {
+            if (empty($row['nama_lengkap']) || empty($row['nik'])) {
                 continue;
             }
 
-            $exists = Karyawan::where('nama_lengkap', 'like', '%' . $row['nama_lengkap'] . '%')->exists();
-            if ($exists) {
-                continue;
+            // Pisahkan tempat dan tanggal lahir
+            $tempat_lahir  = null;
+            $tanggal_lahir = null;
+
+            if (! empty($row['tempat_tanggal_lahir']) && str_contains($row['tempat_tanggal_lahir'], ',')) {
+                [$tempat_lahir, $tanggal_lahir] = array_map('trim', explode(',', $row['tempat_tanggal_lahir'], 2));
+                try {
+                    $tanggal_lahir = Carbon::parse($tanggal_lahir)->format('Y-m-d');
+                } catch (\Exception $e) {
+                    $tanggal_lahir = null;
+                }
             }
 
-            $inserted[] = Karyawan::create([
-                'nama_lengkap'      => $row['nama_lengkap'],
-                'nik'               => $row['nik'],
-                'jenis_kelamin'     => $row['jenis_kelamin'],
-                'tempat'            => explode(',', $row['tempat_tanggal_lahir'])[0] ?? null,
-                'tanggal_lahir'     => explode(',', $row['tempat_tanggal_lahir'])[1] ?? null,
-                'alamat'            => $row['alamat'],
-                'status_perkawinan' => $row['status_perkawinan'],
-                'divisi_id'         => $row['divisi'],
-                'status'            => $row['status_karyawan'],
-                'lokasi'            => $row['lokasi'],
-                'tanggal_join'      => (function ($tgl) {
-                    if (is_numeric($tgl)) {
-                        return Date::excelToDateTimeObject($tgl)->format('Y-m-d');
-                    }
-                    try {
-                        return Carbon::parse($tgl)->format('Y-m-d');
-                    } catch (\Exception $e) {
-                        return null;
-                    }
-                })($row['tanggal_join'] ?? null)]);
+            // Format tanggal join
+            $tanggal_join = (function ($tgl) {
+                if (is_numeric($tgl)) {
+                    return Date::excelToDateTimeObject($tgl)->format('Y-m-d');
+                }
+                try {
+                    return Carbon::parse($tgl)->format('Y-m-d');
+                } catch (\Exception $e) {
+                    return null;
+                }
+            })($row['tanggal_join'] ?? null);
+
+            $karyawan = Karyawan::updateOrCreate(
+                ['nik' => $row['nik']],
+                [
+                    'nama_lengkap'      => $row['nama_lengkap'],
+                    'jenis_kelamin'     => $row['jenis_kelamin'],
+                    'tempat'            => $tempat_lahir,
+                    'tanggal_lahir'     => $tanggal_lahir,
+                    'alamat'            => $row['alamat'],
+                    'status_perkawinan' => $row['status_perkawinan'],
+                    'divisi_id'         => $row['divisi'],
+                    'status'            => $row['status_karyawan'],
+                    'lokasi'            => $row['lokasi'],
+                    'tanggal_join'      =>$row['tanggal_join'] == null ? '' : $tanggal_join
+                ]
+            );
+
+            if ($karyawan->wasRecentlyCreated) {
+                $inserted[] = $karyawan;
+            } else {
+                $updated[] = $karyawan;
+            }
         }
 
         return response()->json([
-            'success'  => true,
-            'inserted' => count($inserted),
+            'success'       => true,
+            'inserted'      => count($inserted),
+            'updated'       => count($updated),
+            'updated_niks'  => array_column($updated, 'nik'),
+            'inserted_niks' => array_column($inserted, 'nik'),
+
         ]);
     }
+
     public function scan()
     {
         return view('pages.karyawan.scan');
@@ -215,19 +242,32 @@ class KaryawanController extends Controller
         return redirect()->back()->with('success', 'Status absen diperbarui.');
     }
 
-  public function filter(Request $request)
-{
-    $month = $request->month ?? now()->month;
-    $year = $request->year ?? now()->year;
-    $daysInMonth = Carbon::createFromDate($year, $month)->daysInMonth;
+    public function filter(Request $request)
+    {
+        $month       = $request->month ?? now()->month;
+        $year        = $request->year ?? now()->year;
+        $daysInMonth = Carbon::createFromDate($year, $month)->daysInMonth;
 
-    $karyawans = User::with('absens')->get();
+        $karyawans = User::with('absens')->get();
 
-    // Gunakan view string (tanpa partial) — render langsung sebagai string
-    $html = view('pages.karyawan.absen-table', compact('karyawans', 'month', 'year', 'daysInMonth'))->render();
+        // Gunakan view string (tanpa partial) — render langsung sebagai string
+        $html = view('pages.karyawan.absen-table', compact('karyawans', 'month', 'year', 'daysInMonth'))->render();
 
-    return response()->json(['html' => $html]);
-}
+        return response()->json(['html' => $html]);
+    }
+    public function new ()
+    {
+        //
 
+        // $karyawans = User::with(['absens','karyawan'])->get();
+        // $today = Carbon::today()->toDateString();
+        $today = '2025-06-26';
 
+        $karyawans = User::with(['absens' => function ($query) use ($today) {
+            $query->whereDate('tanggal', $today);
+        }, 'karyawan'])->get();
+
+        // dd($karyawans);
+        return view('pages.karyawan.absens', compact('karyawans'));
+    }
 }

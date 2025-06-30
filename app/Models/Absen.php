@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
@@ -14,6 +13,8 @@ class Absen extends Model
         'keterangan',
         'latitude',
         'longitude',
+        'latitude_k',
+        'longitude_k',
         'foto',
         'foto_keluar',
     ];

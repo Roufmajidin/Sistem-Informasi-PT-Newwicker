@@ -19,7 +19,7 @@
                 <table>
                     <thead style="background-color:#5bc0de">
 
-                        <tr class="sticky-header" style="font-size: 12px;">
+                        <tr class="sticky-header" style="font-size: 12px;color:white">
                             <th>No.</th>
                             <th>Photo</th>
                             <th>buyer_s_code</th>
@@ -89,7 +89,7 @@
                                 </a>
                             </td>
                             <td class="sticky" style="font-size: 10px;">
-                                <a href="#" class="editable-description" data-name="description" data-pk="{{ $i->id }}" data-type="text" data-url="/buyers/update" data-title="Enter Description">
+                                <a href="#" class="editable-description " data-name="description" data-pk="{{ $i->id }}" data-type="text" data-url="/buyers/update" data-title="Enter Description">
                                     {{ $i->description ?: '-' }}
                                 </a>
                             </td>
@@ -181,7 +181,7 @@
                                 </a>
                             </td>
                             <td style="font-size: 10px;">
-                                <a href="#" class="editable-picture_of_accessories" data-name="picture_of_accessories" data-pk="{{ $i->id }}" data-type="text" data-url="/buyers/update" data-title="Enter Accessories Picture">
+                                <a  href="#" class="editable-picture_of_accessories" data-name="picture_of_accessories" data-pk="{{ $i->id }}" data-type="text" data-url="/buyers/update" data-title="Enter Accessories Picture">
                                     {{ $i->picture_of_accessories ?: '-' }}
                                 </a>
                             </td>

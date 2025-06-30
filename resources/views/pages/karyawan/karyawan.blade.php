@@ -80,24 +80,24 @@
         </div>
     </div>
     <!-- Modal hasil import -->
-<div class="modal fade" id="importResultModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Hasil Import</h5>
-                <button type="button" class="close" data-dismiss="modal">
-                    <span>&times;</span>
-                </button>
-            </div>
-            <div class="modal-body" id="resultTableBody">
+    <div class="modal fade" id="importResultModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Hasil Import</h5>
+                    <button type="button" class="close" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" id="resultTableBody">
 
-            </div>
-            <div class="text-right mb-2 mr-2">
-                <button class="btn btn-sm btn-success" id="btnBulkSave">Simpan Data Baru</button>
+                </div>
+                <div class="text-right mb-2 mr-2">
+                    <button class="btn btn-sm btn-success" id="btnBulkSave">Simpan Data Baru</button>
+                </div>
             </div>
         </div>
     </div>
-</div>
 </div>
 
 
@@ -106,6 +106,8 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+    let highlightedNiks = [];
+
     let globalRows = [];
     let globalExistingNames = [];
     $(document).ready(function() {
@@ -209,44 +211,35 @@
         }
 
     })
-    $('#btnBulkSave').on('click', function() {
-        if (!globalRows.length) return;
+    $('#btnBulkSave').on('click', function () {
+    if (!globalRows.length) {
+        alert("Tidak ada data untuk disimpan.");
+        return;
+    }
 
-        const filtered = globalRows.filter(row => {
-            if (!row.nama_lengkap) return false;
-
-            return !globalExistingNames.some(dbName =>
-                dbName.toLowerCase().includes(row.nama_lengkap.toLowerCase())
-            );
-        });
-
-        if (filtered.length === 0) {
-            alert("Semua data sudah ada, tidak ada yang disimpan.");
-            return;
-        }
-
-        $.ajax({
-            url: '{{ route("karyawan.bulk_save") }}',
-            method: 'POST',
-            data: {
-                _token: '{{ csrf_token() }}',
-                rows: filtered
-            },
-            success: function(res) {
-                if (res.success) {
-                    alert('Data berhasil disimpan!');
-                    $('#importResultModal').modal('hide');
-                    location.reload();
-                } else {
-                    alert('Gagal simpan: ' + (res.message || ''));
-                }
-            },
-            error: function(xhr) {
-                alert('Gagal simpan. Status: ' + xhr.status);
-                console.error(xhr.responseText);
+    $.ajax({
+        url: '{{ route("karyawan.bulk_save") }}',
+        method: 'POST',
+        data: {
+            _token: '{{ csrf_token() }}',
+            rows: globalRows // kirim semua, backend akan filter dan update
+        },
+        success: function (res) {
+            if (res.success) {
+                alert(`${res.inserted} data ditambahkan, ${res.updated} data diperbarui.`);
+                $('#importResultModal').modal('hide');
+                location.reload();
+            } else {
+                alert('Gagal simpan: ' + (res.message || ''));
             }
-        });
+        },
+        error: function (xhr) {
+            alert('Gagal simpan. Status: ' + xhr.status);
+            console.error(xhr.responseText);
+        }
     });
+});
+
 </script>
 
 

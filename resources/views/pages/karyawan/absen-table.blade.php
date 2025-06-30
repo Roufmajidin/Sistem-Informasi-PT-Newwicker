@@ -1,6 +1,6 @@
 <table class="table table-bordered">
     <thead style="color:white">
-        <tr class="sticky-header" style="font-size: 12px;">
+        <tr class="sticky-header">
             <th>No.</th>
             <th class="sticky">Nama Lengkap</th>
             <th>Status</th>
