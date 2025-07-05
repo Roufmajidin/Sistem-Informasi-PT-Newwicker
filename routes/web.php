@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\KaryawanController;
 use App\Http\Controllers\MarketingController;
 use App\Http\Controllers\pdfController;
@@ -10,6 +11,9 @@ Route::get('/', function () {
     return view('master.master');
 });
 Route::get('/marketing', [MarketingController::class, 'index'])->name('marketing.index');
+Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory.index');
+Route::post('/inventory-inline-update', [InventoryController::class, 'update']);
+
 Route::get('/marketing/pfi', [MarketingController::class, 'pfi'])->name('marketing.pfi');
 Route::get('/marketing/buyers_list', [MarketingController::class, 'buyyerList']);
 Route::get('/buyers/search', [MarketingController::class, 'search'])->name('buyers.search');

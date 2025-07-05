@@ -194,12 +194,24 @@ class KaryawanController extends Controller
                     'divisi_id'         => $row['divisi'],
                     'status'            => $row['status_karyawan'],
                     'lokasi'            => $row['lokasi'],
-                    'tanggal_join'      =>$row['tanggal_join'] == null ? '' : $tanggal_join
+                    'tanggal_join'      => $row['tanggal_join'] == null ? '' : $tanggal_join,
                 ]
             );
 
             if ($karyawan->wasRecentlyCreated) {
                 $inserted[] = $karyawan;
+
+                $namaDepan = explode(' ', trim($karyawan->nama_lengkap))[0];
+                $email     = strtolower($namaDepan) . '@gmail.com';
+
+                if (! User::where('email', $email)->exists()) {
+                    User::create([
+                        'name'        => $karyawan->nama_lengkap,
+                        'email'       => $email,
+                        'password'    => bcrypt($namaDepan),
+                        'karyawan_id' => $karyawan->id,
+                    ]);
+                }
             } else {
                 $updated[] = $karyawan;
             }
