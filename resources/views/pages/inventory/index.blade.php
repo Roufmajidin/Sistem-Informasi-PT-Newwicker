@@ -92,9 +92,16 @@
                                 </a>
                             </td>
                             <td>
-                                <a href="#" class="editable-foto" data-name="foto" data-pk="{{ $i->id }}" data-type="text" data-url="/inventory-inline-update" data-title="Enter foto">
-                                    {{ $i->foto }}
+                                <a href="#" class="upload-foto" data-id="{{ $i->id }}">
+                                    @if ($i->foto)
+                                    <img src="{{ asset('storage/foto_inventory/' . $i->foto) }}" height="30">
+                                    @else
+                                    <span>Pilih Gambar</span>
+                                    @endif
                                 </a>
+
+                                <input type="file" accept="image/*" class="input-foto d-none" id="foto-input-{{ $i->id }}" data-id="{{ $i->id }}">
+
                             </td>
 
                         </tr>
@@ -131,10 +138,44 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+    $.ajaxSetup({
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        }
+    });
 
+    $(document).ready(function() {
+        $('.upload-foto').on('click', function(e) {
+            e.preventDefault();
+            var id = $(this).data('id');
+            $('#foto-input-' + id).click();
+        });
 
+        $('.input-foto').on('change', function() {
+            var id = $(this).data('id');
+            var fileInput = this;
+
+            var formData = new FormData();
+            formData.append('foto', fileInput.files[0]);
+
+            $.ajax({
+                url: '/inventory/' + id + '/upload-foto',
+                method: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(res) {
+                    if (res.success) {
+                        location.reload();
+                    }
+                },
+                error: function(xhr) {
+                    alert('Upload gagal: ' + xhr.responseText);
+                }
+            });
+        });
+    });
 </script>
-
 
 <script>
     document.addEventListener("DOMContentLoaded", function() {

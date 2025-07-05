@@ -1,9 +1,9 @@
 <?php
-
 namespace App\Http\Controllers;
 
 use App\Models\Inventory;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class InventoryController extends Controller
 {
@@ -68,6 +68,38 @@ class InventoryController extends Controller
         return response()->json([
             'status' => 'success',
             'msg'    => 'Data berhasil diupdate.',
+        ]);
+    }
+    public function uploadFoto(Request $request, $id)
+    {
+        $request->validate([
+            'foto' => 'required|image|mimes:jpg,jpeg,png|max:2048',
+        ]);
+
+        $inventory = \App\Models\Inventory::findOrFail($id);
+
+        $file         = $request->file('foto');
+        $fileBaseName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+        $extension    = $file->getClientOriginalExtension();
+
+        $directory = storage_path('app/public/foto_inventory');
+        if (! file_exists($directory)) {
+            mkdir($directory, 0777, true);
+        }
+
+        $filename = time() . '-' . Str::slug($fileBaseName) . '.' . $extension;
+        $path     = $directory . '/' . $filename;
+
+        $imageContents = file_get_contents($file->getRealPath());
+        file_put_contents($path, $imageContents);
+
+        $inventory->foto = $filename;
+        $inventory->save();
+
+        return response()->json([
+            'success'  => true,
+            'filename' => $filename,
+            'url'      => asset('storage/foto_inventory/' . $filename),
         ]);
     }
 

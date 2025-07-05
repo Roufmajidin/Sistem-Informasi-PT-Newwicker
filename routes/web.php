@@ -13,6 +13,7 @@ Route::get('/', function () {
 Route::get('/marketing', [MarketingController::class, 'index'])->name('marketing.index');
 Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory.index');
 Route::post('/inventory-inline-update', [InventoryController::class, 'update']);
+Route::post('/inventory/{id}/upload-foto', [InventoryController::class, 'uploadFoto'])->name('inventory.uploadFoto');
 
 Route::get('/marketing/pfi', [MarketingController::class, 'pfi'])->name('marketing.pfi');
 Route::get('/marketing/buyers_list', [MarketingController::class, 'buyyerList']);
