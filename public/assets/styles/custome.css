@@ -11,7 +11,7 @@
 
     /* Basic styling */
     .table-wrapper {
-        height: 500px;
+        height: 400px;
         border: 1px solid var(--borderColor);
         overflow: auto;
     }
