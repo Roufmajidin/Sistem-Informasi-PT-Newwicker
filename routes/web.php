@@ -26,6 +26,9 @@ Route::post('/pdf-to-excel', [PdfController::class, 'convert'])->name('pdf.conve
 Route::post('/productss/import', [MarketingController::class, 'importb'])->name('products.importb');
 Route::post('/productss/importImage', [MarketingController::class, 'importImage'])->name('products.importImage');
 Route::post('/marketing/items/update', [MarketingController::class, 'update'])->name('marketing.items.update');
+Route::get('/marketing/scan/{id}', [MarketingController::class, 'scan'])->name('marketing.items.scan');
+Route::post('/export-cart', [MarketingController::class, 'export'])->name('cart.export');
+
 Route::post('/buyers/update', [MarketingController::class, 'updateInline']);
 // karyawan routing
 Route::get('/karyawan', [KaryawanController::class, 'index'])->name('karyawan.index');

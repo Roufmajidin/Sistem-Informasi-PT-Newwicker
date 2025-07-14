@@ -9,6 +9,12 @@ use App\Models\Product;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class MarketingController extends Controller
 {
@@ -227,6 +233,187 @@ class MarketingController extends Controller
 
         return redirect()->back()->with('success', 'Produk berhasil diimport!');
     }
+    public function scan($id)
+    {
+        $barang = \App\Models\Barangs::where('article_nr', $id)->first();
+
+        if ($barang) {
+            // dd($barang);
+            return response()->json([
+                'success' => true,
+                'data'    => $barang,
+            ]);
+        } else {
+            return response()->json([
+                'success' => false,
+                'message' => 'Barang tidak ditemukan',
+            ], 404);
+        }
+    }
+    // export
+
+    public function export(Request $request)
+    {
+        $cartItems = json_decode($request->items, true);
+
+        if (empty($cartItems)) {
+            return back()->with('error', 'Data produk kosong.');
+        }
+
+        $spreadsheet = new Spreadsheet();
+        $sheet       = $spreadsheet->getActiveSheet();
+        $spreadsheet->getDefaultStyle()->getFont()->setName('Arial')->setSize(10);
+
+        $sheet->mergeCells('D2:R2')->setCellValue('D2', 'PT. NEWWICKER INDONESIA');
+        $sheet->mergeCells('D3:R3')->setCellValue('D3', 'Jalan Kisaba Lanang RT/RW 019/002 Bode Lor, Plumbon Cirebon 45155 – Indonesia');
+        $sheet->mergeCells('D4:R4')->setCellValue('D4', 'office@newwicker.com | info@newwicker.com | Website : www.newwicker.com');
+        $sheet->getStyle('D2')->getFont()->setBold(true);
+        $sheet->getStyle('D2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $info = [
+            ['Order No.', ': NWS 25 – 39'],
+            ['Company Name', ': PILLOWTALK'],
+            ['Country', ': AUSTRALIA'],
+            ['Shipment Date', ': 1 JULY 2025'],
+            ['Packing', ': Carton Boxes'],
+            ['Contact Person', ':'],
+        ];
+        $sheet->fromArray($info, null, 'B6');
+
+        $sheet->getStyle('C10')->applyFromArray([
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'FFFF00']],
+            'font' => ['bold' => true],
+        ]);
+
+        $sheet->setCellValue('A12', 'No.');
+        $sheet->setCellValue('B12', 'Photo');
+        $sheet->setCellValue('C12', 'Description');
+        $sheet->setCellValue('D12', 'Article Nr.');
+        $sheet->setCellValue('E12', 'Remark');
+        $sheet->setCellValue('F12', 'Cushion');
+        $sheet->setCellValue('G12', 'Glass');
+        $sheet->setCellValue('H12', 'Item Dimention (CM)');
+        $sheet->setCellValue('K12', 'Packing Dimention (CM)');
+        $sheet->setCellValue('N12', 'Composition');
+        $sheet->setCellValue('O12', 'Finishing');
+        $sheet->setCellValue('P12', 'QTY');
+        $sheet->setCellValue('Q12', 'CBM');
+        $sheet->setCellValue('R12', 'FOB JAKARTA IN USD');
+        $sheet->setCellValue('S12', 'Total CBM');
+        $sheet->setCellValue('T12', 'Value in USD');
+
+        $sheet->setCellValue('H13', 'W');
+        $sheet->setCellValue('I13', 'D');
+        $sheet->setCellValue('J13', 'H');
+        $sheet->setCellValue('K13', 'W');
+        $sheet->setCellValue('L13', 'D');
+        $sheet->setCellValue('M13', 'H');
+
+        $merges = [
+            'A12:A13', 'B12:B13', 'C12:C13', 'D12:D13', 'E12:E13', 'F12:F13', 'G12:G13',
+            'H12:J12', 'K12:M12', 'N12:N13', 'O12:O13', 'P12:P13', 'Q12:Q13', 'R12:R13', 'S12:S13', 'T12:T13',
+        ];
+        foreach ($merges as $merge) {
+            $sheet->mergeCells($merge);
+        }
+
+        $sheet->getStyle('A12:T13')->applyFromArray([
+            'font'      => ['bold' => true],
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical'   => Alignment::VERTICAL_CENTER,
+                'wrapText'   => true,
+            ],
+            'borders'   => ['allBorders' => ['borderStyle' => Border::BORDER_HAIR]],
+        ]);
+
+        $sheet->getStyle('R12:R13')->applyFromArray([
+            'fill' => [
+                'fillType'   => Fill::FILL_SOLID,
+                'startColor' => ['rgb' => 'FFFF00'],
+            ],
+        ]);
+
+        $row = 14;
+        foreach ($cartItems as $index => $item) {
+            $sheet->fromArray([
+                $index + 1,
+                '',
+                $item['description'] ?? '-',
+                $item['article_nr'] ?? '-',
+                $item['remark'] ?? '-',
+                $item['cushion'] ?? '-',
+                $item['glass_orMirror'] ?? '-',
+                $item['w'] ?? '-',
+                $item['d'] ?? '-',
+                $item['h'] ?? '-',
+                $item['pw'] ?? '-',
+                $item['pd'] ?? '-',
+                $item['ph'] ?? '-',
+                $item['materials'] ?? '-',
+                $item['finishes_color'] ?? '-',
+                $item['qty'] ?? 0,
+                $item['cbm'] ?? '0.00',
+                $this->idr($item['usd_selling_price']),
+                $item['total_cbm'] ?? '0.00',
+                $this->idr($item['value_in_usd'] ?? 0),
+            ], null, 'A' . $row);
+
+            if (! empty($item['photo'])) {
+                $drawing = new Drawing();
+                $drawing->setPath(public_path('storage/' . $item['photo']));
+                $drawing->setHeight(60);
+                $drawing->setCoordinates('B' . $row);
+                $drawing->setWorksheet($sheet);
+                $sheet->getRowDimension($row)->setRowHeight(45);
+            }
+
+            $sheet->getStyle("A{$row}:T{$row}")->applyFromArray([
+                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_HAIR]],
+            ]);
+
+            $row++;
+        }
+
+        $columnWidths = [
+            'A' => 4, 'B'  => 15, 'C' => 16, 'D' => 16,
+            'E' => 16, 'F' => 16, 'G' => 10,
+            'H' => 4, 'I'  => 4, 'J'  => 4,
+            'K' => 4, 'L'  => 4, 'M'  => 4,
+            'N' => 16, 'O' => 16,
+            'P' => 6, 'Q'  => 10,
+            'R' => 10, 'S' => 10, 'T' => 14,
+        ];
+        foreach ($columnWidths as $col => $width) {
+            $sheet->getColumnDimension($col)->setWidth($width);
+        }
+
+        $sheet->getStyle("C14:C{$row}")->getAlignment()->setWrapText(true);
+        $sheet->getStyle("E14:E{$row}")->getAlignment()->setWrapText(true);
+        $sheet->getStyle("F14:F{$row}")->getAlignment()->setWrapText(true);
+        $sheet->getStyle("C14:F{$row}")->getAlignment()->setVertical(Alignment::VERTICAL_TOP);
+        $sheet->getStyle("C14:F{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+
+        for ($r = 14; $r < $row; $r++) {
+            if (empty($cartItems[$r - 14]['photo'])) {
+                $sheet->getRowDimension($r)->setRowHeight(-1);
+            }
+        }
+
+        $writer   = new Xlsx($spreadsheet);
+        $filename = 'export_cart.xlsx';
+
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    private function idr($usd)
+    {
+        return number_format(floatval($usd) * 16000, 0, ',', '.');
+    }
 
     public function create()
     {
@@ -279,7 +466,7 @@ class MarketingController extends Controller
             'weight_capacity', 'finishes_color', 'usd_selling_price',
             'packing_dimention', 'nw', 'gw', 'cbm', 'accessories',
             'picture_of_accessories', 'finish_steps', 'harga_supplier',
-            'loadability', 'electricity', 'comment_visit','w','d','h'
+            'loadability', 'electricity', 'comment_visit', 'w', 'd', 'h',
         ];
 
         if (! in_array($field, $allowed)) {

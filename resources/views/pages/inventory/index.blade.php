@@ -6,8 +6,11 @@
         <div class="p-a white lt box-shadow">
             <div class="row">
                 <div class="col-sm-6">
-                    <h4 class="mb-0 _300">List Inventory</h4>
-                    <small class="text-muted">PT. Newwicker Indonesia</small>
+                    <!-- <h6 class="mb-0 _300">List Inventory</h6> -->
+                    <smal class="text-muted">List Inventory</small>
+                    <br>
+                              <small class="text-danger">Dobule   &lt;klik>, untuk mengupdate data.</small>
+
                 </div>
 
                 <div class="col-sm-6 text-sm-right">

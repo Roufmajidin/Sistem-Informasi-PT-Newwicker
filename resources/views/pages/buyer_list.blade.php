@@ -23,7 +23,7 @@
                             <th rowspan="2">Buyers Name</th>
                             <th rowspan="2">Status</th>
                             <th rowspan="2">Updated At</th>
-                            <th rowspan="2">Action</th>
+                            <th >Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -134,6 +134,13 @@ document.addEventListener("DOMContentLoaded", function () {
                                 </button>
                             </form>
                         </td>
+                         <td>
+
+                                <a href="/buyers_detail/${item.id}">
+
+                                    <i class="fa - fa-external-link"></i>
+                                </a>
+                            </td>
                     </tr>`;
                 });
                 $('#buyersTable tbody').html(tbody);

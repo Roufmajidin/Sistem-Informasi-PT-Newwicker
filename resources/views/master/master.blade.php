@@ -11,12 +11,14 @@
     <!-- for ios 7 style, multi-resolution icon of 152x152 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-barstyle" content="black-translucent">
-    <link rel="apple-touch-icon" href="{{asset('assets/images/logo.png')}}">
+    <link rel="apple-touch-icon" href="{{asset('assets/images/NEWWICKER WHITE.png')}}">
     <meta name="apple-mobile-web-app-title" content="Flatkit">
     <!-- for Chrome on Android, multi-resolution icon of 196x196 -->
     <meta name="mobile-web-app-capable" content="yes">
-    <link rel="shortcut icon" sizes="196x196" href="{{asset('assets/images/logo.png')}}">
+    <link rel="shortcut icon" href="{{asset('assets/images/newwicker.jpg')}}">
 <meta name="csrf-token" content="{{ csrf_token() }}">
+<link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+
 
     <!-- style -->
     <link rel="stylesheet" href="{{asset('assets/animate.css/animate.min.css')}}" type="text/css" />
@@ -63,10 +65,9 @@
                         <ul class="nav navbar-nav mr-auto">
                             <li class="nav-item dropdown">
                                 <a class="nav-link" href data-toggle="dropdown">
-                                    <i class="fa fa-fw fa-plus text-muted"></i>
-                                    <span>New</span>
+                                    <!-- <i class="fa fa-fw fa-info text-muted"></i> -->
+                                    <span>System Informasi PT Newwicker Indonesia</span>
                                 </a>
-                                <div ui-include="'../views/blocks/dropdown.new.html'"></div>
                             </li>
                         </ul>
 
@@ -126,6 +127,7 @@
             <!-- build:js scripts/app.html.js -->
             <!-- jQuery -->
             <!-- jQuery -->
+
             <script src="//cdnjs.cloudflare.com/ajax/libs/x-editable/1.5.0/bootstrap3-editable/js/bootstrap-editable.min.js"></script>
             <script src="{{asset('assets/libs/jquery/jquery/dist/jquery.js')}}"></script>
             <!-- Bootstrap -->
@@ -166,13 +168,12 @@
     <script src="//cdnjs.cloudflare.com/ajax/libs/x-editable/1.5.0/jquery-editable/js/jquery-editable-poshytip.min.js"></script>
     <script src="{{asset('assets/main.js')}}"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
-            <!-- endbuild -->
-             <!-- <link href="{{asset('assets/edit/bootstrap/css/bootstrap.css')}}" rel="stylesheet"> -->
-<!-- <script src="{{asset('assets/edit/jquery/jquery-1.8.2.min.js')}}"></script> -->
-<!-- <script src="{{asset('assets/edit/bootstrap-editable/js/bootstrap-editable.min.js')}}"></script> --> -->
-<!-- <script src="{{asset('assets/edit/bootstrap/js/bootstrap.min.js')}}"></script>
-<link href="{{asset('assets/edit/bootstrap-editable/css/bootstrap-editable.css')}}" rel="stylesheet">
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+
+                 @stack('scripts')
+
 </body>
 
 </html>

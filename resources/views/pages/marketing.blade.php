@@ -4,204 +4,300 @@
 <div class="padding">
 
     <div class="box">
-        <div class="box-header">
-            <h2>PFI Bank</h2>
-            <small>Bank Data PFI Rodiyah</small>
+    <div class="box-header">
+        <div class="row align-items-center">
+            <div class="col-sm-6">
+                <h2 class="mb-0">PFI Bank</h2>
+                <small>Bank Data PFI Rodiyah</small>
+            </div>
+            <div class="col-sm-6 text-right">
+                <label id="scan-again-btn" class="btn btn-sm btn-primary">Scan</label>
+            </div>
         </div>
-        <form action="{{ route('pdf.to.excel') }}" method="POST" enctype="multipart/form-data">
-            @csrf
-            <label for="pdf">Upload PDF:</label>
-            <input type="file" name="pdf" id="pdf" accept="application/pdf" required>
-            <button type="submit">Convert to Excel</button>
-        </form>
-        <div class="container mt-4">
-            <div class="row">
-                <div class="col-lg-12">
-                    <form action="{{ route('products.import') }}" method="POST" enctype="multipart/form-data">
-                        @csrf
+    </div>
 
-                        <input type="file" name="file" id="fileInput" class="btn btn-sm btn-info pull-right hidden-print" required>
-                        <div class="form-group">
-                            <label for="file">Import Excel File</label>
+
+
+        <!-- 01 -->
+        <div style="display: flex; justify-content: center;">
+            <div id="reader" style="width: 300px;"></div>
+        </div>
+        <div class="container">
+            <div class="card">
+                <div class="card-body">
+
+                    <div class="row">
+                        <div class="col-lg-5 col-md-3 col-sm-6">
+                            <img id="product-image" src="" alt="Product Image" class="img-responsive">
                         </div>
+                        <div class="col-lg-7 col-md-7 col-sm-6">
+                            <h4 class="box-title mt-5">Product description</h4>
+                            <p>Lorem Ipsum available,but the majority have suffered alteration in some form,by injected humour,or randomised words which don't look even slightly believable.but the majority have suffered alteration in some form,by injected humour</p>
+                            <h2 class="mt-5">
+                                $153<small class="text-success">(36%off)</small>
+                            </h2>
+                            <button class="btn btn-primary btn-rounded" onclick="addToCart()">Add to cart</button>
+                            <i class="fa fa-shopping-cart"></i>
+                            </button>
 
-                        <button type="submit" id="importBtn" class="btn btn-sm btn-info pull-right hidden-print2" style="display: none;">
-                            Import Excel
-                        </button>
-                    </form>
+                        </div>
+                        <div class="col-lg-12 col-md-12 col-sm-12">
+                            <h3 class="box-title mt-5">General Info</h3>
+                            <div class="table-responsive">
+                                <table class="table table-striped table-product">
+                                    <tbody>
+                                        <tr>
+                                            <td width="390">description</td>
+                                            <td id="td-description">-</td>
+                                        </tr>
+                                        <tr>
+                                            <td>articl nr</td>
+                                            <td id="td-article-nr">-</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Remark</td>
+                                            <td id="td-remark">-</td>
+                                        </tr>
+                                        <tr>
+                                            <td>cushion</td>
+                                            <td id="td-cushion">-</td>
+                                        </tr>
+                                        <tr>
+                                            <td>glass</td>
+                                            <td id="td-glass">-</td>
+                                        </tr>
+                                        <tr>
+                                            <td>item dimension</td>
+                                            <td id="td-item-dimension">W: - D: - H: -</td>
+                                        </tr>
+                                        <tr>
+                                            <td>packing dimention</td>
+                                            <td id="td-packing-dimension">W: - D: - H: -</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Materials</td>
+                                            <td id="td-material">-</td>
+                                        </tr>
+                                        <tr>
+                                            <td>composition</td>
+                                            <td id="td-composition">-</td>
+                                        </tr>
+                                        <tr>
+                                            <td>finishing</td>
+                                            <td id="td-finishing">-</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Value in IDR</td>
+                                            <td id="td-value-idr">-</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <form action="{{ route('products.importb') }}" method="POST" enctype="multipart/form-data">
+            </div>
+        </div>
+<form id="exportForm" method="POST" action="{{ route('cart.export') }}">
     @csrf
-    <input type="file" name="file" accept=".csv">
-    <button type="submit">Import CSV</button>
+    <input type="hidden" name="items" id="itemsInput">
+    <button type="submit" class="btn btn-success btn-sm mb-3">Export to Excel</button>
 </form>
-
-            </div>
+        <div class="table-responsive" id="table-expor">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>No.</th>
+                        <th>Photo</th>
+                        <th>Description</th>
+                        <th>Article Nr.</th>
+                        <th>Remark</th>
+                        <th>Cushion</th>
+                        <th>Glass</th>
+                        <th>W</th>
+                        <th>D</th>
+                        <th>H</th>
+                        <th>PW</th>
+                        <th>PD</th>
+                        <th>PH</th>
+                        <th>Materials</th>
+                        <th>Finishing</th>
+                        <th>QTY</th>
+                        <th>CBM</th>
+                        <th>Price (IDR)</th>
+                        <th>Total CBM</th>
+                        <th>Value (IDR)</th>
+                    </tr>
+                </thead>
+                <!-- ⬇⬇⬇ Taro tbody DI SINI ⬇⬇⬇ -->
+                <tbody id="product-table-body">
+                    <!-- Row akan ditambahkan di sini via JS -->
+                </tbody>
+            </table>
         </div>
-        <div class="col-12">
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th rowspan="2">No.</th>
-                            <th rowspan="2">Company Name</th>
-                            <th rowspan="2">Country.</th>
-                            <th rowspan="2">Shipment Date</th>
-                            <th rowspan="2">Packing</th>
-                            <th rowspan="2">Contact person</th>
-                            <th rowspan="2">status</th>
-                            <th rowspan="2">View</th>
 
-
-                    </thead>
-                    @php
-                    $no = 1;
-
-                    @endphp
-                    <tbody>
-                        @forelse ($buyer as $item)
-                        <tr>
-                            <td>{{ $no++ }}</td>
-                            <td>{{ ltrim($item->company_name, ': ') }}</td>
-                            <td>{{ ltrim($item->country, ': ') }}</td>
-                            <td>{{ ltrim($item->shipment_date ?? '-', ': ') }}</td>
-                            <td>{{ ltrim($item->packing, ': ') }}</td>
-                            <td>{{ ltrim($item->contact_person, ': ') }}</td>
-                            <td>{{ ltrim($item->sttus, ': ') }}</td>
-                            <td>
-                                <a href="/pvi/  {{$item->id}}" class="btn btn-sm btn-info">PVI</a>
-                            </td>
-                        </tr>
-                        @empty
-                        <tr>
-                            <td colspan="7" class="text-center text-muted">Not yet Order.</td>
-                        </tr>
-                        @endforelse
-
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        <div class="col-12">
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr style="font-size: 12px;">
-                            @php
-                            $showCushion = false;
-                            $showGlass = false;
-
-                            foreach ($products as $product) {
-                            $content = $product->content ?? [];
-                            if (!empty($content['cushion'])) {
-                            $showCushion = true;
-
-                            }
-                            if (!empty($content['glass'])) {
-                            $showGlass = true;
-                            }
-                            if ($showCushion && $showGlass) {
-                            break;
-                            }
-                            }
-                            @endphp
-                            <th rowspan="2">No.</th>
-                            <th rowspan="2">Photo</th>
-                            <th rowspan="2">Description</th>
-                            <th rowspan="2">Article Nr.</th>
-                            <th rowspan="2">Remark</th>
-                            @if($showCushion)
-                            <th rowspan="2">Cushion</th>
-                            @endif
-
-                            @if($showGlass)
-                            <th rowspan="2">Glass</th>
-                            @endif
-                            <th colspan="3" style="font-size: 12px;">Item Dimension</th>
-                            <th colspan="3" style="font-size: 12px;">packing Dimension</th>
-                            <th rowspan="2" style="font-size: 10px;">Composition</th>
-                            <th rowspan="2" style="font-size: 10px;">Finishing</th>
-                            <th rowspan="2" style="font-size: 10px;">QTY</th>
-                            <th rowspan="2" style="font-size: 10px;">CBM</th>
-                            <th style="font-size: 10px;" rowspan="2" class="highlight">EXWORK PRICE IN IDR</th>
-                            <th rowspan="2" style="font-size: 10px;">Total CBM</th>
-                            <th rowspan="2" style="font-size: 10px;">Value in IDR</th>
-                        </tr>
-                        <tr style="font-size: 10px;">
-                            <th>W</th>
-                            <th>D</th>
-                            <th>H</th>
-                            <th>W</th>
-                            <th>D</th>
-                            <th>H</th>
-                        </tr>
-
-                    </thead>
-                    <tbody>
-                        @php $no = 1; @endphp
-                        @foreach($products as $product)
-                        @php $content = $product->content ?? [];
-                        $basePath = 'storage/article/' . $content['article_nr'];
-                        $imagePath = null;
-
-                        if (file_exists(public_path($basePath . '.png'))) {
-                        $imagePath = asset($basePath . '.png');
-                        } elseif (file_exists(public_path($basePath . '.jpg'))) {
-                        $imagePath = asset($basePath . '.jpg');
-                        }
-
-                        @endphp
-                        <tr style="font-size: 10px;">
-                            <td>{{ $no++ }}</td>
-                            <td>
-                                @if($imagePath)
-                                <img src="{{ $imagePath }}" alt="product" width="60">
-                                @else
-                                <span>No image found</span>
-                                @endif
-                            </td>
-                            <td>{{ $content['description'] ?? '-' }}</td>
-                            <td>{{ $content['article_nr'] ?? '-' }}</td>
-                            <td>{{ $content['remark'] ?? '-' }}</td>
-                            @if($showCushion)
-                            <td>{{ $content['cushion'] ?? '-' }}</td>
-                            @endif
-
-                            @if($showGlass)
-                            <td>{{ $content['glass'] ?? '-' }}</td>
-                            @endif
-                            <td>{{ $content['item_dimention__cm_']['w'] ?? '-' }}</td>
-                            <td>{{ $content['item_dimention__cm_']['d'] ?? '-' }}</td>
-                            <td>{{ $content['item_dimention__cm_']['h'] ?? '-' }}</td>
-                            <!-- packing -->
-                            <td>{{ $content['packing_dimention__cm_']['w'] ?? '-' }}</td>
-                            <td>{{ $content['packing_dimention__cm_']['d'] ?? '-' }}</td>
-                            <td>{{ $content['packing_dimention__cm_']['h'] ?? '-' }}</td>
-
-                            <td>{{ $content['composition'] ?? '-' }}</td>
-                            <td>{{ $content['finishing'] ?? '-' }}</td>
-                            <td>{{ $content['qty'] ?? '0' }}</td>
-                            <td>{{ $content['cbm'] ?? '0.00' }}</td>
-                            <td>{{ number_format($content['fob_jakarta_in_usd'] ?? 0, 0, ',', '.') }}</td>
-                            <td>{{ $content['total_cbm'] ?? '0.00' }}</td>
-                            <td>{{ number_format($content['value_in_usd'] ?? 0, 0, ',', '.') }}</td>
-                        </tr>
-                        @endforeach
-                    </tbody>
-
-                </table>
-            </div>
-        </div>
         <div class="col-3"></div>
     </div>
 </div>
 </div>
-
-<script>
-    // Tampilkan tombol hanya setelah file dipilih
-    document.getElementById('fileInput').addEventListener('change', function() {
-        const btn = document.getElementById('importBtn');
-        btn.style.display = this.files.length > 0 ? 'inline-block' : 'none';
-    });
+@push('scripts')
+<!-- exports -->
+ <script>
+document.getElementById('exportForm').addEventListener('submit', function (e) {
+    const input = document.getElementById('itemsInput');
+    input.value = JSON.stringify(cartItems);
+});
 </script>
+<script>
+    document.getElementById("scan-again-btn").addEventListener("click", function () {
+    // Kosongkan elemen reader dulu (jika perlu)
+    document.getElementById("reader").innerHTML = "";
+
+    html5QrcodeScanner = new Html5QrcodeScanner(
+        "reader", {
+            fps: 10,
+            qrbox: {
+                width: 250,
+                height: 250
+            }
+        },
+        false
+    );
+    html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+});
+</script>
+<script>
+    let cartItems = []; // simpan list produk sementara di client
+
+    function addToCart() {
+        if (!window.lastScannedProduct) {
+            alert("Tidak ada produk untuk ditambahkan.");
+            return;
+        }
+
+        const product = window.lastScannedProduct;
+
+        // Cek jika sudah pernah ditambahkan (berdasarkan article_nr)
+        if (cartItems.find(item => item.article_nr === product.article_nr)) {
+            alert("Produk sudah ditambahkan ke cart.");
+            return;
+        }
+
+        cartItems.push(product);
+
+        const row = document.createElement('tr');
+        row.style.fontSize = "10px";
+
+        const imgSrc = product.photo ? `/storage/${product.photo}` : null;
+        const itemW = product.w ?? '-';
+        const itemD = product.d ?? '-';
+        const itemH = product.h ?? '-';
+
+        const packingW = product.pw ?? '-';
+        const packingD = product.pd ?? '-';
+        const packingH = product.ph ?? '-';
+
+        row.innerHTML = `
+        <td>${cartItems.length}</td>
+        <td>${imgSrc ? `<img src="${imgSrc}" alt="product" width="60">` : '<span>No image</span>'}</td>
+        <td>${product.description || '-'}</td>
+        <td>${product.article_nr || '-'}</td>
+        <td>${product.remark || '-'}</td>
+        <td>${product.cushion || '-'}</td>
+        <td>${product.glass_orMirror || '-'}</td>
+        <td>${itemW}</td>
+        <td>${itemD}</td>
+        <td>${itemH}</td>
+        <td>${packingW}</td>
+        <td>${packingD}</td>
+        <td>${packingH}</td>
+        <td>${product.materials || '-'}</td>
+        <td>${product.finishes_color || '-'}</td>
+        <td>${product.qty || 0}</td>
+        <td>${product.cbm || '0.00'}</td>
+        <td>${formatIDR(product.usd_selling_price)}</td>
+        <td>${product.total_cbm || '0.00'}</td>
+        <td>${formatIDR(product.value_in_usd)}</td>
+    `;
+
+        document.getElementById("product-table-body").appendChild(row);
+    }
+</script>
+<script>
+    // function formatIDR(value) {
+    // return parseInt(value).toLocaleString("id-ID", {
+    //     minimumFractionDigits: 0
+    // });
+    function formatIDR(usd) {
+        const exchangeRate = 16000; // atau ambil dari config/backend
+        const idr = parseFloat(usd || 0) * exchangeRate;
+        return idr.toLocaleString("id-ID", {
+            minimumFractionDigits: 0
+        });
+
+    }
+
+    function onScanSuccess(decodedText, decodedResult) {
+        html5QrcodeScanner.clear().then(() => {
+            fetch(`/marketing/scan/${encodeURIComponent(decodedText)}`)
+                .then(response => {
+                    if (!response.ok) throw new Error("Produk tidak ditemukan");
+                    return response.json();
+                })
+                .then(({
+                    data
+
+                }) => {
+                    // Update image
+                    window.lastScannedProduct = data;
+
+                    if (data.photo) {
+                        document.getElementById("product-image").src = "/storage/" + data.photo;
+                    }
+
+                    // Update text fields
+                    document.getElementById("td-description").innerText = data.description || '-';
+                    document.getElementById("td-article-nr").innerText = data.article_nr || '-';
+                    document.getElementById("td-remark").innerText = data.remark || '-';
+                    document.getElementById("td-cushion").innerText = data.cushion || '-';
+                    document.getElementById("td-glass").innerText = data.glass_orMirror || '-';
+                    document.getElementById("td-composition").innerText = data.weaving_composition || '-';
+                    document.getElementById("td-material").innerText = data.materials || '-';
+                    document.getElementById("td-finishing").innerText = data.finishes_color || '-';
+                    document.getElementById("td-value-idr").innerText = "Rp " + formatIDR(data.usd_selling_price || 0);
+                    document.getElementById("td-item-dimension").innerText =
+                        `W: ${data.w || '-'} D: ${data.d || '-'} H: ${data.h || '-'}`;
+                    document.getElementById("td-packing-dimension").innerText =
+                        `W: ${data.pw || '-'} D: ${data.pd || '-'} H: ${data.ph || '-'}`;
+                })
+
+                .catch(error => {
+                    alert("Error: " + error.message);
+                });
+        });
+
+
+    }
+
+    function onScanFailure(error) {
+        // handle scan failure, usually better to ignore and keep scanning.
+        // for example:
+        console.warn(`Code scan error = ${error}`);
+    }
+
+    let html5QrcodeScanner = new Html5QrcodeScanner(
+        "reader", {
+            fps: 10,
+            qrbox: {
+                width: 250,
+                height: 250
+            }
+        },
+        /* verbose= */
+        false);
+    html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+</script>
+
+@endpush
+
 @endsection

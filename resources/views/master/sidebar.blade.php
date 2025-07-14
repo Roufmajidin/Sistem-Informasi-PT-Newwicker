@@ -5,9 +5,8 @@
          <div class="navbar no-radius">
              <!-- brand -->
              <a class="navbar-brand">
-                 <div ui-include="'../assets/images/logo.svg'"></div>
-                 <img src="../assets/images/logo.png" alt="." class="hide">
-                 <span class="hidden-folded inline">Newwicker.com</span>
+                 <img style="height:80%; max-height:60px;" src="{{asset('/assets/images/NEWWICKER WHITE.png')}}" class="">
+
              </a>
              <!-- / brand -->
          </div>
@@ -16,7 +15,7 @@
 
                  <ul class="nav" ui-nav>
                      <li class="nav-header hidden-folded">
-                         <small class="text-muted">Main</small>
+                         <small class="text-muted"> Main Menu</small>
                      </li>
 
                      <li>
@@ -127,7 +126,7 @@
                              <span class="nav-text">Absen Karyawan</span>
                          </a>
                      </li>
-                       <li>
+                     <li>
                          <a href="/inventory">
                              <span class="nav-icon">
                                  <i class="material-icons">&#xe8d2;
@@ -139,7 +138,7 @@
                      </li>
 
                      <li class="nav-header hidden-folded">
-                         <small class="text-muted">Components</small>
+                         <small class="text-muted">Comming soon Feature</small>
                      </li>
 
                      <li>
@@ -181,7 +180,7 @@
                          <img src="../assets/images/a0.jpg" alt="..." class="w-40 img-circle">
                      </span>
                      <span class="clear hidden-folded p-x">
-                         <span class="block _500">Jean Reyes</span>
+                         <span class="block _500">Rouf Majid</span>
                          <small class="block text-muted"><i class="fa fa-circle text-success m-r-sm"></i>online</small>
                      </span>
                  </a>

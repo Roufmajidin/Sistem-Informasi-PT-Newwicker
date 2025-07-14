@@ -125,8 +125,14 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+
 // 'providers' => [
 //     Laravel\Sanctum\SanctumServiceProvider::class,
 //     Illuminate\Filesystem\FilesystemServiceProvider::class,
 // ],
+'aliases' => [
+   'QrCode' => SimpleSoftwareIO\QrCode\Facades\QrCode::class,
+
+],
+
 ];

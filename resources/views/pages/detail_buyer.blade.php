@@ -4,15 +4,10 @@
 <div class="padding">
     <div class="box">
         <div class="box-header">
-            <h2>Detail Buyer</h2>
+            <h4>Detail Buyer</h4>
             <small>{{$db->name}}</small>
         </div>
-        <div class="form-group col-lg-4" style="height: 20px;margin-bottom:15px">
-            <div class="input-group" style="height: 30px">
-                <div class="input-group-addon">@</div>
-                <input id="searchBuyer" class="form-control" type="text" placeholder="Cari buyyers">
-            </div>
-        </div>
+
 
         <div class="col-12">
             <div class="table-wrapper">
@@ -22,9 +17,10 @@
                         <tr class="sticky-header" style="font-size: 12px;color:white">
                             <th>No.</th>
                             <th>Photo</th>
+                            <th>QR</th>
+                            <th style="font-size: 10px;">Article Nr.</th>
                             <th>buyer_s_code</th>
                             <th class="sticky">Description</th>
-                            <th style="font-size: 10px;">Article Nr.</th>
                             <th style="font-size: 10px;">Remark</th>
                               <th style="font-size: 10px;">W</th>
                             <th style="font-size: 10px;">D</th>
@@ -83,6 +79,15 @@
                                 <img src="{{ asset('storage/' . $i->photo) }}" alt="product" width="60">
 
                             </td>
+                               <td>
+{!! QrCode::size(50)->generate($i->article_nr) !!}
+
+                            </td>
+                             <td style="font-size: 10px;">
+                                <a href="#" class="editable-article_nr" data-name="article_nr" data-pk="{{ $i->id }}" data-type="text" data-url="/buyers/update" data-title="Enter Article Nr">
+                                    {{ $i->article_nr ?: '-' }}
+                                </a>
+                            </td>
                             <td style="font-size: 10px;">
                                 <a href="#" class="editable-buyer_s_code" data-name="buyer_s_code" data-pk="{{ $i->id }}" data-type="text" data-url="/post-name" data-title="Enter Buyer Code">
                                     {{ $i->buyer_s_code ?: '-' }}
@@ -93,11 +98,7 @@
                                     {{ $i->description ?: '-' }}
                                 </a>
                             </td>
-                            <td style="font-size: 10px;">
-                                <a href="#" class="editable-article_nr" data-name="article_nr" data-pk="{{ $i->id }}" data-type="text" data-url="/buyers/update" data-title="Enter Article Nr">
-                                    {{ $i->article_nr ?: '-' }}
-                                </a>
-                            </td>
+
                             <td style="font-size: 10px;width: 200px">
                                 <a href="#" class="editable-remark" data-name="remark" data-pk="{{ $i->id }}" data-type="textarea" data-url="/buyers/update" data-title="Enter Remark">
                                     {{ $i->remark ?: '-' }}
