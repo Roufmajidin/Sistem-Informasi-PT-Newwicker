@@ -2,11 +2,13 @@
 namespace App\Http\Controllers;
 
 use App\Imports\ProductImport;
+use App\Jobs\ImportProdukJob;
 use App\Models\Barangs;
 use App\Models\Buyer;
 use App\Models\Buyyer;
 use App\Models\Product;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Facades\Excel;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -15,6 +17,7 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Illuminate\Support\Facades\Log;
 
 class MarketingController extends Controller
 {
@@ -215,23 +218,27 @@ class MarketingController extends Controller
 
         return 'storage/products/' . $filename;
     }
-
+    // TODO:: queue
     public function import(Request $request)
     {
         $request->validate([
-            'file'  => 'required|mimes:xlsx,xls,csv',
+            'file'  => 'required|file|mimes:xlsx,xls,csv',
             'range' => 'required|string',
         ]);
 
-        // range misalnya diberi "A C"
-        $range = explode(' ', $request->input('range'));
+        $file     = $request->file('file');
+        $range    = explode(' ', $request->input('range'));
+        $photoCol = $range[0] ?? 'A';
+        $codeCol  = $range[1] ?? 'D';
 
-        $photoColumn = $range[0] ?? '';
-        $codeColumn  = $range[1] ?? '';
+        // Simpan file ke storage
+        $path = $file->storeAs('imports', uniqid() . '_' . $file->getClientOriginalName());
+        Log::info("✅ File berhasil disimpan di: " . storage_path("app/$path"));
 
-        Excel::import(new ProductImport($request->file('file')->getPathname(), $photoColumn, $codeColumn));
+        // Jalankan Job (queue)
+        ImportProdukJob::dispatch(storage_path("app/$path"), Auth::user()->id, $photoCol, $codeCol);
 
-        return redirect()->back()->with('success', 'Produk berhasil diimport!');
+        return back()->with('success', 'Import sedang diproses di background.');
     }
     public function scan($id)
     {
