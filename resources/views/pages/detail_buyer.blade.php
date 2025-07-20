@@ -80,7 +80,7 @@
 
                             </td>
                                <td>
-{!! QrCode::size(50)->generate($i->article_nr) !!}
+{!! QrCode::size(50)->generate($i->article_nr ?: 'empty') !!}
 
                             </td>
                              <td style="font-size: 10px;">

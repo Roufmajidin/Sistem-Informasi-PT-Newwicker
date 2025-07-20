@@ -84,6 +84,17 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 <script>
+    $(document).on('submit', 'form', function(e) {
+        if ($(this).find('input[name="file"]').length > 0) {
+            // Tampilkan loading
+            $('#import-loading').show();
+
+            // Nonaktifkan tombol submit di form ini
+            $(this).find('button[type="submit"]').prop('disabled', true).text('Mengimpor...');
+        }
+    });
+</script>
+<script>
     $('#searchBuyer').on('keyup', function() {
         var search = $(this).val().trim();
 
@@ -132,6 +143,10 @@ document.addEventListener("DOMContentLoaded", function () {
                          <button type="submit" class="btn btn-primary" style="width:100px;height:auto;padding:6px;font-size:12px">
                                    Import Xslx
                                 </button>
+                                <div id="import-loading" style="display:none; text-align:center; margin-top:20px;">
+    <img src="{{ asset('assets/images/loading.gif') }}" alt="Loading..." width="50">
+    <p>Sedang mengimpor data... Mohon tunggu.</p>
+</div>
                             </form>
                         </td>
                          <td>
