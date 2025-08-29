@@ -35,7 +35,7 @@
     <!-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.3/css/bootstrap.min.css" /> -->
     <!-- <link href="{{asset('assets/editable/css/bootstrap.min.css')}}}}" rel="stylesheet"> -->
     <script src="{{asset('assets/editable/js/bootstrap.min.js')}}"></script>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<!-- <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet"> -->
 
 </head>
 
@@ -71,7 +71,7 @@
                             </li>
                         </ul>
 
-                        <div ui-include="'../views/blocks/navbar.form.html'"></div>
+                        <!-- <div ui-include="'../views/blocks/navbar.form.html'"></div> -->
                         <!-- / -->
                     </div>
                     <!-- / navbar collapse -->
@@ -128,7 +128,7 @@
             <!-- jQuery -->
             <!-- jQuery -->
 
-            <script src="//cdnjs.cloudflare.com/ajax/libs/x-editable/1.5.0/bootstrap3-editable/js/bootstrap-editable.min.js"></script>
+            <!-- <script src="//cdnjs.cloudflare.com/ajax/libs/x-editable/1.5.0/bootstrap3-editable/js/bootstrap-editable.min.js"></script> -->
             <script src="{{asset('assets/libs/jquery/jquery/dist/jquery.js')}}"></script>
             <!-- Bootstrap -->
             <script src="{{asset('assets/libs/jquery/tether/dist/js/tether.min.js')}}"></script>
@@ -147,7 +147,7 @@
             <script src="{{asset('assets/scripts/ui-device.js')}}"></script>
             <script src="{{asset('assets/scripts/ui-form.js')}}"></script>
             <script src="{{asset('assets/scripts/ui-nav.js')}}"></script>
-            <script src="{{asset('assets/scripts/ui-screenfull.js')}}"></script>
+            <!-- <script src="{{asset('assets/scripts/ui-screenfull.js')}}"></script> -->
             <script src="{{asset('assets/scripts/ui-scroll-to.js')}}"></script>
             <script src="{{asset('assets/scripts/ui-toggle-class.js')}}"></script>
 
@@ -157,7 +157,7 @@
             <script src="{{asset('assets/libs/jquery/jquery-pjax/jquery.pjax.js')}}"></script>
             <script src="{{asset('assets/scripts/ajax.js')}}"></script>
             <!-- endbuild -->
-            <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+            <script src="   ://code.jquery.com/jquery-3.6.0.min.js"></script>
 
     <!-- <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script> -->
 
@@ -168,10 +168,12 @@
     <script src="//cdnjs.cloudflare.com/ajax/libs/x-editable/1.5.0/jquery-editable/js/jquery-editable-poshytip.min.js"></script>
     <script src="{{asset('assets/main.js')}}"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<script src="{{asset('assets/cam/cam.js')}}" type="text/javascript"></script>
 
 <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 
+<link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+<script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
                  @stack('scripts')
 
 </body>

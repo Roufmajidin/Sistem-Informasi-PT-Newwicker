@@ -3,7 +3,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Inventory;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
 
 class InventoryController extends Controller
 {
@@ -31,7 +31,80 @@ class InventoryController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $request->validate([
+            'merk'       => 'required|string|max:255',
+            'jenis'      => 'nullable|string|max:255',
+            'deskripsi'  => 'nullable|string',
+            'karyawan'   => 'nullable|string|max:255',
+            'keterangan' => 'nullable|string',
+            'catatan'    => 'nullable|string',
+            'foto'       => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+        ]);
+
+        // cari karyawan (atau bisa sesuaikan logika Anda)
+        $karyawanId = $request->karyawan_id ?? null;
+
+        // upload foto kalau ada
+         $fotoName = time() . '_' . $request->file('foto')->getClientOriginalName();
+        $request->file('foto')->move(public_path('foto_inventory'), $fotoName);
+
+
+
+        $inventory = Inventory::create([
+            'merk'        => $request->merk,
+            'jenis'       => $request->jenis,
+            'deskripsi'   => $request->deskripsi,
+            'karyawan_id' => $karyawanId,
+            'keterangan'  => $request->keterangan,
+            'catatan'     => $request->catatan,
+            'foto'        => $fotoName,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data'    => $inventory,
+        ]);
+    }
+
+    public function uploadFoto(Request $request, $id)
+    {
+        $request->validate([
+            'foto' => 'required|image|mimes:jpg,jpeg,png|max:2048',
+        ]);
+
+        $inventory = Inventory::findOrFail($id);
+
+        // hapus foto lama kalau ada
+        if ($inventory->foto) {
+            Storage::delete('public/foto_inventory/' . $inventory->foto);
+        }
+
+        // $fotoName = time() . '_' . $request->file('foto')->getClientOriginalName();
+        // $request->file('foto')->storeAs('public/foto_inventory', $fotoName);
+        $fotoName = time() . '_' . $request->file('foto')->getClientOriginalName();
+        $request->file('foto')->move(public_path('foto_inventory'), $fotoName);
+
+        $inventory->update(['foto' => $fotoName]);
+
+        return response()->json(['success' => true, 'foto' => $fotoName]);
+    }
+    public function searchKaryawan(Request $request)
+    {
+        $term = $request->get('term');
+
+        $karyawan = \App\Models\Karyawan::where('nama_lengkap', 'like', "%$term%")
+            ->limit(10)
+            ->get();
+
+        $results = [];
+        foreach ($karyawan as $k) {
+            $results[] = [
+                'id'    => $k->id,
+                'value' => $k->nama_lengkap,
+            ];
+        }
+
+        return response()->json($results);
     }
 
     /**
@@ -68,38 +141,6 @@ class InventoryController extends Controller
         return response()->json([
             'status' => 'success',
             'msg'    => 'Data berhasil diupdate.',
-        ]);
-    }
-    public function uploadFoto(Request $request, $id)
-    {
-        $request->validate([
-            'foto' => 'required|image|mimes:jpg,jpeg,png|max:2048',
-        ]);
-
-        $inventory = \App\Models\Inventory::findOrFail($id);
-
-        $file         = $request->file('foto');
-        $fileBaseName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-        $extension    = $file->getClientOriginalExtension();
-
-        $directory = storage_path('app/public/foto_inventory');
-        if (! file_exists($directory)) {
-            mkdir($directory, 0777, true);
-        }
-
-        $filename = time() . '-' . Str::slug($fileBaseName) . '.' . $extension;
-        $path     = $directory . '/' . $filename;
-
-        $imageContents = file_get_contents($file->getRealPath());
-        file_put_contents($path, $imageContents);
-
-        $inventory->foto = $filename;
-        $inventory->save();
-
-        return response()->json([
-            'success'  => true,
-            'filename' => $filename,
-            'url'      => asset('storage/foto_inventory/' . $filename),
         ]);
     }
 

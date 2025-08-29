@@ -45,3 +45,8 @@ Route::post('/logout', [AuthController::class, 'logout']);
 Route::get('/me', [AuthController::class, 'me'])->middleware('auth');
 Route::get('/scan', [KaryawanController::class, 'scan'])->name('karyawan.scan');
 Route::get('/login', [KaryawanController::class, 'login'])->name('karyawan.login');
+
+Route::post('/inventory', [InventoryController::class, 'store'])->name('inventory.store');
+Route::post('/inventory/{id}/upload-foto', [InventoryController::class, 'uploadFoto'])->name('inventory.uploadFoto');
+Route::get('/karyawan/search', [InventoryController::class, 'searchKaryawan'])->name('karyawan.search');
+Route::post('/inventory/upload-foto', [InventoryController::class, 'uploadFoto']);
