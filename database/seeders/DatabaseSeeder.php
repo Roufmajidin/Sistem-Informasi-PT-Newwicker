@@ -1,8 +1,6 @@
 <?php
-
 namespace Database\Seeders;
 
-use App\Models\User;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -15,13 +13,15 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
 
-        User::factory()->create([
-            'name' => 'Agung Risky',
-            'email' => 'agung@mail.com',
-        ]);
-          User::factory()->create([
-            'name' => 'Rouf',
-            'email' => 'rouf@mail.com',
-        ]);
+        // User::factory()->create([
+        //     'name' => 'Agung Risky',
+        //     'email' => 'agung@mail.com',
+        // ]);
+        //   User::factory()->create([
+        //     'name' => 'Rouf',
+        //     'email' => 'rouf@mail.com',
+        // ]);
+        DivisiSeeder::class;
+
     }
 }

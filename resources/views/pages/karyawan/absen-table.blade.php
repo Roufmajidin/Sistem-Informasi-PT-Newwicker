@@ -1,70 +1,107 @@
-<table class="table table-bordered">
-    <thead style="color:white">
-        <tr class="sticky-header">
-            <th>No.</th>
-            <th class="sticky">Nama Lengkap</th>
-            <th>Status</th>
-            <th>Divisi kerja</th>
-            @for ($i = 1; $i <= $daysInMonth; $i++)
-                @php
-                $date=\Carbon\Carbon::createFromDate($year, $month, $i);
-                $isWeekend=in_array($date->format('l'), ['Saturday', 'Sunday']);
-                @endphp
-                <th style="{{ $isWeekend ? 'color:red' : '' }}">{{ $i }}</th>
-                @endfor
-                <th>Hadir</th>
-                <th>Izin</th>
-                <th>Alfa</th>
-                <th>Sakit</th>
-                <th>Cuti</th>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>No</th>
+            <th class="sticky">Nama</th>
+            <!-- <th>Status</th> -->
+            <th>Divisi</th>
+            <th>Tanggal</th>
+            <th>Jam Masuk</th>
+            <th>Jam Keluar</th>
+            <th>Lokasi Masuk</th>
+            <th>Lokasi Keluar</th>
+            <th>Keterangan</th>
+            <th>-</th>
+            <th>Foto</th>
+            <th>Aksi</th>
         </tr>
     </thead>
     <tbody>
-        @foreach ($karyawans as $index => $karyawan)
+        @foreach ($absens as $index => $absen)
         @php
-       $hadir = 0;
-        $alfa  = 0;
-        $sakit = 0;
-        $izin  = 0;
-        $cuti  = 0;
+        $formatMenit = function($menit) {
+        $menit = abs((int) $menit);
+        if ($menit >= 60) {
+        $jam = floor($menit / 60);
+        $sisa = $menit % 60;
+        return $jam . ' jam ' . ($sisa > 0 ? $sisa . ' menit' : '');
+        }
+        return $menit . ' menit';
+        };
+
+        $jamMasuk = \Carbon\Carbon::parse($absen->jam_masuk);
+        $jamKeluar = $absen->jam_keluar ? \Carbon\Carbon::parse($absen->jam_keluar) : null;
+
+        $batasMasuk = \Carbon\Carbon::createFromTime(8, 1);
+        $batasPulang = \Carbon\Carbon::createFromTime(17, 0);
+
+        $keterangan = [];
+
+        if ($jamMasuk->gt($batasMasuk)) {
+        $menitTerlambat = $batasMasuk->diffInMinutes($jamMasuk);
+        $keterangan[] = "Terlambat " . $formatMenit($menitTerlambat);
+        }
+
+        if ($jamKeluar && $jamKeluar->lt($batasPulang)) {
+        $menitCepat = $batasPulang->diffInMinutes($jamKeluar);
+        $keterangan[] = "Pulang cepat " . $formatMenit($menitCepat);
+        }
+
+        if ($jamKeluar && $jamKeluar->gt($batasPulang)) {
+        $keterangan[] = "";
+        }
+
+        if (empty($keterangan)) {
+        $keterangan[] = "Tepat waktu";
+        }
         @endphp
+
+
         <tr>
             <td>{{ $index + 1 }}</td>
-            @php $kar = \App\Models\Karyawan::find($karyawan->karyawan_id); @endphp
-            <td class="sticky">{{ $karyawan->name }}</td>
-            <td>{{ $kar->status }}</td>
-            <td>{{ $kar->divisi_id }}</td>
+            <td class="sticky">{{ $absen->user->name ?? '-' }}</td>
+            <!-- <td>{{ $absen->status }}</td> -->
+            <td>{{ $absen->user->divisi_id ?? '-' }}</td>
+            <td class="absen-td" data-user="{{ $absen->user_id }}" data-date="{{ $absen->tanggal }}">
+                {{ $absen->tanggal }}
+            </td>
+            <td>{{ $absen->jam_masuk }}</td>
+            <td>{{ $absen->jam_keluar ?? '-' }}</td>
+            <td style="max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                @if($absen->latitude && $absen->longitude)
+                <a href="https://www.google.com/maps?q={{ $absen->latitude }},{{ $absen->longitude }}"
+                    target="_blank"
+                    title="{{ $absen->latitude }}, {{ $absen->longitude }}">
+                    {{ $absen->latitude }}, {{ $absen->longitude }}
+                </a>
+                @else
+                -
+                @endif
+            </td>
 
-            @for ($i = 1; $i <= $daysInMonth; $i++)
-                @php
-                $tanggal=\Carbon\Carbon::create($year, $month, $i)->toDateString();
-                $absen = $karyawan->absens->where('tanggal', $tanggal)->first();
-                @endphp
-                <td class="text-center absen-td" data-user="{{ $karyawan->id }}" data-date="{{ $tanggal }}">
-                    @if ($absen)
-                    @php $status = strtolower($absen->keterangan); @endphp
-                    @if ($status === 'hadir')
-                    H @php $hadir++; @endphp
-                    @elseif ($status === 'izin')
-                    I @php $izin++; @endphp
-                    @elseif ($status === 'cuti')
-                    C @php $cuti++; @endphp
-                    @elseif ($status === 'sakit')
-                    S @php $sakit++; @endphp
-                    @else
-                    ?
-                    @endif
-                    @else
-                    . @php $alfa++; @endphp
-                    @endif
-                </td>
-                @endfor
+            <td style="max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+                title="{{ $absen->latitude_k ?? '-' }}, {{ $absen->longitude_k ?? '-' }}">
+                {{ $absen->latitude_k ?? '-' }}, {{ $absen->longitude_k ?? '-' }}
+            </td>
+              <td style="max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+                title="{{ $absen->latitude_k ?? '-' }}, {{ $absen->longitude_k ?? '-' }}">
+                {{ $absen->keterangan ?? '-' }}
+            </td>
 
-                <td class="text-center">{{ $hadir }}</td>
-                <td class="text-center">{{ $izin }}</td>
-                <td class="text-center">{{ $alfa }}</td>
-                <td class="text-center">{{ $sakit }}</td>
-                <td class="text-center">{{ $cuti }}</td>
+            <td class="text-center"
+                style="max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+                title="{{ implode(', ', $keterangan) }}">
+                {!! implode(', ', $keterangan) !!}
+            </td>
+
+            <td>
+                @if($absen->foto)
+                <i class="fa fa-eye"></i>
+                <img src="{{ asset('storage/' . $absen->foto) }}" width="50" height="50">
+                <img src="{{ asset('storage/' . $absen->foto_keluar) }}" width="50" height="50">
+                @else - @endif
+            </td>
+            <td><i class="fa fa-ellipsis-v"></i></td>
         </tr>
         @endforeach
     </tbody>

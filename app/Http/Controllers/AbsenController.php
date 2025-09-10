@@ -109,7 +109,11 @@ class AbsenController extends Controller
         $absen = Absen::where('user_id', $user->id)
             ->where('tanggal', $today)
             ->first();
-
+        if ($absen && $absen->jam_masuk && $absen->jam_keluar) {
+            return response()->json([
+                'message' => 'Absen hari ini sudah komplit',
+            ], 200);
+        }
         // Upload satu kali saja (foto masuk atau keluar)
         $fotoPath = null;
         if ($request->hasFile('foto')) {

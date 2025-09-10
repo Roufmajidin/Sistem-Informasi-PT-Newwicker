@@ -21,7 +21,7 @@
 
                         <!-- Form Import Excel -->
                         <form id="importForm" enctype="multipart/form-data" onsubmit="return false;">
-                            @csrf
+                            @csrf_token
                             <label for="fileUpload" class="btn btn-xs white">Bulk Data</label>
                             <input type="file" id="fileUpload" name="file" style="display: none;">
                         </form>
@@ -63,7 +63,7 @@
                     <tbody>
                         @php $no = 1; @endphp
                         @foreach ($data as $i)
-                        <tr style="font-size: 10px;">
+                        <tr style="font-size: 13px;">
                             <td>{{ $no++ }}</td>
                             <td class="sticky">
                                 <a href="#" class="editable-merk" data-name="merk" data-pk="{{ $i->id }}" data-type="text" data-url="/inventory-inline-update" data-title="Enter merk">

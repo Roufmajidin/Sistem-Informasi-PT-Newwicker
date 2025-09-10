@@ -7,6 +7,7 @@ use App\Models\Karyawan;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 
@@ -69,23 +70,7 @@ class KaryawanController extends Controller
     {
         //
     }
-    public function absenkaryawan()
-    {
-        //
-        $karyawans = User::with(['absens'])->get();
 
-        $today       = Carbon::now();
-        $year        = $today->year;
-        $month       = $today->month;
-        $daysInMonth = $today->daysInMonth;
-
-        $today       = Carbon::now();
-        $year        = $today->year;
-        $month       = $today->month;
-        $daysInMonth = $today->daysInMonth;
-
-        return view('pages.karyawan.absen', compact('karyawans', 'daysInMonth', 'month', 'year'));
-    }
     public function import(Request $request)
     {
         try {
@@ -181,7 +166,11 @@ class KaryawanController extends Controller
                     return null;
                 }
             })($row['tanggal_join'] ?? null);
-
+            $divisiId = null;
+            if (! empty($row['divisi'])) {
+                $divisi   = \App\Models\Divisi::where('nama', trim($row['divisi']))->first();
+                $divisiId = $divisi?->id;
+            }
             $karyawan = Karyawan::updateOrCreate(
                 ['nik' => $row['nik']],
                 [
@@ -191,7 +180,8 @@ class KaryawanController extends Controller
                     'tanggal_lahir'     => $tanggal_lahir,
                     'alamat'            => $row['alamat'],
                     'status_perkawinan' => $row['status_perkawinan'],
-                    'divisi_id'         => $row['divisi'],
+                    'divisi_id'         => $divisiId, // <-- sudah nilai int/null, bukan Closure
+
                     'status'            => $row['status_karyawan'],
                     'lokasi'            => $row['lokasi'],
                     'tanggal_join'      => $row['tanggal_join'] == null ? '' : $tanggal_join,
@@ -254,19 +244,6 @@ class KaryawanController extends Controller
         return redirect()->back()->with('success', 'Status absen diperbarui.');
     }
 
-    public function filter(Request $request)
-    {
-        $month       = $request->month ?? now()->month;
-        $year        = $request->year ?? now()->year;
-        $daysInMonth = Carbon::createFromDate($year, $month)->daysInMonth;
-
-        $karyawans = User::with('absens')->get();
-
-        // Gunakan view string (tanpa partial) — render langsung sebagai string
-        $html = view('pages.karyawan.absen-table', compact('karyawans', 'month', 'year', 'daysInMonth'))->render();
-
-        return response()->json(['html' => $html]);
-    }
     public function new ()
     {
         //
@@ -282,4 +259,49 @@ class KaryawanController extends Controller
         // dd($karyawans);
         return view('pages.karyawan.absens', compact('karyawans'));
     }
+    public function absenkaryawan()
+    {
+        $today       = Carbon::now();
+        $year        = $today->year;
+        $month       = $today->month;
+        $daysInMonth = $today->daysInMonth;
+
+        $karyawans = User::with(['absens' => function ($q) use ($year, $month) {
+            $q->whereYear('tanggal', $year)
+                ->whereMonth('tanggal', $month);
+        }])->get();
+
+        return view('pages.karyawan.absen', compact('karyawans', 'month', 'year', 'daysInMonth'));
+    }
+
+    public function filter(Request $request)
+    {
+        try {
+            $month = $request->month;
+            $year  = $request->year;
+            $date  = $request->date ?? now()->toDateString();
+
+            // Ambil data absensi + relasi karyawan
+            $absens = Absen::with('user')
+                ->whereMonth('tanggal', $month)
+                ->whereYear('tanggal', $year)
+                ->when($date, fn($q) => $q->whereDate('tanggal', $date))
+                ->get();
+            // dd($absens);
+
+            $html = view('pages.karyawan.absen-table', compact('absens'))->render();
+
+            return response()->json(['html' => $html]);
+
+        } catch (\Throwable $e) {
+            // Debug error ke log
+            Log::error($e);
+
+            return response()->json([
+                'error'   => true,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
 }
