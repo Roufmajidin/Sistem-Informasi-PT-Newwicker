@@ -4,40 +4,83 @@
 <div class="padding">
     <div class="box">
         <div class="p-a white lt box-shadow">
-            <div class="row">
+            <div class="row align-items-center">
+                {{-- Kiri: Judul --}}
                 <div class="col-sm-6">
                     <h4 class="mb-0 _300">Absen Karyawan</h4>
                     <small class="text-muted">PT. Newwicker Indonesia</small>
                 </div>
 
-                <div class="col-sm-6 d-flex justify-content-end align-items-center mb-4">
-                    <form id="filterForm" class="form-inline">
-                        <select name="month" id="month" class="form-control mr-2">
-                            @for ($m = 1; $m <= 12; $m++)
-                                <option value="{{ $m }}" {{ $m == $month ? 'selected' : '' }}>
-                                {{ \Carbon\Carbon::create()->month($m)->translatedFormat('F') }}
+                {{-- Kanan: Filter & Export --}}
+                <div class="col-sm-6">
+                    {{-- Baris 1: Filter Bulanan & Harian --}}
+                    <div class="d-flex justify-content-end mb-2">
+                        <form id="filterForm" class="form-inline d-flex flex-wrap gap-2">
+                            {{-- Pilih Bulan --}}
+                            <select name="month" id="month" class="form-control form-control-sm">
+                                @for ($m = 1; $m <= 12; $m++)
+                                    <option value="{{ $m }}" {{ $m == $month ? 'selected' : '' }}>
+                                    {{ \Carbon\Carbon::create()->month($m)->translatedFormat('F') }}
+                                    </option>
+                                    @endfor
+                            </select>
+
+                            {{-- Pilih Tahun --}}
+                            <select name="year" id="year" class="form-control form-control-sm">
+                                @for ($y = now()->year; $y >= 2022; $y--)
+                                <option value="{{ $y }}" {{ $y == $year ? 'selected' : '' }}>
+                                    {{ $y }}
                                 </option>
                                 @endfor
-                        </select>
+                            </select>
 
-                        <select name="year" id="year" class="form-control mr-2">
-                            @for ($y = now()->year; $y >= 2022; $y--)
-                            <option value="{{ $y }}" {{ $y == $year ? 'selected' : '' }}>{{ $y }}</option>
-                            @endfor
-                        </select>
+                            {{-- Filter Harian --}}
+                            <input type="date"
+                                name="date"
+                                id="date"
+                                class="form-control form-control-sm"
+                                value="{{ request('date', now()->format('Y-m-d')) }}">
 
-                        {{-- Tambahan input tanggal --}}
-                        <input type="date"
-                            name="date"
-                            id="date"
-                            class="form-control mr-2"
-                            value="{{ request('date', now()->format('Y-m-d')) }}">
+                            {{-- Tombol --}}
+                            <button type="submit" class="btn btn-sm btn-primary">Tampilkan</button>
+                            <button type="button" id="btnBulanan" class="btn btn-sm btn-success">Tabel Bulanan</button>
+                        </form>
+                    </div>
 
-                        <button type="submit" class="btn btn-sm btn-primary">Tampilkan</button>
-                    </form>
+                    <div class="d-flex justify-content-end">
+                        <form id="exportForm" class="d-flex gap-2" method="GET" action="{{ route('absen.export') }}">
+                            <input type="date"
+                                name="start_date"
+                                id="start_date"
+                                class="form-control form-control-sm"
+                                value="{{ request('start_date', now()->startOfMonth()->format('Y-m-d')) }}"
+                                style="width:auto;">
+
+                            <span class="mt-1">s/d</span>
+
+                            <input type="date"
+                                name="end_date"
+                                id="end_date"
+                                class="form-control form-control-sm"
+                                value="{{ request('end_date', now()->endOfMonth()->format('Y-m-d')) }}"
+                                style="width:auto;">
+
+                            <button type="submit" id="btnExportExcel" class="btn btn-sm btn-warning">Export Excel</button>
+                        </form>
+                    </div>
+
                 </div>
-                <div class="col-12">
+
+
+
+
+
+
+                <div class="col-12 mt-3">
                     <div class="table-wrapper">
+                        <div id="tableBulanan" class="d-none">
+                            {{-- Tabel bulanan akan di-load via AJAX --}}
+                        </div>
                         <div id="absenTable">
                             {{-- Tabel akan di-load via AJAX --}}
                         </div>
@@ -81,6 +124,50 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+    document.getElementById('exportForm').addEventListener('submit', function(e) {
+        const start = document.getElementById('start_date');
+        const end = document.getElementById('end_date');
+
+        // Convert d-m-Y ke yyyy-mm-dd jika perlu
+        start.value = start.value.split('-').reverse().join('-');
+        end.value = end.value.split('-').reverse().join('-');
+    });
+    document.addEventListener("DOMContentLoaded", function() {
+        flatpickr("#start_date", {
+            dateFormat: "d-m-Y", // tampil & kirim dd-mm-yyyy
+            allowInput: true
+        });
+
+        flatpickr("#end_date", {
+            dateFormat: "d-m-Y",
+            allowInput: true
+        });
+    });
+</script>
+<script>
+    $(function() {
+        $('#btnBulanan').on('click', function() {
+            $('#tableBulanan').toggleClass('d-none');
+            $('#absenTable').toggleClass('d-none');
+
+            if (!$('#tableBulanan').hasClass('d-none')) {
+                $(this).text('Kembali ke Harian');
+
+                const month = document.getElementById("month").value;
+                const year = document.getElementById("year").value;
+
+                loadAbsenBulanan(month, year); // Panggil fungsi AJAX bulanan
+            } else {
+                $(this).text('Tabel Bulanan');
+
+                const today = new Date();
+                const todayStr = today.toISOString().split('T')[0];
+                loadAbsenData(today.getMonth() + 1, today.getFullYear(), todayStr);
+            }
+        });
+    });
+</script>
+<script>
     function registerClickHandlers() {
         document.querySelectorAll(".absen-td").forEach(cell => {
             cell.addEventListener("click", function() {
@@ -118,6 +205,18 @@
             loadAbsenData(month, year, date);
         });
     });
+
+    function loadAbsenBulanan(month, year) {
+        fetch(`/absen/bulanan?month=${month}&year=${year}`)
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById("tableBulanan").innerHTML = data.html;
+                registerClickHandlers();
+            })
+            .catch(err => {
+                console.error("Gagal memuat tabel bulanan:", err);
+            });
+    }
 </script>
 
 <script>

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AbsenController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\KaryawanController;
@@ -50,3 +51,7 @@ Route::post('/inventory', [InventoryController::class, 'store'])->name('inventor
 Route::post('/inventory/{id}/upload-foto', [InventoryController::class, 'uploadFoto'])->name('inventory.uploadFoto');
 Route::get('/karyawan/search', [InventoryController::class, 'searchKaryawan'])->name('karyawan.search');
 Route::post('/inventory/upload-foto', [InventoryController::class, 'uploadFoto']);
+Route::get('/absen/bulanan', [KaryawanController::class, 'bulanan'])->name('absen.bulanan');
+Route::get('/absen/export', [AbsenController::class, 'export'])->name('absen.export');
+
+
