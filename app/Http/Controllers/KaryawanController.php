@@ -288,6 +288,7 @@ class KaryawanController extends Controller
                 ->when($date, fn($q) => $q->whereDate('tanggal', $date))
                 ->get();
             // dd($absens);
+            // $karyawans = Karyawan::get();
 
             $html = view('pages.karyawan.absen-table', compact('absens'))->render();
 
@@ -302,6 +303,23 @@ class KaryawanController extends Controller
                 'message' => $e->getMessage(),
             ], 500);
         }
+    }
+    public function bulanan(Request $request)
+    {
+        $month = $request->get('month', now()->month);
+        $year  = $request->get('year', now()->year);
+
+        $karyawans = User::with(['absens' => function ($q) use ($month, $year) {
+            $q->whereMonth('tanggal', $month)
+                ->whereYear('tanggal', $year);
+        }])->get();
+
+        $bulanSekarang = \Carbon\Carbon::create($year, $month, 1);
+        $jumlahHari    = $bulanSekarang->daysInMonth;
+
+        $html = view('pages.karyawan.absen-table-bulanan', compact('karyawans', 'bulanSekarang', 'jumlahHari'))->render();
+
+        return response()->json(['html' => $html]);
     }
 
 }

@@ -91,41 +91,53 @@ class AbsenController extends Controller
 {
     public function absen(Request $request)
     {
-        // Validasi input
-        // $request->validate([
-        //     'latitude'  => 'required|numeric',
-        //     'longitude' => 'required|numeric',
-        //     'foto'      => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
-        // ]);
-
-        // Autentikasi user
         if (! $request->user()) {
             return response()->json(['message' => 'Token tidak valid'], 401);
         }
 
         $user  = $request->user();
         $today = now()->toDateString();
+        $now   = now();
 
         $absen = Absen::where('user_id', $user->id)
             ->where('tanggal', $today)
             ->first();
+
+        // ============== Jika data sudah komplit ==============
         if ($absen && $absen->jam_masuk && $absen->jam_keluar) {
             return response()->json([
                 'message' => 'Absen hari ini sudah komplit',
             ], 200);
         }
-        // Upload satu kali saja (foto masuk atau keluar)
+
+        // Upload foto opsional
         $fotoPath = null;
         if ($request->hasFile('foto')) {
             $fotoPath = $request->file('foto')->store('absen_foto', 'public');
         }
 
+        // ============== Jika BELUM ADA absen sama sekali ==============
         if (! $absen) {
-            // Absen Masuk
+            if ($now->format('H:i') >= '17:00') {
+                // Sudah lewat jam 17:00 → auto absen keluar
+                Absen::create([
+                    'user_id'    => $user->id,
+                    'tanggal'    => $today,
+                    'jam_masuk'  => null,
+                    'jam_keluar' => '17:00:00',
+                    'keterangan' => 'Lupa Absen Masuk',
+                ]);
+
+                return response()->json([
+                    'message' => 'Anda lupa absen masuk! Sistem otomatis mencatat absen keluar pukul 17:00.',
+                ], 200);
+            }
+
+            // Kalau masih sebelum 17:00 → catat absen masuk
             Absen::create([
                 'user_id'    => $user->id,
                 'tanggal'    => $today,
-                'jam_masuk'  => now()->format('H:i:s'),
+                'jam_masuk'  => $now->format('H:i:s'),
                 'latitude'   => $request->latitude,
                 'longitude'  => $request->longitude,
                 'foto'       => $fotoPath,
@@ -133,23 +145,31 @@ class AbsenController extends Controller
             ]);
 
             return response()->json(['message' => 'Absen masuk tercatat'], 201);
-        } else {
-            // Validasi jam untuk absen keluar
-            if (now()->format('H:i') < '17:00') {
+        }
+
+        // ============== Kalau sudah ada jam_masuk tapi belum ada jam_keluar ==============
+        if ($absen->jam_masuk && ! $absen->jam_keluar) {
+            if ($now->format('H:i') < '17:00') {
                 return response()->json([
                     'message' => 'Belum bisa absen keluar. Minimal pukul 17:00.',
                 ], 403);
             }
 
-            // Absen Keluar
-            $absen->update([
-                'jam_keluar'  => now()->format('H:i:s'),
-                'latitude_k'  => $request->latitude,
-                'longitude_k' => $request->longitude,
-                'foto_keluar' => $fotoPath,
-            ]);
+            // Kalau sudah lewat jam 17:00 dan user belum absen keluar
+            if ($now->format('H:i') >= '17:00') {
+                // Jangan izinkan absen keluar manual → langsung patenkan
+                $absen->update([
+                    'jam_keluar' => '17:00:00',
+                    'keterangan' => 'Lupa Absen Keluar',
+                ]);
 
-            return response()->json(['message' => 'Absen keluar tercatat'], 200);
+                return response()->json([
+                    'message' => 'Anda lupa absen keluar! Sistem otomatis mencatat keluar pukul 17:00.',
+                ], 200);
+            }
         }
+
+        return response()->json(['message' => 'Terjadi kesalahan, silakan coba lagi.'], 500);
     }
+
 }
