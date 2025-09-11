@@ -1,8 +1,11 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Exports\AbsenExport;
 use App\Models\Absen;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 // class AbsenController extends Controller
 // {
@@ -171,5 +174,17 @@ class AbsenController extends Controller
 
         return response()->json(['message' => 'Terjadi kesalahan, silakan coba lagi.'], 500);
     }
+public function export(Request $request)
+{
+    // Ambil range tanggal dari input
+    $start  = request('start_date'); // format Y-m-d
+    $end    = request('end_date');   // format Y-m-d
 
+    // Ambil data absen
+    $absens = Absen::with('user')
+                ->whereBetween('tanggal', [$start, $end])
+                ->get();
+
+    return Excel::download(new AbsenExport($start, $end), "absen_{$start}_sd_{$end}.xlsx");
+}
 }
