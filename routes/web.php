@@ -54,5 +54,14 @@ Route::get('/karyawan/search', [InventoryController::class, 'searchKaryawan'])->
 Route::post('/inventory/upload-foto', [InventoryController::class, 'uploadFoto']);
 Route::get('/absen/bulanan', [KaryawanController::class, 'bulanan'])->name('absen.bulanan');
 Route::get('/absen/export', [AbsenController::class, 'export'])->name('absen.export');
+Route::post('/validate-izin/{id}', [App\Http\Controllers\AbsenController::class, 'validateIzin']);
 
 
+Route::get('/cek-env', function () {
+    return [
+        'APP_ENV' => env('APP_ENV'),
+        'LAT' => env('OFFICE_LAT'),
+        'LON' => env('OFFICE_LON'),
+        'RADIUS' => env('OFFICE_RADIUS'),
+    ];
+});

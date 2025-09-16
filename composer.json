@@ -31,8 +31,11 @@
             "Database\\Seeders\\": "database/seeders/"
         },
         "files": [
-        "app/Helpers/TimeHelper.php"
-    ]
+            "app/Helpers/TimeHelper.php",
+            "app/Helpers/LocationHelper.php"
+
+
+        ]
     },
     "autoload-dev": {
         "psr-4": {
