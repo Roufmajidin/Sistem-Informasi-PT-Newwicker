@@ -126,6 +126,16 @@
                              <span class="nav-text">Absen Karyawan</span>
                          </a>
                      </li>
+                        <li>
+                         <a href="/izin-karyawan">
+                             <span class="nav-icon">
+                                 <i class="material-icons">&#xe8d2;
+                                     <span ui-include="'../assets/images/i_3.svg'"></span>
+                                 </i>
+                             </span>
+                             <span class="nav-text">Izin Karyawan</span>
+                         </a>
+                     </li>
                      <li>
                          <a href="/inventory">
                              <span class="nav-icon">

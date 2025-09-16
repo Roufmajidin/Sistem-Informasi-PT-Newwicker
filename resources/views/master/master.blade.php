@@ -159,13 +159,13 @@
             <script src="{{asset('assets/libs/jquery/jquery-pjax/jquery.pjax.js')}}"></script>
             <script src="{{asset('assets/scripts/ajax.js')}}"></script>
             <!-- endbuild -->
-            <script src="   ://code.jquery.com/jquery-3.6.0.min.js"></script>
+            <script src=" https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
-    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+            <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
 
-    <link href="//cdnjs.cloudflare.com/ajax/libs/x-editable/1.5.0/jquery-editable/css/jquery-editable.css" rel="stylesheet"/>
+            <link href="//cdnjs.cloudflare.com/ajax/libs/x-editable/1.5.0/jquery-editable/css/jquery-editable.css" rel="stylesheet"/>
 
-    <script>$.fn.poshytip={defaults:null}</script>
+            <script>$.fn.poshytip={defaults:null}</script>
 
     <script src="//cdnjs.cloudflare.com/ajax/libs/x-editable/1.5.0/jquery-editable/js/jquery-editable-poshytip.min.js"></script>
     <script src="{{asset('assets/main.js')}}"></script>

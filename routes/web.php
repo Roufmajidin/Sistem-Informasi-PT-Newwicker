@@ -34,6 +34,7 @@ Route::post('/buyers/update', [MarketingController::class, 'updateInline']);
 // karyawan routing
 Route::get('/karyawan', [KaryawanController::class, 'index'])->name('karyawan.index');
 Route::get('/karyawan-absen', [KaryawanController::class, 'absenkaryawan'])->name('karyawan.absen');
+Route::get('/izin-karyawan', [KaryawanController::class, 'izinKaryawan'])->name('karyawan.izin');
 Route::post('/karyawan/import', [KaryawanController::class, 'import'])->name('karyawan.import');
 Route::post('/karyawan/check-existing-names', [KaryawanController::class, 'checkExistingNames'])->name('karyawan.check_existing_names');
 Route::post('/karyawan/bulk-save', [KaryawanController::class, 'bulkSave'])->name('karyawan.bulk_save');

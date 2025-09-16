@@ -273,6 +273,27 @@ class KaryawanController extends Controller
 
         return view('pages.karyawan.absen', compact('karyawans', 'month', 'year', 'daysInMonth'));
     }
+    public function izinKaryawan()
+    {
+        $today       = Carbon::now();
+        $year        = $today->year;
+        $month       = $today->month;
+        $daysInMonth = $today->daysInMonth;
+
+        $karyawans = User::with(['absens' => function ($q) use ($year, $month) {
+            $q->whereYear('tanggal', $year)
+                ->where('keterangan', 'izin')
+                ->whereMonth('tanggal', $month);
+        }])
+            ->whereHas('absens', function ($q) use ($year, $month) {
+                $q->whereYear('tanggal', $year)
+                    ->where('keterangan', 'izin')
+                    ->whereMonth('tanggal', $month);
+            })
+            ->get();
+        // dd($karyawans);
+        return view('pages.karyawan.izin', compact('karyawans', 'month', 'year', 'daysInMonth'));
+    }
 
     public function filter(Request $request)
     {

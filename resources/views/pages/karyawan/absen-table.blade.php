@@ -94,15 +94,33 @@
                 {!! implode(', ', $keterangan) !!}
             </td>
 
-            <td>
-                @if($absen->foto)
-                <i class="fa fa-eye"></i>
-                <img src="{{ asset('storage/' . $absen->foto) }}" width="50" height="50">
-                <img src="{{ asset('storage/' . $absen->foto_keluar) }}" width="50" height="50">
-                @else - @endif
-            </td>
+         <td>
+    @if($absen->foto)
+     <button type="button"
+    class="btn btn-sm btn-outline-primary view-photo"
+    data-foto="{{ asset('storage/' . $absen->foto) }}">
+    <i class="fa fa-eye"></i>
+</button>
+    @else
+        -
+    @endif
+</td>
             <td><i class="fa fa-ellipsis-v"></i></td>
         </tr>
         @endforeach
     </tbody>
 </table>
+<!-- Modal HTML di bawah table -->
+<div class="modal fade" id="fotoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Foto Absen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body d-flex justify-content-center">
+                <img id="fotoPreview" src="" alt="Foto Absen" class="img-fluid" style="max-height:70vh; border-radius:5px; border:1px solid #ddd;">
+            </div>
+        </div>
+    </div>
+</div>

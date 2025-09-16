@@ -148,7 +148,6 @@
     $(function() {
         $('#btnBulanan').on('click', function() {
             $('#tableBulanan').toggleClass('d-none');
-            $('#absenTable').toggleClass('d-none');
 
             if (!$('#tableBulanan').hasClass('d-none')) {
                 $(this).text('Kembali ke Harian');
@@ -156,8 +155,10 @@
                 const month = document.getElementById("month").value;
                 const year = document.getElementById("year").value;
 
-                loadAbsenBulanan(month, year); // Panggil fungsi AJAX bulanan
+                 loadAbsenBulanan(month, year); // Panggil fungsi AJAX bulanan
             } else {
+            $('#tableHarian').toggleClass('d-none');
+
                 $(this).text('Tabel Bulanan');
 
                 const today = new Date();
@@ -286,4 +287,20 @@
         document.getElementById('date').value = today;
     }
 </script>
+<script>
+document.addEventListener("click", function(e) {
+    if (e.target.closest(".view-photo")) {
+        const btn = e.target.closest(".view-photo");
+        const fotoUrl = btn.dataset.foto;
+
+        console.log("Clicked:", fotoUrl); // debug
+
+        document.getElementById("fotoPreview").src = fotoUrl;
+
+        const modal = new bootstrap.Modal(document.getElementById("fotoModal"));
+        modal.show();
+    }
+});
+</script>
+
 @endsection

@@ -64,3 +64,4 @@
         @endforeach
     </tbody>
 </table>
+
