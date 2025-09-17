@@ -20,17 +20,9 @@
                             <input type="file" id="fileUpload" name="file" style="display: none;">
                         </form>
 
-                        <span class="">Short:</span>
-                        <div class="btn-group dropdown">
-                            <button class="btn white btn-sm">Filter</button>
-                            <button class="btn white btn-sm dropdown-toggle" data-toggle="dropdown"></button>
-                            <div class="dropdown-menu dropdown-menu-scale pull-right">
-                                <a class="dropdown-item" href="#">Bulanan</a>
-                                <a class="dropdown-item" href="#">Mingguan</a>
-                                <a class="dropdown-item" href="#">Borongan</a>
-                                <div class="dropdown-divider"></div>
-                            </div>
-                        </div>
+                       <button id="btnAddRow" class="btn btn-sm btn-primary">
+    <i class="fa fa-plus"></i> Add
+</button>
                     </div>
                 </div>
             </div>
@@ -54,11 +46,16 @@
                             <th>Status</th>
                             <th>Lokasi</th>
                             <th>Tanggal Join</th>
+                            <th>Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @php $no = 1; @endphp
+                        @php $no = 1;
+                        @endphp
                         @foreach ($karyawan as $i)
+                        @php
+                        $m = App\Models\Divisi::find($i->divisi_id);
+                        @endphp
                         <tr style="font-size: 10px;">
                             <td>{{ $no++ }}</td>
                             <td>{{ $i->id }}</td>
@@ -68,10 +65,13 @@
                             <td>{{ $i->tempat }}, {{ $i->tanggal_lahir }}</td>
                             <td>{{ $i->alamat }}</td>
                             <td>{{ $i->status_perkawinan }}</td>
-                            <td>{{ $i->divisi_id }}</td>
+                            <td>{{ $m->nama }}</td>
                             <td>{{ $i->status }}</td>
                             <td>{{ $i->lokasi }}</td>
                             <td>{{ $i->tanggal_join }}</td>
+                            <td>
+                                <button><i class="fa fa-lock"></i></button>
+                            </td>
                         </tr>
                         @endforeach
                     </tbody>
@@ -105,6 +105,47 @@
 <!-- JS -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+<!-- add u -->
+ <script>
+$(document).ready(function() {
+    $("#btnAddRow").on("click", function() {
+        const newRow = `
+            <tr style="font-size: 10px;">
+                <td>New</td>
+                <td><input type="file" name="photo[]" class="form-control form-control-sm"></td>
+                <td class="sticky"><input type="text" name="nama_lengkap[]" class="form-control form-control-sm"></td>
+                <td><input type="text" name="nik[]" class="form-control form-control-sm"></td>
+                <td>
+                    <select name="jenis_kelamin[]" class="form-control form-control-sm">
+                        <option value="">-</option>
+                        <option value="L">L</option>
+                        <option value="P">P</option>
+                    </select>
+                </td>
+                <td><input type="text" name="ttl[]" class="form-control form-control-sm"></td>
+                <td><input type="text" name="alamat[]" class="form-control form-control-sm"></td>
+                <td><input type="text" name="status_perkawinan[]" class="form-control form-control-sm"></td>
+                <td><input type="text" name="divisi_id[]" class="form-control form-control-sm"></td>
+                <td><input type="text" name="status[]" class="form-control form-control-sm"></td>
+                <td><input type="text" name="lokasi[]" class="form-control form-control-sm"></td>
+                <td><input type="date" name="tanggal_join[]" class="form-control form-control-sm"></td>
+                <td>
+                    <button class="btn btn-sm btn-danger btnRemoveRow">
+                        <i class="fa fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+        $("table.table-bordered tbody").prepend(newRow);
+    });
+
+    // remove row jika tombol trash diklik
+    $(document).on("click", ".btnRemoveRow", function() {
+        $(this).closest("tr").remove();
+    });
+});
+</script>
+
 <script>
     let highlightedNiks = [];
 
@@ -174,6 +215,7 @@
                             <th>Status</th>
                             <th>Lokasi</th>
                             <th>Tanggal Join</th>
+                            <th>user id</th>
                             </tr>
                         </thead>
                         <tbody>`;
@@ -197,6 +239,7 @@
                         <td>${row.status_karyawan ?? ''}</td>
                         <td>${row.lokasi ?? ''}</td>
                         <td>${row.tanggal_join ?? ''}</td>
+                        <td>${row.user_id ?? ''}</td>
                         </tr>`;
                     });
 

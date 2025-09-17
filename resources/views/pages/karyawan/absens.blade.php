@@ -43,7 +43,13 @@
                             </a>
                         @else - @endif
                     </td>
-                    <td>{{ $k->latitude_k ?? '-' }}, {{ $k->longitude_k ?? '-' }}</td>
+                   <td>
+    @if($k->latitude_k && $k->longitude_k)
+        <a href="https://www.google.com/maps?q={{ $k->latitude_k }},{{ $k->longitude_k }}" target="_blank">
+            {{ $k->latitude_k }}, {{ $k->longitude_k }}
+        </a>
+    @else - @endif
+</td>
                     <td class="text-center">
                         @if($terlambat && $lewatPulang) {{ $menitTerlambat }} menit
                         @elseif($terlambat) Terlambat {{ $menitTerlambat }} menit
@@ -64,4 +70,3 @@
         @endforeach
     </tbody>
 </table>
-

@@ -95,6 +95,7 @@ class KaryawanController extends Controller
                     'status_karyawan'      => $row[9],
                     'lokasi'               => $row[10],
                     'tanggal_join'         => $row[11] == null ? '' : $tanggal,
+                    'user_id'              => $row[12],
                 ];
 
             }
@@ -137,73 +138,100 @@ class KaryawanController extends Controller
         $inserted = [];
         $updated  = [];
 
-        foreach ($rows as $row) {
-            if (empty($row['nama_lengkap']) || empty($row['nik'])) {
+        foreach ($rows as $index => $row) {
+            // Lewati baris pertama (header) atau baris kosong
+            if ($index === 0 || empty($row['nama_lengkap']) || empty($row['nik'])) {
                 continue;
             }
 
-            // Pisahkan tempat dan tanggal lahir
+            // --- Pisahkan tempat & tanggal lahir ---
             $tempat_lahir  = null;
             $tanggal_lahir = null;
-
             if (! empty($row['tempat_tanggal_lahir']) && str_contains($row['tempat_tanggal_lahir'], ',')) {
                 [$tempat_lahir, $tanggal_lahir] = array_map('trim', explode(',', $row['tempat_tanggal_lahir'], 2));
                 try {
-                    $tanggal_lahir = Carbon::parse($tanggal_lahir)->format('Y-m-d');
+                    $tanggal_lahir = \Carbon\Carbon::parse($tanggal_lahir)->format('Y-m-d');
                 } catch (\Exception $e) {
                     $tanggal_lahir = null;
                 }
             }
 
-            // Format tanggal join
-            $tanggal_join = (function ($tgl) {
-                if (is_numeric($tgl)) {
-                    return Date::excelToDateTimeObject($tgl)->format('Y-m-d');
+            // --- Format tanggal join ---
+            $tanggal_join = null;
+            if (! empty($row['tanggal_join'])) {
+                if (is_numeric($row['tanggal_join'])) {
+                    $tanggal_join = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($row['tanggal_join'])->format('Y-m-d');
+                } else {
+                    try {
+                        $tanggal_join = \Carbon\Carbon::parse($row['tanggal_join'])->format('Y-m-d');
+                    } catch (\Exception $e) {
+                        $tanggal_join = null;
+                    }
                 }
-                try {
-                    return Carbon::parse($tgl)->format('Y-m-d');
-                } catch (\Exception $e) {
-                    return null;
-                }
-            })($row['tanggal_join'] ?? null);
+            }
+
+            // --- Cari divisi id ---
             $divisiId = null;
             if (! empty($row['divisi'])) {
                 $divisi   = \App\Models\Divisi::where('nama', trim($row['divisi']))->first();
                 $divisiId = $divisi?->id;
             }
-            $karyawan = Karyawan::updateOrCreate(
+
+            // --- Insert / Update Karyawan ---
+            $karyawan = \App\Models\Karyawan::updateOrCreate(
                 ['nik' => $row['nik']],
                 [
                     'nama_lengkap'      => $row['nama_lengkap'],
-                    'jenis_kelamin'     => $row['jenis_kelamin'],
+                    'jenis_kelamin'     => $row['jenis_kelamin'] ?? null,
                     'tempat'            => $tempat_lahir,
                     'tanggal_lahir'     => $tanggal_lahir,
-                    'alamat'            => $row['alamat'],
-                    'status_perkawinan' => $row['status_perkawinan'],
-                    'divisi_id'         => $divisiId, // <-- sudah nilai int/null, bukan Closure
-
-                    'status'            => $row['status_karyawan'],
-                    'lokasi'            => $row['lokasi'],
-                    'tanggal_join'      => $row['tanggal_join'] == null ? '' : $tanggal_join,
+                    'alamat'            => $row['alamat'] ?? null,
+                    'status_perkawinan' => $row['status_perkawinan'] ?? null,
+                    'divisi_id'         => $divisiId,
+                    'status'            => $row['status_karyawan'] ?? null,
+                    'lokasi'            => $row['lokasi'] ?? null,
+                    'tanggal_join'      => $tanggal_join,
                 ]
             );
 
             if ($karyawan->wasRecentlyCreated) {
                 $inserted[] = $karyawan;
-
-                $namaDepan = explode(' ', trim($karyawan->nama_lengkap))[0];
-                $email     = strtolower($namaDepan) . '@gmail.com';
-
-                if (! User::where('email', $email)->exists()) {
-                    User::create([
-                        'name'        => $karyawan->nama_lengkap,
-                        'email'       => $email,
-                        'password'    => bcrypt($namaDepan),
-                        'karyawan_id' => $karyawan->id,
-                    ]);
-                }
             } else {
                 $updated[] = $karyawan;
+            }
+
+            // --- Handle User ---
+            $namaParts    = explode(' ', trim($karyawan->nama_lengkap));
+            $namaDepan    = strtolower($namaParts[0]);
+            $namaBelakang = isset($namaParts[1]) ? strtolower(substr($namaParts[1], 0, 1)) : '';
+
+            $baseEmail = $namaDepan . $namaBelakang . '@gmail.com';
+            $email     = $baseEmail;
+            $counter   = 1;
+
+            // Cari email unik
+            while (\App\Models\User::where('email', $email)->exists()) {
+                $email = strtolower($namaDepan) . $namaBelakang  . '@gmail.com';
+                $counter++;
+            }
+            // Cek apakah sudah ada user untuk karyawan ini
+            $user = \App\Models\User::where('karyawan_id', $karyawan->id)->first();
+
+            if ($user) {
+                // update user lama
+                $user->update([
+                    'name'     => $karyawan->nama_lengkap,
+                    'email'    => $email, // ganti email hanya kalau perlu
+                    'password' => bcrypt($namaDepan),
+                ]);
+            } else {
+                // insert baru
+                \App\Models\User::create([
+                    'name'        => $karyawan->nama_lengkap,
+                    'email'       => $email,
+                    'password'    => bcrypt($namaDepan),
+                    'karyawan_id' => $karyawan->id,
+                ]);
             }
         }
 
@@ -213,7 +241,6 @@ class KaryawanController extends Controller
             'updated'       => count($updated),
             'updated_niks'  => array_column($updated, 'nik'),
             'inserted_niks' => array_column($inserted, 'nik'),
-
         ]);
     }
 
@@ -270,29 +297,38 @@ class KaryawanController extends Controller
             $q->whereYear('tanggal', $year)
                 ->whereMonth('tanggal', $month);
         }])->get();
+// dd(env('OFFICE_LAT'), env('OFFICE_LON'), env('OFFICE_RADIUS'));
+// dd(config('office'));
 
         return view('pages.karyawan.absen', compact('karyawans', 'month', 'year', 'daysInMonth'));
     }
-    public function izinKaryawan()
+    public function izinKaryawan(Request $request)
     {
-        $today       = Carbon::now();
-        $year        = $today->year;
-        $month       = $today->month;
-        $daysInMonth = $today->daysInMonth;
+        $month = $request->get('month', now()->month);
+        $year  = $request->get('year', now()->year);
+        $date  = $request->get('date'); // opsional
 
-        $karyawans = User::with(['absens' => function ($q) use ($year, $month) {
-            $q->whereYear('tanggal', $year)
-                ->where('keterangan', 'izin')
-                ->whereMonth('tanggal', $month);
-        }])
-            ->whereHas('absens', function ($q) use ($year, $month) {
-                $q->whereYear('tanggal', $year)
-                    ->where('keterangan', 'izin')
-                    ->whereMonth('tanggal', $month);
+        // Query izin karyawan
+        $query = Absen::with('user')
+            ->where('keterangan', 'izin')
+            ->when($month, function ($q) use ($month) {
+                return $q->whereMonth('tanggal', $month);
             })
-            ->get();
-        // dd($karyawans);
-        return view('pages.karyawan.izin', compact('karyawans', 'month', 'year', 'daysInMonth'));
+            ->when($year, function ($q) use ($year) {
+                return $q->whereYear('tanggal', $year);
+            })
+            ->when($date, function ($q) use ($date) {
+                return $q->whereDate('tanggal', $date);
+            });
+
+        $absens = $query->orderBy('tanggal', 'desc')->paginate(10)->withQueryString();
+
+        return view('pages.karyawan.izin', [
+            'absens' => $absens,
+            'month'  => $month,
+            'year'   => $year,
+            'date'   => $date,
+        ]);
     }
 
     public function filter(Request $request)

@@ -1,7 +1,16 @@
 <?php
 
 if (!function_exists('hitungJarak')) {
-    function hitungJarak($lat1, $lon1, $lat2, $lon2)
+    /**
+     * Hitung jarak antara dua koordinat (lat, lon) dalam meter
+     *
+     * @param float|string $lat1
+     * @param float|string $lon1
+     * @param float|string $lat2
+     * @param float|string $lon2
+     * @return float
+     */
+    function hitungJarak($lat1, $lon1, $lat2, $lon2): float
     {
         $earthRadius = 6371000; // meter
 
@@ -13,17 +22,23 @@ if (!function_exists('hitungJarak')) {
         $latDiff = $lat2 - $lat1;
         $lonDiff = $lon2 - $lon1;
 
-        $a = sin($latDiff / 2) ** 2 +
-             cos($lat1) * cos($lat2) * sin($lonDiff / 2) ** 2;
+        $a = pow(sin($latDiff / 2), 2) +
+             cos($lat1) * cos($lat2) * pow(sin($lonDiff / 2), 2);
 
         $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
 
-        return $earthRadius * $c; // meter
+        return $earthRadius * $c;
     }
 }
 
 if (!function_exists('formatJarak')) {
-    function formatJarak($meter)
+    /**
+     * Format jarak dalam meter atau kilometer
+     *
+     * @param float $meter
+     * @return string
+     */
+    function formatJarak(float $meter): string
     {
         if ($meter >= 1000) {
             return number_format($meter / 1000, 2) . ' km';

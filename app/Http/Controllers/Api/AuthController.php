@@ -1,17 +1,12 @@
 <?php
+namespace App\Http\Controllers\Api;
 
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-
-namespace App\Http\Controllers\Api;
-
-use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Models\User;
-use Carbon\Carbon;
 
 class AuthController extends Controller
 {
@@ -19,14 +14,14 @@ class AuthController extends Controller
     {
         $request->validate([
             'email'    => 'required|email',
-            'password' => 'required'
+            'password' => 'required',
         ]);
 
-        if (!Auth::attempt($request->only('email', 'password'))) {
+        if (! Auth::attempt($request->only('email', 'password'))) {
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
-        $user = User::where('email', $request->email)->first();
+        $user  = User::where('email', $request->email)->first();
         $token = $user->createToken('api-token')->plainTextToken;
 
         return response()->json([
@@ -37,9 +32,17 @@ class AuthController extends Controller
 
     public function me(Request $request)
     {
-    $user = $request->user()->load('karyawan');
+        $user = $request->user();
 
-        $today = Carbon::today();
+        if (! $user) {
+            return response()->json([
+                'message' => 'Unauthenticated (token salah atau sudah logout)',
+            ], 401);
+        }
+
+        $user->load(['karyawan.divisi']);
+
+        $today = \Carbon\Carbon::today();
 
         $absenHariIni = $user->absens()
             ->whereDate('tanggal', $today)
@@ -51,10 +54,27 @@ class AuthController extends Controller
         ]);
     }
 
-
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
-        return response()->json(['message' => 'Logged out']);
+        try {
+            $user = $request->user();
+
+            if (! $user) {
+                return response()->json([
+                    'message' => 'Token tidak valid atau sudah logout',
+                ], 401);
+            }
+
+            // hapus token yang sedang dipakai
+            $user->currentAccessToken()->delete();
+
+            return response()->json(['message' => 'Logout berhasil']);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Terjadi kesalahan saat logout',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
+
 }

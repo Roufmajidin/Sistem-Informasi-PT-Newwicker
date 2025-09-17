@@ -83,7 +83,7 @@ class AbsenExport implements FromCollection, WithHeadings, WithStyles, WithEvent
         $period = Carbon::parse($this->start)->daysUntil(Carbon::parse($this->end)->addDay());
         $dates  = [];
         foreach ($period as $d) {
-            $dates[] = $d->format('d');
+            $dates[] = $d->format('d/m');
         }
 
         return array_merge(['Nama'], $dates, ['S', 'I', 'C', 'A', 'Total Jam Kerja']);

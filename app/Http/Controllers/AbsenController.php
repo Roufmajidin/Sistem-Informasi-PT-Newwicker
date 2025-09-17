@@ -3,7 +3,6 @@ namespace App\Http\Controllers;
 
 use App\Exports\AbsenExport;
 use App\Models\Absen;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -102,11 +101,37 @@ class AbsenController extends Controller
         $today = now()->toDateString();
         $now   = now();
 
+        // ==================== Cek waktu minimal absen ====================
+        $minTime = '07:00';
+        if ($now->format('H:i') < $minTime) {
+            return response()->json([
+                'message' => 'Belum bisa absen. Absen dimulai pukul ' . $minTime,
+            ], 403);
+        }
+        // ==================== Lokasi kantor ====================
+        $officeLat = config('office.lat');
+        $officeLng = config('office.lon');
+        $radius    = config('office.radius'); // meter
+
+        $userLat = $request->latitude;
+        $userLng = $request->longitude;
+
+        if (! isset($userLat) || ! isset($userLng)) {
+            return response()->json(['message' => 'Lokasi tidak terdeteksi'], 400);
+        }
+
+        $jarak = $this->distance($userLat, $userLng, $officeLat, $officeLng);
+        if ($jarak > $radius) {
+            return response()->json([
+                'message' => 'Anda berada di luar area kantor (' . round($jarak) . ' meter). Absen ditolak.',
+            ], 403);
+        }
+
+        // ==================== Cek data absen hari ini ====================
         $absen = Absen::where('user_id', $user->id)
             ->where('tanggal', $today)
             ->first();
 
-        // ============== Jika data sudah komplit ==============
         if ($absen && $absen->jam_masuk && $absen->jam_keluar) {
             return response()->json([
                 'message' => 'Absen hari ini sudah komplit',
@@ -119,38 +144,44 @@ class AbsenController extends Controller
             $fotoPath = $request->file('foto')->store('absen_foto', 'public');
         }
 
-        // ============== Jika BELUM ADA absen sama sekali ==============
         if (! $absen) {
             if ($now->format('H:i') >= '17:00') {
-                // Sudah lewat jam 17:00 → auto absen keluar
+                // Sudah lewat jam 17:00 → catat jam keluar saja
                 Absen::create([
-                    'user_id'    => $user->id,
-                    'tanggal'    => $today,
-                    'jam_masuk'  => null,
-                    'jam_keluar' => '17:00:00',
-                    'keterangan' => 'Lupa Absen Masuk',
+                    'user_id'     => $user->id,
+                    'tanggal'     => $today,
+                    // 'jam_masuk'   => null,
+                    'jam_keluar'  => $now->format('H:i:s'),
+                    'latitude'    => $userLat,
+                    'longitude'   => $userLng,
+                    'latitude_k'  => null,
+                    'longitude_k' => null,
+                    'foto_keluar' => $fotoPath,
+                    // 'keterangan'  => 'Lupa Absen Masuk',
                 ]);
 
                 return response()->json([
-                    'message' => 'Anda lupa absen masuk! Sistem otomatis mencatat absen keluar pukul 17:00.',
+                    'message' => 'Anda lupa absen masuk! Sistem otomatis mencatat jam keluar pukul 17:00.',
                 ], 200);
             }
 
-            // Kalau masih sebelum 17:00 → catat absen masuk
+            // Masih sebelum jam 17:00 → catat absen masuk normal
             Absen::create([
-                'user_id'    => $user->id,
-                'tanggal'    => $today,
-                'jam_masuk'  => $now->format('H:i:s'),
-                'latitude'   => $request->latitude,
-                'longitude'  => $request->longitude,
-                'foto'       => $fotoPath,
-                'keterangan' => 'Hadir',
+                'user_id'     => $user->id,
+                'tanggal'     => $today,
+                'jam_masuk'   => $now->format('H:i:s'),
+                'latitude'    => $userLat,
+                'longitude'   => $userLng,
+                'latitude_k'  => null,
+                'longitude_k' => null,
+                'foto'        => $fotoPath,
+                'keterangan'  => 'Hadir',
             ]);
 
             return response()->json(['message' => 'Absen masuk tercatat'], 201);
         }
 
-        // ============== Kalau sudah ada jam_masuk tapi belum ada jam_keluar ==============
+        // ==================== Kalau sudah ada jam_masuk tapi belum ada jam_keluar ====================
         if ($absen->jam_masuk && ! $absen->jam_keluar) {
             if ($now->format('H:i') < '17:00') {
                 return response()->json([
@@ -158,33 +189,113 @@ class AbsenController extends Controller
                 ], 403);
             }
 
-            // Kalau sudah lewat jam 17:00 dan user belum absen keluar
             if ($now->format('H:i') >= '17:00') {
-                // Jangan izinkan absen keluar manual → langsung patenkan
                 $absen->update([
-                    'jam_keluar' => '17:00:00',
-                    'keterangan' => 'Lupa Absen Keluar',
+                    'jam_keluar'  => $now->format('H:i:s'),
+                    'latitude'    => $userLat,
+                    'longitude'   => $userLng,
+                    'latitude_k'  => $officeLat,
+                    'longitude_k' => $officeLng,
+                    'foto'        => $fotoPath,
+                    'keterangan'  => null,
                 ]);
 
                 return response()->json([
-                    'message' => 'Anda lupa absen keluar! Sistem otomatis mencatat keluar pukul 17:00.',
+                    'message' => 'Absen keluar berhasil dicatat pada ' . $now->format('H:i'),
                 ], 200);
             }
         }
 
         return response()->json(['message' => 'Terjadi kesalahan, silakan coba lagi.'], 500);
     }
-public function export(Request $request)
-{
-    // Ambil range tanggal dari input
-    $start  = request('start_date'); // format Y-m-d
-    $end    = request('end_date');   // format Y-m-d
+    public function ajukanIzin(Request $request)
+    {
+        $today = now()->toDateString();
+        $now   = now();
 
-    // Ambil data absen
-    $absens = Absen::with('user')
-                ->whereBetween('tanggal', [$start, $end])
-                ->get();
+        if (! $request->user()) {
+            return response()->json(['message' => 'Token tidak valid'], 401);
+        }
 
-    return Excel::download(new AbsenExport($start, $end), "absen_{$start}_sd_{$end}.xlsx");
-}
+        $user = $request->user();
+
+        // Cek apakah sudah ada izin hari ini
+        $existing = Absen::where('user_id', $user->id)
+            ->where('tanggal', $today)
+            ->where('keterangan', 'izin')
+            ->first();
+
+        if ($existing) {
+            return response()->json([
+                'message' => 'Anda sudah mengajukan izin hari ini',
+                'data'    => $existing,
+            ], 200);
+        }
+
+        // Upload foto opsional
+        $fotoPath = null;
+        if ($request->hasFile('foto')) {
+            $fotoPath = $request->file('foto')->store('izin', 'public');
+        }
+
+        // Simpan data izin
+        $izin = Absen::create([
+            'user_id'    => $user->id,
+            'tanggal'    => $today,
+            'messages'   => $request->messages, // wajib diisi
+            'foto'       => $fotoPath,
+            'keterangan' => 'izin',
+            'validate'   => 0, // langsung set 0
+        ]);
+
+        return response()->json([
+            'message' => 'Izin berhasil diajukan',
+            'data'    => $izin,
+        ], 201);
+    }
+
+/**
+ * Hitung jarak antara dua titik koordinat (meter)
+ */
+    protected function distance($lat1, $lon1, $lat2, $lon2)
+    {
+        $earthRadius = 6371000; // meter
+
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLon = deg2rad($lon2 - $lon1);
+
+        $a = sin($dLat / 2) * sin($dLat / 2) +
+        cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
+        sin($dLon / 2) * sin($dLon / 2);
+
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+        return $earthRadius * $c;
+    }
+
+    public function export(Request $request)
+    {
+                                        // Ambil range tanggal dari input
+        $start = request('start_date'); // format Y-m-d
+        $end   = request('end_date');   // format Y-m-d
+
+        // Ambil data absen
+        $absens = Absen::with('user')
+            ->whereBetween('tanggal', [$start, $end])
+            ->get();
+
+        return Excel::download(new AbsenExport($start, $end), "absen_{$start}_sd_{$end}.xlsx");
+    }
+    public function validateIzin($id)
+    {
+        $absen = Absen::find($id);
+        if (! $absen) {
+            return response()->json(['message' => 'Data tidak ditemukan'], 404);
+        }
+
+        $absen->update([
+            'validate' => 1,
+        ]);
+
+        return response()->json(['message' => 'Izin berhasil divalidasi'], 200);
+    }
 }

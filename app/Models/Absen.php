@@ -17,6 +17,8 @@ class Absen extends Model
         'longitude_k',
         'foto',
         'foto_keluar',
+        'messages',
+        'validate'
     ];
 
     public function user()

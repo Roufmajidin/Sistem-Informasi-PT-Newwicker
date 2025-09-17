@@ -60,65 +60,84 @@
 
                         </tr>
                     </thead>
-                    <tbody>
-                        @php $no = 1; @endphp
-                        @foreach ($data as $i)
-                        <tr style="font-size: 13px;">
-                            <td>{{ $no++ }}</td>
-                            <td class="sticky">
-                                <a href="#" class="editable-merk" data-name="merk" data-pk="{{ $i->id }}" data-type="text" data-url="/inventory-inline-update" data-title="Enter merk">
-                                    {{ $i->merk }}
-                                </a>
-                            </td>
-                            <td>
-                                <a href="#" class="editable-jenis" data-name="jenis" data-pk="{{ $i->id }}" data-type="text" data-url="/inventory-inline-update" data-title="Enter jenis">
-                                    {{ $i->jenis }}
-                                </a>
-                            </td>
-                            <td>
-                                <a href="#" class="editable-deskripsi" data-name="deskripsi" data-pk="{{ $i->id }}" data-type="text" data-url="/inventory-inline-update" data-title="Enter deskripsi">
-                                    {{ $i->deskripsi }}
-                                </a>
-                            </td>
-                            </td>
-                            <td>
-                                <a href="#" class="editable-nama" data-name="karyawan" data-pk="{{ $i->id }}" data-type="text" data-url="/inventory-inline-update" data-title="Enter karyawan">
-                                    {{ $i->karyawan->nama_lengkap }}
-                                </a>
+               <tbody>
+    @php $no = 1; @endphp
+    @forelse ($data as $i)
+        <tr style="font-size: 13px;">
+            <td>{{ $no++ }}</td>
+            <td class="sticky">
+                <a href="#" class="editable-merk"
+                   data-name="merk" data-pk="{{ $i->id }}"
+                   data-type="text" data-url="/inventory-inline-update"
+                   data-title="Enter merk">
+                    {{ $i->merk }}
+                </a>
+            </td>
+            <td>
+                <a href="#" class="editable-jenis"
+                   data-name="jenis" data-pk="{{ $i->id }}"
+                   data-type="text" data-url="/inventory-inline-update"
+                   data-title="Enter jenis">
+                    {{ $i->jenis }}
+                </a>
+            </td>
+            <td>
+                <a href="#" class="editable-deskripsi"
+                   data-name="deskripsi" data-pk="{{ $i->id }}"
+                   data-type="text" data-url="/inventory-inline-update"
+                   data-title="Enter deskripsi">
+                    {{ $i->deskripsi }}
+                </a>
+            </td>
+            <td>
+                <a href="#" class="editable-nama"
+                   data-name="karyawan" data-pk="{{ $i->id }}"
+                   data-type="text" data-url="/inventory-inline-update"
+                   data-title="Enter karyawan">
+                    {{ $i->karyawan->nama_lengkap ?? '-' }}
+                </a>
+            </td>
+            <td>
+                <a href="#" class="editable-keterangan"
+                   data-name="keterangan" data-pk="{{ $i->id }}"
+                   data-type="text" data-url="/inventory-inline-update"
+                   data-title="Enter keterangan">
+                    {{ $i->keterangan }}
+                </a>
+            </td>
+            <td>
+                <a href="#" class="editable-catatan"
+                   data-name="catatan" data-pk="{{ $i->id }}"
+                   data-type="text" data-url="/inventory-inline-update"
+                   data-title="Enter catatan">
+                    {{ $i->catatan }}
+                </a>
+            </td>
+            <td>
+                <a href="#"
+                   class="upload-foto"
+                   data-id="{{ $i->id }}">
+                    @if ($i->foto)
+                        <img src="{{ asset('foto_inventory/' . $i->foto) }}" width="60">
+                    @else
+                        <span>Pilih Gambar</span>
+                    @endif
+                </a>
 
-                            </td>
-                            <td>
-                                <a href="#" class="editable-keterangan" data-name="keterangan" data-pk="{{ $i->id }}" data-type="text" data-url="/inventory-inline-update" data-title="Enter keterangan">
-                                    {{ $i->keterangan }}
-                                </a>
-                            </td>
-                            <td>
-                                <a href="#" class="editable-catatan" data-name="catatan" data-pk="{{ $i->id }}" data-type="text" data-url="/inventory-inline-update" data-title="Enter catatan">
-                                    {{ $i->catatan }}
-                                </a>
-                            </td>
-                            <td>
-                                <a href="#"
-                                    class="upload-foto"
-                                    data-id="{{ $i->id }}">
-                                    @if ($i->foto)
-<img src="{{ asset('foto_inventory/' . $i->foto) }}" width="60">
-                                    @else
-                                    <span>Pilih Gambar</span>
-                                    @endif
-                                </a>
+                <input type="file"
+                       accept="image/*"
+                       class="input-foto d-none"
+                       id="foto-input-{{ $i->id }}"
+                       data-id="{{ $i->id }}">
+            </td>
+        </tr>
+    @empty
+        <tr>
+            <td colspan="8" class="text-center">Tidak ada data</td>
+        </tr>
+    @endforelse
+</tbody>
 
-                                <input type="file"
-                                    accept="image/*"
-                                    class="input-foto d-none"
-                                    id="foto-input-{{ $i->id }}"
-                                    data-id="{{ $i->id }}">
-                            </td>
-
-
-                        </tr>
-                        @endforeach
-                    </tbody>
                 </table>
             </div>
         </div>

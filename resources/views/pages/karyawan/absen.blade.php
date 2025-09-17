@@ -47,7 +47,7 @@
                         </form>
                     </div>
 
-                    <div class="d-flex justify-content-end">
+<div id="exportWrapper" class="justify-content-end" style="display:none;">
                         <form id="exportForm" class="d-flex gap-2" method="GET" action="{{ route('absen.export') }}">
                             <input type="date"
                                 name="start_date"
@@ -147,7 +147,13 @@
 <script>
     $(function() {
         $('#btnBulanan').on('click', function() {
+             if (exportWrapper.style.display === 'none') {
+        exportWrapper.style.display = 'flex'; // sekarang muncul dengan flex
+    } else {
+        exportWrapper.style.display = 'none'; // sembunyi
+    }
             $('#tableBulanan').toggleClass('d-none');
+
 
             if (!$('#tableBulanan').hasClass('d-none')) {
                 $(this).text('Kembali ke Harian');
@@ -302,5 +308,17 @@ document.addEventListener("click", function(e) {
     }
 });
 </script>
+<script>
+function copyTextToClipboard(el) {
+    const text = el.getAttribute("data-full");
+    const jarak = el.getAttribute("data-jarak");
+    const finalText = jarak ? `${text} (±${jarak} m)` : text;
+
+    navigator.clipboard.writeText(finalText).then(() => {
+        alert(`Tersalin: ${finalText}`);
+    });
+}
+</script>
+
 
 @endsection

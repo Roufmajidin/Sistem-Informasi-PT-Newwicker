@@ -73,7 +73,7 @@
                         // hitung kehadiran
                         if ($absen) {
                             if ($absen->keterangan == 'sakit') $totalS++;
-                            elseif ($absen->keterangan == 'i') $totalI++;
+                            elseif ($absen->keterangan == 'izin') $totalI++;
                             elseif ($absen->keterangan == 'cuti') $totalC++;
                         } else {
                             $totalA++;
@@ -87,13 +87,13 @@
                         @if ($absen)
                             @if ($absen->keterangan == 'sakit')
                                 S
-                            @elseif ($absen->keterangan == 'i')
+                            @elseif ($absen->keterangan == 'izin')
                                 I
                             @elseif ($absen->keterangan == 'cuti')
                                 C
                             @else
                                 @if ($absen->jam_masuk && !$absen->jam_keluar && $jamKeluar === '17:00')
-                                    H <small class="text-muted">(auto)</small>
+                                    H <small class="text-muted"></small>
                                 @else
                                     H
                                 @endif

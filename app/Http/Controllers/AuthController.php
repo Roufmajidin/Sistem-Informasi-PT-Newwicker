@@ -38,20 +38,29 @@ class AuthController extends Controller
         return response()->json(['message' => 'Logout berhasil']);
     }
 
-    public function me(Request $request)
-    {
-        $user = $request->user();
+  public function me(Request $request)
+{
+    $user = $request->user();
 
-        $today = Carbon::today();
-
-        $absenHariIni = $user->absens()
-            ->whereDate('tanggal', $today)
-            ->get();
-
+    // Jika token tidak valid / user null
+    if (!$user) {
         return response()->json([
-            'user'  => $user,
-            'absen' => $absenHariIni,
-        ]);
+            'message' => 'Unauthorized atau token tidak valid',
+        ], 401); // HTTP 401 Unauthorized
     }
 
+    $user->load(['karyawan.divisi']);
+
+    $today = Carbon::today();
+
+    $absenHariIni = $user->absens()
+        ->whereDate('tanggal', $today)
+        ->get();
+
+    return response()->json([
+        'user'  => $user,
+        'absen' => $absenHariIni,
+    ]);
+
+}
 }

@@ -1,5 +1,5 @@
 @extends('master.master')
-@section('title', "izin list")
+@section('title', "List Izin Karyawan")
 @section('content')
 <div class="padding">
     <div class="box">
@@ -9,143 +9,180 @@
                     <h4 class="mb-0 _300">List Izin Karyawan</h4>
                     <small class="text-muted">PT. Newwicker Indonesia</small>
                 </div>
+                <div class="col-sm-6">
+                    <div class="d-flex justify-content-end mb-2">
+                        <form id="filterForm" class="form-inline d-flex flex-wrap gap-2" method="GET">
+                            <select name="month" id="month" class="form-control form-control-sm">
+                                @for ($m = 1; $m <= 12; $m++)
+                                    <option value="{{ $m }}" {{ $m == $month ? 'selected' : '' }}>
+                                        {{ \Carbon\Carbon::create()->month($m)->translatedFormat('F') }}
+                                    </option>
+                                @endfor
+                            </select>
 
+                            <select name="year" id="year" class="form-control form-control-sm">
+                                @for ($y = now()->year; $y >= 2022; $y--)
+                                    <option value="{{ $y }}" {{ $y == $year ? 'selected' : '' }}>
+                                        {{ $y }}
+                                    </option>
+                                @endfor
+                            </select>
 
+                            <input type="date"
+                                   name="date"
+                                   id="date"
+                                   class="form-control form-control-sm"
+                                   value="{{ $date ?? '' }}">
+
+                            <button type="submit" class="btn btn-sm btn-primary">Tampilkan</button>
+                        </form>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- Tabel Karyawan -->
+        <!-- Tabel -->
         <div class="col-12">
             <div class="table-wrapper">
-                <table class="table table-bordered">
-                    <thead style="color:white">
+                <table class="table table-bordered table-striped">
+                    <thead style="color:white; background-color:#343a40">
                         <tr class="sticky-header" style="font-size: 12px;">
                             <th>No.</th>
                             <th class="sticky">Nama Lengkap</th>
-                            <th>Date</th>
-                            <th>keterangan</th>
-                            <th>bukti/</th>
+                            <th>Tanggal</th>
+                            <th>Keterangan</th>
+                            <th>Bukti</th>
+                            <th>Messages</th>
                             <th>Validasi</th>
-
                         </tr>
                     </thead>
-       <tbody>
-    @php $no = 1; @endphp
-    @forelse($karyawans as $karyawan)
-        <tr>
-            <td>{{ $no++ }}</td>
-            <td>{{ $karyawan->name }}</td>
+                    <tbody>
+                        @php $no = ($absens->currentPage() - 1) * $absens->perPage() + 1; @endphp
+                        @forelse($absens as $absen)
+                            <tr>
+                                <td>{{ $no++ }}</td>
+                                <td>{{ $absen->user->name }}</td>
+                                <td>{{ \Carbon\Carbon::parse($absen->tanggal)->format('d-m-Y') }}</td>
+                                <td>{{ $absen->keterangan }}</td>
+                                <td>
+                                    @if($absen->foto)
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-primary view-photo"
+                                                data-foto="{{ asset('storage/' . $absen->foto) }}">
+                                            <i class="fa fa-eye"></i>
+                                        </button>
+                                    @else
+                                        -
+                                    @endif
+                                </td>
+                                <td>{{ $absen->messages }}</td>
             <td>
-                @foreach($karyawan->absens as $absen)
-                    {{ \Carbon\Carbon::parse($absen->tanggal)->format('d-m-Y') }} <br>
-                @endforeach
-            </td>
-            <td>
-                @foreach($karyawan->absens as $absen)
-                    {{ $absen->keterangan }} <br>
-                @endforeach
-            </td>
-            <td>
-                @foreach($karyawan->absens as $absen)
-                    @if($absen->foto)
-                        <button type="button"
-                                class="btn btn-sm btn-outline-primary view-photo"
-                                data-foto="{{ asset('storage/' . $absen->foto) }}">
-                            <i class="fa fa-eye"></i>
-                        </button>
-                        <br>
-                    @else
-                        -
-                        <br>
-                    @endif
-                @endforeach
-            </td>
-            <td>
-                  <div class="col-sm-6 text-right">
-                <label id="scan-again-btn" class="btn btn-sm btn-primary">validate?</label>
-            </div>
-            </td>
-        </tr>
-    @empty
-        <tr>
-            <td colspan="5" class="text-center">Tidak ada karyawan izin bulan ini</td>
-        </tr>
-    @endforelse
-</tbody>
+    @if($absen->validate == 1)
+        <span class="badge bg-success">Sudah divalidasi</span>
+    @else
+        <button class="btn btn-sm btn-success validate-btn"
+                data-id="{{ $absen->id }}">
+            Validate
+        </button>
+    @endif
+</td>
 
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="7" class="text-center">Tidak ada karyawan izin</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
                 </table>
             </div>
-        </div>
-    </div>
-    <!-- Modal hasil import -->
-    <div class="modal fade" id="importResultModal" tabindex="-1" role="dialog">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Hasil Import</h5>
-                    <button type="button" class="close" data-dismiss="modal">
-                        <span>&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body" id="resultTableBody">
 
-                </div>
-                <div class="text-right mb-2 mr-2">
-                    <button class="btn btn-sm btn-success" id="btnBulkSave">Simpan Data Baru</button>
-                </div>
+            <!-- Pagination -->
+            <div class="mt-2">
+{{ $absens->links() }}
             </div>
         </div>
     </div>
-</div>
-
-
-<!-- Modal HTML di bawah table -->
-<div class="modal fade" id="fotoModal" tabindex="-1" aria-hidden="true">
+    <!-- Modal Konfirmasi Validate -->
+<div class="modal fade" id="validateModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Foto Absen</h5>
+                <h5 class="modal-title">Konfirmasi Validate</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body d-flex justify-content-center">
-                <img id="fotoPreview" src="" alt="Foto Absen" class="img-fluid" style="max-height:70vh; border-radius:5px; border:1px solid #ddd;">
+            <div class="modal-body">
+                Apakah Anda yakin ingin menyetujui perijinan ini?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary closmodalbtn" id="closemodal" data-bs-dismiss="modal">Batal</button>
+                <button type="button" class="btn btn-primary" id="confirmValidate">Ya, Setuju</button>
             </div>
         </div>
     </div>
 </div>
+
+    <!-- Modal Foto -->
+    <div class="modal fade" id="fotoModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Foto Absen</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body d-flex justify-content-center">
+                    <img id="fotoPreview" src="" alt="Foto Absen" class="img-fluid"
+                         style="max-height:70vh; border-radius:5px; border:1px solid #ddd;">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- JS -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
 
-
 <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        const tableWrapper = document.querySelector(".table-wrapper");
-        const headerCells = document.querySelectorAll("thead th");
-
-        tableWrapper.addEventListener("scroll", function() {
-            if (tableWrapper.scrollTop > 0) {
-                headerCells.forEach(th => th.classList.add("scrolled"));
-            } else {
-                headerCells.forEach(th => th.classList.remove("scrolled"));
-            }
-        });
+$(document).ready(function() {
+    // Foto modal
+    $(document).on('click', '.view-photo', function() {
+        const fotoUrl = $(this).data('foto');
+        $('#fotoPreview').attr('src', fotoUrl);
+        $('#fotoModal').modal('show');
     });
-</script>
-<script>
-document.addEventListener("click", function(e) {
-    if (e.target.closest(".view-photo")) {
-        const btn = e.target.closest(".view-photo");
-        const fotoUrl = btn.dataset.foto;
 
-        console.log("Clicked:", fotoUrl); // debug
+    // Validate button
+   let validateAbsenId = null;
 
-        document.getElementById("fotoPreview").src = fotoUrl;
+$(document).on('click', '.validate-btn', function() {
+    validateAbsenId = $(this).data('id');
+    $('#validateModal').modal('show');
+});
+$(document).on('click', '.closmodalbtn', function() {
+    validateAbsenId = $(this).data('closemodal');
+    $('#validateModal').modal('hide');
+});
+$('#confirmValidate').on('click', function() {
+    if(!validateAbsenId) return;
 
-        const modal = new bootstrap.Modal(document.getElementById("fotoModal"));
-        modal.show();
-    }
+    $.ajax({
+        url: 'validate-izin/' + validateAbsenId,
+        type: 'POST',
+        data: { _token: '{{ csrf_token() }}' },
+        success: function(res) {
+            alert(res.message);
+            location.reload();
+        },
+        error: function(err) {
+            alert('Terjadi kesalahan');
+        }
+    });
+
+    $('#validateModal').modal('hide');
+});
+
 });
 </script>
-
 @endsection

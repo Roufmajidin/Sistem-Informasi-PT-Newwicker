@@ -52,7 +52,7 @@
         }
 
         if (empty($keterangan)) {
-        $keterangan[] = "Tepat waktu";
+        $keterangan[] = "";
         }
         @endphp
 
@@ -67,22 +67,51 @@
             </td>
             <td>{{ $absen->jam_masuk }}</td>
             <td>{{ $absen->jam_keluar ?? '-' }}</td>
-            <td style="max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                @if($absen->latitude && $absen->longitude)
-                <a href="https://www.google.com/maps?q={{ $absen->latitude }},{{ $absen->longitude }}"
-                    target="_blank"
-                    title="{{ $absen->latitude }}, {{ $absen->longitude }}">
-                    {{ $absen->latitude }}, {{ $absen->longitude }}
-                </a>
-                @else
-                -
-                @endif
-            </td>
+@php
+    $officeLat = config('office.lat');
+    $officeLng = config('office.lon');
+    $officeRadius = config('office.radius'); // misal 100 meter
 
-            <td style="max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
-                title="{{ $absen->latitude_k ?? '-' }}, {{ $absen->longitude_k ?? '-' }}">
-                {{ $absen->latitude_k ?? '-' }}, {{ $absen->longitude_k ?? '-' }}
-            </td>
+    $jarakMasuk = ($absen->latitude && $absen->longitude)
+        ? hitungJarak($absen->latitude, $absen->longitude, $officeLat, $officeLng)
+        : null;
+
+    $jarakMasukFormatted = $jarakMasuk ? formatJarak($jarakMasuk) : '-';
+    $statusKantor = ($jarakMasuk !== null && $jarakMasuk <= $officeRadius) ? 'Di kantor' : 'Di luar kantor';
+@endphp
+
+<td>
+    @if($absen->latitude && $absen->longitude)
+        <div
+            title="Koordinat: {{ number_format($absen->latitude, 6) }}, {{ number_format($absen->longitude, 6) }} | Jarak: {{ $jarakMasukFormatted }}"
+            ondblclick="copyTextToClipboard(this)"
+            data-full="{{ $absen->latitude }},{{ $absen->longitude }}">
+            {{ number_format($absen->latitude, 6) }}, {{ number_format($absen->longitude, 6) }}
+            <br>
+            <small class="text-muted">Jarak ke kantor: ±{{ $jarakMasukFormatted }} ({{ $statusKantor }})</small>
+        </div>
+    @else
+        -
+    @endif
+</td>
+
+<td>
+    @if($absen->latitude_k && $absen->longitude_k)
+        <div
+            title="Koordinat: {{ number_format($absen->latitude_k, 6) }}, {{ number_format($absen->longitude_k, 6) }} | Jarak: {{ formatJarak($jarakKeluar) }}"
+            ondblclick="copyTextToClipboard(this)"
+            data-full="{{ $absen->latitude_k }},{{ $absen->longitude_k }}">
+            {{ $absen->latitude_k }}, {{ $absen->longitude_k }}
+            <small class="text-muted">(±    ({{ $jarakKeluarFormatted }})
+)</small>
+        </div>
+    @else
+        -
+    @endif
+</td>
+
+
+
               <td style="max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
                 title="{{ $absen->latitude_k ?? '-' }}, {{ $absen->longitude_k ?? '-' }}">
                 {{ $absen->keterangan ?? '-' }}

@@ -51,8 +51,10 @@ class User extends Authenticatable
         return $this->belongsTo(Karyawan::class);
     }
 
-    public function absens()
-    {
-        return $this->hasMany(Absen::class);
-    }
+   public function absens()
+{
+    return $this->hasMany(Absen::class, 'user_id', 'id'); // user_id di table absens mengacu ke id user
+}
+
+
 }
