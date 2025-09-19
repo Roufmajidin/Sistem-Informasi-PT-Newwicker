@@ -75,8 +75,12 @@
     $jarakMasuk = ($absen->latitude && $absen->longitude)
         ? hitungJarak($absen->latitude, $absen->longitude, $officeLat, $officeLng)
         : null;
+     $jarakKeluar= ($absen->latitude_k && $absen->longitude_k)
+        ? hitungJarak($absen->latitude_k, $absen->longitude_k, $officeLat, $officeLng)
+        : null;
 
     $jarakMasukFormatted = $jarakMasuk ? formatJarak($jarakMasuk) : '-';
+    $jarakKeluarFormatted = $jarakKeluar ? formatJarak($jarakKeluar) : '-';
     $statusKantor = ($jarakMasuk !== null && $jarakMasuk <= $officeRadius) ? 'Di kantor' : 'Di luar kantor';
 @endphp
 
@@ -94,6 +98,7 @@
         -
     @endif
 </td>
+
 
 <td>
     @if($absen->latitude_k && $absen->longitude_k)
@@ -124,12 +129,13 @@
             </td>
 
          <td>
-    @if($absen->foto)
-     <button type="button"
-    class="btn btn-sm btn-outline-primary view-photo"
-    data-foto="{{ asset('storage/' . $absen->foto) }}">
-    <i class="fa fa-eye"></i>
-</button>
+     @if($absen->foto || $absen->foto_keluar)
+        <button type="button"
+            class="btn btn-sm btn-outline-primary view-photo"
+            data-foto-masuk="{{ $absen->foto ? asset('storage/' . $absen->foto) : '' }}"
+            data-foto-keluar="{{ $absen->foto_keluar ? asset('storage/' . $absen->foto_keluar) : '' }}">
+            <i class="fa fa-eye"></i>
+        </button>
     @else
         -
     @endif
@@ -140,15 +146,26 @@
     </tbody>
 </table>
 <!-- Modal HTML di bawah table -->
+
+<!-- Modal -->
 <div class="modal fade" id="fotoModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Foto Absen</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body d-flex justify-content-center">
-                <img id="fotoPreview" src="" alt="Foto Absen" class="img-fluid" style="max-height:70vh; border-radius:5px; border:1px solid #ddd;">
+            <div class="modal-body text-center">
+                <div class="row">
+                    <div class="col" id="colMasuk">
+                        <h6>Masuk</h6>
+                        <img id="fotoMasuk" src="" alt="Foto Masuk" class="img-fluid" style="max-height:60vh; border-radius:5px; border:1px solid #ddd;">
+                    </div>
+                    <div class="col" id="colKeluar">
+                        <h6>Keluar</h6>
+                        <img id="fotoKeluar" src="" alt="Foto Keluar" class="img-fluid" style="max-height:60vh; border-radius:5px; border:1px solid #ddd;">
+                    </div>
+                </div>
             </div>
         </div>
     </div>

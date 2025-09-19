@@ -10,5 +10,7 @@ Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
+    Route::get('/absen-me', [AuthController::class, 'absenMe']);
+    Route::get('/locationKantor', [AuthController::class, 'locationCantor']);
     Route::post('/logout', [AuthController::class, 'logout']);
 });

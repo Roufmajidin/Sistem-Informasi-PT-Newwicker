@@ -76,5 +76,41 @@ class AuthController extends Controller
             ], 500);
         }
     }
+    public function locationCantor()
+    {
+        $officeLat = config('office.lat');
+        $officeLng = config('office.lon');
+        $radius    = config('office.radius'); // meter
+        return response()->json([
+            'success' => true,
+            'data'    => [
+                'lat'    => $officeLat,
+                'lng'    => $officeLng,
+                'radius' => $radius,
+            ],
+        ]);
+    }
+    public function absenMe(Request $request)
+    {
+        $user = $request->user();
 
+        // Jika token tidak valid / user null
+        if (! $user) {
+            return response()->json([
+                'message' => 'Unauthorized atau token tidak valid',
+            ], 401); // HTTP 401 Unauthorized
+        }
+
+        $user->load(['karyawan.divisi']);
+
+        $absens = $user->absens()
+            ->orderBy('tanggal', 'desc')   // urutkan berdasarkan tanggal terbaru
+            ->orderBy('jam_masuk', 'desc') // kalau tanggal sama, urutkan jam masuk
+            ->get();
+
+        return response()->json([
+            'user'  => $user,
+            'absen' => $absens,
+        ]);
+    }
 }

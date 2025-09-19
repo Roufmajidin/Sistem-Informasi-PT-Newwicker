@@ -297,17 +297,27 @@
 document.addEventListener("click", function(e) {
     if (e.target.closest(".view-photo")) {
         const btn = e.target.closest(".view-photo");
-        const fotoUrl = btn.dataset.foto;
 
-        console.log("Clicked:", fotoUrl); // debug
+        // Perhatikan: dataset.fotoMasuk dan dataset.fotoKeluar
+        const fotoMasuk = btn.dataset.fotoMasuk;
+        const fotoKeluar = btn.dataset.fotoKeluar;
 
-        document.getElementById("fotoPreview").src = fotoUrl;
+        const imgMasuk = document.getElementById("fotoMasuk");
+        const imgKeluar = document.getElementById("fotoKeluar");
+
+        if (imgMasuk) imgMasuk.src = fotoMasuk || "http://127.0.0.1:8000/assets/images/no-image.png";
+        if (imgKeluar) imgKeluar.src = fotoKeluar || "http://127.0.0.1:8000/assets/images/no-image.png";
+
+        console.log("Masuk:", fotoMasuk);
+        console.log("Keluar:", fotoKeluar);
 
         const modal = new bootstrap.Modal(document.getElementById("fotoModal"));
         modal.show();
     }
 });
 </script>
+
+
 <script>
 function copyTextToClipboard(el) {
     const text = el.getAttribute("data-full");

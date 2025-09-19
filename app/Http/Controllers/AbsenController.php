@@ -172,8 +172,8 @@ class AbsenController extends Controller
                 'jam_masuk'   => $now->format('H:i:s'),
                 'latitude'    => $userLat,
                 'longitude'   => $userLng,
-                'latitude_k'  => null,
-                'longitude_k' => null,
+                'latitude_k'  => $userLat,
+                'longitude_k' => $userLng,
                 'foto'        => $fotoPath,
                 'keterangan'  => 'Hadir',
             ]);
@@ -194,10 +194,10 @@ class AbsenController extends Controller
                     'jam_keluar'  => $now->format('H:i:s'),
                     'latitude'    => $userLat,
                     'longitude'   => $userLng,
-                    'latitude_k'  => $officeLat,
-                    'longitude_k' => $officeLng,
-                    'foto'        => $fotoPath,
-                    'keterangan'  => null,
+                    'latitude_k'  => $userLat,
+                    'longitude_k' => $userLng,
+                    'foto_keluar' => $fotoPath,
+                    'keterangan'  => "Hadir",
                 ]);
 
                 return response()->json([
