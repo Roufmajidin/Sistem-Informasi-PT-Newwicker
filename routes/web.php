@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\KaryawanController;
 use App\Http\Controllers\MarketingController;
+use App\Http\Controllers\PameranContrller;
 use App\Http\Controllers\pdfController;
 use Illuminate\Support\Facades\Route;
 
@@ -55,7 +56,10 @@ Route::post('/inventory/upload-foto', [InventoryController::class, 'uploadFoto']
 Route::get('/absen/bulanan', [KaryawanController::class, 'bulanan'])->name('absen.bulanan');
 Route::get('/absen/export', [AbsenController::class, 'export'])->name('absen.export');
 Route::post('/validate-izin/{id}', [App\Http\Controllers\AbsenController::class, 'validateIzin']);
+Route::get('/pameran', [PameranContrller::class, 'index'])->name('pameran.index');
+Route::post('/product-pameran/import', [PameranContrller::class, 'import'])->name('product_pameran.import');
 
+Route::get('/pameran/filter', [PameranContrller::class, 'getByExhibition'])->name('pameran.filter');
 
 Route::get('/cek-env', function () {
     return [

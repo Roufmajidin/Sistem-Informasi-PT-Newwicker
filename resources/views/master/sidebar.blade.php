@@ -63,6 +63,16 @@
 
                          </ul>
                      </li>
+                        <li>
+                         <a href="/pameran">
+                             <span class="nav-icon">
+                                 <i class="material-icons">&#xe8d2;
+                                     <span ui-include="'../assets/images/i_3.svg'"></span>
+                                 </i>
+                             </span>
+                             <span class="nav-text">Pameran</span>
+                         </a>
+                     </li>
 
                      <li>
                          <a>
@@ -136,6 +146,7 @@
                              <span class="nav-text">Izin Karyawan</span>
                          </a>
                      </li>
+
                      <li>
                          <a href="/inventory">
                              <span class="nav-icon">
