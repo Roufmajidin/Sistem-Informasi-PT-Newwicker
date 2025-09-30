@@ -131,7 +131,13 @@ class AbsenController extends Controller
         $absen = Absen::where('user_id', $user->id)
             ->where('tanggal', $today)
             ->first();
-
+        // Kalau sudah ada jam_masuk tapi belum jam_keluar
+        if ($absen && $absen->jam_masuk && ! $absen->jam_keluar) {
+            return response()->json([
+                'message' => 'Anda sudah absen masuk pada ' . $absen->jam_masuk .
+                '. Silakan absen keluar setelah pukul 17:00.',
+            ], 200);
+        }
         if ($absen && $absen->jam_masuk && $absen->jam_keluar) {
             return response()->json([
                 'message' => 'Absen hari ini sudah komplit',

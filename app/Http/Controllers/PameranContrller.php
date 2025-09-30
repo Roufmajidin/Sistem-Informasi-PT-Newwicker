@@ -44,6 +44,10 @@ class PameranContrller extends Controller
             'data'   => $html,
         ]);
     }
+    public function allEventConfig(){
+        $ex = Exhibition::get();
+        return view('pages.pameran.config', compact('ex'));
+    }
 
     public function import(Request $request)
     {

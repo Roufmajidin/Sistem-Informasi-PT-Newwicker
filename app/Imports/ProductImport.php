@@ -1,8 +1,7 @@
 <?php
 namespace App\Imports;
 
-use App\Models\ProductPameran;
-use App\Models\Exhibition;
+use App\Models\Barangs;
 use Maatwebsite\Excel\Concerns\OnEachRow;
 use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithDrawings;
@@ -11,14 +10,18 @@ use Maatwebsite\Excel\Row;
 use PhpOffice\PhpSpreadsheet\Worksheet\MemoryDrawing;
 use Illuminate\Support\Facades\Log;
 
-class ProductPameranImport implements OnEachRow, WithHeadingRow, WithChunkReading, WithDrawings
+class ProductImport implements OnEachRow, WithHeadingRow, WithChunkReading, WithDrawings
 {
-    private $exhibitionId;
+    private $buyerId;
+    private $photoColumn;
+    private $codeColumn;
     private $drawings = [];
 
-    public function __construct($exhibitionId)
+    public function __construct($buyerId, $photoColumn = 'A', $codeColumn = 'D')
     {
-        $this->exhibitionId = $exhibitionId;
+        $this->buyerId     = $buyerId;
+        $this->photoColumn = $photoColumn;
+        $this->codeColumn  = $codeColumn;
     }
 
     public function drawings()
@@ -33,54 +36,65 @@ class ProductPameranImport implements OnEachRow, WithHeadingRow, WithChunkReadin
 
     public function chunkSize(): int
     {
-        return 200;
+        return 200; // Bisa disesuaikan, makin kecil makin ringan
     }
 
     public function onRow(Row $row)
     {
-        $index = $row->getIndex();
+        $index = $row->getIndex(); // Baris ke-...
         $data  = $this->normalizeRow($row->toArray());
-        $articleCode = $data['article_code'] ?? $data['name'] ?? "item_{$index}";
 
-        // Simpan foto jika ada
-        $filename = $this->saveImageIfExist($index, $articleCode);
+        $articleNr = $data['article_nr'] ?? $data['description'] ?? null;
 
-        // Simpan ke DB
-        ProductPameran::create([
-            'exhibition_id'  => $this->exhibitionId,
-            'article_code'   => $articleCode,
-            'name'           => $data['name'] ?? '',
-            'categories'     => $data['categories'] ?? '',
-            'remark'         => $data['remark'] ?? '',
-            'item_w'         => (int) ($data['item_w'] ?? 0),
-            'item_d'         => (int) ($data['item_d'] ?? 0),
-            'item_h'         => (int) ($data['item_h'] ?? 0),
-            'packing_w'      => (int) ($data['packing_w'] ?? 0),
-            'packing_d'      => (int) ($data['packing_d'] ?? 0),
-            'packing_h'      => (int) ($data['packing_h'] ?? 0),
-            'set2'           => $data['set2'] ?? null,
-            'set3'           => $data['set3'] ?? null,
-            'set4'           => $data['set4'] ?? null,
-            'set5'           => $data['set5'] ?? null,
-            'composition'    => $data['composition'] ?? '',
-            'finishing'      => $data['finishing'] ?? '',
-            'qty'            => (int) ($data['qty'] ?? 0),
-            'cbm'            => (float) ($data['cbm'] ?? 0),
-            'loadability_20' => (float) ($data['loadability_20'] ?? 0),
-            'loadability_40' => (float) ($data['loadability_40'] ?? 0),
-            'loadability_40hc'=> (float) ($data['loadability_40hc'] ?? 0),
-            'rangka'         => $data['rangka'] ?? 0,
-            'anyam'          => $data['anyam'] ?? 0,
-            'finishing_powder_coating' => $data['finishing_powder_coating'] ?? 0,
-            'accessories_final'        => $data['accessories_final'] ?? 0,
-            'electricity'              => $data['electricity'] ?? 0,
-            'photo'                    => $filename,
+        // if (! $articleNr || Barangs::where('article_nr', $articleNr)->exists()) {
+        //     return;
+        // }
+
+        $filename = $this->saveImageIfExist($index, $articleNr);
+        Log::info("Import baris ke-{$row->getIndex()} | article_nr: {$articleNr}");
+
+        Barangs::create([
+            'buyer_id'               => $this->buyerId,
+            'photo'                  => $filename,
+            'buyer_s_code'           => $data['buyers_code'] ?? '',
+            'description'            => $data['description'] ?? '',
+            'article_nr'             => $articleNr,
+            'remark'                 => $data['remark'] ?? '',
+            'cushion'                => $data['cushion'] ?? '',
+            'glass_orMirror'         => $data['glass_or_mirror'] ?? '',
+            'uom'                    => $data['uom'] ?? '',
+            'w'                      => (int) ($data['w'] ?? 0),
+            'd'                      => (int) ($data['d'] ?? 0),
+            'h'                      => (int) ($data['h'] ?? 0),
+            'sw'                     => (int) ($data['sw'] ?? 0),
+            'sh'                     => (int) ($data['sh'] ?? 0),
+            'sd'                     => (int) ($data['sd'] ?? 0),
+            'ah'                     => (int) ($data['ah'] ?? 0),
+            'weight_capacity'        => $data['weight_capacity_kg_lt'] ?? 0,
+            'materials'              => $data['materials'] ?? '',
+            'finishes_color'         => $data['finishing_color_of_item'] ?? '',
+            'weaving_composition'    => $data['weaving_composition'] ?? '',
+            'usd_selling_price'      => (float) ($data['usd_selling_price'] ?? 0),
+            'packing_dimention'      => $data['packing_dimention_cm'] ?? '',
+            'nw'                     => $data['nw_kg'] ?? 0,
+            'gw'                     => $data['gw_kg'] ?? 0,
+            'cbm'                    => $data['cbm'] ?? 0,
+            'accessories'            => $data['accessories'] ?? '',
+            'picture_of_accessories' => $data['picture_of_accessories'] ?? '',
+            'leather'                => $data['leather'] ?? '',
+            'picture_of_leather'     => $data['picture_of_leather'] ?? '',
+            'finish_steps'           => $data['finish_steps'] ?? '',
+            'harga_supplier'         => $data['harga_supplier'] ?? '',
+            'electricity'            => $data['electricity'] ?? '',
+            'comment_visit'          => $data['comment_visit'] ?? '',
+            'loadability'            => $data['loadability'] ?? '',
         ]);
     }
 
     private function normalizeRow($row): array
     {
         $normalized = [];
+
         foreach ($row as $key => $value) {
             if (is_string($value) && str_starts_with($value, '=')) {
                 try {
@@ -89,11 +103,14 @@ class ProductPameranImport implements OnEachRow, WithHeadingRow, WithChunkReadin
                     $value = null;
                 }
             }
-            $cleanKey = strtolower(preg_replace('/[^a-z0-9]+/i', '_', $key));
+
+            $cleanKey = strtolower(preg_replace('/[^a-z0-9]/i', '_', $key));
             $cleanKey = preg_replace('/_+/', '_', $cleanKey);
             $cleanKey = trim($cleanKey, '_');
+
             $normalized[$cleanKey] = $value;
         }
+
         return $normalized;
     }
 
@@ -105,32 +122,38 @@ class ProductPameranImport implements OnEachRow, WithHeadingRow, WithChunkReadin
 
             if ($matches && intval($matches[2]) === $rowIndex) {
                 $imageContents = $drawing instanceof MemoryDrawing
-                    ? (function () use ($drawing) {
-                        ob_start();
-                        call_user_func($drawing->getRenderingFunction(), $drawing->getImageResource());
-                        return ob_get_clean();
-                    })()
-                    : file_get_contents($drawing->getPath());
+                ? (function () use ($drawing) {
+                    ob_start();
+                    call_user_func(
+                        $drawing->getRenderingFunction(),
+                        $drawing->getImageResource()
+                    );
+                    return ob_get_clean();
+                })()
+                : file_get_contents($drawing->getPath());
 
                 $extension = $drawing instanceof MemoryDrawing
-                    ? match ($drawing->getMimeType()) {
-                        MemoryDrawing::MIMETYPE_PNG => 'png',
-                        MemoryDrawing::MIMETYPE_JPEG => 'jpg',
-                        MemoryDrawing::MIMETYPE_GIF => 'gif',
-                        default => 'jpg',
-                    }
-                    : $drawing->getExtension();
+                ? match ($drawing->getMimeType()) {
+                    MemoryDrawing::MIMETYPE_PNG => 'png',
+                    MemoryDrawing::MIMETYPE_JPEG => 'jpg',
+                    MemoryDrawing::MIMETYPE_GIF  => 'gif',
+                    default                      => 'jpg',
+                }
+                : $drawing->getExtension();
 
                 $filename = preg_replace('/[^\w\-]/', '_', $code) . '.' . $extension;
-                $path = storage_path('app/public/products');
+                $path     = storage_path('app/public/products');
 
-                if (!is_dir($path)) mkdir($path, 0777, true);
+                if (! is_dir($path)) {
+                    mkdir($path, 0777, true);
+                }
 
                 file_put_contents("$path/$filename", $imageContents);
 
                 return "products/$filename";
             }
         }
+
         return null;
     }
 }

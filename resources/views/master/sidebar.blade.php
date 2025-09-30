@@ -74,7 +74,7 @@
                          </a>
                      </li>
 
-                     <li>
+                     <!-- <li>
                          <a>
                              <span class="nav-caret">
                                  <i class="fa fa-caret-down"></i>
@@ -103,7 +103,7 @@
                                  </a>
                              </li>
                          </ul>
-                     </li>
+                     </li> -->
 
                      <li>
                          <a href="widget.html">
@@ -159,7 +159,7 @@
                      </li>
 
                      <li class="nav-header hidden-folded">
-                         <small class="text-muted">Comming soon Feature</small>
+                         <small class="text-muted">Config</small>
                      </li>
 
                      <li>
@@ -175,12 +175,12 @@
                                      <span ui-include="'../assets/images/i_4.svg'"></span>
                                  </i>
                              </span>
-                             <span class="nav-text">NW +</span>
+                             <span class="nav-text">Events</span>
                          </a>
                          <ul class="nav-sub nav-mega nav-mega-3">
                              <li>
-                                 <a href="arrow.html">
-                                     <span class="nav-text">main menu</span>
+                                 <a href="/all-event-config">
+                                     <span class="nav-text">Sub years</span>
                                  </a>
                              </li>
 

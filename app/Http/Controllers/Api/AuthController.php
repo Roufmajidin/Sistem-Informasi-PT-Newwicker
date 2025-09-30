@@ -94,23 +94,52 @@ class AuthController extends Controller
     {
         $user = $request->user();
 
-        // Jika token tidak valid / user null
         if (! $user) {
             return response()->json([
                 'message' => 'Unauthorized atau token tidak valid',
-            ], 401); // HTTP 401 Unauthorized
+            ], 401);
         }
 
         $user->load(['karyawan.divisi']);
 
+        $today = now()->toDateString();
+
+        // Ambil semua absen user
         $absens = $user->absens()
-            ->orderBy('tanggal', 'desc')   // urutkan berdasarkan tanggal terbaru
-            ->orderBy('jam_masuk', 'desc') // kalau tanggal sama, urutkan jam masuk
+            ->orderBy('tanggal', 'desc')
+            ->orderBy('jam_masuk', 'desc')
             ->get();
+
+        // Cek apakah ada absen hari ini
+        $hasToday = $absens->where('tanggal', $today)->first();
+
+        if (! $hasToday) {
+            // Tambahkan absen dummy ke paling depan
+            $dummy = [
+                'id'          => null,
+                'user_id'     => $user->id,
+                'tanggal'     => $today,
+                'jam_masuk'   => null,
+                'jam_keluar'  => null,
+                'keterangan'  => null,
+                'created_at'  => null,
+                'updated_at'  => null,
+                'latitude'    => null,
+                'longitude'   => null,
+                'foto'        => null,
+                'foto_keluar' => null,
+                'latitude_k'  => null,
+                'longitude_k' => null,
+                'messages'    => null,
+                'validate'    => null,
+            ];
+
+            $absens->prepend((object) $dummy);
+        }
 
         return response()->json([
             'user'  => $user,
-            'absen' => $absens,
+            'absen' => $absens->values(),
         ]);
     }
 }
