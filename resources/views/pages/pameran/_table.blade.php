@@ -1,5 +1,6 @@
 {{-- resources/views/pages/pameran/_table.blade.php --}}
 @forelse($pm as $i => $p)
+
 <tr>
     <td >{{ $i+1 }}</td>
     <td>

@@ -155,6 +155,9 @@
 
             <script src="{{asset('assets/scripts/app.js')}}"></script>
 
+<!-- Bootstrap JS (include Popper) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
             <!-- ajax -->
             <script src="{{asset('assets/libs/jquery/jquery-pjax/jquery.pjax.js')}}"></script>
             <script src="{{asset('assets/scripts/ajax.js')}}"></script>

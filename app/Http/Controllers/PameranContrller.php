@@ -5,6 +5,7 @@ use App\Imports\ProductPameranImport;
 use App\Models\Exhibition;
 use App\Models\ProductPameran;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -27,6 +28,21 @@ class PameranContrller extends Controller
 
         // $pm = ProductPameran::get();
         return view('pages.pameran.index', compact('e', 'pm'));
+    }
+    public function storeE(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'year' => 'required|integer|min:1900|max:' . date('Y'),
+        ]);
+
+        Exhibition::create([
+            'name'   => $request->name,
+            'year'   => $request->year,
+            'active' => 0, // default non-aktif
+        ]);
+
+        return redirect()->back()->with('success', 'Exhibition berhasil ditambahkan');
     }
     public function getByExhibition(Request $request)
     {
@@ -78,66 +94,88 @@ class PameranContrller extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function getpameranData()
+
+    public function getPameranData(Request $request)
     {
-        $isactive = Exhibition::where('active', 1)->first();
-        // $product = ProductPameran::where('exhibition_id', $isactive->id)->get();
-        // dd($product);
-        $product = ProductPameran::where('exhibition_id', $isactive->id)->get()->map(function ($p, $i) {
-            $articleCode = trim($p->article_code); // hapus spasi sebelum/akhir
-                                                   // dd($articleCode);
-            $photoPath = "pameran/{$articleCode}.jpg";
-            // dd($photoPath);
-            $photo = Storage::path($photoPath)
-                ? asset("storage/{$photoPath}")
-                : asset('images/default.jpg');
+        $startTime = microtime(true); // waktu mulai eksekusi
 
-            return [
-                // 'nr'                 => $i + 1, // nomor urut
-                'photo'         => $photo,
-                'article_code'       => $p->article_code,
-                'name'               => $p->name,
-                'categories'         => $p->categories,
-                'remark'         => $p->remark,
-                // 'sub_categories'     => $p->sub_categories,
-                'item_dimension'     => [
-                    'w' => $p->item_w,
-                    'd' => $p->item_d,
-                    'h' => $p->item_h,
-                ],
-                'packing_dimension'  => [
-                    'w' => $p->packing_w,
-                    'd' => $p->packing_d,
-                    'h' => $p->packing_h,
-                ],
-                'size_of_set'        => [
-                    'set_2' => $p->set2,
-                    'set_3' => $p->set3,
-                    'set_4' => $p->set4,
-                    'set_5' => $p->set5,
-                ],
-                'composition'        => $p->composition,
-                'finishing'          => $p->finishing,
-                // 'qty'                => (float) $p->qty,
-                'cbm'                => round((float) $p->cbm,2 ),
-                // 'total_cbm'          => (float) $p->total_cbm,
-                // 'rangka'             => (float) $p->rangka,
-                // 'anyam'              => (float) $p->anyam,
-                // 'value_in_usd'       => (float) $p->value_in_usd,
-                'loadability_20'     => round((float) $p->loadability_20, 0),
-                'loadability_40'     => round((float) $p->loadability_40, 0),
-                'loadability_40_hc'  => round((float) $p->loadability_40hc, 0),
-                'price_item'         => (double) $p->fob_jakarta_in_usd,
-                'fob_jakarta_in_usd' => (double) $p->fob_jakarta_in_usd,
-            ];
-        });
+        $activeIds = Exhibition::where('active', 1)->pluck('id');
 
-        return response()->json([
-            'status'   => true,
-            'products' => $product,
+        if ($activeIds->isEmpty()) {
+            $duration = microtime(true) - $startTime; // hitung durasi
+            Log::info('API getPameranData dipanggil (kosong)', [
+                'request'          => $request->all(),
+                'duration_seconds' => round($duration, 3),
+            ]);
+
+            return response()->json([
+                'status'   => false,
+                'message'  => 'Tidak ada exhibition aktif',
+                'products' => [],
+            ], 404);
+        }
+
+        $perPage = (int) $request->get('per_page', 50);
+
+        $products = ProductPameran::whereIn('exhibition_id', $activeIds)
+            ->paginate($perPage)
+            ->through(function ($p) {
+                $articleCode = trim($p->article_code);
+                $photoPath   = "pameran/{$articleCode}.jpg";
+
+                $photo = Storage::path("public/{$photoPath}")
+                    ? asset("storage/{$photoPath}")
+                    : asset('images/default.jpg');
+
+                return [
+                    'photo'              => $photo,
+                    'article_code'       => $p->article_code,
+                    'name'               => $p->name,
+                    'categories'         => $p->categories,
+                    'remark'             => $p->remark,
+                    'item_dimension'     => [
+                        'w' => $p->item_w,
+                        'd' => $p->item_d,
+                        'h' => $p->item_h,
+                    ],
+                    'packing_dimension'  => [
+                        'w' => $p->packing_w,
+                        'd' => $p->packing_d,
+                        'h' => $p->packing_h,
+                    ],
+                    'size_of_set'        => [
+                        'set_2' => $p->set2,
+                        'set_3' => $p->set3,
+                        'set_4' => $p->set4,
+                        'set_5' => $p->set5,
+                    ],
+                    'composition'        => $p->composition,
+                    'finishing'          => $p->finishing,
+                    'cbm'                => round((float) $p->cbm, 2),
+                    'loadability_20'     => round((float) $p->loadability_20, 0),
+                    'loadability_40'     => round((float) $p->loadability_40, 0),
+                    'loadability_40_hc'  => round((float) $p->loadability_40hc, 0),
+                    'price_item'         => (double) $p->fob_jakarta_in_usd,
+                    'fob_jakarta_in_usd' => (double) $p->fob_jakarta_in_usd,
+                ];
+            });
+
+        $duration = microtime(true) - $startTime; // hitung durasi
+        Log::info('API getPameranData dipanggil', [
+            'request'          => $request->all(),
+            'current_page'     => $products->currentPage(),
+            'total_items'      => $products->total(),
+            'duration_seconds' => round($duration, 3), // detik, dibulatkan 3 desimal
         ]);
 
+        return response()->json([
+            'status'           => true,
+            'message'          => 'Berhasil mengambil data produk',
+            'products'         => $products,
+            'duration_seconds' => round($duration, 3),
+        ]);
     }
+
     public function create()
     {
         //

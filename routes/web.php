@@ -62,6 +62,7 @@ Route::post('/product-pameran/import', [PameranContrller::class, 'import'])->nam
 Route::get('/pameran/filter', [PameranContrller::class, 'getByExhibition'])->name('pameran.filter');
 Route::get('/all-event-config', [PameranContrller::class, 'allEentConfig'])->name('eventconfig');
 Route::get('/pameran-api', [PameranContrller::class, 'getPameranData'])->name('getPameranData');
+    Route::post('/exhibition/store', [PameranContrller::class, 'storeE'])->name('exhibition.store');
 
 Route::get('/cek-env', function () {
     return [
