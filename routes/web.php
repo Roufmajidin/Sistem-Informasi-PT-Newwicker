@@ -61,12 +61,13 @@ Route::post('/product-pameran/import', [PameranContrller::class, 'import'])->nam
 
 Route::get('/pameran/filter', [PameranContrller::class, 'getByExhibition'])->name('pameran.filter');
 Route::get('/all-event-config', [PameranContrller::class, 'allEentConfig'])->name('eventconfig');
+Route::get('/pameran-api', [PameranContrller::class, 'getPameranData'])->name('getPameranData');
 
 Route::get('/cek-env', function () {
     return [
         'APP_ENV' => env('APP_ENV'),
-        'LAT' => env('OFFICE_LAT'),
-        'LON' => env('OFFICE_LON'),
-        'RADIUS' => env('OFFICE_RADIUS'),
+        'LAT'     => env('OFFICE_LAT'),
+        'LON'     => env('OFFICE_LON'),
+        'RADIUS'  => env('OFFICE_RADIUS'),
     ];
 });

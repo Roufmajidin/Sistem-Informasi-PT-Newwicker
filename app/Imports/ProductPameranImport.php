@@ -24,7 +24,6 @@ class ProductPameranImport implements ToCollection, WithCalculatedFormulas, With
 
     public function collection(Collection $rows)
     {
-
         $rowsArray = $rows->toArray();
         Log::info("🚀 Collection dipanggil, total rows: " . count($rows));
 
@@ -35,6 +34,10 @@ class ProductPameranImport implements ToCollection, WithCalculatedFormulas, With
 
         $header1 = $rowsArray[0];
         $header2 = $rowsArray[1];
+        Log::info('Header Excel', [
+            'header1' => $header1,
+            'header2' => $header2,
+        ]);
 
         // Isi header kosong dengan parent sebelumnya
         $lastNonEmpty = '';
@@ -51,7 +54,7 @@ class ProductPameranImport implements ToCollection, WithCalculatedFormulas, With
             'name'                     => 'name',
             'categories'               => 'categories',
             'sub_categories'           => 'sub_categories',
-            'sub_categories'           => 'subcategories',
+            'subcategories'            => 'subcategories',
             'remark'                   => 'remark',
             'item_dimension_w'         => 'item_w',
             'item_dimension_d'         => 'item_d',
@@ -59,15 +62,21 @@ class ProductPameranImport implements ToCollection, WithCalculatedFormulas, With
             'packing_dimension_w'      => 'packing_w',
             'packing_dimension_d'      => 'packing_d',
             'packing_dimension_h'      => 'packing_h',
+
             'size_of_set_set_2'        => 'set2',
             'size_of_set_set_3'        => 'set3',
             'size_of_set_set_4'        => 'set4',
             'size_of_set_set_5'        => 'set5',
+            'set2'                     => 'set2',
+            'set3'                     => 'set3',
+            'set4'                     => 'set4',
+            'set5'                     => 'set5',
+
             'composition'              => 'composition',
             'finishing'                => 'finishing',
             'qty'                      => 'qty',
             'cbm'                      => 'cbm',
-            'total_cbm'                => 'cbm', // ada di file kamu
+            'total_cbm'                => 'cbm',
             'loadability_20'           => 'loadability_20',
             'loadability_40'           => 'loadability_40',
             'loadability_40_hc'        => 'loadability_40hc',
@@ -92,15 +101,18 @@ class ProductPameranImport implements ToCollection, WithCalculatedFormulas, With
             'fob_jakarta_in_usd'       => 'fob_jakarta_in_usd',
             'cog_cushion_rate_14_500'  => 'cog_cushion_rate_14500',
             'value_in_usd'             => 'value_in_usd',
-
         ];
 
         // Flatten header
         $flattenedHeader = [];
         foreach ($header1 as $colIndex => $h1) {
-            $h2      = $header2[$colIndex] ?? '';
-            $h1      = preg_replace('/_?unnamed.*$/i', '', $h1);
-            $h2      = preg_replace('/_?unnamed.*$/i', '', $h2);
+            $h2 = $header2[$colIndex] ?? '';
+            $h1 = preg_replace('/_?unnamed.*$/i', '', $h1);
+            $h2 = preg_replace('/_?unnamed.*$/i', '', $h2);
+
+            $h1 = trim(preg_replace('/\s+/', ' ', $h1));
+            $h2 = trim(preg_replace('/\s+/', ' ', $h2));
+
             $colName = $h2 !== '' ? $h1 . '_' . $h2 : $h1;
             $colName = strtolower($colName);
             $colName = preg_replace('/[^a-z0-9]+/i', '_', $colName);
@@ -108,6 +120,7 @@ class ProductPameranImport implements ToCollection, WithCalculatedFormulas, With
 
             $flattenedHeader[$colIndex] = $map[$colName] ?? $colName;
         }
+        Log::info('Flattened header', $flattenedHeader);
 
         $batchInsert = [];
 
@@ -118,6 +131,7 @@ class ProductPameranImport implements ToCollection, WithCalculatedFormulas, With
             foreach ($rowData as $colIndex => $value) {
                 $key = $flattenedHeader[$colIndex] ?? 'col_' . $colIndex;
 
+                // Numerik only (tidak termasuk set2–set5 karena bisa string)
                 if (in_array($key, [
                     'nr',
                     'item_w',
@@ -126,10 +140,6 @@ class ProductPameranImport implements ToCollection, WithCalculatedFormulas, With
                     'packing_w',
                     'packing_d',
                     'packing_h',
-                    'set2',
-                    'set3',
-                    'set4',
-                    'set5',
                     'qty',
                     'cbm',
                     'loadability_20',
@@ -160,7 +170,10 @@ class ProductPameranImport implements ToCollection, WithCalculatedFormulas, With
                     $normalized[$key] = $value === '' ? null : $value;
                 }
             }
-
+            $normalized['cbm'] = round(
+                ($normalized['packing_w'] * $normalized['packing_d'] * $normalized['packing_h']) / 1000000,
+                6// presisi 6 digit biar sama kayak Excel
+            );
             $normalized['exhibition_id'] = $this->exhibitionId ?? request('exhibition_id');
             $normalized['created_at']    = now();
             $normalized['updated_at']    = now();
@@ -176,7 +189,7 @@ class ProductPameranImport implements ToCollection, WithCalculatedFormulas, With
                 $batchInsert = collect($batchInsert)->map(function ($row) {
                     unset($row['cog_cushion_rate_14_500']);
                     unset($row['margin']);
-                    unset($row['subcategories']); // 🔥 tambahin ini
+                    unset($row['subcategories']);
                     return $row;
                 })->toArray();
 

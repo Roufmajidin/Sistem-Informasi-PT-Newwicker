@@ -11,6 +11,7 @@ class Exhibition extends Model
 
     protected $fillable = [
         'name',
+        'active',
         'year',
     ];
 

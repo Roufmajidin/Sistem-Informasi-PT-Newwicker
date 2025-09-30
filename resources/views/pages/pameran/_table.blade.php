@@ -1,23 +1,22 @@
 {{-- resources/views/pages/pameran/_table.blade.php --}}
 @forelse($pm as $i => $p)
 <tr>
-    <td>{{ $i+1 }}</td>
+    <td >{{ $i+1 }}</td>
     <td>
-        @if($p->photo)
-            <img src="{{ asset($p->photo) }}" alt="photo" width="80">
-        @endif
+    <img src="{{ asset('storage/pameran/' . $p->article_code . '.jpg') }}" width="80"  loading="lazy">
+
     </td>
     <td>{{ $p->article_code }}</td>
-    <td>{{ $p->name }}</td>
+    <td class="sticky">{{ $p->name }}</td>
     <td>{{ $p->categories }}</td>
 
     <td>{{ $p->item_w }}</td>
     <td>{{ $p->item_d }}</td>
     <td>{{ $p->item_h }}</td>
 
-    <td>{{ $p->pack_w }}</td>
-    <td>{{ $p->pack_d }}</td>
-    <td>{{ $p->pack_h }}</td>
+    <td>{{ $p->packing_w }}</td>
+    <td>{{ $p->packing_d }}</td>
+    <td>{{ $p->packing_h }}</td>
 
     <td>{{ $p->set2 }}</td>
     <td>{{ $p->set3 }}</td>
@@ -29,12 +28,13 @@
     <td>{{ $p->qty }}</td>
     <td>{{ $p->cbm }}</td>
 
-    <td>{{ $p->load_20 }}</td>
-    <td>{{ $p->load_40 }}</td>
-    <td>{{ $p->load_40hc }}</td>
+  <td>{{ round($p->loadability_20) }}</td>
+<td>{{ round($p->loadability_40) }}</td>
+<td>{{ round($p->loadability_40hc) }}</td>
 
     <td>{{ $p->rangka }}</td>
     <td>{{ $p->anyam }}</td>
+    <td>{{ $p->fob_jakarta_in_usd }}</td>
     <td>{{ $p->finishing_powder }}</td>
     <td>{{ $p->accessories }}</td>
     <td>{{ $p->electricity }}</td>

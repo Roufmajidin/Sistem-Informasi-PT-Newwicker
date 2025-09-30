@@ -41,8 +41,8 @@
         <div class="col-12 mt-3">
             <div class="table-wrapper">
                 <table border="1" cellspacing="0" cellpadding="5" class="table table-bordered text-center align-middle">
-                    <thead class="table-light">
-                        <tr>
+                    <thead class="table-light" >
+                        <tr class="sticky-header">
                             <th rowspan="2">Nr.</th>
                             <th rowspan="2">Photo</th>
                             <th rowspan="2">Article Code</th>
@@ -50,7 +50,7 @@
                             <th rowspan="2">Categories</th>
 
                             <!-- Item Dimension -->
-                            <th colspan="3" style="background-color: blue;">Item Dimension</th>
+                            <th colspan="3"  style="background-color: blue;">Item Dimension</th>
 
                             <!-- Packing Dimension -->
                             <th colspan="3" style="background-color: blue;">Packing Dimension</th>
@@ -68,11 +68,12 @@
 
                             <th rowspan="2">Rangka</th>
                             <th rowspan="2">Anyam</th>
+                            <th rowspan="2">Price (JKT FOB)</th>
                             <th rowspan="2">Finishing / Powder</th>
                             <th rowspan="2">Accessories / Final</th>
                             <th rowspan="2">Electricity</th>
                         </tr>
-                        <tr>
+                        <tr class="sticky-header">
                             <th>W</th><th>D</th><th>H</th>
                             <th>W</th><th>D</th><th>H</th>
                             <th>Set 2</th><th>Set 3</th><th>Set 4</th><th>Set 5</th>
