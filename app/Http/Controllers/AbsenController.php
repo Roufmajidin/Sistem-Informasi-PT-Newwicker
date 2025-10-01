@@ -101,13 +101,14 @@ class AbsenController extends Controller
         $today = now()->toDateString();
         $now   = now();
 
-        // ==================== Cek waktu minimal absen ====================
-        $minTime = '07:00';
-        if ($now->format('H:i') < $minTime) {
+        // ==================== Cek waktu minimal absen masuk ====================
+        $minTime = now()->setTime(7, 0, 0);
+        if ($now->lt($minTime)) {
             return response()->json([
-                'message' => 'Belum bisa absen. Absen dimulai pukul ' . $minTime,
+                'message' => 'Belum bisa absen. Absen dimulai pukul 07:00',
             ], 403);
         }
+
         // ==================== Lokasi kantor ====================
         $officeLat = config('office.lat');
         $officeLng = config('office.lon');
@@ -131,43 +132,40 @@ class AbsenController extends Controller
         $absen = Absen::where('user_id', $user->id)
             ->where('tanggal', $today)
             ->first();
-        // Kalau sudah ada jam_masuk tapi belum jam_keluar
-        if ($absen && $absen->jam_masuk && ! $absen->jam_keluar) {
-            return response()->json([
-                'message' => 'Anda sudah absen masuk pada ' . $absen->jam_masuk .
-                '. Silakan absen keluar setelah pukul 17:00.',
-            ], 200);
-        }
+
         if ($absen && $absen->jam_masuk && $absen->jam_keluar) {
             return response()->json([
                 'message' => 'Absen hari ini sudah komplit',
             ], 200);
         }
 
-        // Upload foto opsional
+// ==================== Waktu batas absen keluar ====================
+        $cutOff = now()->setTime(17, 0, 0);
+
+// ==================== Upload foto opsional ====================
         $fotoPath = null;
         if ($request->hasFile('foto')) {
             $fotoPath = $request->file('foto')->store('absen_foto', 'public');
         }
 
+// ==================== Kalau belum ada absen hari ini ====================
         if (! $absen) {
-            if ($now->format('H:i') >= '17:00') {
+            if ($now->gte($cutOff)) {
                 // Sudah lewat jam 17:00 → catat jam keluar saja
                 Absen::create([
                     'user_id'     => $user->id,
                     'tanggal'     => $today,
-                    // 'jam_masuk'   => null,
                     'jam_keluar'  => $now->format('H:i:s'),
                     'latitude'    => $userLat,
                     'longitude'   => $userLng,
                     'latitude_k'  => null,
                     'longitude_k' => null,
                     'foto_keluar' => $fotoPath,
-                    // 'keterangan'  => 'Lupa Absen Masuk',
+                    'keterangan'  => 'Lupa Absen Masuk',
                 ]);
 
                 return response()->json([
-                    'message' => 'Anda lupa absen masuk! Sistem otomatis mencatat jam keluar pukul 17:00.',
+                    'message' => 'Anda lupa absen masuk! Sistem otomatis mencatat jam keluar pukul ' . $now->format('H:i') . '.',
                 ], 200);
             }
 
@@ -187,33 +185,32 @@ class AbsenController extends Controller
             return response()->json(['message' => 'Absen masuk tercatat'], 201);
         }
 
-        // ==================== Kalau sudah ada jam_masuk tapi belum ada jam_keluar ====================
+// ==================== Kalau sudah ada jam_masuk tapi belum ada jam_keluar ====================
         if ($absen->jam_masuk && ! $absen->jam_keluar) {
-            if ($now->format('H:i') < '17:00') {
+            if ($now->lt($cutOff)) {
                 return response()->json([
                     'message' => 'Belum bisa absen keluar. Minimal pukul 17:00.',
                 ], 403);
             }
 
-            if ($now->format('H:i') >= '17:00') {
-                $absen->update([
-                    'jam_keluar'  => $now->format('H:i:s'),
-                    'latitude'    => $userLat,
-                    'longitude'   => $userLng,
-                    'latitude_k'  => $userLat,
-                    'longitude_k' => $userLng,
-                    'foto_keluar' => $fotoPath,
-                    'keterangan'  => "Hadir",
-                ]);
+            // Sudah >= 17:00 → bisa absen keluar
+            $absen->update([
+                'jam_keluar'  => $now->format('H:i:s'),
+                'latitude'    => $userLat,
+                'longitude'   => $userLng,
+                'latitude_k'  => $userLat,
+                'longitude_k' => $userLng,
+                'foto_keluar' => $fotoPath,
+                'keterangan'  => "Hadir",
+            ]);
 
-                return response()->json([
-                    'message' => 'Absen keluar berhasil dicatat pada ' . $now->format('H:i'),
-                ], 200);
-            }
+            return response()->json([
+                'message' => 'Absen keluar berhasil dicatat pada ' . $now->format('H:i'),
+            ], 200);
         }
 
-        return response()->json(['message' => 'Terjadi kesalahan, silakan coba lagi.'], 500);
     }
+
     public function ajukanIzin(Request $request)
     {
         $today = now()->toDateString();
