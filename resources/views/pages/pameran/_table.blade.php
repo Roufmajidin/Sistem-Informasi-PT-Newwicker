@@ -1,14 +1,20 @@
 {{-- resources/views/pages/pameran/_table.blade.php --}}
 @forelse($pm as $i => $p)
 
-<tr>
+<tr >
     <td >{{ $i+1 }}</td>
-    <td>
-    <img src="{{ asset('storage/pameran/' . $p->article_code . '.jpg') }}" width="80"  loading="lazy">
-
+   <td class="sticky-col first-col">
+        <img src="{{ asset('storage/pameran/' . $p->article_code . '.webp') }}"
+             width="80" loading="lazy">
     </td>
+
     <td>{{ $p->article_code }}</td>
-    <td class="sticky">{{ $p->name }}</td>
+
+    {{-- Name sticky --}}
+    <td class="sticky-col second-col">
+        {{ $p->name }}
+    </td>
+
     <td>{{ $p->categories }}</td>
 
     <td>{{ $p->item_w }}</td>

@@ -2,6 +2,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Inventory;
+use App\Models\Karyawan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -45,10 +46,8 @@ class InventoryController extends Controller
         $karyawanId = $request->karyawan_id ?? null;
 
         // upload foto kalau ada
-         $fotoName = time() . '_' . $request->file('foto')->getClientOriginalName();
+        $fotoName = time() . '_' . $request->file('foto')->getClientOriginalName();
         $request->file('foto')->move(public_path('foto_inventory'), $fotoName);
-
-
 
         $inventory = Inventory::create([
             'merk'        => $request->merk,
@@ -66,6 +65,29 @@ class InventoryController extends Controller
         ]);
     }
 
+    public function updateInline(Request $request)
+    {
+        $id    = $request->input('pk');    // primary key (id karyawan)
+        $field = $request->input('name');  // nama kolom yang di-edit
+        $value = $request->input('value'); // nilai baru
+
+        $karyawan = Karyawan::find($id);
+        if (! $karyawan) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Karyawan tidak ditemukan',
+            ], 404);
+        }
+
+        // Simpan perubahan
+        $karyawan->$field = $value;
+        $karyawan->save();
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Data berhasil diperbarui',
+        ]);
+    }
     public function uploadFoto(Request $request, $id)
     {
         $request->validate([

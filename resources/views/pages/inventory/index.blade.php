@@ -165,6 +165,7 @@
 
 <!-- ================= JS ================ -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/x-editable/1.5.1/bootstrap4-editable/js/bootstrap-editable.min.js"></script>
 
 <script>
     $.ajaxSetup({

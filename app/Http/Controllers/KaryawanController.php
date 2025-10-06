@@ -7,6 +7,7 @@ use App\Models\Karyawan;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
@@ -36,7 +37,82 @@ class KaryawanController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $validated = $request->validate([
+            'nama_lengkap.*'      => 'required|string|max:255',
+            'nik.*'               => 'required|string|max:100|unique:karyawans,nik',
+            'jenis_kelamin.*'     => 'nullable|string|in:L,P',
+            'ttl.*'               => 'nullable|string|max:255',
+            'alamat.*'            => 'nullable|string|max:255',
+            'status_perkawinan.*' => 'nullable|string|max:100',
+            'divisi_id.*'         => 'nullable|integer|exists:divisis,id',
+            'status.*'            => 'nullable|string|max:100',
+            'lokasi.*'            => 'nullable|string|max:255',
+            'tanggal_join.*'      => 'nullable|date',
+            'photo.*'             => 'nullable|image|max:2048',
+        ]);
+
+        $dataCount = count($request->nama_lengkap);
+
+        for ($i = 0; $i < $dataCount; $i++) {
+            $namaLengkap = trim($request->nama_lengkap[$i]);
+            $nik         = trim($request->nik[$i]);
+
+            // Pisah nama depan dan belakang
+            $parts       = explode(' ', $namaLengkap);
+            $firstName   = strtolower($parts[0]);                                       // Rayen
+            $lastInitial = isset($parts[1]) ? strtolower(substr($parts[1], 0, 1)) : ''; // a
+
+            // Email dengan format: firstname + lastInitial + @gmail.com
+            $emailBase = $firstName . $lastInitial;
+            $email     = $emailBase . '@gmail.com';
+
+            // Kalau email sudah ada → tambahkan angka
+            $counter = 1;
+            while (User::where('email', $email)->exists()) {
+                $email = $emailBase . $counter . '@gmail.com';
+                $counter++;
+            }
+
+            // Password default = nama depan
+            $password = Hash::make($firstName);
+            // dd($request->divisi_id[$i]);
+            // === Simpan Karyawan ===
+            $karyawan                    = new Karyawan();
+            $karyawan->nama_lengkap      = $namaLengkap;
+            $karyawan->nik               = $nik;
+            $karyawan->jenis_kelamin     = $request->jenis_kelamin[$i] ?? null;
+            $karyawan->tempat            = $request->ttl[$i] ?? null;
+            $karyawan->alamat            = $request->alamat[$i] ?? null;
+            $karyawan->status_perkawinan = $request->status_perkawinan[$i] ?? null;
+            $karyawan->divisi_id         = ! empty($request->divisi_id[$i]) ? (int) $request->divisi_id[$i] : null;
+            $karyawan->status       = $request->status[$i] ?? null;
+            $karyawan->lokasi       = $request->lokasi[$i] ?? null;
+            $karyawan->tanggal_join = $request->tanggal_join[$i] ?? null;
+            $karyawan->status       = $request->status[$i] ?? null;
+
+            // Upload photo kalau ada
+            if ($request->hasFile("photo.$i")) {
+                $file     = $request->file("photo.$i");
+                $filename = time() . '_' . $file->getClientOriginalName();
+                $file->move(public_path('uploads/karyawan'), $filename);
+                // $karyawan->photo = $filename;
+            }
+
+            $karyawan->save();
+
+            // === Simpan User baru ===
+            $user           = new User();
+            $user->name     = $namaLengkap;
+            $user->karyawan_id = $karyawan->id;
+            $user->email    = $email;
+            $user->password = $password;
+            $user->save();
+        }
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Data baru berhasil ditambahkan!',
+        ]);
     }
 
     /**
@@ -211,7 +287,7 @@ class KaryawanController extends Controller
 
             // Cari email unik
             while (\App\Models\User::where('email', $email)->exists()) {
-                $email = strtolower($namaDepan) . $namaBelakang  . '@gmail.com';
+                $email = strtolower($namaDepan) . $namaBelakang . '@gmail.com';
                 $counter++;
             }
             // Cek apakah sudah ada user untuk karyawan ini

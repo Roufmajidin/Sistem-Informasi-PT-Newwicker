@@ -176,8 +176,8 @@ class AbsenController extends Controller
                 'jam_masuk'   => $now->format('H:i:s'),
                 'latitude'    => $userLat,
                 'longitude'   => $userLng,
-                'latitude_k'  => $userLat,
-                'longitude_k' => $userLng,
+                // 'latitude_k'  => $userLat,
+                // 'longitude_k' => $userLng,
                 'foto'        => $fotoPath,
                 'keterangan'  => 'Hadir',
             ]);
@@ -196,8 +196,8 @@ class AbsenController extends Controller
             // Sudah >= 17:00 → bisa absen keluar
             $absen->update([
                 'jam_keluar'  => $now->format('H:i:s'),
-                'latitude'    => $userLat,
-                'longitude'   => $userLng,
+                // 'latitude'    => $userLat,
+                // 'longitude'   => $userLng,
                 'latitude_k'  => $userLat,
                 'longitude_k' => $userLng,
                 'foto_keluar' => $fotoPath,

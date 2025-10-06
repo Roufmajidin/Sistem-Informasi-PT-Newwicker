@@ -16,9 +16,13 @@
                     @php
                     $itemCount = \App\Models\ProductPameran::where('exhibition_id', $exhibition->id)->count();
                     @endphp
-                    <small class="text-muted">
-                        {{ $exhibition->name }}: {{ $itemCount }} items
-                    </small> <br>
+                    <ul>
+                        <li>
+                            <small class="text-muted">
+                             {{ $exhibition->name }}: {{ $itemCount }} items
+                            </small> <br>
+                        </li>
+                       </ul>
                     @endforeach
                 </div>
 
@@ -26,20 +30,30 @@
                     <div class="m-y-sm">
                         <!-- Dropdown Tahun -->
                         <!-- <label for="exhibitionSelect" class="me-2">Pilih Exhibition:</label> -->
-                        <select name="exhibition_id" id="exhibition_year" class="form-control">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <select name="exhibition_id" id="exhibition_year" class="form-control">
 
-                            @php
-                            $activeExhibitions = \App\Models\Exhibition::get();
-                            @endphp
-                            @foreach($activeExhibitions as $exhibition)
-                            <option value="{{ $exhibition->id }}">{{ $exhibition->name }} ({{ $exhibition->year }})</option>
-                            @endforeach
-                        </select>
+                                    @php
+                                    $activeExhibitions = \App\Models\Exhibition::get();
+                                    @endphp
+                                    @foreach($activeExhibitions as $exhibition)
 
-                        <!-- Icon plus -->
-                        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addExhibitionModal">
-                            <i class="fa fa-plus"></i>
-                        </button>
+                                    <option value="{{ $exhibition->id }}">{{ $exhibition->name }} ({{ $exhibition->year }}) <br>
+
+                                </option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+
+                            <!-- Icon plus -->
+                            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addExhibitionModal">
+                                <i class="fa fa-plus"></i>
+                            </button>
+
+                        </div>
+
                         <!-- Modal -->
                         <div class="modal fade" id="addExhibitionModal" tabindex="-1" aria-labelledby="addExhibitionModalLabel" aria-hidden="true">
                             <div class="modal-dialog">
@@ -88,13 +102,13 @@
         <!-- Table -->
         <div class="col-12 mt-3">
             <div class="table-wrapper">
-                <table border="1" cellspacing="0" cellpadding="5" class="table table-bordered text-center align-middle">
-                    <thead class="table-light">
-                        <tr class="sticky-header">
+                <table class="table table-bordered">
+                    <thead style="color:white">
+                        <tr class="sticky-header" style="font-size: 12px;">
                             <th rowspan="2">Nr.</th>
                             <th rowspan="2">Photo</th>
                             <th rowspan="2">Article Code</th>
-                            <th rowspan="2">Name</th>
+                            <th style="z-index:60;" rowspan="2">Name</th>
                             <th rowspan="2">Categories</th>
 
                             <!-- Item Dimension -->

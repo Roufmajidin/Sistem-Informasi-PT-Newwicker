@@ -121,7 +121,7 @@ class PameranContrller extends Controller
             ->paginate($perPage)
             ->through(function ($p) {
                 $articleCode = trim($p->article_code);
-                $photoPath   = "pameran/{$articleCode}.jpg";
+                $photoPath   = "pameran/{$articleCode}.webp";
 
                 $photo = Storage::path("public/{$photoPath}")
                     ? asset("storage/{$photoPath}")

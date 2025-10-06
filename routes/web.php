@@ -16,7 +16,10 @@ Route::get('/marketing', [MarketingController::class, 'index'])->name('marketing
 Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory.index');
 Route::post('/inventory-inline-update', [InventoryController::class, 'update']);
 Route::post('/inventory/{id}/upload-foto', [InventoryController::class, 'uploadFoto'])->name('inventory.uploadFoto');
-
+// pr rapihkan
+Route::post('/karyawan-updateInline', [InventoryController::class, 'updateInline'])->name('karyawan.updateInline');
+Route::post('/karyawan/store', [App\Http\Controllers\KaryawanController::class, 'store'])
+    ->name('karyawan.store');
 Route::get('/marketing/pfi', [MarketingController::class, 'pfi'])->name('marketing.pfi');
 Route::get('/marketing/buyers_list', [MarketingController::class, 'buyyerList']);
 Route::get('/buyers/search', [MarketingController::class, 'search'])->name('buyers.search');
@@ -62,7 +65,7 @@ Route::post('/product-pameran/import', [PameranContrller::class, 'import'])->nam
 Route::get('/pameran/filter', [PameranContrller::class, 'getByExhibition'])->name('pameran.filter');
 Route::get('/all-event-config', [PameranContrller::class, 'allEentConfig'])->name('eventconfig');
 Route::get('/pameran-api', [PameranContrller::class, 'getPameranData'])->name('getPameranData');
-    Route::post('/exhibition/store', [PameranContrller::class, 'storeE'])->name('exhibition.store');
+Route::post('/exhibition/store', [PameranContrller::class, 'storeE'])->name('exhibition.store');
 
 Route::get('/cek-env', function () {
     return [
