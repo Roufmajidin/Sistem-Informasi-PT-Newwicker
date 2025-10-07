@@ -158,6 +158,17 @@
                          </a>
                      </li>
 
+                     <li>
+                         <a href="/labeling">
+                             <span class="nav-icon">
+                                 <i class="material-icons">&#xe8d2;
+                                     <span ui-include="'../assets/images/i_3.svg'"></span>
+                                 </i>
+                             </span>
+                             <span class="nav-text">Labeling</span>
+                         </a>
+                     </li>
+
                      <li class="nav-header hidden-folded">
                          <small class="text-muted">Config</small>
                      </li>

@@ -4,6 +4,7 @@ use App\Http\Controllers\AbsenController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\KaryawanController;
+use App\Http\Controllers\LabelController;
 use App\Http\Controllers\MarketingController;
 use App\Http\Controllers\PameranContrller;
 use App\Http\Controllers\pdfController;
@@ -66,7 +67,10 @@ Route::get('/pameran/filter', [PameranContrller::class, 'getByExhibition'])->nam
 Route::get('/all-event-config', [PameranContrller::class, 'allEentConfig'])->name('eventconfig');
 Route::get('/pameran-api', [PameranContrller::class, 'getPameranData'])->name('getPameranData');
 Route::post('/exhibition/store', [PameranContrller::class, 'storeE'])->name('exhibition.store');
-
+Route::get('/labeling', [LabelController::class, 'index'])->name('labelling.index');
+Route::get('/labeling', [LabelController::class, 'index'])->name('labeling.index');
+Route::post('/labeling/store', [LabelController::class, 'store'])->name('labeling.store');
+Route::delete('/labeling/{id}', [LabelController::class, 'destroy'])->name('labeling.destroy');
 Route::get('/cek-env', function () {
     return [
         'APP_ENV' => env('APP_ENV'),

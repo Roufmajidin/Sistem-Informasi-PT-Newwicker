@@ -423,7 +423,7 @@ class KaryawanController extends Controller
             // dd($absens);
             // $karyawans = Karyawan::get();
 
-            $html = view('pages.karyawan.absen-table', compact('absens'))->render();
+            $html = view('pages.widgets.absen-table  ', compact('absens'))->render();
 
             return response()->json(['html' => $html]);
 
@@ -450,7 +450,7 @@ class KaryawanController extends Controller
         $bulanSekarang = \Carbon\Carbon::create($year, $month, 1);
         $jumlahHari    = $bulanSekarang->daysInMonth;
 
-        $html = view('pages.karyawan.absen-table-bulanan', compact('karyawans', 'bulanSekarang', 'jumlahHari'))->render();
+        $html = view('pages.widgets.absen-table-bulanan', compact('karyawans', 'bulanSekarang', 'jumlahHari'))->render();
 
         return response()->json(['html' => $html]);
     }
