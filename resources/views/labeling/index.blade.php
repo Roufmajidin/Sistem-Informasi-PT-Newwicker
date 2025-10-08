@@ -41,8 +41,8 @@
                             <th>Description</th>
                             <th>List label</th>
                             <th>Jadwal Container</th>
-                            <th>Status (Rouf)</th>
-                            <th>Status (Yogi)</th>
+                         <th style="width: 180px;">Note (Rouf)</th>
+                    <th style="width: 180px;">Note (Yogi)</th>
                             <th>Aksi</th>
                         </tr>
                     </thead>
@@ -60,8 +60,9 @@
                                 </ul>
                             </td>
                             <td contenteditable="true">{{ $label->jadwal_container }}</td>
-                            <td contenteditable="true">{{ $label->status_rouf }}</td>
-                            <td contenteditable="true">{{ $label->status_yogi }}</td>
+                                             <td class="note-cell" contenteditable="true">{{ $label->status_rouf }}</td>
+                    <td class="note-cell" contenteditable="true">{{ $label->status_yogi }}</td>
+
                             <td>
                                 <button class="btn btn-sm btn-success save-btn">Save</button>
                                 <button class="btn btn-sm btn-danger delete-btn">Delete</button>
@@ -79,6 +80,35 @@
         </div>
     </div>
 </div>
+<!-- new style for css;s -->
+  <style>
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        .table th,
+        .table td {
+            vertical-align: middle;
+            font-size: 13px;
+        }
+
+        /* Kolom Note biar wrap text */
+        .table td.note-cell {
+            white-space: pre-wrap; /* biar teks panjang turun ke bawah */
+            word-break: break-word;
+        }
+
+
+        /* Sticky header biar tetap di atas waktu scroll */
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+           .row-done {
+            background-color: #d4edda !important;
+        }
+    </style>
 @endsection
 
 
@@ -89,6 +119,29 @@
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        function updateRowColors() {
+            document.querySelectorAll('table tbody tr').forEach(row => {
+                const roufCell = row.querySelector('td:nth-child(5)');
+                if (roufCell && roufCell.textContent.trim().toLowerCase() === 'done') {
+                    row.classList.add('row-done');
+                } else {
+                    row.classList.remove('row-done');
+                }
+            });
+        }
+
+        // Jalankan saat awal halaman dimuat
+        updateRowColors();
+
+        // Jalankan setiap kali user mengubah isi Note (Rouf)
+        document.querySelectorAll('td:nth-child(5)').forEach(cell => {
+            cell.addEventListener('input', updateRowColors);
+        });
+    });
+</script>
+<script>
+
 $(document).ready(function() {
 
     $('#btnAddRow').click(function() {
