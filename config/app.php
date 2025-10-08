@@ -132,6 +132,8 @@ return [
 // ],
 'aliases' => [
    'QrCode' => SimpleSoftwareIO\QrCode\Facades\QrCode::class,
+       BeyondCode\ErdGenerator\ErdGeneratorServiceProvider::class,
+
 
 ],
 

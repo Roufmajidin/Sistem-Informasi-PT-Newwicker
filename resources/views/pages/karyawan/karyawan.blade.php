@@ -62,7 +62,15 @@
                             <td>{{ $no++ }}</td>
 
                             <!-- ID (tidak perlu editable biasanya) -->
-                            <td>{{ $i->id }}</td>
+                            <td>
+                                <img src="{{ asset('assets/images/users/' . ($i->photo ?? 'default.png')) }}"
+                                    alt="Foto {{ $i->nama_lengkap }}"
+                                    width="50" height="50"
+                                    style="border-radius: 50%; object-fit: cover; cursor: pointer;"
+                                    class="editable-photo"
+                                    data-id="{{ $i->id }}">
+                            </td>
+
 
                             <!-- Nama Lengkap -->
                             <td class="sticky">
@@ -230,6 +238,38 @@
             </div>
         </div>
     </div>
+
+    <!-- popup photo pick -->
+    <!-- popup photo pick -->
+    <div class="modal fade" id="modalUploadFoto" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-sm" role="document">
+            <div class="modal-content p-3">
+                <form id="formUploadFoto" enctype="multipart/form-data">
+                    @csrf
+                    <input type="hidden" name="id" id="fotoUserId">
+
+                    <div class="form-group">
+                        <label>Pilih Foto:</label>
+                        <input type="file" name="photo" id="photoInput" class="form-control" accept="image/*" required>
+                    </div>
+
+                    <!-- ✅ Preview Foto -->
+                    <div class="text-center mt-3">
+                        <img id="previewFoto"
+                            src=""
+                            alt="Preview Foto"
+                            style="display: none; width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 2px solid #ccc;">
+                    </div>
+
+                    <div class="text-right mt-3">
+                        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-primary btn-sm">Upload</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 </div>
 @endsection
 
@@ -241,8 +281,65 @@
 <!-- add u -->
 <!-- X-editable -->
 <!-- <link href="https://cdnjs.cloudflare.com/ajax/libs/x-editable/1.5.1/bootstrap4-editable/css/bootstrap-editable.css" rel="stylesheet" /> -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/x-editable/1.5.1/bootstrap4-editable/js/bootstrap-editable.min.js"></script>
+<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/x-editable/1.5.1/bootstrap4-editable/js/bootstrap-editable.min.js"></script> -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<!-- upload photo  -->
+<script>
+    $(document).ready(function() {
+        $(document).on('click', '.editable-photo', function() {
+            const id = $(this).data('id');
+            const src = $(this).attr('src');
+
+            $('#fotoUserId').val(id);
+            $('#photoInput').val('');
+            $('#previewFoto').attr('src', src).show();
+            $('#modalUploadFoto').modal('show');
+        });
+
+        // ✅ Preview foto
+        $('#photoInput').on('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    $('#previewFoto').attr('src', evt.target.result).show();
+                };
+                reader.readAsDataURL(file);
+            } else {
+                $('#previewFoto').hide();
+            }
+        });
+
+        $('#formUploadFoto').on('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+
+            $.ajax({
+                url: '{{ route("karyawan.updatePhoto") }}',
+                method: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(res) {
+                    $('#modalUploadFoto').modal('hide');
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Berhasil!',
+                        text: res.message,
+                        timer: 1000,
+                        showConfirmButton: false
+                    });
+
+                    const img = $(`img[data-id="${res.id}"]`);
+                    img.attr('src', res.url + '?v=' + new Date().getTime());
+                },
+                error: function() {
+                    Swal.fire('Gagal', 'Upload foto gagal', 'error');
+                }
+            });
+        });
+    });
+</script>
 <!-- save data new karyawansss -->
 <script>
     $(document).ready(function() {
@@ -252,21 +349,21 @@
             // ambil semua field dari row baru
             $("table.table-bordered tbody tr").each(function(index, row) {
                 if ($(row).find("td:first").text() === "New") {
-                  formData.append("nama_lengkap[]", $(row).find("input[name='nama_lengkap[]']").val());
-formData.append("nik[]", $(row).find("input[name='nik[]']").val());
-formData.append("jenis_kelamin[]", $(row).find("select[name='jenis_kelamin[]']").val());
-formData.append("ttl[]", $(row).find("input[name='ttl[]']").val());
-formData.append("alamat[]", $(row).find("input[name='alamat[]']").val());
-formData.append("status_perkawinan[]", $(row).find("select[name='status_perkawinan[]']").val());
-formData.append("divisi_id[]", $(row).find("select[name='divisi_id[]']").val());
-formData.append("status[]", $(row).find("select[name='status[]']").val());
-formData.append("lokasi[]", $(row).find("input[name='lokasi[]']").val());
-formData.append("tanggal_join[]", $(row).find("input[name='tanggal_join[]']").val());
+                    formData.append("nama_lengkap[]", $(row).find("input[name='nama_lengkap[]']").val());
+                    formData.append("nik[]", $(row).find("input[name='nik[]']").val());
+                    formData.append("jenis_kelamin[]", $(row).find("select[name='jenis_kelamin[]']").val());
+                    formData.append("ttl[]", $(row).find("input[name='ttl[]']").val());
+                    formData.append("alamat[]", $(row).find("input[name='alamat[]']").val());
+                    formData.append("status_perkawinan[]", $(row).find("select[name='status_perkawinan[]']").val());
+                    formData.append("divisi_id[]", $(row).find("select[name='divisi_id[]']").val());
+                    formData.append("status[]", $(row).find("select[name='status[]']").val());
+                    formData.append("lokasi[]", $(row).find("input[name='lokasi[]']").val());
+                    formData.append("tanggal_join[]", $(row).find("input[name='tanggal_join[]']").val());
                     let photo = $(row).find("input[type='file']")[0].files[0];
                     if (photo) {
                         formData.append("photo[]", photo);
                     }
-console.log("Divisi:", $(row).find("select[name='divisi_id[]']").val());
+                    console.log("Divisi:", $(row).find("select[name='divisi_id[]']").val());
 
                 }
             });
@@ -290,7 +387,7 @@ console.log("Divisi:", $(row).find("select[name='divisi_id[]']").val());
                             timer: 1500,
                             showConfirmButton: false
                         }).then(() => {
-                            location.reload(); // refresh tabel
+                            location.reload();
                         });
                     }
                 },
@@ -372,7 +469,6 @@ console.log("Divisi:", $(row).find("select[name='divisi_id[]']").val());
 </script>
 <!-- jumping -->
 <script>
-    // Definisi opsi divisi (Blade akan render di server-side)
     const divisiOptions = `
         <option value="">-- Pilih Divisi --</option>
         @foreach(App\Models\Divisi::all() as $div)
@@ -555,7 +651,7 @@ console.log("Divisi:", $(row).find("select[name='divisi_id[]']").val());
             method: 'POST',
             data: {
                 _token: '{{ csrf_token() }}',
-                rows: globalRows // kirim semua, backend akan filter dan update
+                rows: globalRows
             },
             success: function(res) {
                 if (res.success) {

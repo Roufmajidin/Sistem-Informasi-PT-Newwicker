@@ -85,10 +85,10 @@ class KaryawanController extends Controller
             $karyawan->alamat            = $request->alamat[$i] ?? null;
             $karyawan->status_perkawinan = $request->status_perkawinan[$i] ?? null;
             $karyawan->divisi_id         = ! empty($request->divisi_id[$i]) ? (int) $request->divisi_id[$i] : null;
-            $karyawan->status       = $request->status[$i] ?? null;
-            $karyawan->lokasi       = $request->lokasi[$i] ?? null;
-            $karyawan->tanggal_join = $request->tanggal_join[$i] ?? null;
-            $karyawan->status       = $request->status[$i] ?? null;
+            $karyawan->status            = $request->status[$i] ?? null;
+            $karyawan->lokasi            = $request->lokasi[$i] ?? null;
+            $karyawan->tanggal_join      = $request->tanggal_join[$i] ?? null;
+            $karyawan->status            = $request->status[$i] ?? null;
 
             // Upload photo kalau ada
             if ($request->hasFile("photo.$i")) {
@@ -101,11 +101,11 @@ class KaryawanController extends Controller
             $karyawan->save();
 
             // === Simpan User baru ===
-            $user           = new User();
-            $user->name     = $namaLengkap;
+            $user              = new User();
+            $user->name        = $namaLengkap;
             $user->karyawan_id = $karyawan->id;
-            $user->email    = $email;
-            $user->password = $password;
+            $user->email       = $email;
+            $user->password    = $password;
             $user->save();
         }
 
@@ -453,6 +453,34 @@ class KaryawanController extends Controller
         $html = view('pages.widgets.absen-table-bulanan', compact('karyawans', 'bulanSekarang', 'jumlahHari'))->render();
 
         return response()->json(['html' => $html]);
+    }
+    public function updatePhoto(Request $request)
+    {
+        $request->validate([
+            'id'    => 'required|exists:karyawans,id',
+            'photo' => 'required|image|max:2048',
+        ]);
+
+        $karyawan = \App\Models\Karyawan::find($request->id);
+        $file     = $request->file('photo');
+        $filename = 'user_' . time() . '.' . $file->getClientOriginalExtension();
+
+        $file->move(public_path('assets/images/users/'), $filename);
+
+        // hapus foto lama jika bukan default
+        if ($karyawan->photo && $karyawan->photo !== 'default.png') {
+            @unlink(public_path('assets/images/users/' . $karyawan->photo));
+        }
+
+        $karyawan->photo = $filename;
+        $karyawan->save();
+
+        return response()->json([
+            'success' => true,
+            'id'      => $karyawan->id,
+            'message' => 'Foto berhasil diupdate',
+            'url'     => asset('assets/images/users/' . $filename),
+        ]);
     }
 
 }

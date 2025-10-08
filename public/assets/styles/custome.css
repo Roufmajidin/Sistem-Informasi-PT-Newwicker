@@ -226,3 +226,34 @@ thead th {
     background: #2e3e4e;
     color: #fff;
 }
+.table-wrapper {
+            overflow-x: auto;
+        }
+
+        .table th,
+        .table td {
+            vertical-align: middle;
+            font-size: 13px;
+        }
+
+        /* Kolom Note biar wrap text */
+        .table td.note-cell {
+            white-space: pre-wrap; /* biar teks panjang turun ke bawah */
+            word-break: break-word;
+        }
+
+
+        /* Sticky header biar tetap di atas waktu scroll */
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+           .row-done {
+            background-color: #d4edda !important;
+        }
+        /* row actif */
+        .row-active {
+    background-color: #d0ebff !important;
+    transition: background-color 0.3s ease;
+}
