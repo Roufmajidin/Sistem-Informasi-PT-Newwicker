@@ -131,6 +131,16 @@
             <!-- jQuery -->
 
             <!-- <script src="//cdnjs.cloudflare.com/ajax/libs/x-editable/1.5.0/bootstrap3-editable/js/bootstrap-editable.min.js"></script> -->
+             <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+<script src="~/App_Theme/bootstrap/js/bootstrap.min.js"></script>
+<script>
+    var $j = jQuery.noConflict();
+</script>
+
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/3.0.0/jquery.min.js"></script>
+<script>
+    var $ = jQuery.noConflict();
+</script>
             <script src="{{asset('assets/libs/jquery/jquery/dist/jquery.js')}}"></script>
             <!-- Bootstrap -->
             <script src="{{asset('assets/libs/jquery/tether/dist/js/tether.min.js')}}"></script>

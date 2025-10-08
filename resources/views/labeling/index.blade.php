@@ -4,6 +4,7 @@
 @section('content')
 <div class="padding">
     <div class="box">
+
         <div class="p-a white lt box-shadow">
             <div class="row">
                 <div class="col-sm-6">
@@ -30,7 +31,6 @@
                 </div>
             </div>
         </div>
-
         <!-- Table -->
         <div class="col-12">
             <div class="table-wrapper">
@@ -108,6 +108,11 @@
            .row-done {
             background-color: #d4edda !important;
         }
+        /* row actif */
+        .row-active {
+    background-color: #d0ebff !important;
+    transition: background-color 0.3s ease;
+}
     </style>
 @endsection
 
@@ -143,6 +148,21 @@
 <script>
 
 $(document).ready(function() {
+    // hover click typingg
+    // Highlight baris yang sedang aktif
+$(document).on('focus', 'td[contenteditable="true"], ul[contenteditable="true"]', function() {
+    // Hapus highlight dari semua baris
+    $('table tbody tr').removeClass('row-active');
+
+    // Tambah highlight ke baris yang sedang diklik / aktif
+    $(this).closest('tr').addClass('row-active');
+});
+
+// Kalau kehilangan fokus, bisa tetap biru, atau kalau mau hilang bisa pakai event blur
+$(document).on('blur', 'td[contenteditable="true"], ul[contenteditable="true"]', function() {
+    // Kalau mau hilang saat blur, aktifkan baris di bawah:
+    // $(this).closest('tr').removeClass('row-active');
+});
 
     $('#btnAddRow').click(function() {
         const rowCount = $('table tbody tr').length + 1;
