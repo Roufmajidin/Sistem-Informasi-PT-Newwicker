@@ -16,8 +16,8 @@
     <!-- for Chrome on Android, multi-resolution icon of 196x196 -->
     <meta name="mobile-web-app-capable" content="yes">
     <link rel="shortcut icon" href="{{asset('assets/images/newwicker.jpg')}}">
-<meta name="csrf-token" content="{{ csrf_token() }}">
-<link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
 
 
     <!-- style -->
@@ -35,9 +35,9 @@
     <!-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.3/css/bootstrap.min.css" /> -->
     <!-- <link href="{{asset('assets/editable/css/bootstrap.min.css')}}}}" rel="stylesheet"> -->
     <script src="{{asset('assets/editable/js/bootstrap.min.js')}}"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
-<!-- <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet"> -->
+    <!-- <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet"> -->
 
 </head>
 
@@ -94,7 +94,23 @@
                                     <i class="on b-white bottom"></i>
                                 </span>
                             </a>
-                            <!-- <div ui-include="'../views/blocks/dropdown.user.html'"></div> -->
+                            @php
+                            use Illuminate\Support\Facades\Auth;
+                            @endphp
+
+                            <div class="dropdown-menu dropdown-menu-right mt-2 p-2 shadow">
+                                <div class="px-3 py-2 border-bottom">
+                                    <strong>{{ Auth::user()->name ?? 'User' }}</strong><br>
+                                    <small>{{ Auth::user()->email ?? '' }}</small>
+                                </div>
+
+                                <form method="POST" action="{{ route('logout') }}" class="m-0">
+                                    @csrf
+                                    <button type="submit" class="dropdown-item text-danger">
+                                        <i class="fa fa-sign-out me-2"></i> Logout
+                                    </button>
+                                </form>
+                            </div>
                         </li>
                         <li class="nav-item hidden-md-up">
                             <a class="nav-link pl-2" data-toggle="collapse" data-target="#collapse">
@@ -133,14 +149,14 @@
             <!-- <script src="//cdnjs.cloudflare.com/ajax/libs/x-editable/1.5.0/bootstrap3-editable/js/bootstrap-editable.min.js"></script> -->
             <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
 
-<script>
-    var $j = jQuery.noConflict();
-</script>
+            <script>
+                var $j = jQuery.noConflict();
+            </script>
 
-<!-- <script src="http://ajax.googleapis.com/ajax/libs/jquery/3.0.0/jquery.min.js"></script> -->
-<script>
-    var $ = jQuery.noConflict();
-</script>
+            <!-- <script src="http://ajax.googleapis.com/ajax/libs/jquery/3.0.0/jquery.min.js"></script> -->
+            <script>
+                var $ = jQuery.noConflict();
+            </script>
             <script src="{{asset('assets/libs/jquery/jquery/dist/jquery.js')}}"></script>
             <!-- Bootstrap -->
             <script src="{{asset('assets/libs/jquery/tether/dist/js/tether.min.js')}}"></script>
@@ -164,11 +180,11 @@
             <script src="{{asset('assets/scripts/ui-toggle-class.js')}}"></script>
 
             <script src="{{asset('assets/scripts/app.js')}}"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap4-multiselect/css/bootstrap-multiselect.css">
-<script src="https://cdn.jsdelivr.net/npm/bootstrap4-multiselect/js/bootstrap-multiselect.min.js"></script>
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap4-multiselect/css/bootstrap-multiselect.css">
+            <script src="https://cdn.jsdelivr.net/npm/bootstrap4-multiselect/js/bootstrap-multiselect.min.js"></script>
 
-<!-- Bootstrap JS (include Popper) -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+            <!-- Bootstrap JS (include Popper) -->
+            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
             <!-- ajax -->
             <script src="{{asset('assets/libs/jquery/jquery-pjax/jquery.pjax.js')}}"></script>
@@ -178,33 +194,37 @@
 
             <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
 
-            <link href="//cdnjs.cloudflare.com/ajax/libs/x-editable/1.5.0/jquery-editable/css/jquery-editable.css" rel="stylesheet"/>
+            <link href="//cdnjs.cloudflare.com/ajax/libs/x-editable/1.5.0/jquery-editable/css/jquery-editable.css" rel="stylesheet" />
 
-            <script>$.fn.poshytip={defaults:null}</script>
+            <script>
+                $.fn.poshytip = {
+                    defaults: null
+                }
+            </script>
 
-    <script src="//cdnjs.cloudflare.com/ajax/libs/x-editable/1.5.0/jquery-editable/js/jquery-editable-poshytip.min.js"></script>
-    <script src="{{asset('assets/main.js')}}"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="{{asset('assets/cam/cam.js')}}" type="text/javascript"></script>
+            <script src="//cdnjs.cloudflare.com/ajax/libs/x-editable/1.5.0/jquery-editable/js/jquery-editable-poshytip.min.js"></script>
+            <script src="{{asset('assets/main.js')}}"></script>
+            <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+            <script src="{{asset('assets/cam/cam.js')}}" type="text/javascript"></script>
 
-<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+            <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 
-<link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
-<script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+            <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+            <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
 
-<!-- JS -->
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
-<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+            <!-- JS -->
+            <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+            <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+            <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 
-<!-- DataTables Buttons extension -->
-<link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.dataTables.min.css">
-<script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
-<script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
+            <!-- DataTables Buttons extension -->
+            <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.dataTables.min.css">
+            <script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
+            <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
 
-<!-- JSZip (dibutuhkan untuk export Excel) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-                 @stack('scripts')
+            <!-- JSZip (dibutuhkan untuk export Excel) -->
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+            @stack('scripts')
 
 </body>
 

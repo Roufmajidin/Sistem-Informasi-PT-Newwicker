@@ -43,6 +43,7 @@
                             <th>Jadwal Container</th>
                             <th style="width: 180px;">Note (Rouf)</th>
                             <th style="width: 180px;">Note (Yogi)</th>
+                            <th>updated</th>
                             <th>Aksi</th>
                         </tr>
                     </thead>
@@ -59,9 +60,21 @@
                                     @endforeach
                                 </ul>
                             </td>
-                            <td contenteditable="true">{{ $label->jadwal_container }}</td>
+                       <td contenteditable="true">
+    @php
+        $jadwal = $label->jadwal_container;
+        try {
+            // coba parse jika bisa, misalnya disimpan sebagai 2025-10-15
+            $jadwal = \Carbon\Carbon::parse($label->jadwal_container)->format('d/m/Y');
+        } catch (\Exception $e) {
+            // biarkan seperti aslinya (kalau format tidak sesuai)
+        }
+    @endphp
+    {{ $jadwal }}
+</td>
                             <td class="note-cell" contenteditable="true">{{ $label->status_rouf }}</td>
                             <td class="note-cell" contenteditable="true">{{ $label->status_yogi }}</td>
+                            <td class="note-cell" contenteditable="true">{{ $label->updated_at }}</td>
 
                             <td>
                                 <button class="btn btn-sm btn-success save-btn">Save</button>

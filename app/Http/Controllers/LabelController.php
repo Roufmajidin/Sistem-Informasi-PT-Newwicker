@@ -28,40 +28,53 @@ class LabelController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
-    {
-        // Jika ada ID -> update
-        if ($request->id) {
-            $label = Labeling::find($request->id);
-            if (! $label) {
-                return response()->json(['message' => 'Data tidak ditemukan'], 404);
-            }
+   public function store(Request $request)
+{
+    // Normalisasi format tanggal (jadwal_container)
+    $jadwal = $request->jadwal;
 
-            $label->update([
-                'description'      => $request->description,
-                'labels'           => $request->labels,
-                'jadwal_container' => $request->jadwal,
-                'status_rouf'      => $request->status_rouf,
-                'status_yogi'      => $request->status_yogi,
-            ]);
+    // Cek apakah formatnya seperti d/m/Y, misal 15/10/2025
+    if (!empty($jadwal) && preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $jadwal)) {
+        try {
+            // Ubah ke format konsisten Y-m-d agar bisa diproses Carbon bila perlu
+            $jadwal = \Carbon\Carbon::createFromFormat('d/m/Y', $jadwal)->format('Y-m-d');
+        } catch (\Exception $e) {
+            // Abaikan jika gagal parse
+        }
+    }
 
-            return response()->json(['message' => 'Data berhasil diperbarui']);
+    // Jika ada ID, berarti update data
+    if ($request->id) {
+        $label = Labeling::find($request->id);
+        if (!$label) {
+            return response()->json(['message' => 'Data tidak ditemukan'], 404);
         }
 
-        // Jika tidak ada ID -> simpan baru
-        $new = Labeling::create([
+        $label->update([
             'description'      => $request->description,
             'labels'           => $request->labels,
-            'jadwal_container' => $request->jadwal,
+            'jadwal_container' => $jadwal,
             'status_rouf'      => $request->status_rouf,
             'status_yogi'      => $request->status_yogi,
         ]);
 
-        return response()->json([
-            'message' => 'Data baru berhasil disimpan',
-            'id'      => $new->id,
-        ]);
+        return response()->json(['message' => 'Data berhasil diperbarui']);
     }
+
+    // Jika ID kosong, buat data baru
+    $new = Labeling::create([
+        'description'      => $request->description,
+        'labels'           => $request->labels,
+        'jadwal_container' => $jadwal,
+        'status_rouf'      => $request->status_rouf,
+        'status_yogi'      => $request->status_yogi,
+    ]);
+
+    return response()->json([
+        'message' => 'Data baru berhasil disimpan',
+        'id'      => $new->id,
+    ]);
+}
 
     /**
      * Hapus data labeling.

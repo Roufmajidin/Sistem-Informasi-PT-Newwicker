@@ -7,6 +7,43 @@ use Illuminate\Support\Facades\Auth;
 
 class AuthController extends Controller
 {
+    // TODO:: login via web
+    public function showLoginForm()
+    {
+        return view('pages.login.login ');
+    }
+
+    // Proses login
+    public function loginWeb(Request $request)
+    {
+        // Validasi input
+        $credentials = $request->validate([
+            'email'    => ['required', 'email'],
+            'password' => ['required'],
+        ]);
+
+        // Coba login
+        if (Auth::attempt($credentials, $request->filled('remember'))) {
+            $request->session()->regenerate();
+
+            return redirect()->intended('/dashboard'); // ubah sesuai kebutuhan
+        }
+
+        // Jika gagal
+        return back()->withErrors([
+            'email' => 'Email atau password salah.',
+        ])->onlyInput('email');
+    }
+
+    // Logout
+    public function logoutWeb(Request $request)
+    {
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect('/login');
+    }
     public function login(Request $request)
     {
         $credentials = $request->validate([
