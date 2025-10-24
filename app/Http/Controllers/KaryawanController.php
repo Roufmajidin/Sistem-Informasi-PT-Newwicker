@@ -7,6 +7,8 @@ use App\Models\Karyawan;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
@@ -173,7 +175,6 @@ class KaryawanController extends Controller
                     'tanggal_join'         => $row[11] == null ? '' : $tanggal,
                     'user_id'              => $row[12],
                 ];
-
             }
             // Log::info('Import triggered', $data);
 
@@ -294,7 +295,6 @@ class KaryawanController extends Controller
             $user = \App\Models\User::where('karyawan_id', $karyawan->id)->first();
 
             if ($user) {
-                // update user lama
                 $user->update([
                     'name'     => $karyawan->nama_lengkap,
                     'email'    => $email, // ganti email hanya kalau perlu
@@ -322,7 +322,219 @@ class KaryawanController extends Controller
 
     public function scan()
     {
-        return view('pages.karyawan.scan');
+        $officeLat = config('office.lat');
+        $officeLng = config('office.lon');
+        $radius    = config('office.radius');
+        $riwayat   = Absen::where('user_id', auth()->id())
+            ->whereDate('tanggal', now()->toDateString())
+            ->get();
+
+        return view('pages.karyawan.cam', compact('riwayat', 'officeLat', 'officeLng', 'radius'));
+    }
+     public function riwayat(Request $request)
+    {
+        $bulanInput = $request->get('bulan', null);
+        $tahunInput = $request->get('tahun', now()->year);
+
+        $tahun = is_numeric($tahunInput) ? (int) $tahunInput : now()->year;
+
+        $bulan = $this->normalizeMonth($bulanInput, $tahun);
+
+        if ($bulan < 1 || $bulan > 12) {
+            $bulan = now()->month;
+        }
+
+        $riwayat = Absen::where('user_id', auth()->id())
+            ->whereMonth('tanggal', $bulan)
+            ->whereYear('tanggal', $tahun)
+            ->orderByDesc('tanggal')
+            ->get();
+
+        return view('pages.karyawan.history-absen', compact('riwayat', 'bulan', 'tahun'));
+    }
+
+
+    protected function normalizeMonth($bulanInput, $tahun = null)
+    {
+        if (is_null($bulanInput) || $bulanInput === '') {
+            return (int) now()->month;
+        }
+
+        if (is_numeric($bulanInput)) {
+            return (int) $bulanInput;
+        }
+
+        $s = trim(mb_strtolower((string)$bulanInput));
+
+        $map = [
+            'january'   => 1, 'february' => 2, 'march'    => 3, 'april'    => 4,
+            'may'       => 5, 'june'     => 6, 'july'     => 7, 'august'   => 8,
+            'september' => 9, 'october'  => 10, 'november' => 11, 'december' => 12,
+            'januari'   => 1, 'februari' => 2, 'maret'    => 3, 'april'    => 4,
+            'mei'       => 5, 'juni'     => 6, 'juli'     => 7, 'agustus'  => 8,
+            'september' => 9, 'oktober'  => 10, 'november' => 11, 'desember' => 12,
+            'jan' => 1, 'feb' => 2, 'mar' => 3, 'apr' => 4, 'jun' => 6, 'jul' => 7, 'aug' => 8,
+            'sep' => 9, 'oct' => 10, 'nov' => 11, 'dec' => 12, 'mei' => 5,
+        ];
+
+        if (isset($map[$s])) {
+            return $map[$s];
+        }
+
+        try {
+            $y = $tahun ?: now()->year;
+            $dt = Carbon::parse("1 {$bulanInput} {$y}");
+            return (int) $dt->month;
+        } catch (\Throwable $e) {
+            // fallback ke bulan sekarang
+            return (int) now()->month;
+        }
+    }
+
+    // ... method lain ...
+
+
+    public function storeAbsen(Request $request)
+    {
+        if (! $request->user()) {
+            return response()->json(['message' => 'Token tidak valid'], 401);
+        }
+
+        $user  = $request->user();
+        $today = now()->toDateString();
+        $now   = now();
+
+        // ==================== Cek waktu minimal absen masuk ====================
+        $minTime = now()->setTime(7, 0, 0);
+        if ($now->lt($minTime)) {
+            return response()->json([
+                'message' => 'Belum bisa absen. Absen dimulai pukul 07:00',
+            ], 403);
+        }
+
+        // ==================== Lokasi kantor ====================
+        $officeLat = config('office.lat');
+        $officeLng = config('office.lon');
+        $radius    = config('office.radius'); // meter
+
+        $userLat = $request->latitude;
+        $userLng = $request->longitude;
+
+        if (! isset($userLat) || ! isset($userLng)) {
+            return response()->json(['message' => 'Lokasi tidak terdeteksi'], 400);
+        }
+
+        $jarak = $this->distance($userLat, $userLng, $officeLat, $officeLng);
+        if ($jarak > $radius) {
+            return response()->json([
+                'message' => 'Anda berada di luar area kantor (' . round($jarak) . ' meter). Absen ditolak.',
+            ], 403);
+        }
+
+        // ==================== Cek data absen hari ini ====================
+        $absen = Absen::where('user_id', $user->id)
+            ->where('tanggal', $today)
+            ->first();
+
+        if ($absen && $absen->jam_masuk && $absen->jam_keluar) {
+            return response()->json([
+                'message' => 'Absen hari ini sudah komplit',
+            ], 200);
+        }
+
+        // ==================== Waktu batas absen keluar ====================
+        $cutOff = now()->setTime(17, 0, 0);
+
+        // ==================== Upload foto opsional ====================
+        $fotoPath = null;
+        if ($request->hasFile('foto')) {
+            $fotoPath = $request->file('foto')->store('absen_foto', 'public');
+        }
+
+        // ==================== Jalankan dalam transaksi aman ====================
+        return DB::transaction(function () use ($absen, $user, $today, $now, $cutOff, $userLat, $userLng, $fotoPath) {
+
+            // Ambil ulang untuk memastikan tidak ada perubahan dalam transaksi
+            $absen = Absen::lockForUpdate()
+                ->where('user_id', $user->id)
+                ->where('tanggal', $today)
+                ->first();
+
+            // ==================== Kalau belum ada absen hari ini ====================
+            if (! $absen) {
+                if ($now->gte($cutOff)) {
+                    // Sudah lewat jam 17:00 → catat jam keluar saja
+                    Absen::create([
+                        'user_id'     => $user->id,
+                        'tanggal'     => $today,
+                        'jam_keluar'  => $now->format('H:i:s'),
+                        'latitude'    => $userLat,
+                        'longitude'   => $userLng,
+                        'latitude_k'  => null,
+                        'longitude_k' => null,
+                        'foto_keluar' => $fotoPath,
+                        'keterangan'  => 'Lupa Absen Masuk',
+                    ]);
+
+                    return response()->json([
+                        'message' => 'Anda lupa absen masuk! Sistem otomatis mencatat jam keluar pukul ' . $now->format('H:i') . '.',
+                    ], 200);
+                }
+
+                // Masih sebelum jam 17:00 → catat absen masuk normal
+                Absen::create([
+                    'user_id'     => $user->id,
+                    'tanggal'     => $today,
+                    'jam_masuk'   => $now->format('H:i:s'),
+
+                    'latitude_k'  => $userLat,
+                    'longitude_k' => $userLng,
+                    'foto'        => $fotoPath,
+                    'keterangan'  => 'Hadir',
+                ]);
+
+                return response()->json(['message' => 'Absen masuk tercatat'], 201);
+            }
+
+            // ==================== Kalau sudah ada jam_masuk tapi belum ada jam_keluar ====================
+            if ($absen->jam_masuk && ! $absen->jam_keluar) {
+                if ($now->lt($cutOff)) {
+                    return response()->json([
+                        'message' => 'Belum bisa absen keluar. Minimal pukul 17:00.',
+                    ], 403);
+                }
+
+                // Sudah >= 17:00 → bisa absen keluar
+                $absen->update([
+                    'jam_keluar'  => $now->format('H:i:s'),
+                    'latitude_k'  => $userLat,
+                    'longitude_k' => $userLng,
+                    'foto_keluar' => $fotoPath,
+                    'keterangan'  => "Hadir",
+                ]);
+
+                return response()->json([
+                    'message' => 'Absen keluar berhasil dicatat pada ' . $now->format('H:i'),
+                ], 200);
+            }
+
+            return response()->json(['message' => 'Data absen tidak valid'], 400);
+        });
+    }
+
+    protected function distance($lat1, $lon1, $lat2, $lon2)
+    {
+        $earthRadius = 6371000; // meter
+
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLon = deg2rad($lon2 - $lon1);
+
+        $a = sin($dLat / 2) * sin($dLat / 2) +
+        cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
+        sin($dLon / 2) * sin($dLon / 2);
+
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+        return $earthRadius * $c;
     }
     public function login()
     {
@@ -373,8 +585,8 @@ class KaryawanController extends Controller
             $q->whereYear('tanggal', $year)
                 ->whereMonth('tanggal', $month);
         }])->get();
-// dd(env('OFFICE_LAT'), env('OFFICE_LON'), env('OFFICE_RADIUS'));
-// dd(config('office'));
+        // dd(env('OFFICE_LAT'), env('OFFICE_LON'), env('OFFICE_RADIUS'));
+        // dd(config('office'));
 
         return view('pages.karyawan.absen', compact('karyawans', 'month', 'year', 'daysInMonth'));
     }
@@ -398,7 +610,7 @@ class KaryawanController extends Controller
             });
 
         $absens = $query->orderBy('tanggal', 'desc')->paginate(10)->withQueryString();
-
+        dd($absens);
         return view('pages.karyawan.izin', [
             'absens' => $absens,
             'month'  => $month,
@@ -426,7 +638,6 @@ class KaryawanController extends Controller
             $html = view('pages.widgets.absen-table  ', compact('absens'))->render();
 
             return response()->json(['html' => $html]);
-
         } catch (\Throwable $e) {
             // Debug error ke log
             Log::error($e);
@@ -482,5 +693,4 @@ class KaryawanController extends Controller
             'url'     => asset('assets/images/users/' . $filename),
         ]);
     }
-
 }
