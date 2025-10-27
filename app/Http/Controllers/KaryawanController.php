@@ -487,8 +487,8 @@ class KaryawanController extends Controller
                     'tanggal'     => $today,
                     'jam_masuk'   => $now->format('H:i:s'),
 
-                    'latitude_k'  => $userLat,
-                    'longitude_k' => $userLng,
+                    'latitude'  => $userLat,
+                    'longitude' => $userLng,
                     'foto'        => $fotoPath,
                     'keterangan'  => 'Hadir',
                 ]);

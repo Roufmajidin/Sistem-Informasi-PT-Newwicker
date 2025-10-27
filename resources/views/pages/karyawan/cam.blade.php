@@ -146,22 +146,21 @@
     });
 
     // ================= KIRIM DATA ABSEN =================
-    function ambilFoto(status) {
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const dataURL = canvas.toDataURL('image/png');
+   function ambilFoto(status) {
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(blob => {
+        const formData = new FormData();
+        formData.append('status', status);
+        formData.append('foto', blob, 'absen.png');
+        formData.append('latitude', latitude);
+        formData.append('longitude', longitude);
 
         fetch('{{ route("absen.storeAbsen") }}', {
             method: 'POST',
             headers: {
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Content-Type': 'application/json'
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
             },
-            body: JSON.stringify({
-                status: status,
-                image: dataURL,
-                latitude: latitude,
-                longitude: longitude
-            })
+            body: formData
         })
         .then(res => res.json())
         .then(data => {
@@ -169,8 +168,8 @@
             location.reload();
         })
         .catch(err => alert('Gagal absen: ' + err.message));
-    }
-
+    }, 'image/png');
+}
     document.getElementById('btnAbsenMasuk').addEventListener('click', () => ambilFoto('masuk'));
     document.getElementById('btnAbsenKeluar').addEventListener('click', () => ambilFoto('keluar'));
 </script>
