@@ -28,7 +28,13 @@
                      </li>
 
                      {{-- 🔹 Role: HRD --}}
-                     @if(Auth::user()->role == 'hrd')
+                     @php
+                     use App\Models\Karyawan;
+
+                     $a = Karyawan::find(Auth::user()->karyawan_id);
+                     @endphp
+
+                     @if(Auth::user()->role === 'hrd' || ($a && in_array($a->divisi_id, [38, 34, 25, 26])))
                      <li>
                          <a href="/karyawan">
                              <span class="nav-icon"><i class="material-icons">&#xe8d2;</i></span>
@@ -109,7 +115,7 @@
          </div>
 
 
-     <div class="b-t">
+         <!-- <div class="b-t">
          <div class="nav-fold">
              <a href="profile.html">
                  <span class="pull-left">
@@ -121,7 +127,7 @@
                  </span>
              </a>
          </div>
+     </div> -->
      </div>
- </div>
  </div>
  <!-- / -->

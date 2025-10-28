@@ -65,6 +65,7 @@
                                             data-foto="{{ asset('storage/' . $absen->foto) }}">
                                             <i class="fa fa-eye"></i>
                                         </button>
+
                                     @else
                                         -
                                     @endif

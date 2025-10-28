@@ -2,12 +2,24 @@
 namespace App\Http\Controllers;
 
 use Carbon\Carbon;
+use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class AuthController extends Controller
 {
     // TODO:: login via web
+    // app/Http/Middleware/RedirectIfAuthenticated.php
+    public function handle($request, Closure $next, ...$guards)
+    {
+        foreach ($guards as $guard) {
+            if (Auth::guard($guard)->check()) {
+                return redirect('/dashboard'); // atau route dashboard kamu
+            }
+        }
+
+        return $next($request);
+    }
     public function showLoginForm()
     {
         return view('pages.login.login ');
@@ -26,7 +38,7 @@ class AuthController extends Controller
         if (Auth::attempt($credentials, $request->filled('remember'))) {
             $request->session()->regenerate();
 
-        return view('pages.dashboard.dashboard');
+            return view('pages.dashboard.dashboard');
 
         }
 

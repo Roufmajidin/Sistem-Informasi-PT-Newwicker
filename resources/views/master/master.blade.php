@@ -38,7 +38,9 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
     <!-- <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet"> -->
-
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 </head>
 
 <body>
@@ -87,36 +89,17 @@
                             </a>
                             <!-- <div ui-include="'../views/blocks/dropdown.notification.html'"></div> -->
                         </li>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link p-0 clear" href="#" data-toggle="dropdown">
-                                <span class="avatar w-32">
-                                    <img src="../assets/images/a0.jpg" alt="...">
-                                    <i class="on b-white bottom"></i>
-                                </span>
-                            </a>
-                            @php
-                            use Illuminate\Support\Facades\Auth;
-                            @endphp
-
-                            <div class="dropdown-menu dropdown-menu-right mt-2 p-2 shadow">
-                                <div class="px-3 py-2 border-bottom">
-                                    <strong>{{ Auth::user()->name ?? 'User' }}</strong><br>
-                                    <small>{{ Auth::user()->email ?? '' }}</small>
-                                </div>
-
-                                <form method="POST" action="{{ route('logout') }}" class="m-0">
-                                    @csrf
-                                    <button type="submit" class="dropdown-item text-danger">
-                                        <i class="fa fa-sign-out me-2"></i> Logout
-                                    </button>
-                                </form>
-                            </div>
-                        </li>
-                        <li class="nav-item hidden-md-up">
-                            <a class="nav-link pl-2" data-toggle="collapse" data-target="#collapse">
-                                <i class="material-icons">&#xe5d4;</i>
-                            </a>
-                        </li>
+                       <li class="nav-item">
+    <form method="POST" action="{{ route('logout') }}" id="logout-form">
+        @csrf
+        <button type="submit" class="nav-link p-0 clear border-0 bg-transparent">
+            <span class="avatar w-32">
+                <img src="../assets/images/a0.jpg" alt="Profile" style="cursor:pointer;">
+                <i class="on b-white bottom"></i>
+            </span>
+        </button>
+    </form>
+</li>
                     </ul>
                     <!-- / navbar right -->
                 </div>
@@ -124,13 +107,10 @@
             <div class="app-footer">
                 <div class="p-2 text-xs">
                     <div class="pull-right text-muted py-1">
-                        &copy; Copyright <strong>Newwicker</strong> <span class="hidden-xs-down">- Built with Love v1.1.3</span>
+                        &copy; Copyright <strong>Newwicker</strong> <span class="hidden-xs-down">-Develop from Rouf M</span>
                         <a ui-scroll-to="content"><i class="fa fa-long-arrow-up p-x-sm"></i></a>
                     </div>
-                    <div class="nav">
-                        <a class="nav-link" href="../">About</a>
-                        <a class="nav-link" href="http://themeforest.net/user/flatfull/portfolio?ref=flatfull">Get it</a>
-                    </div>
+
                 </div>
             </div>
             <div ui-view class="app-body" id="view">
@@ -225,6 +205,14 @@
 
             <!-- JSZip (dibutuhkan untuk export Excel) -->
             <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+            <script>
+    if (window.history && window.history.pushState) {
+        window.history.pushState(null, null, window.location.href);
+        window.onpopstate = function () {
+            window.location.replace("/dashboard");
+        };
+    }
+</script>
             @stack('scripts')
 
 </body>

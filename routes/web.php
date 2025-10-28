@@ -1,19 +1,21 @@
 <?php
-use App\Http\Controllers\{
-    AuthController,
-    MarketingController,
-    InventoryController,
-    KaryawanController,
-    PdfController,
-    AbsenController,
-    PameranContrller,
-    LabelController
-};
+
+use App\Http\Controllers\AbsenController;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\InventoryController;
+use App\Http\Controllers\KaryawanController;
+use App\Http\Controllers\LabelController;;
+use App\Http\Controllers\MarketingController;
+use App\Http\Controllers\PameranContrller;
+use App\Http\Controllers\PdfController;
 use Illuminate\Support\Facades\Route;
+
 // ==============================
 // 🔐 AUTHENTICATION
 // ==============================
-Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
+Route::get('/login', [AuthController::class, 'showLoginForm'])
+    ->middleware('guest')
+    ->name('login');
 Route::post('/login', [AuthController::class, 'loginWeb'])->name('login.process');
 Route::post('/logout', [AuthController::class, 'logoutWeb'])->name('logout');
 
@@ -59,7 +61,6 @@ Route::get('/karyawan-scan', [KaryawanController::class, 'scan'])->name('karyawa
 // absen vvia web
 
 // Route::get('/absen-sekarang', [KaryawanController::class, 'scan'])->name('karyawan.scan');
-
 
 Route::post('/karyawan/store', [KaryawanController::class, 'store'])->name('karyawan.store');
 Route::post('/karyawan/import', [KaryawanController::class, 'import'])->name('karyawan.import');
