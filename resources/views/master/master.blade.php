@@ -147,7 +147,8 @@
             <!-- jQuery -->
 
             <!-- <script src="//cdnjs.cloudflare.com/ajax/libs/x-editable/1.5.0/bootstrap3-editable/js/bootstrap-editable.min.js"></script> -->
-            <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+            <!-- <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script> -->
+    <!-- <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script> -->
 
             <script>
                 var $j = jQuery.noConflict();

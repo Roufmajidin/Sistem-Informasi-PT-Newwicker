@@ -590,34 +590,29 @@ class KaryawanController extends Controller
 
         return view('pages.karyawan.absen', compact('karyawans', 'month', 'year', 'daysInMonth'));
     }
-    public function izinKaryawan(Request $request)
-    {
-        $month = $request->get('month', now()->month);
-        $year  = $request->get('year', now()->year);
-        $date  = $request->get('date'); // opsional
 
-        // Query izin karyawan
-        $query = Absen::with('user')
-            ->where('keterangan', 'izin')
-            ->when($month, function ($q) use ($month) {
-                return $q->whereMonth('tanggal', $month);
-            })
-            ->when($year, function ($q) use ($year) {
-                return $q->whereYear('tanggal', $year);
-            })
-            ->when($date, function ($q) use ($date) {
-                return $q->whereDate('tanggal', $date);
-            });
+   public function izinKaryawan(Request $request)
+{
+    $date = $request->get('date'); // contoh: 2025-09-18
 
-        $absens = $query->orderBy('tanggal', 'desc')->paginate(10)->withQueryString();
-        dd($absens);
-        return view('pages.karyawan.izin', [
-            'absens' => $absens,
-            'month'  => $month,
-            'year'   => $year,
-            'date'   => $date,
-        ]);
-    }
+    // ubah format jadi 20250918 biar cocok dengan format DB
+    $formattedDate = $date ? str_replace('-', '', $date) : null;
+
+    $absens = Absen::with('user')
+        ->whereNotIn('keterangan', ['Hadir', 'Lupa Absen Masuk', 'Lupa Absen Keluar'])
+        ->when($formattedDate, fn($q) => $q->where('tanggal', $formattedDate))
+        ->orderBy('tanggal', 'desc')
+        ->paginate(10)
+        ->withQueryString();
+
+    return view('pages.karyawan.izin', [
+        'absens' => $absens,
+        'date'   => $date,
+    ]);
+}
+
+
+
 
     public function filter(Request $request)
     {

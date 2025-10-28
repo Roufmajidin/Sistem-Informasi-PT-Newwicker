@@ -13,7 +13,7 @@ if (!function_exists('diKantor')) {
     {
         $officeLat = config('office.lat');
         $officeLon = config('office.lon');
-        $officeRadius = config('office.radius', 200); // meter
+        $officeRadius = config('office.radius', 150); // meter
 
         if (empty($latUser) || empty($lonUser)) {
             return false;

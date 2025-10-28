@@ -211,51 +211,67 @@ class AbsenController extends Controller
 
     }
 
-    public function ajukanIzin(Request $request)
-    {
-        $today = now()->toDateString();
-        $now   = now();
-
-        if (! $request->user()) {
-            return response()->json(['message' => 'Token tidak valid'], 401);
-        }
-
-        $user = $request->user();
-
-        // Cek apakah sudah ada izin hari ini
-        $existing = Absen::where('user_id', $user->id)
-            ->where('tanggal', $today)
-            ->where('keterangan', 'izin')
-            ->first();
-
-        if ($existing) {
-            return response()->json([
-                'message' => 'Anda sudah mengajukan izin hari ini',
-                'data'    => $existing,
-            ], 200);
-        }
-
-        // Upload foto opsional
-        $fotoPath = null;
-        if ($request->hasFile('foto')) {
-            $fotoPath = $request->file('foto')->store('izin', 'public');
-        }
-
-        // Simpan data izin
-        $izin = Absen::create([
-            'user_id'    => $user->id,
-            'tanggal'    => $today,
-            'messages'   => $request->messages, // wajib diisi
-            'foto'       => $fotoPath,
-            'keterangan' => 'izin',
-            'validate'   => 0, // langsung set 0
-        ]);
-
-        return response()->json([
-            'message' => 'Izin berhasil diajukan',
-            'data'    => $izin,
-        ], 201);
+public function ajukanIzin(Request $request)
+{
+    if (! $request->user()) {
+        return response()->json(['message' => 'Token tidak valid'], 401);
     }
+
+    $user = $request->user();
+
+    // Validasi input
+    $validated = $request->validate([
+        'tanggal'     => 'required|string', // format dd-mm-yyyy
+        'messages'    => 'nullable|string|max:255',
+        'keterangan'  => 'required|string|in:sakit,izin,cuti,alpha',
+        'file'        => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
+    ]);
+
+    // Konversi format tanggal ke Y-m-d
+    try {
+        $tanggal = \Carbon\Carbon::createFromFormat('d-m-Y', $validated['tanggal'])->format('Y-m-d');
+    } catch (\Exception $e) {
+        return response()->json(['message' => 'Format tanggal tidak valid. Gunakan format dd-mm-yyyy'], 422);
+    }
+
+    // Cek apakah sudah ada izin di tanggal tersebut dengan keterangan yang sama
+    $existing = Absen::where('user_id', $user->id)
+        ->where('tanggal', $tanggal)
+        ->where('keterangan', $validated['keterangan'])
+        ->first();
+
+    if ($existing) {
+        return response()->json([
+            'message' => 'Anda sudah mengajukan izin pada tanggal tersebut',
+            'data'    => $existing,
+        ], 200);
+    }
+
+    // Upload file jika ada
+    $filePath = null;
+    if ($request->hasFile('file')) {
+        $file = $request->file('file');
+        $fileName = time() . '_' . $user->id . '.' . $file->getClientOriginalExtension();
+        $filePath = $file->storeAs('uploads/izin', $fileName, 'public');
+    }
+
+    // Simpan data izin
+    $izin = Absen::create([
+        'user_id'     => $user->id,
+        'tanggal'     => $tanggal,
+        'jam_masuk'   => null,
+        'jam_keluar'  => null,
+        'keterangan'  => $validated['keterangan'],
+        'messages'    => $validated['messages'] ?? null,
+        'foto'  => $filePath,
+        'status'      => 'pending',
+    ]);
+
+    return response()->json([
+        'message' => 'Izin berhasil diajukan',
+        'data'    => $izin,
+    ], 201);
+}
 
 /**
  * Hitung jarak antara dua titik koordinat (meter)
