@@ -68,28 +68,84 @@ class PameranContrller extends Controller
     }
 
     public function import(Request $request)
-    {
-        $request->validate([
-            'file'          => 'required|mimes:xlsx,xls,csv',
-            'exhibition_id' => 'required|exists:exhibitions,id',
+{
+    Log::info("🔥 MASUK CONTROLLER IMPORT");
+
+    Log::info("🔥 File ada? : " . ($request->hasFile('file') ? 'YA' : 'TIDAK'));
+    Log::info("🔥 exhibition_id = " . $request->exhibition_id);
+
+    $request->validate([
+        'file'          => 'required|mimes:xlsx,xls,csv',
+        'exhibition_id' => 'required|exists:exhibitions,id',
+    ]);
+
+    try {
+
+        Log::info("🚀 Mulai proses Excel::import...");
+
+        Excel::import(new ProductPameranImport($request->exhibition_id), $request->file('file'));
+
+        Log::info("✔ Import selesai tanpa error");
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Data produk pameran berhasil diimport!',
+        ]);
+    } catch (\Exception $e) {
+
+        Log::error("❌ ERROR CONTROLLER: " . $e->getMessage(), [
+            'line' => $e->getLine(),
+            'file' => $e->getFile(),
+            'trace' => $e->getTraceAsString(),
         ]);
 
-        $exhibitionId = $request->exhibition_id;
-
-        try {
-            Excel::import(new ProductPameranImport($exhibitionId), $request->file('file'));
-
-            return response()->json([
-                'status'  => 'success',
-                'message' => 'Data produk pameran berhasil diimport!',
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'status'  => 'error',
-                'message' => $e->getMessage(),
-            ], 500);
-        }
+        return response()->json([
+            'status'  => 'error',
+            'message' => $e->getMessage(),
+        ], 500);
     }
+}
+
+public function upload(Request $request)
+{
+    $request->validate([
+        'images.*' => 'required|image|mimes:jpg,jpeg,png,gif,webp'
+        // ❌ max:5000 dihapus
+    ]);
+
+    $paths = [];
+
+    foreach ($request->file('images') as $image) {
+
+        // Nama asli file digunakan sepenuhnya
+        $originalName = $image->getClientOriginalName();
+        $cleanName = str_replace(' ', '_', $originalName);
+
+        $folder = storage_path('app/public/pameran/');
+        $finalName = $cleanName;
+
+        // Jika file dengan nama sama sudah ada → tambahkan counter (1), (2), ...
+        $counter = 1;
+        while (file_exists($folder . $finalName)) {
+            $finalName = pathinfo($cleanName, PATHINFO_FILENAME)
+                . "_($counter)."
+                . $image->getClientOriginalExtension();
+
+            $counter++;
+        }
+
+        // Simpan file
+        $image->storeAs('pameran', $finalName, 'public');
+
+        $paths[] = '/storage/pameran/' . $finalName;
+    }
+
+    return response()->json([
+        'status' => 'success',
+        'paths' => $paths
+    ]);
+}
+
 
     /**
      * Show the form for creating a new resource.

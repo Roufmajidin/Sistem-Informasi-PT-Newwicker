@@ -94,6 +94,7 @@ Route::get('/pameran/filter', [PameranContrller::class, 'getByExhibition'])->nam
 Route::get('/all-event-config', [PameranContrller::class, 'allEentConfig'])->name('eventconfig');
 Route::get('/pameran-api', [PameranContrller::class, 'getPameranData'])->name('getPameranData');
 Route::post('/exhibition/store', [PameranContrller::class, 'storeE'])->name('exhibition.store');
+Route::post('/pameran/upload', [PameranContrller::class, 'upload'])->name('pameran.upload');
 
 // ==============================
 // 🏷️ LABELING

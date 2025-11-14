@@ -19,10 +19,10 @@
                     <ul>
                         <li>
                             <small class="text-muted">
-                             {{ $exhibition->name }}: {{ $itemCount }} items
+                                {{ $exhibition->name }}: {{ $itemCount }} items
                             </small> <br>
                         </li>
-                       </ul>
+                    </ul>
                     @endforeach
                 </div>
 
@@ -41,7 +41,7 @@
 
                                     <option value="{{ $exhibition->id }}">{{ $exhibition->name }} ({{ $exhibition->year }}) <br>
 
-                                </option>
+                                    </option>
                                     @endforeach
                                 </select>
                             </div>
@@ -51,6 +51,51 @@
                             <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addExhibitionModal">
                                 <i class="fa fa-plus"></i>
                             </button>
+                            <!-- BROWSE BUTTON -->
+                            <button type="button" class="btn btn-info ml-2" onclick="document.getElementById('imageInput').click()">
+                                <i class="fa fa-image"></i> Browse Image
+                            </button>
+
+                            <!-- INPUT FILE HIDDEN -->
+                            <input type="file" id="imageInput" class="d-none" multiple accept="image/*">
+
+                            <!-- MODAL PREVIEW -->
+                            <div class="modal fade" id="previewModal" tabindex="-1">
+                                <div class="modal-dialog modal-lg">
+                                    <div class="modal-content">
+
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Preview Gambar</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+
+                                        <div class="modal-body">
+                                            <div id="previewContainer" class="row g-3"></div>
+                                        </div>
+
+                                        <div class="modal-footer">
+                                            <button type="button" id="uploadBtn" class="btn btn-success">Upload Semua</button>
+                                        </div>
+
+                                    </div>
+                                    <div class="modal-footer">
+                                        <div class="w-100">
+
+                                            <div class="progress mb-2 d-none" id="uploadProgressWrapper">
+                                                <div id="uploadProgress" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%;">
+                                                    0%
+                                                </div>
+                                            </div>
+
+                                            <button type="button" id="uploadBtn" class="btn btn-success w-100">
+                                                Upload Semua
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+
 
                         </div>
 
@@ -265,6 +310,86 @@
                 });
         });
     </script>
+    <!-- galery modalssdsd -->
+
+    <script>
+        let selectedFiles = [];
+
+        // Saat pilih gambar → tampilkan preview
+        document.getElementById('imageInput').addEventListener('change', function(e) {
+
+            selectedFiles = Array.from(e.target.files);
+
+            let preview = document.getElementById('previewContainer');
+            preview.innerHTML = '';
+
+            selectedFiles.forEach(file => {
+                let reader = new FileReader();
+
+                reader.onload = function(e) {
+                    preview.innerHTML += `
+                <div class="col-md-3">
+                    <img src="${e.target.result}" class="img-fluid rounded" style="height:150px; object-fit:cover;">
+                </div>
+            `;
+                };
+
+                reader.readAsDataURL(file);
+            });
+
+            // Tampilkan modal
+            let modal = new bootstrap.Modal(document.getElementById('previewModal'));
+            modal.show();
+        });
+
+
+        // Upload dengan progress bar
+        document.getElementById('uploadBtn').addEventListener('click', function() {
+
+            let formData = new FormData();
+
+            selectedFiles.forEach((file, index) => {
+                formData.append('images[]', file);
+            });
+
+            let xhr = new XMLHttpRequest();
+            xhr.open("POST", "{{ route('pameran.upload') }}", true);
+            xhr.setRequestHeader("X-CSRF-TOKEN", "{{ csrf_token() }}");
+
+            let progressWrapper = document.getElementById('uploadProgressWrapper');
+            let progressBar = document.getElementById('uploadProgress');
+
+            progressWrapper.classList.remove('d-none');
+            progressBar.style.width = "0%";
+            progressBar.innerText = "0%";
+
+            // Progress event
+            xhr.upload.addEventListener("progress", function(e) {
+                if (e.lengthComputable) {
+                    let percent = Math.round((e.loaded / e.total) * 100);
+                    progressBar.style.width = percent + "%";
+                    progressBar.innerText = percent + "%";
+                }
+            });
+
+            // Upload selesai
+            xhr.onload = function() {
+                if (xhr.status == 200) {
+                    progressBar.classList.add("bg-success");
+                    progressBar.innerText = "Selesai!";
+
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    alert("Upload gagal!");
+                }
+            };
+
+            xhr.send(formData);
+        });
+    </script>
+
 
     <style>
         thead th {
