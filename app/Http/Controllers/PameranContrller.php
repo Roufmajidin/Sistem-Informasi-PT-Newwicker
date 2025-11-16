@@ -68,169 +68,192 @@ class PameranContrller extends Controller
     }
 
     public function import(Request $request)
-{
-    Log::info("🔥 MASUK CONTROLLER IMPORT");
+    {
+        Log::info("🔥 MASUK CONTROLLER IMPORT");
 
-    Log::info("🔥 File ada? : " . ($request->hasFile('file') ? 'YA' : 'TIDAK'));
-    Log::info("🔥 exhibition_id = " . $request->exhibition_id);
+        Log::info("🔥 File ada? : " . ($request->hasFile('file') ? 'YA' : 'TIDAK'));
+        Log::info("🔥 exhibition_id = " . $request->exhibition_id);
 
-    $request->validate([
-        'file'          => 'required|mimes:xlsx,xls,csv',
-        'exhibition_id' => 'required|exists:exhibitions,id',
-    ]);
-
-    try {
-
-        Log::info("🚀 Mulai proses Excel::import...");
-
-        Excel::import(new ProductPameranImport($request->exhibition_id), $request->file('file'));
-
-        Log::info("✔ Import selesai tanpa error");
-
-        return response()->json([
-            'status'  => 'success',
-            'message' => 'Data produk pameran berhasil diimport!',
-        ]);
-    } catch (\Exception $e) {
-
-        Log::error("❌ ERROR CONTROLLER: " . $e->getMessage(), [
-            'line' => $e->getLine(),
-            'file' => $e->getFile(),
-            'trace' => $e->getTraceAsString(),
+        $request->validate([
+            'file'          => 'required|mimes:xlsx,xls,csv',
+            'exhibition_id' => 'required|exists:exhibitions,id',
         ]);
 
-        return response()->json([
-            'status'  => 'error',
-            'message' => $e->getMessage(),
-        ], 500);
+        try {
+
+            Log::info("🚀 Mulai proses Excel::import...");
+
+            Excel::import(new ProductPameranImport($request->exhibition_id), $request->file('file'));
+
+            Log::info("✔ Import selesai tanpa error");
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Data produk pameran berhasil diimport!',
+            ]);
+        } catch (\Exception $e) {
+
+            Log::error("❌ ERROR CONTROLLER: " . $e->getMessage(), [
+                'line'  => $e->getLine(),
+                'file'  => $e->getFile(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'status'  => 'error',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
     }
-}
 
-public function upload(Request $request)
-{
-    $request->validate([
-        'images.*' => 'required|image|mimes:jpg,jpeg,png,gif,webp'
-        // ❌ max:5000 dihapus
-    ]);
+    public function upload(Request $request)
+    {
+        $request->validate([
+            'images.*' => 'required|image|mimes:jpg,jpeg,png,gif,webp'
+            // ❌ max:5000 dihapus
+        ]);
 
-    $paths = [];
+        $paths = [];
 
-    foreach ($request->file('images') as $image) {
+        foreach ($request->file('images') as $image) {
 
-        // Nama asli file digunakan sepenuhnya
-        $originalName = $image->getClientOriginalName();
-        $cleanName = str_replace(' ', '_', $originalName);
+            // Nama asli file digunakan sepenuhnya
+            $originalName = $image->getClientOriginalName();
+            $cleanName    = str_replace(' ', '_', $originalName);
 
-        $folder = storage_path('app/public/pameran/');
-        $finalName = $cleanName;
+            $folder    = storage_path('app/public/pameran/');
+            $finalName = $cleanName;
 
-        // Jika file dengan nama sama sudah ada → tambahkan counter (1), (2), ...
-        $counter = 1;
-        while (file_exists($folder . $finalName)) {
-            $finalName = pathinfo($cleanName, PATHINFO_FILENAME)
+            // Jika file dengan nama sama sudah ada → tambahkan counter (1), (2), ...
+            $counter = 1;
+            while (file_exists($folder . $finalName)) {
+                $finalName = pathinfo($cleanName, PATHINFO_FILENAME)
                 . "_($counter)."
                 . $image->getClientOriginalExtension();
 
-            $counter++;
+                $counter++;
+            }
+
+            // Simpan file
+            $image->storeAs('pameran', $finalName, 'public');
+
+            $paths[] = '/storage/pameran/' . $finalName;
         }
 
-        // Simpan file
-        $image->storeAs('pameran', $finalName, 'public');
-
-        $paths[] = '/storage/pameran/' . $finalName;
+        return response()->json([
+            'status' => 'success',
+            'paths'  => $paths,
+        ]);
     }
-
-    return response()->json([
-        'status' => 'success',
-        'paths' => $paths
-    ]);
-}
-
 
     /**
      * Show the form for creating a new resource.
      */
 
-    public function getPameranData(Request $request)
-    {
-        $startTime = microtime(true); // waktu mulai eksekusi
+   public function getPameranData(Request $request)
+{
+    $startTime = microtime(true);
 
-        $activeIds = Exhibition::where('active', 1)->pluck('id');
+    // Ambil exhibition aktif
+    $active = Exhibition::where('active', 1)->first();
 
-        if ($activeIds->isEmpty()) {
-            $duration = microtime(true) - $startTime; // hitung durasi
-            Log::info('API getPameranData dipanggil (kosong)', [
-                'request'          => $request->all(),
-                'duration_seconds' => round($duration, 3),
-            ]);
-
-            return response()->json([
-                'status'   => false,
-                'message'  => 'Tidak ada exhibition aktif',
-                'products' => [],
-            ], 404);
-        }
-
-        $perPage = (int) $request->get('per_page', 50);
-
-        $products = ProductPameran::whereIn('exhibition_id', $activeIds)
-            ->paginate($perPage)
-            ->through(function ($p) {
-                $articleCode = trim($p->article_code);
-                $photoPath   = "pameran/{$articleCode}.webp";
-
-                $photo = Storage::path("public/{$photoPath}")
-                    ? asset("storage/{$photoPath}")
-                    : asset('images/default.jpg');
-
-                return [
-                    'photo'              => $photo,
-                    'article_code'       => $p->article_code,
-                    'name'               => $p->name,
-                    'categories'         => $p->categories,
-                    'remark'             => $p->remark,
-                    'item_dimension'     => [
-                        'w' => $p->item_w,
-                        'd' => $p->item_d,
-                        'h' => $p->item_h,
-                    ],
-                    'packing_dimension'  => [
-                        'w' => $p->packing_w,
-                        'd' => $p->packing_d,
-                        'h' => $p->packing_h,
-                    ],
-                    'size_of_set'        => [
-                        'set_2' => $p->set2,
-                        'set_3' => $p->set3,
-                        'set_4' => $p->set4,
-                        'set_5' => $p->set5,
-                    ],
-                    'composition'        => $p->composition,
-                    'finishing'          => $p->finishing,
-                    'cbm'                => round((float) $p->cbm, 2),
-                    'loadability_20'     => round((float) $p->loadability_20, 0),
-                    'loadability_40'     => round((float) $p->loadability_40, 0),
-                    'loadability_40_hc'  => round((float) $p->loadability_40hc, 0),
-                    'price_item'         => (double) $p->fob_jakarta_in_usd,
-                    'fob_jakarta_in_usd' => (double) $p->fob_jakarta_in_usd,
-                ];
-            });
-
-        $duration = microtime(true) - $startTime; // hitung durasi
-        Log::info('API getPameranData dipanggil', [
-            'request'          => $request->all(),
-            'current_page'     => $products->currentPage(),
-            'total_items'      => $products->total(),
-            'duration_seconds' => round($duration, 3), // detik, dibulatkan 3 desimal
-        ]);
-
+    if (!$active) {
         return response()->json([
-            'status'           => true,
-            'message'          => 'Berhasil mengambil data produk',
-            'products'         => $products,
-            'duration_seconds' => round($duration, 3),
+            'status'   => false,
+            'message'  => 'Tidak ada exhibition aktif',
+            'products' => [],
+        ], 404);
+    }
+
+    // Log ID exhibition aktif
+    Log::info("EXHIBITION AKTIF", [
+        'id'   => $active->id,
+        'name' => $active->name
+    ]);
+
+    // Ambil produk berdasarkan exhibition aktif
+    $perPage  = (int) $request->get('per_page', 50);
+
+    $products = ProductPameran::where('exhibition_id', $active->id)
+        ->paginate($perPage);
+
+    // Jika produk kosong, return tetap sukses tapi list kosong
+    if ($products->isEmpty()) {
+        return response()->json([
+            'status'   => true,
+            'message'  => 'Produk kosong untuk exhibition tersebut',
+            'products' => [],
         ]);
     }
+
+    // Proses setiap data produk
+    $products->getCollection()->transform(function($p) use ($active) {
+
+        $articleCode = trim($p->article_code);
+
+        // FORMAT FOLDER FOTO
+        // pameran/EXHIBITION_2025/ABC.webp
+        $photoPath = "pameran/{$active->name}/{$articleCode}.webp";
+
+        // Cek apakah file ada
+        $fullPath = "public/{$photoPath}";
+
+        if (Storage::exists($fullPath)) {
+            $photoUrl = asset("storage/{$photoPath}");
+        } else {
+            $photoUrl = asset("storage/{$photoPath}");
+
+            // $photoUrl = asset('images/default.jpg');
+        }
+
+        return [
+            'photo'              => $photoUrl,
+            'article_code'       => $p->article_code,
+            'name'               => $p->name,
+            'categories'         => $p->categories,
+            'remark'             => $p->remark,
+            'item_dimension'     => [
+                'w' => $p->item_w,
+                'd' => $p->item_d,
+                'h' => $p->item_h,
+            ],
+            'packing_dimension'  => [
+                'w' => $p->packing_w,
+                'd' => $p->packing_d,
+                'h' => $p->packing_h,
+            ],
+            'size_of_set'        => [
+                'set_2' => $p->set2,
+                'set_3' => $p->set3,
+                'set_4' => $p->set4,
+                'set_5' => $p->set5,
+            ],
+            'composition'        => $p->composition,
+            'finishing'          => $p->finishing,
+            'cbm'                => round((float) $p->cbm, 2),
+            'loadability_20'     => round((float) $p->loadability_20, 0),
+            'loadability_40'     => round((float) $p->loadability_40, 0),
+            'loadability_40_hc'  => round((float) $p->loadability_40hc, 0),
+            'price_item'         => (double) $p->fob_jakarta_in_usd,
+            'fob_jakarta_in_usd' => (double) $p->fob_jakarta_in_usd,
+        ];
+    });
+
+    $duration = microtime(true) - $startTime;
+
+    Log::info("API getPameranData OK", [
+        'exhibition_id' => $active->id,
+        'total_items'   => $products->total(),
+        'duration'      => round($duration, 3)
+    ]);
+
+    return response()->json([
+        'status'           => true,
+        'message'          => 'Berhasil mengambil data produk',
+        'products'         => $products,
+        'duration_seconds' => round($duration, 3),
+    ]);
+}
 
     public function create()
     {

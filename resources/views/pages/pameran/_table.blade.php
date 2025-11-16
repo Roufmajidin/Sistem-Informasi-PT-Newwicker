@@ -3,8 +3,12 @@
 
 <tr >
     <td >{{ $i+1 }}</td>
+    @php
+        $a = \App\Models\Exhibition::find( $p->exhibition_id);
+        $nm = $a->name;
+    @endphp
    <td class="sticky-col first-col">
-        <img src="{{ asset('storage/pameran/' . $p->article_code . '.webp') }}"
+        <img src="{{ asset('storage/pameran/' .$nm. '/' . $p->article_code . '.webp') }}"
              width="80" loading="lazy">
     </td>
 
