@@ -8,8 +8,8 @@
         $nm = $a->name;
     @endphp
    <td class="sticky-col first-col">
-        <img src="{{ asset('storage/pameran/' .$nm. '/' . $p->article_code . '.webp') }}"
-             width="80" loading="lazy">
+        <img src="{{ asset('storage/pameran/' .$nm. '/' . trim($p->article_code) . '.webp') }}"
+     width="80" loading="lazy">
     </td>
 
     <td>{{ $p->article_code }}</td>

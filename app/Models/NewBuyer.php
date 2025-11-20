@@ -4,11 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Buyer extends Model
+class NewBuyer extends Model
 {
     //
-    // protected
+    // use HasFactory;
+    protected $table = 'new_buyer';
     protected $fillable = [
+        'buyer_id',
         'order_no',
         'company_name',
         'country',

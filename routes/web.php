@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\AbsenController;
+use App\Http\Controllers\BuyerController;
+use App\Http\Controllers\CartController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\KaryawanController;
@@ -95,6 +97,8 @@ Route::get('/all-event-config', [PameranContrller::class, 'allEentConfig'])->nam
 Route::get('/pameran-api', [PameranContrller::class, 'getPameranData'])->name('getPameranData');
 Route::post('/exhibition/store', [PameranContrller::class, 'storeE'])->name('exhibition.store');
 Route::post('/pameran/upload', [PameranContrller::class, 'upload'])->name('pameran.upload');
+
+
 
 // ==============================
 // 🏷️ LABELING
