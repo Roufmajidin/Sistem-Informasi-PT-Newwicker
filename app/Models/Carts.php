@@ -16,5 +16,6 @@ class Carts extends Model
         'buyer_id',
         'status',
         'remark',
+        'qty',
     ];
 }

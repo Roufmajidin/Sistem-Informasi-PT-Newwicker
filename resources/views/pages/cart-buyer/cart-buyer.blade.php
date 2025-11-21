@@ -160,7 +160,7 @@ $(document).ready(function () {
                             <td>${p.packing_h ?? '-'}</td>
                             <td>${p.materials ?? '-'}</td>
                             <td>${p.finishing ?? '-'}</td>
-                            <td>${p.qty ?? '-'}</td>
+                            <td>${item.qty ?? '-'}</td>
                             <td>${p.cbm ?? '-'}</td>
                             <td>${p.price ?? '-'}</td>
                             <td>${p.total_cbm ?? '-'}</td>

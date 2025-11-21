@@ -54,27 +54,64 @@ class CartController extends Controller
     }
 
     // POST add to cart
-    public function store(Request $request)
-    {
-        $request->validate([
-            "article_code" => "required|string",
-            // "buyer_id"     => "required|integer|exists:buyers,id",
-            "remark"       => "nullable|string",
-        ]);
+  public function store(Request $request)
+{
+    $request->validate([
+        "article_code" => "required|string",
+        "buyer_id"     => "required|integer",
+        "qty"          => "nullable|integer|min:1",
+        "remark"       => "nullable|string",
+    ]);
 
-        $cart = Carts::create([
-            "article_code" => $request->article_code,
-            "buyer_id"     => $request->buyer_id,
-            "status"       => "0",
-            "remark"       => $request->remark,
-            "created_at"   => now(),
-        ]);
+    $reqQty = $request->qty ?? 1; // jika tidak ada → default = 1
+
+    // cek apakah item sudah ada
+    $existing = Carts::where('buyer_id', $request->buyer_id)
+        ->where('article_code', $request->article_code)
+        ->first();
+
+    if ($existing) {
+
+        // simpan qty lama (opsional kalau ingin dipakai)
+        $oldQty = $existing->qty;
+
+        // update qty berdasarkan qty request
+        $existing->qty = ($existing->qty ?? 1) + $reqQty;
+
+        // update remark jika dikirim
+        if ($request->filled('remark')) {
+            $existing->remark = $request->remark;
+        }
+
+        $existing->save();
+
+        // === LOGGING ===
+
 
         return response()->json([
-            "message" => "Item added to cart successfully",
-            "data"    => $cart,
-        ], 201);
+            "message" => "Quantity updated",
+            "data"    => $existing,
+        ], 200);
     }
+
+    // ITEM BELUM ADA → buat baru
+    $cart = Carts::create([
+        "article_code" => $request->article_code,
+        "buyer_id"     => $request->buyer_id,
+        "status"       => 1,
+        "remark"       => $request->remark,
+        "qty"          => $reqQty,
+    ]);
+
+    // === LOGGING ===
+
+
+    return response()->json([
+        "message" => "Item added to cart successfully",
+        "data"    => $cart,
+    ], 201);
+}
+
 
     // GET cart by ID
     public function show($id)

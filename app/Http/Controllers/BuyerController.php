@@ -72,6 +72,7 @@ class BuyerController extends Controller
                 "remark"         => $cart->remark,
                 "created_at"     => $cart->created_at,
                 "updated_at"     => $cart->updated_at,
+                "qty"     => $cart->qty,
 
                 // detail product_pameran
                 "product_detail" => $product,
