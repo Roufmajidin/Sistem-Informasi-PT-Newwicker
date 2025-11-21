@@ -98,6 +98,10 @@ Route::get('/pameran-api', [PameranContrller::class, 'getPameranData'])->name('g
 Route::post('/exhibition/store', [PameranContrller::class, 'storeE'])->name('exhibition.store');
 Route::post('/pameran/upload', [PameranContrller::class, 'upload'])->name('pameran.upload');
 
+// new
+Route::get('/cart-buyer', [BuyerController::class, 'viewClass'])->name('pameran.cartView');
+Route::get('/fetchcart-buyer', [BuyerController::class, 'index'])->name('pameran.cart');
+
 
 
 // ==============================

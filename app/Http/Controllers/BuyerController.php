@@ -12,6 +12,10 @@ use Illuminate\Support\Facades\Storage;
 class BuyerController extends Controller
 {
     // GET all buyers
+    public function viewClass()
+    {
+        return view('pages.cart-buyer.cart-buyer');
+    }
     public function index()
     {
         return response()->json(NewBuyer::all());

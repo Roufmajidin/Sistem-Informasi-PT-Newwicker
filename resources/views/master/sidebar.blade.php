@@ -65,6 +65,16 @@
                              <span class="nav-text">Pameran</span>
                          </a>
                      </li>
+                     <li>
+                         <a href="/cart-buyer">
+                             <span class="nav-icon">
+                                 <i class="material-icons">&#xe8d2;
+                                     <span ui-include="'../assets/images/i_3.svg'"></span>
+                                 </i>
+                             </span>
+                             <span class="nav-text">Cart Buyer</span>
+                         </a>
+                     </li>
                      @endif
 
                      {{-- 🔹 Role: Marketing --}}
