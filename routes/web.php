@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AbsenController;
+use App\Http\Controllers\AgendaController;
 use App\Http\Controllers\BuyerController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\AuthController;
@@ -95,6 +96,9 @@ Route::post('/product-pameran/import', [PameranContrller::class, 'import'])->nam
 Route::get('/pameran/filter', [PameranContrller::class, 'getByExhibition'])->name('pameran.filter');
 Route::get('/all-event-config', [PameranContrller::class, 'allEentConfig'])->name('eventconfig');
 Route::get('/pameran-api', [PameranContrller::class, 'getPameranData'])->name('getPameranData');
+Route::get('/download-api', [PameranContrller::class, 'downloadPameranJson'])->name('downloadPameranJson');
+Route::get('/pameran/categories', [PameranContrller::class, 'getCategories'])->name('getCategories');
+
 Route::post('/exhibition/store', [PameranContrller::class, 'storeE'])->name('exhibition.store');
 Route::post('/pameran/upload', [PameranContrller::class, 'upload'])->name('pameran.upload');
 
@@ -111,6 +115,12 @@ Route::get('/labeling', [LabelController::class, 'index'])->name('labeling.index
 Route::post('/labeling/store', [LabelController::class, 'store'])->name('labeling.store');
 Route::delete('/labeling/{id}', [LabelController::class, 'destroy'])->name('labeling.destroy');
 
+
+Route::get('/agenda', [AgendaController::class, 'index'])->name('agenda.index');
+Route::get('/request', [AgendaController::class, 'request_agenda'])->name('agenda.req');
+Route::post('/agenda-store', [AgendaController::class, 'store'])->name('agenda.store');
+Route::post('/agenda/remark', [AgendaController::class, 'updateRemark'])
+    ->name('agenda.remark');
 // ==============================
 // ⚙️ CEK ENV
 // ==============================

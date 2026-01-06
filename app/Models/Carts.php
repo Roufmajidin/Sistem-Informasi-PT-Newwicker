@@ -17,5 +17,7 @@ class Carts extends Model
         'status',
         'remark',
         'qty',
+        'local_id',
+        'isDeleted',
     ];
 }

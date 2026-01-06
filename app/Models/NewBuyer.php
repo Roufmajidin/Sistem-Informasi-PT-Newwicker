@@ -17,5 +17,6 @@ class NewBuyer extends Model
         'shipment_date',
         'packing',
         'contact_person',
+        'remark',
     ];
 }

@@ -27,12 +27,19 @@ Route::prefix('buyers')->group(function () {
     Route::delete('{id}', [BuyerController::class, 'destroy']);
 });
 
+
 Route::prefix('cart')->group(function () {
     Route::get('/', [CartController::class, 'index']); // ?buyer_id=12
     Route::post('/', [CartController::class, 'store']);
     Route::get('{id}', [CartController::class, 'show']);
-    Route::put('{id}', [CartController::class, 'update']);
+    Route::put('{id}/{article_code}', [CartController::class, 'update']);
     Route::delete('{id}', [CartController::class, 'destroy']);
     Route::post('/checkout', [CartController::class, 'checkout']);
 
+
+
+});
+Route::prefix('products')->group(function () {
+
+    Route::get('{id}', [BuyerController::class, 'product']);
 });

@@ -161,10 +161,11 @@ $(document).ready(function () {
                             <td>${p.materials ?? '-'}</td>
                             <td>${p.finishing ?? '-'}</td>
                             <td>${item.qty ?? '-'}</td>
-                            <td>${p.cbm ?? '-'}</td>
-                            <td>${p.price ?? '-'}</td>
+                          <td>${p.cbm ? parseFloat(p.cbm).toFixed(2) : '-'}</td>
+
+                            <td>${p.fob_jakarta_in_usd ?? '-'}</td>
                             <td>${p.total_cbm ?? '-'}</td>
-                            <td>${p.value ?? '-'}</td>
+                            <td>${p.fob_jakarta_in_usd ?? '-'}</td>
                         </tr>
                     `;
                 });

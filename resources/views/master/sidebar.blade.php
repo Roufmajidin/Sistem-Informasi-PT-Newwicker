@@ -75,6 +75,12 @@
                              <span class="nav-text">Cart Buyer</span>
                          </a>
                      </li>
+                      <li>
+                         <a href="/request">
+                             <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                             <span class="nav-text">Agenda</span>
+                         </a>
+                     </li>
                      @endif
 
                      {{-- 🔹 Role: Marketing --}}
@@ -91,6 +97,12 @@
                              <li><a href="/marketing/release-pfi"><span class="nav-text">Release PFI</span></a></li>
                          </ul>
                      </li>
+ <li>
+                         <a href="/request">
+                             <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                             <span class="nav-text">Agenda</span>
+                         </a>
+                     </li>
                      @endif
 
                      {{-- 🔹 Role: User biasa --}}
@@ -106,6 +118,12 @@
                          <a href="/karyawan-scan">
                              <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
                              <span class="nav-text">Absen Sekarang</span>
+                         </a>
+                     </li>
+                      <li>
+                         <a href="/request">
+                             <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                             <span class="nav-text">Agenda</span>
                          </a>
                      </li>
                      @endif

@@ -109,7 +109,7 @@ class PameranContrller extends Controller
     public function upload(Request $request)
     {
         $request->validate([
-            'images.*' => 'required|image|mimes:jpg,jpeg,png,gif,webp'
+            'images.*' => 'required|image|mimes:jpg,jpeg,png,gif,webp',
             // ❌ max:5000 dihapus
         ]);
 
@@ -150,110 +150,175 @@ class PameranContrller extends Controller
      * Show the form for creating a new resource.
      */
 
-   public function getPameranData(Request $request)
-{
-    $startTime = microtime(true);
+    public function getPameranData(Request $request)
+    {
+        $startTime = microtime(true);
 
-    // Ambil exhibition aktif
-    $active = Exhibition::where('active', 1)->first();
+        $activeExhibitions = Exhibition::where('active', 1)->get();
+        $category          = $request->get('category'); // filter kategori opsional
+        $page              = (int) $request->get('page', 1);
+        $perPage           = (int) $request->get('per_page', 50);
 
-    if (!$active) {
-        return response()->json([
-            'status'   => false,
-            'message'  => 'Tidak ada exhibition aktif',
-            'products' => [],
-        ], 404);
-    }
-
-    // Log ID exhibition aktif
-    Log::info("EXHIBITION AKTIF", [
-        'id'   => $active->id,
-        'name' => $active->name
-    ]);
-
-    // Ambil produk berdasarkan exhibition aktif
-    $perPage  = (int) $request->get('per_page', 50);
-
-    $products = ProductPameran::where('exhibition_id', $active->id)
-        ->paginate($perPage);
-
-    // Jika produk kosong, return tetap sukses tapi list kosong
-    if ($products->isEmpty()) {
-        return response()->json([
-            'status'   => true,
-            'message'  => 'Produk kosong untuk exhibition tersebut',
-            'products' => [],
-        ]);
-    }
-
-    // Proses setiap data produk
-    $products->getCollection()->transform(function($p) use ($active) {
-
-        $articleCode = trim($p->article_code);
-
-        // FORMAT FOLDER FOTO
-        // pameran/EXHIBITION_2025/ABC.webp
-        $photoPath = "pameran/{$active->name}/{$articleCode}.webp";
-
-        // Cek apakah file ada
-        $fullPath = "public/{$photoPath}";
-
-        if (Storage::exists($fullPath)) {
-            $photoUrl = asset("storage/{$photoPath}");
-        } else {
-            $photoUrl = asset("storage/{$photoPath}");
-
-            // $photoUrl = asset('images/default.jpg');
+        if ($activeExhibitions->isEmpty()) {
+            return response()->json([
+                'status'   => false,
+                'message'  => 'Tidak ada exhibition aktif',
+                'products' => [],
+            ], 404);
         }
 
-        return [
-            'photo'              => $photoUrl,
-            'article_code'       => $p->article_code,
-            'name'               => $p->name,
-            'categories'         => $p->categories,
-            'remark'             => $p->remark,
-            'item_dimension'     => [
-                'w' => $p->item_w,
-                'd' => $p->item_d,
-                'h' => $p->item_h,
-            ],
-            'packing_dimension'  => [
-                'w' => $p->packing_w,
-                'd' => $p->packing_d,
-                'h' => $p->packing_h,
-            ],
-            'size_of_set'        => [
-                'set_2' => $p->set2,
-                'set_3' => $p->set3,
-                'set_4' => $p->set4,
-                'set_5' => $p->set5,
-            ],
-            'composition'        => $p->composition,
-            'finishing'          => $p->finishing,
-            'cbm'                => round((float) $p->cbm, 2),
-            'loadability_20'     => round((float) $p->loadability_20, 0),
-            'loadability_40'     => round((float) $p->loadability_40, 0),
-            'loadability_40_hc'  => round((float) $p->loadability_40hc, 0),
-            'price_item'         => (double) $p->fob_jakarta_in_usd,
-            'fob_jakarta_in_usd' => (double) $p->fob_jakarta_in_usd,
+        // GET semua ID exhibition aktif
+        $activeIds = $activeExhibitions->pluck('id')->toArray();
+
+        $query      = ProductPameran::whereIn('exhibition_id', $activeIds);
+        $totalCount = ProductPameran::whereIn('exhibition_id', $activeIds)
+            ->when(! empty($category), fn($q) => $q->where('categories', 'LIKE', "%{$category}%"))
+            ->count();
+
+        if (! empty($category)) {
+            $query->where('categories', 'LIKE', "%{$category}%");
+        }
+
+        $products = $query->orderBy('id', 'desc')->paginate($perPage, ['*'], 'page', $page);
+
+        if (! empty($category)) {
+            $products->appends(['category' => $category]);
+        }
+
+        // Transform data
+        $data = $products->getCollection()->map(function ($p) use ($activeExhibitions) {
+            $exhibition  = $activeExhibitions->firstWhere('id', $p->exhibition_id);
+            $articleCode = trim($p->article_code);
+            $photoPath   = "pameran/{$exhibition->name}/{$articleCode}.webp";
+            $photoUrl    = asset("storage/{$photoPath}");
+
+            return [
+                'nr'                 => $p->id,
+                'photo'              => $photoUrl,
+                'article_code'       => $p->article_code,
+                'name'               => $p->name,
+                'categories'         => $p->categories,
+                'remark'             => $p->remark,
+                'item_dimension'     => ['w' => $p->item_w, 'd' => $p->item_d, 'h' => $p->item_h],
+                'packing_dimension'  => ['w' => $p->packing_w, 'd' => $p->packing_d, 'h' => $p->packing_h],
+                'size_of_set'        => ['set_2' => $p->set2, 'set_3' => $p->set3, 'set_4' => $p->set4, 'set_5' => $p->set5],
+                'composition'        => $p->composition,
+                'finishing'          => $p->finishing,
+                'cbm'                => round((float) $p->cbm, 2),
+                'loadability_20'     => round((float) $p->loadability_20, 0),
+                'loadability_40'     => round((float) $p->loadability_40, 0),
+                'loadability_40_hc'  => round((float) $p->loadability_40hc, 0),
+                'price_item'         => (double) $p->fob_jakarta_in_usd,
+                'fob_jakarta_in_usd' => (double) $p->fob_jakarta_in_usd,
+                'exhibition_name'    => $exhibition->name,
+            ];
+        });
+
+        $products->setCollection($data);
+
+        $duration = microtime(true) - $startTime;
+
+        return response()->json([
+            'status'           => true,
+            'message'          => 'Berhasil mengambil data produk',
+            'products'         => $products,
+            'duration_seconds' => round($duration, 3),
+        ]);
+    }
+    public function downloadPameranJson(Request $request)
+    {
+        $startTime = microtime(true);
+
+        $category          = $request->get('category'); // opsional
+        $activeExhibitions = Exhibition::where('active', 1)->get();
+
+        if ($activeExhibitions->isEmpty()) {
+            return response()->json([
+                'status'   => false,
+                'message'  => 'Tidak ada exhibition aktif',
+                'products' => [],
+            ], 404);
+        }
+
+        $activeIds = $activeExhibitions->pluck('id')->toArray();
+
+        $query = ProductPameran::whereIn('exhibition_id', $activeIds);
+        if (! empty($category)) {
+            $query->where('categories', 'LIKE', "%{$category}%");
+        }
+
+        $products = $query->orderBy('id', 'desc')->get();
+
+        // Transform data
+        $data = $products->map(function ($p) use ($activeExhibitions) {
+            $exhibition  = $activeExhibitions->firstWhere('id', $p->exhibition_id);
+            $articleCode = trim($p->article_code);
+            $photoPath   = "pameran/{$exhibition->name}/{$articleCode}.webp";
+            $photoUrl    = asset("storage/{$photoPath}");
+
+            return [
+                'nr'                 => $p->id,
+                'photo'              => $photoUrl,
+                'article_code'       => $p->article_code,
+                'name'               => $p->name,
+                'categories'         => $p->categories,
+                'remark'             => $p->remark,
+                'item_dimension'     => ['w' => $p->item_w, 'd' => $p->item_d, 'h' => $p->item_h],
+                'packing_dimension'  => ['w' => $p->packing_w, 'd' => $p->packing_d, 'h' => $p->packing_h],
+                'size_of_set'        => ['set_2' => $p->set2, 'set_3' => $p->set3, 'set_4' => $p->set4, 'set_5' => $p->set5],
+                'composition'        => $p->composition,
+                'finishing'          => $p->finishing,
+                'cbm'                => round((float) $p->cbm, 2),
+                'loadability_20'     => round((float) $p->loadability_20, 0),
+                'loadability_40'     => round((float) $p->loadability_40, 0),
+                'loadability_40_hc'  => round((float) $p->loadability_40hc, 0),
+                'price_item'         => (double) $p->fob_jakarta_in_usd,
+                'fob_jakarta_in_usd' => (double) $p->fob_jakarta_in_usd,
+                'exhibition_name'    => $exhibition->name,
+            ];
+        });
+
+        $json = [
+            'status'           => true,
+            'message'          => 'Berhasil mengambil data produk',
+            'products'         => $data,
+            'total'            => $data->count(),
+            'duration_seconds' => round(microtime(true) - $startTime, 3),
         ];
-    });
 
-    $duration = microtime(true) - $startTime;
+        // Opsional: simpan sebagai file di server
+        $fileName = 'pameran_all' . ($category ? "_$category" : '') . '.json';
+        Storage::disk('public')->put(
+            $fileName,
+            json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
+        );
 
-    Log::info("API getPameranData OK", [
-        'exhibition_id' => $active->id,
-        'total_items'   => $products->total(),
-        'duration'      => round($duration, 3)
-    ]);
+        return response()->json($json, 200, [], JSON_UNESCAPED_SLASHES);
+    }
 
-    return response()->json([
-        'status'           => true,
-        'message'          => 'Berhasil mengambil data produk',
-        'products'         => $products,
-        'duration_seconds' => round($duration, 3),
-    ]);
-}
+    public function getCategories()
+    {
+        $active = Exhibition::where('active', 1)->first();
+        if (! $active) {
+            return response()->json([
+                'status'     => false,
+                'message'    => 'Tidak ada exhibition aktif',
+                'categories' => [],
+            ], 404);
+        }
+
+        // Ambil semua kategori unik
+        $categories = ProductPameran::where('exhibition_id', $active->id)
+            ->pluck('categories') // ambil kolom categories
+            ->filter()            // buang null / empty
+            ->unique()            // ambil unique
+            ->values();           // reset index
+
+        return response()->json([
+            'status'     => true,
+            'categories' => $categories,
+        ]);
+    }
 
     public function create()
     {

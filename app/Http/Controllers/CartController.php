@@ -54,64 +54,61 @@ class CartController extends Controller
     }
 
     // POST add to cart
-  public function store(Request $request)
-{
-    $request->validate([
-        "article_code" => "required|string",
-        "buyer_id"     => "required|integer",
-        "qty"          => "nullable|integer|min:1",
-        "remark"       => "nullable|string",
-    ]);
+    public function store(Request $request)
+    {
+        $request->validate([
+            "article_code" => "required|string",
+            "buyer_id"     => "required|integer",
+            "qty"          => "nullable|integer|min:1",
+            "remark"       => "nullable|string",
+        ]);
 
-    $reqQty = $request->qty ?? 1; // jika tidak ada → default = 1
+        $reqQty = $request->qty ?? 1; // jika tidak ada → default = 1
 
-    // cek apakah item sudah ada
-    $existing = Carts::where('buyer_id', $request->buyer_id)
-        ->where('article_code', $request->article_code)
-        ->first();
+        // cek apakah item sudah ada
+        $existing = Carts::where('buyer_id', $request->buyer_id)
+            ->where('article_code', $request->article_code)
+            ->first();
 
-    if ($existing) {
+        if ($existing) {
 
-        // simpan qty lama (opsional kalau ingin dipakai)
-        $oldQty = $existing->qty;
+            // simpan qty lama (opsional kalau ingin dipakai)
+            $oldQty = $existing->qty;
 
-        // update qty berdasarkan qty request
-        $existing->qty = ($existing->qty ?? 1) + $reqQty;
+            // update qty berdasarkan qty request
+            $existing->qty = ($existing->qty ?? 1) + $reqQty;
 
-        // update remark jika dikirim
-        if ($request->filled('remark')) {
-            $existing->remark = $request->remark;
+            // update remark jika dikirim
+            if ($request->filled('remark')) {
+                $existing->remark = $request->remark;
+            }
+
+            $existing->save();
+
+            // === LOGGING ===
+
+            return response()->json([
+                "message" => "Quantity updated",
+                "data"    => $existing,
+            ], 200);
         }
 
-        $existing->save();
+        // ITEM BELUM ADA → buat baru
+        $cart = Carts::create([
+            "article_code" => $request->article_code,
+            "buyer_id"     => $request->buyer_id,
+            "status"       => 1,
+            "remark"       => $request->remark,
+            "qty"          => $reqQty,
+        ]);
 
         // === LOGGING ===
 
-
         return response()->json([
-            "message" => "Quantity updated",
-            "data"    => $existing,
-        ], 200);
+            "message" => "Item added to cart successfully",
+            "data"    => $cart,
+        ], 201);
     }
-
-    // ITEM BELUM ADA → buat baru
-    $cart = Carts::create([
-        "article_code" => $request->article_code,
-        "buyer_id"     => $request->buyer_id,
-        "status"       => 1,
-        "remark"       => $request->remark,
-        "qty"          => $reqQty,
-    ]);
-
-    // === LOGGING ===
-
-
-    return response()->json([
-        "message" => "Item added to cart successfully",
-        "data"    => $cart,
-    ], 201);
-}
-
 
     // GET cart by ID
     public function show($id)
@@ -120,9 +117,10 @@ class CartController extends Controller
     }
 
     // UPDATE
-    public function update(Request $request, $id)
+    public function update(Request $request, $id, $article_code)
     {
-        $cart = Carts::findOrFail($id);
+        // $cart = Carts::findOrFail($id);
+        $cart = Carts::where('buyer_id', $id)->where('article_code', $article_code)->first();
         $cart->update($request->all());
         return response()->json($cart);
     }
@@ -138,41 +136,64 @@ class CartController extends Controller
             ], 404);
         }
 
-        $cart->delete();
+        $cart->update(
+            ['isDeleted' => 1]
+        );
 
         return response()->json([
             'message' => 'Cart item deleted successfully',
         ]);
     }
-// simpan draft buyer beserta cart nya
     public function checkout(Request $request)
     {
         $request->validate([
-            "cart_ids"     => "required|array",
+            "items"        => "required|array",
             "company_name" => "required|string",
         ]);
 
-        // 1. Generate buyer_id random
-        $buyerId = rand(100000, 999999);
+        // Cek apakah buyer sudah ada
+        $existingBuyer = NewBuyer::where('company_name', $request->company_name)->first();
 
-        // 2. Simpan data buyer
+        if ($existingBuyer) {
+            return response()->json([
+                "message" => "Buyer dengan nama {$request->company_name} sudah terdaftar.",
+                "buyer" => $existingBuyer,
+            ], 422);
+        }
+
+        // 1. Generate buyer id random
+        // $buyerId = rand(100000, 999999);
+
+        // 2. Simpan buyer baru
         $buyer = NewBuyer::create([
-            // "id"       => $buyerId,
-            "buyer_id"       => $buyerId,
+            "buyer_id"       => $request->buyer_id,
             "order_no"       => $request->order_no,
             "company_name"   => $request->company_name,
             "country"        => $request->country,
             "shipment_date"  => $request->shipment_date,
             "packing"        => $request->packing,
             "contact_person" => $request->contact_person,
+            "remark"         => $request->remark,
         ]);
 
-        // 3. Update semua cart yang diceklis
-        Carts::whereIn('id', $request->cart_ids)
-            ->update([
-                "buyer_id" => $buyerId,
-                "status"   => "final",
+        // 3. Loop tiap item → CREATE CART BARU
+        foreach ($request->items as $item) {
+
+            $p = ProductPameran::find($item['cart_id']);
+
+            if (! $p) {
+                continue;
+            }
+
+            Carts::create([
+                'article_code' => $p->article_code,
+                'buyer_id'     => $request->buyer_id,
+                'local_id'     =>$item['local_id'],
+                'status'       => 1,
+                'remark'       => $item['remark'] ?? null,
+                'qty'          => $item['qty'] ?? 1,
             ]);
+        }
 
         return response()->json([
             "message" => "Checkout success",
