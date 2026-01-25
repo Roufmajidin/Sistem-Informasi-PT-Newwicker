@@ -2,15 +2,16 @@
 
 use App\Http\Controllers\AbsenController;
 use App\Http\Controllers\AgendaController;
-use App\Http\Controllers\BuyerController;
-use App\Http\Controllers\CartController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BuyerController;
+use App\Http\Controllers\ImportController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\KaryawanController;
-use App\Http\Controllers\LabelController;;
+use App\Http\Controllers\LabelController;
 use App\Http\Controllers\MarketingController;
 use App\Http\Controllers\PameranContrller;
 use App\Http\Controllers\PdfController;
+use App\Http\Controllers\QcController;
 use Illuminate\Support\Facades\Route;
 
 // ==============================
@@ -106,7 +107,7 @@ Route::post('/pameran/upload', [PameranContrller::class, 'upload'])->name('pamer
 Route::get('/cart-buyer', [BuyerController::class, 'viewClass'])->name('pameran.cartView');
 Route::get('/fetchcart-buyer', [BuyerController::class, 'index'])->name('pameran.cart');
 
-
+Route::get('/cart-export/{id}', [BuyerController::class, 'cartExport'])->name('cart.exportt');
 
 // ==============================
 // 🏷️ LABELING
@@ -115,12 +116,34 @@ Route::get('/labeling', [LabelController::class, 'index'])->name('labeling.index
 Route::post('/labeling/store', [LabelController::class, 'store'])->name('labeling.store');
 Route::delete('/labeling/{id}', [LabelController::class, 'destroy'])->name('labeling.destroy');
 
-
 Route::get('/agenda', [AgendaController::class, 'index'])->name('agenda.index');
 Route::get('/request', [AgendaController::class, 'request_agenda'])->name('agenda.req');
 Route::post('/agenda-store', [AgendaController::class, 'store'])->name('agenda.store');
 Route::post('/agenda/remark', [AgendaController::class, 'updateRemark'])
     ->name('agenda.remark');
+Route::get('/import-excel', [ImportController::class, 'index']);
+Route::post('/import-excel', [ImportController::class, 'import']);
+Route::get('/qc', [QcController::class, 'index']);
+Route::get('/qc/{id}', [QcController::class, 'show'])->name('qc.show');
+Route::post('/excel/paste', [QcController::class, 'convert'])
+
+    ->name('excel.paste');
+Route::prefix('pfi')->group(function () {
+
+    Route::get('/import', [ImportController::class, 'index'])
+        ->name('pfi.import');
+
+    Route::post('/import/preview', [ImportController::class, 'preview'])
+        ->name('pfi.import.preview');
+
+    Route::post('/import/process', [ImportController::class, 'process'])
+        ->name('pfi.import.process');
+});
+Route::post('/qc/store', [QcController::class, 'save'])->name('qc.save');
+Route::get('/qc/po-list', [QcController::class, 'poList'])->name('qc.po.list');
+Route::get('/qc/ajax/po-list', [QcController::class, 'ajaxPoList'])
+    ->name('qc.ajax.po');
+
 // ==============================
 // ⚙️ CEK ENV
 // ==============================

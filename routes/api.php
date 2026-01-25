@@ -4,6 +4,7 @@ use App\Http\Controllers\AbsenController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\BuyerController;
 use App\Http\Controllers\CartController;
+use App\Http\Controllers\ImageController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->post('/absen', [AbsenController::class, 'absen']);
@@ -17,7 +18,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
 });
 
-
 // new route
 Route::prefix('buyers')->group(function () {
     Route::get('/', [BuyerController::class, 'index']);
@@ -27,7 +27,6 @@ Route::prefix('buyers')->group(function () {
     Route::delete('{id}', [BuyerController::class, 'destroy']);
 });
 
-
 Route::prefix('cart')->group(function () {
     Route::get('/', [CartController::class, 'index']); // ?buyer_id=12
     Route::post('/', [CartController::class, 'store']);
@@ -36,9 +35,10 @@ Route::prefix('cart')->group(function () {
     Route::delete('{id}', [CartController::class, 'destroy']);
     Route::post('/checkout', [CartController::class, 'checkout']);
 
-
-
 });
+// Route::post('/generateThumb', [ImageController::class, 'generateThumb']);
+Route::get('/generate-all-thumbs', [ImageController::class, 'generateAllThumbs']);
+
 Route::prefix('products')->group(function () {
 
     Route::get('{id}', [BuyerController::class, 'product']);
