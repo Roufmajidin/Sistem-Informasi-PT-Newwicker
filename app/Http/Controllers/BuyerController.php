@@ -8,6 +8,11 @@ use App\Models\NewBuyer;
 use App\Models\ProductPameran;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class BuyerController extends Controller
 {
@@ -74,7 +79,6 @@ class BuyerController extends Controller
                     "isDeleted"      => $cart->isDeleted,
                 ];
             });
-
 
         });
 
@@ -204,4 +208,127 @@ class BuyerController extends Controller
         ]);
     }
 
+    public function cartExport($buyerId)
+    {
+        // ================== DATA ==================
+        $buyer = NewBuyer::where('buyer_id', $buyerId)->firstOrFail();
+        $carts = Carts::where('buyer_id', $buyerId)->get();
+
+        if ($carts->isEmpty()) {
+            abort(404, 'Cart kosong');
+        }
+
+        // ================== LOAD TEMPLATE ==================
+        $spreadsheet = IOFactory::load(storage_path('app/public/Book4.xlsx'));
+        $sheet       = $spreadsheet->getActiveSheet();
+
+        // ================== HEADER INFO ==================
+        $sheet->setCellValue('C5', $buyer->order_no ?? '-');
+        $sheet->setCellValue('C6', $buyer->company_name ?? '-');
+        $sheet->setCellValue('C7', $buyer->country ?? '-');
+        $sheet->setCellValue('C9', $buyer->packing ?? '-');
+        $sheet->setCellValue('C10', $buyer->contact_person ?? '-');
+
+        // ================== START ROW DETAIL ==================
+        $row = 14;
+
+        foreach ($carts as $index => $cart) {
+
+            $articleCode = trim($cart->article_code);
+
+            $product = ProductPameran::where('article_code', $articleCode)->first();
+
+            // ================== IMAGE PATH (FIX) ==================
+            $photoFullPath = null;
+
+            if ($product && $product->exhibition_id) {
+                $exhibition = Exhibition::find($product->exhibition_id);
+
+                if ($exhibition) {
+                    $relativePath = "pameran/{$exhibition->name}/{$articleCode}.webp";
+
+                    if (Storage::disk('public')->exists($relativePath)) {
+                        // ABSOLUTE PATH (WAJIB)
+                        $photoFullPath = storage_path("app/public/{$relativePath}");
+                    }
+                }
+            }
+
+            // ================== DATA CELL ==================
+            $sheet->fromArray([
+                $index + 1,
+                '', // kolom foto dikosongkan (gambar via Drawing)
+                $product->name ?? '-',
+                $articleCode,
+                $cart->remark ?? '-',
+                $product->cushion ?? '-',
+                $product->glass ?? '-',
+                $product->item_w ?? '-',
+                $product->item_d ?? '-',
+                $product->item_h ?? '-',
+                $product->packing_w ?? '-',
+                $product->packing_d ?? '-',
+                $product->packing_h ?? '-',
+                $product->composition ?? '-',
+                $product->finishing ?? '-',
+                $cart->qty ?? 0,
+                $product->cbm ?? 0,
+                $product->fob_jakarta_in_usd ?? 0,
+                ($product->cbm ?? 0) * ($cart->qty ?? 0),
+                $product->value_in_usd ?? 0,
+            ], null, "A{$row}");
+
+            // ================== STYLE ==================
+            $sheet->getStyle("A{$row}:T{$row}")->applyFromArray([
+                'borders'   => [
+                    'allBorders' => [
+                        'borderStyle' => Border::BORDER_HAIR,
+                    ],
+                ],
+                'alignment' => [
+                    'horizontal' => Alignment::HORIZONTAL_CENTER,
+                    'vertical'   => Alignment::VERTICAL_CENTER,
+                    'wrapText'   => true,
+                ],
+            ]);
+
+            // ================== IMAGE DRAWING ==================
+            if ($photoFullPath && file_exists($photoFullPath)) {
+
+                $drawing = new Drawing();
+                $drawing->setName('Product Image');
+                $drawing->setDescription($articleCode);
+                $drawing->setPath($photoFullPath); // ✅ ABSOLUTE PATH
+                $drawing->setHeight(160);
+                $drawing->setCoordinates("B{$row}");
+                $drawing->setOffsetX(5);
+                $drawing->setOffsetY(5);
+                $drawing->setWorksheet($sheet);
+
+                $sheet->getRowDimension($row)->setRowHeight(145);
+            } else {
+                // Debug kalau gambar tidak ketemu
+                logger()->warning("IMAGE NOT FOUND: {$articleCode}");
+                $sheet->getRowDimension($row)->setRowHeight(30);
+            }
+
+            $row++;
+        }
+
+        // ================== COLUMN WIDTH ==================
+        $sheet->getColumnDimension('B')->setWidth(34.5);
+
+        // ================== DOWNLOAD ==================
+        $writer = new Xlsx($spreadsheet);
+
+        return response()->streamDownload(
+            function () use ($writer) {
+                $writer->save('php://output');
+            },
+            "cart_export_{$buyerId}.xlsx",
+            [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ]
+        );
+    }
 }
