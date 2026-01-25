@@ -116,6 +116,11 @@ $(document).ready(function () {
                                     👁️
                                 </button>
                             </td>
+                             <td class="text-center">
+                                <button class="btn btn-sm btn-success exportBtn" data-id="${buyer.buyer_id}">
+                                    👁️
+                                </button>
+                            </td>
                         </tr>
                     `;
                 });
