@@ -13,6 +13,7 @@ class QcReport extends Model
         'remark',
         'po_id',
         'size',
+        'inspect_schedule_id',
         'detail_po_id',
     ];
 
@@ -22,17 +23,20 @@ class QcReport extends Model
     |--------------------------------------------------------------------------
     */
 
-    public function photos()
-    {
-        return $this->hasMany(ReportPhoto::class, 'qc_report_id');
-    }
+   public function inspectSchedule()
+{
+    return $this->belongsTo(InspectSchedule::class);
+}
 
-    // optional – kalau nanti ada tabel checkpoint
-    public function checkpoint()
-    {
-        return $this->belongsTo(Checkpoint::class, 'check_point_id');
-    }
+public function photos()
+{
+    return $this->hasMany(ReportPhoto::class);
+}
 
+public function checkpoint()
+{
+    return $this->belongsTo(Checkpoint::class, 'check_point_id');
+}
     // optional
     public function po()
     {

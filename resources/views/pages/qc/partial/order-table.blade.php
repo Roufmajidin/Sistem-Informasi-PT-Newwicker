@@ -33,6 +33,7 @@
                         <td>
                             <a href="javascript:void(0)" class="text-primary btn-detail"
                                 data-qty="{{ $item->detail['qty'] ?? 0 }}"
+                                data-po-id="{{ $item->po_id }}"
                                 data-id="{{ $item->id }}">detail</a>
                         </td>
                     </tr>
@@ -58,184 +59,288 @@
     </div>
 </div>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const toggle = document.getElementById('toggleItems');
-        if (!toggle) return;
+/* =========================================================
+   GLOBAL STATE
+========================================================= */
+let qcBatchData = {};
+let currentJenis = null;
+let currentPoId = null;
+let currentDetailPoId = null;
 
+/* =========================================================
+   RESET UI QC (ANTI DATA NYANGKUT)
+========================================================= */
+function resetQcUI() {
+
+    qcBatchData = {};
+    currentDetailPoId = null;
+
+    const batch = document.getElementById('batch-container');
+    if (batch) {
+        batch.innerHTML = '<span class="text-muted">Pilih batch</span>';
+    }
+
+    const thead = document.querySelector('#qc-table thead');
+    const tbody = document.querySelector('#qc-table tbody');
+    if (thead) thead.innerHTML = '';
+    if (tbody) tbody.innerHTML = '';
+
+    const defect = document.getElementById('qc-defect-container');
+    if (defect) defect.innerHTML = '';
+
+    const progress = document.getElementById('progressQty');
+    if (progress) progress.textContent = '-';
+}
+
+/* =========================================================
+   DOM READY
+========================================================= */
+document.addEventListener('DOMContentLoaded', function () {
+
+    /* ===============================
+       TOGGLE ITEM (SHOW MORE)
+    =============================== */
+    const toggle = document.getElementById('toggleItems');
+    if (toggle) {
         let expanded = false;
-
-        toggle.addEventListener('click', function() {
+        toggle.addEventListener('click', function () {
             document.querySelectorAll('.extra-row')
-                .forEach(row => row.classList.toggle('d-none'));
-
+                .forEach(r => r.classList.toggle('d-none'));
             expanded = !expanded;
             toggle.textContent = expanded ? 'Show less' : 'Show more';
         });
+    }
+
+    /* ===============================
+       PILIH JENIS (EVENT DELEGATION)
+    =============================== */
+    document.body.addEventListener('click', function (e) {
+
+        const el = e.target.closest('.item-jenis');
+        if (!el) return;
+
+        e.preventDefault();
+
+        const jenis = el.dataset.jenis;
+        const poId  = document.getElementById('po-id')?.value;
+
+        if (!jenis || !poId) {
+            alert('Jenis / PO tidak valid');
+            return;
+        }
+
+        // set state
+        currentJenis = jenis;
+        currentPoId  = poId;
+
+        // dropdown text
+        const btnJenis = document.getElementById('btn-jenis');
+        if (btnJenis) {
+            btnJenis.innerHTML = jenis.toUpperCase() + ' <span class="caret"></span>';
+        }
+
+        // hidden input
+        document.getElementById('input-jenis').value = jenis;
+        document.getElementById('po-id').value = poId;
+
+        // judul tabel
+        const jenisEl = document.getElementById('jenis');
+        if (jenisEl) {
+            jenisEl.textContent = `======= ${jenis.toUpperCase()} =======`;
+        }
+
+        // reset semua data QC lama
+        resetQcUI();
+
+        console.log('[SET JENIS]', { jenis, poId });
     });
-    // detail
-    // DETAIL CLICK ALERT
-    document.addEventListener('DOMContentLoaded', function() {
 
-        document.querySelectorAll('.btn-detail').forEach(btn => {
-            btn.addEventListener('click', function() {
+    /* ===============================
+       CLICK DETAIL ITEM
+    =============================== */
+  function openJenisDropdown() {
+    const btn = document.getElementById('btn-jenis');
+    if (!btn) return;
 
-                const detailPoId = this.dataset.id;
-                const kategoriId = document.getElementById('input-jenis')?.value;
-
-                if (!kategoriId) {
-                    alert('Pilih jenis terlebih dahulu');
-                    return;
-                }
-
-                /* ===============================
-                   UI: aktifkan row
-                =============================== */
-                document.querySelectorAll('.item-row')
-                    .forEach(row => row.classList.remove('active-row'));
-
-                const row = this.closest('tr');
-                if (row) row.classList.add('active-row');
-
-                /* ===============================
-                   SET QTY
-                =============================== */
-                const qty = this.dataset.qty;
-                const qtyText = document.getElementById('qtyText');
-                const qtyInput = document.getElementById('qtyInput');
-
-                if (qtyText) qtyText.textContent = qty;
-                if (qtyInput) qtyInput.value = qty;
-
-                /* ===============================
-                   AJAX REQUEST
-                =============================== */
-                // alert('id : ' + detailPoId + '\n' +
-                //       'kategori : ' + kategoriId);
-                document.querySelector('.jenis').textContent = `======= ${kategoriId} =====`;
-
-                fetch(`/qc/getData/${kategoriId}/${detailPoId}`)
-                    .then(res => {
-                        if (!res.ok) throw new Error('Network error');
-                        return res.json(); // 🔥 WAJIB
-                    })
-                    .then(data => {
-
-                        const datas = data.merged_result;
-
-                        if (!datas || Object.keys(datas).length === 0) {
-                            console.warn('Tidak ada data QC');
-                            return;
-                        }
-
-                        const thead = document.querySelector('#qc-table thead');
-                        const tbody = document.querySelector('#qc-table tbody');
-
-                        thead.innerHTML = '';
-                        tbody.innerHTML = '';
-
-                        /* ===== THEAD ===== */
-                        let headRow = '<tr>';
-                        Object.keys(datas).forEach(checkpointName => {
-                            headRow += `<th>${checkpointName}</th>`;
-                        });
-                        headRow += '</tr>';
-                        thead.innerHTML = headRow;
-
-                        /* ===== TBODY ===== */
-                        let bodyRow = '<tr>';
-                        Object.values(datas).forEach(item => {
-                            bodyRow += `
-                <td>
-                   ${item?.size ?? ''}
-                </td>
-            `;
-                        });
-                        bodyRow += '</tr>';
-                        tbody.innerHTML = bodyRow;
-                        console.log(data);
-                        // images
-                        const container = document.getElementById('qc-defect-container');
-                        container.innerHTML = ''; // reset
-
-                        Object.entries(datas).forEach(([checkpointName, item], index) => {
-
-                            const statusLabel = item.remark ?
-                                `<span class="label info">${item.remark}</span>` :
-                                `<span class="label success">OK</span>`;
-
-                            let photosHtml = '';
-
-                            if (item.photos && item.photos.length > 0) {
-                                item.photos.forEach(photo => {
-                                    photosHtml += `
-                <div class="col-sm-3">
-                    <p class="text-xs">${photo.keterangan ?? '-'}</p>
-                    <img src="/${photo.path}"
-                         class="img-responsive img-thumbnail">
-                </div>
-            `;
-                                });
-                            } else {
-                                photosHtml = `
-            <div class="col-sm-12 text-muted text-sm">
-                Tidak ada foto
-            </div>
-        `;
-                            }
-
-                            container.innerHTML += `
-        <div class="defect-item m-b">
-
-            <div class="defect-header d-flex justify-content-between">
-                <div>
-                    ${statusLabel}
-                    <strong class="m-l-sm">
-                        ${index + 1}. ${checkpointName}
-                    </strong>
-
-                    <div class="text-sm text-muted m-t-xs">
-                        Size: ${item.size ?? '-'}
-                    </div>
-                </div>
-            </div>
-
-            <div class="row m-t-sm">
-                ${photosHtml}
-            </div>
-        </div>
-    `;
-                        });
-
-                    })
-                    .catch(err => {
-                        console.error(err);
-                        alert('Gagal mengambil data QC');
-                    });
-            });
+    // force click (cara manusia)
+    btn.dispatchEvent(
+        new MouseEvent('click', {
+            bubbles: true,
+            cancelable: true,
+            view: window
         })
+    );
+
+    // highlight biar user notice
+    btn.classList.add('btn-warning');
+    setTimeout(() => btn.classList.remove('btn-warning'), 1200);
+}
 
 
-    });
+    document.querySelectorAll('.btn-detail').forEach(btn => {
+        btn.addEventListener('click', function () {
 
-    // jenis
-    document.querySelectorAll('.item-jenis').forEach(function(item) {
-        item.addEventListener('click', function() {
+            if (!currentJenis || !currentPoId) {
+                  openJenisDropdown();
 
-            const jenis = this.dataset.jenis;
-            // ubah teks tombol
-            document.getElementById('btn-jenis').innerHTML =
-                jenis + ' <span class="caret"></span>';
 
-            // simpan ke hidden input (kalau perlu submit)
-            document.getElementById('input-jenis').value = jenis;
-            document.getElementById('jenis').innerHTML =
-                jenis + ' <span class="caret"></span>';
+                return;
+            }
 
-            // alert
+            const detailPoId = this.dataset.id;
+            const qty = this.dataset.qty;
+            console.log('[DETAIL ITEM]', { detailPoId, qty,currentDetailPoId });
+            // pindah item → reset UI
+            if (currentDetailPoId !== detailPoId) {
+                resetQcUI();
+            }
+
+            currentDetailPoId = detailPoId;
+
+            // aktifkan row
+            document.querySelectorAll('.item-row')
+                .forEach(r => r.classList.remove('active-row'));
+            this.closest('tr')?.classList.add('active-row');
+
+            // set qty
+            const qtyText = document.getElementById('qtyText');
+            if (qtyText) qtyText.textContent = qty;
+
+            // fetch QC
+            fetch(`/qc/getData/${currentJenis}/${detailPoId}/${currentPoId}`)
+                .then(res => res.json())
+                .then(res => {
+
+                    qcBatchData = res.batches || {};
+
+                    renderBatchButtons(qcBatchData);
+                    renderProgressQty(qcBatchData);
+                })
+                .catch(() => alert('Gagal mengambil data QC'));
         });
     });
+
+});
+
+/* =========================================================
+   RENDER BATCH BUTTON
+========================================================= */
+function renderBatchButtons(batches) {
+
+    const container = document.getElementById('batch-container');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (!Object.keys(batches).length) {
+        container.innerHTML = '<span class="text-muted">Belum ada batch</span>';
+        return;
+    }
+
+    Object.entries(batches).forEach(([key, batch], index) => {
+
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-sm btn-outline-primary m-r-xs';
+        btn.innerHTML = `
+            Batch ${batch.batch_ke}<br>
+            <small>${batch.tanggal}</small>
+        `;
+
+        btn.addEventListener('click', () => renderBatch(key));
+        container.appendChild(btn);
+
+        if (index === 0) renderBatch(key);
+    });
+}
+
+/* =========================================================
+   PROGRESS QTY
+========================================================= */
+function renderProgressQty(batches) {
+
+    const qtyText = document.getElementById('qtyText');
+    const progress = document.getElementById('progressQty');
+
+    if (!qtyText || !progress) return;
+
+    const qtyAsli = parseInt(qtyText.textContent || 0);
+    let totalInspect = 0;
+
+    Object.values(batches).forEach(b => {
+        totalInspect += parseInt(b.jumlah_inspect || 0);
+    });
+
+    const percent = qtyAsli
+        ? ((totalInspect / qtyAsli) * 100).toFixed(1)
+        : 0;
+
+    progress.textContent =
+        `${totalInspect} / ${qtyAsli} (${percent}%)`;
+}
+
+/* =========================================================
+   RENDER BATCH DETAIL
+========================================================= */
+function renderBatch(batchKey) {
+
+    const batch = qcBatchData[batchKey];
+    if (!batch) return;
+
+    // table
+    const thead = document.querySelector('#qc-table thead');
+    const tbody = document.querySelector('#qc-table tbody');
+
+    if (!thead || !tbody) return;
+
+    thead.innerHTML = '';
+    tbody.innerHTML = '';
+
+    let head = '<tr>';
+    let body = '<tr>';
+
+    Object.entries(batch.checkpoints).forEach(([name, cp]) => {
+        head += `<th>${name}</th>`;
+        body += `<td>${cp.size ?? '-'}</td>`;
+    });
+
+    thead.innerHTML = head + '</tr>';
+    tbody.innerHTML = body + '</tr>';
+
+    // defect / photo
+    const container = document.getElementById('qc-defect-container');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    Object.entries(batch.checkpoints).forEach(([name, cp], i) => {
+
+        let photosHtml = '';
+
+        if (cp.photos && cp.photos.length) {
+            cp.photos.forEach(p => {
+                photosHtml += `
+                    <div class="col-sm-3">
+                        <img src="/${p.path}" class="img-thumbnail">
+                        <p class="text-xs">${p.keterangan ?? '-'}</p>
+                    </div>`;
+            });
+        } else {
+            photosHtml = '<div class="col-sm-12 text-muted">Tidak ada foto</div>';
+        }
+
+        container.innerHTML += `
+            <div class="m-b">
+                <strong>${i + 1}. ${name}</strong>
+                <span class="label m-l-sm">${cp.remark ?? 'OK'}</span>
+                <div class="row m-t-sm">${photosHtml}</div>
+            </div>`;
+    });
+}
 </script>
 <style>
+    .dropdown-menu {
+    z-index: 9999;
+}
     /* efek hover biar keliatan clickable */
     .table tbody tr {
         cursor: pointer;

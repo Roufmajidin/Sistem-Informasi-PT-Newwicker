@@ -11,14 +11,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('qc_report', function (Blueprint $table) {
+        Schema::create('inspect_schedule', function (Blueprint $table) {
             $table->id();
-            $table->integer('check_point_id');
-            $table->String('remark')->nullable();
-            $table->string('size')->nullable();
             $table->integer('po_id');
             $table->integer('detail_po_id');
-            $table->integer('batch_id');
+            $table->integer('batch');
+            $table->integer('jumlah_inspect');
+            $table->String('tanggal_inspect')->nullable();
+            $table->String('user_id')->nullable();
+            $table->unsignedBigInteger('kategori_id');
+
             $table->timestamps();
         });
     }
@@ -28,6 +30,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('qc_report');
+        Schema::dropIfExists('inspect_schedule');
     }
 };
