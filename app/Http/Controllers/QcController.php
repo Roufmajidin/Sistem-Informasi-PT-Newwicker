@@ -1,8 +1,11 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Models\Checkpoint;
 use App\Models\DetailPo;
+use App\Models\Kategori;
 use App\Models\Po;
+use App\Models\QcReport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -11,6 +14,7 @@ class QcController extends Controller
     /**
      * Display a listing of the resource.
      */
+
     public function index()
     {
         //
@@ -20,6 +24,7 @@ class QcController extends Controller
     /**
      * Show the form for creating a new resource.
      */
+
     public function create()
     {
         //
@@ -28,6 +33,7 @@ class QcController extends Controller
     /**
      * Store a newly created resource in storage.
      */
+
     public function store(Request $request)
     {
         //
@@ -36,15 +42,19 @@ class QcController extends Controller
     /**
      * Display the specified resource.
      */
+
     public function show(string $id)
     {
         //
-        $data = Po::find($id);
-        $detail = DetailPo::where('po_id', $data->id)->get();
-        // dd($detail);
-        return view('pages.qc.detail', compact('data', 'detail'));
+        $data    = Po::find($id);
+        $detailP = DetailPo::where('po_id', $data->id)->get();
+        // dd( $detailP );
+        $jenis = Kategori::all();
+
+        return view('pages.qc.detail', compact('data', 'detailP', 'jenis'));
     }
-    public function convert(Request $request)
+
+   public function convert(Request $request)
     {
         $raw   = trim($request->excel_data);
         $lines = preg_split("/\r\n|\n|\r/", $raw);
@@ -114,6 +124,7 @@ class QcController extends Controller
             'items' => $items,
         ]);
     }
+
     public function save(Request $request)
     {
         $buyer = $request->input('order_info');
@@ -122,9 +133,9 @@ class QcController extends Controller
         DB::beginTransaction();
 
         try {
-            // ===============================
+            // ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  =
             // 1. PO
-            // ===============================
+            // ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  =
             $po = Po::firstOrCreate(
                 ['order_no' => $buyer['Order_No.'] ?? '-'],
                 [
@@ -136,9 +147,9 @@ class QcController extends Controller
                 ]
             );
 
-            // ===============================
-            // 2. DETAIL (ROW PER ITEM)
-            // ===============================
+            // ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  =
+            // 2. DETAIL ( ROW PER ITEM )
+            // ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  =
             foreach ($items as $item) {
 
                 DetailPo::updateOrCreate(
@@ -169,16 +180,70 @@ class QcController extends Controller
             ], 500);
         }
     }
+
     public function poList()
     {
         $pos = Po::latest()->get();
-        // dd($pos);
+        // dd( $pos );
         return response()->json($pos);
     }
-    public function ajaxPoList()
-{
-    $pos = Po::latest()->get();
 
-    return response()->json($pos);
+    public function ajaxPoList()
+    {
+        $pos = Po::latest()->get();
+
+        return response()->json($pos);
+    }
+    // public function cek($id)
+    // {
+    //     $report = QcReport::create([
+    //         'check_point_id' => 1,
+    //         'remark'         => 'OK',
+    //         'po_id'          => $id,
+    //         'detail_po_id'   => 7,
+    //     ]);
+
+    //     $report->photos()->create([
+    //         'keterangan' => 'Foto rangka depan',
+    //         'path'       => 'uploads/qc/photo1.jpg',
+    //     ]);
+
+    // }
+ public function getData(string $kategoriId, string $detailPo)
+{
+    // ambil kategori berdasarkan nama
+    $kategori = Kategori::where('kategori', $kategoriId)->firstOrFail();
+
+    // ambil checkpoint berdasarkan kategori
+    $checkpoints = Checkpoint::where('kategori_id', $kategori->id)->get();
+
+    // ambil id checkpoint
+    $checkpointIds = $checkpoints->pluck('id');
+
+    // ambil qc report
+    $qcReports = QcReport::whereIn('check_point_id', $checkpointIds)
+        ->where('detail_po_id', $detailPo)
+        ->get()
+        ->keyBy('check_point_id'); // 🔥 penting
+
+    // PADUKAN checkpoint + size + remark
+    $merged = [];
+    foreach ($checkpoints as $cp) {
+        $report = $qcReports[$cp->id] ?? null;
+
+        $merged[$cp->name] = [
+            'size'   => $report->size   ?? null,
+            'remark' => $report->remark ?? null,
+        ];
+    }
+
+    return response()->json([
+        'kategori'      => $kategori->kategori,
+        'checkpoints'   => $checkpoints,
+        'qc_reports'    => $qcReports->values(), // raw data
+        'merged_result' => $merged                // 🎯 final result
+    ]);
 }
+
+
 }
