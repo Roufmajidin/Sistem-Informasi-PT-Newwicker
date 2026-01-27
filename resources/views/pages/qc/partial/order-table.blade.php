@@ -119,7 +119,6 @@
                         return res.json(); // 🔥 WAJIB
                     })
                     .then(data => {
-                        console.log('QC DATA:', data);
 
                         const datas = data.merged_result;
 
@@ -153,6 +152,60 @@
                         });
                         bodyRow += '</tr>';
                         tbody.innerHTML = bodyRow;
+                        console.log(data);
+                        // images
+                        const container = document.getElementById('qc-defect-container');
+                        container.innerHTML = ''; // reset
+
+                        Object.entries(datas).forEach(([checkpointName, item], index) => {
+
+                            const statusLabel = item.remark ?
+                                `<span class="label info">${item.remark}</span>` :
+                                `<span class="label success">OK</span>`;
+
+                            let photosHtml = '';
+
+                            if (item.photos && item.photos.length > 0) {
+                                item.photos.forEach(photo => {
+                                    photosHtml += `
+                <div class="col-sm-3">
+                    <p class="text-xs">${photo.keterangan ?? '-'}</p>
+                    <img src="/${photo.path}"
+                         class="img-responsive img-thumbnail">
+                </div>
+            `;
+                                });
+                            } else {
+                                photosHtml = `
+            <div class="col-sm-12 text-muted text-sm">
+                Tidak ada foto
+            </div>
+        `;
+                            }
+
+                            container.innerHTML += `
+        <div class="defect-item m-b">
+
+            <div class="defect-header d-flex justify-content-between">
+                <div>
+                    ${statusLabel}
+                    <strong class="m-l-sm">
+                        ${index + 1}. ${checkpointName}
+                    </strong>
+
+                    <div class="text-sm text-muted m-t-xs">
+                        Size: ${item.size ?? '-'}
+                    </div>
+                </div>
+            </div>
+
+            <div class="row m-t-sm">
+                ${photosHtml}
+            </div>
+        </div>
+    `;
+                        });
+
                     })
                     .catch(err => {
                         console.error(err);

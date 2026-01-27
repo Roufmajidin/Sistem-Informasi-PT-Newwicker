@@ -6,9 +6,10 @@ use App\Models\DetailPo;
 use App\Models\Kategori;
 use App\Models\Po;
 use App\Models\QcReport;
+use App\Models\ReportPhoto;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
-
 class QcController extends Controller
 {
     /**
@@ -54,7 +55,7 @@ class QcController extends Controller
         return view('pages.qc.detail', compact('data', 'detailP', 'jenis'));
     }
 
-   public function convert(Request $request)
+    public function convert(Request $request)
     {
         $raw   = trim($request->excel_data);
         $lines = preg_split("/\r\n|\n|\r/", $raw);
@@ -209,41 +210,126 @@ class QcController extends Controller
     //     ]);
 
     // }
- public function getData(string $kategoriId, string $detailPo)
-{
-    // ambil kategori berdasarkan nama
-    $kategori = Kategori::where('kategori', $kategoriId)->firstOrFail();
+    public function getData(string $kategoriId, string $detailPo)
+    {
+        // ambil kategori berdasarkan nama
+        $kategori = Kategori::where('kategori', $kategoriId)->firstOrFail();
 
-    // ambil checkpoint berdasarkan kategori
-    $checkpoints = Checkpoint::where('kategori_id', $kategori->id)->get();
+        // ambil checkpoint berdasarkan kategori
+        $checkpoints = Checkpoint::where('kategori_id', $kategori->id)->get();
 
-    // ambil id checkpoint
-    $checkpointIds = $checkpoints->pluck('id');
+        // ambil id checkpoint
+        $checkpointIds = $checkpoints->pluck('id');
 
-    // ambil qc report
-    $qcReports = QcReport::whereIn('check_point_id', $checkpointIds)
-        ->where('detail_po_id', $detailPo)
-        ->get()
-        ->keyBy('check_point_id'); // 🔥 penting
+        // ambil qc report (keyBy check_point_id)
+        $qcReports = QcReport::whereIn('check_point_id', $checkpointIds)
+            ->where('detail_po_id', $detailPo)
+            ->get()
+            ->keyBy('check_point_id');
 
-    // PADUKAN checkpoint + size + remark
-    $merged = [];
-    foreach ($checkpoints as $cp) {
-        $report = $qcReports[$cp->id] ?? null;
+        // ambil semua report_photo SEKALIGUS
+        $reportIds = $qcReports->pluck('id');
 
-        $merged[$cp->name] = [
-            'size'   => $report->size   ?? null,
-            'remark' => $report->remark ?? null,
-        ];
+        $photos = ReportPhoto::whereIn('qc_report_id', $reportIds)
+            ->get()
+            ->groupBy('qc_report_id'); // 🔥 group per report
+
+        // ===============================
+        // MERGE FINAL
+        // ===============================
+        $merged = [];
+
+        foreach ($checkpoints as $cp) {
+            $report = $qcReports[$cp->id] ?? null;
+
+            $merged[$cp->name] = [
+                'size'   => $report->size ?? null,
+                'remark' => $report->remark ?? null,
+                'photos' => $report
+                    ? ($photos[$report->id] ?? collect())->map(function ($p) {
+                    return [
+                        'keterangan' => $p->keterangan,
+                        'path'       => $p->path,
+                    ];
+                })->values()
+                    : [],
+            ];
+        }
+
+        return response()->json([
+            'kategori'      => $kategori->kategori,
+            'merged_result' => $merged,
+        ]);
     }
 
-    return response()->json([
-        'kategori'      => $kategori->kategori,
-        'checkpoints'   => $checkpoints,
-        'qc_reports'    => $qcReports->values(), // raw data
-        'merged_result' => $merged                // 🎯 final result
-    ]);
-}
 
+    public function insertDummy()
+    {
+        $checkpoints = [
+            3, 4, 5, 6, 7, 8, 9, 10,
+            11, 12, 13, 14, 15, 16,
+            17, 18, 19, 20, 21, 22,
+            23, 24, 25, 26, 27, 28,
+            29, 30,
+        ];
 
+        $po_id        = 7;
+        $detail_po_id = 17;
+
+        $remarks = [
+            'OK',
+            'Minor defect',
+            'Aktual lebih 2 cm',
+            'Tidak sesuai drawing',
+            'Perlu koreksi',
+        ];
+
+        DB::beginTransaction();
+
+        try {
+
+            foreach ($checkpoints as $checkpointId) {
+
+                /* ===============================
+               INSERT QC REPORT
+            =============================== */
+                $qcReport = QcReport::create([
+                    'check_point_id' => $checkpointId,
+                    'po_id'          => $po_id,
+                    'detail_po_id'   => $detail_po_id,
+                    'size'           => rand(30, 120), // bebas
+                    'remark'         => $remarks[array_rand($remarks)],
+                ]);
+
+                /* ===============================
+               INSERT REPORT PHOTOS (1–3 FOTO)
+            =============================== */
+                $photoCount = rand(1, 3);
+
+                for ($i = 1; $i <= $photoCount; $i++) {
+                    ReportPhoto::create([
+                        'qc_report_id' => $qcReport->id,
+                        'keterangan'   => 'Foto dummy ' . $i,
+                        'path'         => 'uploads/qc/' . Str::random(10) . '.jpg',
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Dummy QC Report & Photo berhasil dibuat',
+            ]);
+
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'status'  => 'error',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

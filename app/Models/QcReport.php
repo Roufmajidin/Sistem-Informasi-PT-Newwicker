@@ -12,6 +12,7 @@ class QcReport extends Model
         'check_point_id',
         'remark',
         'po_id',
+        'size',
         'detail_po_id',
     ];
 

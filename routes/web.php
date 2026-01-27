@@ -129,6 +129,7 @@ Route::get('/qc/{id}', [QcController::class, 'show'])->name('qc.show');
 Route::get('/item/{id}', [QcController::class, 'itemDetail'])->name('qc.item.detail');
 Route::get('/qc/cek/{id}', [QcController::class, 'cek']);
 Route::get('/qc/getData/{kategoriId}/{detailPo}', [QcController::class, 'getData']);
+Route::get('/insert', [QcController::class, 'insertDummy']);
 
 Route::post('/excel/paste', [QcController::class, 'convert'])
 
