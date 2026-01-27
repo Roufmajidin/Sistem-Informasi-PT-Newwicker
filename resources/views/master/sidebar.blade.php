@@ -81,6 +81,18 @@
                              <span class="nav-text">Agenda</span>
                          </a>
                      </li>
+                     <li>
+                         <a href="/setting">
+                             <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                             <span class="nav-text">Setting</span>
+                         </a>
+                     </li>
+                        <li>
+                         <a href="/qc">
+                             <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                             <span class="nav-text">QC page</span>
+                         </a>
+                     </li>
                      @endif
 
                      {{-- 🔹 Role: Marketing --}}

@@ -38,9 +38,9 @@
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
         <!-- <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet"> -->
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
+        <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+        <meta http-equiv="Pragma" content="no-cache">
+        <meta http-equiv="Expires" content="0">
     </head>
 
     <body>
@@ -89,17 +89,17 @@
                                 </a>
                                 <!-- <div ui-include="'../views/blocks/dropdown.notification.html'"></div> -->
                             </li>
-                        <li class="nav-item">
-        <form method="POST" action="{{ route('logout') }}" id="logout-form">
-            @csrf
-            <button type="submit" class="nav-link p-0 clear border-0 bg-transparent">
-                <span class="avatar w-32">
-                    <img src="../assets/images/a0.jpg" alt="Profile" style="cursor:pointer;">
-                    <i class="on b-white bottom"></i>
-                </span>
-            </button>
-        </form>
-    </li>
+                            <li class="nav-item">
+                                <form method="POST" action="{{ route('logout') }}" id="logout-form">
+                                    @csrf
+                                    <button type="submit" class="nav-link p-0 clear border-0 bg-transparent">
+                                        <span class="avatar w-32">
+                                            <img src="../assets/images/a0.jpg" alt="Profile" style="cursor:pointer;">
+                                            <i class="on b-white bottom"></i>
+                                        </span>
+                                    </button>
+                                </form>
+                            </li>
                         </ul>
                         <!-- / navbar right -->
                     </div>
@@ -122,27 +122,21 @@
                     <!-- ############ LAYOUT END-->
 
                 </div>
-                <!-- jQuery -->
-                <!-- jQuery -->
 
-                <!-- <script src="//cdnjs.cloudflare.com/ajax/libs/x-editable/1.5.0/bootstrap3-editable/js/bootstrap-editable.min.js"></script> -->
-                <!-- <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script> -->
-        <!-- <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script> -->
 
                 <script>
                     var $j = jQuery.noConflict();
                 </script>
 
-            <!-- jQuery (WAJIB PALING ATAS) -->
-    <!-- <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> -->
+                <!-- jQuery (WAJIB PALING ATAS) -->
 
-    <!-- Bootstrap 4 -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+                <!-- Bootstrap 4 -->
+                <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
 
                 <script>
                     var $ = jQuery.noConflict();
                 </script>
-                <script src="{{asset('assets/libs/jquery/jquery/dist/jquery.js')}}"></script>
+                <!-- <script src="{{asset('assets/libs/jquery/jquery/dist/jquery.js')}}"></script> -->
                 <!-- Bootstrap -->
                 <script src="{{asset('assets/libs/jquery/tether/dist/js/tether.min.js')}}"></script>
                 <script src="{{asset('assets/libs/jquery/bootstrap/dist/js/bootstrap.js')}}"></script>
@@ -175,7 +169,7 @@
                 <script src="{{asset('assets/libs/jquery/jquery-pjax/jquery.pjax.js')}}"></script>
                 <script src="{{asset('assets/scripts/ajax.js')}}"></script>
                 <!-- endbuild -->
-                <script src=" https://code.jquery.com/jquery-3.6.0.min.js"></script>
+                <!-- <script src=" https://code.jquery.com/jquery-3.6.0.min.js"></script> -->
 
                 <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
 
@@ -210,13 +204,15 @@
                 <!-- JSZip (dibutuhkan untuk export Excel) -->
                 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
                 <script>
-        if (window.history && window.history.pushState) {
-            window.history.pushState(null, null, window.location.href);
-            window.onpopstate = function () {
-                window.location.replace("/dashboard");
-            };
-        }
-    </script>
+                    if (window.history && window.history.pushState) {
+                        window.history.pushState(null, null, window.location.href);
+                        window.onpopstate = function() {
+                            window.location.replace("/dashboard");
+                        };
+                    }
+                </script>
+                <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
                 @stack('scripts')
 
     </body>

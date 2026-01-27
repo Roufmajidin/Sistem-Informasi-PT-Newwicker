@@ -12,6 +12,7 @@ use App\Http\Controllers\MarketingController;
 use App\Http\Controllers\PameranContrller;
 use App\Http\Controllers\PdfController;
 use App\Http\Controllers\QcController;
+use App\Http\Controllers\SettingController;
 use Illuminate\Support\Facades\Route;
 
 // ==============================
@@ -125,6 +126,10 @@ Route::get('/import-excel', [ImportController::class, 'index']);
 Route::post('/import-excel', [ImportController::class, 'import']);
 Route::get('/qc', [QcController::class, 'index']);
 Route::get('/qc/{id}', [QcController::class, 'show'])->name('qc.show');
+Route::get('/item/{id}', [QcController::class, 'itemDetail'])->name('qc.item.detail');
+Route::get('/qc/cek/{id}', [QcController::class, 'cek']);
+Route::get('/qc/getData/{kategoriId}/{detailPo}', [QcController::class, 'getData']);
+
 Route::post('/excel/paste', [QcController::class, 'convert'])
 
     ->name('excel.paste');
@@ -143,7 +148,11 @@ Route::post('/qc/store', [QcController::class, 'save'])->name('qc.save');
 Route::get('/qc/po-list', [QcController::class, 'poList'])->name('qc.po.list');
 Route::get('/qc/ajax/po-list', [QcController::class, 'ajaxPoList'])
     ->name('qc.ajax.po');
-
+Route::get('/setting', [SettingController::class, 'index']);
+Route::post('/setting/kategori', [SettingController::class, 'storeKategori']);
+Route::post('/setting/checkpoint', [SettingController::class, 'storeCheckpoint']);
+Route::post('/setting/checkpoint/mass', [SettingController::class, 'storeCheckpointMass'])
+    ->name('checkpoint.store.mass');
 // ==============================
 // ⚙️ CEK ENV
 // ==============================
