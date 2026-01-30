@@ -55,25 +55,32 @@
                                 <th>Checkpoint</th>
                                 <th>Kategori</th>
                             </tr>
-                            @foreach($checkpoint as $c)
-                            <tr>
-                                <td>{{ $loop->iteration }}</td>
-                                <td>{{ $c->name }}</td>
-                                @if ($c->kategori->kategori == "Rangka")
-                                					<td>
-                                                            	<p><a href class="btn btn-sm primary">{{ $c->kategori->kategori ?? '-' }}</a></p>
 
-                                                    </td>
-@else
-<td>
-                                                            	<p><a href class="btn btn-sm danger">{{ $c->kategori->kategori ?? '-' }}</a></p>
-
-                                                    </td>
-                                @endif
-                            </tr>
-                            @endforeach
+    @foreach($checkpoint as $c)
+        <tr class="checkpoint-row {{ $loop->iteration > 5 ? 'd-none extra-row' : '' }}">
+            <td>{{ $loop->iteration }}</td>
+            <td>{{ $c->name }}</td>
+            <td>
+                @if ($c->kategori->kategori == "Rangka")
+                    <a href="#" class="btn btn-sm btn-primary">
+                        {{ $c->kategori->kategori ?? '-' }}
+                    </a>
+                @else
+                    <a href="#" class="btn btn-sm btn-danger">
+                        {{ $c->kategori->kategori ?? '-' }}
+                    </a>
+                @endif
+            </td>
+        </tr>
+    @endforeach
                         </table>
-</div>
+</div>@if($checkpoint->count() > 5)
+    <div class="text-center mt-2">
+        <button id="btn-show-more" class="btn btn-outline-primary btn-sm">
+            Show More
+        </button>
+    </div>
+@endif
                     </div>
                 </div>
                 <!-- modal 1 -->
@@ -153,5 +160,25 @@
             </div>
         </div>
 
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const btn = document.getElementById('btn-show-more');
+        if (!btn) return;
+
+        let expanded = false;
+
+        btn.addEventListener('click', function () {
+            const rows = document.querySelectorAll('.extra-row');
+
+            rows.forEach(row => {
+                row.classList.toggle('d-none');
+            });
+
+            expanded = !expanded;
+            btn.textContent = expanded ? 'Show Less' : 'Show More';
+        });
+    });
+</script>
 
         @endsection
