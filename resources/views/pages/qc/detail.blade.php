@@ -59,7 +59,7 @@
                             </div>
                             <div class="col-sm-6">
                                 <p><strong>QC:</strong> Soy</p>
-                                <p><strong>QC date:</strong> Dec 24, 2025</p>
+                                <!-- <p><strong>QC date:</strong> <a href="" id="qc_date"></a></p> -->
                             </div>
                         </div>
                     </div>
@@ -90,10 +90,10 @@
 {{-- COMMENTS --}}
             <div class="box">
                 <div class="box-header">
-                    <h4>Comments</h4>
+                    <h4>Inspection Date</h4>
                 </div>
                 <div class="box-body">
-                    <p><strong>QC :</strong><br><small>Dec 24, 2025</small></p>
+                    <!-- <p><strong>QC :</strong><br><small>Dec 24, 2025</small></p> -->
                     <p>No comment text</p>
                 </div>
             </div>

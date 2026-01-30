@@ -124,9 +124,6 @@
                 </div>
 
 
-                <script>
-                    var $j = jQuery.noConflict();
-                </script>
 
                 <!-- jQuery (WAJIB PALING ATAS) -->
 
@@ -159,8 +156,8 @@
                 <script src="{{asset('assets/scripts/ui-toggle-class.js')}}"></script>
 
                 <script src="{{asset('assets/scripts/app.js')}}"></script>
-                <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap4-multiselect/css/bootstrap-multiselect.css">
-                <script src="https://cdn.jsdelivr.net/npm/bootstrap4-multiselect/js/bootstrap-multiselect.min.js"></script>
+                <!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap4-multiselect/css/bootstrap-multiselect.css"> -->
+                <!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap4-multiselect/js/bootstrap-multiselect.min.js"></script> -->
 
                 <!-- Bootstrap JS (include Popper) -->
                 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>

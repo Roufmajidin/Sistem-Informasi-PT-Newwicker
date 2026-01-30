@@ -146,7 +146,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // judul tabel
         const jenisEl = document.getElementById('jenis');
         if (jenisEl) {
-            jenisEl.textContent = `======= ${jenis.toUpperCase()} =======`;
+            jenisEl.textContent = ` ${jenis.toUpperCase()} `;
         }
 
         // reset semua data QC lama
