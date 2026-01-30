@@ -8,6 +8,7 @@ use App\Models\Kategori;
 use App\Models\Po;
 use App\Models\QcReport;
 use App\Models\ReportPhoto;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -231,7 +232,7 @@ class QcController extends Controller
        QC REPORT + RELASI
     =============================== */
         $qcReports = QcReport::with([
-            'inspectSchedule:id,po_id,detail_po_id,batch,jumlah_inspect,tanggal_inspect',
+            'inspectSchedule:id,po_id,detail_po_id,batch,jumlah_inspect,tanggal_inspect,user_id',
             'photos:id,qc_report_id,keterangan,path',
             'checkpoint:id,name',
         ])
@@ -255,11 +256,13 @@ class QcController extends Controller
             $batchKey = 'Batch ' . $schedule->batch;
 
             if (! isset($batches[$batchKey])) {
+
                 $batches[$batchKey] = [
                     'batch_ke'       => $schedule->batch,
                     'tanggal'        => $schedule->tanggal_inspect,
                     'jumlah_inspect' => $schedule->jumlah_inspect,
                     'jenis'          => $kategori->kategori,
+                    'inspector'      => User::find($schedule->user_id)->name ?? 'N/A',
                     'checkpoints'    => [],
                 ];
             }
@@ -336,7 +339,7 @@ class QcController extends Controller
         }
 
         $sisaQty            = $qtyDetail - $totalInspect;
-        $jumlahInspectBatch = min(30, $sisaQty); // simulasi
+        $jumlahInspectBatch = min(10, $sisaQty); // simulasi
 
         DB::beginTransaction();
 
