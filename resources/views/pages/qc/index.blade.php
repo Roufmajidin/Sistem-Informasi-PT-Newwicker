@@ -5,40 +5,72 @@
 <div class="padding">
     <div class="box">
         <div class="box-header">
-            <h2>QC Progress</h2>
+            <h2>QC Dashboard</h2>
             <small>___</small>
         </div>
 
         <div class="box-body">
             {{-- FORM IMPORT --}}
-            <form id="paste-form" method="POST" action="{{ route('qc.save') }}">
-                @csrf
-                <div class="row">
-                    <!-- Kiri -->
-                    <div class="col-md-4">
-                        <h5 class="mb-2"><strong>Order Information</strong></h5>
-                        <textarea id="order-textarea" name="order_info" rows="12" class="form-control" placeholder="Paste order info here..."></textarea>
+      <div class="box-header d-flex justify-content-between align-items-center">
+    <button id="btn-show-form" class="btn btn-success">
+        <i class="fa fa-plus"></i> Input Data QC
+    </button>
 
-                        <h5 class="mt-3">JSON Output</h5>
-                        <pre id="json-output" class="p-2 border bg-light"></pre>
-                    </div>
+    <input type="text"
+        id="search-qc"
+        class="form-control"
+        style="width:300px"
+        placeholder="Search PO / Item / Vendor">
+</div>
 
-                    <!-- Kanan -->
-                    <div class="col-md-8">
-                        <h5 class="mb-2"><strong>Paste Excel Table</strong></h5>
-                        <textarea id="order-textarea2" rows="12" class="form-control" placeholder="Paste data from Excel here..." style="font-family: monospace;"></textarea>
+    {{-- FORM IMPORT --}}
+    <div id="qc-form-wrapper" style="display:none;">
 
-                        <!-- hidden input untuk JSON hasil parsing -->
-                        <input type="hidden" name="parsed_excel_json" id="parsed_excel_json">
+        <form id="paste-form" method="POST" action="{{ route('qc.save') }}">
+            @csrf
 
-                        <button type="submit" class="btn btn-primary mt-3">Simpan All Data</button>
+            <div class="row">
 
-                        <h5 class="mt-3">JSON Output</h5>
-                        <pre id="json-output2" class="p-2 border bg-light"></pre>
-                    </div>
+                <!-- Kiri -->
+                <div class="col-md-4">
+                    <h5 class="mb-2"><strong>Order Information</strong></h5>
+
+                    <textarea id="order-textarea"
+                        name="order_info"
+                        rows="12"
+                        class="form-control"
+                        placeholder="Paste order info here..."></textarea>
+
+                    <h5 class="mt-3">JSON Output</h5>
+                    <pre id="json-output" class="p-2 border bg-light"></pre>
                 </div>
-            </form>
 
+                <!-- Kanan -->
+                <div class="col-md-8">
+                    <h5 class="mb-2"><strong>Paste Excel Table</strong></h5>
+
+                    <textarea id="order-textarea2"
+                        rows="12"
+                        class="form-control"
+                        placeholder="Paste data from Excel here..."
+                        style="font-family: monospace;"></textarea>
+
+                    <input type="hidden"
+                        name="parsed_excel_json"
+                        id="parsed_excel_json">
+
+                    <button type="submit" class="btn btn-primary mt-3">
+                        Simpan All Data
+                    </button>
+
+                    <h5 class="mt-3">JSON Output</h5>
+                    <pre id="json-output2" class="p-2 border bg-light"></pre>
+                </div>
+
+            </div>
+        </form>
+
+    </div>
         </div>
 
         {{-- FILTER --}}
@@ -119,6 +151,13 @@
 
 <!-- Bootstrap JS (SETELAH jQuery) -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/js/bootstrap.min.js"></script>
+<script>
+    document.getElementById('btn-show-form').addEventListener('click', function () {
+        const form = document.getElementById('qc-form-wrapper');
+        form.style.display = 'block';
+        this.style.display = 'none'; // tombol hilang setelah diklik
+    });
+</script>
 
 <script>
     // Parsing textarea kiri (order info)
@@ -275,44 +314,64 @@
     });
 </script>
 <script>
-    function loadPoTable() {
-        fetch("{{ route('qc.ajax.po') }}")
+document.getElementById('search-qc').addEventListener('input', function () {
+    let val = this.value;
+
+    // ubah "25-" -> "25 - "
+    val = val.replace(/(\d)-$/g, '$1 - ');
+
+    this.value = val;
+});
+</script>
+<script>
+    function loadPoTable(keyword = '') {
+        fetch(`{{ route('qc.ajax.po') }}?q=${encodeURIComponent(keyword)}`)
             .then(res => res.json())
             .then(data => {
                 const tbody = document.getElementById('po-table-body');
                 tbody.innerHTML = '';
 
-                if (data.length === 0) {
+                if (!data.length) {
                     tbody.innerHTML = `
-                    <tr>
-                        <td colspan="4" class="text-center text-muted">
-                            Belum ada data
-                        </td>
-                    </tr>
-                `;
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">
+                                Belum ada data
+                            </td>
+                        </tr>
+                    `;
                     return;
                 }
 
                 data.forEach(po => {
                     tbody.innerHTML += `
-                    <tr>
-                        <td>${po.order_no}</td>
-                        <td>${po.order_no}</td>
-                        <td>${po.company_name}</td>
-                        <td>
-                            <a href="/qc/${po.id}" class="btn btn-xs white">View</a>
-                        </td>
-                    </tr>
-                `;
+                        <tr>
+                            <td>${po.order_no}</td>
+                            <td>${po.po_no ?? '-'}</td>
+                            <td>${po.company_name}</td>
+                            <td>
+                                <a href="/qc/${po.id}"
+                                   class="btn btn-xs success btn-view"
+                                   title="Ke detail QC">
+                                    View
+                                </a>
+                            </td>
+                        </tr>
+                    `;
                 });
             })
-            .catch(err => {
-                console.error(err);
-            });
+            .catch(err => console.error(err));
     }
 
-    // load pertama kali
-    document.addEventListener('DOMContentLoaded', loadPoTable);
+    // load awal
+    document.addEventListener('DOMContentLoaded', () => {
+        loadPoTable();
+
+        document.getElementById('search-qc')
+            .addEventListener('keyup', function () {
+                loadPoTable(this.value);
+            });
+    });
 </script>
+
 
 @endpush

@@ -93,6 +93,12 @@
                              <span class="nav-text">QC page</span>
                          </a>
                      </li>
+                      <li>
+                         <a href="/marketing-pfi">
+                             <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                             <span class="nav-text">marketing</span>
+                         </a>
+                     </li>
                      @endif
 
                      {{-- 🔹 Role: Marketing --}}

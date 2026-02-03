@@ -37,4 +37,8 @@ class InspectSchedule extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
+      public function kategori()
+    {
+        return $this->belongsTo(Kategori::class, 'kategori_id');
+    }
 }

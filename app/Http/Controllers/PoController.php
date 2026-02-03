@@ -1,6 +1,8 @@
 <?php
 namespace App\Http\Controllers;
 
+namespace App\Http\Controllers;
+
 use App\Models\Checkpoint;
 use App\Models\DetailPo;
 use App\Models\InspectSchedule;
@@ -12,20 +14,20 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
+use PhpOffice\PhpSpreadsheet\Worksheet\MemoryDrawing;
 
-class QcController extends Controller
+class PoController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-
     public function index()
     {
         //
         return view('pages.qc.index');
     }
-     public function marketing()
+    public function marketing()
     {
         //
         return view('pages.marketing.index');
@@ -66,74 +68,221 @@ class QcController extends Controller
 
     public function convert(Request $request)
     {
-        $raw   = trim($request->excel_data);
-        $lines = preg_split("/\r\n|\n|\r/", $raw);
+        $raw = trim($request->excel_data);
+        $raw = str_replace('Â', '', $raw);
 
-        // =========================
-        // HEADER
-        // =========================
-        $headerLine = array_map('trim', explode("\t", $lines[0]));
+        /*
+    =====================================
+    CSV STYLE PARSER (TAB DELIMITER)
+    SUPPORT MULTILINE CELL
+    =====================================
+    */
+        $rows     = [];
+        $row      = [];
+        $cell     = '';
+        $inQuotes = false;
 
-        $headers      = [];
-        $wdhCount     = 0;
-        $headerRepeat = []; // untuk Remark Remark dll
+        $len = strlen($raw);
 
-        foreach ($headerLine as $col) {
+        for ($i = 0; $i < $len; $i++) {
 
-            // ===== HANDLE W D H =====
-            if (in_array($col, ['W', 'D', 'H'])) {
-                $wdhCount++;
+            $char = $raw[$i];
 
-                if ($wdhCount <= 3) {
-                    $headers[] = 'item_' . strtolower($col);
-                } else {
-                    $headers[] = 'packing_' . strtolower($col);
-                }
+            if ($char === '"') {
+                $inQuotes = ! $inQuotes;
                 continue;
             }
 
-            // ===== NORMAL HEADER =====
-            $key = strtolower(str_replace([' ', '.', "\n"], '_', $col));
-
-            // ===== DUPLICATE HEADER (Remark Remark, dll) =====
-            if (isset($headerRepeat[$key])) {
-                $headerRepeat[$key]++;
-                $key .= '_' . $headerRepeat[$key];
-            } else {
-                $headerRepeat[$key] = 1;
-                // suffix _1 hanya jika nanti ada duplikat
-                // remark pertama tetap "remark"
+            if ($char === "\t" && ! $inQuotes) {
+                $row[] = trim($cell);
+                $cell  = '';
+                continue;
             }
 
+            if (($char === "\n" || $char === "\r") && ! $inQuotes) {
+
+                if ($cell !== '' || ! empty($row)) {
+                    $row[]  = trim($cell);
+                    $rows[] = $row;
+                }
+
+                $row  = [];
+                $cell = '';
+                continue;
+            }
+
+            $cell .= $char;
+        }
+
+        if ($cell !== '') {
+            $row[]  = trim($cell);
+            $rows[] = $row;
+        }
+
+        $rows = array_values(array_filter($rows));
+
+        /*
+    =====================================
+    HEADER 3 LEVEL
+    =====================================
+    */
+
+        $header1 = $rows[0] ?? [];
+        $header2 = $rows[1] ?? [];
+        $header3 = $rows[2] ?? [];
+
+        $headers    = [];
+        $wdhCounter = 0;
+
+        foreach ($header1 as $i => $col1) {
+
+            $h3 = strtolower(trim($header3[$i] ?? ''));
+
+            if (in_array($h3, ['w', 'd', 'h'])) {
+
+                $wdhCounter++;
+
+                if ($wdhCounter <= 3) {
+                    $headers[] = "item_$h3";
+                } else {
+                    $headers[] = "packing_$h3";
+                }
+
+                continue;
+            }
+
+            $key       = strtolower(str_replace([' ', '.', "\n"], '_', $col1));
             $headers[] = $key;
         }
 
-        // =========================
-        // DATA
-        // =========================
+        /*
+    =====================================
+    DATA
+    =====================================
+    */
+
         $items = [];
 
-        for ($i = 1; $i < count($lines); $i++) {
-            $cols = array_map('trim', explode("\t", $lines[$i]));
+        for ($r = 3; $r < count($rows); $r++) {
 
-            // skip baris bukan item
+            $cols = $rows[$r];
+
+            // skip bukan item
             if (! isset($cols[0]) || ! is_numeric($cols[0])) {
                 continue;
             }
 
-            $row = [];
+            $rowData = [];
+
             foreach ($headers as $idx => $key) {
-                $row[$key] = $cols[$idx] ?? null;
+                $rowData[$key] = $cols[$idx] ?? null;
             }
 
-            $items[] = $row;
+            $items[] = $rowData;
         }
 
         return response()->json([
-            // 'headers' => $headers,
             'items' => $items,
         ]);
     }
+//  contro
+    public function uploadExcel(Request $request)
+    {
+        $request->validate([
+            'excel_file' => 'required|file|mimes:xls,xlsx',
+        ]);
+
+        $file = $request->file('excel_file');
+
+        // Load spreadsheet
+        $spreadsheet = IOFactory::load($file->getPathname());
+        $sheet       = $spreadsheet->getActiveSheet();
+
+        $rows       = [];
+        $imagesData = [];
+
+        // --- Ambil gambar embedded ---
+        foreach ($sheet->getDrawingCollection() as $drawing) {
+            $coords = $drawing->getCoordinates();            // misal B12
+            $row    = preg_replace('/\D/', '', $coords) - 1; // 0-based index
+            $col    = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString(preg_replace('/\d/', '', $coords)) - 1;
+
+            $filename = uniqid('excel_img_') . '.png';
+            $path     = storage_path('app/public/' . $filename);
+
+            if ($drawing instanceof MemoryDrawing) {
+                // Gambar dibuat di memory
+                ob_start();
+                $renderingFunction = $drawing->getRenderingFunction();
+                $renderingFunction($drawing->getImageResource());
+                $imageContents = ob_get_contents();
+                ob_end_clean();
+
+                file_put_contents($path, $imageContents);
+
+            } elseif ($drawing instanceof Drawing) {
+                // Gambar dari file
+                $source = $drawing->getPath();
+                copy($source, $path);
+            }
+
+            // Mapping row-col → URL publik
+            $imagesData["$row-$col"] = asset('storage/' . $filename);
+        }
+
+        // --- Ambil semua text dari Excel ---
+        $highestRow      = $sheet->getHighestRow();
+        $highestCol      = $sheet->getHighestColumn();
+        $highestColIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($highestCol);
+
+        for ($r = 1; $r <= $highestRow; $r++) {
+            $rowData = [];
+            for ($c = 1; $c <= $highestColIndex; $c++) {
+                $cell      = $sheet->getCellByColumnAndRow($c, $r);
+                $rowData[] = $cell ? $cell->getCalculatedValue() : null;
+            }
+            $rows[] = $rowData;
+        }
+
+        return response()->json([
+            'rows'   => $rows,
+            'images' => $imagesData,
+        ]);
+    }
+  public function saveExcelData(Request $request)
+{
+    $company = $request->company;
+    $items = $request->items;
+
+    if (empty($items)) {
+        return response()->json(['items' => []]);
+    }
+
+    // Ambil header dari array pertama
+    $header = array_map(function($h){
+        return $h ? trim($h) : '';
+    }, $items[0]);
+
+    // Ambil data, skip header
+    $itemsData = array_slice($items, 1);
+
+    // Filter baris kosong
+    $itemsData = array_filter($itemsData, function($row){
+        foreach($row as $cell){
+            if($cell !== null && trim($cell) !== '') return true;
+        }
+        return false;
+    });
+
+    // Mapping key/value
+
+
+
+    return response()->json([
+        'items' => $itemsData
+    ]);
+}
+
 
     public function save(Request $request)
     {
@@ -200,15 +349,15 @@ class QcController extends Controller
 
     public function ajaxPoList(Request $request)
     {
-         $q = $request->q;
+        $q = $request->q;
 
-    $pos = Po::with('details') // 🔥 ambil relasi detail_po
-        ->when($q, function ($query) use ($q) {
-            $query->where('order_no', 'like', "%{$q}%")
-                  ->orWhere('company_name', 'like', "%{$q}%");
-        })
-        ->latest()
-        ->get();
+        $pos = Po::query()
+            ->when($q, function ($query) use ($q) {
+                $query->where('order_no', 'like', "%{$q}%")
+                    ->orWhere('company_name', 'like', "%{$q}%");
+            })
+            ->latest()
+            ->get();
 
         return response()->json($pos);
     }
@@ -634,5 +783,4 @@ class QcController extends Controller
             ], 500);
         }
     }
-
 }

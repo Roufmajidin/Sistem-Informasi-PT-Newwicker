@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Divisi;
+use App\Models\Karyawan;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -12,21 +14,48 @@ class AuthController extends Controller
 {
     public function login(Request $request)
     {
-        $request->validate([
+        $credentials = $request->validate([
             'email'    => 'required|email',
             'password' => 'required',
         ]);
 
-        if (! Auth::attempt($request->only('email', 'password'))) {
-            return response()->json(['message' => 'Unauthorized'], 401);
+        if (! Auth::attempt($credentials)) {
+            return response()->json([
+                'message' => 'Email atau password salah',
+            ], 401);
         }
 
-        $user  = User::where('email', $request->email)->first();
+        $user = Auth::user();
+
+        // generate token (Sanctum)
         $token = $user->createToken('api-token')->plainTextToken;
 
+        // default role
+        $role       = 'USER';
+        $isQc       = false;
+        $namaDivisi = null;
+
+        // ambil karyawan
+        $karyawan = Karyawan::where('id', $user->karyawan_id)->first();
+
+        if ($karyawan) {
+            $divisi = Divisi::find($karyawan->divisi_id);
+
+            $namaDivisi = strtoupper(trim($divisi?->nama ?? ''));
+
+            if (in_array($namaDivisi, ['QC RANGKA', 'QC ANYAM'])) {
+                $role = 'QC';
+                $isQc = true;
+            }
+        }
+
         return response()->json([
-            'token' => $token,
-            'user'  => $user,
+            'message' => 'Login berhasil',
+            'token'   => $token,
+            'user'    => $user,
+            'role'    => $role,
+            'qc'      => $isQc,
+            'divisi'  => $namaDivisi,
         ]);
     }
 
