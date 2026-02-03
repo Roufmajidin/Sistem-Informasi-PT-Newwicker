@@ -15,7 +15,8 @@
                </table>
            </div>
            <!-- imagess -->
-         <div id="qc-defect-container"></div>
+
+         <div class="mt-4" id="qc-defect-container"></div>
 
 
        </div>

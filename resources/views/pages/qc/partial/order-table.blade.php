@@ -34,6 +34,8 @@
                             <a href="javascript:void(0)" class="text-primary btn-detail"
                                 data-qty="{{ $item->detail['qty'] ?? 0 }}"
                                 data-po-id="{{ $item->po_id }}"
+                                data-nama="{{$item->detail['description'] ?? '-' }}"
+                                data-article="{{ $item->detail['article_nr_'] ?? '-' }}"
                                 data-id="{{ $item->id }}">detail</a>
                         </td>
                     </tr>
@@ -186,7 +188,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 return;
             }
-
+            const nama = this.dataset.nama;
+            // alert(nama);
             const detailPoId = this.dataset.id;
             const qty = this.dataset.qty;
             console.log('[DETAIL ITEM]', { detailPoId, qty,currentDetailPoId });
@@ -196,6 +199,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             currentDetailPoId = detailPoId;
+           document.getElementById('nama').textContent = nama;
 
             // aktifkan row
             document.querySelectorAll('.item-row')
@@ -215,6 +219,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     renderBatchButtons(qcBatchData);
                     renderProgressQty(qcBatchData);
+
                 })
                 .catch(() => alert('Gagal mengambil data QC'));
         });
@@ -228,12 +233,17 @@ document.addEventListener('DOMContentLoaded', function () {
 function renderBatchButtons(batches) {
 
     const container = document.getElementById('batch-container');
+    const inspectorEl = document.getElementById('inspector');
+    const qcdateEl = document.getElementById('qc_date');
+
     if (!container) return;
 
     container.innerHTML = '';
 
     if (!Object.keys(batches).length) {
         container.innerHTML = '<span class="text-muted">Belum ada batch</span>';
+        if (inspectorEl) inspectorEl.textContent = 'N/A';
+        if (qcdateEl) inspectorEl.textContent = 'N/A';
         return;
     }
 
@@ -241,17 +251,39 @@ function renderBatchButtons(batches) {
 
         const btn = document.createElement('button');
         btn.className = 'btn btn-sm btn-outline-primary m-r-xs';
+
         btn.innerHTML = `
             Batch ${batch.batch_ke}<br>
             <small>${batch.tanggal}</small>
         `;
 
-        btn.addEventListener('click', () => renderBatch(key));
+        btn.addEventListener('click', () => {
+            renderBatch(key);
+
+            // set inspector sesuai batch yang diklik
+            if (inspectorEl) {
+                inspectorEl.textContent = batch.inspector || 'N/A';
+            }
+               if (qcdateEl) {
+                qcdateEl.textContent = batch.tanggal || 'N/A';
+            }
+        });
+
         container.appendChild(btn);
 
-        if (index === 0) renderBatch(key);
+        // auto select batch pertama
+        if (index === 0) {
+            renderBatch(key);
+            if (inspectorEl) {
+                inspectorEl.textContent = batch.inspector || 'N/A';
+            }
+              if (qcdateEl) {
+                qcdateEl.textContent = batch.tanggal || 'N/A';
+            }
+        }
     });
 }
+
 
 /* =========================================================
    PROGRESS QTY
@@ -338,6 +370,10 @@ function renderBatch(batchKey) {
 }
 </script>
 <style>
+    .sticky-right {
+    position: sticky;
+    top: 60px;          /* jarak dari atas */
+}
     .dropdown-menu {
     z-index: 9999;
 }

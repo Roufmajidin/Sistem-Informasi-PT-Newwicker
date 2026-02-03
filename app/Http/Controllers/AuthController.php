@@ -1,6 +1,8 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Models\Divisi;
+use App\Models\Karyawan;
 use Carbon\Carbon;
 use Closure;
 use Illuminate\Http\Request;
@@ -57,26 +59,49 @@ class AuthController extends Controller
 
         return redirect('/login');
     }
-    public function login(Request $request)
-    {
-        $credentials = $request->validate([
-            'email'    => 'required|email',
-            'password' => 'required',
-        ]);
+   public function login(Request $request)
+{
+    $credentials = $request->validate([
+        'email'    => 'required|email',
+        'password' => 'required',
+    ]);
 
-        if (Auth::attempt($credentials)) {
-            $request->session()->regenerate();
-
-            return response()->json([
-                'message' => 'Login berhasil',
-                'user'    => Auth::user(),
-            ]);
-        }
-
+    if (!Auth::attempt($credentials)) {
         return response()->json([
             'message' => 'Email atau password salah',
         ], 401);
     }
+
+    $request->session()->regenerate();
+
+    $user = Auth::user();
+
+    // ambil karyawan
+    $karyawan = Karyawan::where('user_id', $user->id)->first();
+
+    if (!$karyawan) {
+        return response()->json([
+            'message' => 'Login berhasil',
+            'user' => $user,
+        ]);
+    }
+
+    // ambil divisi
+    $divisi = Divisi::find($karyawan->divisi_id);
+
+    $isQc = in_array($divisi->nama, [
+        'QC RANGKA',
+        'QC ANYAM',
+    ]);
+
+    return response()->json([
+        'message' => 'Login berhasil',
+        'user' => $user,
+        'qc' => $isQc,
+        'divisi' => $divisi->nama,
+    ]);
+}
+
 
     public function logout(Request $request)
     {
