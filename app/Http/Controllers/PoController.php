@@ -183,6 +183,7 @@ class PoController extends Controller
 
         return response()->json([
             'items' => $items,
+            'items' => $items,
         ]);
     }
 //  contro
@@ -249,37 +250,71 @@ class PoController extends Controller
             'images' => $imagesData,
         ]);
     }
+
   public function saveExcelData(Request $request)
 {
     $company = $request->company;
-    $items = $request->items;
+    $items   = $request->items;
 
     if (empty($items)) {
         return response()->json(['items' => []]);
     }
 
-    // Ambil header dari array pertama
-    $header = array_map(function($h){
-        return $h ? trim($h) : '';
-    }, $items[0]);
+    $orderNo     = $company['order_no_'] ?? null;
+    $companyName = $company['company_name'] ?? null;
 
-    // Ambil data, skip header
-    $itemsData = array_slice($items, 1);
+    // ✅ VALIDASI DUPLIKAT PO
+    $exists = Po::where('order_no', $orderNo)
+        ->orWhere('company_name', $companyName)
+        ->exists();
 
-    // Filter baris kosong
-    $itemsData = array_filter($itemsData, function($row){
-        foreach($row as $cell){
-            if($cell !== null && trim($cell) !== '') return true;
+    if ($exists) {
+        return response()->json([
+            'status'  => 'error',
+            'message' => 'PO dengan Order No atau Company Profile sudah ada'
+        ], 422);
+    }
+
+    // ======================
+    // SIMPAN PO
+    // ======================
+
+    $po = Po::create([
+        'order_no'       => $orderNo ?? "-",
+        'company_name'   => $companyName ?? "-",
+        'country'        => $company['country'] ?? "-",
+        'shipment_date'  => $company['shipment_date'] ?? "-",
+        'packing'        => $company['packing'] ?? "-",
+        'contact_person' => $company['contact_person'] ?? "-",
+    ]);
+
+    // ======================
+    // NORMALIZE KEY
+    // ======================
+
+    $normalizeKeys = function ($array) use (&$normalizeKeys) {
+        $result = [];
+        foreach ($array as $key => $value) {
+            $key = preg_replace('/[\s\.\-\/]+/', '_', $key);
+            $key = strtolower(preg_replace('/([a-z])([A-Z])/', '$1_$2', $key));
+            $result[$key] = is_array($value) ? $normalizeKeys($value) : $value;
         }
-        return false;
-    });
+        return $result;
+    };
 
-    // Mapping key/value
+    // Skip index 0
+    $items = array_slice($items, 1);
 
-
+    foreach ($items as $item) {
+        DetailPo::create([
+            'po_id'  => $po->id,
+            'detail' => $normalizeKeys($item)
+        ]);
+    }
 
     return response()->json([
-        'items' => $itemsData
+        'status'  => 'success',
+        'po_id'   => $po->id,
     ]);
 }
 

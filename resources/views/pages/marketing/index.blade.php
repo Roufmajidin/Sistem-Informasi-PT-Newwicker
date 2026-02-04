@@ -153,26 +153,69 @@ $(document).ready(function() {
 
             if(Object.values(rowObj).some(v => v !== '')) items.push(rowObj);
         });
+      const companyJSON = getCompanyProfileAsJSON();
 
-        console.log({ items });
+console.log(companyJSON);
 
         $.ajax({
             url: '{{ route("marketing.excel.save") }}',
             type: 'POST',
             data: {
                 _token: '{{ csrf_token() }}',
-                company: getCompanyProfile(),
+                company: companyJSON,
                 items: items
             },
             success: function(res){
-                alert('Items berhasil disimpan!');
+                        Swal.fire({
+            icon: 'success',
+            title: 'Berhasil',
+            text: 'Items berhasil disimpan!',
+            confirmButtonColor: '#3085d6'
+        });
+
+
             },
             error: function(err){
-                alert('Terjadi kesalahan saat menyimpan!');
-                console.log(err);
+                      let message = 'Terjadi kesalahan saat menyimpan!';
+
+        // ambil message dari Laravel kalau ada
+        if(err.responseJSON && err.responseJSON.message){
+            message = err.responseJSON.message;
+        }
+
+        Swal.fire({
+            icon: 'error',
+            title: 'Gagal',
+            text: message,
+            confirmButtonColor: '#d33'
+        });
+
+
             }
         });
     });
+    function toSnakeCase(str) {
+    if (!str) return '';
+    // ganti spasi/tab/dash/dot dengan underscore
+    str = str.replace(/[\s\.\-]+/g, '_');
+    // hapus karakter selain a-z, A-Z, 0-9, _
+    str = str.replace(/[^a-zA-Z0-9_]/g, '');
+    // lowercase
+    return str.toLowerCase();
+}
+
+// Ambil company dari table
+function getCompanyProfileAsJSON() {
+    const company = {};
+    $('#companyTable tr').each(function() {
+        const key = $(this).find('th').text().trim();
+        const val = $(this).find('td').text().trim();
+        if(key) company[toSnakeCase(key)] = val;
+    });
+    return company;
+}
+
+
 function mapImagesForFilteredRows(filteredRows, originalRows, originalImages) {
     const newMap = {};
     filteredRows.forEach((row, newRIndex) => {
