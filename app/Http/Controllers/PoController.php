@@ -251,73 +251,169 @@ class PoController extends Controller
         ]);
     }
 
-  public function saveExcelData(Request $request)
-{
-    $company = $request->company;
-    $items   = $request->items;
+    public function saveExcelData(Request $request)
+    {
+        $company = $request->company;
+        $items   = $request->items;
 
-    if (empty($items)) {
-        return response()->json(['items' => []]);
-    }
-
-    $orderNo     = $company['order_no_'] ?? null;
-    $companyName = $company['company_name'] ?? null;
-
-    // ✅ VALIDASI DUPLIKAT PO
-    $exists = Po::where('order_no', $orderNo)
-        ->orWhere('company_name', $companyName)
-        ->exists();
-
-    if ($exists) {
-        return response()->json([
-            'status'  => 'error',
-            'message' => 'PO dengan Order No atau Company Profile sudah ada'
-        ], 422);
-    }
-
-    // ======================
-    // SIMPAN PO
-    // ======================
-
-    $po = Po::create([
-        'order_no'       => $orderNo ?? "-",
-        'company_name'   => $companyName ?? "-",
-        'country'        => $company['country'] ?? "-",
-        'shipment_date'  => $company['shipment_date'] ?? "-",
-        'packing'        => $company['packing'] ?? "-",
-        'contact_person' => $company['contact_person'] ?? "-",
-    ]);
-
-    // ======================
-    // NORMALIZE KEY
-    // ======================
-
-    $normalizeKeys = function ($array) use (&$normalizeKeys) {
-        $result = [];
-        foreach ($array as $key => $value) {
-            $key = preg_replace('/[\s\.\-\/]+/', '_', $key);
-            $key = strtolower(preg_replace('/([a-z])([A-Z])/', '$1_$2', $key));
-            $result[$key] = is_array($value) ? $normalizeKeys($value) : $value;
+        if (empty($items)) {
+            return response()->json(['items' => []]);
         }
-        return $result;
-    };
 
-    // Skip index 0
-    $items = array_slice($items, 1);
+        $orderNo     = $company['order_no_'] ?? null;
+        $companyName = $company['company_name'] ?? null;
 
-    foreach ($items as $item) {
-        DetailPo::create([
+        // ✅ VALIDASI DUPLIKAT PO
+        $exists = Po::where('order_no', $orderNo)
+            ->orWhere('company_name', $companyName)
+            ->exists();
+
+        if ($exists) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'PO dengan Order No atau Company Profile sudah ada',
+            ], 422);
+        }
+
+        // ======================
+        // SIMPAN PO
+        // ======================
+
+        $po = Po::create([
+            'order_no'       => $orderNo ?? "-",
+            'company_name'   => $companyName ?? "-",
+            'country'        => $company['country'] ?? "-",
+            'shipment_date'  => $company['shipment_date'] ?? "-",
+            'packing'        => $company['packing'] ?? "-",
+            'contact_person' => $company['contact_person'] ?? "-",
+        ]);
+
+        // ======================
+        // NORMALIZE KEY
+        // ======================
+
+        $normalizeKeys = function ($array) use (&$normalizeKeys) {
+            $result = [];
+            foreach ($array as $key => $value) {
+                $key          = preg_replace('/[\s\.\-\/]+/', '_', $key);
+                $key          = strtolower(preg_replace('/([a-z])([A-Z])/', '$1_$2', $key));
+                $result[$key] = is_array($value) ? $normalizeKeys($value) : $value;
+            }
+            return $result;
+        };
+
+        // Skip index 0
+        $items = array_slice($items, 1);
+
+        foreach ($items as $item) {
+            DetailPo::create([
+                'po_id'  => $po->id,
+                'detail' => $normalizeKeys($item),
+            ]);
+        }
+
+        return response()->json([
+            'status' => 'success',
             'po_id'  => $po->id,
-            'detail' => $normalizeKeys($item)
         ]);
     }
+    public function getPoDetail($id)
+    {
+        $po = Po::findOrFail($id);
 
-    return response()->json([
-        'status'  => 'success',
-        'po_id'   => $po->id,
-    ]);
-}
+        $items = DetailPo::where('po_id', $id)->get();
 
+        return response()->json([
+            'po'    => $po,
+            'items' => $items,
+        ]);
+    }
+// updaye row
+    public function updateItemBulk(Request $request)
+    {
+        $items = $request->input('items', []);
+
+        if (! is_array($items)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid payload',
+            ], 422);
+        }
+
+        foreach ($items as $row) {
+
+            if (! isset($row['id'])) {
+                continue;
+            }
+
+            $item = DetailPo::find($row['id']);
+            if (! $item) {
+                continue;
+            }
+
+            $oldDetail = $item->detail ?? [];
+            $newDetail = $row['detail'] ?? [];
+
+            $changedFields = [];
+
+            // ================= DETECT CHANGE =================
+            foreach ($newDetail as $key => $value) {
+
+                if ($value === '') {
+                    $value = null;
+                }
+
+                if (in_array($key, [
+                    'qty',
+                    'cbm',
+                    'total_cbm',
+                    'value_in_usd',
+                    'fob_jakarta_in_usd',
+                ])) {
+                    $value = is_numeric($value) ? (float) $value : 0;
+                }
+
+                $oldValue = $oldDetail[$key] ?? null;
+
+                if ($oldValue != $value) {
+                    $changedFields[] = "$key ($oldValue → $value)";
+                }
+
+                $newDetail[$key] = $value;
+            }
+
+            // ================= MERGE =================
+            $merged = array_merge($oldDetail, $newDetail);
+
+            if (empty($changedFields)) {
+                continue;
+            }
+
+            // ================= HISTORY UPDATED_BY =================
+            $history = $item->updated_by ?? [];
+
+            // kalau lama masih object, convert ke array
+            if (! is_array($history) || isset($history['user_id'])) {
+                $history = [$history];
+            }
+
+            $history[] = [
+                'user_id'   => Auth::id(),
+                'timestamp' => now()->toDateTimeString(),
+                'remark'    => 'change: ' . implode(', ', $changedFields),
+            ];
+
+            // ================= UPDATE =================
+            $item->update([
+                'detail'     => $merged,
+                'updated_by' => $history,
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+        ]);
+    }
 
     public function save(Request $request)
     {

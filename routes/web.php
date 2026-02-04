@@ -14,6 +14,7 @@ use App\Http\Controllers\PdfController;
 use App\Http\Controllers\PoController;
 use App\Http\Controllers\QcController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\SupplierController;
 use Illuminate\Support\Facades\Route;
 
 // ==============================
@@ -143,8 +144,22 @@ Route::post('/marketing/excel/upload', [PoController::class,'uploadExcel'])
 Route::post('/marketing/excel/save', [PoController::class,'saveExcelData'])
 ->name('marketing.excel.save');
 Route::post('/excel/paste', [QcController::class, 'convert'])
-
     ->name('excel.paste');
+Route::get('/marketing-release-order', [QcController::class, 'releaseOrder']);
+Route::get('/marketing/po-detail/{id}', [PoController::class, 'getPoDetail']);
+Route::post('/marketing/po-item-update-bulk',
+    [PoController::class, 'updateItemBulk']);
+// supplier
+
+Route::get('/supplier', [SupplierController::class,'index']);
+
+Route::post('/supplier/store', [SupplierController::class,'storeSupplier']);
+Route::post('/supplier/update/{id}', [SupplierController::class,'updateSupplier']);
+
+Route::post('/jenis/store', [SupplierController::class,'storeJenis']);
+Route::post('/jenis/update/{id}', [SupplierController::class,'updateJenis']);
+
+//
 Route::prefix('pfi')->group(function () {
 
     Route::get('/import', [ImportController::class, 'index'])

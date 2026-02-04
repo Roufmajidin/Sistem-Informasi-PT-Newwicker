@@ -134,6 +134,9 @@ class QcController extends Controller
             'items' => $items,
         ]);
     }
+    public function releaseOrder(){
+        return view('pages.marketing.release-order');
+    }
 
     public function save(Request $request)
     {

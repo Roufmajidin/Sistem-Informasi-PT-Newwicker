@@ -11,10 +11,12 @@ class DetailPo extends Model
     protected $fillable = [
         'po_id',
         'detail',
+        'updated_by',
     ];
 
     protected $casts = [
         'detail' => 'array',
+        'updated_by' => 'array',
     ];
 
     public function po()
