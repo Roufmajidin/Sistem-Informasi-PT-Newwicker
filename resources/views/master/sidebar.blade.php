@@ -99,6 +99,18 @@
                              <span class="nav-text">marketing</span>
                          </a>
                      </li>
+                       <li>
+                         <a href="/marketing-release-order">
+                             <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                             <span class="nav-text">Release Order</span>
+                         </a>
+                     </li>
+                      <li>
+                         <a href="/supplier">
+                             <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                             <span class="nav-text">Supplier</span>
+                         </a>
+                     </li>
                      @endif
 
                      {{-- 🔹 Role: Marketing --}}
