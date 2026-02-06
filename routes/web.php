@@ -158,6 +158,7 @@ Route::post('/supplier/store', [SupplierController::class,'storeSupplier']);
 Route::post('/supplier/update/{id}', [SupplierController::class,'updateSupplier']);
 Route::get('/timeline/data', [PoController::class, 'getTimeline'])->name('timeline.data');
 Route::get('/spk/{id}', [SpkController::class, 'index'])->name('spk.index');
+Route::post('/spk/save/{id}', [SpkController::class,'save'])->name('spk.save');
 
 Route::post('/jenis/store', [SupplierController::class,'storeJenis']);
 Route::post('/jenis/update/{id}', [SupplierController::class,'updateJenis']);
