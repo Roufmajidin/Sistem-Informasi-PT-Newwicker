@@ -11,13 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-    //        Schema::create('jenis_suppliers', function (Blueprint $table) {
-    // $table->id();
-    // $table->string('name');
-    // $table->json('updated_by')->nullable();
-    // $table->timestamps();
-
-    //     });
+        Schema::create('timeline', function (Blueprint $table) {
+            $table->id();
+            $table->json('isi');  // kolom JSON
+            $table->timestamps(); // created_at dan updated_at
+        });
     }
 
     /**
@@ -25,6 +23,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('jenis_suppliers');
+        Schema::dropIfExists('timeline');
     }
 };

@@ -11,14 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('suppliers', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->text('alamat')->nullable();
-            $table->foreignId('jenis_supplier_id')->constrained('jenis_suppliers')->cascadeOnDelete();
-            $table->json('updated_by')->nullable();
-            $table->timestamps();
-        });
+        // Schema::create('suppliers', function (Blueprint $table) {
+        //     $table->id();
+        //     $table->string('name');
+        //     $table->text('alamat')->nullable();
+        //     $table->foreignId('jenis_supplier_id')->constrained('jenis_suppliers')->cascadeOnDelete();
+        //     $table->json('updated_by')->nullable();
+        //     $table->timestamps();
+        // });
     }
 
     /**

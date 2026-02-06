@@ -10,6 +10,7 @@ use App\Models\Kategori;
 use App\Models\Po;
 use App\Models\QcReport;
 use App\Models\ReportPhoto;
+use App\Models\Timeline;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -278,7 +279,6 @@ class PoController extends Controller
         // ======================
         // SIMPAN PO
         // ======================
-
         $po = Po::create([
             'order_no'       => $orderNo ?? "-",
             'company_name'   => $companyName ?? "-",
@@ -289,9 +289,8 @@ class PoController extends Controller
         ]);
 
         // ======================
-        // NORMALIZE KEY
+        // NORMALIZE KEY ITEMS
         // ======================
-
         $normalizeKeys = function ($array) use (&$normalizeKeys) {
             $result = [];
             foreach ($array as $key => $value) {
@@ -312,11 +311,25 @@ class PoController extends Controller
             ]);
         }
 
+        // ======================
+        // SIMPAN TIMELINE
+        // ======================
+        Timeline::create([
+            'isi'   => [
+                'remark'    => 'Add PFI NW ' . $orderNo,
+                'id_po'     => $po->id,
+                'user_id'   => auth()->id() ?? null,
+                'timestamp' => now()->toDateTimeString(),
+            ],
+            'jenis' => 'pfi',
+        ]);
+
         return response()->json([
             'status' => 'success',
             'po_id'  => $po->id,
         ]);
     }
+
     public function getPoDetail($id)
     {
         $po = Po::findOrFail($id);
@@ -341,7 +354,6 @@ class PoController extends Controller
         }
 
         foreach ($items as $row) {
-
             if (! isset($row['id'])) {
                 continue;
             }
@@ -358,23 +370,15 @@ class PoController extends Controller
 
             // ================= DETECT CHANGE =================
             foreach ($newDetail as $key => $value) {
-
                 if ($value === '') {
                     $value = null;
                 }
 
-                if (in_array($key, [
-                    'qty',
-                    'cbm',
-                    'total_cbm',
-                    'value_in_usd',
-                    'fob_jakarta_in_usd',
-                ])) {
+                if (in_array($key, ['qty', 'cbm', 'total_cbm', 'value_in_usd', 'fob_jakarta_in_usd'])) {
                     $value = is_numeric($value) ? (float) $value : 0;
                 }
 
                 $oldValue = $oldDetail[$key] ?? null;
-
                 if ($oldValue != $value) {
                     $changedFields[] = "$key ($oldValue → $value)";
                 }
@@ -392,7 +396,6 @@ class PoController extends Controller
             // ================= HISTORY UPDATED_BY =================
             $history = $item->updated_by ?? [];
 
-            // kalau lama masih object, convert ke array
             if (! is_array($history) || isset($history['user_id'])) {
                 $history = [$history];
             }
@@ -408,67 +411,23 @@ class PoController extends Controller
                 'detail'     => $merged,
                 'updated_by' => $history,
             ]);
+
+            // ================= SIMPAN TIMELINE =================
+            Timeline::create([
+                'isi'   => [
+                    'remark'     => 'Edit PFI: ' . implode(', ', $changedFields),
+                    'user_id'    => Auth::id(),
+                    'timestamp'  => now()->toDateTimeString(),
+                    'po_id'      => $item->po_id,
+                    'article_nr' => $item->detail['article_nr_'] ?? null,
+                ],
+                'jenis' => 'edit pfi',
+            ]);
         }
 
         return response()->json([
             'success' => true,
         ]);
-    }
-
-    public function save(Request $request)
-    {
-        $buyer = $request->input('order_info');
-        $items = $request->input('parsed_excel_json.items', []);
-
-        DB::beginTransaction();
-
-        try {
-            // ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  =
-            // 1. PO
-            // ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  =
-            $po = Po::firstOrCreate(
-                ['order_no' => $buyer['Order_No.'] ?? '-'],
-                [
-                    'company_name'   => $buyer['Company_Name'] ?? '-',
-                    'country'        => $buyer['Country'] ?? '-',
-                    'shipment_date'  => $buyer['Shipment_Date'] ?? '-',
-                    'packing'        => $buyer['Packing'] ?? '-',
-                    'contact_person' => $buyer['Contact_Person'] ?? '-',
-                ]
-            );
-
-            // ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  =
-            // 2. DETAIL ( ROW PER ITEM )
-            // ===  ===  ===  ===  ===  ===  ===  ===  ===  ===  =
-            foreach ($items as $item) {
-
-                DetailPo::updateOrCreate(
-                    [
-                        'po_id'               => $po->id,
-                        'detail->article_nr_' => $item['article_nr_'] ?? null,
-                    ],
-                    [
-                        'detail' => $item,
-                    ]
-                );
-            }
-
-            DB::commit();
-
-            return response()->json([
-                'status'           => 'success',
-                'po_id'            => $po->id,
-                'total_detail_row' => count($items),
-            ]);
-
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            return response()->json([
-                'status'  => 'error',
-                'message' => $e->getMessage(),
-            ], 500);
-        }
     }
 
     public function poList()
@@ -545,6 +504,34 @@ class PoController extends Controller
             'inspection_schedules' => $inspectionSchedules,
         ]);
     }
+    //
+public function getTimeline()
+{
+    $timeline = Timeline::orderBy('created_at', 'desc')->get();
+
+    // Ambil semua user_id dari isi
+    $userIds = $timeline
+        ->pluck('isi.user_id')
+        ->filter()
+        ->unique()
+        ->values();
+
+    // Ambil user sekaligus (hindari N+1)
+    $users = \App\Models\User::whereIn('id', $userIds)->get()->keyBy('id');
+
+    // Inject user ke tiap timeline
+    $timeline->transform(function ($item) use ($users) {
+        $userId = $item->isi['user_id'] ?? null;
+        $item->user = $userId && isset($users[$userId])
+            ? $users[$userId]
+            : null;
+
+        return $item;
+    });
+
+    return response()->json($timeline);
+}
+
     public function getInspect()
     {
 

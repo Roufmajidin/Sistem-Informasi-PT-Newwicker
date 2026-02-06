@@ -15,7 +15,6 @@
 {{-- ================= JENIS ================= --}}
 <div class="col-md-4">
 
-<h6>Jenis Supplier</h6>
    <button class="btn btn-default btn-sm" id="addJenis">
                                 ← Add Jenis Sub
                             </button>
@@ -23,12 +22,12 @@
 <thead>
 
     <tr>
-        <th colspan="2" class="text-center">
-            <h6 class="mb-0">Jenis Supplier</h6>
-        </th>
+              <th colspan="3" class="text-center">Jenis Supplier</th>
+
     </tr>
 
     <tr>
+        <th>Id</th>
         <th>Jenis Sub</th>
         <th width="80">Action</th>
     </tr>
@@ -38,6 +37,7 @@
 <tbody>
 @foreach($jenis as $j)
 <tr data-id="{{$j->id}}">
+    <td contenteditable="false">{{$j->id}}</td>
     <td contenteditable="true">{{$j->name}}</td>
     <td>
         <button class="btn btn-primary btn-sm saveJenis">Save</button>
@@ -54,16 +54,16 @@
 {{-- ================= SUPPLIER ================= --}}
 <div class="col-md-8">
 
-<h6>Supplier</h6>
    <button class="btn btn-default btn-sm" id="addSupplier">
                                 ← Add Sub
                             </button>
 <table class="table table-bordered" id="tblSupplier">
 <thead>
     <tr>
-        <th colspan="4" class="text-center">Data Supplier</th>
+        <th colspan="5" class="text-center">Data Supplier</th>
     </tr>
     <tr>
+        <th width="">Id</th>
         <th width="">Nama Sub</th>
         <th width="50">Alamat</th>
         <th >Jenis</th>
@@ -74,6 +74,7 @@
 <tbody>
 @foreach($suppliers as $s)
 <tr data-id="{{$s->id}}">
+    <td contenteditable="false">{{$s->id}}</td>
     <td contenteditable="true">{{$s->name}}</td>
     <td contenteditable="true">{{$s->alamat}}</td>
     <td>
@@ -112,17 +113,17 @@ const csrf = "{{ csrf_token() }}";
 
 /* ================= ADD JENIS ================= */
 $('#addJenis').click(function(){
-
     $('#tblJenis tbody').prepend(`
     <tr class="new-row">
-        <td contenteditable="true"></td>
+        <td contenteditable="false">-</td> <!-- Id placeholder -->
+        <td contenteditable="true"></td>   <!-- Jenis Sub -->
         <td>
             <button class="btn btn-success btn-sm saveJenis">Save</button>
         </td>
     </tr>
     `);
-
 });
+
 
 
 /* ================= SAVE JENIS ================= */
@@ -131,7 +132,7 @@ $(document).on('click','.saveJenis',function(){
     let tr = $(this).closest('tr');
 
     let id   = tr.data('id');
-    let name = tr.find('td:eq(0)').text().trim();
+    let name = tr.find('td:eq(1)').text().trim();
 
     if(!name) return alert('Name wajib');
 
@@ -161,6 +162,8 @@ let jenisOptions = `@foreach($jenis as $j)
 
 $('#tblSupplier tbody').prepend(`
 <tr class="new-row">
+        <td contenteditable="false">-</td> <!-- Id placeholder -->
+
 <td contenteditable="true"></td>
 <td contenteditable="true"></td>
 <td><select class="form-control">${jenisOptions}</select></td>
@@ -177,8 +180,8 @@ $(document).on('click','.saveSupplier',function(){
 let tr = $(this).closest('tr');
 
 let id     = tr.data('id');
-let name   = tr.find('td:eq(0)').text().trim();
-let alamat = tr.find('td:eq(1)').text().trim();
+let name   = tr.find('td:eq(1)').text().trim();
+let alamat = tr.find('td:eq(2)').text().trim();
 let jenis  = tr.find('select').val();
 
 if(!name) return alert('Name wajib');

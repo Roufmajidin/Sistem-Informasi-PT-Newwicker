@@ -55,6 +55,29 @@
                              <span class="nav-text">Izin Karyawan</span>
                          </a>
                      </li>
+
+                     @endif
+
+                     {{-- 🔹 Role: Marketing --}}
+                     @if(Auth::user()->role == 'marketing'|| Auth::user()->role == 'purchasing')
+                     <li>
+                         <a>
+                             <span class="nav-caret"><i class="fa fa-caret-down"></i></span>
+                             <span class="nav-icon"><i class="material-icons">&#xe5c3;</i></span>
+                             <span class="nav-text">Marketing</span>
+                         </a>
+                         <ul class="nav-sub">
+                             <li><a href="/marketing"><span class="nav-text">PFI</span></a></li>
+                             <li><a href="/marketing/buyers_list"><span class="nav-text">Buyers List</span></a></li>
+                             <li><a href="/marketing/release-pfi"><span class="nav-text">Release PFI</span></a></li>
+                         </ul>
+                     </li>
+ <li>
+                         <a href="/request">
+                             <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                             <span class="nav-text">Agenda</span>
+                         </a>
+                     </li>
                       <li>
                          <a href="/pameran">
                              <span class="nav-icon">
@@ -93,6 +116,7 @@
                              <span class="nav-text">QC page</span>
                          </a>
                      </li>
+
                       <li>
                          <a href="/marketing-pfi">
                              <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
@@ -109,28 +133,6 @@
                          <a href="/supplier">
                              <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
                              <span class="nav-text">Supplier</span>
-                         </a>
-                     </li>
-                     @endif
-
-                     {{-- 🔹 Role: Marketing --}}
-                     @if(Auth::user()->role == 'marketing')
-                     <li>
-                         <a>
-                             <span class="nav-caret"><i class="fa fa-caret-down"></i></span>
-                             <span class="nav-icon"><i class="material-icons">&#xe5c3;</i></span>
-                             <span class="nav-text">Marketing</span>
-                         </a>
-                         <ul class="nav-sub">
-                             <li><a href="/marketing"><span class="nav-text">PFI</span></a></li>
-                             <li><a href="/marketing/buyers_list"><span class="nav-text">Buyers List</span></a></li>
-                             <li><a href="/marketing/release-pfi"><span class="nav-text">Release PFI</span></a></li>
-                         </ul>
-                     </li>
- <li>
-                         <a href="/request">
-                             <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
-                             <span class="nav-text">Agenda</span>
                          </a>
                      </li>
                      @endif

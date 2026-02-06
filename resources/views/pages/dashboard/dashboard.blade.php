@@ -47,4 +47,54 @@
 	        </div>
 	    </div>
 	</div>
+    <div class="box-body">
+    <div class="p-a">
+        <div class="streamline b-l m-b" id="timelineContainer">
+            <!-- Data timeline akan di-load di sini via JS -->
+        </div>
+    </div>
+</div>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+
+    $(document).ready(function() {
+        function loadTimeline() {
+    $.ajax({
+        url: "{{ route('timeline.data') }}",
+        type: "GET",
+        dataType: "json",
+        success: function(data) {
+            let html = '';
+
+            data.forEach(function(item) {
+                console.log(item);
+                let userName = item.user?.name ?? 'Unknown';
+                let remark   = item.isi?.remark ?? '-';
+                let created  = item.isi?.timestamp
+                                ? new Date(item.isi.timestamp).toLocaleString()
+                                : new Date(item.created_at).toLocaleString();
+
+                let jenisClass = item.jenis === 'edit pfi' ? 'b-success' : '';
+
+                html += `
+                    <div class="sl-item ${jenisClass}">
+                        <div class="sl-content">
+                            <div class="sl-date text-muted">${created}</div>
+                            <p><strong>${userName}</strong>: ${remark}</p>
+                        </div>
+                    </div>
+                `;
+            });
+
+            $('#timelineContainer').html(html);
+        }
+    });
+}
+
+        loadTimeline();
+    })
+
+
+</script>
 @endsection

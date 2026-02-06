@@ -14,6 +14,7 @@ use App\Http\Controllers\PdfController;
 use App\Http\Controllers\PoController;
 use App\Http\Controllers\QcController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\SpkController;
 use App\Http\Controllers\SupplierController;
 use Illuminate\Support\Facades\Route;
 
@@ -155,6 +156,8 @@ Route::get('/supplier', [SupplierController::class,'index']);
 
 Route::post('/supplier/store', [SupplierController::class,'storeSupplier']);
 Route::post('/supplier/update/{id}', [SupplierController::class,'updateSupplier']);
+Route::get('/timeline/data', [PoController::class, 'getTimeline'])->name('timeline.data');
+Route::get('/spk/{id}', [SpkController::class, 'index'])->name('spk.index');
 
 Route::post('/jenis/store', [SupplierController::class,'storeJenis']);
 Route::post('/jenis/update/{id}', [SupplierController::class,'updateJenis']);
@@ -180,6 +183,7 @@ Route::post('/setting/kategori', [SettingController::class, 'storeKategori']);
 Route::post('/setting/checkpoint', [SettingController::class, 'storeCheckpoint']);
 Route::post('/setting/checkpoint/mass', [SettingController::class, 'storeCheckpointMass'])
     ->name('checkpoint.store.mass');
+Route::get('/supplier/search', [SupplierController::class, 'search']);
 
 // ==============================
 // ⚙️ CEK ENV
