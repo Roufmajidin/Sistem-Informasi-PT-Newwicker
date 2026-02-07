@@ -159,11 +159,12 @@ Route::post('/supplier/update/{id}', [SupplierController::class,'updateSupplier'
 Route::get('/timeline/data', [PoController::class, 'getTimeline'])->name('timeline.data');
 Route::get('/spk/{id}', [SpkController::class, 'index'])->name('spk.index');
 Route::post('/spk/save/{id}', [SpkController::class,'save'])->name('spk.save');
-
+Route::get('/detail-po/search', [SpkController::class, 'search'])
+        ->name('detailpo.search');
 Route::post('/jenis/store', [SupplierController::class,'storeJenis']);
 Route::post('/jenis/update/{id}', [SupplierController::class,'updateJenis']);
+Route::get('/spkk/timeline', [SpkController::class, 'tima'])->name('spk.time');
 
-//
 Route::prefix('pfi')->group(function () {
 
     Route::get('/import', [ImportController::class, 'index'])

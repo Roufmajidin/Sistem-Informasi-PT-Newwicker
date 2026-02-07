@@ -26,7 +26,19 @@
         <table class="table table-bordered spk-table">
 
             {{-- HEADER --}}
-          @include('pages.spk.header')
+          <!-- @include('pages.spk.header') -->
+ <tr>
+    <td colspan="6" style="border:none">
+        <img src="/images/newwicker-logo.png" height="60">
+    </td>
+    <td colspan="6" class="text-right" style="border:none; position:relative">
+        <div class="editable" id="itemSearch" contenteditable
+             style="border:1px solid #ccc; padding:6px">
+            Ketik article / nama item
+        </div>
+        <div id="itemSuggest" class="suggest-box"></div>
+    </td>
+</tr>
 
             <tr>
                 <td colspan="12"></td>
@@ -116,6 +128,8 @@
 </tr>
 
 @endforeach
+<tr id="spkItemAnchor"></tr>
+
             @include('pages.spk.partial1')
  <td colspan="3" style="vertical-align: top;margin-left:12px">
           <table class="table table-bordered" style="font-size:12px;">
@@ -459,6 +473,140 @@ if (!detailId) return;
 
 
 });
+</script>
+
+<!-- search and add row -->
+ <script>
+const itemInput = document.getElementById('itemSearch');
+const itemSuggest = document.getElementById('itemSuggest');
+let itemTimer;
+
+itemInput.addEventListener('input', function() {
+
+    const keyword = itemInput.innerText.trim();
+
+    clearTimeout(itemTimer);
+
+    if (keyword.length < 2) {
+        itemSuggest.style.display = 'none';
+        return;
+    }
+
+    itemTimer = setTimeout(() => {
+
+      fetch("{{ route('detailpo.search') }}?q=" + encodeURIComponent(keyword))
+
+        .then(res => res.json())
+        .then(data => {
+
+            itemSuggest.innerHTML = '';
+
+            if (!data.length) {
+                itemSuggest.style.display = 'none';
+                return;
+            }
+
+            data.forEach(item => {
+
+                const div = document.createElement('div');
+                div.className = 'suggest-item';
+
+                div.innerHTML = `
+                    <b>${item.kode}</b><br>
+                    <small>${item.nama}</small>
+                `;
+
+                div.onclick = () => {
+                    addItemRow(item);
+                    itemInput.innerText = '';
+                    itemSuggest.style.display = 'none';
+                };
+
+                itemSuggest.appendChild(div);
+            });
+
+            itemSuggest.style.display = 'block';
+        });
+
+    }, 300);
+});
+</script>
+<!-- add rows -->
+ <script>
+function addItemRow(item) {
+
+    const exist = document.querySelector(
+        `.spk-row[data-detail-id="${item.detail_id}"]`
+    );
+
+    if (exist) {
+        alert('Item sudah ada');
+        return;
+    }
+
+    // ===== BUILD IMAGE HTML =====
+    let imagesHtml = '';
+
+    if (item.images && item.images.length) {
+        item.images.forEach(img => {
+            imagesHtml += `<img src="${img}" class="preview-img">`;
+        });
+    }
+
+    // fallback kalau backend cuma kirim photo
+    if (!imagesHtml && item.photo) {
+        imagesHtml = `<img src="${item.photo}" class="preview-img">`;
+    }
+
+    const tr = document.createElement('tr');
+    tr.classList.add('spk-row');
+    tr.dataset.detailId = item.detail_id;
+
+    tr.innerHTML = `
+        <td class="editable text-center kode-item delete-row" contenteditable>${item.kode}</td>
+
+        <td>
+            <div class="image-box" contenteditable onpaste="handlePaste(event,this)">
+                ${imagesHtml}
+            </div>
+
+            <input type="file"
+                accept="image/*"
+                multiple
+                capture="environment"
+                onchange="uploadPreview(this)">
+        </td>
+
+        <td class="editable nama" contenteditable>${item.nama ?? ''}</td>
+        <td class="editable text-center p" contenteditable>${item.p ?? ''}</td>
+        <td class="editable text-center l" contenteditable>${item.l ?? ''}</td>
+        <td class="editable text-center t" contenteditable>${item.t ?? ''}</td>
+        <td class="editable material" contenteditable>${item.material ?? ''}</td>
+        <td class="editable text-center pcs" contenteditable>${item.qty ?? 0}</td>
+        <td class="editable text-center set" contenteditable>0</td>
+        <td class="editable text-right harga" contenteditable>0</td>
+        <td class="text-right total">0</td>
+
+        <td>
+            <div class="editable note-box"
+                contenteditable
+                onpaste="handlePaste(event,this)">
+            </div>
+        </td>
+    `;
+
+    const anchor = document.getElementById('spkItemAnchor');
+
+    if (anchor) {
+        anchor.before(tr);
+    } else {
+        document.querySelector('.spk-table tbody').appendChild(tr);
+    }
+
+    hitungTotal(tr);
+}
+
+
 </script>
 
 
