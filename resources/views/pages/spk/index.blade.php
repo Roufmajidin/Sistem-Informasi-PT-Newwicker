@@ -7,7 +7,11 @@
 <div class="box">
     <div class="box-header d-flex justify-content-between align-items-center">
         <h3>SPK PRODUKSI</h3>
-
+@if($spk['mode'] === 'edit')
+    <span class="label label-warning">EDIT MODE</span>
+@else
+    <span class="label label-success">CREATE MODE</span>
+@endif
         <div style="min-width:180px">
             <label style="font-size:12px; margin-bottom:2px;"><b>Jenis SPK</b></label>
             <select name="spk_type" id="spk_type" class="form-control form-control-sm">
@@ -21,24 +25,27 @@
             </select>
         </div>
     </div>
+<input type="hidden" id="spk_mode" value="{{ $spk['mode'] }}">
+
+<input type="hidden" id="spk_id" value="{{ $spk['id'] }}">
 
     <div class="box-body spk-wrapper">
         <table class="table table-bordered spk-table">
 
             {{-- HEADER --}}
-          <!-- @include('pages.spk.header') -->
- <tr>
-    <td colspan="6" style="border:none">
-        <img src="/images/newwicker-logo.png" height="60">
-    </td>
-    <td colspan="6" class="text-right" style="border:none; position:relative">
-        <div class="editable" id="itemSearch" contenteditable
-             style="border:1px solid #ccc; padding:6px">
-            Ketik article / nama item
-        </div>
-        <div id="itemSuggest" class="suggest-box"></div>
-    </td>
-</tr>
+            <!-- @include('pages.spk.header') -->
+            <tr>
+                <td colspan="6" style="border:none">
+                    <img src="/images/newwicker-logo.png" height="60">
+                </td>
+                <td colspan="6" class="text-right" style="border:none; position:relative">
+                    <div class="editable" id="itemSearch" contenteditable
+                        style="border:1px solid #ccc; padding:6px">
+                        Ketik article / nama item
+                    </div>
+                    <div id="itemSuggest" class="suggest-box"></div>
+                </td>
+            </tr>
 
             <tr>
                 <td colspan="12"></td>
@@ -47,10 +54,10 @@
             {{-- INFO --}}
             <tr>
                 <td><b>NO SPK</b></td>
-                <td colspan="1" class="editable" contenteditable>{{ $spk['no_spk'] }}</td>
+                <td colspan="1" class="editable no-spk" contenteditable>{{ $spk['no_spk'] }}</td>
                 <td colspan="3"></td>
                 <td><b>NO PO</b></td>
-                <td colspan="3" class="editable" contenteditable>{{ $spk['no_po'] }}</td>
+                <td colspan="3" class="editable no-po" contenteditable>{{ $spk['no_po'] }}</td>
             </tr>
 
             <tr>
@@ -77,129 +84,138 @@
 
             <tr>
                 <td><b>Tgl Selesai</b></td>
-                <td colspan="4" class="editable" contenteditable>{{ $spk['tgl_selesai'] }}</td>
+                <td colspan="4" class="editable tgl-selesai" contenteditable>{{ $spk['tgl_selesai'] }}</td>
                 <td colspan="7"></td>
             </tr>
 
-         @include('pages.spk.partial2')
+            @include('pages.spk.partial2')
 
             {{-- ITEMS --}}
-           @foreach($spk['items'] as $item)
-<tr class="spk-row"  data-detail-id="{{ $item['detail_id'] }}">>
+            @foreach($spk['items'] as $item)
+            <tr class="spk-row" data-detail-id="{{ $item['detail_id'] }}">>
 
 
-    <td style="cursor:pointer"  class="editable text-center kode-item delete-row" contenteditable>{{ $item['kode'] }}</td>
+                <td style="cursor:pointer" class="editable text-center kode-item delete-row" contenteditable>{{ $item['kode'] }}</td>
 
-    {{-- GAMBAR --}}
-    <td>
-        <div class="image-box "
-            contenteditable
-            onpaste="handlePaste(event, this)">
-            @foreach($item['images'] as $img)
-                <img src="{{ $img }}" class="preview-img">
+                {{-- GAMBAR --}}
+                <td>
+                    <div class="image-box "
+                        contenteditable
+                        onpaste="handlePaste(event, this)">
+                        @foreach($item['images'] as $img)
+                        <img src="{{ $img }}" class="preview-img">
+                        @endforeach
+
+                        <input type="file"
+                            accept="image/*"
+                            multiple
+                            capture="environment"
+                            onchange="uploadPreview(this)">
+                </td>
+                <input type="hidden" class="spk-row" data-detail-id="{{ $item['detail_id'] }}">
+
+                <td class="editable nama" contenteditable>{{ $item['nama'] }}</td>
+                <td class="editable text-center p" contenteditable>{{ $item['p'] }}</td>
+                <td class="editable text-center l" contenteditable>{{ $item['l'] }}</td>
+                <td class="editable text-center t" contenteditable>{{ $item['t'] }}</td>
+                <td class="editable material" contenteditable>{{ $item['material'] }}</td>
+                <td class="editable text-center pcs" contenteditable>{{ $item['pcs'] }}</td>
+                <td class="editable text-center set" contenteditable>{{ $item['set'] }}</td>
+                <td class="editable text-right harga" contenteditable>{{ $item['harga'] }}</td>
+                <td class="text-right total">0</td>
+
+                {{-- CATATAN --}}
+               {{-- CATATAN --}}
+<td>
+    <div class="editable note-box"
+        contenteditable
+        onpaste="handlePaste(event, this)">
+
+        @foreach($item['catatan']['images'] ?? [] as $img)
+            <img src="{{ $img }}" class="preview-img">
+        @endforeach
+
+        {!! $item['catatan']['remark'] ?? '' !!}
+    </div>
+</td>
+
+            </tr>
+
             @endforeach
-
-        <input type="file"
-            accept="image/*"
-            multiple
-            capture="environment"
-            onchange="uploadPreview(this)">
-    </td>
-    <!-- <input type="hidden" class="spk-row" data-detail-id="{{ $item['detail_id'] }}"> -->
-
-    <td class="editable nama" contenteditable>{{ $item['nama'] }}</td>
-    <td class="editable text-center p" contenteditable>{{ $item['p'] }}</td>
-    <td class="editable text-center l" contenteditable>{{ $item['l'] }}</td>
-    <td class="editable text-center t" contenteditable>{{ $item['t'] }}</td>
-    <td class="editable material" contenteditable>{{ $item['material'] }}</td>
-    <td class="editable text-center pcs" contenteditable>{{ $item['pcs'] }}</td>
-    <td class="editable text-center set" contenteditable>{{ $item['set'] }}</td>
-    <td class="editable text-right harga" contenteditable>{{ $item['harga'] }}</td>
-    <td class="text-right total">0</td>
-
-    {{-- CATATAN --}}
-    <td>
-        <div class="editable note-box"
-            contenteditable
-            onpaste="handlePaste(event, this)">
-            {{ $item['catatan'] }}
-        </div>
-    </td>
-</tr>
-
-@endforeach
-<tr id="spkItemAnchor"></tr>
+            <tr id="spkItemAnchor"></tr>
 
             @include('pages.spk.partial1')
- <td colspan="3" style="vertical-align: top;margin-left:12px">
-          <table class="table table-bordered" style="font-size:12px;">
-              <tr class="text-center">
-                  <th>Amount</th>
-                  <th>Date</th>
-                  <th>Note</th>
-              </tr>
+            <td colspan="3" style="vertical-align: top;margin-left:12px">
+                <table class="table table-bordered" style="font-size:12px;">
+                    <tr class="text-center">
+                        <th>Amount</th>
+                        <th>Date</th>
+                        <th>Note</th>
+                    </tr>
 
 
-              <tr>
-                  <td class="editable total-amount" contenteditable></td>
-                  <td class="editable date-isian" contenteditable></td>
-                  <td class="editable note-akhir" contenteditable></td>
+                    <tr>
+                        <td class="editable total-amount" contenteditable></td>
+                        <td class="editable date-isian" contenteditable></td>
+                        <td class="editable note-akhir" contenteditable></td>
 
-              </tr>
+                    </tr>
 
-          </table>
-      </td>
+                </table>
+            </td>
         </table>
-<button id="btnSaveSpk" class="btn btn-success btn-sm">
-    💾 Save SPK
-</button>
+        <button id="btnSaveSpk" class="btn btn-success btn-sm">
+            💾 Save SPK
+        </button>
     </div>
 </div>
 <!-- search -->
- <!-- heler -->
-  <script>
-function extractNoteData(noteBox) {
-    let remark = '';
-    let images = [];
+<!-- heler -->
+ <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-    noteBox.childNodes.forEach(node => {
-        if (node.nodeType === Node.TEXT_NODE) {
-            remark += node.textContent.trim();
-        }
+<script>
+    function extractNoteData(noteBox) {
+        let remark = '';
+        let images = [];
 
-        if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'IMG') {
-            images.push(node.src);
-        }
-    });
+        noteBox.childNodes.forEach(node => {
+            if (node.nodeType === Node.TEXT_NODE) {
+                remark += node.textContent.trim();
+            }
 
-    return {
-        remark: remark,
-        images: images
-    };
-}
+            if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'IMG') {
+                images.push(node.src);
+            }
+        });
+
+        return {
+            remark: remark,
+            images: images
+        };
+    }
 </script>
 
- <!-- delete row -->
-  <script>
-document.addEventListener('click', function(e) {
-    if (e.target.classList.contains('delete-row')) {
-        if (!confirm('Hapus baris ini?')) return;
+<!-- delete row -->
+<script>
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('delete-row')) {
+            if (!confirm('Hapus baris ini?')) return;
 
-        const row = e.target.closest('tr');
-        row.remove();
+            const row = e.target.closest('tr');
+            row.remove();
 
-        renumberRows();
-    }
-});
-
-function renumberRows() {
-    document.querySelectorAll('.spk-row').forEach((row, index) => {
-        const noCell = row.querySelector('.row-no');
-        if (noCell) {
-            noCell.innerText = index + 1;
+            renumberRows();
         }
     });
-}
+
+    function renumberRows() {
+        document.querySelectorAll('.spk-row').forEach((row, index) => {
+            const noCell = row.querySelector('.row-no');
+            if (noCell) {
+                noCell.innerText = index + 1;
+            }
+        });
+    }
 </script>
 <!-- helper wraping text -->
 <script>
@@ -222,84 +238,85 @@ function renumberRows() {
 <!-- hitung helper -->
 <script>
     function getSatuan(row) {
-    const pcs = parseFloat(row.querySelector('.pcs')?.innerText) || 0;
-    const set = parseFloat(row.querySelector('.set')?.innerText) || 0;
+        const pcs = parseFloat(row.querySelector('.pcs')?.innerText) || 0;
+        const set = parseFloat(row.querySelector('.set')?.innerText) || 0;
 
-    if (pcs > 0) return 'pcs';
-    if (set > 0) return 'set';
-    return '';
-}
-function getNumber(el) {
-    if (!el) return 0;
-    return parseFloat(el.innerText.replace(/[^0-9]/g, '')) || 0;
-}
-
-function format(num) {
-    return new Intl.NumberFormat('id-ID').format(num);
-}
-
-/* =====================
-   HITUNG TOTAL PER ROW
-   ===================== */
-function hitungTotal(row) {
-    const pcs   = getNumber(row.querySelector('.pcs'));
-    const set   = getNumber(row.querySelector('.set'));
-    const harga = getNumber(row.querySelector('.harga'));
-
-    const qty = pcs > 0 ? pcs : set;
-    const total = qty * harga;
-
-    const totalCell = row.querySelector('.total');
-    if (totalCell) {
-        totalCell.innerText = format(total);
+        if (pcs > 0) return 'pcs';
+        if (set > 0) return 'set';
+        return '';
     }
 
-    hitungGrandTotal();
-}
-
-/* =====================
-   HITUNG TOTAL AMOUNT
-   ===================== */
-function hitungGrandTotal() {
-    let grandTotal = 0;
-
-    document.querySelectorAll('.spk-table .total').forEach(td => {
-        grandTotal += getNumber(td);
-    });
-
-    const amountCell = document.querySelector('.total-amount');
-    if (amountCell) {
-        amountCell.innerText = format(grandTotal);
+    function getNumber(el) {
+        if (!el) return 0;
+        return parseFloat(el.innerText.replace(/[^0-9]/g, '')) || 0;
     }
-}
 
-/* =====================
-   EVENT LISTENER
-   ===================== */
-document.addEventListener('keyup', function(e) {
-    if (e.target.closest('.pcs, .set, .harga')) {
-        const row = e.target.closest('tr');
-        hitungTotal(row);
+    function format(num) {
+        return new Intl.NumberFormat('id-ID').format(num);
     }
-});
 
-document.addEventListener('paste', function(e) {
-    if (e.target.closest('.pcs, .set, .harga')) {
-        setTimeout(() => {
+    /* =====================
+       HITUNG TOTAL PER ROW
+       ===================== */
+    function hitungTotal(row) {
+        const pcs = getNumber(row.querySelector('.pcs'));
+        const set = getNumber(row.querySelector('.set'));
+        const harga = getNumber(row.querySelector('.harga'));
+
+        const qty = pcs > 0 ? pcs : set;
+        const total = qty * harga;
+
+        const totalCell = row.querySelector('.total');
+        if (totalCell) {
+            totalCell.innerText = format(total);
+        }
+
+        hitungGrandTotal();
+    }
+
+    /* =====================
+       HITUNG TOTAL AMOUNT
+       ===================== */
+    function hitungGrandTotal() {
+        let grandTotal = 0;
+
+        document.querySelectorAll('.spk-table .total').forEach(td => {
+            grandTotal += getNumber(td);
+        });
+
+        const amountCell = document.querySelector('.total-amount');
+        if (amountCell) {
+            amountCell.innerText = format(grandTotal);
+        }
+    }
+
+    /* =====================
+       EVENT LISTENER
+       ===================== */
+    document.addEventListener('keyup', function(e) {
+        if (e.target.closest('.pcs, .set, .harga')) {
             const row = e.target.closest('tr');
             hitungTotal(row);
-        }, 10);
-    }
-});
+        }
+    });
 
-/* =====================
-   HITUNG SAAT LOAD
-   ===================== */
-document.querySelectorAll('.spk-table tr').forEach(row => {
-    if (row.querySelector('.pcs') || row.querySelector('.set')) {
-        hitungTotal(row);
-    }
-});
+    document.addEventListener('paste', function(e) {
+        if (e.target.closest('.pcs, .set, .harga')) {
+            setTimeout(() => {
+                const row = e.target.closest('tr');
+                hitungTotal(row);
+            }, 10);
+        }
+    });
+
+    /* =====================
+       HITUNG SAAT LOAD
+       ===================== */
+    document.querySelectorAll('.spk-table tr').forEach(row => {
+        if (row.querySelector('.pcs') || row.querySelector('.set')) {
+            hitungTotal(row);
+        }
+    });
 </script>
 
 <script>
@@ -407,8 +424,8 @@ document.getElementById('btnSaveSpk').addEventListener('click', function () {
     let items = [];
 
     document.querySelectorAll('.spk-row').forEach(row => {
-const detailId = row.dataset.detailId;
-if (!detailId) return;
+        const detailId = row.dataset.detailId;
+        if (!detailId) return;
 
         let images = [];
         row.querySelectorAll('.image-box img').forEach(img => {
@@ -417,40 +434,56 @@ if (!detailId) return;
 
         const noteBox = row.querySelector('.note-box');
 
-      items.push({
-                detail_id: detailId,   // 🔥 PER ITEM
-
-    kode: row.querySelector('.kode-item')?.innerText.trim() || '',
-    nama: row.querySelector('.nama')?.innerText.trim() || '',
-    p: row.querySelector('.p')?.innerText.trim() || '',
-    l: row.querySelector('.l')?.innerText.trim() || '',
-    t: row.querySelector('.t')?.innerText.trim() || '',
-    material: row.querySelector('.material')?.innerText.trim() || '',
-    pcs: row.querySelector('.pcs')?.innerText.trim() || '',
-    set: row.querySelector('.set')?.innerText.trim() || '',
-    satuan: getSatuan(row),   // 🔥 INI YANG BARU
-    harga: row.querySelector('.harga')?.innerText.trim() || '',
-    total: row.querySelector('.total')?.innerText.trim() || '',
-    images: images,
-    catatan: noteBox ? extractNoteData(noteBox) : { remark:'', images:[] }
-});
+        items.push({
+            detail_id: detailId,
+            kode: row.querySelector('.kode-item')?.innerText.trim() || '',
+            nama: row.querySelector('.nama')?.innerText.trim() || '',
+            p: row.querySelector('.p')?.innerText.trim() || '',
+            l: row.querySelector('.l')?.innerText.trim() || '',
+            t: row.querySelector('.t')?.innerText.trim() || '',
+            material: row.querySelector('.material')?.innerText.trim() || '',
+            pcs: row.querySelector('.pcs')?.innerText.trim() || '',
+            set: row.querySelector('.set')?.innerText.trim() || '',
+            satuan: getSatuan(row),
+            harga: row.querySelector('.harga')?.innerText.trim() || '',
+            total: row.querySelector('.total')?.innerText.trim() || '',
+            images: images,
+            catatan: noteBox ? extractNoteData(noteBox) : {
+                remark: '',
+                images: []
+            }
+        });
     });
 
+    const mode  = document.getElementById('spk_mode')?.value;
+    const spkId = document.getElementById('spk_id')?.value;
+const noSpkEl = document.querySelector('.no-spk');
+const noPoEl  = document.querySelector('.no-po');
+
+
+
     const payload = {
+        spk_id: mode === 'edit' ? spkId : null, // 🔥 KUNCI
         spk_type: document.getElementById('spk_type').value,
-        no_spk: document.querySelector('td[contenteditable]:nth-child(2)')?.innerText,
-        no_po: document.querySelectorAll('td[contenteditable]')[1]?.innerText,
-        nama: document.getElementById('supplierInput')?.innerText,
-        tgl_terima: document.querySelectorAll('.editable')[3]?.innerText,
-        tgl_selesai: document.querySelectorAll('.editable')[4]?.innerText,
-        amount: document.querySelector('.total-amount')?.innerText,
-        note_akhir: document.querySelector('.note-akhir')?.innerHTML,
-        date_surat: document.querySelector('.date-isian')?.innerHTML,
+       no_spk: noSpkEl ? noSpkEl.innerText.trim() : '',
+    no_po:  noPoEl ? noPoEl.innerText.trim() : '',
+        nama: document.getElementById('supplierInput')?.innerText || '',
+        tgl_terima: document.querySelector('.tgl-terima')?.innerText || '',
+        tgl_selesai: document.querySelector('.tgl-selesai')?.innerText || '',
         items: items
     };
+//     console.log('NO SPK:', payload.no_spk);
+// console.log('NO PO:', payload.no_po);
 
-    console.log('✅ PAYLOAD SPK', payload);
-   fetch("{{ route('spk.save', $spk['id'] ?? 0) }}", {
+    // 🔥 URL DINAMIS
+    let url = '';
+    if (mode === 'edit') {
+        url = "{{ url('/spk/update') }}/" + spkId;
+    } else {
+        url = "{{ url('/spk/create') }}/" + spkId; // spkId = PO ID
+    }
+
+    fetch(url, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -460,109 +493,132 @@ if (!detailId) return;
     })
     .then(res => res.json())
     .then(res => {
-        if (res.success) {
-            alert("✅ SPK berhasil disimpan");
-        } else {
-            alert("❌ Gagal menyimpan SPK");
-        }
+      if (res.success) {
+
+        Swal.fire({
+            icon: 'success',
+            title: 'SPK Berhasil',
+            html: `
+                <div style="font-size:14px">
+                    ${res.message}<br><br>
+                    <b>No SPK:</b><br>
+                    <span style="font-size:18px;color:#198754">
+                        ${res.no_spk}
+                    </span>
+                </div>
+            `,
+            confirmButtonText: 'OK'
+        });
+
+    } else {
+        Swal.fire({
+            icon: 'error',
+            title: 'Gagal',
+            text: res.message || 'Gagal menyimpan SPK'
+        });
+    }
     })
     .catch(err => {
         console.error(err);
-        alert("❌ Error server");
+
+    Swal.fire({
+        icon: 'error',
+        title: 'Error Server',
+        text: 'Terjadi kesalahan pada server'
     });
-
-
+    });
 });
 </script>
 
+
 <!-- search and add row -->
- <script>
-const itemInput = document.getElementById('itemSearch');
-const itemSuggest = document.getElementById('itemSuggest');
-let itemTimer;
+<script>
+    const itemInput = document.getElementById('itemSearch');
+    const itemSuggest = document.getElementById('itemSuggest');
+    let itemTimer;
 
-itemInput.addEventListener('input', function() {
+    itemInput.addEventListener('input', function() {
 
-    const keyword = itemInput.innerText.trim();
+        const keyword = itemInput.innerText.trim();
 
-    clearTimeout(itemTimer);
+        clearTimeout(itemTimer);
 
-    if (keyword.length < 2) {
-        itemSuggest.style.display = 'none';
-        return;
-    }
+        if (keyword.length < 2) {
+            itemSuggest.style.display = 'none';
+            return;
+        }
 
-    itemTimer = setTimeout(() => {
+        itemTimer = setTimeout(() => {
 
-      fetch("{{ route('detailpo.search') }}?q=" + encodeURIComponent(keyword))
+            fetch("{{ route('detailpo.search') }}?q=" + encodeURIComponent(keyword))
 
-        .then(res => res.json())
-        .then(data => {
+                .then(res => res.json())
+                .then(data => {
 
-            itemSuggest.innerHTML = '';
+                    itemSuggest.innerHTML = '';
 
-            if (!data.length) {
-                itemSuggest.style.display = 'none';
-                return;
-            }
+                    if (!data.length) {
+                        itemSuggest.style.display = 'none';
+                        return;
+                    }
 
-            data.forEach(item => {
+                    data.forEach(item => {
 
-                const div = document.createElement('div');
-                div.className = 'suggest-item';
+                        const div = document.createElement('div');
+                        div.className = 'suggest-item';
 
-                div.innerHTML = `
+                        div.innerHTML = `
                     <b>${item.kode}</b><br>
                     <small>${item.nama}</small>
                 `;
 
-                div.onclick = () => {
-                    addItemRow(item);
-                    itemInput.innerText = '';
-                    itemSuggest.style.display = 'none';
-                };
+                        div.onclick = () => {
+                            addItemRow(item);
+                            itemInput.innerText = '';
+                            itemSuggest.style.display = 'none';
+                        };
 
-                itemSuggest.appendChild(div);
-            });
+                        itemSuggest.appendChild(div);
+                    });
 
-            itemSuggest.style.display = 'block';
-        });
+                    itemSuggest.style.display = 'block';
+                });
 
-    }, 300);
-});
+        }, 300);
+    });
 </script>
 <!-- add rows -->
- <script>
-function addItemRow(item) {
+<script>
+    function addItemRow(item) {
 
-    const exist = document.querySelector(
-        `.spk-row[data-detail-id="${item.detail_id}"]`
-    );
+        const exist = document.querySelector(
+            `.spk-row[data-detail-id="${item.detail_id}"]`
+        );
 
-    if (exist) {
-        alert('Item sudah ada');
-        return;
-    }
+        if (exist) {
+            alert('Item sudah ada');
+            return;
+        }
 
-    // ===== BUILD IMAGE HTML =====
-    let imagesHtml = '';
+        // ===== BUILD IMAGE HTML =====
+        let imagesHtml = '';
 
-    if (item.images && item.images.length) {
-        item.images.forEach(img => {
-            imagesHtml += `<img src="${img}" class="preview-img">`;
-        });
-    }
+        if (item.images && item.images.length) {
+            item.images.forEach(img => {
+                imagesHtml += `<img src="${img}" class="preview-img">`;
+            });
+        }
 
-    // fallback kalau backend cuma kirim photo
-    if (!imagesHtml && item.photo) {
-        imagesHtml = `<img src="${item.photo}" class="preview-img">`;
-    }
+        // fallback kalau backend cuma kirim photo
+        if (!imagesHtml && item.photo) {
+            imagesHtml = `<img src="${item.photo}" class="preview-img">`;
+        }
 
-    const tr = document.createElement('tr');
-    tr.classList.add('spk-row');
-    tr.dataset.detailId = item.detail_id;
+        const tr = document.createElement('tr');
+        tr.classList.add('spk-row');
+        tr.dataset.detailId = item.detail_id;
 
-    tr.innerHTML = `
+        tr.innerHTML = `
         <td class="editable text-center kode-item delete-row" contenteditable>${item.kode}</td>
 
         <td>
@@ -595,18 +651,16 @@ function addItemRow(item) {
         </td>
     `;
 
-    const anchor = document.getElementById('spkItemAnchor');
+        const anchor = document.getElementById('spkItemAnchor');
 
-    if (anchor) {
-        anchor.before(tr);
-    } else {
-        document.querySelector('.spk-table tbody').appendChild(tr);
+        if (anchor) {
+            anchor.before(tr);
+        } else {
+            document.querySelector('.spk-table tbody').appendChild(tr);
+        }
+
+        hitungTotal(tr);
     }
-
-    hitungTotal(tr);
-}
-
-
 </script>
 
 

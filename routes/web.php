@@ -135,15 +135,14 @@ Route::get('/qc/getData/{kategoriId}/{detailPo}/{poId}', [QcController::class, '
 Route::get('/insert/{kategoriName}', [QcController::class, 'insertDummy']);
 Route::get('/qc/search', [QcController::class, 'ajaxPo'])->name('qc.ajax.poo');
 
-
 Route::get('/marketing-pfi', [PoController::class, 'marketing']);
 Route::get('/marketing/ajax/po-list', [QcController::class, 'ajaxPoList'])
     ->name('marketing.ajax.po');
 Route::post('/marketing/excel/paste', [PoController::class, 'convert'])->name('marketing.excel.paste');
-Route::post('/marketing/excel/upload', [PoController::class,'uploadExcel'])
-->name('marketing.excel.upload');
-Route::post('/marketing/excel/save', [PoController::class,'saveExcelData'])
-->name('marketing.excel.save');
+Route::post('/marketing/excel/upload', [PoController::class, 'uploadExcel'])
+    ->name('marketing.excel.upload');
+Route::post('/marketing/excel/save', [PoController::class, 'saveExcelData'])
+    ->name('marketing.excel.save');
 Route::post('/excel/paste', [QcController::class, 'convert'])
     ->name('excel.paste');
 Route::get('/marketing-release-order', [QcController::class, 'releaseOrder']);
@@ -152,18 +151,27 @@ Route::post('/marketing/po-item-update-bulk',
     [PoController::class, 'updateItemBulk']);
 // supplier
 
-Route::get('/supplier', [SupplierController::class,'index']);
+Route::get('/supplier', [SupplierController::class, 'index']);
 
-Route::post('/supplier/store', [SupplierController::class,'storeSupplier']);
-Route::post('/supplier/update/{id}', [SupplierController::class,'updateSupplier']);
+Route::post('/supplier/store', [SupplierController::class, 'storeSupplier']);
+Route::post('/supplier/update/{id}', [SupplierController::class, 'updateSupplier']);
 Route::get('/timeline/data', [PoController::class, 'getTimeline'])->name('timeline.data');
 Route::get('/spk/{id}', [SpkController::class, 'index'])->name('spk.index');
-Route::post('/spk/save/{id}', [SpkController::class,'save'])->name('spk.save');
+Route::post('/spk/create/{po}', [SpkController::class, 'save'])->name('spk.create');
+Route::post('/spk/update/{spk}', [SpkController::class, 'save'])->name('spk.update');
+
 Route::get('/detail-po/search', [SpkController::class, 'search'])
-        ->name('detailpo.search');
-Route::post('/jenis/store', [SupplierController::class,'storeJenis']);
-Route::post('/jenis/update/{id}', [SupplierController::class,'updateJenis']);
+    ->name('detailpo.search');
+Route::post('/jenis/store', [SupplierController::class, 'storeJenis']);
+Route::post('/jenis/update/{id}', [SupplierController::class, 'updateJenis']);
 Route::get('/spkk/timeline', [SpkController::class, 'tima'])->name('spk.time');
+Route::get('/all-spk', [SpkController::class, 'allspk'])->name('spk.all');
+Route::get('/semua-spk', [SpkController::class, 'spk'])->name('spk.semua');
+Route::get('/spk/edit/{id}', [SpkController::class, 'index'])->name('spk.edit');
+Route::post('/spk/simpan-edit/{id}', [SpkController::class, 'saveEdit'])
+
+    ->name('spk.simpan-edit');
+Route::get('/spk/export/{id}', [SpkController::class, 'export'])->name('spk.export');
 
 Route::prefix('pfi')->group(function () {
 

@@ -21,4 +21,13 @@ class Po extends Model
     {
         return $this->hasMany(DetailPo::class);
     }
+    public function spks()
+    {
+        return $this->hasMany(Spk::class, 'po_id');
+    }
+
+    public function detailPos()
+    {
+        return $this->hasMany(DetailPo::class, 'po_id');
+    }
 }

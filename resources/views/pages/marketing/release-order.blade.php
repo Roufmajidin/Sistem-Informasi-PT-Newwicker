@@ -19,6 +19,12 @@
                     style="width:300px"
                     placeholder="Search PO / Item / Vendor">
             </div>
+            <div class="col-12 d-flex justify-content-end">
+                                    <a href="/semua-spk"
+                                        class="btn btn-primary btn-sm"  >
+                                        All SPK
+                                    </a>
+                                </div>
             <div class="row" id="default-table">
                 <div class="col-sm-12">
                     <div class="box">
@@ -57,8 +63,10 @@
                             </button>
 
                             <hr>
+
                             <div class="row">
-                                <div class="col-12 d-flex justify-content-end">
+
+                                   <div class="col-12 d-flex justify-content-end">
                                     <a href="#"
                                         class="btn btn-primary btn-sm"
                                         id="btn-buat-spk">

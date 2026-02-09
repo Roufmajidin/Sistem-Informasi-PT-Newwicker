@@ -11,4 +11,14 @@ class Spk extends Model
     protected $casts    = [
         'data' => 'array',
     ];
+      public function po()
+    {
+        return $this->belongsTo(Po::class, 'po_id');
+    }
+
+    public function detailPo()
+    {
+        return $this->belongsTo(DetailPo::class, 'detail_po_id');
+    }
+
 }

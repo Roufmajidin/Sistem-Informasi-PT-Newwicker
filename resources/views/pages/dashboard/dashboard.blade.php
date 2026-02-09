@@ -83,42 +83,148 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
 <script>
-    function loadSpkTimeline()
-    {
-        $.get("{{ route('spk.time') }}", function(res){
+  function loadSpkTimeline()
+{
+    $.get("{{ route('spk.time') }}", function(res){
 
-            let html = '';
+        let html = '';
 
-            res.forEach(row => {
+        res.forEach((row, index) => {
 
-                html += `
-                    <div class="sl-item b-info">
-                        <div class="sl-content">
+            let badge = '';
+            let content = '';
+            let collapseId = `collapse-${row.id}`;
 
-                            <div class="sl-date text-muted">
-                                ${formatTanggal(row.created_at)}
-                            </div>
+     if (row.type === 'create') {
 
-                            <div>
-                                ${row.remark ?? '-'}
-                            </div>
+    badge = `<span class="badge badge-success">CREATE</span>`;
 
+    let itemsHtml = '';
+
+    if (row.after?.items && Array.isArray(row.after.items)) {
+        itemsHtml = `
+            <ul class="mb-0 pl-3 small text-muted">
+                ${row.after.items.map(item => `
+                    <li>
+                        ${item.nama}
+                        <b>
+                            (${item.qty} ${item.satuan})
+                        </b>
+                    </li>
+                `).join('')}
+            </ul>
+        `;
+    }
+
+    content = `
+        <div class="mt-1 text-muted">
+            <div><b>SPK dibuat</b></div>
+            <div>No SPK : <b>${row.after?.no_spk ?? '-'}</b></div>
+            <div>Supplier : <b>${row.after?.sup ?? '-'}</b></div>
+            ${itemsHtml}
+        </div>
+    `;
+}
+
+            if (row.type === 'update') {
+                badge = `<span class="badge badge-warning">UPDATE</span>`;
+
+                let changeCount = row.changes
+                    ? Object.keys(row.changes).length
+                    : 0;
+
+                // HEADER RINGKAS
+                content = `
+                    <div class="mt-1">
+                        <a data-toggle="collapse"
+                           href="#${collapseId}"
+                           style="text-decoration:none">
+                            SPK diperbarui
+                            <span class="text-muted">
+                                (${changeCount} perubahan)
+                            </span>
+                            <i class="ml-1 fa fa-chevron-down"></i>
+                        </a>
+
+                        <div class="collapse mt-2" id="${collapseId}">
+                            ${renderChanges(row.changes)}
                         </div>
                     </div>
                 `;
-            });
+            }
 
-            $('#spkTimelineContainer').html(html);
+            html += `
+                <div class="sl-item mb-2">
+                    <div class="sl-content">
+
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                ${badge}
+                                <strong class="ml-1">${row.user ?? '-'}</strong>
+                            </div>
+                            <small class="text-muted">
+                                ${formatTanggal(row.time)}
+                            </small>
+                        </div>
+
+                        ${content}
+
+                    </div>
+                </div>
+            `;
         });
+
+        $('#spkTimelineContainer').html(html);
+    });
+}
+
+function renderChanges(changes)
+{
+    if (!changes) return '';
+
+    let html = '<ul class="list-unstyled small mb-0">';
+
+    Object.keys(changes).forEach(key => {
+        let before = formatValue(changes[key].before);
+        let after  = formatValue(changes[key].after);
+
+        html += `
+            <li>
+                <code>${key}</code> :
+                <span class="text-danger">${before}</span>
+                →
+                <span class="text-success">${after}</span>
+            </li>
+        `;
+    });
+
+    html += '</ul>';
+    return html;
+}
+
+function formatValue(val)
+{
+    if (val === null) return '<i>null</i>';
+
+    // IMAGE DETECT
+    if (typeof val === 'string' && val.match(/\.(jpg|png|jpeg|webp)$/)) {
+        return `<img src="${val}" style="height:30px;border:1px solid #ccc">`;
     }
 
-    function formatTanggal(date)
-    {
-        return new Date(date).toLocaleString('id-ID');
+    if (typeof val === 'object') {
+        return JSON.stringify(val);
     }
 
-    // 🔥 WAJIB ADA
-    loadSpkTimeline();
+    return val;
+}
+
+function formatTanggal(date)
+{
+    return new Date(date).toLocaleString('id-ID');
+}
+
+loadSpkTimeline();
+
 
     // timeline lama
     function loadTimeline() {
