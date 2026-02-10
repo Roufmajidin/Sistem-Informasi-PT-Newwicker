@@ -12,6 +12,7 @@ use App\Http\Controllers\MarketingController;
 use App\Http\Controllers\PameranContrller;
 use App\Http\Controllers\PdfController;
 use App\Http\Controllers\PoController;
+use App\Http\Controllers\ProduksiController;
 use App\Http\Controllers\QcController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\SpkController;
@@ -169,8 +170,10 @@ Route::get('/all-spk', [SpkController::class, 'allspk'])->name('spk.all');
 Route::get('/semua-spk', [SpkController::class, 'spk'])->name('spk.semua');
 Route::get('/spk/edit/{id}', [SpkController::class, 'index'])->name('spk.edit');
 Route::post('/spk/simpan-edit/{id}', [SpkController::class, 'saveEdit'])
+->name('spk.simpan-edit');
+// produksi
 
-    ->name('spk.simpan-edit');
+Route::get('/produksi', [ProduksiController::class, 'index'])->name('produksi.index');
 Route::get('/spk/export/{id}', [SpkController::class, 'export'])->name('spk.export');
 
 Route::prefix('pfi')->group(function () {

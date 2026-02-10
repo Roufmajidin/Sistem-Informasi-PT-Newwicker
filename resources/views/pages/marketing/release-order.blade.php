@@ -1,6 +1,7 @@
 @extends('master.master')
 @section('title', "Release Order Marketing")
 @section('content')
+@include('pages.spk.stylespk')
 
 <div class="padding">
     <div class="box">
@@ -31,7 +32,7 @@
                         <div class="table-responsive">
                             <table class="table table-striped table-bordered">
                                 <thead>
-                                    <tr>
+                                    <tr class="spk-header">
                                         <th>Order No</th>
                                         <th>Company Name</th>
                                         <th>Shipment Date</th>
@@ -238,6 +239,7 @@
 
                     let priority = [
                         'no_', 'photo', 'description', 'article_nr_', 'article_nr_nw',
+                        'qty',
                         'remark', 'cushion', 'glass',
                         'item_w', 'item_d', 'item_h',
                         'pack_w', 'pack_d', 'pack_h',
@@ -252,7 +254,7 @@
                     ];
 
                     /* ===== HEADER ===== */
-                    let headerRow = $('<tr></tr>');
+                    let headerRow = $('<tr class="spk-header"></tr>');
                     keys.forEach(k => {
                         headerRow.append(`<th>${k.replaceAll('_',' ').toUpperCase()}</th>`);
                     });
@@ -275,7 +277,7 @@
                     res.items.forEach(item => {
 
                         let detail = item.detail || {};
-                        let row = $(`<tr class="editable-row" data-id="${item.id}"></tr>`);
+                        let row = $(`<tr class="editable-row spk-header" data-id="${item.id}"></tr>`);
 
                         keys.forEach(key => {
 
@@ -496,9 +498,9 @@
         #detail-table thead th {
             position: sticky;
             top: 0;
-            background: #f4f6f9;
+            background: #2b3c70ff;
             /* WARNA HEADER */
-            color: #333;
+            color: white;
             z-index: 20;
             border-bottom: 2px solid #ccc;
         }
@@ -525,7 +527,7 @@
         }
 
         /* ================= FREEZE COL 1 ================= */
-        #detail-table th:nth-child(1),
+        /* #detail-table th:nth-child(1), */
         #detail-table td:nth-child(1) {
             position: sticky;
             left: 0;
@@ -534,7 +536,7 @@
         }
 
         /* ================= FREEZE COL 2 ================= */
-        #detail-table th:nth-child(2),
+        /* #detail-table th:nth-child(2), */
         #detail-table td:nth-child(2) {
             position: sticky;
             left: 60px;
@@ -543,7 +545,7 @@
         }
 
         /* ================= FREEZE COL 3 ================= */
-        #detail-table th:nth-child(3),
+        /* #detail-table th:nth-child(3), */
         #detail-table td:nth-child(3) {
             position: sticky;
             left: 150px;

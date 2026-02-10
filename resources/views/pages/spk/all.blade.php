@@ -39,7 +39,7 @@
     <thead>
         <tr>
             <th>SPK</th>
-            <th>Rangka</th>
+            <th>kategori</th>
             <th>Sub</th>
             <th>Qty</th>
             <th>Total</th>
