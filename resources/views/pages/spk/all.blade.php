@@ -35,19 +35,20 @@
     </div>
 
     <div class="box-body">
-        <table class="table table-bordered table-striped">
-            <thead>
-                <tr>
-                    <th>No SPK</th>
-                    <th>Item</th>
-                    <th>kategori</th>
+  <table class="table table-sm table-bordered">
+    <thead>
+        <tr>
+            <th>SPK</th>
+            <th>Rangka</th>
+            <th>Sub</th>
+            <th>Qty</th>
+            <th>Total</th>
+        </tr>
+    </thead>
+    <tbody id="spk-detail-body"></tbody>
+</table>
 
-                    <th>Act</th>
-                </tr>
-            </thead>
 
-            <tbody id="spk-detail-body"></tbody>
-        </table>
     </div>
 </div>
                     </div>
@@ -75,158 +76,186 @@ $(document).ready(function(){
     // ===============================
     // LOAD PO + SPK TABLE
     // ===============================
-    function loadSpkTable()
-    {
-        $.get("{{ route('spk.all') }}", function(res){
+   function loadSpkTable()
+{
+    $.get("{{ route('spk.all') }}", function(res){
 
-            cacheData = res;
+        cacheData = res;
 
-            let html = '';
-            let no   = 1;
+        let html = '';
+        let no   = 1;
 
-            res.forEach((po, index) => {
+        res.forEach((po, index) => {
 
-                let poNo = po.data_po?.no_po ?? '-';
+            let poNo = po.data_po?.no_po ?? '-';
 
-                let spkCount = po.spks?.length ?? 0;
+            // hitung SPK unik
+            let spkIds = new Set();
 
-                html += `
-                    <tr class="po-row" data-index="${index}">
-                        <td>${no++}</td>
-                        <td>${poNo}</td>
+            (po.data_po?.items || []).forEach(item => {
+                let summary = item.summary || {};
 
-                        <td>
-                            <button
-                                class="btn btn-sm btn-info btn-view-spk"
-                                data-index="${index}">
-                                ${spkCount} SPK
-                            </button>
-                        </td>
-
-                    </tr>
-                `;
+                Object.values(summary).forEach(suppliers => {
+                    Object.values(suppliers).forEach(supplier => {
+                        (supplier.spks || []).forEach(spk => {
+                            spkIds.add(spk.spk_id);
+                        });
+                    });
+                });
             });
 
-            $('#po-table-body').html(html);
+            let spkCount = spkIds.size;
+
+            html += `
+                <tr class="po-row" data-index="${index}">
+                    <td>${no++}</td>
+                    <td>${poNo}</td>
+                    <td>
+                        <button
+                            class="btn btn-sm btn-info btn-view-spk"
+                            data-index="${index}">
+                            ${spkCount} SPK
+                        </button>
+                    </td>
+                </tr>
+            `;
         });
-    }
+
+        $('#po-table-body').html(html);
+    });
+}
+
 
 
     // ===============================
     // CLICK VIEW SPK
     // ===============================
-   $(document).on('click','.btn-view-spk', function(){
+$(document).on('click', '.btn-view-spk', function () {
 
     let index = $(this).data('index');
     let po    = cacheData[index];
+    let items = po.data_po?.items || [];
 
     let html = '';
-    let poNo = po.data_po?.no_po ?? '-';
 
-    // ============================
-    // FILTER UNIQUE SPK
-    // ============================
-    let uniqueSpks = [];
-    let usedSpkIds = new Set();
-
-    (po.spks || []).forEach(spk => {
-        if (!usedSpkIds.has(spk.id)) {
-            usedSpkIds.add(spk.id);
-            uniqueSpks.push(spk);
-        }
-    });
-
-    // ============================
-    // LOOP SPK
-    // ============================
-   uniqueSpks.forEach(spk => {
-
-    let items = spk.data?.items || [];
-
-    // 🔥 filter item duplicate
-    let uniqueItems = [];
-    let usedItemKey = new Set();
+    // =========================
+    // 1. KUMPULKAN SEMUA SPK
+    // =========================
+    let spkMap = {};
 
     items.forEach(item => {
 
-        let key = item.id + '_' + item.id;
+        let d = item.detail || {};
+        let summary = item.summary || {};
 
-        if (!usedItemKey.has(key)) {
-            usedItemKey.add(key);
-            uniqueItems.push(item);
-        }
+        Object.entries(summary).forEach(([kategori, suppliers]) => {
 
+            Object.entries(suppliers).forEach(([supplier, data]) => {
+
+                (data.spks || []).forEach(spk => {
+
+                    if (!spkMap[spk.spk_id]) {
+                        spkMap[spk.spk_id] = {
+                            spk_id: spk.spk_id,
+                            no_spk: spk.no_spk,
+                            items: []
+                        };
+                    }
+
+                    spkMap[spk.spk_id].items.push({
+                        artikel: d.article_nr_,
+                        nama: d.description,
+                        kategori: kategori,
+                        supplier: supplier,
+                        qty: spk.qty,
+                        po_qty: d.qty
+                    });
+                });
+            });
+        });
     });
 
-    // tampilkan item hasil filter
-    uniqueItems.forEach(item => {
+    // =========================
+    // 2. RENDER PER SPK
+    // =========================
+    Object.values(spkMap).forEach(spk => {
 
-      let itemHtml = '';
+    let itemCount = spk.items.length;
+    let hasArrow  = itemCount > 2;
+    let spkClass  = `spk-items-${spk.spk_id}`;
 
-(spk.data?.items || []).forEach(item => {
-    itemHtml += `
-        <div style="margin-bottom:4px">
-            <b>${item.kode ?? '-'}</b><br>
-            <small>
-                ${item.nama ?? '-'} —
-                ${item.qty ?? 0} ${item.satuan ?? ''}
-            </small>
-        </div>
-
+    // ===== SPK HEADER =====
+    html += `
+        <tr class="spk-header"
+            data-spk-id="${spk.spk_id}"
+            style="cursor:pointer;background:#f8f9fa">
+            <td colspan="5">
+                <b>
+                    ${hasArrow ? `<span class="spk-arrow">▶</span>` : ''}
+                    SPK ${spk.no_spk}
+                </b>
+                <small class="text-muted">
+                    (${itemCount} item)
+                </small>
+            </td>
+        </tr>
     `;
-});
 
-html += `
-    <tr>
-        <td>${spk.data?.no_spk ?? '-'}</td>
-        <td>${spk.data?.kategori ?? '-'}</td>
-        <td>${itemHtml || '-'}</td>
-        <td>
-            <button
-    class="btn btn-sm btn-info btn-edit-spk"
-    data-id="${spk.id}">
-    V / Edit
-</button>
- <!-- DOWNLOAD -->
-        <button
-            class="btn btn-sm btn-success btn-download-spk"
-            data-id="${spk.id}">
-            <i class="fa fa-download"></i>
-        </button>
-        </td>
-    </tr>
-`;
-});
-});
+    let lastItem = null;
 
+    // ===== ITEMS =====
+    spk.items.forEach(row => {
 
-    // ============================
-    // EMPTY CHECK
-    // ============================
-    if(html === ''){
-        html = `
-            <tr>
-                <td colspan="8" class="text-center">
-                    Tidak ada SPK
+        let showItem = row.artikel !== lastItem;
+        lastItem = row.artikel;
+
+        html += `
+            <tr class="spk-item ${spkClass}"
+                ${hasArrow ? 'style="display:none"' : ''}>
+                <td>
+                    ${showItem ? `
+                        <b>${row.artikel}</b><br>
+                        <small>${row.nama}</small><br>
+                        <small>PO Qty: ${row.po_qty}</small>
+                    ` : ''}
                 </td>
+                <td>${row.kategori}</td>
+                <td>${row.supplier}</td>
+                <td>${row.qty}</td>
+                <td>${row.qty}</td>
             </tr>
         `;
-    }
+    });
+
+    html += `<tr><td colspan="5"></td></tr>`;
+});
 
     $('#spk-detail-body').html(html);
-    $('#detailPoTitle').text('PO : ' + poNo);
+    $('#detailPoTitle').text('PO : ' + (po.data_po?.no_po ?? '-'));
     $('#spkDetailBox').slideDown();
+});
+// spk no header arrow down
+$(document).on('click', '.spk-header', function () {
 
-    // highlight row
-    $('.po-row').removeClass('selected-spk');
-    $(this).closest('.po-row').addClass('selected-spk');
+    let spkId = $(this).data('spk-id');
+    let rows  = $(`.spk-items-${spkId}`);
+    let arrow = $(this).find('.spk-arrow');
 
-    // scroll
-    $('html, body').animate({
-        scrollTop: $("#spkDetailBox").offset().top
-    }, 500);
+    rows.toggle();
+
+    if (arrow.length) {
+        arrow.text(
+            rows.first().is(':visible') ? '▼' : '▶'
+        );
+    }
+});
+
+$(document).on('click', '.spk-link', function () {
+    let spkId = $(this).data('spk-id');
+       window.location.href = `/spk/edit/${spkId}`;
 
 });
+
 
     // ===============================
     // EDIT SPK
@@ -253,5 +282,45 @@ html += `
     .spk-detail-row{
     background:#f9f9f9;
 }
+/* BARANG */
+.barang-row td {
+    padding: 12px 10px;
+    background: #f9fafb;
+    border-top: 2px solid #dee2e6;
+}
+
+.barang-title {
+    font-weight: 600;
+}
+
+.barang-desc {
+    font-size: 12px;
+    color: #666;
+}
+
+.barang-qty {
+    font-size: 11px;
+    color: #999;
+}
+
+/* KATEGORI */
+.kategori-row td {
+    padding: 6px 10px;
+    font-style: italic;
+    color: #555;
+    background: #f1f3f5;
+}
+
+/* SPK */
+.spk-row td {
+    padding: 6px 10px;
+    font-size: 13px;
+}
+
+/* TABLE UMUM */
+table td {
+    vertical-align: top;
+}
+
 </style>
 @endpush

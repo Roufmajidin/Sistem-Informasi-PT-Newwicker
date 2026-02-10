@@ -469,8 +469,7 @@ class SpkController extends Controller
             }
 
             $sheet->setCellValue("J{$row}", $item['harga'] ?? '');
-            $sheet->setCellValue("K{$row}", $item['total']* $item['qty'] ?? '');
-
+            $sheet->setCellValue("K{$row}", $item['total'] * $item['qty'] ?? '');
 
             // AUTO HEIGHT
             $sheet->getRowDimension($row)->setRowHeight(90);
@@ -557,30 +556,6 @@ class SpkController extends Controller
         $drawing->setWorksheet($sheet);
     }
 
-    private function diffData(array $before, array $after)
-    {
-        $changes = [];
-
-        foreach ($after as $key => $value) {
-            if (! array_key_exists($key, $before)) {
-                $changes[$key] = [
-                    'before' => null,
-                    'after'  => $value,
-                ];
-                continue;
-            }
-
-            if ($before[$key] != $value) {
-                $changes[$key] = [
-                    'before' => $before[$key],
-                    'after'  => $value,
-                ];
-            }
-        }
-
-        return $changes;
-    }
-
     private function getTotalSpkQtyByDetailPoAndKategori($detailPoId, $kategori)
     {
         return Spk::whereJsonContains('data->items', [
@@ -664,30 +639,101 @@ class SpkController extends Controller
     }
     public function allspk()
     {
-        $poList = Po::all();
-        $spks   = Spk::all();
+        $poList   = Po::all();
+        $spks     = Spk::all();
+        $detailPo = DetailPo::all();
 
-        $result = $poList->map(function ($po) use ($spks) {
+        $result = $poList->map(function ($po) use ($spks, $detailPo) {
 
-            // ambil spk berdasarkan po_id saja
-            $spkList = $spks->where('po_id', $po->id)->values();
+            // =========================
+            // SPK per PO
+            // =========================
+            $spkList = $spks
+                ->where('po_id', $po->id)
+                ->map(function ($spk) {
+                    return [
+                        'id'   => $spk->id,
+                        'data' => $spk->data,
+                    ];
+                });
+
+            // =========================
+            // DETAIL PO ITEMS
+            // =========================
+            $items = $detailPo
+                ->where('po_id', $po->id)
+                ->map(function ($item) use ($spkList) {
+
+                    $detail = is_string($item->detail)
+                        ? json_decode($item->detail, true)
+                        : $item->detail;
+
+                    /**
+                 * STRUKTUR:
+                 * kategori → supplier → total_qty
+                 */
+                    $summary = [];
+
+                    foreach ($spkList as $spk) {
+
+                        $spkId = $spk['id'];         // ✅ AMAN
+                        $data  = $spk['data'] ?? []; // 🔥 KUNCI UTAMA
+
+                        $supplier = $data['sup'] ?? '-';
+                        $kategori = $data['kategori'] ?? '-';
+                        $noSpk    = $data['no_spk'] ?? '-';
+
+                        foreach ($data['items'] ?? [] as $spkItem) {
+
+                            if (
+                                isset($spkItem['detail_po_id']) &&
+                                $spkItem['detail_po_id'] == $item->id
+                            ) {
+                                $qty = (int) ($spkItem['qty'] ?? 0);
+
+                                // init kategori
+                                if (! isset($summary[$kategori])) {
+                                    $summary[$kategori] = [];
+                                }
+
+                                // init supplier
+                                if (! isset($summary[$kategori][$supplier])) {
+                                    $summary[$kategori][$supplier] = [
+                                        'total_qty' => 0,
+                                        'spks'      => [],
+                                    ];
+                                }
+
+                                // total qty supplier
+                                $summary[$kategori][$supplier]['total_qty'] += $qty;
+
+                                // detail per SPK
+                                $summary[$kategori][$supplier]['spks'][] = [
+                                    'spk_id' => $spkId,
+                                    'no_spk' => $noSpk,
+                                    'qty'    => $qty,
+                                ];
+                            }
+                        }
+                    }
+
+                    return [
+                        'id'      => $item->id,
+                        'detail'  => $detail,
+                        'summary' => $summary,
+                    ];
+                })
+                ->values();
 
             return [
                 'data_po' => [
                     'id'    => $po->id,
                     'no_po' => $po->order_no,
+                    'items' => $items,
                 ],
-
-                'spks'    => $spkList->map(function ($spk) {
-
-                    return [
-                        'id'   => $spk->id,
-                        'data' => $spk->data,
-                    ];
-                }),
             ];
         });
-        // dd($result);
+
         return response()->json($result);
     }
 

@@ -8,9 +8,9 @@
     <div class="box-header d-flex justify-content-between align-items-center">
         <h3>SPK PRODUKSI</h3>
 @if($spk['mode'] === 'edit')
-    <span class="label label-warning">EDIT MODE</span>
+    <span class="btn btn-warning">EDIT MODE</span>
 @else
-    <span class="label label-success">CREATE MODE</span>
+    <span class="btn btn-success">CREATE MODE</span>
 @endif
         <div style="min-width:180px">
             <label style="font-size:12px; margin-bottom:2px;"><b>Jenis SPK</b></label>
@@ -92,7 +92,7 @@
 
             {{-- ITEMS --}}
             @foreach($spk['items'] as $item)
-            <tr class="spk-row" data-detail-id="{{ $item['detail_id'] }}">>
+            <tr class="spk-row" data-detail-id="{{ $item['detail_id'] }}">
 
 
                 <td style="cursor:pointer" class="editable text-center kode-item delete-row" contenteditable>{{ $item['kode'] }}</td>
@@ -197,16 +197,36 @@
 
 <!-- delete row -->
 <script>
-    document.addEventListener('click', function(e) {
-        if (e.target.classList.contains('delete-row')) {
-            if (!confirm('Hapus baris ini?')) return;
+   document.addEventListener('click', function (e) {
+    if (e.target.classList.contains('delete-row')) {
 
-            const row = e.target.closest('tr');
-            row.remove();
+        const row = e.target.closest('tr');
 
-            renumberRows();
-        }
-    });
+        Swal.fire({
+            title: 'Yakin?',
+            text: 'Baris ini akan dihapus',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Ya, hapus',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                row.remove();
+                renumberRows();
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Terhapus',
+                    text: 'Baris berhasil dihapus',
+                    timer: 1200,
+                    showConfirmButton: false
+                });
+            }
+        });
+    }
+});
 
     function renumberRows() {
         document.querySelectorAll('.spk-row').forEach((row, index) => {

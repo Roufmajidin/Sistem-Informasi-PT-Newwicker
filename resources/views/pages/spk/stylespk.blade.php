@@ -1,11 +1,26 @@
 
 <style>
+    body{
+        background-color: white;
+    }
     .spk-table td,
     .spk-table th {
         vertical-align: middle;
         padding: 6px;
-    }
 
+    }
+.spk-table {
+
+    /* border-collapse: collapse; 🔥 WAJIB */
+    width: 100%;
+}
+
+.spk-table th,
+.spk-table td {
+           background-color: white;
+
+    border: 1px solid #000;   /* 🔥 GARIS TABEL */
+}
     .editable {
         background: #fff8dc;
         cursor: text;
@@ -21,6 +36,7 @@
         padding: 4px;
         display: flex;
         flex-wrap: wrap;
+
     }
 
     .preview-img {
@@ -32,7 +48,7 @@
 
     .editable {
         min-height: 28px;
-        border-bottom: 1px solid #999;
+        border-bottom: 5px solid #999;
         padding: 4px;
         outline: none;
     }
@@ -67,15 +83,19 @@
     .note-box img {
         height: 60px;
         margin: 3px;
+           background-color: white;
+
     }
 
     .spk-textarea {
         width: 100%;
-        border: none;
+        /* border: none; */
         resize: none;
         font-size: 11px;
         background: #fff8dc;
         line-height: 1.5;
+           background-color: white;
+
     }
 
     .spk-textarea:focus {
@@ -84,6 +104,10 @@
     }
 
     @media print {
+          .spk-table th,
+    .spk-table td {
+        border: 1px solid #000 !important;
+    }
         .editable {
             background: none;
         }
@@ -119,4 +143,8 @@
             max-height:150px;
             overflow:auto;
     }
+    .spk-header th {
+    background:  #2b3c70ff; /* merah */
+    color: #fff;
+}
 </style>
