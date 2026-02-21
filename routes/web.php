@@ -133,6 +133,7 @@ Route::get('/qc/{id}', [QcController::class, 'show'])->name('qc.show');
 Route::get('/item/{id}', [QcController::class, 'itemDetail'])->name('qc.item.detail');
 Route::get('/qc/cek/{id}', [QcController::class, 'cek']);
 Route::get('/qc/getData/{kategoriId}/{detailPo}/{poId}', [QcController::class, 'getData']);
+Route::get('/qc/getPoDetail/{kategoriId}/{detailPo}/{poId}', [QcController::class, 'getDataApi']);
 Route::get('/insert/{kategoriName}', [QcController::class, 'insertDummy']);
 Route::get('/qc/search', [QcController::class, 'ajaxPo'])->name('qc.ajax.poo');
 
@@ -192,11 +193,24 @@ Route::get('/qc/po-list', [QcController::class, 'poList'])->name('qc.po.list');
 Route::get('/qc/ajax/po-list', [QcController::class, 'ajaxPoList'])
     ->name('qc.ajax.po');
 Route::get('/setting', [SettingController::class, 'index']);
+Route::delete('/setting/kategori/{id}', [SettingController::class, 'destroyKategori'])
+    ->name('kategori.destroy');
+
+Route::delete('/setting/checkpoint/{id}', [SettingController::class, 'destroyCheckpoint'])
+    ->name('checkpoint.destroy');
+
 Route::post('/setting/kategori', [SettingController::class, 'storeKategori']);
 Route::post('/setting/checkpoint', [SettingController::class, 'storeCheckpoint']);
 Route::post('/setting/checkpoint/mass', [SettingController::class, 'storeCheckpointMass'])
     ->name('checkpoint.store.mass');
 Route::get('/supplier/search', [SupplierController::class, 'search']);
+// Route::post('/production-timeline/store', [ProduksiController::class, 'store']);
+Route::post('/production-timeline/store', [ProduksiController::class, 'store']);
+Route::post('/production-timeline/store-batch', [ProduksiController::class, 'storeBatch']);
+Route::put('/production-timeline/{id}', [ProduksiController::class, 'update']);
+Route::get('/production-timeline/{kategori?}', [ProduksiController::class, 'getByDetail']);
+// Route::get('/kategori/{kategori}', [ProduksiController::class, 'getByKategori']);
+// Route::get('/kategori/{kategori?}', [ProduksiController::class, 'getByKategori']);
 
 // ==============================
 // ⚙️ CEK ENV

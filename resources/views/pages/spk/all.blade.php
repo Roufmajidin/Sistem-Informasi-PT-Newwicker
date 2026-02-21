@@ -6,7 +6,7 @@
     <div class="box">
         <div class="box-header">
             <h2>All Spk</h2>
-            <small>semua data SPK</small>
+            <small></small>
               <div class="row" id="default-table">
                 <div class="col-sm-12">
                     <div class="box">
@@ -16,6 +16,7 @@
                                     <tr>
                                         <th style="width: 20px;">No</th>
                                         <th>Po</th>
+                                        <th>Buyer Name</th>
                                         <th width="120">Action</th>
                                     </tr>
                                 </thead>
@@ -42,7 +43,7 @@
             <th>kategori</th>
             <th>Sub</th>
             <th>Qty</th>
-            <th>Total</th>
+            <!-- <th>Total</th> -->
         </tr>
     </thead>
     <tbody id="spk-detail-body"></tbody>
@@ -88,7 +89,7 @@ $(document).ready(function(){
         res.forEach((po, index) => {
 
             let poNo = po.data_po?.no_po ?? '-';
-
+            let buyerName =  po.data_po?.company ?? '-';
             // hitung SPK unik
             let spkIds = new Set();
 
@@ -110,6 +111,7 @@ $(document).ready(function(){
                 <tr class="po-row" data-index="${index}">
                     <td>${no++}</td>
                     <td>${poNo}</td>
+                    <td>${buyerName}</td>
                     <td>
                         <button
                             class="btn btn-sm btn-info btn-view-spk"
@@ -221,7 +223,6 @@ $(document).on('click', '.btn-view-spk', function () {
                 </td>
                 <td>${row.kategori}</td>
                 <td>${row.supplier}</td>
-                <td>${row.qty}</td>
                 <td>${row.qty}</td>
             </tr>
         `;

@@ -247,18 +247,19 @@ class SpkController extends Controller
             }
 
             // ===== VALIDASI QTY (CREATE SAJA)
-            if ($mode === 'create') {
+            if ($mode === 'create'|| $mode === 'edit') {
                 $qtyPo = (int) ($detailPo->detail['qty'] ?? 0);
 
                 $qtySpkExist = $this->getTotalSpkQtyByDetailPoAndKategori(
                     $detailPo->id,
-                    $kategori
+                    $kategori,
+                    $mode === 'edit' ? $spkId : null
                 );
 
                 if (($qtySpkExist + $qty) > $qtyPo) {
                     return response()->json([
                         'success' => false,
-                        'message' => "Qty SPK melebihi qty PO (Detail PO ID {$detailPo->id})",
+                        'message' => "Qty SPK melebihi Qty PO (Sisa: " . ($qtyPo - $qtySpkExist) . ")",
                     ], 422);
                 }
             }
@@ -556,17 +557,20 @@ class SpkController extends Controller
         $drawing->setWorksheet($sheet);
     }
 
-    private function getTotalSpkQtyByDetailPoAndKategori($detailPoId, $kategori)
-    {
-        return Spk::whereJsonContains('data->items', [
-            'detail_po_id' => $detailPoId,
-        ])
-            ->where('data->kategori', $kategori)
+    public function getTotalSpkQtyByDetailPoAndKategori(
+        int $detailPoId,
+        string $kategori,
+        ?int $excludeSpkId = null
+    ) {
+        return Spk::where('data->kategori', $kategori)
+            ->when($excludeSpkId, function ($q) use ($excludeSpkId) {
+                $q->where('id', '!=', $excludeSpkId);
+            })
             ->get()
             ->sum(function ($spk) use ($detailPoId) {
-                return collect($spk->data['items'])
+                return collect($spk->data['items'] ?? [])
                     ->where('detail_po_id', $detailPoId)
-                    ->sum('qty');
+                    ->sum(fn($i) => (int) ($i['qty'] ?? 0));
             });
     }
 
@@ -727,9 +731,10 @@ class SpkController extends Controller
 
             return [
                 'data_po' => [
-                    'id'    => $po->id,
-                    'no_po' => $po->order_no,
-                    'items' => $items,
+                    'id'      => $po->id,
+                    'no_po'   => $po->order_no,
+                    'company' => $po->company_name,
+                    'items'   => $items,
                 ],
             ];
         });

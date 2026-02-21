@@ -24,10 +24,10 @@ Route::prefix('qc')->middleware('auth:sanctum')->group(function () {
     Route::get('/po', [QcController::class, 'getPo']);
     Route::get('/checkpoint/{kategoriName}', [QcController::class, 'getCheckpointData']);
 
-    Route::post('/store', [QcController::class, 'store']);
+    Route::post('/store/{kategoriName}', [QcController::class, 'insertInspection']);
 
     Route::get('/detail/{id}', [QcController::class, 'show']);
-
+    Route::get('/timeline', [QcController::class, 'timeline']);
 });
 
 // new route

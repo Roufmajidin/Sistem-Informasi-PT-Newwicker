@@ -350,11 +350,13 @@ function renderBatch(batchKey) {
 
         if (cp.photos && cp.photos.length) {
             cp.photos.forEach(p => {
-                photosHtml += `
-                    <div class="col-sm-3">
-                        <img src="/${p.path}" class="img-thumbnail">
-                        <p class="text-xs">${p.keterangan ?? '-'}</p>
-                    </div>`;
+                  const imgUrl = `/storage/${p.path}`;
+
+        photosHtml += `
+            <div class="col-sm-3">
+                <img src="${imgUrl}" class="img-thumbnail">
+                <p class="text-xs">${p.keterangan ?? '-'}</p>
+            </div>`;
             });
         } else {
             photosHtml = '<div class="col-sm-12 text-muted">Tidak ada foto</div>';

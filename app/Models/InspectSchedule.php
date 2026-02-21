@@ -17,6 +17,8 @@ class InspectSchedule extends Model
         'tanggal_inspect',
         'user_id',
         'kategori_id',
+        'rejected',
+        'passed',
     ];
 
     /* ===============================

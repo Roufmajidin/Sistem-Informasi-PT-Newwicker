@@ -15,7 +15,7 @@
 	            </span>
 	          </div>
 	          <div class="clear">
-	            <h4 class="m-0 text-lg _300"><a href>{{$k->count()}} <span class="text-sm">Karyawan Bulanan</span></a></h4>
+	            <h4 class="m-0 text-lg _300"><a href="karyawan-scan"> <span class="text-sm">Absen Sekarang</span></a></h4>
 	            <small class="text-muted">Active.</small>
 	          </div>
 	        </div>
@@ -28,25 +28,12 @@
 	            </span>
 	          </div>
 	          <div class="clear">
-	            <h4 class="m-0 text-lg _300"><a href>40 <span class="text-sm">Projects</span></a></h4>
-	            <small class="text-muted">38 open.</small>
+	            <h4 class="m-0 text-lg _300"><a href="/riwayat-absen"><span class="text-sm">Riwayat Absen</span></a></h4>
+	            <small class="text-muted">-</small>
 	          </div>
 	        </div>
 	    </div>
-	    <div class="col-xs-6 col-sm-4">
-	        <div class="box p-a">
-	          <div class="pull-left m-r">
-	            <span class="w-48 rounded warn">
-	              <i class="material-icons">&#xe8d3;</i>
-	            </span>
-	          </div>
-	          <div class="clear">
-	            <h4 class="m-0 text-lg _300"><a href>600 <span class="text-sm">Users</span></a></h4>
-	            <small class="text-muted">632 vips.</small>
-	          </div>
-	        </div>
-	    </div>
-	</div>
+
   <div class="box-body">
     <div class="row">
 

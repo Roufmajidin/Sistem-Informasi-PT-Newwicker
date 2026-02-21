@@ -71,6 +71,19 @@
                     </a>
                 @endif
             </td>
+
+    <td>
+        <form action="{{ route('checkpoint.destroy', $c->id) }}" method="POST"
+              onsubmit="return confirm('Hapus checkpoint ini?')">
+            @csrf
+            @method('DELETE')
+            <button class="btn btn-danger btn-sm">
+                Delete
+            </button>
+        </form>
+    </td>
+
+
         </tr>
     @endforeach
                         </table>

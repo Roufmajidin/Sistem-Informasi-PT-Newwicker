@@ -8,10 +8,12 @@ use App\Models\Kategori;
 use App\Models\Po;
 use App\Models\QcReport;
 use App\Models\ReportPhoto;
+use App\Models\TimelineQc;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class QcController extends Controller
@@ -25,7 +27,7 @@ class QcController extends Controller
         //
         return view('pages.qc.index');
     }
-     public function marketing()
+    public function marketing()
     {
         //
         return view('pages.marketing.index');
@@ -134,7 +136,8 @@ class QcController extends Controller
             'items' => $items,
         ]);
     }
-    public function releaseOrder(){
+    public function releaseOrder()
+    {
         return view('pages.marketing.release-order');
     }
 
@@ -203,15 +206,15 @@ class QcController extends Controller
 
     public function ajaxPoList(Request $request)
     {
-         $q = $request->q;
+        $q = $request->q;
 
-    $pos = Po::with('details') // 🔥 ambil relasi detail_po
-        ->when($q, function ($query) use ($q) {
-            $query->where('order_no', 'like', "%{$q}%")
-                  ->orWhere('company_name', 'like', "%{$q}%");
-        })
-        ->latest()
-        ->get();
+        $pos = Po::with('details') // 🔥 ambil relasi detail_po
+            ->when($q, function ($query) use ($q) {
+                $query->where('order_no', 'like', "%{$q}%")
+                    ->orWhere('company_name', 'like', "%{$q}%");
+            })
+            ->latest()
+            ->get();
 
         return response()->json($pos);
     }
@@ -346,11 +349,74 @@ class QcController extends Controller
             'batches'      => $batches,
         ]);
     }
-
-    public function insertDummy(string $kategoriName)
+    public function getDataApi(string $kategoriName, string $detailPoId, String $poId)
     {
-        $po_id        = 7;
-        $detail_po_id = 23;
+        $kategori  = Kategori::where('kategori', $kategoriName)->firstOrFail();
+        $detail_po = DetailPo::findOrFail($detailPoId);
+
+        $checkpoints   = Checkpoint::where('kategori_id', $kategori->id)->get();
+        $checkpointIds = $checkpoints->pluck('id');
+
+        $qcReports = QcReport::with([
+            'inspectSchedule:id,po_id,detail_po_id,batch,jumlah_inspect,tanggal_inspect,user_id,passed,rejected',
+            'photos:id,qc_report_id,keterangan,path',
+            'checkpoint:id,name',
+        ])
+            ->where('po_id', $poId)
+            ->where('detail_po_id', $detailPoId)
+            ->whereIn('check_point_id', $checkpointIds)
+            ->get();
+
+        $batches = [];
+
+        foreach ($qcReports as $report) {
+
+            $schedule = $report->inspectSchedule;
+            if (! $schedule) {
+                continue;
+            }
+
+            $batchKey = 'Batch ' . $schedule->batch;
+
+            if (! isset($batches[$batchKey])) {
+
+                $batches[$batchKey] = [
+                    'batch_ke'       => $schedule->batch,
+                    'items'          => $detail_po->detail, // ✅ ITEM DETAIL PO
+                    'tanggal'        => $schedule->tanggal_inspect,
+                    'jumlah_inspect' => $schedule->jumlah_inspect,
+                    'jenis'          => $kategori->kategori,
+                    'passed'         => $schedule->passed,
+                    'rejected'       => $schedule->rejected,
+                    'inspector'      => User::find($schedule->user_id)->name ?? 'N/A',
+                    'checkpoints'    => [],
+                ];
+            }
+
+            $batches[$batchKey]['checkpoints'][$report->checkpoint->name] = [
+                'size'   => $report->size,
+                'remark' => $report->remark,
+                'photos' => $report->photos->map(function ($p) {
+                    return [
+                        'keterangan' => $p->keterangan,
+                        'path'       => $p->path,
+                    ];
+                })->values(),
+            ];
+        }
+
+        return response()->json([
+            'kategori'     => $kategori->kategori,
+            'po_id'        => $poId,
+            'detail_po_id' => $detailPoId,
+            'batches'      => $batches,
+        ]);
+    }
+
+    public function insertDummy(string $kategoriName, Request $request)
+    {
+        $po_id        = $request->po_id;
+        $detail_po_id = $request->detail_po_id;
 
         /* ===============================
        AMBIL KATEGORI
@@ -428,13 +494,6 @@ class QcController extends Controller
             /* ===============================
            QC REPORT + PHOTO
         =============================== */
-            $remarks = [
-                'OK',
-                'Minor defect',
-                'Aktual lebih 2 cm',
-                'Tidak sesuai drawing',
-                'Perlu koreksi',
-            ];
 
             foreach ($checkpoints as $checkpointId) {
 
@@ -444,9 +503,10 @@ class QcController extends Controller
                     'po_id'               => $po_id,
                     'detail_po_id'        => $detail_po_id,
                     'size'                => rand(30, 120),
-                    'remark'              => $remarks[array_rand($remarks)],
+                    'remark'              => $request->remark,
                 ]);
 
+                // request dari form foto upload
                 foreach (range(1, rand(1, 3)) as $i) {
                     ReportPhoto::create([
                         'qc_report_id' => $qcReport->id,
@@ -492,62 +552,72 @@ class QcController extends Controller
     }
     public function insertInspection(string $kategoriName, Request $request)
     {
-        $po_id          = $request->po_id;
-        $detail_po_id   = $request->detail_po_id;
-        $qty_inspection = $request->qty_inspction;
+        Log::info('===== QC INSERT START =====');
+        Log::info('Request', $request->all());
 
-        /* ===============================
-       AMBIL KATEGORI
-    =============================== */
-        $kategori = Kategori::where('kategori', $kategoriName)->firstOrFail();
-
-        /* ===============================
-       CHECKPOINT SESUAI KATEGORI
-    =============================== */
-        $checkpoints = Checkpoint::where('kategori_id', $kategori->id)->pluck('id');
-
-        if ($checkpoints->isEmpty()) {
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Checkpoint untuk kategori ini belum ada',
-            ], 400);
-        }
-
-        /* ===============================
-       AMBIL QTY PO
-    =============================== */
-        $detailPo = DetailPo::findOrFail($detail_po_id);
-        $detail   = $detailPo->detail;
-
-        $qtyDetail = (int) ($detail['qty'] ?? 0);
-
-        if ($qtyDetail <= 0) {
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Qty pada detail_po tidak valid',
-            ], 400);
-        }
-
-        /* ===============================
-       HITUNG TOTAL INSPECT
-    =============================== */
-        $totalInspect = InspectSchedule::where('detail_po_id', $detail_po_id)
-            ->where('kategori_id', $kategori->id)
-            ->sum('jumlah_inspect');
-
-        if ($totalInspect >= $qtyDetail) {
-            return response()->json([
-                'status'  => 'error',
-                'message' => "Inspect kategori {$kategoriName} sudah memenuhi qty PO",
-            ], 400);
-        }
-
-        $sisaQty            = $qtyDetail - $totalInspect;
-        $jumlahInspectBatch = min($qty_inspection, $sisaQty);
+        $po_id        = $request->po_id;
+        $detail_po_id = $request->detail_po_id;
+        $reports      = $request->reports ?? [];
 
         DB::beginTransaction();
 
         try {
+
+            /* ===============================
+           KATEGORI
+        =============================== */
+            $kategori = Kategori::where('kategori', $kategoriName)->firstOrFail();
+
+            /* ===============================
+           DETAIL PO
+        =============================== */
+            $detailPo = DetailPo::findOrFail($detail_po_id);
+            $detail   = $detailPo->detail;
+
+            $qtyDetail = (int) ($detail['qty'] ?? 0);
+
+            /* ===============================
+           SUMMARY INPUT
+        =============================== */
+            $qtyInspection = (int) $request->input('qty_inspection', 0);
+            $totalPassed   = (int) $request->input('passed', 0);
+            $totalRejected = (int) $request->input('rejected', 0);
+
+            Log::info('SUMMARY', [
+                'qtyInspection' => $qtyInspection,
+                'passed'        => $totalPassed,
+                'rejected'      => $totalRejected,
+            ]);
+
+            /* ===============================
+           VALIDASI MATEMATIKA
+        =============================== */
+            if (($totalPassed + $totalRejected) != $qtyInspection) {
+
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Passed + Rejected harus sama dengan Qty Inspection',
+                ], 400);
+            }
+
+            /* ===============================
+           TOTAL PASSED SEBELUMNYA
+        =============================== */
+            $totalPassedSebelumnya = InspectSchedule::where('detail_po_id', $detail_po_id)
+                ->where('kategori_id', $kategori->id)
+                ->sum('passed');
+
+            Log::info('Total Passed Sebelumnya', [
+                'total_passed' => $totalPassedSebelumnya,
+            ]);
+
+            if ($totalPassedSebelumnya >= $qtyDetail) {
+
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Qty PO sudah terpenuhi',
+                ], 400);
+            }
 
             /* ===============================
            BATCH KE
@@ -556,59 +626,70 @@ class QcController extends Controller
                 ->where('kategori_id', $kategori->id)
                 ->count() + 1;
 
+            Log::info('Batch Ke', ['batch' => $batchKe]);
+
             /* ===============================
-           INSPECT SCHEDULE
+           INSERT SCHEDULE
         =============================== */
             $inspectSchedule = InspectSchedule::create([
                 'po_id'           => $po_id,
                 'detail_po_id'    => $detail_po_id,
                 'kategori_id'     => $kategori->id,
                 'batch'           => $batchKe,
-                'jumlah_inspect'  => $jumlahInspectBatch,
+                'jumlah_inspect'  => $qtyInspection,
+                'rejected'        => $totalRejected,
+                'passed'          => $totalPassed,
                 'tanggal_inspect' => now()->toDateString(),
                 'user_id'         => auth()->id() ?? 1,
             ]);
 
-            /* ===============================
-           QC REPORT + PHOTO
-        =============================== */
-            $remarks = [
-                'OK',
-                'Minor defect',
-                'Aktual lebih 2 cm',
-                'Tidak sesuai drawing',
-                'Perlu koreksi',
-            ];
+            Log::info('Inspect Schedule Created', [
+                'id' => $inspectSchedule->id,
+            ]);
 
-            foreach ($checkpoints as $checkpointId) {
+            /* ===============================
+           SAVE TIMELINE QC
+        =============================== */
+            $this->saveTimelineQC($inspectSchedule);
+
+            /* ===============================
+           INSERT QC REPORT
+        =============================== */
+            foreach ($reports as $index => $report) {
+
+                $checkpointId = $report['check_point_id'] ?? null;
+
+                if (! $checkpointId) {
+                    continue;
+                }
 
                 $qcReport = QcReport::create([
                     'inspect_schedule_id' => $inspectSchedule->id,
                     'check_point_id'      => $checkpointId,
                     'po_id'               => $po_id,
                     'detail_po_id'        => $detail_po_id,
-                    'size'                => rand(30, 120),
-                    'remark'              => $remarks[array_rand($remarks)],
+                    'size'                => $report['size'] ?? null,
+                    'remark'              => $report['remark'] ?? null,
                 ]);
 
                 /* ===============================
-               UPLOAD FOTO (SERVICE)
+               FOTO
             =============================== */
-                if ($request->hasFile("photos.$checkpointId")) {
+                if ($request->hasFile("photos.$index")) {
 
-                    foreach ($request->file("photos.$checkpointId") as $file) {
+                    foreach ($request->file("photos.$index") as $file) {
 
                         $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
 
-                        $path = $file->storeAs(
-                            'uploads/qc',
-                            $filename,
-                            'public'
-                        );
+                        $path = $file->storeAs('uploads/qc', $filename, 'public');
 
                         ReportPhoto::create([
                             'qc_report_id' => $qcReport->id,
                             'keterangan'   => "Foto {$kategoriName} batch {$batchKe}",
+                            'path' => $path,
+                        ]);
+
+                        Log::info('Photo Saved', [
                             'path' => $path,
                         ]);
                     }
@@ -617,19 +698,23 @@ class QcController extends Controller
 
             DB::commit();
 
+            Log::info('===== QC INSERT SUCCESS =====');
+
             return response()->json([
-                'status'        => 'success',
-                'kategori'      => $kategoriName,
-                'batch'         => $batchKe,
-                'inspect_batch' => $jumlahInspectBatch,
-                'total_inspect' => $totalInspect + $jumlahInspectBatch,
-                'qty_po'        => $qtyDetail,
-                'message'       => 'Batch inspect berhasil ditambahkan',
+                'status'  => 'success',
+                'message' => 'Inspection berhasil',
+                'batch'   => $batchKe,
             ]);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
 
             DB::rollBack();
+
+            Log::error('QC ERROR', [
+                'msg'  => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+            ]);
 
             return response()->json([
                 'status'  => 'error',
@@ -637,5 +722,90 @@ class QcController extends Controller
             ], 500);
         }
     }
+    //
+    private function saveTimelineQC(InspectSchedule $inspectSchedule)
+    {
+        try {
 
+            /* ===============================
+           CEK APAKAH LANJUTAN
+        =============================== */
+            $previous = InspectSchedule::where('detail_po_id', $inspectSchedule->detail_po_id)
+                ->where('kategori_id', $inspectSchedule->kategori_id)
+                ->where('id', '!=', $inspectSchedule->id)
+                ->exists();
+
+            $isLanjutan = $previous ? 1 : 0;
+
+            TimelineQc::create([
+                'po_id'               => $inspectSchedule->po_id,
+                'detail_po_id'        => $inspectSchedule->detail_po_id,
+                'kategori_id'         => $inspectSchedule->kategori_id,
+                'inspect_schedule_id' => $inspectSchedule->id,
+                'user_id'             => $inspectSchedule->user_id,
+                'qty'                 => $inspectSchedule->jumlah_inspect,
+                'tanggal'             => $inspectSchedule->tanggal_inspect,
+                'is_lanjutan'         => $isLanjutan,
+            ]);
+
+            Log::info('Timeline QC Saved', [
+                'schedule_id' => $inspectSchedule->id,
+                'lanjutan'    => $isLanjutan,
+            ]);
+
+        } catch (\Throwable $e) {
+
+            Log::error('Timeline QC Error', [
+                'msg' => $e->getMessage(),
+            ]);
+        }
+    }
+    // timeline qc
+    public function timeline()
+    {
+        $timelines = TimelineQc::with([
+            'user:id,name',
+            'kategori:id,kategori',
+            'schedule:id,batch',
+            'detailPo.po:id,order_no,company_name',
+        ])
+            ->orderBy('tanggal')
+            ->orderBy('id')
+            ->get();
+
+        $data = $timelines->map(function ($t) {
+
+            return [
+                'po_id'        => $t->detailPo->po->id ?? null,
+                'order_no'     => $t->detailPo->po->order_no ?? '-',
+                'company_name' => $t->detailPo->po->company_name ?? '-',
+                'detail_po_id' => $t->detail_po_id,
+                'tanggal'      => $t->tanggal,
+                'user'         => $t->user->name ?? '-',
+                'divisi'       => $t->kategori->kategori ?? '-',
+                'batch'        => $t->schedule->batch ?? null,
+                'qty'          => $t->qty,
+                'is_lanjutan'  => (bool) $t->is_lanjutan,
+                'label'        => $this->buildLabel($t),
+            ];
+        });
+
+        return response()->json([
+            'status' => 'success',
+            'data'   => $data,
+        ]);
+    }
+
+    private function buildLabel($t)
+    {
+        $tanggal = \Carbon\Carbon::parse($t->tanggal)->translatedFormat('d M');
+
+        $user = $t->user->name ?? '-';
+        $div  = $t->kategori->kategori ?? '-';
+        $qty  = $t->qty;
+
+        $lanjutan = $t->is_lanjutan ? ' (lanjutan)' : '';
+
+        return "{$tanggal} — {$user} (Div. {$div}) inspect qty = {$qty}{$lanjutan}";
+    }
 }

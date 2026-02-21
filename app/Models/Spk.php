@@ -11,7 +11,7 @@ class Spk extends Model
     protected $casts    = [
         'data' => 'array',
     ];
-      public function po()
+    public function po()
     {
         return $this->belongsTo(Po::class, 'po_id');
     }

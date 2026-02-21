@@ -8,9 +8,9 @@
     <div class="box-header d-flex justify-content-between align-items-center">
         <h3>SPK PRODUKSI</h3>
 @if($spk['mode'] === 'edit')
-    <span class="btn btn-warning">EDIT MODE</span>
+    <span class="warning">EDIT MODE</span>
 @else
-    <span class="btn btn-success">CREATE MODE</span>
+    <span class="success">CREATE MODE</span>
 @endif
         <div style="min-width:180px">
             <label style="font-size:12px; margin-bottom:2px;"><b>Jenis SPK</b></label>
@@ -58,6 +58,9 @@
                 <td colspan="3"></td>
                 <td><b>NO PO</b></td>
                 <td colspan="3" class="editable no-po" contenteditable>{{ $spk['no_po'] }}</td>
+                <td>  <button id="btnSaveSpk" class="btn btn-success btn-sm">
+            💾 Save SPK
+        </button></td>
             </tr>
 
             <tr>
@@ -91,8 +94,9 @@
             @include('pages.spk.partial2')
 
             {{-- ITEMS --}}
+
             @foreach($spk['items'] as $item)
-            <tr class="spk-row" data-detail-id="{{ $item['detail_id'] }}">>
+            <tr class="spk-row" data-detail-id="{{ $item['detail_id'] }}">
 
 
                 <td style="cursor:pointer" class="editable text-center kode-item delete-row" contenteditable>{{ $item['kode'] }}</td>
@@ -142,6 +146,7 @@
             </tr>
 
             @endforeach
+
             <tr id="spkItemAnchor"></tr>
 
             @include('pages.spk.partial1')
@@ -164,9 +169,7 @@
                 </table>
             </td>
         </table>
-        <button id="btnSaveSpk" class="btn btn-success btn-sm">
-            💾 Save SPK
-        </button>
+
     </div>
 </div>
 <!-- search -->

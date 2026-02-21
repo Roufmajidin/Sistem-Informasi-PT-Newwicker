@@ -39,6 +39,7 @@
                             <th>No.</th>
                             <th>Photo</th>
                             <th class="sticky">Nama Lengkap</th>
+                            <th>Email</th>
                             <th>NIK</th>
                             <th>L/P</th>
                             <th>Tempat, Tanggal Lahir</th>
@@ -82,9 +83,15 @@
                                     data-title="Edit Nama">
                                     {{ $i->nama_lengkap }}
                                 </a>
-                            </td>
 
                             <!-- NIK -->
+                                               </td>
+ @php
+                                $a = \App\Models\User::where('karyawan_id',$i->id )->first();
+                            @endphp
+                            <td>
+    {{ $a->email ?? '-' }}
+</td>
                             <td>
                                 <a href="#" class="editable"
                                     data-name="nik"
@@ -95,6 +102,7 @@
                                     {{ $i->nik }}
                                 </a>
                             </td>
+
 
                             <!-- Jenis Kelamin -->
                             <td>
@@ -478,13 +486,36 @@
 </script>
 <script>
     $(document).ready(function() {
-        $("#btnAddRow").on("click", function() {
-            const newRow = `
-<tr style="font-size: 10px;">
+       $("#btnAddRow").on("click", function () {
+    const newRow = `
+<tr style="font-size:10px;">
     <td>New</td>
-    <td><input type="file" name="photo[]" class="form-control form-control-sm"></td>
-    <td class="sticky"><input type="text" name="nama_lengkap[]" class="form-control form-control-sm"></td>
-    <td><input type="text" name="nik[]" class="form-control form-control-sm"></td>
+
+    <!-- Photo -->
+    <td>
+        <input type="file" name="photo[]" class="form-control form-control-sm">
+    </td>
+
+    <!-- Nama -->
+    <td class="sticky">
+        <input type="text" name="nama_lengkap[]" class="form-control form-control-sm">
+    </td>
+
+    <!-- Email (DISABLED) -->
+    <td>
+        <input type="email"
+               name="email[]"
+               class="form-control form-control-sm"
+               placeholder="Auto / dari user"
+               disabled>
+    </td>
+
+    <!-- NIK -->
+    <td>
+        <input type="text" name="nik[]" class="form-control form-control-sm">
+    </td>
+
+    <!-- L / P -->
     <td>
         <select name="jenis_kelamin[]" class="form-control form-control-sm">
             <option value="">-</option>
@@ -492,8 +523,18 @@
             <option value="P">P</option>
         </select>
     </td>
-    <td><input type="text" name="ttl[]" class="form-control form-control-sm"></td>
-    <td><input type="text" name="alamat[]" class="form-control form-control-sm"></td>
+
+    <!-- TTL -->
+    <td>
+        <input type="text" name="ttl[]" class="form-control form-control-sm">
+    </td>
+
+    <!-- Alamat -->
+    <td>
+        <input type="text" name="alamat[]" class="form-control form-control-sm">
+    </td>
+
+    <!-- Status Kawin -->
     <td>
         <select name="status_perkawinan[]" class="form-control form-control-sm">
             <option value="">-</option>
@@ -502,11 +543,15 @@
             <option value="Cerai">Cerai</option>
         </select>
     </td>
+
+    <!-- Divisi -->
     <td>
         <select name="divisi_id[]" class="form-control form-control-sm">
             ${divisiOptions}
         </select>
     </td>
+
+    <!-- Status -->
     <td>
         <select name="status[]" class="form-control form-control-sm">
             <option value="">-- Pilih Status --</option>
@@ -514,17 +559,27 @@
             <option value="Kontrak">Kontrak</option>
         </select>
     </td>
-    <td><input type="text" name="lokasi[]" class="form-control form-control-sm"></td>
-    <td><input type="date" name="tanggal_join[]" class="form-control form-control-sm"></td>
+
+    <!-- Lokasi -->
+    <td>
+        <input type="text" name="lokasi[]" class="form-control form-control-sm">
+    </td>
+
+    <!-- Tanggal Join -->
+    <td>
+        <input type="date" name="tanggal_join[]" class="form-control form-control-sm">
+    </td>
+
+    <!-- Aksi -->
     <td>
         <button class="btn btn-sm btn-danger btnRemoveRow">
             <i class="fa fa-trash"></i>
         </button>
     </td>
-</tr>
-        `;
-            $("table.table-bordered tbody").prepend(newRow);
-        });
+</tr>`;
+    $("table.table-bordered tbody").prepend(newRow);
+});
+
 
         // hapus row
         $(document).on("click", ".btnRemoveRow", function() {

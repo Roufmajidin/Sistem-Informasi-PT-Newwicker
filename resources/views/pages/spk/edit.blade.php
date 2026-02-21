@@ -86,7 +86,7 @@
 
             {{-- ITEMS --}}
            @foreach($spk['items'] as $item)
-<tr class="spk-row"  data-detail-id="{{ $item['detail_id'] }}">>
+<tr class="spk-row"  data-detail-id="{{ $item['detail_id'] }}">
 
 
     <td style="cursor:pointer"  class="editable text-center kode-item delete-row" contenteditable>{{ $item['kode'] }}</td>

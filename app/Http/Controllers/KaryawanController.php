@@ -3,9 +3,11 @@ namespace App\Http\Controllers;
 
 use App\Imports\KaryawanImport;
 use App\Models\Absen;
+use App\Models\Divisi;
 use App\Models\Karyawan;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Container\Attributes\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -328,10 +330,13 @@ class KaryawanController extends Controller
         $riwayat   = Absen::where('user_id', auth()->id())
             ->whereDate('tanggal', now()->toDateString())
             ->get();
+        $divisi = User::with('karyawan')->find(auth()->id());
+        $divId  = Divisi::find($divisi->karyawan->divisi_id);
 
-        return view('pages.karyawan.cam', compact('riwayat', 'officeLat', 'officeLng', 'radius'));
+// dd($divId);
+        return view('pages.karyawan.cam', compact('riwayat', 'officeLat', 'officeLng', 'radius', 'divId'));
     }
-     public function riwayat(Request $request)
+    public function riwayat(Request $request)
     {
         $bulanInput = $request->get('bulan', null);
         $tahunInput = $request->get('tahun', now()->year);
@@ -353,7 +358,6 @@ class KaryawanController extends Controller
         return view('pages.karyawan.history-absen', compact('riwayat', 'bulan', 'tahun'));
     }
 
-
     protected function normalizeMonth($bulanInput, $tahun = null)
     {
         if (is_null($bulanInput) || $bulanInput === '') {
@@ -364,17 +368,17 @@ class KaryawanController extends Controller
             return (int) $bulanInput;
         }
 
-        $s = trim(mb_strtolower((string)$bulanInput));
+        $s = trim(mb_strtolower((string) $bulanInput));
 
         $map = [
-            'january'   => 1, 'february' => 2, 'march'    => 3, 'april'    => 4,
-            'may'       => 5, 'june'     => 6, 'july'     => 7, 'august'   => 8,
+            'january'   => 1, 'february' => 2, 'march'     => 3, 'april'     => 4,
+            'may'       => 5, 'june'     => 6, 'july'      => 7, 'august'    => 8,
             'september' => 9, 'october'  => 10, 'november' => 11, 'december' => 12,
-            'januari'   => 1, 'februari' => 2, 'maret'    => 3, 'april'    => 4,
-            'mei'       => 5, 'juni'     => 6, 'juli'     => 7, 'agustus'  => 8,
+            'januari'   => 1, 'februari' => 2, 'maret'     => 3, 'april'     => 4,
+            'mei'       => 5, 'juni'     => 6, 'juli'      => 7, 'agustus'   => 8,
             'september' => 9, 'oktober'  => 10, 'november' => 11, 'desember' => 12,
-            'jan' => 1, 'feb' => 2, 'mar' => 3, 'apr' => 4, 'jun' => 6, 'jul' => 7, 'aug' => 8,
-            'sep' => 9, 'oct' => 10, 'nov' => 11, 'dec' => 12, 'mei' => 5,
+            'jan'       => 1, 'feb'      => 2, 'mar'       => 3, 'apr'       => 4, 'jun'  => 6, 'jul' => 7, 'aug' => 8,
+            'sep'       => 9, 'oct'      => 10, 'nov'      => 11, 'dec'      => 12, 'mei' => 5,
         ];
 
         if (isset($map[$s])) {
@@ -382,7 +386,7 @@ class KaryawanController extends Controller
         }
 
         try {
-            $y = $tahun ?: now()->year;
+            $y  = $tahun ?: now()->year;
             $dt = Carbon::parse("1 {$bulanInput} {$y}");
             return (int) $dt->month;
         } catch (\Throwable $e) {
@@ -392,7 +396,6 @@ class KaryawanController extends Controller
     }
 
     // ... method lain ...
-
 
     public function storeAbsen(Request $request)
     {
@@ -404,18 +407,35 @@ class KaryawanController extends Controller
         $today = now()->toDateString();
         $now   = now();
 
-        // ==================== Cek waktu minimal absen masuk ====================
+        /*
+    |------------------------------------------------------------------
+    | EXCEPTION USER (QC JOGJA)
+    |------------------------------------------------------------------
+    */
+        $exceptionUserIds = [180]; // ID QC Jogja
+        $isException      = in_array($user->id, $exceptionUserIds);
+
+        /*
+    |------------------------------------------------------------------
+    | CEK WAKTU MASUK
+    |------------------------------------------------------------------
+    */
         $minTime = now()->setTime(7, 0, 0);
+
         if ($now->lt($minTime)) {
             return response()->json([
                 'message' => 'Belum bisa absen. Absen dimulai pukul 07:00',
             ], 403);
         }
 
-        // ==================== Lokasi kantor ====================
+        /*
+    |------------------------------------------------------------------
+    | LOKASI
+    |------------------------------------------------------------------
+    */
         $officeLat = config('office.lat');
         $officeLng = config('office.lon');
-        $radius    = config('office.radius'); // meter
+        $radius    = config('office.radius');
 
         $userLat = $request->latitude;
         $userLng = $request->longitude;
@@ -425,13 +445,33 @@ class KaryawanController extends Controller
         }
 
         $jarak = $this->distance($userLat, $userLng, $officeLat, $officeLng);
-        if ($jarak > $radius) {
+
+        /*
+    |------------------------------------------------------------------
+    | VALIDASI RADIUS (HANYA USER NORMAL)
+    |------------------------------------------------------------------
+    */
+        if (! $isException && $jarak > $radius) {
             return response()->json([
                 'message' => 'Anda berada di luar area kantor (' . round($jarak) . ' meter). Absen ditolak.',
             ], 403);
         }
 
-        // ==================== Cek data absen hari ini ====================
+        /*
+    |------------------------------------------------------------------
+    | MESSAGE QC
+    |------------------------------------------------------------------
+    */
+        $exceptionMessage = '';
+        if ($isException) {
+            $exceptionMessage = 'Hy QC jogja anda berada di jarak ' . round($jarak) . ' meter. ';
+        }
+
+        /*
+    |------------------------------------------------------------------
+    | CEK ABSEN HARI INI
+    |------------------------------------------------------------------
+    */
         $absen = Absen::where('user_id', $user->id)
             ->where('tanggal', $today)
             ->first();
@@ -442,28 +482,56 @@ class KaryawanController extends Controller
             ], 200);
         }
 
-        // ==================== Waktu batas absen keluar ====================
-        $cutOff = now()->setTime(17, 0, 0);
+        /*
+    |------------------------------------------------------------------
+    | CUT OFF JAM PULANG
+    |------------------------------------------------------------------
+    */
+        $cutOff = $isException
+            ? now()->setTime(16, 0, 0)  // QC Jogja jam 4
+            : now()->setTime(17, 0, 0); // Normal jam 5
 
-        // ==================== Upload foto opsional ====================
+        /*
+    |------------------------------------------------------------------
+    | UPLOAD FOTO
+    |------------------------------------------------------------------
+    */
         $fotoPath = null;
         if ($request->hasFile('foto')) {
             $fotoPath = $request->file('foto')->store('absen_foto', 'public');
         }
 
-        // ==================== Jalankan dalam transaksi aman ====================
-        return DB::transaction(function () use ($absen, $user, $today, $now, $cutOff, $userLat, $userLng, $fotoPath) {
+        /*
+    |------------------------------------------------------------------
+    | TRANSACTION
+    |------------------------------------------------------------------
+    */
+        return DB::transaction(function () use (
+            $user,
+            $today,
+            $now,
+            $cutOff,
+            $userLat,
+            $userLng,
+            $fotoPath,
+            $exceptionMessage
+        ) {
 
-            // Ambil ulang untuk memastikan tidak ada perubahan dalam transaksi
             $absen = Absen::lockForUpdate()
                 ->where('user_id', $user->id)
                 ->where('tanggal', $today)
                 ->first();
 
-            // ==================== Kalau belum ada absen hari ini ====================
+            /*
+        |--------------------------------------------------------------
+        | BELUM ADA ABSEN
+        |--------------------------------------------------------------
+        */
             if (! $absen) {
+
+                // Lewat jam pulang → auto keluar
                 if ($now->gte($cutOff)) {
-                    // Sudah lewat jam 17:00 → catat jam keluar saja
+
                     Absen::create([
                         'user_id'     => $user->id,
                         'tanggal'     => $today,
@@ -477,34 +545,43 @@ class KaryawanController extends Controller
                     ]);
 
                     return response()->json([
-                        'message' => 'Anda lupa absen masuk! Sistem otomatis mencatat jam keluar pukul ' . $now->format('H:i') . '.',
+                        'message' => $exceptionMessage .
+                        'Anda lupa absen masuk! Sistem otomatis mencatat jam keluar pukul ' .
+                        $now->format('H:i') . '.',
                     ], 200);
                 }
 
-                // Masih sebelum jam 17:00 → catat absen masuk normal
+                // Absen masuk
                 Absen::create([
-                    'user_id'     => $user->id,
-                    'tanggal'     => $today,
-                    'jam_masuk'   => $now->format('H:i:s'),
+                    'user_id'    => $user->id,
+                    'tanggal'    => $today,
+                    'jam_masuk'  => $now->format('H:i:s'),
 
-                    'latitude'  => $userLat,
-                    'longitude' => $userLng,
-                    'foto'        => $fotoPath,
-                    'keterangan'  => 'Hadir',
+                    'latitude'   => $userLat,
+                    'longitude'  => $userLng,
+                    'foto'       => $fotoPath,
+                    'keterangan' => 'Hadir',
                 ]);
 
-                return response()->json(['message' => 'Absen masuk tercatat'], 201);
+                return response()->json([
+                    'message' => $exceptionMessage . 'Absen masuk tercatat',
+                ], 201);
             }
 
-            // ==================== Kalau sudah ada jam_masuk tapi belum ada jam_keluar ====================
+            /*
+        |--------------------------------------------------------------
+        | SUDAH MASUK BELUM KELUAR
+        |--------------------------------------------------------------
+        */
             if ($absen->jam_masuk && ! $absen->jam_keluar) {
+
                 if ($now->lt($cutOff)) {
                     return response()->json([
-                        'message' => 'Belum bisa absen keluar. Minimal pukul 17:00.',
+                        'message' => 'Belum bisa absen keluar. Minimal pukul ' .
+                        ($cutOff->format('H:i')),
                     ], 403);
                 }
 
-                // Sudah >= 17:00 → bisa absen keluar
                 $absen->update([
                     'jam_keluar'  => $now->format('H:i:s'),
                     'latitude_k'  => $userLat,
@@ -514,7 +591,8 @@ class KaryawanController extends Controller
                 ]);
 
                 return response()->json([
-                    'message' => 'Absen keluar berhasil dicatat pada ' . $now->format('H:i'),
+                    'message' => $exceptionMessage .
+                    'Absen keluar berhasil dicatat pada ' . $now->format('H:i'),
                 ], 200);
             }
 
@@ -591,28 +669,25 @@ class KaryawanController extends Controller
         return view('pages.karyawan.absen', compact('karyawans', 'month', 'year', 'daysInMonth'));
     }
 
-   public function izinKaryawan(Request $request)
-{
-    $date = $request->get('date'); // contoh: 2025-09-18
+    public function izinKaryawan(Request $request)
+    {
+        $date = $request->get('date'); // contoh: 2025-09-18
 
-    // ubah format jadi 20250918 biar cocok dengan format DB
-    $formattedDate = $date ? str_replace('-', '', $date) : null;
+        // ubah format jadi 20250918 biar cocok dengan format DB
+        $formattedDate = $date ? str_replace('-', '', $date) : null;
 
-    $absens = Absen::with('user')
-        ->whereNotIn('keterangan', ['Hadir', 'Lupa Absen Masuk', 'Lupa Absen Keluar'])
-        ->when($formattedDate, fn($q) => $q->where('tanggal', $formattedDate))
-        ->orderBy('tanggal', 'desc')
-        ->paginate(10)
-        ->withQueryString();
+        $absens = Absen::with('user')
+            ->whereNotIn('keterangan', ['Hadir', 'Lupa Absen Masuk', 'Lupa Absen Keluar'])
+            ->when($formattedDate, fn($q) => $q->where('tanggal', $formattedDate))
+            ->orderBy('tanggal', 'desc')
+            ->paginate(10)
+            ->withQueryString();
 
-    return view('pages.karyawan.izin', [
-        'absens' => $absens,
-        'date'   => $date,
-    ]);
-}
-
-
-
+        return view('pages.karyawan.izin', [
+            'absens' => $absens,
+            'date'   => $date,
+        ]);
+    }
 
     public function filter(Request $request)
     {
