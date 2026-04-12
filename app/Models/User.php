@@ -56,5 +56,9 @@ class User extends Authenticatable
     return $this->hasMany(Absen::class, 'user_id', 'id'); // user_id di table absens mengacu ke id user
 }
 
+public function lemburs()
+{
+    return $this->hasMany(Lembur::class);
+}
 
 }

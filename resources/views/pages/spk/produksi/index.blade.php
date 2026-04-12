@@ -6,268 +6,320 @@
     <div class="padding">
         <div class="box">
             <div class="box-header d-flex justify-content-between align-items-center">
-    <h2 class="mb-0">Monitoring Barang Produksi</h2>
+                <h2 class="mb-0">Monitoring Barang Produksi</h2>
 
-    <input type="text"
-        id="search-qc"
-        class="form-control"
-        style="width:300px"
-        placeholder="Search PO / Item / Vendor">
-</div>
+                <input type="text"
+                    id="search-qc"
+                    class="form-control"
+                    style="width:300px"
+                    placeholder="Search PO / Item / Vendor">
             </div>
-            <div class="row" id="default-table">
-                <div class="col-sm-12">
-                    <div class="box">
-                        <div class="freeze-wrapper">
-                            <table class="table table-striped table-bordered">
-                                <thead id="detail-table-head">
-                                    <tr class="spk-header">
-                                        <th>Tanggal</th>
-                                        <th>Nama Barang</th>
-                                        <th>Buyer</th>
-                                        <th>No PO</th>
-                                        <th>Qty PO</th>
-                                        <th>Qty act</th>
-                                        <th>list sub</th>
-                                        <th>Qc report</th>
-                                        <th width="120">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($result as $row)
-                                    @php
+        </div>
 
-                                    $dp = $row['detail_po'];
-                                    @endphp
+        <div class="row">
 
-                                    <tr>
-                                        <td></td>
+            <!-- ================= LEFT TABLE ================= -->
+            <div class="col-sm-6">
+                <div class="box">
+                    <div class="box-header">
+                        <h4>List PO</h4>
+                    </div>
 
-                                        {{-- NAMA BARANG --}}
-                                        <td>
-                                            <div style="display:flex; gap:10px;">
-                                                <img src="{{ $row['photo'] }}"
-                                                    width="60" height="60"
-                                                    style="object-fit:cover"
-                                                    loading="lazy"
-                                                    onerror="this.style.display='none'">
+                    <div class="freeze-wrapper">
+                        <table class="table table-striped table-bordered table-sm">
+                            <thead>
+                                <tr class="spk-header">
+                                    <th>#</th>
+                                    <th>Buyer</th>
+                                    <th>No PO</th>
+                                    <th>act</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($detailPo as $item)
+                                <tr>
+                                    <td>{{ ($detailPo->currentPage() - 1) * $detailPo->perPage() + $loop->iteration }}</td>
+                                    <td>{{ $item->company_name }}</td>
+                                    <td>{{ $item->order_no }}</td>
+                                  <td>
+    <button class="btn btn-sm btn-info btn-view"
+        data-items='@json($item->details)'
+        data-id="{{ $item->id }}">
+        Detail
+    </button>
+</td>
 
-
-                                                <div>
-                                                    <b>{{ data_get($dp->detail,'article_nr_') }}</b><br>
-                                                    <small>{{ data_get($dp->detail,'description') }}</small><br>
-                                                    <small class="text-muted">
-                                                        Qty PO: {{ data_get($dp->detail,'qty') }}
-                                                    </small>
-                                                </div>
-                                            </div>
-                                        </td>
-
-                                        <td>{{ $dp->po->company_name }}</td>
-                                        <td>{{ $dp->po->order_no }}</td>
-                                        <td>{{ data_get($dp->detail,'qty') }}</td>
-                                        <td>
-                                            <p
-                                                class="btn-qty-in text-primary"
-                                                data-item="{{ data_get($dp->detail,'description') }}"
-                                                data-qty="{{ data_get($dp->detail,'qty') }}"
-                                                data-detail="{{ $dp->id}}"
-                                                data-po="{{ $dp->po->id }}"
-
-                                                data-spk='@json($row["spk"] ?? [])'>
-
-                                               isi
-                                            </p>
-
-                                        </td>
-
-                                        {{-- LIST SUB --}}
-                                        <td>
-                                            @forelse($row['spk'] as $sub => $spks)
-                                            <div>
-                                                <span class="badge bg-info">{{ strtoupper($sub) }}</span>
-                                                @foreach($spks as $spk)
-                                                <div style="margin-left:8px">
-                                                    <a href="/spk/edit/{{ $spk['spk_id'] }}">
-                                                        {{ $spk['no_spk'] }}
-                                                    </a>
-                                                    <small>({{ $spk['sup'] }} - {{ $spk['qty'] }})</small>
-                                                </div>
-                                                @endforeach
-                                            </div>
-                                            @empty
-                                            <span class="text-muted">Belum ada SPK</span>
-                                            @endforelse
-                                        </td>
-
-
-                                        </td>
-
-                                        <td></td>
-
-
-                                    </tr>
-
-
-                                    @endforeach
-                                </tbody>
-
-                            </table>
-                        </div>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                        <div class="mt-3">
+    {{ $detailPo->links() }}
+</div>
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
+
+            <!-- ================= RIGHT TABLE ================= -->
+            <div class="col-sm-6">
+                <div class="box">
+                    <div class="box-header">
+                        <h4>Detail PO :</h4>
+                    </div>
+
+                    <div class="freeze-wrapper">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th># </th>
+                                    <th>Name </th>
+                                    <th>Total PO </th>
+                                    <th>Rangka</th>
+                                    <th>Anyam</th>
+                                    <th>Unfinish</th>
+                                    <th>Final</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detail-area">
+                                <tr>
+                                    <td class="text-center text-muted">
+                                        Banana
+                                    </td>
+                                    <td class="text-center text-muted">
+                                        10
+                                    </td>
+                                    <td class="text-center text-muted">
+                                        9
+                                    </td>
+                                    <td class="text-center text-muted">
+                                        8
+                                    </td>
+                                    <td class="text-center text-muted">
+                                        8
+                                    </td>
+                                    <td class="text-center text-muted">
+                                        -
+                                    </td>
+                                </tr>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
 
 
-
-    </div>
-    </div>
-
-    <div class="modal" id="qtyModal" tabindex="-1" style="margin-left: 100px;margin-right: 40px;">
-        <div class="modal-content">
-
-            <div class="modal-header">
-                <h5 class="modal-title" id="qtyModalTitle"></h5>
-                <button class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-
-         <div class="modal-body">
-    <input type="hidden" id="detailId">
-
-    <div class="row">
-
-        <!-- ================= LEFT : INPUT ================= -->
-        <div class="col-md-8 border-end">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h6 class="text-primary m-0">📥 Input IN / OUT</h6>
-                <div class="w-auto">
-                    <select id="kategoriFilter" class="form-select form-select-sm">
-                        <option value="">-- Semua Kategori --</option>
-                        <!-- opsi kategori akan diisi via JS -->
-                    </select>
                 </div>
             </div>
 
-            <div class="table-responsive" style="max-height:400px">
-                <table class="table table-bordered table-sm align-middle" id="editTable">
-                    <thead class="table-light sticky-top">
-                        <tr>
-                            <th width="80">IN</th>
-                            <th width="80">OUT</th>
-                            <th width="120">SUB</th>
-                            <th width="120">SPK</th>
-                            <th width="130">Tanggal</th>
-                            <th width="200">Remark</th>
-                            <th width="40"></th>
-
-        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-
-            <button class="btn btn-sm btn-outline-primary mt-2" id="addRowBtn">
-                ➕ Add Row
-            </button>
         </div>
-
-        <!-- ================= RIGHT : KESIMPULAN ================= -->
-        <div class="col-md-4 ps-3">
-            <h6 class="text-success mb-2">📊 Kesimpulan</h6>
-            <div id="summaryContainer" class="" style="max-height:400px; overflow-y:auto;">
-                <!-- Kesimpulan kategori akan diisi via JS -->
-            </div>
-        </div>
-
     </div>
 
-    <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-        <button class="btn btn-primary" id="saveBtn">Simpan</button>
+    <div class="modal fade" id="modalDetail">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+
+                <div class="modal-header">
+                    <h4 id="modal-title">Input Barang</h4>
+                </div>
+
+                <div class="modal-body">
+
+                    <div class="row">
+
+                        <!-- LEFT -->
+                        <div class="col-md-6">
+
+                            <form id="form-process">
+
+                                <!-- ROW 1 -->
+                                <div class="row mb-3">
+
+                                    <div class="col-md-6">
+                                        <label>Supplier</label>
+                                        <select class="form-control mb-2" id="supplier">
+                                            <option value="">-- pilih supplier --</option>
+                                        </select>
+
+                                        <label>Sub Barang</label>
+                                        <select class="form-control" id="sub_barang">
+                                            <option value="">-- jenis barang --</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label>Qty</label>
+                                        <input type="number" class="form-control" id="qty">
+                                    </div>
+
+                                </div>
+
+                                <!-- ROW 2 -->
+                                <div class="row mb-3">
+
+                                    <div class="col-md-4">
+                                        <label>Tanggal</label>
+                                        <input type="date" class="form-control" id="date">
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label>Jam</label>
+                                        <input type="time" class="form-control" id="time">
+                                    </div>
+
+                                    <div class="col-md-3">
+                                        <label>Jenis</label>
+                                        <select class="form-control" id="type">
+                                            <option value="">-- pilih --</option>
+                                            <option value="masuk">Masuk</option>
+                                            <option value="keluar">Keluar</option>
+                                            <option value="service">Service</option>
+                                        </select>
+                                    </div>
+
+                                </div>
+                                <!-- 🔥 PROCESS -->
+                                <div class="col-md-3 d-none" id="process-wrapper">
+                                    <label>Process</label>
+                                    <select class="form-control" id="process">
+                                        <option value="">-- pilih process --</option>
+                                        <option value="unfinish">Unfinish</option>
+                                        <option value="final">Final</option>
+                                        <option value="anyam">Anyam</option>
+                                    </select>
+                                </div>
+
+                                <!-- REMARK -->
+                                <div class="mb-3">
+                                    <label>Remark</label>
+                                    <input type="text" class="form-control" id="remark">
+                                </div>
+
+                            </form>
+                        </div>
+
+                        <!-- RIGHT -->
+                        <div class="col-md-6">
+                            <h5>List of in/out barang</h5>
+                            <button class="btn btn-info btn-sm mb-2" id="toggle-graph">
+                                Tampilkan Graph
+                            </button>
+                            <div id="graph-view" class="d-none p-3" style="background:#111; color:#fff; border-radius:8px;"></div>
+                            <table class="table table-bordered">
+                                <tr>
+                                    <th>Tanggal</th>
+                                    <th>Jam</th>
+                                    <th>Type</th>
+                                    <th>Process</th>
+                                    <th>Next</th>
+                                    <th>Qty</th>
+                                    <th>Supplier</th>
+                                    <th>Remark</th>
+                                </tr>
+                                </thead>
+                                <tbody id="table-out"></tbody>
+                            </table>
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button class="btn btn-primary" id="save-process">Save</button>
+                </div>
+
+            </div>
+        </div>
     </div>
-</div>
 
-        @include('pages.spk.produksi.script ')
-        <style>
-            .freeze-wrapper {
-                max-height: 600px;
-                overflow: auto;
-                position: relative;
-                border: 1px solid #ddd;
-            }
+    @include('pages.spk.produksi.script ')
+    <style>
+        .btn-detail-name {
+            cursor: pointer;
+            color: #0d6efd;
+            text-decoration: underline;
+        }
 
-            /* ===== HEADER FREEZE ===== */
-            #detail-table thead th {
-                position: sticky;
-                top: 0;
-                background: #2b3c70ff;
-                /* WARNA HEADER */
-                color: white;
-                z-index: 20;
-                border-bottom: 2px solid #ccc;
-            }
+        #modalDetail .modal-dialog {
+            max-width: 95%;
+        }
 
-            /* kasih bayangan supaya keliatan pas scroll */
-            #detail-table thead {
-                box-shadow: 0 2px 6px rgba(0, 0, 0, .08);
-            }
+        .freeze-wrapper {
+            max-height: 600px;
+            overflow: auto;
+            position: relative;
+            border: 1px solid #ddd;
+        }
 
-            /* ================= COLUMN WIDTH ================= */
-            #detail-table th:nth-child(1),
-            #detail-table td:nth-child(1) {
-                min-width: 60px;
-            }
+        /* ===== HEADER FREEZE ===== */
+        #detail-table thead th {
+            position: sticky;
+            top: 0;
+            background: #2b3c70ff;
+            /* WARNA HEADER */
+            color: white;
+            z-index: 20;
+            border-bottom: 2px solid #ccc;
+        }
 
-            #detail-table th:nth-child(2),
-            #detail-table td:nth-child(2) {
-                min-width: 90px;
-            }
+        /* kasih bayangan supaya keliatan pas scroll */
+        #detail-table thead {
+            box-shadow: 0 2px 6px rgba(0, 0, 0, .08);
+        }
 
-            #detail-table th:nth-child(3),
-            #detail-table td:nth-child(3) {
-                min-width: 280px;
-            }
+        /* ================= COLUMN WIDTH ================= */
+        #detail-table th:nth-child(1),
+        #detail-table td:nth-child(1) {
+            min-width: 60px;
+        }
 
-            /* ================= FREEZE COL 1 ================= */
-            /* #detail-table th:nth-child(1), */
-            #detail-table td:nth-child(1) {
-                position: sticky;
-                left: 0;
-                background: #fff;
-                z-index: 8;
-            }
+        #detail-table th:nth-child(2),
+        #detail-table td:nth-child(2) {
+            min-width: 90px;
+        }
 
-            /* ================= FREEZE COL 2 ================= */
-            /* #detail-table th:nth-child(2), */
-            #detail-table td:nth-child(2) {
-                position: sticky;
-                left: 60px;
-                background: #fff;
-                z-index: 8;
-            }
+        #detail-table th:nth-child(3),
+        #detail-table td:nth-child(3) {
+            min-width: 280px;
+        }
 
-            /* ================= FREEZE COL 3 ================= */
-            /* #detail-table th:nth-child(3), */
-            #detail-table td:nth-child(3) {
-                position: sticky;
-                left: 150px;
-                background: #fff;
-                z-index: 8;
-                box-shadow: 2px 0 6px rgba(0, 0, 0, .1);
-            }
+        /* ================= FREEZE COL 1 ================= */
+        /* #detail-table th:nth-child(1), */
+        #detail-table td:nth-child(1) {
+            position: sticky;
+            left: 0;
+            background: #fff;
+            z-index: 8;
+        }
 
-            /* header freeze priority */
-            #detail-table thead th:nth-child(1),
-            #detail-table thead th:nth-child(2),
-            #detail-table thead th:nth-child(3) {
-                z-index: 12;
-            }
+        /* ================= FREEZE COL 2 ================= */
+        /* #detail-table th:nth-child(2), */
+        #detail-table td:nth-child(2) {
+            position: sticky;
+            left: 60px;
+            background: #fff;
+            z-index: 8;
+        }
 
-            #detail-table tbody tr:hover td {
-                background: #f9f9f9;
-            }
-        </style>
+        /* ================= FREEZE COL 3 ================= */
+        /* #detail-table th:nth-child(3), */
+        #detail-table td:nth-child(3) {
+            position: sticky;
+            left: 150px;
+            background: #fff;
+            z-index: 8;
+            box-shadow: 2px 0 6px rgba(0, 0, 0, .1);
+        }
 
-        @endsection
+        /* header freeze priority */
+        #detail-table thead th:nth-child(1),
+        #detail-table thead th:nth-child(2),
+        #detail-table thead th:nth-child(3) {
+            z-index: 12;
+        }
+
+        #detail-table tbody tr:hover td {
+            background: #f9f9f9;
+        }
+    </style>
+
+    @endsection

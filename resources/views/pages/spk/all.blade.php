@@ -7,7 +7,7 @@
         <div class="box-header">
             <h2>All Spk</h2>
             <small></small>
-              <div class="row" id="default-table">
+            <div class="row" id="default-table">
                 <div class="col-sm-12">
                     <div class="box">
                         <div class="table-responsive">
@@ -30,298 +30,274 @@
                             </table>
                         </div>
                         <div class="box" id="spkDetailBox" style="display:none">
-    <div class="box-header">
-        <h3>Detail SPK</h3>
-        <small id="detailPoTitle"></small>
-    </div>
+                            <div class="box-header">
+                                <h3>Detail SPK</h3>
+                                <small id="detailPoTitle"></small>
+                            </div>
 
-    <div class="box-body">
-  <table class="table table-sm table-bordered">
-    <thead>
-        <tr>
-            <th>SPK</th>
-            <th>kategori</th>
-            <th>Sub</th>
-            <th>Qty</th>
-            <!-- <th>Total</th> -->
-        </tr>
-    </thead>
-    <tbody id="spk-detail-body"></tbody>
-</table>
+                            <div class="box-body">
+                                <table class="table table-sm table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th>No. SPK</th>
+                                            <th>kategori</th>
+                                            <th>act</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="spk-detail-body"></tbody>
+                                </table>
 
 
-    </div>
-</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-</div>
-@endsection
-  @push('scripts')
-    <!-- jQuery (WAJIB PERTAMA) -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+        </div>
+        @endsection
+        @push('scripts')
+        <!-- jQuery (WAJIB PERTAMA) -->
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/js/bootstrap.min.js"></script>
 
-    <!-- Bootstrap JS (SETELAH jQuery) -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/js/bootstrap.min.js"></script>
-<script>
-// download
-$(document).on('click', '.btn-download-spk', function () {
-    const spkId = $(this).data('id');
+        <script>
+            console.log(window.history.length);
+            // ===============================
+            // GLOBAL VARIABLE (WAJIB DI LUAR)
+            // ===============================
+            let cacheData = [];
 
-    window.open(`/spk/export/${spkId}`, '_blank');
-});
-$(document).ready(function(){
+            // ===============================
+            // DOWNLOAD SPK
+            // ===============================
+            $(document).on('click', '.btn-download-spk', function() {
+                const spkId = $(this).data('id');
+                window.open(`/spk/export/${spkId}`, '_blank');
+            });
 
-    let cacheData = [];
+            // ===============================
+            // LOAD DATA PO
+            // ===============================
+            function loadSpkTable() {
+                $.get("{{ route('spk.all') }}", function(res) {
 
-    // ===============================
-    // LOAD PO + SPK TABLE
-    // ===============================
-   function loadSpkTable()
-{
-    $.get("{{ route('spk.all') }}", function(res){
+                    cacheData = res;
 
-        cacheData = res;
+                    let html = '';
+                    let no = 1;
 
-        let html = '';
-        let no   = 1;
+                    res.forEach((po, index) => {
 
-        res.forEach((po, index) => {
+                        let poId = po.data_po?.id;
+                        let poNo = po.data_po?.no_po ?? '-';
+                        let buyerName = po.data_po?.company ?? '-';
+                        // count spk
+                        let spkIds = new Set();
 
-            let poNo = po.data_po?.no_po ?? '-';
-            let buyerName =  po.data_po?.company ?? '-';
-            // hitung SPK unik
-            let spkIds = new Set();
+                        (po.data_po?.items || []).forEach(item => {
+                            let summary = item.summary || {};
 
-            (po.data_po?.items || []).forEach(item => {
-                let summary = item.summary || {};
+                            Object.values(summary).forEach(suppliers => {
+                                Object.values(suppliers).forEach(supplier => {
+                                    (supplier.spks || []).forEach(spk => {
+                                        spkIds.add(spk.spk_id);
+                                    });
+                                });
+                            });
+                        });
 
-                Object.values(summary).forEach(suppliers => {
-                    Object.values(suppliers).forEach(supplier => {
-                        (supplier.spks || []).forEach(spk => {
-                            spkIds.add(spk.spk_id);
+                        let spkCount = spkIds.size;
+                        html += `
+                    <tr>
+                        <td>${no++}</td>
+                        <td>${poNo}</td>
+                        <td>${buyerName}</td>
+                      <td>
+    <button
+        class="btn btn-sm btn-primary btn-view-spk"
+        data-index="${index}">
+        View SPK (${spkCount})
+    </button>
+    <a href="/spk/${poId}"
+       class="btn btn-sm btn-info">
+        Buat SPK
+    </a>
+</td>
+                    </tr>
+
+                    <!-- DETAIL ROW -->
+                    <tr id="detail-${poId}" class="detail-row" style="display:none;">
+                        <td colspan="4">
+                            <div class="detail-content"></div>
+                        </td>
+                    </tr>
+                `;
+                    });
+
+                    $('#po-table-body').html(html);
+                });
+            }
+
+            // ===============================
+            // CLICK VIEW SPK (EXPAND TABLE)
+            // ===============================
+            $(document).on('click', '.btn-view-spk', function() {
+
+                let index = $(this).data('index');
+                let po = cacheData[index];
+
+                let poId = po.data_po.id;
+                let items = po.data_po.items || [];
+
+                let row = $('#detail-' + poId);
+
+                // toggle
+                if (row.is(':visible')) {
+                    row.slideUp();
+                    return;
+                }
+
+                // tutup semua
+                $('.detail-row').slideUp();
+
+                let html = `
+            <table class="table table-sm table-bordered">
+                <thead>
+                    <tr>
+                        <th>No</th>
+                        <th>Article</th>
+                        <th>Description</th>
+                        <th>Qty</th>
+                        <th>CBM</th>
+                        <th>SPK</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+                items.forEach((item, i) => {
+
+                    let d = item.detail || {};
+                    let summary = item.summary || {};
+
+                    let spkHtml = '';
+
+                    Object.keys(summary).forEach(kategori => {
+
+                        Object.keys(summary[kategori]).forEach(supplier => {
+
+                            let data = summary[kategori][supplier];
+
+                            spkHtml += `<b>${kategori}</b><br>`;
+                            spkHtml += `${supplier} (${data.total_qty})<br>`;
+
+                            (data.spks || []).forEach(spk => {
+                                spkHtml += `
+                            - ${spk.no_spk} (${spk.qty})
+                            <button class="btn btn-xs btn-success btn-download-spk"
+                                data-id="${spk.spk_id}">
+                                Download
+                            </button>
+                              <button class="btn btn-xs btn-warning btn-edit-spk"
+        data-id="${spk.spk_id}">
+        Edit
+    </button>
+
+                            <br>
+                        `;
+                            });
+
+                            spkHtml += `<br>`;
                         });
                     });
-                });
-            });
 
-            let spkCount = spkIds.size;
-
-            html += `
-                <tr class="po-row" data-index="${index}">
-                    <td>${no++}</td>
-                    <td>${poNo}</td>
-                    <td>${buyerName}</td>
-                    <td>
-                        <button
-                            class="btn btn-sm btn-info btn-view-spk"
-                            data-index="${index}">
-                            ${spkCount} SPK
-                        </button>
-                    </td>
+                    html += `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td>${d.article_nr_ ?? '-'}</td>
+                    <td>${d.description ?? '-'}</td>
+                    <td>${d.qty ?? 0}</td>
+                    <td>${parseFloat(d.total_cbm ?? 0).toFixed(3)}</td>
+                    <td>${spkHtml || '-'}</td>
                 </tr>
             `;
-        });
-
-        $('#po-table-body').html(html);
-    });
-}
-
-
-
-    // ===============================
-    // CLICK VIEW SPK
-    // ===============================
-$(document).on('click', '.btn-view-spk', function () {
-
-    let index = $(this).data('index');
-    let po    = cacheData[index];
-    let items = po.data_po?.items || [];
-
-    let html = '';
-
-    // =========================
-    // 1. KUMPULKAN SEMUA SPK
-    // =========================
-    let spkMap = {};
-
-    items.forEach(item => {
-
-        let d = item.detail || {};
-        let summary = item.summary || {};
-
-        Object.entries(summary).forEach(([kategori, suppliers]) => {
-
-            Object.entries(suppliers).forEach(([supplier, data]) => {
-
-                (data.spks || []).forEach(spk => {
-
-                    if (!spkMap[spk.spk_id]) {
-                        spkMap[spk.spk_id] = {
-                            spk_id: spk.spk_id,
-                            no_spk: spk.no_spk,
-                            items: []
-                        };
-                    }
-
-                    spkMap[spk.spk_id].items.push({
-                        artikel: d.article_nr_,
-                        nama: d.description,
-                        kategori: kategori,
-                        supplier: supplier,
-                        qty: spk.qty,
-                        po_qty: d.qty
-                    });
                 });
+
+                html += `</tbody></table>`;
+
+                row.find('.detail-content').html(html);
+                row.slideDown();
             });
-        });
-    });
 
-    // =========================
-    // 2. RENDER PER SPK
-    // =========================
-    Object.values(spkMap).forEach(spk => {
+            // ===============================
+            // EDIT SPK
+            // ===============================
+            $(document).on('click', '.btn-edit-spk', function() {
+                let spkId = $(this).data('id');
+                window.location.href = `/spk/edit/${spkId}`;
+            });
 
-    let itemCount = spk.items.length;
-    let hasArrow  = itemCount > 2;
-    let spkClass  = `spk-items-${spk.spk_id}`;
+            $(document).on('click', '.spk-link', function() {
+                let spkId = $(this).data('spk-id');
+                window.location.href = `/spk/edit/${spkId}`;
+            });
 
-    // ===== SPK HEADER =====
-    html += `
-        <tr class="spk-header"
-            data-spk-id="${spk.spk_id}"
-            style="cursor:pointer;background:#f8f9fa">
-            <td colspan="5">
-                <b>
-                    ${hasArrow ? `<span class="spk-arrow">▶</span>` : ''}
-                    SPK ${spk.no_spk}
-                </b>
-                <small class="text-muted">
-                    (${itemCount} item)
-                </small>
-            </td>
-        </tr>
-    `;
+            // ===============================
+            // INIT
+            // ===============================
+            $(document).ready(function() {
+                loadSpkTable();
+            });
+        </script>
+        <style>
+            .selected-spk {
+                background-color: #ffeeba !important;
+                border-left: 5px solid #f39c12;
+                font-weight: 600;
+            }
 
-    let lastItem = null;
+            .spk-detail-row {
+                background: #f9f9f9;
+            }
 
-    // ===== ITEMS =====
-    spk.items.forEach(row => {
+            /* BARANG */
+            .barang-row td {
+                padding: 12px 10px;
+                background: #f9fafb;
+                border-top: 2px solid #dee2e6;
+            }
 
-        let showItem = row.artikel !== lastItem;
-        lastItem = row.artikel;
+            .barang-title {
+                font-weight: 600;
+            }
 
-        html += `
-            <tr class="spk-item ${spkClass}"
-                ${hasArrow ? 'style="display:none"' : ''}>
-                <td>
-                    ${showItem ? `
-                        <b>${row.artikel}</b><br>
-                        <small>${row.nama}</small><br>
-                        <small>PO Qty: ${row.po_qty}</small>
-                    ` : ''}
-                </td>
-                <td>${row.kategori}</td>
-                <td>${row.supplier}</td>
-                <td>${row.qty}</td>
-            </tr>
-        `;
-    });
+            .barang-desc {
+                font-size: 12px;
+                color: #666;
+            }
 
-    html += `<tr><td colspan="5"></td></tr>`;
-});
+            .barang-qty {
+                font-size: 11px;
+                color: #999;
+            }
 
-    $('#spk-detail-body').html(html);
-    $('#detailPoTitle').text('PO : ' + (po.data_po?.no_po ?? '-'));
-    $('#spkDetailBox').slideDown();
-});
-// spk no header arrow down
-$(document).on('click', '.spk-header', function () {
+            /* KATEGORI */
+            .kategori-row td {
+                padding: 6px 10px;
+                font-style: italic;
+                color: #555;
+                background: #f1f3f5;
+            }
 
-    let spkId = $(this).data('spk-id');
-    let rows  = $(`.spk-items-${spkId}`);
-    let arrow = $(this).find('.spk-arrow');
+            /* SPK */
+            .spk-row td {
+                padding: 6px 10px;
+                font-size: 13px;
+            }
 
-    rows.toggle();
-
-    if (arrow.length) {
-        arrow.text(
-            rows.first().is(':visible') ? '▼' : '▶'
-        );
-    }
-});
-
-$(document).on('click', '.spk-link', function () {
-    let spkId = $(this).data('spk-id');
-       window.location.href = `/spk/edit/${spkId}`;
-
-});
-
-
-    // ===============================
-    // EDIT SPK
-    // ===============================
-   $(document).on('click', '.btn-edit-spk', function () {
-    let spkId = $(this).data('id');
-    window.location.href = `/spk/edit/${spkId}`;
-});
-
-    // ===============================
-    // INIT LOAD
-    // ===============================
-    loadSpkTable();
-
-});
-</script>
-
-<style>
-    .selected-spk {
-    background-color: #ffeeba !important;
-    border-left: 5px solid #f39c12;
-    font-weight: 600;
-}
-    .spk-detail-row{
-    background:#f9f9f9;
-}
-/* BARANG */
-.barang-row td {
-    padding: 12px 10px;
-    background: #f9fafb;
-    border-top: 2px solid #dee2e6;
-}
-
-.barang-title {
-    font-weight: 600;
-}
-
-.barang-desc {
-    font-size: 12px;
-    color: #666;
-}
-
-.barang-qty {
-    font-size: 11px;
-    color: #999;
-}
-
-/* KATEGORI */
-.kategori-row td {
-    padding: 6px 10px;
-    font-style: italic;
-    color: #555;
-    background: #f1f3f5;
-}
-
-/* SPK */
-.spk-row td {
-    padding: 6px 10px;
-    font-size: 13px;
-}
-
-/* TABLE UMUM */
-table td {
-    vertical-align: top;
-}
-
-</style>
-@endpush
+            /* TABLE UMUM */
+            table td {
+                vertical-align: top;
+            }
+        </style>
+        @endpush

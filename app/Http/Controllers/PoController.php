@@ -15,6 +15,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -257,7 +258,13 @@ class PoController extends Controller
         $company = $request->company;
         $items   = $request->items;
 
+        Log::info('Start import Excel PO', [
+            'user_id' => auth()->id(),
+            'company' => $company,
+        ]);
+
         if (empty($items)) {
+            Log::warning('Import gagal: items kosong');
             return response()->json(['items' => []]);
         }
 
@@ -266,15 +273,21 @@ class PoController extends Controller
 
         // ✅ VALIDASI DUPLIKAT PO
         $exists = Po::where('order_no', $orderNo)
-            ->orWhere('company_name', $companyName)
+            ->where('company_name', $companyName)
             ->exists();
 
         if ($exists) {
+            Log::warning('Duplicate PO detected', [
+                'order_no' => $orderNo,
+                'company'  => $companyName,
+            ]);
+
             return response()->json([
                 'status'  => 'error',
                 'message' => 'PO dengan Order No atau Company Profile sudah ada',
             ], 422);
         }
+
 
         // ======================
         // SIMPAN PO
@@ -286,6 +299,11 @@ class PoController extends Controller
             'shipment_date'  => $company['shipment_date'] ?? "-",
             'packing'        => $company['packing'] ?? "-",
             'contact_person' => $company['contact_person'] ?? "-",
+        ]);
+
+        Log::info('PO created', [
+            'po_id'    => $po->id,
+            'order_no' => $orderNo,
         ]);
 
         // ======================
@@ -301,7 +319,6 @@ class PoController extends Controller
             return $result;
         };
 
-        // Skip index 0
         $items = array_slice($items, 1);
 
         foreach ($items as $item) {
@@ -310,6 +327,11 @@ class PoController extends Controller
                 'detail' => $normalizeKeys($item),
             ]);
         }
+
+        Log::info('Detail PO inserted', [
+            'po_id'       => $po->id,
+            'total_items' => count($items),
+        ]);
 
         // ======================
         // SIMPAN TIMELINE
@@ -324,12 +346,15 @@ class PoController extends Controller
             'jenis' => 'pfi',
         ]);
 
+        Log::info('Timeline created', [
+            'po_id' => $po->id,
+        ]);
+
         return response()->json([
             'status' => 'success',
             'po_id'  => $po->id,
         ]);
     }
-
     public function getPoDetail($id)
     {
         $po = Po::findOrFail($id);
@@ -505,32 +530,32 @@ class PoController extends Controller
         ]);
     }
     //
-public function getTimeline()
-{
-    $timeline = Timeline::orderBy('created_at', 'desc')->get();
+    public function getTimeline()
+    {
+        $timeline = Timeline::orderBy('created_at', 'desc')->get();
 
-    // Ambil semua user_id dari isi
-    $userIds = $timeline
-        ->pluck('isi.user_id')
-        ->filter()
-        ->unique()
-        ->values();
+        // Ambil semua user_id dari isi
+        $userIds = $timeline
+            ->pluck('isi.user_id')
+            ->filter()
+            ->unique()
+            ->values();
 
-    // Ambil user sekaligus (hindari N+1)
-    $users = \App\Models\User::whereIn('id', $userIds)->get()->keyBy('id');
+        // Ambil user sekaligus (hindari N+1)
+        $users = \App\Models\User::whereIn('id', $userIds)->get()->keyBy('id');
 
-    // Inject user ke tiap timeline
-    $timeline->transform(function ($item) use ($users) {
-        $userId = $item->isi['user_id'] ?? null;
-        $item->user = $userId && isset($users[$userId])
-            ? $users[$userId]
-            : null;
+        // Inject user ke tiap timeline
+        $timeline->transform(function ($item) use ($users) {
+            $userId     = $item->isi['user_id'] ?? null;
+            $item->user = $userId && isset($users[$userId])
+                ? $users[$userId]
+                : null;
 
-        return $item;
-    });
+            return $item;
+        });
 
-    return response()->json($timeline);
-}
+        return response()->json($timeline);
+    }
 
     public function getInspect()
     {

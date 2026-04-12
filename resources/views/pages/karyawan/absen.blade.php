@@ -162,8 +162,10 @@
                 const year = document.getElementById("year").value;
 
                  loadAbsenBulanan(month, year); // Panggil fungsi AJAX bulanan
+            $('#absenTable').toggleClass('d-none');
+
             } else {
-            $('#tableHarian').toggleClass('d-none');
+            $('#absenTable').toggleClass('d-none');
 
                 $(this).text('Tabel Bulanan');
 
@@ -330,5 +332,28 @@ function copyTextToClipboard(el) {
 }
 </script>
 
+<script>
+document.addEventListener("input", function(e) {
 
+    if (e.target.id !== "searchKaryawan") return;
+
+    console.log("search jalan ✅");
+
+    let keyword = e.target.value.toLowerCase().trim();
+
+    let tbody = document.getElementById("tableKaryawan");
+    if (!tbody) return;
+
+    let rows = tbody.querySelectorAll("tr");
+
+    rows.forEach(row => {
+
+        let nama = row.cells[0]?.innerText.toLowerCase() || "";
+
+        row.style.display = nama.includes(keyword) ? "" : "none";
+
+    });
+
+});
+</script>
 @endsection

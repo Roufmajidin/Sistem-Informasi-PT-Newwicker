@@ -44,6 +44,24 @@ class PameranContrller extends Controller
 
         return redirect()->back()->with('success', 'Exhibition berhasil ditambahkan');
     }
+    public function downloadImage($exhibition, $article)
+    {
+        $path = storage_path("app/public/pameran/$exhibition/$article.webp");
+
+        if (! file_exists($path)) {
+            abort(404);
+        }
+
+        $img = imagecreatefromwebp($path);
+
+        header('Content-Type: image/jpeg');
+        header('Content-Disposition: attachment; filename="' . $article . '.jpg"');
+
+        imagejpeg($img, null, 90);
+
+        imagedestroy($img);
+        exit;
+    }
     public function getByExhibition(Request $request)
     {
         $pm = ProductPameran::query();
@@ -225,6 +243,7 @@ class PameranContrller extends Controller
             'duration_seconds' => round($duration, 3),
         ]);
     }
+
     public function downloadPameranJson(Request $request)
     {
         $startTime = microtime(true);
@@ -296,9 +315,94 @@ class PameranContrller extends Controller
         return response()->json($json, 200, [], JSON_UNESCAPED_SLASHES);
     }
 
+    // public function downloadPameranJson(Request $request)
+    // {
+    //     $startTime = microtime(true);
+
+    //     $category          = $request->get('category'); // opsional
+    //     $activeExhibitions = Exhibition::where('active', 1)->get();
+
+    //     if ($activeExhibitions->isEmpty()) {
+    //         return response()->json([
+    //             'status'   => false,
+    //             'message'  => 'Tidak ada exhibition aktif',
+    //             'products' => [],
+    //         ], 404);
+    //     }
+
+    //     $activeIds = $activeExhibitions->pluck('id')->toArray();
+
+    //     // =========================
+    //     // ✅ PERBAIKAN QUERY
+    //     // =========================
+    //     $baseQuery = ProductPameran::whereIn('exhibition_id', $activeIds);
+
+    //     if (! empty($category)) {
+    //         $baseQuery->where('categories', 'LIKE', "%{$category}%");
+    //     }
+
+    //     // ambil id terbaru per article_code (bersihkan spasi & tab)
+    //     $latestIds = $baseQuery
+    //         ->selectRaw('MAX(id) as id')
+    //         ->groupByRaw('TRIM(REPLACE(REPLACE(article_code, "\t", ""), "\n", ""))')
+    //         ->pluck('id');
+
+    //     $products = ProductPameran::whereIn('id', $latestIds)
+    //         ->orderByDesc('id')
+    //         ->get();
+    //     // =========================
+
+    //     // Transform data
+    //     $data = $products->map(function ($p) use ($activeExhibitions) {
+    //         $exhibition = $activeExhibitions->firstWhere('id', $p->exhibition_id);
+
+    //         $articleCode = trim(str_replace(["\t", "\n", "\r"], '', $p->article_code));
+
+    //         $photoPath = "pameran/{$exhibition->name}/{$articleCode}.webp";
+    //         $photoUrl  = asset("storage/{$photoPath}");
+
+    //         return [
+    //             'nr'                 => $p->id,
+    //             'photo'              => $photoUrl,
+    //             'article_code'       => $articleCode,
+    //             'name'               => $p->name,
+    //             'categories'         => $p->categories,
+    //             'remark'             => $p->remark,
+    //             'item_dimension'     => ['w' => $p->item_w, 'd' => $p->item_d, 'h' => $p->item_h],
+    //             'packing_dimension'  => ['w' => $p->packing_w, 'd' => $p->packing_d, 'h' => $p->packing_h],
+    //             'size_of_set'        => ['set_2' => $p->set2, 'set_3' => $p->set3, 'set_4' => $p->set4, 'set_5' => $p->set5],
+    //             'composition'        => $p->composition,
+    //             'finishing'          => $p->finishing,
+    //             'cbm'                => round((float) $p->cbm, 2),
+    //             'loadability_20'     => round((float) $p->loadability_20, 0),
+    //             'loadability_40'     => round((float) $p->loadability_40, 0),
+    //             'loadability_40_hc'  => round((float) $p->loadability_40hc, 0),
+    //             'price_item'         => (double) $p->fob_jakarta_in_usd,
+    //             'fob_jakarta_in_usd' => (double) $p->fob_jakarta_in_usd,
+    //             'exhibition_name'    => $exhibition->name,
+    //         ];
+    //     });
+
+    //     $json = [
+    //         'status'           => true,
+    //         'message'          => 'Berhasil mengambil data produk',
+    //         'products'         => $data,
+    //         'total'            => $data->count(),
+    //         'duration_seconds' => round(microtime(true) - $startTime, 3),
+    //     ];
+
+    //     $fileName = 'pameran_all' . ($category ? "_$category" : '') . '.json';
+
+    //     Storage::disk('public')->put(
+    //         $fileName,
+    //         json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
+    //     );
+
+    //     return response()->json($json, 200, [], JSON_UNESCAPED_SLASHES);
+    // }
     public function getCategories()
     {
-        $active = Exhibition::where('active', 1)->first();
+        $active = Exhibition::where('active', 1)->latest('year')->first();
         if (! $active) {
             return response()->json([
                 'status'     => false,
@@ -323,6 +427,45 @@ class PameranContrller extends Controller
     public function create()
     {
         //
+    }
+    public function uploadImage(Request $request)
+    {
+        $request->validate([
+            'image'        => 'required|image|mimes:jpeg,png,jpg|max:10000',
+            'article_code' => 'required',
+            'exhibition'   => 'required',
+        ]);
+
+        $file       = $request->file('image');
+        $article    = trim($request->article_code);
+        $exhibition = $request->exhibition;
+
+        $folder = storage_path('app/public/pameran/' . $exhibition);
+
+        if (! file_exists($folder)) {
+            mkdir($folder, 0777, true);
+        }
+
+        $path = $folder . '/' . $article . '.webp';
+
+        // load image
+        $ext = strtolower($file->getClientOriginalExtension());
+
+        if ($ext == 'png') {
+            $image = imagecreatefrompng($file);
+        } else {
+            $image = imagecreatefromjpeg($file);
+        }
+
+        // convert ke webp
+        imagewebp($image, $path, 80);
+
+        imagedestroy($image);
+        dd($exhibition, $article, $path);
+        return response()->json([
+            'success' => true,
+            'url'     => asset('storage/pameran/' . $exhibition . '/' . $article . '.webp'),
+        ]);
     }
 
 /**

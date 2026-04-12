@@ -18,13 +18,15 @@
                         <tr class="sticky-header" style="font-size: 12px;">
                             <th>No.</th>
                             <th class="sticky">Company</th>
+                            <th>Aksi</th> <!-- tambah aksi -->
+
                             <!-- <th>Company</th> -->
                             <th>Country</th>
                             <th>Shipment date</th>
                             <th>Packing</th>
                             <th>Contact person</th>
                             <th>Order no</th>
-                            <th>Aksi</th> <!-- tambah aksi -->
+                              <th>Remark</th>
                         </tr>
                     </thead>
                     <tbody id="buyerTableBody"></tbody>
@@ -44,9 +46,9 @@
                 <h5 class="modal-title">Data Buyer</h5>
 
                 <!-- BUTTON EXPORT -->
-                <button class="btn btn-success" id="exportBuyer">
-                    <i class="fa fa-file-excel"></i> Export
-                </button>
+                <!--<button class="btn btn-success" id="exportBuyer">-->
+                <!--    <i class="fa fa-file-excel"></i> Export-->
+                <!--</button>-->
 
                 <!-- <button type="button" class="btn-close" data-bs-dismiss="modal"></button> -->
             </div>
@@ -74,7 +76,7 @@
                         <th>CBM</th>
                         <th>Price (IDR)</th>
                         <th>Total CBM</th>
-                        <th>Value (IDR)</th>
+                        <th>Total (IDR)</th>
                         </tr>
                     </thead>
                     <tbody id="modalProductItems"></tbody>
@@ -106,21 +108,22 @@ $(document).ready(function () {
                         <tr style="font-size:13px;">
                             <td>${no++}</td>
                             <td>${buyer.company_name ?? '-'}</td>
+                             <td class="text-center">
+                                <button class="btn btn-sm btn-info viewBuyerBtn" data-id="${buyer.buyer_id}">
+                                    👁️
+                                </button>
+                                 <button class="btn btn-sm btn-success exportBtn" data-id="${buyer.buyer_id}">
+                                    Export
+                                </button>
+                            </td>
+
                             <td>${buyer.country ?? '-'}</td>
                             <td>${buyer.shipment_date ?? '-'}</td>
                             <td>${buyer.packing ?? '-'}</td>
                             <td>${buyer.contact_person ?? '-'}</td>
                             <td>${buyer.order_no ?? '-'}</td>
-                            <td class="text-center">
-                                <button class="btn btn-sm btn-info viewBuyerBtn" data-id="${buyer.buyer_id}">
-                                    👁️
-                                </button>
-                            </td>
-                             <td class="text-center">
-                                <button class="btn btn-sm btn-success exportBtn" data-id="${buyer.buyer_id}">
-                                    👁️
-                                </button>
-                            </td>
+                            <td>${buyer.remark ?? '-'}</td>
+
                         </tr>
                     `;
                 });
@@ -165,12 +168,17 @@ $(document).ready(function () {
                             <td>${p.packing_h ?? '-'}</td>
                             <td>${p.materials ?? '-'}</td>
                             <td>${p.finishing ?? '-'}</td>
-                            <td>${item.qty ?? '-'}</td>
+                            <td>${item.qty ?? 1}</td>
                           <td>${p.cbm ? parseFloat(p.cbm).toFixed(2) : '-'}</td>
 
                             <td>${p.fob_jakarta_in_usd ?? '-'}</td>
                             <td>${p.total_cbm ?? '-'}</td>
-                            <td>${p.fob_jakarta_in_usd ?? '-'}</td>
+
+<td>${
+    p.fob_jakarta_in_usd && item.qty
+        ? (parseFloat(p.fob_jakarta_in_usd) * item.qty).toFixed(2)
+        : '-'
+}</td>
                         </tr>
                     `;
                 });
@@ -186,6 +194,25 @@ $(document).ready(function () {
 
 });
 </script>
+<script>
+document.addEventListener('click', function (e) {
+    if (e.target.closest('.exportBtn')) {
+        const btn = e.target.closest('.exportBtn');
+        const buyerId = btn.dataset.id;
+
+        if (!buyerId) {
+            alert('Buyer ID tidak ditemukan');
+            return;
+        }
+
+        const url = `https://newwicker.my.id/public/cart-export/${buyerId}`;
+
+        // trigger download
+        window.open(url, '_blank');
+    }
+});
+</script>
+
 <style>
 .modal-body {
     overflow-x: auto;

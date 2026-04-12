@@ -11,15 +11,7 @@
 
         <div style="min-width:180px">
             <label style="font-size:12px; margin-bottom:2px;"><b>Jenis SPK</b></label>
-            <select name="spk_type" id="spk_type" class="form-control form-control-sm">
-                <option value="">-- Pilih --</option>
-                <option value="rangka" {{ ($spk['type'] ?? '')=='rangka' ? 'selected' : '' }}>Rangka</option>
-                <option value="anyam" {{ ($spk['type'] ?? '')=='anyam' ? 'selected' : '' }}>Anyam</option>
-                <option value="decor" {{ ($spk['type'] ?? '')=='decor' ? 'selected' : '' }}>Decor</option>
-                <option value="unfinish" {{ ($spk['type'] ?? '')=='unfinish' ? 'selected' : '' }}>Unfinish</option>
-                <option value="unfinish" {{ ($spk['type'] ?? '')=='ikat' ? 'selected' : '' }}>Ikat</option>
-                <option value="unfinish" {{ ($spk['type'] ?? '')=='final' ? 'selected' : '' }}>Final</option>
-            </select>
+
         </div>
     </div>
 

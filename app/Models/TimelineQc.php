@@ -5,6 +5,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class TimelineQc extends Model
 {
+    protected $table = 'timeline_qc';
     protected $fillable = [
         'po_id',
         'detail_po_id',

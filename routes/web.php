@@ -4,6 +4,7 @@ use App\Http\Controllers\AbsenController;
 use App\Http\Controllers\AgendaController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BuyerController;
+use App\Http\Controllers\CadController;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\KaryawanController;
@@ -17,6 +18,7 @@ use App\Http\Controllers\QcController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\SpkController;
 use App\Http\Controllers\SupplierController;
+use App\Http\Controllers\TokenController;
 use Illuminate\Support\Facades\Route;
 
 // ==============================
@@ -141,6 +143,7 @@ Route::get('/marketing-pfi', [PoController::class, 'marketing']);
 Route::get('/marketing/ajax/po-list', [QcController::class, 'ajaxPoList'])
     ->name('marketing.ajax.po');
 Route::post('/marketing/excel/paste', [PoController::class, 'convert'])->name('marketing.excel.paste');
+
 Route::post('/marketing/excel/upload', [PoController::class, 'uploadExcel'])
     ->name('marketing.excel.upload');
 Route::post('/marketing/excel/save', [PoController::class, 'saveExcelData'])
@@ -154,7 +157,11 @@ Route::post('/marketing/po-item-update-bulk',
 // supplier
 
 Route::get('/supplier', [SupplierController::class, 'index']);
-
+Route::get('/produksi/get-data', [SpkController::class, 'getData']);
+Route::get('/get-detail-barang', [SpkController::class, 'getDetailBarang']);
+Route::post('/produksi/save', [SpkController::class, 'saveData']);
+Route::post('/save-process', [SpkController::class, 'saveProcess']);
+Route::get('/get-timeline', [SpkController::class, 'getTimeline']);
 Route::post('/supplier/store', [SupplierController::class, 'storeSupplier']);
 Route::post('/supplier/update/{id}', [SupplierController::class, 'updateSupplier']);
 Route::get('/timeline/data', [PoController::class, 'getTimeline'])->name('timeline.data');
@@ -171,11 +178,17 @@ Route::get('/all-spk', [SpkController::class, 'allspk'])->name('spk.all');
 Route::get('/semua-spk', [SpkController::class, 'spk'])->name('spk.semua');
 Route::get('/spk/edit/{id}', [SpkController::class, 'index'])->name('spk.edit');
 Route::post('/spk/simpan-edit/{id}', [SpkController::class, 'saveEdit'])
-->name('spk.simpan-edit');
+    ->name('spk.simpan-edit');
 // produksi
 
 Route::get('/produksi', [ProduksiController::class, 'index'])->name('produksi.index');
 Route::get('/spk/export/{id}', [SpkController::class, 'export'])->name('spk.export');
+Route::get('/cad/{id}', [CadController::class, 'index'])->name('cad.index');
+Route::post('/cad/upload', [CadController::class, 'upload']);
+
+Route::get('/chatroom/get-room/{id}', [CadController::class, 'getRoom']);
+Route::get('/chatroom/messages/{id}', [CadController::class, 'messages']);
+Route::post('/chatroom/send', [CadController::class, 'send']);
 
 Route::prefix('pfi')->group(function () {
 
@@ -209,12 +222,26 @@ Route::post('/production-timeline/store', [ProduksiController::class, 'store']);
 Route::post('/production-timeline/store-batch', [ProduksiController::class, 'storeBatch']);
 Route::put('/production-timeline/{id}', [ProduksiController::class, 'update']);
 Route::get('/production-timeline/{kategori?}', [ProduksiController::class, 'getByDetail']);
+Route::post('/pameran/upload-image', [PameranContrller::class, 'uploadImage'])
+    ->name('pameran.uploadImage');
 // Route::get('/kategori/{kategori}', [ProduksiController::class, 'getByKategori']);
 // Route::get('/kategori/{kategori?}', [ProduksiController::class, 'getByKategori']);
+Route::get('/catalogue', [TokenController::class, 'catalogue']);
+Route::get('/get-catalogue', [TokenController::class, 'getcatalogue']);
 
+Route::get('/catalogue', [TokenController::class, 'catalogue']);
+
+Route::get('/token', [TokenController::class, 'tokenPage']);
+Route::post('/update-token', [TokenController::class, 'updateToken']);
+Route::post('/token-check', [TokenController::class, 'checkToken']);
+Route::get('/token-list', [TokenController::class, 'list']);
+Route::post('/save-visitor', [TokenController::class, 'saveVisitor']);
+
+Route::post('/generate-token', [TokenController::class, 'generateToken']);
 // ==============================
 // ⚙️ CEK ENV
 // ==============================
+Route::get('/pameran/download/{exhibition}/{article}', [PameranContrller::class, 'downloadImage'])->name('pameran.downloadImage');
 Route::get('/cek-env', function () {
     return [
         'APP_ENV' => env('APP_ENV'),

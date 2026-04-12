@@ -155,6 +155,18 @@
                              <span class="nav-text">produksi</span>
                          </a>
                      </li>
+                      <li>
+                         <a href="/semua-spk">
+                             <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                             <span class="nav-text">SPK</span>
+                         </a>
+                     </li>
+                          <li>
+                         <a href="/token">
+                             <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                             <span class="nav-text">Token</span>
+                         </a>
+                     </li>
 
                      @endif
 

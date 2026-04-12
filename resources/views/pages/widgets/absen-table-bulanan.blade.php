@@ -1,21 +1,32 @@
 @php
     use Carbon\Carbon;
+    use App\Models\Absen;
+
     $jumlahHari = $bulanSekarang->daysInMonth;
 @endphp
+
 <style>
     table th, table td {
-        padding: 4px !important;   /* kecilin padding */
-        vertical-align: middle !important; /* biar teks center vertikal */
-        font-size: 12px; /* perkecil font supaya hemat ruang */
+        padding: 4px !important;
+        vertical-align: middle !important;
+        font-size: 12px;
     }
     thead th {
         line-height: 1;
     }
 </style>
+<div class="mb-2">
+    <input type="text"
+           id="searchKaryawan"
+           class="form-control form-control-sm"
+           placeholder="Cari nama karyawan...">
+</div>
+
+
 <table class="table table-bordered table-sm">
     <thead>
-        <tr style class="bg-info text-white">
-                        <th rowspan="2" class="text-start">Nama</th>
+        <tr class="bg-info text-white">
+            <th rowspan="2" class="text-start">Nama</th>
 
             @for ($i = 1; $i <= $jumlahHari; $i++)
                 @php
@@ -26,9 +37,11 @@
                     {{ $i }}
                 </th>
             @endfor
+
             <th colspan="4">Total Kehadiran</th>
             <th rowspan="2">Total Jam Kerja</th>
         </tr>
+
         <tr class="bg-info text-white align-middle">
             <th>S</th>
             <th>I</th>
@@ -36,79 +49,103 @@
             <th>A</th>
         </tr>
     </thead>
-    <tbody>
+
+   <tbody id="tableKaryawan">
         @foreach ($karyawans as $karyawan)
+
             @php
                 $totalJam = 0;
-                $totalS = 0; $totalI = 0; $totalC = 0; $totalA = 0;
+                $totalS = 0;
+                $totalI = 0;
+                $totalC = 0;
+                $totalA = 0;
             @endphp
+
             <tr>
                 <td class="text-start">{{ $karyawan->name }}</td>
+
                 @for ($i = 1; $i <= $jumlahHari; $i++)
+
                     @php
                         $tanggal = $bulanSekarang->copy()->day($i);
-                        $isWeekend = $tanggal->isSaturday() || $tanggal->isSunday();
                         $tanggalStr = $tanggal->format('Y-m-d');
-                        $absen = $karyawan->absens->firstWhere('tanggal', $tanggalStr);
+                        $isWeekend = $tanggal->isSaturday() || $tanggal->isSunday();
 
-                        $jamKerja = 0;
-                        $jamKeluar = null;
+                        // ambil langsung dari DB (ANTI ERROR RELASI)
+                        $absens = Absen::where('user_id', $karyawan->id)
+                                    ->whereDate('tanggal', $tanggalStr)
+                                    ->orderBy('jam_masuk')
+                                    ->get();
 
-                        if ($absen && $absen->jam_masuk) {
-                            if ($absen->jam_keluar) {
-                                $jamKeluar = $absen->jam_keluar;
-                            } else {
-                                if (Carbon::now()->greaterThan(Carbon::parse($tanggalStr.' 17:00'))) {
-                                    $jamKeluar = '17:00';
+                        $jamKerjaHari = 0;
+                        $jamList = [];
+
+                        if ($absens->count()) {
+
+                            foreach ($absens as $absen) {
+
+                                $masuk  = $absen->jam_masuk;
+                                $keluar = $absen->jam_keluar;
+
+                                if (!$masuk || !$keluar) continue;
+
+                                try {
+
+                                    $start = Carbon::createFromFormat('Y-m-d H:i:s', $tanggalStr.' '.$masuk);
+                                    $end   = Carbon::createFromFormat('Y-m-d H:i:s', $tanggalStr.' '.$keluar);
+
+                                    $menit = $start->diffInMinutes($end);
+
+                                    if ($menit > 0) {
+                                        $jam = $menit / 60;
+
+                                        $jamKerjaHari += $jam;
+                                        $totalJam += $jam;
+
+                                        $jamList[] =
+                                            substr($masuk,0,5) . ' - ' .
+                                            substr($keluar,0,5);
+                                    }
+
+                                } catch (\Exception $e) {
+                                    // skip kalau format rusak
                                 }
+
+                                // kategori
+                                if ($absen->keterangan == 'sakit') $totalS++;
+                                elseif ($absen->keterangan == 'izin') $totalI++;
+                                elseif ($absen->keterangan == 'cuti') $totalC++;
                             }
 
-                            if ($jamKeluar) {
-                                $jamKerja = Carbon::parse($absen->jam_masuk)
-                                            ->diffInMinutes(Carbon::parse($jamKeluar)) / 60;
-                                $totalJam += $jamKerja;
-                            }
-                        }
-
-                        // hitung kehadiran
-                        if ($absen) {
-                            if ($absen->keterangan == 'sakit') $totalS++;
-                            elseif ($absen->keterangan == 'izin') $totalI++;
-                            elseif ($absen->keterangan == 'cuti') $totalC++;
                         } else {
                             $totalA++;
                         }
                     @endphp
+
                     <td class="{{ $isWeekend ? 'bg-danger text-white' : '' }}"
-                        @if ($jamKerja > 0)
-                            data-bs-toggle="tooltip" data-bs-placement="top"
-                            title="{{ number_format($jamKerja, 2) }} jam"
+                        @if ($jamKerjaHari > 0)
+                            data-bs-toggle="tooltip"
+                            title="{{ number_format($jamKerjaHari, 2) }} jam"
                         @endif>
-                        @if ($absen)
-                            @if ($absen->keterangan == 'sakit')
-                                S
-                            @elseif ($absen->keterangan == 'izin')
-                                I
-                            @elseif ($absen->keterangan == 'cuti')
-                                C
-                            @else
-                                @if ($absen->jam_masuk && !$absen->jam_keluar && $jamKeluar === '17:00')
-                                    H <small class="text-muted"></small>
-                                @else
-                                    H
-                                @endif
-                            @endif
+
+                        @if ($jamList)
+                            {!! implode('<br>', $jamList) !!}
                         @else
                             -
                         @endif
+
                     </td>
+
                 @endfor
+
                 <td>{{ $totalS }}</td>
                 <td>{{ $totalI }}</td>
                 <td>{{ $totalC }}</td>
                 <td>{{ $totalA }}</td>
                 <td>{{ number_format($totalJam, 2) }} jam</td>
+
             </tr>
+
         @endforeach
     </tbody>
 </table>

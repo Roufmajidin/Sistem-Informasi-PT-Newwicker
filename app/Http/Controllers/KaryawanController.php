@@ -408,30 +408,17 @@ class KaryawanController extends Controller
         $now   = now();
 
         /*
-    |------------------------------------------------------------------
-    | EXCEPTION USER (QC JOGJA)
-    |------------------------------------------------------------------
+    |--------------------------------------------------------------------------
+    | EXCEPTION USER (WFH / LUAR KOTA)
+    |--------------------------------------------------------------------------
     */
-        $exceptionUserIds = [180]; // ID QC Jogja
+        $exceptionUserIds = [180, 182]; // bisa tambah lagi
         $isException      = in_array($user->id, $exceptionUserIds);
 
         /*
-    |------------------------------------------------------------------
-    | CEK WAKTU MASUK
-    |------------------------------------------------------------------
-    */
-        $minTime = now()->setTime(7, 0, 0);
-
-        if ($now->lt($minTime)) {
-            return response()->json([
-                'message' => 'Belum bisa absen. Absen dimulai pukul 07:00',
-            ], 403);
-        }
-
-        /*
-    |------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     | LOKASI
-    |------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     */
         $officeLat = config('office.lat');
         $officeLng = config('office.lon');
@@ -446,55 +433,16 @@ class KaryawanController extends Controller
 
         $jarak = $this->distance($userLat, $userLng, $officeLat, $officeLng);
 
-        /*
-    |------------------------------------------------------------------
-    | VALIDASI RADIUS (HANYA USER NORMAL)
-    |------------------------------------------------------------------
-    */
         if (! $isException && $jarak > $radius) {
             return response()->json([
-                'message' => 'Anda berada di luar area kantor (' . round($jarak) . ' meter). Absen ditolak.',
+                'message' => 'Anda berada di luar area kantor (' . round($jarak) . ' meter)',
             ], 403);
         }
 
         /*
-    |------------------------------------------------------------------
-    | MESSAGE QC
-    |------------------------------------------------------------------
-    */
-        $exceptionMessage = '';
-        if ($isException) {
-            $exceptionMessage = 'Hy QC jogja anda berada di jarak ' . round($jarak) . ' meter. ';
-        }
-
-        /*
-    |------------------------------------------------------------------
-    | CEK ABSEN HARI INI
-    |------------------------------------------------------------------
-    */
-        $absen = Absen::where('user_id', $user->id)
-            ->where('tanggal', $today)
-            ->first();
-
-        if ($absen && $absen->jam_masuk && $absen->jam_keluar) {
-            return response()->json([
-                'message' => 'Absen hari ini sudah komplit',
-            ], 200);
-        }
-
-        /*
-    |------------------------------------------------------------------
-    | CUT OFF JAM PULANG
-    |------------------------------------------------------------------
-    */
-        $cutOff = $isException
-            ? now()->setTime(16, 0, 0)  // QC Jogja jam 4
-            : now()->setTime(17, 0, 0); // Normal jam 5
-
-        /*
-    |------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     | UPLOAD FOTO
-    |------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     */
         $fotoPath = null;
         if ($request->hasFile('foto')) {
@@ -502,101 +450,70 @@ class KaryawanController extends Controller
         }
 
         /*
-    |------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     | TRANSACTION
-    |------------------------------------------------------------------
+    |--------------------------------------------------------------------------
     */
         return DB::transaction(function () use (
             $user,
             $today,
             $now,
-            $cutOff,
             $userLat,
             $userLng,
-            $fotoPath,
-            $exceptionMessage
+            $fotoPath
         ) {
 
-            $absen = Absen::lockForUpdate()
+            /*
+        ==========================================================
+        CARI ABSEN AKTIF (BELUM KELUAR)
+        ==========================================================
+        */
+            $absenAktif = Absen::lockForUpdate()
                 ->where('user_id', $user->id)
-                ->where('tanggal', $today)
+                ->whereNull('jam_keluar')
+                ->latest()
                 ->first();
 
             /*
-        |--------------------------------------------------------------
-        | BELUM ADA ABSEN
-        |--------------------------------------------------------------
+        ==========================================================
+        JIKA TIDAK ADA → ABSEN MASUK BARU
+        ==========================================================
         */
-            if (! $absen) {
+            if (! $absenAktif) {
 
-                // Lewat jam pulang → auto keluar
-                if ($now->gte($cutOff)) {
-
-                    Absen::create([
-                        'user_id'     => $user->id,
-                        'tanggal'     => $today,
-                        'jam_keluar'  => $now->format('H:i:s'),
-                        'latitude'    => $userLat,
-                        'longitude'   => $userLng,
-                        'latitude_k'  => null,
-                        'longitude_k' => null,
-                        'foto_keluar' => $fotoPath,
-                        'keterangan'  => 'Lupa Absen Masuk',
-                    ]);
-
-                    return response()->json([
-                        'message' => $exceptionMessage .
-                        'Anda lupa absen masuk! Sistem otomatis mencatat jam keluar pukul ' .
-                        $now->format('H:i') . '.',
-                    ], 200);
-                }
-
-                // Absen masuk
                 Absen::create([
                     'user_id'    => $user->id,
                     'tanggal'    => $today,
                     'jam_masuk'  => $now->format('H:i:s'),
-
                     'latitude'   => $userLat,
                     'longitude'  => $userLng,
                     'foto'       => $fotoPath,
-                    'keterangan' => 'Hadir',
+                    'keterangan' => 'Masuk',
                 ]);
 
                 return response()->json([
-                    'message' => $exceptionMessage . 'Absen masuk tercatat',
+                    'message' => 'Absen masuk tercatat jam ' . $now->format('H:i'),
+                    'status'  => 'masuk',
                 ], 201);
             }
 
             /*
-        |--------------------------------------------------------------
-        | SUDAH MASUK BELUM KELUAR
-        |--------------------------------------------------------------
+        ==========================================================
+        SUDAH MASUK → ABSEN KELUAR
+        ==========================================================
         */
-            if ($absen->jam_masuk && ! $absen->jam_keluar) {
+            $absenAktif->update([
+                'jam_keluar'  => $now->format('H:i:s'),
+                'latitude_k'  => $userLat,
+                'longitude_k' => $userLng,
+                'foto_keluar' => $fotoPath,
+                'keterangan'  => 'Keluar',
+            ]);
 
-                if ($now->lt($cutOff)) {
-                    return response()->json([
-                        'message' => 'Belum bisa absen keluar. Minimal pukul ' .
-                        ($cutOff->format('H:i')),
-                    ], 403);
-                }
-
-                $absen->update([
-                    'jam_keluar'  => $now->format('H:i:s'),
-                    'latitude_k'  => $userLat,
-                    'longitude_k' => $userLng,
-                    'foto_keluar' => $fotoPath,
-                    'keterangan'  => "Hadir",
-                ]);
-
-                return response()->json([
-                    'message' => $exceptionMessage .
-                    'Absen keluar berhasil dicatat pada ' . $now->format('H:i'),
-                ], 200);
-            }
-
-            return response()->json(['message' => 'Data absen tidak valid'], 400);
+            return response()->json([
+                'message' => 'Absen keluar tercatat jam ' . $now->format('H:i'),
+                'status'  => 'keluar',
+            ], 200);
         });
     }
 
@@ -677,7 +594,7 @@ class KaryawanController extends Controller
         $formattedDate = $date ? str_replace('-', '', $date) : null;
 
         $absens = Absen::with('user')
-            ->whereNotIn('keterangan', ['Hadir', 'Lupa Absen Masuk', 'Lupa Absen Keluar'])
+            ->whereNotIn('keterangan', ['Hadir', 'Lupa Absen Masuk', 'Lupa Absen Keluar', 'Full H'])
             ->when($formattedDate, fn($q) => $q->where('tanggal', $formattedDate))
             ->orderBy('tanggal', 'desc')
             ->paginate(10)

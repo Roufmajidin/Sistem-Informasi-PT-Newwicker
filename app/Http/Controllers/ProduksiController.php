@@ -1,76 +1,31 @@
 <?php
 namespace App\Http\Controllers;
 
-use App\Models\DetailPo;
+use App\Models\Po;
 use App\Models\ProductionTimeline;
 use App\Models\Spk;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class ProduksiController extends Controller
 {
     //
     public function index()
     {
-        $detailPo = DetailPo::with('po')->get();
+       $detailPo = Po::with('details')->paginate(5); // bebas mau 5 / 10 / 20
         $spks     = Spk::all();
-
-        $result = [];
-
-        foreach ($detailPo as $dp) {
-            $photo = Cache::remember(
-                'photo_dp_' . $dp->id,
-                now()->addHours(6),
-                fn() => data_get($dp->detail, 'photo')
-            );
-            Log::info('PHOTO FROM CACHE', [
-                'dp_id' => $dp->id,
-                'photo' => $photo,
-            ]);
-
-            $mappedSpk = [];
-
-            foreach ($spks as $spk) {
-
-                $kategori = $spk->data['kategori'] ?? '-';
-                $sup      = $spk->data['sup'] ?? '-';
-
-                foreach ($spk->data['items'] ?? [] as $item) {
-
-                    if (($item['detail_po_id'] ?? null) == $dp->id) {
-
-                        // INIT KATEGORI
-                        if (! isset($mappedSpk[$kategori])) {
-                            $mappedSpk[$kategori] = [];
-                        }
-
-                        // INIT SPK (BIAR TIDAK DOBEL)
-                        if (! isset($mappedSpk[$kategori][$spk->id])) {
-                            $mappedSpk[$kategori][$spk->id] = [
-                                'spk_id' => $spk->id,
-                                'no_spk' => $spk->data['no_spk'] ?? '-',
-                                'sup'    => $sup,
-                                'qty'    => 0,
-                            ];
-                        }
-
-                        // AKUMULASI QTY
-                        $mappedSpk[$kategori][$spk->id]['qty'] += $item['qty'] ?? 0;
-                    }
-                }
-            }
-
-            $result[] = [
-                'detail_po' => $dp,
-                'spk'       => $mappedSpk,
-                'photo'     => $photo, // 👈 TAMBAHKAN INI
-
-            ];
-        }
+//    $timeline = ProductionTimeline::select(
+//     'detail_po_id',
+//     'process',
+//     'type',
+//     'qty',
+//     'next_process' // 🔥 TAMBAHKAN INI
+// )->get();
+        // dd($timeline);
 
         // dd($result);
-        return view('pages.spk.produksi.index', compact('result'));
+        return view('pages.spk.produksi.index', compact('detailPo'));
     }
 
     public function getByDetail(Request $request, $kategori = null)
@@ -247,7 +202,7 @@ class ProduksiController extends Controller
             } else {
                 $s = $totalMasuk - $totalService;
                 Log::info("service '{$u}'");
-                if ( $totalMasuk< $request->qty) {
+                if ($totalMasuk < $request->qty) {
                     return response()->json([
                         'success' => false,
                         'message' => "Qty OUT kategori '{$sup}' melebihi limit SPK ({$maxQtySPK}). Sisa: " . max(0, $maxQtySPK - ($totalMasuk + $totalOut + $totalService)),

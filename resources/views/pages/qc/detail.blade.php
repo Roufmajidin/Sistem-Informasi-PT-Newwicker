@@ -2,6 +2,26 @@
 @section('title', "detail QC")
 
 @section('content')
+<style>
+    .sticky-right {
+    position: relative;
+}
+.sticky-right {
+    z-index: 1 !important;
+}
+
+.box {
+    z-index: 1 !important;
+}
+.dropdown {
+    position: relative;
+    z-index: 99999;
+}
+
+.dropdown-menu {
+    z-index: 99999 !important;
+}
+</style>
 <div class="padding">
     <div class="row">
 

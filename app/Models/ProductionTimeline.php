@@ -19,17 +19,21 @@ class ProductionTimeline extends Model
         'spk_id',
         'detail_po_id',
         'qty',
-        'data',
+        'sup_id',
+        'process',
+        'next_process',
         'date',
         'type',
         'remark',
         'is_service',
+        'jenis',
+        'source_type'
     ];
     // data array null
 
-    protected $casts = [
-        'data' => 'array',
-    ];
+    // protected $casts = [
+    //     'data' => 'array',
+    // ];
 
 
     public function detailPo()

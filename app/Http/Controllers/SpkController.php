@@ -3,10 +3,13 @@ namespace App\Http\Controllers;
 
 use App\Models\DetailPo;
 use App\Models\Po;
+use App\Models\ProductionTimeline;
 use App\Models\Spk;
 use App\Models\SpkTimeline;
+use App\Models\Supplier;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -247,7 +250,7 @@ class SpkController extends Controller
             }
 
             // ===== VALIDASI QTY (CREATE SAJA)
-            if ($mode === 'create'|| $mode === 'edit') {
+            if ($mode === 'create' || $mode === 'edit') {
                 $qtyPo = (int) ($detailPo->detail['qty'] ?? 0);
 
                 $qtySpkExist = $this->getTotalSpkQtyByDetailPoAndKategori(
@@ -801,6 +804,369 @@ class SpkController extends Controller
             'spk' => $spkView,
         ]);
     }
-    // saipamn edit
 
+    public function getData(Request $request)
+    {
+        $poId     = $request->po_id;
+        $detailId = $request->detail_po_id;
+        $kategori = strtolower($request->kategori);
+
+        // 🔥 ambil semua SPK dalam PO
+        $spks = Spk::where('po_id', $poId)->get();
+
+        $supplierIds = [];
+        $spkInfo     = [];
+        $allSpk      = [];
+
+        foreach ($spks as $spk) {
+
+            $data = is_array($spk->data)
+                ? $spk->data
+                : json_decode($spk->data, true);
+
+            $items = collect($data['items'] ?? []);
+
+            // 🔥 filter detail_po_id
+            $item = $items->firstWhere('detail_po_id', $detailId);
+
+            if (! $item) {
+                continue; // ❗ skip kalau bukan item ini
+            }
+
+            $supplier = Supplier::where('name', $data['sup'])->first();
+
+            if (! $supplier) {
+                continue;
+            }
+
+            $kategoriSpk = strtolower($data['kategori']);
+
+            // ================= IN (kategori sekarang)
+            if ($kategoriSpk === $kategori) {
+
+                $supplierIds[] = $supplier->id;
+
+                $spkInfo[] = [
+                    'sup_id' => $supplier->id,
+                    'sup'    => $supplier->name,
+                    'no_spk' => $data['no_spk'],
+                    'qty'    => $item['qty'] ?? 0,
+                    'spk_id' => $spk->id,
+                ];
+            }
+
+            // ================= OUT (semua kategori tapi tetap detail_po_id sama)
+            $allSpk[] = [
+                'spk_id'   => $spk->id,
+                'sup_id'   => $supplier->id,
+                'sup_name' => $supplier->name,
+                'kategori' => $kategoriSpk,
+                'no_spk'   => $data['no_spk'],
+                'qty'      => $item['qty'] ?? 0,
+            ];
+        }
+
+        // 🔥 supplier dropdown (IN)
+        $suppliers = Supplier::whereIn('id', $supplierIds)
+            ->select('id', 'name')
+            ->get();
+
+        // 🔥 timeline
+        $timeline = ProductionTimeline::where('po_id', $poId)
+            ->where('detail_po_id', $detailId)
+            ->where('process', $kategori)
+            ->get();
+
+        return response()->json([
+            'items'     => $timeline,
+            'suppliers' => $suppliers,
+            'spk_info'  => $spkInfo,
+            'all_spk'   => $allSpk,
+        ]);
+    }
+    public function saveData(Request $request)
+    {
+        DB::beginTransaction();
+
+        try {
+
+            $poId     = $request->po_id;
+            $detailId = $request->detail_po_id;
+            $process  = strtolower($request->process);
+
+            // 🔥 delete dulu biar tidak double
+            ProductionTimeline::where('po_id', $poId)
+                ->where('detail_po_id', $detailId)
+                ->where('process', $process)
+                ->delete();
+
+            // ================= IN =================
+            foreach ($request->in ?? [] as $row) {
+
+                if (empty($row['qty'])) {
+                    continue;
+                }
+
+                ProductionTimeline::create([
+                    'po_id'        => $poId,
+                    'detail_po_id' => $detailId,
+                    'process'      => $process,
+                    'type'         => 'IN',
+                    'sup_id'       => $row['supplier'],
+                    'qty'          => $row['qty'],
+                    'date'         => $row['tgl'],
+                    'remark'       => $row['remark'] ?? '-',
+                    'spk_id'       => $row['spk_id'],
+                    'next_process' => null,
+                ]);
+            }
+
+            // ================= OUT =================
+            foreach ($request->out ?? [] as $row) {
+
+                if (empty($row['qty'])) {
+                    continue;
+                }
+
+                ProductionTimeline::create([
+                    'po_id'        => $poId,
+                    'detail_po_id' => $detailId,
+                    'process'      => $process,
+                    'type'         => 'OUT',
+                    'sup_id'       => $row['supplier'], // 🔥 tujuan supplier
+                    'qty'          => $row['qty'],
+                    'date'         => now(),
+                    'remark'       => $row['remark'] ?? '-',
+                    'spk_id'       => $row['spk_id'], // 🔥 tujuan spk
+                    'next_process' => $row['next_process'],
+                ]);
+            }
+
+            DB::commit();
+
+            return response()->json(['success' => true]);
+
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ]);
+        }
+    }
+    public function getDetailBarang(Request $request)
+    {
+        $po_id        = $request->po_id;
+        $detail_po_id = $request->detail_po_id;
+
+        $spks = Spk::where('po_id', $po_id)->get();
+
+        $result = [];
+
+        foreach ($spks as $spk) {
+
+            $data = $spk->data;
+
+            foreach ($data['items'] as $item) {
+
+                if ($item['detail_po_id'] == $detail_po_id) {
+
+                    $supplier = Supplier::where('name', $data['sup'])->first();
+
+                    $result[] = [
+                        'spk_id'   => $spk->id,
+                        'supplier' => [
+                            'id'   => $supplier?->id,
+                            'name' => $data['sup'],
+                        ],
+                        'kategori' => $data['kategori'],
+                        'item'     => $item,
+                    ];
+                }
+            }
+        }
+
+        // =========================
+        // 🔥 AMBIL LOG PRODUKSI
+        // =========================
+        $logs = DB::table('production_timeline as pt')
+            ->leftJoin('suppliers as s', 's.id', '=', 'pt.sup_id')
+            ->where('pt.po_id', $po_id)
+            ->where('pt.detail_po_id', $detail_po_id)
+            ->select(
+                'pt.date',
+                DB::raw("TIME_FORMAT(pt.created_at, '%H:%i') as time"),
+                'pt.type',
+                'pt.process',
+                'pt.next_process',
+                'pt.qty',
+                's.name as supplier',
+                'pt.remark'
+            )
+            ->orderBy('pt.created_at', 'desc')
+            ->get();
+
+        return response()->json([
+            'data' => $result,
+            'logs' => $logs,
+        ]);
+    }
+    // arsip udah bener
+    public function saveProcess(Request $request)
+    {
+        // =========================
+        // VALIDASI BASIC
+        // =========================
+        $request->validate([
+            'po_id'        => 'required',
+            'detail_po_id' => 'required',
+            'qty'          => 'required',
+            'type'         => 'required',
+            'process'      => 'required',
+        ]);
+
+        // =========================
+        // CLEAN QTY
+        // =========================
+        $qty = (int) str_replace(',', '', $request->qty);
+
+        if ($qty <= 0) {
+            return response()->json([
+                'status'  => false,
+                'message' => 'Qty tidak valid',
+            ], 422);
+        }
+
+        $detail_po_id = $request->detail_po_id;
+        $process      = $request->process;
+        $type         = $request->type;
+        $spk_id       = $request->spk_id;
+
+        // =========================
+        // 🔥 VALIDASI MAX SPK (MASUK SUPPLIER + RETURN SERVICE)
+        // =========================
+        if ($type === 'masuk' && $spk_id) {
+
+            // total masuk
+            $totalMasuk = DB::table('production_timeline')
+                ->where('detail_po_id', $detail_po_id)
+                ->where('spk_id', $spk_id)
+                ->where('type', 'masuk')
+                ->sum('qty');
+
+            // 🔥 total service (lock sementara)
+            $totalService = DB::table('production_timeline')
+                ->where('detail_po_id', $detail_po_id)
+                ->where('spk_id', $spk_id)
+                ->where('type', 'service')
+                ->sum('qty');
+
+            // 🔥 effective masuk
+            $effectiveMasuk = $totalMasuk - $totalService;
+
+            // ambil data SPK
+            $spk = Spk::find($spk_id);
+
+            if (! $spk) {
+                return response()->json([
+                    'status'  => false,
+                    'message' => 'SPK tidak ditemukan',
+                ], 422);
+            }
+
+            $data = $spk->data;
+
+            $maxQty = collect($data['items'])
+                ->where('detail_po_id', $detail_po_id)
+                ->first()['qty'] ?? 0;
+
+            if (($effectiveMasuk + $qty) > $maxQty) {
+
+                $sisa = $maxQty - $effectiveMasuk;
+
+                return response()->json([
+                    'status'  => false,
+                    'message' => "Qty melebihi SPK. Sisa hanya {$sisa}",
+                ], 422);
+            }
+        }
+
+        // =========================
+        // 🔥 VALIDASI STOK (KELUAR & SERVICE)
+        // =========================
+        if (in_array($type, ['keluar', 'service'])) {
+
+            // total masuk
+            $totalIn = DB::table('production_timeline')
+                ->where('detail_po_id', $detail_po_id)
+                ->where('process', $process)
+                ->where('type', 'masuk')
+                ->sum('qty');
+
+            // total keluar
+            $totalOut = DB::table('production_timeline')
+                ->where('detail_po_id', $detail_po_id)
+                ->where('process', $process)
+                ->where('type', 'keluar')
+                ->sum('qty');
+
+            // 🔥 total service (lock)
+            $totalService = DB::table('production_timeline')
+                ->where('detail_po_id', $detail_po_id)
+                ->where('process', $process)
+                ->where('type', 'service')
+                ->sum('qty');
+
+            $available = $totalIn - $totalOut - $totalService;
+
+            if ($qty > $available) {
+                return response()->json([
+                    'status'  => false,
+                    'message' => "Qty melebihi stok tersedia ({$available})",
+                ], 422);
+            }
+        }
+
+        // =========================
+        // 🔥 SIMPAN DATA
+        // =========================
+        DB::table('production_timeline')->insert([
+            'po_id'        => $request->po_id,
+            'spk_id'       => $request->spk_id,
+            'detail_po_id' => $detail_po_id,
+            'qty'          => $qty,
+            'sup_id'       => $request->supplier_id,
+            'date'         => $request->date,
+            'type'         => $type,
+            'process'      => $request->process,
+            'next_process' => $request->next_process,
+            'source_type'  => $request->source_type,
+            'remark'       => $request->remark,
+            'created_at'   => now(),
+            'updated_at'   => now(),
+        ]);
+
+        return response()->json([
+            'status'  => true,
+            'message' => 'Berhasil disimpan',
+        ]);
+    }
+public function getTimeline(Request $request)
+{
+    $po_id = $request->po_id;
+
+    $timeline = ProductionTimeline::select(
+        'detail_po_id',
+        'process',
+        'type',
+        'qty',
+        'next_process'
+    )
+    ->where('po_id', $po_id)
+    ->get();
+
+    return response()->json($timeline);
+}
 }

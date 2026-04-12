@@ -7,6 +7,7 @@
 <div class="box">
     <div class="box-header d-flex justify-content-between align-items-center">
         <h3>SPK PRODUKSI</h3>
+
 @if($spk['mode'] === 'edit')
     <span class="warning">EDIT MODE</span>
 @else
@@ -14,14 +15,16 @@
 @endif
         <div style="min-width:180px">
             <label style="font-size:12px; margin-bottom:2px;"><b>Jenis SPK</b></label>
-            <select name="spk_type" id="spk_type" class="form-control form-control-sm">
+           <select name="spk_type" id="spk_type" class="form-control form-control-sm">
                 <option value="">-- Pilih --</option>
                 <option value="rangka" {{ ($spk['type'] ?? '')=='rangka' ? 'selected' : '' }}>Rangka</option>
                 <option value="anyam" {{ ($spk['type'] ?? '')=='anyam' ? 'selected' : '' }}>Anyam</option>
                 <option value="decor" {{ ($spk['type'] ?? '')=='decor' ? 'selected' : '' }}>Decor</option>
+                <option value="cushion" {{ ($spk['type'] ?? '')=='cushion' ? 'selected' : '' }}>cushion</option>
+                <option value="Box" {{ ($spk['type'] ?? '')=='Box' ? 'selected' : '' }}>Box</option>
                 <option value="unfinish" {{ ($spk['type'] ?? '')=='unfinish' ? 'selected' : '' }}>Unfinish</option>
-                <option value="unfinish" {{ ($spk['type'] ?? '')=='ikat' ? 'selected' : '' }}>Ikat</option>
-                <option value="unfinish" {{ ($spk['type'] ?? '')=='final' ? 'selected' : '' }}>Final</option>
+                <option value="ikat" {{ ($spk['type'] ?? '')=='ikat' ? 'selected' : '' }}>Ikat</option>
+                <option value="final" {{ ($spk['type'] ?? '')=='final' ? 'selected' : '' }}>Final</option>
             </select>
         </div>
     </div>

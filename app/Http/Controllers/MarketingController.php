@@ -208,8 +208,8 @@ class MarketingController extends Controller
             mkdir($directory, 0777, true);
         }
 
-        $filename = time() . '-' . $fileBaseName . '.' . $extension;
-        $path     = $directory . '/' . $filename;
+        $filename  = time() . '-' . $fileBaseName . '.' . $extension;
+        $path      = $directory . '/' . $filename;
 
         file_put_contents($path, $imageContents);
 
@@ -259,6 +259,7 @@ class MarketingController extends Controller
     public function export(Request $request)
     {
         $cartItems = json_decode($request->items, true);
+         dd($cartItems); // lihat semua data items
         if (empty($cartItems)) {
             return back()->with('error', 'Data produk kosong.');
         }
@@ -273,24 +274,30 @@ class MarketingController extends Controller
                 '', // photo
                 $item['description'] ?? '-',
                 $item['article_nr'] ?? '-',
+                $item['sub_categories'] ?? '-',
                 $item['remark'] ?? '-',
-                $item['cushion'] ?? '-',
-                $item['glass_orMirror'] ?? '-',
+
+                // Item Dimension
                 $item['w'] ?? '-',
                 $item['d'] ?? '-',
                 $item['h'] ?? '-',
+
+                // Packing Dimension
                 $item['pw'] ?? '-',
                 $item['pd'] ?? '-',
                 $item['ph'] ?? '-',
+
+                // Composition & Finishing
                 $item['materials'] ?? '-',
                 $item['finishes_color'] ?? '-',
+
                 $item['qty'] ?? 0,
                 $item['cbm'] ?? '0.00',
                 $this->idr($item['usd_selling_price']),
                 $item['total_cbm'] ?? '0.00',
                 $this->idr($item['value_in_usd'] ?? 0),
-            ], null, "A$row");
 
+            ], null, "A$row");
             // Tambahkan styling border dan alignment
             $sheet->getStyle("A{$row}:T{$row}")->applyFromArray([
                 'borders'   => [

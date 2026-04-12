@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Divisi;
 use App\Models\Karyawan;
+use App\Models\Lembur;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -133,17 +134,17 @@ class AuthController extends Controller
 
         $today = now()->toDateString();
 
-        // Ambil semua absen user
+        // ======================
+        // ABSEN
+        // ======================
         $absens = $user->absens()
             ->orderBy('tanggal', 'desc')
             ->orderBy('jam_masuk', 'desc')
             ->get();
 
-        // Cek apakah ada absen hari ini
         $hasToday = $absens->where('tanggal', $today)->first();
 
         if (! $hasToday) {
-            // Tambahkan absen dummy ke paling depan
             $dummy = [
                 'id'          => null,
                 'user_id'     => $user->id,
@@ -166,9 +167,61 @@ class AuthController extends Controller
             $absens->prepend((object) $dummy);
         }
 
+        // ======================
+        // LEMBUR LIST (RIWAYAT)
+        // ======================
+        $lemburList = $user->lemburs()
+            ->orderBy('tanggal', 'desc')
+            ->orderBy('jam_masuk', 'desc')
+            ->get();
+
+        // ======================
+        // LEMBUR TODAY
+        // ======================
+        $lemburToday = $lemburList
+            ->where('tanggal', $today)
+            ->first();
+
+        if (! $lemburToday) {
+            $lemburToday = (object) [
+                'id'          => null,
+                'user_id'     => $user->id,
+                'tanggal'     => $today,
+                'jam_masuk'   => null,
+                'jam_keluar'  => null,
+                'latitude'    => null,
+                'longitude'   => null,
+                'latitude_k'  => null,
+                'longitude_k' => null,
+                'foto'        => null,
+                'foto_keluar' => null,
+                'keterangan'  => null,
+                'validate'    => null,
+            ];
+        }
+
         return response()->json([
-            'user'  => $user,
-            'absen' => $absens->values(),
+            'user'         => $user,
+            'absen'        => $absens->values(),
+            'lembur'       => $lemburList->values(), // ✅ TAMBAHAN
+            'lembur_today' => $lemburToday,
+        ]);
+    }
+    public function getLemburSaya(Request $request)
+    {
+        if (! $request->user()) {
+            return response()->json(['message' => 'Token tidak valid'], 401);
+        }
+
+        $user = $request->user();
+
+        $lembur = Lembur::where('user_id', $user->id)
+            ->orderBy('tanggal', 'desc')
+            ->get();
+
+        return response()->json([
+            'status' => true,
+            'data'   => $lembur,
         ]);
     }
 }

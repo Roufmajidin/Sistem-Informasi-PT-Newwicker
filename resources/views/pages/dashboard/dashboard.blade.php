@@ -34,33 +34,39 @@
 	        </div>
 	    </div>
 
-  <div class="box-body">
+ <div class="box-body">
     <div class="row">
 
         <!-- ================= LEFT : TIMELINE ================= -->
         <div class="col-md-6">
-            <div class="p-a">
-                <div class="streamline b-l m-b" id="timelineContainer">
-                    <!-- Data timeline via JS -->
+            <div class="box">
+                <div class="box-header">
+                    <h3>SPK Timeline</h3>
+                </div>
+                <div class="box-body">
+                    <div class="streamline b-l m-b" id="timelineContainer">
+                        <!-- Data timeline via JS -->
+                    </div>
                 </div>
             </div>
         </div>
 
-
         <!-- ================= RIGHT : TASK ================= -->
         <div class="col-md-6">
-
-         <div class="box">
-    <div class="box-header">
-        <h3>SPK Timeline</h3>
-    </div>
-
-    <div class="box-body">
-        <div class="streamline b-l m-l" id="spkTimelineContainer">
+            <div class="box">
+                <div class="box-header">
+                    <h3>SPK Timeline</h3>
+                </div>
+                <div class="box-body">
+                    <div class="streamline b-l m-l" id="spkTimelineContainer">
+                        <!-- Data -->
+                    </div>
+                </div>
+            </div>
         </div>
+
     </div>
 </div>
-
         </div>
 
     </div>

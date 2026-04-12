@@ -116,46 +116,52 @@ document.addEventListener('DOMContentLoaded', function () {
     /* ===============================
        PILIH JENIS (EVENT DELEGATION)
     =============================== */
-    document.body.addEventListener('click', function (e) {
+     $(document).on('click', '.item-jenis', function (e) {
 
-        const el = e.target.closest('.item-jenis');
-        if (!el) return;
+    e.preventDefault();
 
-        e.preventDefault();
+    let jenis = $(this).data('jenis');
+    let poId  = $('#po-id').val();
 
-        const jenis = el.dataset.jenis;
-        const poId  = document.getElementById('po-id')?.value;
+    if (!jenis || !poId) {
+        alert('Jenis / PO tidak valid');
+        return;
+    }
 
-        if (!jenis || !poId) {
-            alert('Jenis / PO tidak valid');
-            return;
-        }
+    // ===============================
+    // SET STATE
+    // ===============================
+    currentJenis = jenis;
+    currentPoId  = poId;
 
-        // set state
-        currentJenis = jenis;
-        currentPoId  = poId;
+    // ===============================
+    // UPDATE BUTTON TEXT
+    // ===============================
+    $('#btn-jenis').html(jenis.toUpperCase() + ' <span class="caret"></span>');
 
-        // dropdown text
-        const btnJenis = document.getElementById('btn-jenis');
-        if (btnJenis) {
-            btnJenis.innerHTML = jenis.toUpperCase() + ' <span class="caret"></span>';
-        }
+    // ===============================
+    // SET HIDDEN INPUT
+    // ===============================
+    $('#input-jenis').val(jenis);
 
-        // hidden input
-        document.getElementById('input-jenis').value = jenis;
-        document.getElementById('po-id').value = poId;
+    // ===============================
+    // UPDATE JUDUL TABLE
+    // ===============================
+    $('#jenis').text(jenis.toUpperCase());
 
-        // judul tabel
-        const jenisEl = document.getElementById('jenis');
-        if (jenisEl) {
-            jenisEl.textContent = ` ${jenis.toUpperCase()} `;
-        }
+    // ===============================
+    // RESET UI QC
+    // ===============================
+    resetQcUI();
 
-        // reset semua data QC lama
-        resetQcUI();
+    console.log('[SET JENIS]', { jenis, poId });
 
-        console.log('[SET JENIS]', { jenis, poId });
-    });
+    // ===============================
+    // 🔥 FIX PENTING: CLOSE DROPDOWN
+    // ===============================
+    $('.dropdown').removeClass('open');
+
+});
 
     /* ===============================
        CLICK DETAIL ITEM

@@ -142,108 +142,177 @@
 
 
 <pre id="result"></pre>
-
-@endsection
-
 @push('scripts')
-<!-- jQuery (WAJIB PERTAMA) -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
-<!-- Bootstrap JS (SETELAH jQuery) -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/js/bootstrap.min.js"></script>
 <script>
-    document.getElementById('btn-show-form').addEventListener('click', function () {
-        const form = document.getElementById('qc-form-wrapper');
-        form.style.display = 'block';
-        this.style.display = 'none'; // tombol hilang setelah diklik
-    });
-</script>
 
-<script>
-    // Parsing textarea kiri (order info)
-    document.getElementById('order-textarea').addEventListener('input', function() {
-        const text = this.value;
-        const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
-        const obj = {};
+if (!window.qcPageInitialized) {
 
-        lines.forEach(line => {
-            const parts = line.split(':');
-            if (parts.length >= 2) {
-                const key = parts[0].trim().replace(/\s+/g, '_');
-                const value = parts.slice(1).join(':').trim();
-                obj[key] = value;
-            }
+    window.qcPageInitialized = true;
+
+    function initQcPage() {
+
+        // ❗ CEGAH jalan di halaman lain
+        if (!$('#po-table-body').length) return;
+
+        console.log('INIT QC PAGE');
+
+        /* ==============================
+           SHOW FORM
+        ============================== */
+        $(document).off('click', '#btn-show-form')
+        .on('click', '#btn-show-form', function () {
+            $('#qc-form-wrapper').show();
+            $(this).hide();
         });
 
-        document.getElementById('json-output').textContent = JSON.stringify(obj, null, 2);
-    });
+        /* ==============================
+           FORMAT SEARCH
+        ============================== */
+        $(document).off('input', '#search-qc')
+        .on('input', '#search-qc', function () {
+            let val = this.value;
+            val = val.replace(/(\d)-$/g, '$1 - ');
+            this.value = val;
+        });
 
-    // Parsing textarea kanan (Excel → JSON)
-    document.getElementById('order-textarea2').addEventListener('input', function() {
-        const text = this.value;
+        /* ==============================
+           LOAD TABLE (GLOBAL SAFE)
+        ============================== */
+        window.loadPoTable = function(keyword = '') {
 
-        if (text.trim() === '') {
-            document.getElementById('json-output2').textContent = '';
-            document.getElementById('parsed_excel_json').value = '';
-            return;
-        }
+            if (!$('#po-table-body').length) return;
 
-        fetch("{{ route('excel.paste') }}", {
+            fetch(`{{ route('qc.ajax.po') }}?q=${encodeURIComponent(keyword)}`)
+                .then(res => res.json())
+                .then(data => {
+
+                    const tbody = document.getElementById('po-table-body');
+                    if (!tbody) return;
+
+                    tbody.innerHTML = '';
+
+                    if (!data.length) {
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">
+                                    Belum ada data
+                                </td>
+                            </tr>
+                        `;
+                        return;
+                    }
+
+                    data.forEach(po => {
+                        tbody.innerHTML += `
+                            <tr>
+                                <td>${po.order_no}</td>
+                                <td>${po.po_no ?? '-'}</td>
+                                <td>${po.company_name}</td>
+                                <td>
+                                    <a href="/qc/${po.id}"
+                                       class="btn btn-xs success btn-view">
+                                        View
+                                    </a>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                })
+                .catch(err => console.error(err));
+        };
+
+        /* ==============================
+           SEARCH
+        ============================== */
+        $(document).off('keyup', '#search-qc')
+        .on('keyup', '#search-qc', function () {
+            loadPoTable(this.value);
+        });
+
+        /* ==============================
+           TEXTAREA PARSER
+        ============================== */
+        $(document).off('input', '#order-textarea')
+        .on('input', '#order-textarea', function () {
+
+            const lines = this.value.split(/\r?\n/).filter(l => l.trim());
+            const obj = {};
+
+            lines.forEach(line => {
+                const parts = line.split(':');
+                if (parts.length >= 2) {
+                    obj[parts[0].trim().replace(/\s+/g, '_')] =
+                        parts.slice(1).join(':').trim();
+                }
+            });
+
+            $('#json-output').text(JSON.stringify(obj, null, 2));
+        });
+
+        /* ==============================
+           TEXTAREA EXCEL
+        ============================== */
+        $(document).off('input', '#order-textarea2')
+        .on('input', '#order-textarea2', function () {
+
+            const text = this.value;
+
+            if (!text.trim()) {
+                $('#json-output2').text('');
+                $('#parsed_excel_json').val('');
+                return;
+            }
+
+            fetch("{{ route('excel.paste') }}", {
                 method: "POST",
                 headers: {
-                    "X-CSRF-TOKEN": document.querySelector('input[name=_token]').value,
+                    "X-CSRF-TOKEN": $('input[name=_token]').val(),
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify({
-                    excel_data: text
-                })
+                body: JSON.stringify({ excel_data: text })
             })
             .then(res => res.json())
             .then(data => {
-                // tampilkan JSON di pre
-                document.getElementById('json-output2').textContent = JSON.stringify(data, null, 2);
-
-                // simpan JSON di hidden input
-                document.getElementById('parsed_excel_json').value = JSON.stringify(data);
+                $('#json-output2').text(JSON.stringify(data, null, 2));
+                $('#parsed_excel_json').val(JSON.stringify(data));
             })
-            .catch(err => {
-                console.error(err);
-                document.getElementById('json-output2').textContent = 'Gagal memanggil API';
-            });
-    });
-
-    // Submit form → kirim kedua data
-    document.getElementById('paste-form').addEventListener('submit', function(e) {
-        e.preventDefault();
-
-        // Ambil order info dari textarea kiri
-        const orderText = document.getElementById('order-textarea').value;
-        const lines = orderText.split(/\r?\n/).filter(l => l.trim() !== '');
-        const orderJson = {};
-        lines.forEach(line => {
-            const parts = line.split(':');
-            if (parts.length >= 2) {
-                const key = parts[0].trim().replace(/\s+/g, '_');
-                const value = parts.slice(1).join(':').trim();
-                orderJson[key] = value;
-            }
+            .catch(err => console.error(err));
         });
 
-        // Ambil Excel JSON dari textarea kanan
-        const excelJsonStr = document.getElementById('parsed_excel_json').value;
-        let excelJson = {};
-        try {
-            excelJson = JSON.parse(excelJsonStr);
-        } catch (e) {
-            alert('JSON Excel tidak valid!');
-            return;
-        }
+        /* ==============================
+           SUBMIT FORM
+        ============================== */
+        $(document).off('submit', '#paste-form')
+        .on('submit', '#paste-form', function (e) {
 
-        // Kirim ke controller
-        fetch("{{ route('qc.save') }}", {
+            e.preventDefault();
+
+            let orderJson = {};
+
+            $('#order-textarea').val()
+            .split(/\r?\n/)
+            .filter(l => l.trim())
+            .forEach(line => {
+                const parts = line.split(':');
+                if (parts.length >= 2) {
+                    orderJson[parts[0].trim().replace(/\s+/g, '_')] =
+                        parts.slice(1).join(':').trim();
+                }
+            });
+
+            let excelJson;
+
+            try {
+                excelJson = JSON.parse($('#parsed_excel_json').val());
+            } catch {
+                alert('JSON Excel tidak valid!');
+                return;
+            }
+
+            fetch("{{ route('qc.save') }}", {
                 method: "POST",
                 headers: {
-                    "X-CSRF-TOKEN": document.querySelector('input[name=_token]').value,
+                    "X-CSRF-TOKEN": $('input[name=_token]').val(),
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
@@ -252,126 +321,41 @@
                 })
             })
             .then(res => res.json())
-            .then(data => {
-                // Tampilkan JSON response di textarea kanan
-                document.getElementById('json-output2').textContent = JSON.stringify(data, null, 2);
-                // alert('Data berhasil disimpan!');
+            .then(() => {
                 loadPoTable();
-
             })
             .catch(err => {
                 console.error(err);
-                alert('Gagal menyimpan data');
+                alert('Gagal menyimpan');
             });
-    });
-</script>
-<script>
-    document.getElementById('import-form').addEventListener('submit', function(e) {
-        e.preventDefault();
+        });
 
-        const formData = new FormData(this);
-
-        fetch("{{ route('pfi.import.preview') }}", {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('input[name=_token]').value
-                },
-                body: formData
-            })
-            .then(res => res.json())
-            .then(res => {
-
-                // HIDE default table
-                document.getElementById('default-table').classList.add('d-none');
-
-                // SHOW preview table
-                document.getElementById('preview-table').classList.remove('d-none');
-
-                const tbody = document.getElementById('preview-body');
-                tbody.innerHTML = '';
-
-                res.Items.forEach(item => {
-                    tbody.innerHTML += `
-                <tr>
-                    <td>${item["No."]}</td>
-                    <td>${item.Description}</td>
-                    <td>${item["Article Nr."]}</td>
-                    <td>${item.Item.W} × ${item.Item.D} × ${item.Item.H}</td>
-                    <td>${item.Packing.W} × ${item.Packing.D} × ${item.Packing.H}</td>
-                    <td>${item.QTY ?? '-'}</td>
-                    <td>${item.CBM ?? '-'}</td>
-                    <td>${item["FOB JAKARTA IN USD"] ?? '-'}</td>
-                </tr>
-            `;
-                });
-
-                console.log('Company Profile:', res.CompanyProfile);
-            })
-            .catch(err => {
-                alert('Gagal preview file');
-                console.error(err);
-            });
-    });
-</script>
-<script>
-document.getElementById('search-qc').addEventListener('input', function () {
-    let val = this.value;
-
-    // ubah "25-" -> "25 - "
-    val = val.replace(/(\d)-$/g, '$1 - ');
-
-    this.value = val;
-});
-</script>
-<script>
-    function loadPoTable(keyword = '') {
-        fetch(`{{ route('qc.ajax.po') }}?q=${encodeURIComponent(keyword)}`)
-            .then(res => res.json())
-            .then(data => {
-                const tbody = document.getElementById('po-table-body');
-                tbody.innerHTML = '';
-
-                if (!data.length) {
-                    tbody.innerHTML = `
-                        <tr>
-                            <td colspan="4" class="text-center text-muted">
-                                Belum ada data
-                            </td>
-                        </tr>
-                    `;
-                    return;
-                }
-
-                data.forEach(po => {
-                    tbody.innerHTML += `
-                        <tr>
-                            <td>${po.order_no}</td>
-                            <td>${po.po_no ?? '-'}</td>
-                            <td>${po.company_name}</td>
-                            <td>
-                                <a href="/qc/${po.id}"
-                                   class="btn btn-xs success btn-view"
-                                   title="Ke detail QC">
-                                    View
-                                </a>
-                            </td>
-                        </tr>
-                    `;
-                });
-            })
-            .catch(err => console.error(err));
+        /* ==============================
+           LOAD AWAL
+        ============================== */
+        loadPoTable();
     }
 
-    // load awal
-    document.addEventListener('DOMContentLoaded', () => {
-        loadPoTable();
-
-        document.getElementById('search-qc')
-            .addEventListener('keyup', function () {
-                loadPoTable(this.value);
-            });
+    /* ==============================
+       NORMAL LOAD
+    ============================== */
+    $(document).ready(function () {
+        initQcPage();
     });
+
+    /* ==============================
+       PJAX LOAD (FIX DELAY)
+    ============================== */
+    $(document).on('pjax:end', function () {
+        setTimeout(() => {
+            initQcPage();
+        }, 50);
+    });
+
+}
 </script>
 
 
 @endpush
+
+@endsection

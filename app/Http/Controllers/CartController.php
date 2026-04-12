@@ -3,9 +3,11 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\Carts;
+use App\Models\Exhibition;
 use App\Models\NewBuyer;
 use App\Models\ProductPameran;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class CartController extends Controller
 {
@@ -54,62 +56,128 @@ class CartController extends Controller
     }
 
     // POST add to cart
+//     public function store(Request $request)
+//     {
+//         $request->validate([
+//             "article_code" => "required|string",
+//             "buyer_id"     => "required|integer",
+//             "qty"          => "nullable|integer|min:1",
+//             "remark"       => "nullable|string",
+//         ]);
+
+//         $reqQty = $request->qty ?? 1; // jika tidak ada → default = 1
+
+//         cek apakah item sudah ada
+//         $existing = Carts::where('buyer_id', $request->buyer_id)
+//             ->where('article_code', $request->article_code)
+//             ->first();
+// // NEW
+
+//         if ($existing) {
+
+//             // simpan qty lama (opsional kalau ingin dipakai)
+//             $oldQty = $existing->qty;
+
+//             // update qty berdasarkan qty request
+//             $existing->qty = ($existing->qty ?? 1) + $reqQty;
+
+//             // update remark jika dikirim
+//             if ($request->filled('remark')) {
+//                 $existing->remark = $request->remark;
+//             }
+
+//             $existing->save();
+
+//             // === LOGGING ===
+
+//             return response()->json([
+//                 "message" => "Quantity updated",
+//                 "data"    => $existing,
+//             ], 200);
+//         }
+
+//         // ITEM BELUM ADA → buat baru
+//         $cart = Carts::create([
+//             "article_code" => $request->article_code,
+//             "buyer_id"     => $request->buyer_id,
+//             "status"       => 1,
+//             "remark"       => $request->remark,
+//             "qty"          => $reqQty,
+//         ]);
+
+//         // === LOGGING ===
+
+//         return response()->json([
+//             "message" => "Item added to cart successfully",
+//             "data"    => $cart,
+//         ], 201);
+//     }
+// NEW
     public function store(Request $request)
     {
         $request->validate([
-            "article_code" => "required|string",
-            "buyer_id"     => "required|integer",
-            "qty"          => "nullable|integer|min:1",
-            "remark"       => "nullable|string",
+            "article_code"    => "required|string",
+            "buyer_id"        => "required|integer",
+            "qty"             => "nullable|integer|min:1",
+            "remark"          => "nullable|string",
+            "exhibition_name" => "required|string",
         ]);
 
-        $reqQty = $request->qty ?? 1; // jika tidak ada → default = 1
+        $reqQty = $request->qty ?? 1;
 
-        // cek apakah item sudah ada
+        // ========================
+        // Cari exhibition
+        // ========================
+        $exh = Exhibition::where('name', $request->exhibition_name)->first();
+
+        if (! $exh) {
+            return response()->json([
+                "message" => "Exhibition not found",
+            ], 404);
+        }
+
+        // ========================
+        // Cek existing
+        // ========================
         $existing = Carts::where('buyer_id', $request->buyer_id)
             ->where('article_code', $request->article_code)
+            ->where('exhibition_id', $exh->id) // ✅ pakai ID
             ->first();
 
         if ($existing) {
 
-            // simpan qty lama (opsional kalau ingin dipakai)
-            $oldQty = $existing->qty;
+            // Atomic increment (lebih aman)
+            $existing->increment('qty', $reqQty);
 
-            // update qty berdasarkan qty request
-            $existing->qty = ($existing->qty ?? 1) + $reqQty;
-
-            // update remark jika dikirim
             if ($request->filled('remark')) {
                 $existing->remark = $request->remark;
+                $existing->save();
             }
-
-            $existing->save();
-
-            // === LOGGING ===
 
             return response()->json([
                 "message" => "Quantity updated",
-                "data"    => $existing,
+                "data"    => $existing->fresh(),
             ], 200);
         }
 
-        // ITEM BELUM ADA → buat baru
+        // ========================
+        // Create baru
+        // ========================
         $cart = Carts::create([
-            "article_code" => $request->article_code,
-            "buyer_id"     => $request->buyer_id,
-            "status"       => 1,
-            "remark"       => $request->remark,
-            "qty"          => $reqQty,
+            "article_code"  => $request->article_code,
+            "buyer_id"      => $request->buyer_id,
+            "exhibition_id" => $exh->id, // ✅ WAJIB
+            "status"        => 1,
+            "remark"        => $request->remark,
+            "qty"           => $reqQty,
+            "local_id"      => $request->local_id ?? null,
         ]);
-
-        // === LOGGING ===
 
         return response()->json([
             "message" => "Item added to cart successfully",
             "data"    => $cart,
         ], 201);
     }
-
     // GET cart by ID
     public function show($id)
     {
@@ -126,6 +194,25 @@ class CartController extends Controller
     }
 
     // DELETE
+    // public function destroy($id)
+    // {
+    //     $cart = Carts::find($id);
+
+    //     if (! $cart) {
+    //         return response()->json([
+    //             'message' => 'Cart item not found',
+    //         ], 404);
+    //     }
+
+    //     $cart->update(
+    //         ['isDeleted' => 1]
+    //     );
+
+    //     return response()->json([
+    //         'message' => 'Cart item deleted successfully',
+    //     ]);
+    // }
+    // new
     public function destroy($id)
     {
         $cart = Carts::find($id);
@@ -136,12 +223,10 @@ class CartController extends Controller
             ], 404);
         }
 
-        $cart->update(
-            ['isDeleted' => 1]
-        );
+        $cart->delete(); // 🔥 HARD DELETE
 
         return response()->json([
-            'message' => 'Cart item deleted successfully',
+            'message' => 'Cart item deleted permanently',
         ]);
     }
     public function checkout(Request $request)
@@ -177,7 +262,26 @@ class CartController extends Controller
         ]);
 
         // 3. Loop tiap item → CREATE CART BARU
+        // foreach ($request->items as $item) {
+
+        //     $p = ProductPameran::find($item['cart_id']);
+
+        //     if (! $p) {
+        //         continue;
+        //     }
+
+        //     Carts::create([
+        //         'article_code' => $p->article_code,
+        //         'buyer_id'     => $request->buyer_id,
+        //         'local_id'     => $item['local_id'],
+        //         'status'       => 1,
+        //         'remark'       => $item['remark'] ?? null,
+        //         'qty'          => $item['qty'] ?? 1,
+        //     ]);
+        // }
         foreach ($request->items as $item) {
+            $exhibition = Exhibition::where('name', $item['exhibition_name'])->first();
+            Log::info("Checkout for exhibition: " . $item['exhibition_name'] . " (ID: " . ($exhibition ? $exhibition->id : 'not found') . ")");
 
             $p = ProductPameran::find($item['cart_id']);
 
@@ -186,12 +290,13 @@ class CartController extends Controller
             }
 
             Carts::create([
-                'article_code' => $p->article_code,
-                'buyer_id'     => $request->buyer_id,
-                'local_id'     =>$item['local_id'],
-                'status'       => 1,
-                'remark'       => $item['remark'] ?? null,
-                'qty'          => $item['qty'] ?? 1,
+                'article_code'  => $p->article_code,
+                'exhibition_id' => $exhibition->id,
+                'buyer_id'      => $request->buyer_id,
+                'local_id'      => $item['local_id'],
+                'status'        => 1,
+                'remark'        => $item['remark'] ?? null,
+                'qty'           => $item['qty'] ?? 1,
             ]);
         }
 

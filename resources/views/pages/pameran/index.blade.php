@@ -152,6 +152,7 @@
                         <tr class="sticky-header" style="font-size: 12px;">
                             <th rowspan="2">Nr.</th>
                             <th rowspan="2">Photo</th>
+                            <th rowspan="2">P, p Apa</th>
                             <th rowspan="2">Article Code</th>
                             <th style="z-index:60;" rowspan="2">Name</th>
                             <th rowspan="2">Categories</th>

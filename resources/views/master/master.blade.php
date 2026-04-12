@@ -183,6 +183,7 @@
                 <script src="{{asset('assets/main.js')}}"></script>
                 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
                 <script src="{{asset('assets/cam/cam.js')}}" type="text/javascript"></script>
+                <script src="{{asset('assets/chatr.js')}}" type="text/javascript"></script>
 
                 <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 
@@ -202,12 +203,12 @@
                 <!-- JSZip (dibutuhkan untuk export Excel) -->
                 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
                 <script>
-                    if (window.history && window.history.pushState) {
-                        window.history.pushState(null, null, window.location.href);
-                        window.onpopstate = function() {
-                            window.location.replace("/dashboard");
-                        };
-                    }
+                    // if (window.history && window.history.pushState) {
+                    //     window.history.pushState(null, null, window.location.href);
+                    //     window.onpopstate = function() {
+                    //         window.location.replace("/");
+                    //     };
+                    // }
                 </script>
                 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 

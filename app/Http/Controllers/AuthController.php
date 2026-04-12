@@ -16,7 +16,7 @@ class AuthController extends Controller
     {
         foreach ($guards as $guard) {
             if (Auth::guard($guard)->check()) {
-                return redirect('/dashboard'); // atau route dashboard kamu
+                return redirect('/'); // atau route dashboard kamu
             }
         }
 
