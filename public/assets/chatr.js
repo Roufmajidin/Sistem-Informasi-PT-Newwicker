@@ -175,85 +175,102 @@ function formatDateLabel(dateStr) {
 
 //     $('#detail-area').html(html);
 // });
+// $(document).on('click', '.btn-view', function () {
+
+//     let items = $(this).data('items');
+//     let po_id = $(this).data('id');
+//     globalPoId = po_id;
+
+//     // loading dulu
+//     $('#detail-area').html('<tr><td colspan="6">Loading...</td></tr>');
+
+//     $.ajax({
+//         url: '/get-timeline',
+//         type: 'GET',
+//         data: {
+//             po_id: po_id
+//         },
+//         success: function (timelines) {
+
+//             let html = '';
+
+//             items.forEach(d => {
+
+//                 let detail = d.detail;
+//                 let name = detail.description;
+//                 let photo = detail.photo;
+//                 let qty = parseInt(detail.qty);
+
+//                 let rangka = 0;
+//                 let anyam = 0;
+//                 let unfinish = 0;
+//                 let final = 0;
+
+//                 timelines.forEach(row => {
+
+//                     if (parseInt(row.detail_po_id) !== parseInt(d.id)) return;
+
+//                     let q = parseInt(row.qty) || 0;
+
+//                     let type = (row.type || '').toLowerCase().trim();
+//                     let process = (row.process || '').toLowerCase().trim();
+//                     let next = (row.next_process || '').toLowerCase().trim();
+
+//                     // =====================
+//                     // PRODUKSI (MASUK)
+//                     // =====================
+//                     if (type === 'masuk') {
+//                         if (process === 'rangka') rangka += q;
+//                         if (process === 'anyam') anyam += q;
+//                         if (process === 'unfinish') unfinish += q;
+//                         if (process === 'final') final += q;
+//                     }
+//                     if (type === 'keluar' && next === 'unfinish') {
+
+//                         // 🔥 TAMBAH KE TUJUAN (next_process)
+//                         if (next === 'rangka') rangka += q;
+//                         if (next === 'anyam') anyam += q;
+//                         if (next === 'unfinish') unfinish += q;
+//                         if (next === 'final') final += q;
+//                     }
+//                     if (type === 'service') {
+
+
+
+//                         if (process === 'rangka') rangka -= q;
+//                         if (process === 'anyam') anyam -= q;
+//                         if (process === 'unfinish') unfinish -= q;
+//                         if (process === 'final') final -= q;
+//                     }
+
+//                 });
+
+//                 html += renderRow(name, photo, qty, d, rangka, anyam, unfinish, final);
+
+//             });
+
+//             $('#detail-area').html(html);
+//         }
+//     });
+
+// });
 $(document).on('click', '.btn-view', function () {
 
     let items = $(this).data('items');
     let po_id = $(this).data('id');
 
-    // loading dulu
-    $('#detail-area').html('<tr><td colspan="6">Loading...</td></tr>');
-
-    $.ajax({
-        url: '/get-timeline',
-        type: 'GET',
-        data: {
-            po_id: po_id
-        },
-        success: function (timelines) {
-
-            let html = '';
-
-            items.forEach(d => {
-
-                let detail = d.detail;
-                let name = detail.description;
-                let photo = detail.photo;
-                let qty = parseInt(detail.qty);
-
-                let rangka = 0;
-                let anyam = 0;
-                let unfinish = 0;
-                let final = 0;
-
-                timelines.forEach(row => {
-
-                    if (parseInt(row.detail_po_id) !== parseInt(d.id)) return;
-
-                    let q = parseInt(row.qty) || 0;
-
-                    let type = (row.type || '').toLowerCase().trim();
-                    let process = (row.process || '').toLowerCase().trim();
-                    let next = (row.next_process || '').toLowerCase().trim();
-
-                    // =====================
-                    // PRODUKSI (MASUK)
-                    // =====================
-                    if (type === 'masuk') {
-                        if (process === 'rangka') rangka += q;
-                        if (process === 'anyam') anyam += q;
-                        if (process === 'unfinish') unfinish += q;
-                        if (process === 'final') final += q;
-                    }
-                    if (type === 'keluar' && next === 'unfinish') {
-
-                        // 🔥 TAMBAH KE TUJUAN (next_process)
-                        if (next === 'rangka') rangka += q;
-                        if (next === 'anyam') anyam += q;
-                        if (next === 'unfinish') unfinish += q;
-                        if (next === 'final') final += q;
-                    }
-                    if (type === 'service') {
-
-
-
-                        if (process === 'rangka') rangka -= q;
-                        if (process === 'anyam') anyam -= q;
-                        if (process === 'unfinish') unfinish -= q;
-                        if (process === 'final') final -= q;
-                    }
-
-                });
-
-                html += renderRow(name, photo, qty, d, rangka, anyam, unfinish, final);
-
-            });
-
-            $('#detail-area').html(html);
-        }
-    });
-
+    // ✅ SIMPAN GLOBAL
+    globalItems = items;
+    globalPoId = po_id;
+    setHeader('produksi');
+    // default load produksi
+    loadProduksi();
 });
 // ================= GLOBAL =================
+let globalItems = [];
+let globalPoId = null;
+let globalTimeline = [];
+let globalQc = [];
 let supplierKategoriMap = {};
 let kategoriSupplierMap = {};
 let allSuppliers = [];
@@ -324,6 +341,8 @@ $(document).on('click', '.btn-detail-name', function () {
             supplierKategoriMap = {};
             kategoriSupplierMap = {};
             allSuppliers = [];
+            globalItems = res.items;
+
             allKategori = [];
             window.productionLogs = res.logs;
             res.data.forEach(r => {
@@ -334,7 +353,7 @@ $(document).on('click', '.btn-detail-name', function () {
                 let satuan = r.item.satuan || 'pcs';
                 let kategori = r.kategori;
 
-                // supplier unik + spk_id
+
                 if (!allSuppliers.find(s => s.id == supplierId)) {
                     allSuppliers.push({
                         id: supplierId,
@@ -346,7 +365,7 @@ $(document).on('click', '.btn-detail-name', function () {
                     });
                 }
 
-                // kategori unik
+
                 if (!allKategori.includes(kategori)) {
                     allKategori.push(kategori);
                 }
@@ -581,7 +600,7 @@ $('#save-process').click(function () {
         'factory' :
         'supplier';
 
-    // 🔥 ambil langsung dari selected option (BEST PRACTICE)
+
     let selected = $('#supplier option:selected');
     let spk_id = selected.data('spk');
 
@@ -721,10 +740,260 @@ function renderRow(name, photo, qty, d, rangka, anyam, unfinish, final) {
 
             <td>${qty}</td>
 
-            <td><span class="badge bg-primary">${rangka}</span></td>
-            <td><span class="badge bg-info">${anyam}</span></td>
-            <td><span class="badge bg-warning">${unfinish}</span></td>
-            <td><span class="badge bg-success">${final}</span></td>
+            <td>${rangka}</td>
+            <td>${anyam}</td>
+            <td>${unfinish}</td>
+            <td>${final}</td>
         </tr>
     `;
 }
+
+function loadQc() {
+
+    $('#detail-area').html('<tr><td colspan="7">Loading QC...</td></tr>');
+
+    $.get('/get-qc', {
+        po_id: globalPoId
+    }, function (res) {
+
+globalQc = Array.isArray(res) ? res : [];
+
+
+        renderQc();
+    });
+}
+
+function renderQc() {
+
+    let html = '';
+
+    globalItems.forEach((d, i) => {
+
+        let detail = d.detail;
+        let name = detail.description;
+        let qty = parseInt(detail.qty);
+
+        // default semua 0
+        let dataQc = {
+            rangka: {
+                inspect: 0,
+                pass: 0,
+                reject: 0
+            },
+            anyam: {
+                inspect: 0,
+                pass: 0,
+                reject: 0
+            },
+            unfinish: {
+                inspect: 0,
+                pass: 0,
+                reject: 0
+            },
+            final: {
+                inspect: 0,
+                pass: 0,
+                reject: 0
+            }
+        };
+
+        // ambil data QC sesuai item
+        let rows = globalQc.filter(q =>
+            parseInt(q.detail_po_id) === parseInt(d.id)
+        );
+
+        rows.forEach(r => {
+
+            let kategori = r.kategori;
+
+            if (!dataQc[kategori]) return;
+
+            dataQc[kategori].inspect += parseInt(r.jumlah_inspect || 0);
+            dataQc[kategori].pass += parseInt(r.passed || 0);
+            dataQc[kategori].reject += parseInt(r.rejected || 0);
+        });
+
+        // function render cell
+        function cell(d) {
+            return `
+                <div>
+                    <small>
+                        <b>I:</b> ${d.inspect} |
+                        <span style="color:green">✔ ${d.pass}</span> |
+                        <span style="color:red">✖ ${d.reject}</span>
+                    </small>
+                </div>
+            `;
+        }
+
+        html += `
+            <tr>
+                <td>${i + 1}</td>
+               <td>
+    <a href="/qc/${globalPoId}" style="color:#007bff;font-weight:500">
+        ${name}
+    </a>
+</td>
+                <td>${qty}</td>
+
+                <td>${cell(dataQc.rangka)}</td>
+                <td>${cell(dataQc.anyam)}</td>
+                <td>${cell(dataQc.unfinish)}</td>
+                <td>${cell(dataQc.final)}</td>
+            </tr>
+        `;
+    });
+
+    $('#detail-area').html(html);
+}
+$('#filter-process').change(function () {
+
+    let val = $(this).val();
+
+    if (val === 'qc') {
+        setHeader('qc');
+        loadQc();
+    } else {
+        setHeader('produksi');
+        loadProduksi();
+    }
+
+});
+
+function loadProduksi() {
+
+    $('#detail-area').html('<tr><td colspan="7">Loading...</td></tr>');
+
+    $.get('/get-timeline', {
+        po_id: globalPoId
+    }, function (res) {
+
+        globalTimeline = res;
+
+        renderProduksi();
+    });
+}
+
+function renderProduksi() {
+
+    let html = '';
+
+    globalItems.forEach(d => {
+
+        let detail = d.detail;
+        let name = detail.description;
+        let photo = detail.photo;
+        let qty = parseInt(detail.qty);
+
+        let rangka = 0,
+            anyam = 0,
+            unfinish = 0,
+            final = 0;
+
+        globalTimeline.forEach(row => {
+
+            if (parseInt(row.detail_po_id) !== parseInt(d.id)) return;
+
+            let q = parseInt(row.qty) || 0;
+            let type = (row.type || '').toLowerCase();
+            let process = (row.process || '').toLowerCase();
+            let next = (row.next_process || '').toLowerCase();
+
+            if (type === 'masuk') {
+                if (process === 'rangka') rangka += q;
+                if (process === 'anyam') anyam += q;
+                if (process === 'unfinish') unfinish += q;
+                if (process === 'final') final += q;
+            }
+
+            if (type === 'keluar') {
+                if (next === 'rangka') rangka += q;
+                if (next === 'anyam') anyam += q;
+                if (next === 'unfinish') unfinish += q;
+                if (next === 'final') final += q;
+            }
+
+            if (type === 'service') {
+                if (process === 'rangka') rangka -= q;
+                if (process === 'anyam') anyam -= q;
+                if (process === 'unfinish') unfinish -= q;
+                if (process === 'final') final -= q;
+            }
+
+        });
+
+        html += renderRow(name, photo, qty, d, rangka, anyam, unfinish, final);
+    });
+
+    $('#detail-area').html(html);
+}
+
+function setHeader(mode = 'produksi') {
+
+    let html = '';
+
+    if (mode === 'qc') {
+        html = `
+            <tr>
+                <th>#</th>
+                <th>Name</th>
+                <th>Total PO</th>
+                <th>QC Result</th>
+            </tr>
+        `;
+    } else {
+        html = `
+            <tr>
+                <th>#</th>
+                <th>Name</th>
+                <th>Total PO</th>
+                <th>Rangka</th>
+                <th>Anyam</th>
+                <th>Unfinish</th>
+                <th>Final</th>
+            </tr>
+        `;
+    }
+
+    $('#detail-header').html(html);
+}
+
+function cell(d) {
+    let percent = d.inspect ? (d.pass / d.inspect * 100) : 0;
+
+    let bg = percent >= 80 ? '#d4edda' : '#f8d7da';
+
+    return `
+        <div style="background:${bg};padding:4px;border-radius:4px">
+            <small>
+                I:${d.inspect} |
+                ✔ ${d.pass} |
+                ✖ ${d.reject}
+            </small>
+        </div>
+    `;
+}
+// cari data
+let searchTimer;
+
+$('#search-qc').on('keyup', function () {
+
+    let keyword = $(this).val();
+
+    clearTimeout(searchTimer);
+
+    searchTimer = setTimeout(function () {
+
+        let url = new URL(window.location.href);
+
+        if (keyword) {
+            url.searchParams.set('search', keyword);
+        } else {
+            url.searchParams.delete('search');
+        }
+
+        window.location.href = url.toString();
+
+    }, 500);
+
+});

@@ -6,25 +6,29 @@ use App\Models\ProductionTimeline;
 use App\Models\Spk;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
 
 class ProduksiController extends Controller
 {
     //
-    public function index()
+    public function index(Request $request)
     {
-       $detailPo = Po::with('details')->paginate(5); // bebas mau 5 / 10 / 20
-        $spks     = Spk::all();
-//    $timeline = ProductionTimeline::select(
-//     'detail_po_id',
-//     'process',
-//     'type',
-//     'qty',
-//     'next_process' // 🔥 TAMBAHKAN INI
-// )->get();
-        // dd($timeline);
+        $search = $request->search;
 
-        // dd($result);
+        $detailPo = Po::with('details')
+            ->when($search, function ($q) use ($search) {
+
+                $q->where('order_no', 'like', "%{$search}%")
+                    ->orWhere('company_name', 'like', "%{$search}%")
+
+                // 🔥 search di detail (JSON)
+                    ->orWhereHas('details', function ($q2) use ($search) {
+                        $q2->where('detail->description', 'like', "%{$search}%");
+                    });
+
+            })
+            ->paginate(5)
+            ->withQueryString(); // 🔥 biar search tetap saat pagination
+
         return view('pages.spk.produksi.index', compact('detailPo'));
     }
 

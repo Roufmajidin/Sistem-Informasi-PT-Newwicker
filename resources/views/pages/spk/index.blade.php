@@ -472,7 +472,7 @@ document.getElementById('btnSaveSpk').addEventListener('click', function () {
             set: row.querySelector('.set')?.innerText.trim() || '',
             satuan: getSatuan(row),
             harga: row.querySelector('.harga')?.innerText.trim() || '',
-            total: row.querySelector('.total')?.innerText.trim() || '',
+             total: getNumber(row.querySelector('.total')),
             images: images,
             catatan: noteBox ? extractNoteData(noteBox) : {
                 remark: '',

@@ -8,6 +8,9 @@ use App\Models\Spk;
 use App\Models\SpkTimeline;
 use App\Models\Supplier;
 use Carbon\Carbon;
+use Google\Client;
+use Google\Service\Calendar;
+use Google\Service\Calendar\Event;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -411,7 +414,7 @@ class SpkController extends Controller
     {
         $spk  = Spk::findOrFail($spkId);
         $data = $spk->data;
-
+        // dd($data);
         $templatePath = storage_path('app/templates/SPK-TEMPLATE.xlsx');
         $spreadsheet  = IOFactory::load($templatePath);
         $sheet        = $spreadsheet->getActiveSheet();
@@ -431,7 +434,9 @@ class SpkController extends Controller
         $templateRow = 14;
         $startRow    = 14;
         $items       = $data['items'] ?? [];
-        $itemCount   = count($items);
+        // dd($items);
+
+        $itemCount = count($items);
 
         if ($itemCount > 1) {
             // 🔥 Geser row di bawah table (termasuk perjanjian & signature)
@@ -473,7 +478,7 @@ class SpkController extends Controller
             }
 
             $sheet->setCellValue("J{$row}", $item['harga'] ?? '');
-            $sheet->setCellValue("K{$row}", $item['total'] * $item['qty'] ?? '');
+            $sheet->setCellValue("K{$row}", $item['total']);
 
             // AUTO HEIGHT
             $sheet->getRowDimension($row)->setRowHeight(90);
@@ -716,9 +721,11 @@ class SpkController extends Controller
 
                                 // detail per SPK
                                 $summary[$kategori][$supplier]['spks'][] = [
-                                    'spk_id' => $spkId,
-                                    'no_spk' => $noSpk,
-                                    'qty'    => $qty,
+                                    'spk_id'      => $spkId,
+                                    'no_spk'      => $noSpk,
+                                    'qty'         => $qty,
+                                    'tgl_selesai' => $data['tgl_selesai'] ?? null, // 🔥 INI
+
                                 ];
                             }
                         }
@@ -1019,6 +1026,7 @@ class SpkController extends Controller
         // =========================
         // VALIDASI BASIC
         // =========================
+        $datetime = Carbon::parse($request->date . ' ' . $request->time);
         $request->validate([
             'po_id'        => 'required',
             'detail_po_id' => 'required',
@@ -1129,9 +1137,6 @@ class SpkController extends Controller
             }
         }
 
-        // =========================
-        // 🔥 SIMPAN DATA
-        // =========================
         DB::table('production_timeline')->insert([
             'po_id'        => $request->po_id,
             'spk_id'       => $request->spk_id,
@@ -1144,8 +1149,8 @@ class SpkController extends Controller
             'next_process' => $request->next_process,
             'source_type'  => $request->source_type,
             'remark'       => $request->remark,
-            'created_at'   => now(),
-            'updated_at'   => now(),
+            'created_at'   => $datetime,
+            'updated_at'   => $datetime,
         ]);
 
         return response()->json([
@@ -1153,20 +1158,108 @@ class SpkController extends Controller
             'message' => 'Berhasil disimpan',
         ]);
     }
-public function getTimeline(Request $request)
-{
-    $po_id = $request->po_id;
+    public function getTimeline(Request $request)
+    {
+        $po_id = $request->po_id;
 
-    $timeline = ProductionTimeline::select(
-        'detail_po_id',
-        'process',
-        'type',
-        'qty',
-        'next_process'
-    )
-    ->where('po_id', $po_id)
-    ->get();
+        $timeline = ProductionTimeline::select(
+            'detail_po_id',
+            'process',
+            'type',
+            'qty',
+            'next_process'
+        )
+            ->where('po_id', $po_id)
+            ->get();
 
-    return response()->json($timeline);
-}
+        return response()->json($timeline);
+    }
+    public function getQc(Request $request)
+    {
+        $po_id = $request->po_id;
+
+        $qc = \App\Models\InspectSchedule::with('kategori')
+            ->where('po_id', $po_id)
+            ->get()
+            ->map(function ($item) {
+
+                return [
+                    'detail_po_id'   => $item->detail_po_id,
+                    'jumlah_inspect' => $item->jumlah_inspect,
+                    'passed'         => $item->passed,
+                    'rejected'       => $item->rejected,
+                    'tanggal'        => $item->tanggal_inspect,
+
+                    // 🔥 langsung ambil dari relasi
+                    'kategori'       => strtolower(trim($item->kategori?->kategori ?? '')),
+                ];
+            });
+
+        return response()->json($qc);
+    }
+    private function getService()
+    {
+        $client = new Client();
+        $client->setAuthConfig(storage_path('app/google-calendar.json'));
+        $client->addScope(Calendar::CALENDAR);
+
+        return new Calendar($client);
+    }
+
+    /**
+     * ===============================
+     * TEST DUMMY EVENT
+     * ===============================
+     */
+
+    public function calendar()
+    {
+        $service = $this->getService();
+
+        // ✅ pakai calendar ID kamu yang sudah benar
+        $calendarId = '824e23d84ab88f2e4279aba16457256aca6caddd108e8b1118a6756f3dd0920b@group.calendar.google.com';
+
+        // waktu dummy
+        $start = now()->addMinutes(2);
+        $end   = now()->addHour();
+        $event = new Event([
+            'summary'     => '🔥 SPK - Waya',
+            'description' => 'Deadline produksi',
+            'start'       => [
+                'dateTime' => $start->format('Y-m-d\TH:i:s'),
+                'timeZone' => 'Asia/Jakarta',
+            ],
+            'end'         => [
+                'dateTime' => $end->format('Y-m-d\TH:i:s'),
+                'timeZone' => 'Asia/Jakarta',
+            ],
+            'reminders'   => [
+                'useDefault' => false,
+                'overrides'  => [
+                    ['method' => 'popup', 'minutes' => 0], // langsung notif
+                ],
+            ],
+        ]);
+
+        $created = $service->events->insert($calendarId, $event);
+
+        return response()->json([
+            'status'   => 'success',
+            'event_id' => $created->getId(),
+            'link'     => $created->htmlLink,
+        ]);
+    }
+    public function addCalendar()
+    {
+        $service = $this->getService();
+
+        $calendarId = '824e23d84ab88f2e4279aba16457256aca6caddd108e8b1118a6756f3dd0920b@group.calendar.google.com';
+
+        $entry = new \Google\Service\Calendar\CalendarListEntry();
+        $entry->setId($calendarId);
+
+        $service->calendarList->insert($entry);
+
+        return 'Calendar berhasil ditambahkan';
+    }
 }

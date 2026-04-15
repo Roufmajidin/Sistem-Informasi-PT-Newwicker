@@ -168,6 +168,8 @@ Route::get('/timeline/data', [PoController::class, 'getTimeline'])->name('timeli
 Route::get('/spk/{id}', [SpkController::class, 'index'])->name('spk.index');
 Route::post('/spk/create/{po}', [SpkController::class, 'save'])->name('spk.create');
 Route::post('/spk/update/{spk}', [SpkController::class, 'save'])->name('spk.update');
+Route::get('/test-calendar', [SpkController::class, 'calendar'])->name('spk.calendar');
+Route::get('/add-calendar', [SpkController::class, 'addCalendar'])->name('spk.addcalendar');
 
 Route::get('/detail-po/search', [SpkController::class, 'search'])
     ->name('detailpo.search');
@@ -180,7 +182,7 @@ Route::get('/spk/edit/{id}', [SpkController::class, 'index'])->name('spk.edit');
 Route::post('/spk/simpan-edit/{id}', [SpkController::class, 'saveEdit'])
     ->name('spk.simpan-edit');
 // produksi
-
+Route::get('/get-qc', [SpkController::class, 'getQc']);
 Route::get('/produksi', [ProduksiController::class, 'index'])->name('produksi.index');
 Route::get('/spk/export/{id}', [SpkController::class, 'export'])->name('spk.export');
 Route::get('/cad/{id}', [CadController::class, 'index'])->name('cad.index');

@@ -8,11 +8,7 @@
             <div class="box-header d-flex justify-content-between align-items-center">
                 <h2 class="mb-0">Monitoring Barang Produksi</h2>
 
-                <input type="text"
-                    id="search-qc"
-                    class="form-control"
-                    style="width:300px"
-                    placeholder="Search PO / Item / Vendor">
+
             </div>
         </div>
 
@@ -21,8 +17,19 @@
             <!-- ================= LEFT TABLE ================= -->
             <div class="col-sm-6">
                 <div class="box">
-                    <div class="box-header">
-                        <h4>List PO</h4>
+                    <div class="box-header d-flex justify-content-between align-items-center">
+
+                        <h4 class="mb-0">List PO</h4>
+
+                        <div style="width:300px">
+                            <input type="text"
+                                id="search-qc"
+                                name="search"
+                                value="{{ request('search') }}"
+                                class="form-control"
+                                placeholder="🔍 Search PO / Item / Vendor">
+                        </div>
+
                     </div>
 
                     <div class="freeze-wrapper">
@@ -41,21 +48,21 @@
                                     <td>{{ ($detailPo->currentPage() - 1) * $detailPo->perPage() + $loop->iteration }}</td>
                                     <td>{{ $item->company_name }}</td>
                                     <td>{{ $item->order_no }}</td>
-                                  <td>
-    <button class="btn btn-sm btn-info btn-view"
-        data-items='@json($item->details)'
-        data-id="{{ $item->id }}">
-        Detail
-    </button>
-</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-info btn-view"
+                                            data-items='@json($item->details)'
+                                            data-id="{{ $item->id }}">
+                                            Detail
+                                        </button>
+                                    </td>
 
                                 </tr>
                                 @endforeach
                             </tbody>
                         </table>
                         <div class="mt-3">
-    {{ $detailPo->links() }}
-</div>
+                            {{ $detailPo->links() }}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -63,8 +70,13 @@
             <!-- ================= RIGHT TABLE ================= -->
             <div class="col-sm-6">
                 <div class="box">
-                    <div class="box-header">
-                        <h4>Detail PO :</h4>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6>Detail PO :</h6>
+
+                        <select id="filter-process" class="form-control" style="width:200px">
+                            <option value="">produksi</option>
+                            <option value="qc">Qc</option>
+                        </select>
                     </div>
 
                     <div class="freeze-wrapper">
