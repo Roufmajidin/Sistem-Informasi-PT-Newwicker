@@ -6,6 +6,7 @@ use App\Models\Po;
 use App\Models\ProductionTimeline;
 use App\Models\Spk;
 use App\Models\SpkTimeline;
+use App\Models\CheckPoint;
 use App\Models\Supplier;
 use Carbon\Carbon;
 use Google\Client;
@@ -18,7 +19,8 @@ use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
-
+use ZipArchive;
+use Barryvdh\DomPDF\Facade\Pdf;
 class SpkController extends Controller
 {
     //
@@ -1107,10 +1109,28 @@ class SpkController extends Controller
         if (in_array($type, ['keluar', 'service'])) {
 
             // total masuk
+            // $totalIn = DB::table('production_timeline')
+            //     ->where('detail_po_id', $detail_po_id)
+            //     ->where('process', $process)
+            //     ->where('type', 'masuk')
+            //     ->sum('qty');
             $totalIn = DB::table('production_timeline')
                 ->where('detail_po_id', $detail_po_id)
-                ->where('process', $process)
-                ->where('type', 'masuk')
+                ->where(function ($q) use ($process) {
+
+                    // masuk langsung
+                    $q->where(function ($q2) use ($process) {
+                        $q2->where('process', $process)
+                            ->where('type', 'masuk');
+                    });
+
+                    // 🔥 dari process lain (next_process)
+                    $q->orWhere(function ($q2) use ($process) {
+                        $q2->where('next_process', $process)
+                            ->where('type', 'keluar');
+                    });
+
+                })
                 ->sum('qty');
 
             // total keluar
@@ -1262,4 +1282,105 @@ class SpkController extends Controller
 
         return 'Calendar berhasil ditambahkan';
     }
+   public function exportPdf($kategori, $po_id)
+    {
+        $po = DB::table('po')->where('id', $po_id)->first();
+
+        $items = $this->buildQcData($kategori, $po_id);
+        // dd($items);
+        $pdf = Pdf::loadView('pages.qc.pdf', [
+            'items'    => $items,
+            'kategori' => $kategori,
+            'po'       => $po
+        ])->setPaper('a4');
+
+        return $pdf->stream("QC-{$kategori}.pdf");
+    }
+
+    private function buildQcData($kategori, $po_id)
+    {
+        $rows = DB::table('inspect_schedule')
+            ->join('kategori', 'kategori.id', '=', 'inspect_schedule.kategori_id')
+            ->where('inspect_schedule.po_id', $po_id)
+            ->whereRaw('LOWER(kategori.kategori) = ?', [strtolower($kategori)])
+            ->select('inspect_schedule.*')
+            ->get();
+
+        $reports = DB::table('qc_report')
+            ->get()
+            ->groupBy('inspect_schedule_id');
+
+        $photos = DB::table('report_photo')
+            ->get()
+            ->groupBy('qc_report_id');
+        $items = [];
+
+        foreach ($rows as $r) {
+
+            $itemId = $r->detail_po_id;
+            $batch  = $r->batch;
+
+            // 🔥 ambil detail item (JSON)
+            if (!isset($items[$itemId])) {
+
+                $detail = DB::table('detail_po')->where('id', $itemId)->first();
+                $json   = json_decode($detail->detail ?? '{}', true);
+        // dd($detail);
+
+                $items[$itemId] = [
+                    'article' => $json['article_nr']
+                        ?? $json['article_code']
+                        ?? $json['nw_code']
+                         ?? $json['article_nr_nw']
+                        ?? $json['no']
+                        ?? '-',
+
+                    'name' => $json['description']
+                        ?? $json['nama']
+                        ?? '-',
+
+                    'qty' => (int) ($json['qty'] ?? 0),
+
+                    'batches' => []
+                ];
+            }
+
+            // 🔥 batch init
+            if (!isset($items[$itemId]['batches'][$batch])) {
+                $items[$itemId]['batches'][$batch] = [
+                    'tanggal'     => $r->tanggal_inspect,
+                    'inspect'     => 0,
+                    'passed'      => 0,
+                    'rejected'    => 0,
+                    'checkpoints' => []
+                ];
+            }
+
+            // 🔥 agregasi
+            $items[$itemId]['batches'][$batch]['inspect']  += $r->jumlah_inspect;
+            $items[$itemId]['batches'][$batch]['passed']   += $r->passed;
+            $items[$itemId]['batches'][$batch]['rejected'] += $r->rejected;
+
+            // 🔥 ambil qc_report
+            $qcRows = $reports[$r->id] ?? [];
+
+            foreach ($qcRows as $qc) {
+
+             $cpId = $qc->check_point_id;
+             $a = Checkpoint::find($cpId);
+$cpName = $a->name;
+$items[$itemId]['batches'][$batch]['checkpoints'][$cpName] = [
+    'name'   => $cpName,
+    'size'   => $qc->size,
+    'remark' => $qc->remark,
+    'photos' => $photos[$qc->id] ?? []
+];
+            }
+        // dd($items);
+
+        }
+
+        return $items;
+    }
+
 }

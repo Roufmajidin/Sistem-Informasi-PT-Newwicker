@@ -168,6 +168,7 @@
                          </a>
                      </li>
 
+
                      @endif
 
                      {{-- 🔹 Role: User biasa --}}
@@ -191,8 +192,21 @@
                              <span class="nav-text">Agenda</span>
                          </a>
                      </li>
+                      </li>
+                          <li>
+                         <a href="/pengajuan">
+                             <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                             <span class="nav-text">Pengajuan</span>
+                         </a>
+                     </li>
                      @endif
-
+   </li>
+                          <li>
+                         <a href="/pengajuan">
+                             <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                             <span class="nav-text">Pengajuan</span>
+                         </a>
+                     </li>
                      <!-- {{-- 🔹 Menu tambahan (opsional untuk semua role) --}}
                      <li class="nav-header hidden-folded">
                          <small class="text-muted">Main Menu</small>

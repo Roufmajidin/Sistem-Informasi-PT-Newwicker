@@ -1,11 +1,13 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Models\Bom;
 use App\Models\CadModel;
 use App\Models\ChatMessage;
 use App\Models\ChatRoom;
 use App\Models\DetailPo;
 use Illuminate\Http\Request;
+
 
 class CadController extends Controller
 {
@@ -17,15 +19,21 @@ class CadController extends Controller
                 ->orWhere('detail->article_nr_nw', $id)
                 ->orWhere('detail->nw_code', $id);
         })
-            ->latest() // 🔥 ambil berdasarkan created_at DESC
+            ->latest()
             ->first();
 
         $cads = CadModel::with('user')
             ->where('article_code', $id)
             ->orderByDesc('version')
             ->get();
-        // dd($find);
-        return view('pages.rnd.index', compact('find', 'cads', 'id'));
+
+        // 🔥 AMBIL BOM + GROUP + ITEM
+        $bom = Bom::with('groups.items')
+            ->where('article_number', $id)
+            ->latest()
+            ->first();
+// dd($id, $bom);
+        return view('pages.rnd.index', compact('find', 'cads', 'id', 'bom'));
     }
     public function upload(Request $request)
     {
@@ -76,10 +84,10 @@ class CadController extends Controller
         ]);
     }
     public function messages($roomId)
-{
-    return ChatMessage::with('user')
-        ->where('chat_room_id', $roomId)
-        ->orderBy('id','asc')
-        ->get();
-}
+    {
+        return ChatMessage::with('user')
+            ->where('chat_room_id', $roomId)
+            ->orderBy('id', 'asc')
+            ->get();
+    }
 }

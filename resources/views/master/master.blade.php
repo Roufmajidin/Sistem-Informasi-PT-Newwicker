@@ -95,6 +95,7 @@
                                     <button type="submit" class="nav-link p-0 clear border-0 bg-transparent">
                                         <span class="avatar w-32">
                                             <img src="../assets/images/a0.jpg" alt="Profile" style="cursor:pointer;">
+                                            <p style="font-size: 8px;">{{ auth()->user()->name ?? 'User' }}</p>
                                             <i class="on b-white bottom"></i>
                                         </span>
                                     </button>
@@ -129,6 +130,8 @@
                 <!-- jQuery (WAJIB PALING ATAS) -->
 
                 <!-- Bootstrap 4 -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+
                 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
 
                 <script>

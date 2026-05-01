@@ -2,100 +2,113 @@
 @section('title', "Portal NewWicker")
 @section('content')
 @php
-    use App\Models\Karyawan;
-    $k = Karyawan::get();
+use App\Models\Karyawan;
+$k = Karyawan::get();
 @endphp
 <div class="padding">
-	<div class="row">
-		<div class="col-xs-12 col-sm-4">
-	        <div class="box p-a">
-	          <div class="pull-left m-r">
-	            <span class="w-48 rounded  accent">
-	              <i class="material-icons">&#xe151;</i>
-	            </span>
-	          </div>
-	          <div class="clear">
-	            <h4 class="m-0 text-lg _300"><a href="karyawan-scan"> <span class="text-sm">Absen Sekarang</span></a></h4>
-	            <small class="text-muted">Active.</small>
-	          </div>
-	        </div>
-	    </div>
-	    <div class="col-xs-6 col-sm-4">
-	        <div class="box p-a">
-	          <div class="pull-left m-r">
-	            <span class="w-48 rounded primary">
-	              <i class="material-icons">&#xe54f;</i>
-	            </span>
-	          </div>
-	          <div class="clear">
-	            <h4 class="m-0 text-lg _300"><a href="/riwayat-absen"><span class="text-sm">Riwayat Absen</span></a></h4>
-	            <small class="text-muted">-</small>
-	          </div>
-	        </div>
-	    </div>
-
- <div class="box-body">
     <div class="row">
-
-        <!-- ================= LEFT : TIMELINE ================= -->
-        <div class="col-md-6">
-            <div class="box">
-                <div class="box-header">
-                    <h3>SPK Timeline</h3>
+        <div class="col-xs-6 col-sm-4">
+            <div class="box p-a">
+                <div class="pull-left m-r">
+                    <span class="w-48 rounded primary">
+                        <i class="material-icons">&#xe54f;</i>
+                    </span>
                 </div>
-                <div class="box-body">
-                    <div class="streamline b-l m-b" id="timelineContainer">
-                        <!-- Data timeline via JS -->
-                    </div>
+                <div class="clear">
+                    <h4 class="m-0 text-lg _300"><a href="/riwayat-absen"><span class="text-sm">Pengajuan</span></a></h4>
+                    <div id="approval-box"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-12 col-sm-4">
+            <div class="box p-a">
+                <div class="pull-left m-r">
+                    <span class="w-48 rounded  accent">
+                        <i class="material-icons">&#xe151;</i>
+                    </span>
+                </div>
+                <div class="clear">
+                    <h4 class="m-0 text-lg _300"><a href="karyawan-scan"> <span class="text-sm">Absen Sekarang</span></a></h4>
+                    <small class="text-muted">Active.</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-xs-6 col-sm-4">
+            <div class="box p-a">
+                <div class="pull-left m-r">
+                    <span class="w-48 rounded primary">
+                        <i class="material-icons">&#xe54f;</i>
+                    </span>
+                </div>
+                <div class="clear">
+                    <h4 class="m-0 text-lg _300"><a href="/riwayat-absen"><span class="text-sm">Riwayat Absen</span></a></h4>
+                    <small class="text-muted">-</small>
                 </div>
             </div>
         </div>
 
-        <!-- ================= RIGHT : TASK ================= -->
-        <div class="col-md-6">
-            <div class="box">
-                <div class="box-header">
-                    <h3>SPK Timeline</h3>
-                </div>
-                <div class="box-body">
-                    <div class="streamline b-l m-l" id="spkTimelineContainer">
-                        <!-- Data -->
+
+        <div class="box-body">
+            <div class="row">
+
+                <!-- ================= LEFT : TIMELINE ================= -->
+                <div class="col-md-6">
+                    <div class="box">
+                        <div class="box-header">
+                            <h3>SPK Timeline</h3>
+                        </div>
+                        <div class="box-body">
+                            <div class="streamline b-l m-b" id="timelineContainer">
+                                <!-- Data timeline via JS -->
+                            </div>
+                        </div>
                     </div>
                 </div>
+
+                <!-- ================= RIGHT : TASK ================= -->
+                <div class="col-md-6">
+                    <div class="box">
+                        <div class="box-header">
+                            <h3>SPK Timeline</h3>
+                        </div>
+                        <div class="box-body">
+                            <div class="streamline b-l m-l" id="spkTimelineContainer">
+                                <!-- Data -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
-
     </div>
-</div>
-        </div>
 
-    </div>
+</div>
 </div>
 
 </div>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
 <script>
-  function loadSpkTimeline()
-{
-    $.get("{{ route('spk.time') }}", function(res){
+    function loadSpkTimeline() {
+        $.get("{{ route('spk.time') }}", function(res) {
 
-        let html = '';
+            let html = '';
 
-        res.forEach((row, index) => {
+            res.forEach((row, index) => {
 
-            let badge = '';
-            let content = '';
-            let collapseId = `collapse-${row.id}`;
+                let badge = '';
+                let content = '';
+                let collapseId = `collapse-${row.id}`;
 
-     if (row.type === 'create') {
+                if (row.type === 'create') {
 
-    badge = `<span class="badge badge-success">CREATE</span>`;
+                    badge = `<span class="badge badge-success">CREATE</span>`;
 
-    let itemsHtml = '';
+                    let itemsHtml = '';
 
-    if (row.after?.items && Array.isArray(row.after.items)) {
-        itemsHtml = `
+                    if (row.after?.items && Array.isArray(row.after.items)) {
+                        itemsHtml = `
             <ul class="mb-0 pl-3 small text-muted">
                 ${row.after.items.map(item => `
                     <li>
@@ -107,9 +120,9 @@
                 `).join('')}
             </ul>
         `;
-    }
+                    }
 
-    content = `
+                    content = `
         <div class="mt-1 text-muted">
             <div><b>SPK dibuat</b></div>
             <div>No SPK : <b>${row.after?.no_spk ?? '-'}</b></div>
@@ -117,17 +130,17 @@
             ${itemsHtml}
         </div>
     `;
-}
+                }
 
-            if (row.type === 'update') {
-                badge = `<span class="badge badge-warning">UPDATE</span>`;
+                if (row.type === 'update') {
+                    badge = `<span class="badge badge-warning">UPDATE</span>`;
 
-                let changeCount = row.changes
-                    ? Object.keys(row.changes).length
-                    : 0;
+                    let changeCount = row.changes ?
+                        Object.keys(row.changes).length :
+                        0;
 
-                // HEADER RINGKAS
-                content = `
+                    // HEADER RINGKAS
+                    content = `
                     <div class="mt-1">
                         <a data-toggle="collapse"
                            href="#${collapseId}"
@@ -144,9 +157,9 @@
                         </div>
                     </div>
                 `;
-            }
+                }
 
-            html += `
+                html += `
                 <div class="sl-item mb-2">
                     <div class="sl-content">
 
@@ -165,23 +178,22 @@
                     </div>
                 </div>
             `;
+            });
+
+            $('#spkTimelineContainer').html(html);
         });
+    }
 
-        $('#spkTimelineContainer').html(html);
-    });
-}
+    function renderChanges(changes) {
+        if (!changes) return '';
 
-function renderChanges(changes)
-{
-    if (!changes) return '';
+        let html = '<ul class="list-unstyled small mb-0">';
 
-    let html = '<ul class="list-unstyled small mb-0">';
+        Object.keys(changes).forEach(key => {
+            let before = formatValue(changes[key].before);
+            let after = formatValue(changes[key].after);
 
-    Object.keys(changes).forEach(key => {
-        let before = formatValue(changes[key].before);
-        let after  = formatValue(changes[key].after);
-
-        html += `
+            html += `
             <li>
                 <code>${key}</code> :
                 <span class="text-danger">${before}</span>
@@ -189,34 +201,32 @@ function renderChanges(changes)
                 <span class="text-success">${after}</span>
             </li>
         `;
-    });
+        });
 
-    html += '</ul>';
-    return html;
-}
-
-function formatValue(val)
-{
-    if (val === null) return '<i>null</i>';
-
-    // IMAGE DETECT
-    if (typeof val === 'string' && val.match(/\.(jpg|png|jpeg|webp)$/)) {
-        return `<img src="${val}" style="height:30px;border:1px solid #ccc">`;
+        html += '</ul>';
+        return html;
     }
 
-    if (typeof val === 'object') {
-        return JSON.stringify(val);
+    function formatValue(val) {
+        if (val === null) return '<i>null</i>';
+
+        // IMAGE DETECT
+        if (typeof val === 'string' && val.match(/\.(jpg|png|jpeg|webp)$/)) {
+            return `<img src="${val}" style="height:30px;border:1px solid #ccc">`;
+        }
+
+        if (typeof val === 'object') {
+            return JSON.stringify(val);
+        }
+
+        return val;
     }
 
-    return val;
-}
+    function formatTanggal(date) {
+        return new Date(date).toLocaleString('id-ID');
+    }
 
-function formatTanggal(date)
-{
-    return new Date(date).toLocaleString('id-ID');
-}
-
-loadSpkTimeline();
+    loadSpkTimeline();
 
 
     // timeline lama
@@ -232,10 +242,10 @@ loadSpkTimeline();
                 data.forEach(function(item) {
 
                     let userName = item.user?.name ?? 'Unknown';
-                    let remark   = item.isi?.remark ?? '-';
-                    let created  = item.isi?.timestamp
-                                    ? new Date(item.isi.timestamp).toLocaleString()
-                                    : new Date(item.created_at).toLocaleString();
+                    let remark = item.isi?.remark ?? '-';
+                    let created = item.isi?.timestamp ?
+                        new Date(item.isi.timestamp).toLocaleString() :
+                        new Date(item.created_at).toLocaleString();
 
                     let jenisClass = item.jenis === 'edit pfi' ? 'b-success' : '';
 
@@ -258,7 +268,31 @@ loadSpkTimeline();
     loadTimeline();
     // loadSpkTimeline();
 
+    function loadMyApproval() {
+        $.get('/dashboard/pending-approval', function(res) {
 
+            let html = '';
 
+            html += `
+        <b>${res.total_pengajuan} pengajuan</b><br>
+        <small>${res.total_step} approval menunggu persetujuanmu</small>
+        <hr>
+    `;
+
+            res.data.forEach(item => {
+                html += `
+            <div>
+               <a href="/pengajuan?pengajuan_id=${item.id}">
+                    Pengajuan #${item.id}
+                </a>
+            </div>
+        `;
+            });
+
+            $('#approval-box').html(html);
+        });
+    }
+
+    loadMyApproval();
 </script>
 @endsection

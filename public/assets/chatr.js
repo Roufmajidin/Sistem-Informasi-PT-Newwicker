@@ -281,7 +281,12 @@ let originalKategori = [];
 
 let isAutoChange = false;
 
-
+// pengajuan global var
+let excelMeta = {};
+let excelDetails = [];
+let excelApproval = {};
+let transferValue = 0;
+let grandTotalValue = 0;
 // ================= RESET =================
 function resetFilter() {
 
@@ -756,7 +761,7 @@ function loadQc() {
         po_id: globalPoId
     }, function (res) {
 
-globalQc = Array.isArray(res) ? res : [];
+        globalQc = Array.isArray(res) ? res : [];
 
 
         renderQc();
@@ -773,7 +778,6 @@ function renderQc() {
         let name = detail.description;
         let qty = parseInt(detail.qty);
 
-        // default semua 0
         let dataQc = {
             rangka: {
                 inspect: 0,
@@ -797,30 +801,42 @@ function renderQc() {
             }
         };
 
-        // ambil data QC sesuai item
-        let rows = globalQc.filter(q =>
+        // 🔥 FILTER PER ITEM
+        let rows = (globalQc || []).filter(q =>
             parseInt(q.detail_po_id) === parseInt(d.id)
         );
 
+        // 🔥 AGREGASI SEMUA BATCH
         rows.forEach(r => {
 
-            let kategori = r.kategori;
+            let kategori = (r.kategori || '').toLowerCase().trim();
 
-            if (!dataQc[kategori]) return;
+            if (!dataQc[kategori]) {
+                console.warn('Kategori tidak dikenal:', kategori);
+                return;
+            }
 
-            dataQc[kategori].inspect += parseInt(r.jumlah_inspect || 0);
-            dataQc[kategori].pass += parseInt(r.passed || 0);
-            dataQc[kategori].reject += parseInt(r.rejected || 0);
+            dataQc[kategori].inspect += Number(r.jumlah_inspect || 0);
+            dataQc[kategori].pass += Number(r.passed || 0);
+            dataQc[kategori].reject += Number(r.rejected || 0);
+
         });
 
-        // function render cell
         function cell(d) {
+
+            if (d.inspect === 0) {
+                return `<span class="text-muted">-</span>`;
+            }
+
+            let percent = (d.pass / d.inspect * 100).toFixed(0);
+
             return `
                 <div>
                     <small>
-                        <b>I:</b> ${d.inspect} |
+                        ${d.inspect} |
                         <span style="color:green">✔ ${d.pass}</span> |
                         <span style="color:red">✖ ${d.reject}</span>
+                        (${percent}%)
                     </small>
                 </div>
             `;
@@ -829,11 +845,11 @@ function renderQc() {
         html += `
             <tr>
                 <td>${i + 1}</td>
-               <td>
-    <a href="/qc/${globalPoId}" style="color:#007bff;font-weight:500">
-        ${name}
-    </a>
-</td>
+                <td>
+                    <a href="/qc/${globalPoId}" style="color:#007bff;font-weight:500">
+                        ${name}
+                    </a>
+                </td>
                 <td>${qty}</td>
 
                 <td>${cell(dataQc.rangka)}</td>
@@ -846,6 +862,8 @@ function renderQc() {
 
     $('#detail-area').html(html);
 }
+
+
 $('#filter-process').change(function () {
 
     let val = $(this).val();
@@ -997,3 +1015,644 @@ $('#search-qc').on('keyup', function () {
     }, 500);
 
 });
+
+
+
+// pengajuan
+let selectedFiles = [];
+let currentIndex = 0;
+let scale = 1;
+
+let posX = 0;
+let posY = 0;
+let startX = 0;
+let startY = 0;
+let isDragging = false;
+let isMouseDown = false;
+
+let typeSelect = document.querySelector('[name="type_pengajuan"]');
+let cameraSection = document.querySelector('#cameraInput').closest('.form-group');
+let financeSection = document.getElementById('finance-section');
+
+$(document).ready(function () {
+
+    $('[name="type_pengajuan"]').on('change', function () {
+
+        let val = $(this).val();
+
+        if (val === 'Finance') {
+
+            // 🔥 tampilkan excel
+            $('#finance-section').show();
+
+            // 🔥 hide lainnya
+            $('#divisi-section').hide();
+            $('#camera-section').hide();
+            $('#keterangan-section').hide();
+            $('#urgent-section').hide();
+
+        } else {
+
+            // 🔥 tampilkan normal
+            $('#finance-section').hide();
+
+            $('#divisi-section').show();
+            $('#camera-section').show();
+            $('#keterangan-section').show();
+            $('#urgent-section').show();
+        }
+
+    });
+
+});
+
+function extractMeta(data) {
+
+    let tanggal = '';
+    let nomor = '';
+    let type = '';
+
+    function getNextValue(row, start) {
+        for (let j = start + 1; j < row.length; j++) {
+            let v = row[j];
+            if (v && v !== ':' && v !== '') {
+                return v;
+            }
+        }
+        return '';
+    }
+
+    data.forEach(row => {
+
+        row.forEach((cell, i) => {
+
+            if (typeof cell === 'string') {
+
+                let val = cell.toLowerCase().trim();
+
+                if (val.includes('tanggal') && !tanggal) {
+                    tanggal = getNextValue(row, i);
+                }
+
+                if (val.includes('nomor') && !nomor) {
+                    nomor = getNextValue(row, i);
+                }
+
+                if (val.includes('type pembayaran') && !type) {
+                    type = getNextValue(row, i);
+                }
+            }
+
+        });
+
+    });
+
+    // 🔥 FIX DATE
+    if (typeof tanggal === 'number') {
+        tanggal = excelDateToJSDate(tanggal);
+    }
+
+    return {
+        tanggal,
+        nomor,
+        type
+    };
+}
+document.getElementById('excelInput').addEventListener('change', function (e) {
+
+    let file = e.target.files[0];
+    let reader = new FileReader();
+
+    reader.onload = function (e) {
+
+        let data = new Uint8Array(e.target.result);
+        let workbook = XLSX.read(data, {
+            type: 'array'
+        });
+
+        let sheet = workbook.Sheets[workbook.SheetNames[0]];
+        let json = XLSX.utils.sheet_to_json(sheet, {
+            header: 1
+        });
+
+        // 🔥 DI SINI SEMUA HARUS DIJALANKAN
+        let meta = extractMeta(json);
+        let totals = extractTotals(json);
+        if (!meta.nomor || !meta.tanggal) {
+            alert('⚠️ Excel tidak valid! Pastikan ada "Nomor" dan "Tanggal"');
+            return;
+        }
+        document.getElementById('excel-meta').style.display = 'block';
+        document.getElementById('meta-tanggal').innerText = meta.tanggal;
+        document.getElementById('meta-nomor').innerText = meta.nomor;
+        document.getElementById('meta-type').innerText = meta.type;
+        console.log(meta.tanggal);
+        console.log(meta.nomor);
+        console.log(meta.type);
+        // render
+        let transferValue = totals.transfer;
+        let grandTotalValue = totals.grand;
+        excelMeta = {
+            tanggal: meta.tanggal,
+            nomor: meta.nomor,
+            type_pembayaran: meta.type,
+            transfer: transferValue, // dari excel
+            grand_total: grandTotalValue // dari excel
+        };
+        // cari header dulu
+        let headerIndex = findHeaderRow(json);
+
+        // ambil data rows
+        let dataRows = json.slice(headerIndex + 1);
+
+        // 🔥 DETAIL
+        excelDetails = [];
+
+        for (let i = headerIndex + 1; i < json.length; i++) {
+
+            let row = json[i];
+
+            // ❌ skip kosong
+            if (!row || row.length === 0) continue;
+
+            // ❌ stop kalau ketemu TRANSFER
+            if (typeof row[0] === 'string' && row[0].toLowerCase().includes('transfer')) {
+                break;
+            }
+
+            // ❌ skip row hitam / kosong (row 9-10)
+            if (!row[0] || row[0] === '') continue;
+
+            // ❌ skip kalau bukan angka (biar ga ambil header bawah)
+            if (isNaN(row[0])) continue;
+
+            // ✅ ambil data valid
+            excelDetails.push({
+                no: row[0],
+                date: convertDate(row[1]),
+                no_po: row[2],
+                no_inv: row[3],
+                type_biaya: row[4],
+                nama_barang: row[5],
+                qty: parseInt(row[6]) || 0,
+                harga_satuan: parseNumber(row[7]),
+                total_harga: parseNumber(row[8])
+            });
+        }
+        excelApproval = {
+            checked_by: "YANTI SUSANTI",
+            knowing_by: "Mr Stanley",
+            approve_by: "Mr Jan",
+            record_and_cashied_1: "EKA WL",
+            record_and_cashied_2: "AINUN"
+        };
+
+        document.getElementById('meta_json').value = JSON.stringify(excelMeta);
+        document.getElementById('details_json').value = JSON.stringify(excelDetails);
+        document.getElementById('approval_json').value = JSON.stringify(excelApproval);
+
+        console.log('META FINAL:', excelMeta);
+        renderExcel(json);
+    };
+
+    reader.readAsArrayBuffer(file);
+});
+
+function excelDateToJSDate(serial) {
+    let utc_days = Math.floor(serial - 25569);
+    let utc_value = utc_days * 86400;
+    let date_info = new Date(utc_value * 1000);
+
+    let day = String(date_info.getDate()).padStart(2, '0');
+    let month = String(date_info.getMonth() + 1).padStart(2, '0');
+    let year = date_info.getFullYear();
+
+    return `${day}/${month}/${year}`;
+}
+
+function isExcelDate(value) {
+    return typeof value === 'number' && value > 30000 && value < 60000;
+}
+
+function renderExcel(data) {
+    let thead = document.querySelector('#excel-table thead');
+    let tbody = document.querySelector('#excel-table tbody');
+
+    thead.innerHTML = '';
+    tbody.innerHTML = '';
+
+    if (!data || data.length === 0) return;
+
+    // 🔥 cari header
+    let headerIndex = findHeaderRow(data);
+
+    let headers = data[headerIndex];
+
+    // ===== HEADER =====
+    let trHead = document.createElement('tr');
+
+    headers.forEach(col => {
+        let th = document.createElement('th');
+        th.innerText = col ?? '';
+        trHead.appendChild(th);
+    });
+
+    thead.appendChild(trHead);
+
+    // ===== BODY =====
+    for (let i = headerIndex + 1; i < data.length; i++) {
+        let row = data[i];
+
+        // skip kosong
+        if (!row || row.length === 0) continue;
+
+        let tr = document.createElement('tr');
+
+        row.forEach(cell => {
+
+            // 🔥 FIX DATE
+            if (typeof cell === 'number' && cell > 30000 && cell < 60000) {
+                cell = excelDateToJSDate(cell);
+            }
+
+            let td = document.createElement('td');
+            td.innerText = cell ?? '';
+            tr.appendChild(td);
+        });
+
+        tbody.appendChild(tr);
+    }
+
+}
+
+function findHeaderRow(data) {
+    for (let i = 0; i < data.length; i++) {
+        let row = data[i].join(' ').toLowerCase();
+
+        if (row.includes('no') && row.includes('date')) {
+            return i;
+        }
+    }
+    return 0;
+}
+// OPEN MODAL
+document.getElementById('btn-add').onclick = () => {
+    document.getElementById('modal-pengajuan').classList.add('active');
+};
+
+// CLOSE MODAL
+document.getElementById('btn-close').onclick = () => {
+    document.getElementById('modal-pengajuan').classList.remove('active');
+};
+document.querySelectorAll('.close-modal').forEach(btn => {
+    btn.onclick = function () {
+        this.closest('.modal-full').classList.remove('active');
+        $('#view-content').html('');
+        $('#view-meta').html('');
+    };
+});
+// ================= COMPRESS =================
+async function compressImage(file) {
+    return new Promise(resolve => {
+        let img = new Image();
+        let reader = new FileReader();
+
+        reader.onload = e => img.src = e.target.result;
+
+        img.onload = () => {
+            let canvas = document.createElement('canvas');
+            let ctx = canvas.getContext('2d');
+
+            let maxWidth = 800;
+            let scale = maxWidth / img.width;
+
+            canvas.width = maxWidth;
+            canvas.height = img.height * scale;
+
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            canvas.toBlob(blob => {
+                resolve(new File([blob], file.name, {
+                    type: 'image/jpeg'
+                }));
+            }, 'image/jpeg', 0.7);
+        };
+
+        reader.readAsDataURL(file);
+    });
+}
+
+// INPUT CHANGE
+document.getElementById('cameraInput').addEventListener('change', async function (e) {
+    let files = Array.from(e.target.files);
+
+    for (let file of files) {
+        let compressed = await compressImage(file);
+        selectedFiles.push(compressed);
+    }
+
+    renderPreview();
+});
+
+// RENDER
+function renderPreview() {
+    let container = document.getElementById('preview-container');
+    container.innerHTML = '';
+
+    selectedFiles.forEach((file, index) => {
+        let url = URL.createObjectURL(file);
+
+        let div = document.createElement('div');
+        div.className = 'preview-item';
+
+        div.innerHTML = `
+            <img src="${url}" onclick="zoomImage(${index})">
+            <button class="btn-remove" onclick="removeFile(${index})">x</button>
+        `;
+
+        container.appendChild(div);
+    });
+
+    syncInput();
+}
+
+// DELETE
+function removeFile(index) {
+    selectedFiles.splice(index, 1);
+    renderPreview();
+}
+
+// SYNC INPUT
+function syncInput() {
+    let dt = new DataTransfer();
+    selectedFiles.forEach(f => dt.items.add(f));
+    document.getElementById('cameraInput').files = dt.files;
+}
+
+// ================= ZOOM =================
+const modalImg = document.getElementById('modalImg');
+// MOUSE DOWN
+modalImg.addEventListener('mousedown', function (e) {
+    if (scale > 1) {
+        isMouseDown = true;
+        startX = e.clientX - posX;
+        startY = e.clientY - posY;
+        modalImg.style.cursor = 'grabbing';
+    }
+});
+
+// MOUSE MOVE
+window.addEventListener('mousemove', function (e) {
+    if (isMouseDown) {
+        posX = e.clientX - startX;
+        posY = e.clientY - startY;
+        updateTransform();
+    }
+});
+
+// MOUSE UP
+window.addEventListener('mouseup', function () {
+    isMouseDown = false;
+    modalImg.style.cursor = 'grab';
+});
+modalImg.addEventListener('wheel', function (e) {
+    e.preventDefault();
+
+    scale += e.deltaY * -0.001;
+    scale = Math.min(Math.max(1, scale), 3);
+
+    updateTransform();
+});
+// OPEN
+function zoomImage(index) {
+    currentIndex = index;
+
+    let modal = document.getElementById('imageModal');
+
+    modalImg.src = URL.createObjectURL(selectedFiles[index]);
+    modal.style.display = 'flex';
+
+    scale = 1;
+    posX = 0;
+    posY = 0;
+    updateTransform();
+}
+
+// APPLY TRANSFORM
+function updateTransform() {
+    modalImg.style.transform = `scale(${scale}) translate(${posX}px, ${posY}px)`;
+}
+
+// ================= DRAG =================
+modalImg.addEventListener('touchstart', function (e) {
+    if (scale > 1) {
+        isDragging = true;
+        startX = e.touches[0].clientX - posX;
+        startY = e.touches[0].clientY - posY;
+    } else {
+        startX = e.touches[0].clientX;
+    }
+});
+
+modalImg.addEventListener('touchmove', function (e) {
+
+    if (isDragging) {
+        posX = e.touches[0].clientX - startX;
+        posY = e.touches[0].clientY - startY;
+        updateTransform();
+    }
+});
+
+modalImg.addEventListener('touchend', function (e) {
+    isDragging = false;
+
+    let endX = e.changedTouches[0].clientX;
+
+    // SWIPE kalau belum zoom
+    if (scale === 1) {
+        if (startX - endX > 50) {
+            nextImage();
+        } else if (endX - startX > 50) {
+            prevImage();
+        }
+    }
+});
+
+// ================= DOUBLE TAP ZOOM =================
+modalImg.addEventListener('click', function () {
+    scale = scale === 1 ? 2 : 1;
+
+    posX = 0;
+    posY = 0;
+
+    updateTransform();
+});
+
+// ================= NEXT PREV =================
+function nextImage() {
+    if (currentIndex < selectedFiles.length - 1) {
+        currentIndex++;
+        zoomImage(currentIndex);
+    }
+}
+
+function prevImage() {
+    if (currentIndex > 0) {
+        currentIndex--;
+        zoomImage(currentIndex);
+    }
+}
+
+// CLOSE
+document.getElementById('imageModal').onclick = function (e) {
+    if (e.target.id === 'imageModal') {
+        this.style.display = 'none';
+    }
+};
+
+// submit pengajuan
+$('form').on('submit', function (e) {
+
+    let type = $('[name="type_pengajuan"]').val();
+
+    e.preventDefault(); // 🔥 semua pakai AJAX
+
+    let formData = new FormData(this);
+
+    // =========================
+    // ALL DIVISI
+    // =========================
+    if (type === 'All Divisi') {
+
+        selectedFiles.forEach((file) => {
+            formData.append('images[]', file);
+        });
+
+        sendAjax('/pengajuan/store-all-divisi', formData);
+        return;
+    }
+
+    // =========================
+    // FINANCE
+    // =========================
+    formData.set('meta_json', JSON.stringify(excelMeta));
+    formData.set('details_json', JSON.stringify(excelDetails));
+    formData.set('approval_json', JSON.stringify(excelApproval));
+
+    sendAjax('/pengajuan/store', formData);
+
+});
+
+function sendAjax(url, formData) {
+
+    $.ajax({
+        url: url,
+        method: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        },
+
+        success: function (res) {
+
+            if (!res.status) {
+                Swal.fire({
+                    customClass: {
+                        popup: 'swal-top'
+                    },
+                    icon: 'success',
+                    title: 'Berhasil',
+                    text: res.message
+                });
+                return;
+            }
+
+            Swal.fire({
+                customClass: {
+                    popup: 'swal-top'
+                },
+                icon: 'success',
+                title: 'Berhasil',
+                text: res.message || 'Pengajuan berhasil disimpan',
+                timer: 2000,
+                showConfirmButton: false
+            });
+
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+        },
+
+        error: function (xhr) {
+
+            let res = xhr.responseJSON;
+
+            Swal.fire({
+                customClass: {
+                    popup: 'swal-top'
+                },
+                icon: 'error',
+                title: 'Error',
+                text: res ?.message || 'Server error'
+            });
+        }
+    });
+
+}
+
+function extractTotals(data) {
+
+    let transfer = 0;
+    let grand = 0;
+
+    data.forEach(row => {
+
+        if (!row) return;
+
+        row.forEach((cell, i) => {
+
+            if (typeof cell === 'string' && cell.toLowerCase().includes('transfer')) {
+
+                // ambil angka terakhir di row
+                let nums = row.filter(v => typeof v === 'number' || /\d/.test(v));
+
+                if (nums.length >= 2) {
+                    transfer = parseNumber(nums[nums.length - 2]);
+                    grand = parseNumber(nums[nums.length - 1]);
+                }
+            }
+
+        });
+
+    });
+
+    return {
+        transfer,
+        grand
+    };
+}
+
+function parseNumber(val) {
+    if (!val) return 0;
+    return parseFloat(val.toString().replace(/[^0-9]/g, '')) || 0;
+}
+
+function convertDate(value) {
+
+    // kalau kosong
+    if (!value) return null;
+
+    // 🔥 kalau Excel number (serial date)
+    if (typeof value === 'number') {
+        return excelDateToJSDate(value);
+    }
+
+    // 🔥 kalau sudah string (misal 04/12/2026)
+    if (typeof value === 'string') {
+        return value;
+    }
+
+    return value;
+}

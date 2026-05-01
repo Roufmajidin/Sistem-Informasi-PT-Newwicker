@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\BuyerController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\ImageController;
+use App\Http\Controllers\PengajuanController;
 use App\Http\Controllers\QcController;
 use Illuminate\Support\Facades\Route;
 
@@ -13,6 +14,8 @@ Route::middleware('auth:sanctum')->post('/absen-lembur', [AbsenController::class
 Route::middleware('auth:sanctum')->post('/ajukanizin', [AbsenController::class, 'ajukanIzin']);
 Route::middleware('auth:sanctum')->get('/izin-saya', [AbsenController::class, 'getTypes']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/users/update-mass', [PengajuanController::class, 'updateMassCustom']);
+
 Route::get('/izin-types', [AbsenController::class, 'getTypes']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);

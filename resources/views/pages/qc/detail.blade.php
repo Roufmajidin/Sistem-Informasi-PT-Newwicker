@@ -4,23 +4,25 @@
 @section('content')
 <style>
     .sticky-right {
-    position: relative;
-}
-.sticky-right {
-    z-index: 1 !important;
-}
+        position: relative;
+    }
 
-.box {
-    z-index: 1 !important;
-}
-.dropdown {
-    position: relative;
-    z-index: 99999;
-}
+    .sticky-right {
+        z-index: 1 !important;
+    }
 
-.dropdown-menu {
-    z-index: 99999 !important;
-}
+    .box {
+        z-index: 1 !important;
+    }
+
+    .dropdown {
+        position: relative;
+        z-index: 99999;
+    }
+
+    .dropdown-menu {
+        z-index: 99999 !important;
+    }
 </style>
 <div class="padding">
     <div class="row">
@@ -41,11 +43,11 @@
                     <h3 class="no-margin">Order Details</h3>
 
                     <div class="dropdown">
-                         <button id="btn-jenis"
-        class="btn btn-success dropdown-toggle"
-        data-toggle="dropdown"
-        aria-haspopup="true"
-        aria-expanded="false">
+                        <button id="btn-jenis"
+                            class="btn btn-success dropdown-toggle"
+                            data-toggle="dropdown"
+                            aria-haspopup="true"
+                            aria-expanded="false">
                             Jenis <span class="caret"></span>
                         </button>
 
@@ -66,24 +68,24 @@
 
                 </div>
 
-                    <div class="box-body">
-                        <div class="row">
-                            <div class="col-sm-6">
-                                <p><strong>No. PO:</strong> {{$data->order_no}}</p>
-                <input type="hidden" id="po-id" name="po_id" value="{{$data->id}}">
+                <div class="box-body">
+                    <div class="row">
+                        <div class="col-sm-6">
+                            <p><strong>No. PO:</strong> {{$data->order_no}}</p>
+                            <input type="hidden" id="po-id" name="po_id" value="{{$data->id}}">
 
-                                <p>QTY : <strong id="qtyText">-</strong></p>
-                                <p>Progrs QTY:</strong>  <span id="progressQty">-</span></p>
+                            <p>QTY : <strong id="qtyText">-</strong></p>
+                            <p>Progrs QTY:</strong> <span id="progressQty">-</span></p>
 
 
-                            </div>
-                            <div class="col-sm-6">
-                                <p><strong>QC:</strong><a href="" id="inspector"></a></p>
-                                <p><strong>QC date:</strong> <a href="" id="qc_date"></a></p>
-                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <p><strong>QC:</strong><a href="" id="inspector"></a></p>
+                            <p><strong>QC date:</strong> <a href="" id="qc_date"></a></p>
                         </div>
                     </div>
                 </div>
+            </div>
 
             <!-- order -->
             @include('pages.qc.partial.order-table', ['detailP' => $detailP])
@@ -97,48 +99,66 @@
         </div>
 
 
-      {{-- RIGHT --}}
-<div class="col-md-4">
-    <div class="sticky-right">
+        {{-- RIGHT --}}
+        <div class="col-md-4">
+            <div class="sticky-right">
 
-        {{-- STATUS --}}
-        <div class="box m-b">
-            <div class="box-body text-center">
-                <h4>Status</h4>
-                <span class="label success">RUNNING</span>
-            </div>
-        </div>
+                {{-- STATUS --}}
+                <!-- <div class="box m-b">
+                    <div class="box-body text-center">
+                        <h4>act</h4>
+                        <span class="label success">Download all</span>
+                    </div>
+                </div> -->
+      @foreach ($jenis as $i)
 
-        {{-- COMMENTS --}}
-        <div class="box">
-            <div class="box-header">
-                <h4>Inspection Items</h4>
-            </div>
-            <div class="box-body">
-                <p id="nama"></p>
-            </div>
-        </div>
+    <a href="/qc/export/{{ strtolower($i->kategori) }}/{{ $data->id }}"
+       class="btn btn-sm 
+       
+       @if(strtolower($i->kategori) == 'rangka') btn-danger
+       @elseif(strtolower($i->kategori) == 'anyam') btn-warning
+       @elseif(strtolower($i->kategori) == 'unfinish') btn-info
+       @elseif(strtolower($i->kategori) == 'final') btn-success
+       @else btn-secondary
+       @endif
+       
+       m-1">
 
-        {{-- BATCH --}}
-        <div class="box m-b">
-            <div class="box-header">
-                <h4>Batch</h4>
-            </div>
-            <div class="box-body">
-                <div id="batch-container" class="btn-group">
-                    <span class="text-muted">Pilih batch</span>
+        PDF {{ strtoupper($i->kategori) }}
+    </a>
+
+@endforeach
+
+                {{-- COMMENTS --}}
+                <div class="box">
+                    <div class="box-header">
+                        <h4>Inspection Items</h4>
+                    </div>
+                    <div class="box-body">
+                        <p id="nama"></p>
+                    </div>
                 </div>
+
+                {{-- BATCH --}}
+                <div class="box m-b">
+                    <div class="box-header">
+                        <h4>Batch</h4>
+                    </div>
+                    <div class="box-body">
+                        <div id="batch-container" class="btn-group">
+                            <span class="text-muted">Pilih batch</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- pie g -->
+
+
             </div>
         </div>
-        <!-- pie g -->
 
 
-    </div>
-</div>
-
-
-            {{-- CORRECTIVE ACTION --}}
-            <!-- <div class="box m-b">
+        {{-- CORRECTIVE ACTION --}}
+        <!-- <div class="box m-b">
         <div class="box-header">
           <h4>Corrective Actions</h4>
         </div>
@@ -147,8 +167,8 @@
         </div>
       </div> -->
 
-            {{-- WATCHERS --}}
-            <!-- <div class="box m-b">
+        {{-- WATCHERS --}}
+        <!-- <div class="box m-b">
         <div class="box-header">
           <h4>Watchers</h4>
         </div>
@@ -159,9 +179,9 @@
       </div> -->
 
 
-        </div>
-
     </div>
+
+</div>
 </div>
 
 @endsection

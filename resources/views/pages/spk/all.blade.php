@@ -15,10 +15,9 @@
                                 <thead>
                                     <tr>
                                         <th style="width: 20px;">No</th>
+                                        <th>Buyer Name</th>
                                         <th>Po</th>
-                                        <th>Buyer Name</th>
-                                        <th>Buyer Name</th>
-                                        <th width="120">Action</th>
+                                        <th>Act</th>
                                     </tr>
                                 </thead>
                                 <tbody id="po-table-body">
@@ -111,8 +110,8 @@
                         html += `
                     <tr>
                         <td>${no++}</td>
-                        <td>${poNo}</td>
                         <td>${buyerName}</td>
+                        <td>${poNo}</td>
                       <td>
     <button
         class="btn btn-sm btn-primary btn-view-spk"

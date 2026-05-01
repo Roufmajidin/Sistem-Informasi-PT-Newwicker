@@ -3,6 +3,7 @@
 use App\Http\Controllers\AbsenController;
 use App\Http\Controllers\AgendaController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BomController;
 use App\Http\Controllers\BuyerController;
 use App\Http\Controllers\CadController;
 use App\Http\Controllers\ImportController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\LabelController;
 use App\Http\Controllers\MarketingController;
 use App\Http\Controllers\PameranContrller;
 use App\Http\Controllers\PdfController;
+use App\Http\Controllers\PengajuanController;
 use App\Http\Controllers\PoController;
 use App\Http\Controllers\ProduksiController;
 use App\Http\Controllers\QcController;
@@ -139,6 +141,12 @@ Route::get('/qc/getPoDetail/{kategoriId}/{detailPo}/{poId}', [QcController::clas
 Route::get('/insert/{kategoriName}', [QcController::class, 'insertDummy']);
 Route::get('/qc/search', [QcController::class, 'ajaxPo'])->name('qc.ajax.poo');
 
+// per kategori (rangka / anyam / dll)
+Route::get('/qc/export/{kategori}/{po_id}', [SpkController::class, 'exportPdf']);
+
+// 🔥 download semua kategori (ZIP)
+Route::get('/qc/export-all/{po_id}', [SpkController::class, 'exportAll']);
+
 Route::get('/marketing-pfi', [PoController::class, 'marketing']);
 Route::get('/marketing/ajax/po-list', [QcController::class, 'ajaxPoList'])
     ->name('marketing.ajax.po');
@@ -155,6 +163,23 @@ Route::get('/marketing/po-detail/{id}', [PoController::class, 'getPoDetail']);
 Route::post('/marketing/po-item-update-bulk',
     [PoController::class, 'updateItemBulk']);
 // supplier
+Route::get('/pengajuan', [PengajuanController::class, 'index']);
+Route::post('/pengajuan/store', [PengajuanController::class, 'store']);
+Route::get('/pengajuan/view-detail/{detailId}', [PengajuanController::class, 'viewDetailImage']);
+Route::post('/pengajuan/upload-detail-image', [PengajuanController::class, 'uploadDetailImage']);
+Route::post('/pengajuan/store-all-divisi', [PengajuanController::class, 'storeAllDivisi']);
+Route::get('/pengajuan/list', [PengajuanController::class, 'list']);
+Route::get('/pengajuan/detail/{id}', [PengajuanController::class, 'detail']);
+
+Route::get('/pengajuan/messages/{id}', [PengajuanController::class, 'getMessages']);
+
+Route::post('/pengajuan/send-message', [PengajuanController::class, 'sendMessage']);
+Route::get('/pengajuan/export/{id}', [PengajuanController::class, 'exportExcel']);
+
+Route::get('/dev/reset-pengajuan', [PengajuanController::class, 'reset']);
+Route::post('/pengajuan/approve/{id}', [PengajuanController::class, 'approveStep']);
+Route::post('/pengajuan/approve-all/{id}', [PengajuanController::class, 'approveAll']);
+Route::get('/dashboard/pending-approval', [PengajuanController::class, 'pendingMyApproval']);
 
 Route::get('/supplier', [SupplierController::class, 'index']);
 Route::get('/produksi/get-data', [SpkController::class, 'getData']);
@@ -187,6 +212,7 @@ Route::get('/produksi', [ProduksiController::class, 'index'])->name('produksi.in
 Route::get('/spk/export/{id}', [SpkController::class, 'export'])->name('spk.export');
 Route::get('/cad/{id}', [CadController::class, 'index'])->name('cad.index');
 Route::post('/cad/upload', [CadController::class, 'upload']);
+Route::post('/bom/import', [BomController::class, 'import']);
 
 Route::get('/chatroom/get-room/{id}', [CadController::class, 'getRoom']);
 Route::get('/chatroom/messages/{id}', [CadController::class, 'messages']);

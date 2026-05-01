@@ -9,13 +9,12 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up(): void
+    public function up()
     {
-        Schema::create('chat_messages', function (Blueprint $table) {
+        Schema::create('bom_groups', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('chat_room_id');
-            $table->unsignedBigInteger('user_id');
-            $table->text('message');
+            $table->foreignId('bom_id')->constrained('bom')->cascadeOnDelete();
+            $table->string('name');
             $table->timestamps();
         });
     }
@@ -25,6 +24,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('chat_messages');
+        Schema::dropIfExists('bom_groups');
     }
 };

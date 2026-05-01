@@ -46,6 +46,10 @@ class User extends Authenticatable
             'password'          => 'hashed',
         ];
     }
+    public function approvalMessages()
+{
+    return $this->hasMany(ApprovalMessage::class);
+}
     public function karyawan()
     {
         return $this->belongsTo(Karyawan::class);
