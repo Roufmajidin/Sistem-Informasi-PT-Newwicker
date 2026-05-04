@@ -29,10 +29,13 @@
 
                      {{-- 🔹 Role: HRD --}}
                      @php
-                     use App\Models\Karyawan;
+                    use App\Models\Karyawan;
 
-                     $a = Karyawan::find(Auth::user()->karyawan_id);
+$user = Auth::user();
+$a = $user ? Karyawan::find($user->karyawan_id) : null;
+
                      @endphp
+
 
                      @if(Auth::user()->role === 'hrd' || ($a && in_array($a->divisi_id, [38, 34, 25, 26])))
                      <li>

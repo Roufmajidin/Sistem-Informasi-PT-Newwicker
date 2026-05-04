@@ -187,6 +187,7 @@
                 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
                 <script src="{{asset('assets/cam/cam.js')}}" type="text/javascript"></script>
                 <script src="{{asset('assets/chatr.js')}}" type="text/javascript"></script>
+                <!-- <script src="{{asset('assets/pengajuan.js')}}" type="text/javascript"></script> -->
 
                 <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 

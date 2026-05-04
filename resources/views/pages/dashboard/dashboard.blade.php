@@ -6,20 +6,33 @@ use App\Models\Karyawan;
 $k = Karyawan::get();
 @endphp
 <div class="padding">
+   @php
+$auth = auth()->user();
+$karyawan = \App\Models\Karyawan::find($auth->karyawan_id);
+$divisiId = $karyawan->divisi_id ?? null;
+
+$allowedDivisi = [26, 38, 32, 46, 37];
+@endphp
     <div class="row">
-        <div class="col-xs-6 col-sm-4">
-            <div class="box p-a">
-                <div class="pull-left m-r">
-                    <span class="w-48 rounded primary">
-                        <i class="material-icons">&#xe54f;</i>
-                    </span>
-                </div>
-                <div class="clear">
-                    <h4 class="m-0 text-lg _300"><a href="/riwayat-absen"><span class="text-sm">Pengajuan</span></a></h4>
-                    <div id="approval-box"></div>
-                </div>
-            </div>
+      @if(in_array($divisiId, $allowedDivisi))
+<div class="col-xs-6 col-sm-4">
+    <div class="box p-a">
+        <div class="pull-left m-r">
+            <span class="w-48 rounded primary">
+                <i class="material-icons">&#xe54f;</i>
+            </span>
         </div>
+        <div class="clear">
+            <h4 class="m-0 text-lg _300">
+                <a href="/riwayat-absen">
+                    <span class="text-sm">Pengajuan</span>
+                </a>
+            </h4>
+            <div id="approval-box"></div>
+        </div>
+    </div>
+</div>
+@endif
         <div class="col-xs-12 col-sm-4">
             <div class="box p-a">
                 <div class="pull-left m-r">

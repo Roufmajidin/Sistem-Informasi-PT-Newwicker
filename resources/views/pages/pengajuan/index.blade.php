@@ -100,6 +100,7 @@
                     <th>No Pengajuan</th>
                     <th>Uploaded By</th>
                     <th>Status</th>
+                    <th>peng. v</th>
                     <th>Created At</th>
                     <th>Qr</th>
                     <th>#</th>
@@ -339,6 +340,24 @@
     </div>
     {{-- ================= STYLE ================= --}}
     <style>
+        #preview-container {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+}
+
+.preview-item {
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.preview-item img {
+    width: 90px;       /* 🔥 atur ukuran */
+    height: 70px;
+    object-fit: cover; /* 🔥 biar rapi */
+    border-radius: 6px;
+    border: 1px solid #ddd;
+}
         /* =========================
    MODAL FULL
 ========================= */
@@ -710,8 +729,63 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/zoomist@1/dist/zoomist.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/zoomist@1/dist/zoomist.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
     <script>
+        let lastTap = 0;
+
         let lastData = [];
+        $(document).on('click', '.btn-delete', function() {
+
+            let id = $(this).data('id');
+
+            Swal.fire({
+                title: 'Yakin hapus?',
+                text: "Pengajuan akan dihapus permanen!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'Ya, hapus!',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+
+                if (!result.isConfirmed) return;
+
+                // 🔥 kirim ke route DELETE
+                $.ajax({
+                    url: '/pengajuan/' + id,
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+
+                    success: function(res) {
+
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Berhasil!',
+                            text: res.message,
+                            timer: 1500,
+                            showConfirmButton: false
+                        }).then(() => {
+                            location.reload(); // atau refresh table
+                        });
+
+                    },
+
+                    error: function(err) {
+
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal',
+                            text: err.responseJSON?.message || 'Tidak bisa hapus'
+                        });
+
+                    }
+                });
+
+            });
+
+        });
         // downloads
         $(document).on('click', '.btn-download-qr', function() {
 
@@ -906,13 +980,23 @@
                         // 🔥 BUTTON EXPORT (CONDITIONAL)
                         // =========================
                         let btnExport = '';
-
+if (item.user_id == window.authUserIdd) {
+                            btnDelete = `
+        <button class="btn btn-sm btn-danger btn-delete"
+            data-id="${item.id}">
+            Delete
+        </button>
+    `;
                         if (allApproved) {
                             btnExport = `
         <button class="btn btn-sm btn-primary btn-export-excel" data-id="${item.id}">
             Export
         </button>
+            ${btnDelete}
+
     `;
+                        }
+
                         }
                         // =========================
                         // 🔥 LOGIC STATUS
@@ -992,6 +1076,8 @@
                         <td><b>A-${item.id}</b></td>
                         <td>${item.user ? item.user.name : '-'}</td>
                         <td>${statusHtml}</td>
+                                            <td>${item.divisi ? item.divisi.nama : '-'}</td>
+
                         <td>${formatDate(item.created_at)}</td>
                         <td>${btnView}</td>
                     </tr>
@@ -1113,11 +1199,7 @@
                             <td>${d.no}</td>
                             <td>${d.date}</td>
                             <td>${d.no_po}</td>
-                     <td
-    onclick="handleClick(${d.id})"
-    ondblclick="handleDoubleClick(${d.id})"
-    style="cursor:pointer; color:#007bff;"
->
+           <td onclick="handleTap(${d.id})" style="cursor:pointer;">
     ${d.no_inv}
 </td>
                             <td>${d.type_biaya}</td>
@@ -1166,8 +1248,8 @@
                         if (res.type_pengajuan === 'All Divisi') {
 
                             contentHtml += `
-        <div style="margin-bottom:15px;">
-            <button class="btn btn-success btn-approve-all"
+        <div style="margin-bottom:15px;width:100%">
+            <button class="btn btn-success w-100 btn-approve-all"
                 data-id="${res.id}">
                 ✅ Approve This Pengajuan
             </button>
@@ -1618,6 +1700,27 @@
 
             openCameraUpload(detailId); // 📷 upload
         }
+        function handleTap(detailId) {
+
+    let now = new Date().getTime();
+    let tapGap = now - lastTap;
+
+    if (tapGap < 300 && tapGap > 0) {
+        // 🔥 DOUBLE TAP
+        openCameraUpload(detailId);
+
+    } else {
+        // 🔥 SINGLE TAP
+        setTimeout(() => {
+            // kalau tidak double tap
+            if (new Date().getTime() - lastTap >= 300) {
+                openViewer(detailId);
+            }
+        }, 300);
+    }
+
+    lastTap = now;
+}
 
         function openCameraUpload(detailId) {
 
@@ -1736,6 +1839,8 @@
         });
     </script>
     <script>
+        window.authUserIdd = "{{ auth()->id() }}";
+
         window.authUserName = "{{ auth()->user()->name ?? '' }}";
         window.authUserEmail = "{{ auth()->user()->email ?? '' }}";
 

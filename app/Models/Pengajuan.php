@@ -14,8 +14,12 @@ class Pengajuan extends Model
         'approved_date',
         'remark',
         'divisi_id',
+        'no_spk',
     ];
-
+public function divisi()
+{
+    return $this->belongsTo(Divisi::class);
+}
     public function meta()
     {
         return $this->hasOne(PengajuanMeta::class);

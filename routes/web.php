@@ -163,24 +163,24 @@ Route::get('/marketing/po-detail/{id}', [PoController::class, 'getPoDetail']);
 Route::post('/marketing/po-item-update-bulk',
     [PoController::class, 'updateItemBulk']);
 // supplier
-Route::get('/pengajuan', [PengajuanController::class, 'index']);
-Route::post('/pengajuan/store', [PengajuanController::class, 'store']);
-Route::get('/pengajuan/view-detail/{detailId}', [PengajuanController::class, 'viewDetailImage']);
-Route::post('/pengajuan/upload-detail-image', [PengajuanController::class, 'uploadDetailImage']);
-Route::post('/pengajuan/store-all-divisi', [PengajuanController::class, 'storeAllDivisi']);
-Route::get('/pengajuan/list', [PengajuanController::class, 'list']);
-Route::get('/pengajuan/detail/{id}', [PengajuanController::class, 'detail']);
+Route::middleware(['auth'])->group(function () {
 
-Route::get('/pengajuan/messages/{id}', [PengajuanController::class, 'getMessages']);
-
-Route::post('/pengajuan/send-message', [PengajuanController::class, 'sendMessage']);
-Route::get('/pengajuan/export/{id}', [PengajuanController::class, 'exportExcel']);
-
-Route::get('/dev/reset-pengajuan', [PengajuanController::class, 'reset']);
-Route::post('/pengajuan/approve/{id}', [PengajuanController::class, 'approveStep']);
-Route::post('/pengajuan/approve-all/{id}', [PengajuanController::class, 'approveAll']);
-Route::get('/dashboard/pending-approval', [PengajuanController::class, 'pendingMyApproval']);
-
+    Route::get('/pengajuan', [PengajuanController::class, 'index']);
+    Route::post('/pengajuan/store', [PengajuanController::class, 'store']);
+    Route::get('/pengajuan/view-detail/{detailId}', [PengajuanController::class, 'viewDetailImage']);
+    Route::post('/pengajuan/upload-detail-image', [PengajuanController::class, 'uploadDetailImage']);
+    Route::post('/pengajuan/store-all-divisi', [PengajuanController::class, 'storeAllDivisi']);
+    Route::get('/pengajuan/list', [PengajuanController::class, 'list']);
+    Route::get('/pengajuan/detail/{id}', [PengajuanController::class, 'detail']);
+    Route::get('/pengajuan/messages/{id}', [PengajuanController::class, 'getMessages']);
+    Route::post('/pengajuan/send-message', [PengajuanController::class, 'sendMessage']);
+    Route::get('/pengajuan/export/{id}', [PengajuanController::class, 'exportExcel']);
+    Route::delete('/pengajuan/{id}', [PengajuanController::class, 'destroy']);
+    Route::get('/dev/reset-pengajuan', [PengajuanController::class, 'reset']);
+    Route::post('/pengajuan/approve/{id}', [PengajuanController::class, 'approveStep']);
+    Route::post('/pengajuan/approve-all/{id}', [PengajuanController::class, 'approveAll']);
+    Route::get('/dashboard/pending-approval', [PengajuanController::class, 'pendingMyApproval']);
+});
 Route::get('/supplier', [SupplierController::class, 'index']);
 Route::get('/produksi/get-data', [SpkController::class, 'getData']);
 Route::get('/get-detail-barang', [SpkController::class, 'getDetailBarang']);

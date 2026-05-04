@@ -16,6 +16,7 @@ use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Illuminate\Support\Facades\Storage;
 
 class PengajuanController extends Controller
 {
@@ -44,6 +45,7 @@ class PengajuanController extends Controller
                     'type_pengajuan' => $type,
                     'user_id'        => auth()->id() ?? 1,
                     'status'         => 'pending',
+                    'no_spk'         => $request->no_spk ?? '',
                     'keterangan'     => $request->keterangan,
                     'divisi_id'      => $request->divisi_id,
                 ]);
@@ -230,6 +232,7 @@ class PengajuanController extends Controller
                 'type_pengajuan' => $request->type_pengajuan,
                 'user_id'        => auth()->id() ?? 1,
                 'status'         => 'pending',
+                'no_spk'         => $request->no_spk ?? '',
                 'keterangan'     => $request->keterangan,
                 'divisi_id'      => $request->divisi_id,
             ]);
@@ -302,7 +305,7 @@ class PengajuanController extends Controller
         // 🔥 divisi yang boleh akses Finance & All Divisi
         $allowedDivisi = [26, 38, 32, 46, 37];
 
-        $query = Pengajuan::with(['user', 'approvalSteps']);
+        $query = Pengajuan::with(['user', 'approvalSteps','divisi']);
 
         $type = trim($request->type);
 
@@ -867,5 +870,59 @@ class PengajuanController extends Controller
         $drawing->setOffsetY(5);
         $drawing->setWorksheet($sheet);
     }
+    public function destroy($id)
+{
+    DB::beginTransaction();
+
+    try {
+        $pengajuan = Pengajuan::with('files')->findOrFail($id);
+
+        // 🔥 VALIDASI: hanya owner yang boleh delete
+        if ($pengajuan->user_id != auth()->id()) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Tidak punya akses hapus'
+            ], 403);
+        }
+
+        // =========================
+        // 🔥 HAPUS FILE STORAGE
+        // =========================
+        foreach ($pengajuan->files as $file) {
+            if ($file->file_path && Storage::disk('public')->exists($file->file_path)) {
+                Storage::disk('public')->delete($file->file_path);
+            }
+        }
+
+        // =========================
+        // 🔥 HAPUS RELASI
+        // =========================
+        DB::table('pengajuan_files')->where('pengajuan_id', $id)->delete();
+        DB::table('pengajuan_details')->where('pengajuan_id', $id)->delete();
+        DB::table('pengajuan_meta')->where('pengajuan_id', $id)->delete();
+        DB::table('pengajuan_approval_steps')->where('pengajuan_id', $id)->delete();
+
+        // =========================
+        // 🔥 HAPUS PENGAJUAN
+        // =========================
+        $pengajuan->delete();
+
+        DB::commit();
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Pengajuan berhasil dihapus'
+        ]);
+
+    } catch (\Exception $e) {
+
+        DB::rollback();
+
+        return response()->json([
+            'status' => false,
+            'message' => $e->getMessage()
+        ], 500);
+    }
+}
 
 }

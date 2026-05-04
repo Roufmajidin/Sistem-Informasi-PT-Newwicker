@@ -1344,16 +1344,86 @@ async function compressImage(file) {
 
 // INPUT CHANGE
 document.getElementById('cameraInput').addEventListener('change', async function (e) {
+
     let files = Array.from(e.target.files);
 
     for (let file of files) {
-        let compressed = await compressImage(file);
-        selectedFiles.push(compressed);
+
+        let fixed = await new Promise(resolve => {
+            fixImageOrientation(file, function(blob) {
+
+                let fixedFile = new File([blob], file.name, {
+                    type: 'image/jpeg'
+                });
+
+                resolve(fixedFile);
+            });
+        });
+
+        selectedFiles.push(fixed);
     }
 
     renderPreview();
 });
+function fixImageOrientation(file, callback) {
 
+    let reader = new FileReader();
+
+    reader.onload = function(e) {
+
+        let img = new Image();
+
+        img.onload = function() {
+
+            EXIF.getData(file, function () {
+
+                let orientation = EXIF.getTag(this, 'Orientation') || 1;
+
+                let canvas = document.createElement('canvas');
+                let ctx = canvas.getContext('2d');
+
+                let width = img.width;
+                let height = img.height;
+
+                switch (orientation) {
+
+                    case 6: // 🔥 kebanyakan Android
+                        canvas.width = height;
+                        canvas.height = width;
+                        ctx.rotate(-Math.PI / 2);
+                        ctx.drawImage(img, -width, 0);
+                        break;
+
+                    case 8:
+                        canvas.width = height;
+                        canvas.height = width;
+                        ctx.rotate(Math.PI / 2);
+                        ctx.drawImage(img, 0, -height);
+                        break;
+
+                    case 3:
+                        canvas.width = width;
+                        canvas.height = height;
+                        ctx.rotate(Math.PI);
+                        ctx.drawImage(img, -width, -height);
+                        break;
+
+                    default:
+                        canvas.width = width;
+                        canvas.height = height;
+                        ctx.drawImage(img, 0, 0);
+                }
+
+                canvas.toBlob(blob => callback(blob), 'image/jpeg', 0.9);
+            });
+
+        };
+
+        img.src = e.target.result;
+    };
+
+    reader.readAsDataURL(file);
+}
 // RENDER
 function renderPreview() {
     let container = document.getElementById('preview-container');
