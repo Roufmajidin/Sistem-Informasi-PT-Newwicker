@@ -12,11 +12,10 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
-use Illuminate\Support\Facades\Storage;
 
 class PengajuanController extends Controller
 {
@@ -169,7 +168,7 @@ class PengajuanController extends Controller
                 $steps = [
                     ['name' => 'Made By', 'user' => auth()->user()->name ?? 'System'],
                     ['name' => 'Checked By', 'user' => 'YANTI SUSANTI'],
-                    ['name' => 'RECORD & CASHIED By', 'user' => 'Eka Wahyuning Lestari'],
+                    ['name' => 'Knowing By', 'user' => 'Eka Wahyuning Lestari'],
                     ['name' => 'Knowing By', 'user' => 'Stanley'],
                     ['name' => 'Approve By', 'user' => 'HBJ TANS'],
                     ['name' => 'RECORD & CASHIED By', 'user' => 'Ainunnisyah Uwiyah'],
@@ -235,6 +234,7 @@ class PengajuanController extends Controller
                 'no_spk'         => $request->no_spk ?? '',
                 'keterangan'     => $request->keterangan,
                 'divisi_id'      => $request->divisi_id,
+                'urgent'         => $request->urgent,
             ]);
 
             // =========================
@@ -305,7 +305,7 @@ class PengajuanController extends Controller
         // 🔥 divisi yang boleh akses Finance & All Divisi
         $allowedDivisi = [26, 38, 32, 46, 37];
 
-        $query = Pengajuan::with(['user', 'approvalSteps','divisi']);
+        $query = Pengajuan::with(['user', 'approvalSteps', 'divisi']);
 
         $type = trim($request->type);
 
@@ -314,15 +314,19 @@ class PengajuanController extends Controller
         // =========================
         if ($divisiId == 25) {
 
-            // ❌ selain All Divisi ditolak
-            if ($type && strtolower($type) !== 'all divisi') {
-                return response()->json([
-                    'message' => 'You are not allowed',
-                ], 403);
-            }
+            if ($type) {
+                // hanya boleh Finance & All Divisi
+                if (! in_array($type, ['Finance', 'All Divisi'])) {
+                    return response()->json([
+                        'message' => 'You are not allowed',
+                    ], 403);
+                }
 
-            // ✅ hanya All Divisi
-            $query->where('type_pengajuan', 'All Divisi');
+                $query->where('type_pengajuan', $type);
+            } else {
+                // 🔥 HRD bisa lihat dua-duanya
+                $query->whereIn('type_pengajuan', ['Finance', 'All Divisi']);
+            }
         }
 
         // =========================
@@ -715,43 +719,28 @@ class PengajuanController extends Controller
             'data'            => $data,
         ]);
     }
-    public function exportExcel($id)
+       public function exportExcel($id)
     {
-        $pengajuan = Pengajuan::with(['meta', 'details', 'user'])->findOrFail($id);
+        $pengajuan = Pengajuan::with(['details', 'user'])->findOrFail($id);
 
-        $templatePath = storage_path('app/templates/finance_template.xlsx');
+        // 🔥 TEMPLATE PATH
+        $templatePath = base_path('public/templates/finance_template.xlsx');
 
-        if (! file_exists($templatePath)) {
-            abort(404, 'Template tidak ditemukan');
+        if (!file_exists($templatePath)) {
+            abort(404, 'Template tidak ditemukan: ' . $templatePath);
         }
 
         $spreadsheet = IOFactory::load($templatePath);
-        $sheet       = $spreadsheet->getActiveSheet();
+        $sheet = $spreadsheet->getActiveSheet();
 
         // =========================
-        // 🔥 META
+        // 🔥 INSERT ROW (BIAR LAYOUT TETAP)
         // =========================
-        $sheet->setCellValue('C5', $pengajuan->meta->tanggal ?? '-');
-        $sheet->setCellValue('C6', $pengajuan->meta->nomor ?? '-');
-        $sheet->setCellValue('E6', $pengajuan->meta->type_pembayaran ?? '-');
+        $startRow = 11;
+        $detailCount = count($pengajuan->details);
 
-                                   // =========================
-                                   // 🔥 SETUP TEMPLATE POSITION
-                                   // =========================
-        $startRow            = 11; // 🔥 DATA MULAI DI SINI (PENTING)
-        $footerTemplateRow   = 12; // TRANSFER
-        $approvalTemplateRow = 18; // HEADER APPROVAL
-
-        $details     = $pengajuan->details ?? [];
-        $totalDetail = count($details);
-
-        $extraRows = max(0, $totalDetail - 1);
-
-        // =========================
-        // 🔥 SHIFT FOOTER & APPROVAL
-        // =========================
-        if ($extraRows > 0) {
-            $sheet->insertNewRowBefore($footerTemplateRow, $extraRows);
+        if ($detailCount > 1) {
+            $sheet->insertNewRowBefore($startRow + 1, $detailCount - 1);
         }
 
         // =========================
@@ -759,7 +748,7 @@ class PengajuanController extends Controller
         // =========================
         $row = $startRow;
 
-        foreach ($details as $i => $d) {
+        foreach ($pengajuan->details as $i => $d) {
 
             $sheet->setCellValue('A' . $row, $i + 1);
             $sheet->setCellValue('B' . $row, $d->date);
@@ -771,91 +760,85 @@ class PengajuanController extends Controller
             $sheet->setCellValue('H' . $row, $d->harga_satuan);
             $sheet->setCellValue('I' . $row, $d->total_harga);
 
-            // copy style biar tidak rusak
+            // 🔥 copy style template
             $sheet->duplicateStyle(
-                $sheet->getStyle('A' . $startRow . ':I' . $startRow),
+                $sheet->getStyle('A11:I11'),
                 'A' . $row . ':I' . $row
             );
 
             $row++;
         }
 
-        // =========================
-        // 🔥 HITUNG POSISI BARU
-        // =========================
-        $footerRow   = $footerTemplateRow + $extraRows;
-        $approvalRow = $approvalTemplateRow + $extraRows;
+        $lastDataRow = $row - 1;
 
         // =========================
-        // 🔥 TRANSFER
+        // 🔥 UPDATE TOTAL (TETAP DI TEMPLATE)
         // =========================
-        $sheet->setCellValue('H' . $footerRow, $pengajuan->meta->transfer ?? 0);
-
-        // =========================
-        // 🔥 TOTAL (RUMUS EXCEL)
-        // =========================
-        $lastDataRow = $startRow + $totalDetail - 1;
-
         $sheet->setCellValue(
-            'H' . ($footerRow + 1),
-            "=SUM(I" . $startRow . ":I" . $lastDataRow . ")"
+            'I' . ($lastDataRow + 1),
+            "=SUM(I{$startRow}:I{$lastDataRow})"
         );
 
         // =========================
-        // 🔥 APPROVAL TEXT
+        // 🔥 FORMAT RUPIAH
         // =========================
-        $nameRow = $approvalRow + 4;
-
-        $sheet->setCellValue('B' . $nameRow, $pengajuan->user->name ?? '-');
-        $sheet->setCellValue('D' . $nameRow, 'YANTI SUSANTI');
-        $sheet->setCellValue('E' . $nameRow, 'Mr Stanley');
-        $sheet->setCellValue('F' . $nameRow, 'EKA WL');
-        $sheet->setCellValue('G' . $nameRow, 'Mr Jan');
-        $sheet->setCellValue('I' . $nameRow, 'AINUN');
+        $sheet->getStyle("H{$startRow}:I{$lastDataRow}")
+            ->getNumberFormat()
+            ->setFormatCode('#,##0');
 
         // =========================
-        // 🔥 TTD IMAGE
+        // 🔥 POSISI APPROVAL (IKUT SHIFT)
         // =========================
-        $ttdRow = $approvalRow + 1;
-
-        $this->insertSignature($sheet, '1.png', 'B' . $ttdRow);
-        $this->insertSignature($sheet, '2.png', 'D' . $ttdRow);
-        $this->insertSignature($sheet, '4.png', 'E' . $ttdRow);
-        $this->insertSignature($sheet, '3.png', 'F' . $ttdRow);
-        $this->insertSignature($sheet, '5.png', 'G' . $ttdRow);
-        $this->insertSignature($sheet, '6.png', 'I' . $ttdRow);
+        $approvalBaseRow = 15 + ($detailCount - 1);
 
         // =========================
-        // 🔥 FORMAT ANGKA
+        // 🔥 INSERT TTD (AUTO URUT)
         // =========================
-        for ($i = $startRow; $i <= $lastDataRow; $i++) {
-            $sheet->getStyle('H' . $i)->getNumberFormat()->setFormatCode('#,##0');
-            $sheet->getStyle('I' . $i)->getNumberFormat()->setFormatCode('#,##0');
+        $ttdFiles = [
+            '1.png',
+            '2.png',
+            '3.png',
+            '4.png',
+            '5.png',
+            '6.png',
+        ];
+
+        $ttdColumns = ['B', 'D', 'E', 'F', 'G', 'I'];
+
+        foreach ($ttdFiles as $i => $file) {
+            $this->insertSignature(
+                $sheet,
+                $file,
+                $ttdColumns[$i] . ($approvalBaseRow + 2)
+            );
         }
 
-        $sheet->getStyle('H' . $footerRow)->getNumberFormat()->setFormatCode('#,##0');
-        $sheet->getStyle('H' . ($footerRow + 1))->getNumberFormat()->setFormatCode('#,##0');
+        // =========================
+        // 🔥 AUTO WIDTH
+        // =========================
+        foreach (range('A', 'I') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
 
         // =========================
         // 🔥 DOWNLOAD
         // =========================
-        $fileName = 'Pengajuan_' . $pengajuan->id . '.xlsx';
+        $fileName = 'Pengajuan_' . $id . '.xlsx';
 
-        $writer = new Xlsx($spreadsheet);
-
-        return response()->streamDownload(function () use ($writer) {
+        return response()->streamDownload(function () use ($spreadsheet) {
+            $writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
             $writer->save('php://output');
         }, $fileName);
     }
 
     // =========================
-    // 🔥 INSERT TTD
+    // 🔥 FUNCTION TTD
     // =========================
     private function insertSignature($sheet, $filename, $cell)
     {
         $path = public_path('assets/' . $filename);
 
-        if (! file_exists($path)) {
+        if (!file_exists($path)) {
             \Log::error('TTD tidak ditemukan: ' . $path);
             return;
         }
@@ -870,59 +853,59 @@ class PengajuanController extends Controller
         $drawing->setOffsetY(5);
         $drawing->setWorksheet($sheet);
     }
-    public function destroy($id)
-{
-    DB::beginTransaction();
 
-    try {
-        $pengajuan = Pengajuan::with('files')->findOrFail($id);
+    public function destroy($id) {
+        DB::beginTransaction();
 
-        // 🔥 VALIDASI: hanya owner yang boleh delete
-        if ($pengajuan->user_id != auth()->id()) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Tidak punya akses hapus'
-            ], 403);
-        }
+        try {
+            $pengajuan = Pengajuan::with('files')->findOrFail($id);
 
-        // =========================
-        // 🔥 HAPUS FILE STORAGE
-        // =========================
-        foreach ($pengajuan->files as $file) {
-            if ($file->file_path && Storage::disk('public')->exists($file->file_path)) {
-                Storage::disk('public')->delete($file->file_path);
+            // 🔥 VALIDASI: hanya owner yang boleh delete
+            if ($pengajuan->user_id != auth()->id()) {
+                return response()->json([
+                    'status'  => false,
+                    'message' => 'Tidak punya akses hapus',
+                ], 403);
             }
+
+            // =========================
+            // 🔥 HAPUS FILE STORAGE
+            // =========================
+            foreach ($pengajuan->files as $file) {
+                if ($file->file_path && Storage::disk('public')->exists($file->file_path)) {
+                    Storage::disk('public')->delete($file->file_path);
+                }
+            }
+
+            // =========================
+            // 🔥 HAPUS RELASI
+            // =========================
+            DB::table('pengajuan_files')->where('pengajuan_id', $id)->delete();
+            DB::table('pengajuan_details')->where('pengajuan_id', $id)->delete();
+            DB::table('pengajuan_meta')->where('pengajuan_id', $id)->delete();
+            DB::table('pengajuan_approval_steps')->where('pengajuan_id', $id)->delete();
+
+            // =========================
+            // 🔥 HAPUS PENGAJUAN
+            // =========================
+            $pengajuan->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'status'  => true,
+                'message' => 'Pengajuan berhasil dihapus',
+            ]);
+
+        } catch (\Exception $e) {
+
+            DB::rollback();
+
+            return response()->json([
+                'status'  => false,
+                'message' => $e->getMessage(),
+            ], 500);
         }
-
-        // =========================
-        // 🔥 HAPUS RELASI
-        // =========================
-        DB::table('pengajuan_files')->where('pengajuan_id', $id)->delete();
-        DB::table('pengajuan_details')->where('pengajuan_id', $id)->delete();
-        DB::table('pengajuan_meta')->where('pengajuan_id', $id)->delete();
-        DB::table('pengajuan_approval_steps')->where('pengajuan_id', $id)->delete();
-
-        // =========================
-        // 🔥 HAPUS PENGAJUAN
-        // =========================
-        $pengajuan->delete();
-
-        DB::commit();
-
-        return response()->json([
-            'status' => true,
-            'message' => 'Pengajuan berhasil dihapus'
-        ]);
-
-    } catch (\Exception $e) {
-
-        DB::rollback();
-
-        return response()->json([
-            'status' => false,
-            'message' => $e->getMessage()
-        ], 500);
     }
-}
 
 }

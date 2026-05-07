@@ -15,6 +15,7 @@ class Pengajuan extends Model
         'remark',
         'divisi_id',
         'no_spk',
+        'urgent',
     ];
 public function divisi()
 {

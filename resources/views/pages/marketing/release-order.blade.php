@@ -124,45 +124,49 @@
 
 
     </div>
-<!-- CHAT MODAL -->
-<div class="modal fade" id="chatModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
+    <!-- CHAT MODAL -->
+    <div class="modal fade" id="chatModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
 
-            <div class="modal-header">
-                <h4 class="modal-title">Chat Room</h4>
-                <button type="button" class="close" data-dismiss="modal">&times;</button>
-            </div>
+                <div class="modal-header">
+                    <h4 class="modal-title">Chat Room</h4>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
 
-            <div class="modal-body">
+                <div class="modal-body">
 
-                <div id="chat-box" style="height:400px; overflow:auto; background:#f5f5f5; padding:10px;">
+                    <div id="chat-box" style="height:400px; overflow:auto; background:#f5f5f5; padding:10px;">
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <input type="hidden" id="chat-room-id">
+
+                    <div class="input-group">
+                        <input type="text" id="chat-input" class="form-control" placeholder="Type message...">
+                        <span class="input-group-btn">
+                            <button class="btn btn-primary" id="btn-send-chat">Send</button>
+                        </span>
+                    </div>
+
                 </div>
 
             </div>
-
-            <div class="modal-footer">
-                <input type="hidden" id="chat-room-id">
-
-                <div class="input-group">
-                    <input type="text" id="chat-input" class="form-control" placeholder="Type message...">
-                    <span class="input-group-btn">
-                        <button class="btn btn-primary" id="btn-send-chat">Send</button>
-                    </span>
-                </div>
-
-            </div>
-
         </div>
     </div>
-</div>
 
     <pre id="result"></pre>
     @push('scripts')
 
-<script>
-    const CURRENT_USER_ID = {{ auth()->id() }};
-</script>
+    <script>
+        const CURRENT_USER_ID = {
+            {
+                auth() - > id()
+            }
+        };
+    </script>
     @push('scripts')
     <script>
         /* =====================================================
@@ -379,7 +383,7 @@
                                     detail.nw_code ||
                                     '';
 
-                                let articleCode = encodeURIComponent(rawCode);
+                                let articleCode = encodeURIComponent(detail.nw_code);
 
                                 row.append(`
         <td class="${cls}">
@@ -687,124 +691,126 @@
         #detail-table td[data-key="remark"] {
             white-space: normal !important;
         }
+
         /* chat room */
         #chat-box {
-    background: #efeae2;
-    padding: 15px;
-    height: 400px;
-    overflow-y: auto;
-    font-family: "Segoe UI", sans-serif;
-}
+            background: #efeae2;
+            padding: 15px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: "Segoe UI", sans-serif;
+        }
 
-/* container */
-.msg {
-    display: flex;
-    margin-bottom: 8px;
-}
+        /* container */
+        .msg {
+            display: flex;
+            margin-bottom: 8px;
+        }
 
-/* kiri */
-.msg.left {
-    justify-content: flex-start;
-}
+        /* kiri */
+        .msg.left {
+            justify-content: flex-start;
+        }
 
-/* kanan */
-.msg.right {
-    justify-content: flex-end;
-}
+        /* kanan */
+        .msg.right {
+            justify-content: flex-end;
+        }
 
-/* bubble */
-.bubble {
-    max-width: 65%;
-    padding: 6px 10px;
-    border-radius: 8px;
-    position: relative;
-    font-size: 13px;
-    line-height: 1.4;
-    box-shadow: 0 1px 0 rgba(0,0,0,0.1);
-}
+        /* bubble */
+        .bubble {
+            max-width: 65%;
+            padding: 6px 10px;
+            border-radius: 8px;
+            position: relative;
+            font-size: 13px;
+            line-height: 1.4;
+            box-shadow: 0 1px 0 rgba(0, 0, 0, 0.1);
+        }
 
-/* kiri (orang lain) */
-.msg.left .bubble {
-    background: #ffffff;
-}
+        /* kiri (orang lain) */
+        .msg.left .bubble {
+            background: #ffffff;
+        }
 
-/* kanan (kita) */
-.msg.right .bubble {
-    background: #d9fdd3;
-}
+        /* kanan (kita) */
+        .msg.right .bubble {
+            background: #d9fdd3;
+        }
 
-/* nama (optional) */
-.msg .name {
-    font-size: 11px;
-    font-weight: 600;
-    color: #667781;
-    margin-bottom: 2px;
-}
+        /* nama (optional) */
+        .msg .name {
+            font-size: 11px;
+            font-weight: 600;
+            color: #667781;
+            margin-bottom: 2px;
+        }
 
-/* isi pesan */
-.msg .text {
-    display: inline-block;
-    word-break: break-word;
-}
+        /* isi pesan */
+        .msg .text {
+            display: inline-block;
+            word-break: break-word;
+        }
 
-/* time kecil kanan bawah */
-.msg .time {
-    font-size: 10px;
-    color: #667781;
-    float: right;
-    margin-left: 8px;
-}
+        /* time kecil kanan bawah */
+        .msg .time {
+            font-size: 10px;
+            color: #667781;
+            float: right;
+            margin-left: 8px;
+        }
 
-/* tail kanan */
-.msg.right .bubble::after {
-    content: "";
-    position: absolute;
-    right: -6px;
-    top: 6px;
-    border-left: 6px solid #d9fdd3;
-    border-top: 6px solid transparent;
-    border-bottom: 6px solid transparent;
-}
+        /* tail kanan */
+        .msg.right .bubble::after {
+            content: "";
+            position: absolute;
+            right: -6px;
+            top: 6px;
+            border-left: 6px solid #d9fdd3;
+            border-top: 6px solid transparent;
+            border-bottom: 6px solid transparent;
+        }
 
-/* tail kiri */
-.msg.left .bubble::after {
-    content: "";
-    position: absolute;
-    left: -6px;
-    top: 6px;
-    border-right: 6px solid #fff;
-    border-top: 6px solid transparent;
-    border-bottom: 6px solid transparent;
-}
+        /* tail kiri */
+        .msg.left .bubble::after {
+            content: "";
+            position: absolute;
+            left: -6px;
+            top: 6px;
+            border-right: 6px solid #fff;
+            border-top: 6px solid transparent;
+            border-bottom: 6px solid transparent;
+        }
 
-/* tanggal separator */
-.date-separator {
-    text-align: center;
-    margin: 10px 0;
-}
+        /* tanggal separator */
+        .date-separator {
+            text-align: center;
+            margin: 10px 0;
+        }
 
-.date-separator span {
-    background: rgba(255,255,255,0.8);
-    padding: 3px 10px;
-    border-radius: 6px;
-    font-size: 11px;
-    color: #54656f;
-}
-.chat-input-wrapper {
-    display: flex;
-    gap: 5px;
-}
+        .date-separator span {
+            background: rgba(255, 255, 255, 0.8);
+            padding: 3px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            color: #54656f;
+        }
 
-#chat-input {
-    border-radius: 20px;
-    padding: 8px 12px;
-}
+        .chat-input-wrapper {
+            display: flex;
+            gap: 5px;
+        }
 
-#btn-send-chat {
-    border-radius: 10%;
-    width: 60px;
-    height: 40px;
-}
+        #chat-input {
+            border-radius: 20px;
+            padding: 8px 12px;
+        }
+
+        #btn-send-chat {
+            border-radius: 10%;
+            width: 60px;
+            height: 40px;
+        }
     </style>
     @endpush
 

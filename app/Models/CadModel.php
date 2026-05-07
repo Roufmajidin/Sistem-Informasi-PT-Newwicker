@@ -14,6 +14,7 @@ class CadModel extends Model
         'uploaded_by',
         'status',
         'approve_by',
+        'master_sample'
     ];
 
     public function user()

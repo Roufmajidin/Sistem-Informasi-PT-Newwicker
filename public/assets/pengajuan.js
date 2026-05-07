@@ -1,5 +1,3 @@
-
-
 // pengajuan global var
 let excelMeta = {};
 let excelDetails = [];
@@ -57,10 +55,14 @@ $(document).on('change', '#excelInput', function (e) {
     reader.onload = function (e) {
 
         let data = new Uint8Array(e.target.result);
-        let workbook = XLSX.read(data, { type: 'array' });
+        let workbook = XLSX.read(data, {
+            type: 'array'
+        });
 
         let sheet = workbook.Sheets[workbook.SheetNames[0]];
-        let json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+        let json = XLSX.utils.sheet_to_json(sheet, {
+            header: 1
+        });
 
         let meta = extractMeta(json);
         let totals = extractTotals(json);
@@ -182,7 +184,9 @@ async function compressImage(file) {
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
             canvas.toBlob(blob => {
-                resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+                resolve(new File([blob], file.name, {
+                    type: 'image/jpeg'
+                }));
             }, 'image/jpeg', 0.7);
         };
 
@@ -247,328 +251,238 @@ function renderExcel(data) {
     }
 
 
-// ================= HELPERS =================
-function findHeaderRow(data) {
-    for (let i = 0; i < data.length; i++) {
-        let row = data[i].join(' ').toLowerCase();
-        if (row.includes('no') && row.includes('date')) return i;
-    }
-    return 0;
-}
-
-function renderExcel(data) {
-
-    let thead = $('#excel-table thead');
-    let tbody = $('#excel-table tbody');
-
-    thead.html('');
-    tbody.html('');
-
-    let headerIndex = findHeaderRow(data);
-    let headers = data[headerIndex];
-
-    let headHtml = '<tr>';
-    headers.forEach(h => headHtml += `<th>${h ?? ''}</th>`);
-    headHtml += '</tr>';
-
-    thead.html(headHtml);
-
-    for (let i = headerIndex + 1; i < data.length; i++) {
-
-        let row = data[i];
-        if (!row || row.length === 0) continue;
-
-        let tr = '<tr>';
-
-        row.forEach(cell => {
-
-            if (typeof cell === 'number' && cell > 30000 && cell < 60000) {
-                cell = excelDateToJSDate(cell);
-            }
-
-            tr += `<td>${cell ?? ''}</td>`;
-        });
-
-        tr += '</tr>';
-        tbody.append(tr);
-    }
-}
-$(document).ready(function () {
-
-    // reset QR
-    $('#modal-qr').removeClass('active');
-
-    // auto load data
-    setTimeout(() => {
-        $('#filter-type').trigger('change');
-    }, 100);
-
-});
-// ================= ZOOM =================
-const modalImg = document.getElementById('zoomistImg');
-if (modalImg) {
-    modalImg.addEventListener('mousedown', function (e) {
-        if (scale > 1) {
-            isMouseDown = true;
-            startX = e.clientX - posX;
-            startY = e.clientY - posY;
-            modalImg.style.cursor = 'grabbing';
+    // ================= HELPERS =================
+    function findHeaderRow(data) {
+        for (let i = 0; i < data.length; i++) {
+            let row = data[i].join(' ').toLowerCase();
+            if (row.includes('no') && row.includes('date')) return i;
         }
-    });
-}
-// MOUSE MOVE
-window.addEventListener('mousemove', function (e) {
-    if (isMouseDown) {
-        posX = e.clientX - startX;
-        posY = e.clientY - startY;
-        updateTransform();
-    }
-});
-
-// MOUSE UP
-window.addEventListener('mouseup', function () {
-    isMouseDown = false;
-    modalImg.style.cursor = 'grab';
-});
-modalImg.addEventListener('wheel', function (e) {
-    e.preventDefault();
-
-    scale += e.deltaY * -0.001;
-    scale = Math.min(Math.max(1, scale), 3);
-
-    updateTransform();
-});
-// OPEN
-function zoomImage(index) {
-    currentIndex = index;
-
-    let modal = document.getElementById('imageModal');
-
-    modalImg.src = URL.createObjectURL(selectedFiles[index]);
-    modal.style.display = 'flex';
-
-    scale = 1;
-    posX = 0;
-    posY = 0;
-    updateTransform();
-}
-
-// APPLY TRANSFORM
-function updateTransform() {
-    modalImg.style.transform = `scale(${scale}) translate(${posX}px, ${posY}px)`;
-}
-
-// ================= DRAG =================
-modalImg.addEventListener('touchstart', function (e) {
-    if (scale > 1) {
-        isDragging = true;
-        startX = e.touches[0].clientX - posX;
-        startY = e.touches[0].clientY - posY;
-    } else {
-        startX = e.touches[0].clientX;
-    }
-});
-
-modalImg.addEventListener('touchmove', function (e) {
-
-    if (isDragging) {
-        posX = e.touches[0].clientX - startX;
-        posY = e.touches[0].clientY - startY;
-        updateTransform();
-    }
-});
-
-modalImg.addEventListener('touchend', function (e) {
-    isDragging = false;
-
-    let endX = e.changedTouches[0].clientX;
-
-    // SWIPE kalau belum zoom
-    if (scale === 1) {
-        if (startX - endX > 50) {
-            nextImage();
-        } else if (endX - startX > 50) {
-            prevImage();
-        }
-    }
-});
-
-// ================= DOUBLE TAP ZOOM =================
-modalImg.addEventListener('click', function () {
-    scale = scale === 1 ? 2 : 1;
-
-    posX = 0;
-    posY = 0;
-
-    updateTransform();
-});
-
-// ================= NEXT PREV =================
-function nextImage() {
-    if (currentIndex < selectedFiles.length - 1) {
-        currentIndex++;
-        zoomImage(currentIndex);
-    }
-}
-
-function prevImage() {
-    if (currentIndex > 0) {
-        currentIndex--;
-        zoomImage(currentIndex);
-    }
-}
-
-// CLOSE
-document.getElementById('imageModal').onclick = function (e) {
-    if (e.target.id === 'imageModal') {
-        this.style.display = 'none';
-    }
-};
-
-// submit pengajuan
-$('form').on('submit', function (e) {
-
-    let type = $('[name="type_pengajuan"]').val();
-
-    e.preventDefault(); // 🔥 semua pakai AJAX
-
-    let formData = new FormData(this);
-
-    // =========================
-    // ALL DIVISI
-    // =========================
-    if (type === 'All Divisi') {
-
-        selectedFiles.forEach((file) => {
-            formData.append('images[]', file);
-        });
-
-        sendAjax('/pengajuan/store-all-divisi', formData);
-        return;
+        return 0;
     }
 
-    // =========================
-    // FINANCE
-    // =========================
-    formData.set('meta_json', JSON.stringify(excelMeta));
-    formData.set('details_json', JSON.stringify(excelDetails));
-    formData.set('approval_json', JSON.stringify(excelApproval));
+    function renderExcel(data) {
 
-    sendAjax('/pengajuan/store', formData);
+        let thead = $('#excel-table thead');
+        let tbody = $('#excel-table tbody');
 
-});
+        thead.html('');
+        tbody.html('');
 
-function sendAjax(url, formData) {
+        let headerIndex = findHeaderRow(data);
+        let headers = data[headerIndex];
 
-    $.ajax({
-        url: url,
-        method: 'POST',
-        data: formData,
-        processData: false,
-        contentType: false,
-        headers: {
-            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-        },
+        let headHtml = '<tr>';
+        headers.forEach(h => headHtml += `<th>${h ?? ''}</th>`);
+        headHtml += '</tr>';
 
-        success: function (res) {
+        thead.html(headHtml);
 
-            if (!res.status) {
-                Swal.fire({
-                    customClass: {
-                        popup: 'swal-top'
-                    },
-                    icon: 'success',
-                    title: 'Berhasil',
-                    text: res.message
-                });
-                return;
-            }
+        for (let i = headerIndex + 1; i < data.length; i++) {
 
-            Swal.fire({
-                customClass: {
-                    popup: 'swal-top'
-                },
-                icon: 'success',
-                title: 'Berhasil',
-                text: res.message || 'Pengajuan berhasil disimpan',
-                timer: 2000,
-                showConfirmButton: false
-            });
+            let row = data[i];
+            if (!row || row.length === 0) continue;
 
-            setTimeout(() => {
-                location.reload();
-            }, 2000);
-        },
+            let tr = '<tr>';
 
-        error: function (xhr) {
+            row.forEach(cell => {
 
-            let res = xhr.responseJSON;
-
-            Swal.fire({
-                customClass: {
-                    popup: 'swal-top'
-                },
-                icon: 'error',
-                title: 'Error',
-                text: res ?.message || 'Server error'
-            });
-        }
-    });
-
-}
-
-function extractTotals(data) {
-
-    let transfer = 0;
-    let grand = 0;
-
-    data.forEach(row => {
-
-        if (!row) return;
-
-        row.forEach((cell, i) => {
-
-            if (typeof cell === 'string' && cell.toLowerCase().includes('transfer')) {
-
-                // ambil angka terakhir di row
-                let nums = row.filter(v => typeof v === 'number' || /\d/.test(v));
-
-                if (nums.length >= 2) {
-                    transfer = parseNumber(nums[nums.length - 2]);
-                    grand = parseNumber(nums[nums.length - 1]);
+                if (typeof cell === 'number' && cell > 30000 && cell < 60000) {
+                    cell = excelDateToJSDate(cell);
                 }
+
+                tr += `<td>${cell ?? ''}</td>`;
+            });
+
+            tr += '</tr>';
+            tbody.append(tr);
+        }
+    }
+    $(document).ready(function () {
+
+        // reset QR
+        $('#modal-qr').removeClass('active');
+
+        // auto load data
+        setTimeout(() => {
+            $('#filter-type').trigger('change');
+        }, 100);
+
+    });
+    // ================= ZOOM =================
+    const modalImg = document.getElementById('zoomistImg');
+    if (modalImg) {
+        modalImg.addEventListener('mousedown', function (e) {
+            if (scale > 1) {
+                isMouseDown = true;
+                startX = e.clientX - posX;
+                startY = e.clientY - posY;
+                modalImg.style.cursor = 'grabbing';
             }
+        });
+    }
+    // MOUSE MOVE
+    window.addEventListener('mousemove', function (e) {
+        if (isMouseDown) {
+            posX = e.clientX - startX;
+            posY = e.clientY - startY;
+            updateTransform();
+        }
+    });
+
+    // MOUSE UP
+    window.addEventListener('mouseup', function () {
+        isMouseDown = false;
+        modalImg.style.cursor = 'grab';
+    });
+    modalImg.addEventListener('wheel', function (e) {
+        e.preventDefault();
+
+        scale += e.deltaY * -0.001;
+        scale = Math.min(Math.max(1, scale), 3);
+
+        updateTransform();
+    });
+    // OPEN
+    function zoomImage(index) {
+        currentIndex = index;
+
+        let modal = document.getElementById('imageModal');
+
+        modalImg.src = URL.createObjectURL(selectedFiles[index]);
+        modal.style.display = 'flex';
+
+        scale = 1;
+        posX = 0;
+        posY = 0;
+        updateTransform();
+    }
+
+    // APPLY TRANSFORM
+    function updateTransform() {
+        modalImg.style.transform = `scale(${scale}) translate(${posX}px, ${posY}px)`;
+    }
+
+    // ================= DRAG =================
+    modalImg.addEventListener('touchstart', function (e) {
+        if (scale > 1) {
+            isDragging = true;
+            startX = e.touches[0].clientX - posX;
+            startY = e.touches[0].clientY - posY;
+        } else {
+            startX = e.touches[0].clientX;
+        }
+    });
+
+    modalImg.addEventListener('touchmove', function (e) {
+
+        if (isDragging) {
+            posX = e.touches[0].clientX - startX;
+            posY = e.touches[0].clientY - startY;
+            updateTransform();
+        }
+    });
+
+    modalImg.addEventListener('touchend', function (e) {
+        isDragging = false;
+
+        let endX = e.changedTouches[0].clientX;
+
+        // SWIPE kalau belum zoom
+        if (scale === 1) {
+            if (startX - endX > 50) {
+                nextImage();
+            } else if (endX - startX > 50) {
+                prevImage();
+            }
+        }
+    });
+
+    // ================= DOUBLE TAP ZOOM =================
+    modalImg.addEventListener('click', function () {
+        scale = scale === 1 ? 2 : 1;
+
+        posX = 0;
+        posY = 0;
+
+        updateTransform();
+    });
+
+    // ================= NEXT PREV =================
+    function nextImage() {
+        if (currentIndex < selectedFiles.length - 1) {
+            currentIndex++;
+            zoomImage(currentIndex);
+        }
+    }
+
+    function prevImage() {
+        if (currentIndex > 0) {
+            currentIndex--;
+            zoomImage(currentIndex);
+        }
+    }
+
+    // CLOSE
+    document.getElementById('imageModal').onclick = function (e) {
+        if (e.target.id === 'imageModal') {
+            this.style.display = 'none';
+        }
+    };
+
+
+
+    function extractTotals(data) {
+
+        let transfer = 0;
+        let grand = 0;
+
+        data.forEach(row => {
+
+            if (!row) return;
+
+            row.forEach((cell, i) => {
+
+                if (typeof cell === 'string' && cell.toLowerCase().includes('transfer')) {
+
+                    // ambil angka terakhir di row
+                    let nums = row.filter(v => typeof v === 'number' || /\d/.test(v));
+
+                    if (nums.length >= 2) {
+                        transfer = parseNumber(nums[nums.length - 2]);
+                        grand = parseNumber(nums[nums.length - 1]);
+                    }
+                }
+
+            });
 
         });
 
-    });
-
-    return {
-        transfer,
-        grand
-    };
-}
-
-function parseNumber(val) {
-    if (!val) return 0;
-    return parseFloat(val.toString().replace(/[^0-9]/g, '')) || 0;
-}
-
-function convertDate(value) {
-
-    // kalau kosong
-    if (!value) return null;
-
-    // 🔥 kalau Excel number (serial date)
-    if (typeof value === 'number') {
-        return excelDateToJSDate(value);
+        return {
+            transfer,
+            grand
+        };
     }
 
-    // 🔥 kalau sudah string (misal 04/12/2026)
-    if (typeof value === 'string') {
+    function parseNumber(val) {
+        if (!val) return 0;
+        return parseFloat(val.toString().replace(/[^0-9]/g, '')) || 0;
+    }
+
+    function convertDate(value) {
+
+        // kalau kosong
+        if (!value) return null;
+
+        // 🔥 kalau Excel number (serial date)
+        if (typeof value === 'number') {
+            return excelDateToJSDate(value);
+        }
+
+        // 🔥 kalau sudah string (misal 04/12/2026)
+        if (typeof value === 'string') {
+            return value;
+        }
+
         return value;
     }
-
-    return value;
-}
 }

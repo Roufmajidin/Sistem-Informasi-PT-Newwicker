@@ -1,6 +1,8 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Models\Bom;
+use App\Models\CadModel;
 use App\Models\Checkpoint;
 use App\Models\DetailPo;
 use App\Models\InspectSchedule;
@@ -260,6 +262,51 @@ class QcController extends Controller
 
         $detailPoIds = $pos->pluck('details')->flatten()->pluck('id');
 
+        // 🔥 ambil article
+        $articleNumbers = $pos
+            ->pluck('details')
+            ->flatten()
+            ->pluck('detail.nw_code')
+            ->filter()
+            ->unique()
+            ->values();
+
+        // 🔥 BOM
+        $boms = Bom::with(['groups.items'])
+            ->whereIn('article_number', $articleNumbers)
+            ->get();
+
+        $bomMap = $boms->keyBy('article_number');
+
+        // 🔥 CAD
+        $cads = CadModel::whereIn('article_code', $articleNumbers)
+            ->orderByDesc('version')
+            ->get()
+            ->groupBy('article_code');
+
+        // 🔥 MAPPING
+        $pos->each(function ($po) use ($bomMap, $cads) {
+
+            $po->details->each(function ($detail) use ($bomMap, $cads) {
+
+                               $article = $detail->detail['nw_code'] ?? null;
+
+
+                // BOM
+                $detail->bom = ($article && isset($bomMap[$article]))
+                    ? $bomMap[$article]
+                    : null;
+
+                // CAD
+                $detail->cad = ($article && isset($cads[$article]))
+                    ? $cads[$article]->first()
+                    : null;
+
+            });
+
+        });
+
+        // 🔥 schedule
         $inspectionSchedules = InspectSchedule::with('kategori')
             ->whereIn('detail_po_id', $detailPoIds)
             ->where('user_id', $userId)
@@ -271,6 +318,7 @@ class QcController extends Controller
             'inspection_schedules' => $inspectionSchedules,
         ]);
     }
+
     public function getInspect()
     {
 
@@ -353,7 +401,10 @@ class QcController extends Controller
     {
         $kategori  = Kategori::where('kategori', $kategoriName)->firstOrFail();
         $detail_po = DetailPo::findOrFail($detailPoId);
-
+        $nwCode    = $detail_po->detail['nw_code'] ?? null;
+        $cad       = CadModel::where('article_code', $nwCode)
+            ->orderByDesc('version')
+            ->first();
         $checkpoints   = Checkpoint::where('kategori_id', $kategori->id)->get();
         $checkpointIds = $checkpoints->pluck('id');
 
@@ -390,6 +441,7 @@ class QcController extends Controller
                     'rejected'       => $schedule->rejected,
                     'inspector'      => User::find($schedule->user_id)->name ?? 'N/A',
                     'checkpoints'    => [],
+                    'master_sample' => $cad->master_sample ?? null,
                 ];
             }
 

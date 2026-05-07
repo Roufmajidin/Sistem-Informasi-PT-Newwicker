@@ -17,7 +17,6 @@
             color:#fff;
             padding:12px 20px;
             z-index:10;
-            font-size:16px;
         }
 
         .pdf-container {
@@ -31,7 +30,8 @@
             margin-bottom:25px;
             border-radius:10px;
             box-shadow:0 5px 15px rgba(0,0,0,0.4);
-            overflow:hidden;
+            overflow: visible;
+            transition:0.3s;
         }
 
         .page-header {
@@ -41,103 +41,156 @@
             background:#f5f5f5;
         }
 
-        /* 🔥 WRAPPER */
         .image-wrapper {
-            width:100%;
-            background:#000;
+            position: relative;
             display:flex;
             justify-content:center;
             align-items:center;
+            background:#000;
+            overflow: visible;
+            transition:0.3s;
         }
 
-        /* 🔥 IMAGE AUTO RATIO */
-        .image-wrapper img {
+        .zoomable {
             max-width:100%;
             height:auto;
-            display:block;
+            cursor: grab;
+            user-select:none;
+            transition: transform 0.15s ease;
+            transform-origin:center center;
         }
 
-        /* 🔥 RESPONSIVE HP */
+        .btn-rotate {
+            position:absolute;
+            top:50%;
+            left:50%;
+            transform:translate(-50%, -50%);
+            background:rgba(0,0,0,0.6);
+            color:#fff;
+            border:none;
+            border-radius:50%;
+            padding:12px;
+            cursor:pointer;
+            opacity:0;
+            transition:0.3s;
+            z-index:10;
+        }
+
+        .image-wrapper:hover .btn-rotate {
+            opacity:1;
+        }
+
         @media (max-width:768px){
             .pdf-container {
                 padding:10px;
             }
         }
-        .zoomable {
-    max-width:100%;
-    height:auto;
-    cursor: grab;
-    transition: transform 0.2s ease;
-}
     </style>
 </head>
 
 <body>
 
-<div class="topbar">
-    📄 Preview Dokumen
-</div>
+<div class="topbar">📄 Preview Dokumen</div>
 
 <div class="pdf-container">
 
+
 @foreach($files as $i => $f)
     <div class="page">
-
         <div class="page-header">
             Halaman {{ $i+1 }}
         </div>
 
-       <div class="image-wrapper">
-    <img class="zoomable" src="/storage/{{ $f->file_path }}">
-</div>
-
+        <div class="image-wrapper">
+            <img class="zoomable" src="/storage/{{ $f->file_path }}">
+            <button style="width: 100px;height:100px" class="btn-rotate">⟳</button>
+        </div>
     </div>
 @endforeach
 
 </div>
 
-</body>
-</html>
 <script>
-document.querySelectorAll('.zoomable').forEach(img => {
+document.querySelectorAll('.image-wrapper').forEach(wrapper => {
+
+    const img = wrapper.querySelector('.zoomable');
+    const rotateBtn = wrapper.querySelector('.btn-rotate');
+
+    if (!img) return;
 
     let scale = 1;
+    let rotation = 0;
     let posX = 0;
     let posY = 0;
+
     let isDragging = false;
     let startX, startY;
 
-    // 🔥 SCROLL ZOOM
-    img.addEventListener('wheel', function(e){
+    function update(){
+
+        img.style.transform =
+            `translate(${posX}px, ${posY}px) scale(${scale}) rotate(${rotation}deg)`;
+
+        // 🔥 bikin page ikut menyesuaikan
+        setTimeout(() => {
+            if (rotation % 180 !== 0) {
+                wrapper.style.height = img.offsetWidth + 'px';
+            } else {
+                wrapper.style.height = img.offsetHeight + 'px';
+            }
+        }, 30);
+    }
+
+    // 🔄 ROTATE
+    if (rotateBtn) {
+        rotateBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+
+            rotation += 90;
+
+            scale = 1;
+            posX = 0;
+            posY = 0;
+
+            update();
+        });
+    }
+
+    // 🔍 ZOOM
+    wrapper.addEventListener('wheel', (e) => {
         e.preventDefault();
 
         let delta = e.deltaY > 0 ? -0.1 : 0.1;
         scale += delta;
 
-        if(scale < 1) scale = 1;
-        if(scale > 5) scale = 5;
+        if (scale < 1) scale = 1;
+        if (scale > 4) scale = 4;
 
         update();
     });
 
-    // 🔥 DOUBLE CLICK
-    img.addEventListener('dblclick', function(){
-        scale = scale === 1 ? 2 : 1;
+    // 🔥 DOUBLE CLICK RESET
+    img.addEventListener('dblclick', () => {
+        scale = 1;
+        rotation = 0;
         posX = 0;
         posY = 0;
         update();
     });
 
-    // 🔥 DRAG
-    img.addEventListener('mousedown', function(e){
+    // ✋ DRAG
+    img.addEventListener('mousedown', (e) => {
+        if (scale <= 1) return;
+
         isDragging = true;
         startX = e.clientX - posX;
         startY = e.clientY - posY;
+
         img.style.cursor = 'grabbing';
     });
 
-    window.addEventListener('mousemove', function(e){
-        if(!isDragging) return;
+    window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
 
         posX = e.clientX - startX;
         posY = e.clientY - startY;
@@ -145,14 +198,13 @@ document.querySelectorAll('.zoomable').forEach(img => {
         update();
     });
 
-    window.addEventListener('mouseup', function(){
+    window.addEventListener('mouseup', () => {
         isDragging = false;
         img.style.cursor = 'grab';
     });
 
-    function update(){
-        img.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
-    }
-
 });
 </script>
+
+</body>
+</html>

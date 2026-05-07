@@ -32,6 +32,7 @@
         <!-- endbuild -->
         <link rel="stylesheet" href="{{asset('assets/styles/font.css')}}" type="text/css" />
         <link rel="stylesheet" href="{{asset('assets/styles/custome.css')}}" type="text/css" />
+        <link rel="stylesheet" href="{{asset('assets/styles/style_pengajuan.css')}}" type="text/css" />
         <!-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.3/css/bootstrap.min.css" /> -->
         <!-- <link href="{{asset('assets/editable/css/bootstrap.min.css')}}}}" rel="stylesheet"> -->
         <script src="{{asset('assets/editable/js/bootstrap.min.js')}}"></script>
@@ -167,7 +168,7 @@
                 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
                 <!-- ajax -->
-                <script src="{{asset('assets/libs/jquery/jquery-pjax/jquery.pjax.js')}}"></script>
+                <!-- <script src="{{asset('assets/libs/jquery/jquery-pjax/jquery.pjax.js')}}"></script> -->
                 <script src="{{asset('assets/scripts/ajax.js')}}"></script>
                 <!-- endbuild -->
                 <!-- <script src=" https://code.jquery.com/jquery-3.6.0.min.js"></script> -->

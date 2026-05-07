@@ -158,7 +158,7 @@
         {{-- BODY --}}
         <div class="modal-body">
 
-            <form id="form-pengajuan" action="/pengajuan/store" method="POST">
+           <form id="form-pengajuan" onsubmit="return false;">
                 @csrf
                 <input type="hidden" name="meta_json" id="meta_json">
                 <input type="hidden" name="details_json" id="details_json">
@@ -256,7 +256,9 @@
                     <input type="radio" name="urgent" value="0" checked> Normal
                 </div>
 
-                <button class="btn btn-success w-100">Simpan</button>
+               <button type="button" id="btn-submit" class="btn btn-success w-100">
+    Simpan
+</button>
             </form>
 
         </div>
@@ -339,388 +341,7 @@
 
     </div>
     {{-- ================= STYLE ================= --}}
-    <style>
-        #preview-container {
-    display: flex;
-    gap: 8px;
-    overflow-x: auto;
-}
 
-.preview-item {
-    position: relative;
-    flex: 0 0 auto;
-}
-
-.preview-item img {
-    width: 90px;       /* 🔥 atur ukuran */
-    height: 70px;
-    object-fit: cover; /* 🔥 biar rapi */
-    border-radius: 6px;
-    border: 1px solid #ddd;
-}
-        /* =========================
-   MODAL FULL
-========================= */
-        /* =========================
-   UPLOAD PREVIEW (KECIL)
-========================= */
-        .chat-row {
-            margin-bottom: 10px;
-            display: flex;
-        }
-
-        .chat-me {
-            justify-content: flex-end;
-        }
-
-        .chat-other {
-            justify-content: flex-start;
-        }
-
-        .chat-bubble {
-            max-width: 70%;
-            padding: 8px 12px;
-            border-radius: 12px;
-            font-size: 13px;
-        }
-
-        .chat-me .chat-bubble {
-            background: #DCF8C6;
-        }
-
-        .chat-other .chat-bubble {
-            background: #fff;
-            border: 1px solid #eee;
-        }
-
-        .chat-name {
-            font-size: 11px;
-            font-weight: bold;
-            margin-bottom: 2px;
-        }
-
-        .chat-time {
-            font-size: 10px;
-            color: #888;
-            margin-top: 3px;
-            text-align: right;
-        }
-
-        .table-footer-main {
-            background: #111;
-            color: #fff;
-            font-weight: bold;
-        }
-
-        .table-footer-sub {
-            background: #222;
-            color: #aaa;
-            font-size: 12px;
-        }
-
-        .swal-top {
-            z-index: 99999 !important;
-        }
-
-        .swal2-container {
-            z-index: 99999 !important;
-        }
-
-        #preview-container {
-            display: flex;
-            gap: 10px;
-            overflow-x: auto;
-        }
-
-        .preview-item {
-            flex: 0 0 auto;
-        }
-
-        .img-upload-preview {
-            width: 80px;
-            height: 80px;
-            object-fit: cover;
-            border-radius: 6px;
-            cursor: zoom-in;
-            border: 1px solid #ddd;
-            transition: 0.2s;
-        }
-
-        .img-upload-preview:hover {
-            transform: scale(1.05);
-        }
-
-        /* =========================
-   ZOOM MODAL
-========================= */
-        .image-modal {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.9);
-            z-index: 99999;
-
-            justify-content: center;
-            align-items: center;
-        }
-
-        #imageWrapper {
-            max-width: 95vw;
-            max-height: 95vh;
-            overflow: auto;
-        }
-
-        /* 🔥 ZOOM IMAGE */
-        .img-zoom {
-            max-width: 90vw;
-            max-height: 90vh;
-            object-fit: contain;
-            /* 🔥 supaya tidak kepotong */
-        }
-
-        /* CLOSE */
-        .close-modal {
-            position: absolute;
-            top: 20px;
-            right: 25px;
-            font-size: 28px;
-            color: #fff;
-            cursor: pointer;
-        }
-
-        .modal-full {
-            display: none;
-            position: fixed;
-            inset: 0;
-            z-index: 9999;
-            background: #fff;
-            height: 100vh;
-        }
-
-        .modal-full.active {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .modal-full-content {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* =========================
-   HEADER
-========================= */
-        .modal-header {
-            flex: 0 0 auto;
-            padding: 15px;
-            border-bottom: 1px solid #ddd;
-            display: flex;
-            justify-content: space-between;
-            background: #fff;
-            z-index: 10;
-        }
-
-        /* =========================
-   BODY (SCROLL)
-========================= */
-        .modal-body {
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px;
-            height: calc(100vh - 70px);
-        }
-
-        /* =========================
-   GRID IMAGE (DETAIL)
-========================= */
-        .img-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        .img-item {
-            /* width: 150px;
-    height: 150px; */
-            overflow: hidden;
-            border-radius: 8px;
-            cursor: pointer;
-            position: relative;
-        }
-
-        /* 🔥 IMAGE DETAIL */
-        .img-detail {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: 0.3s;
-            cursor: zoom-in;
-        }
-
-        .img-item:hover .img-detail {
-            transform: scale(1.1);
-        }
-
-        /* =========================
-   UPLOAD PREVIEW
-========================= */
-        #preview-container {
-            display: flex;
-            gap: 8px;
-            overflow-x: auto;
-        }
-
-        .preview-item {
-            position: relative;
-            flex: 0 0 auto;
-        }
-
-        .img-upload-preview {
-            width: 90px;
-            height: 70px;
-            object-fit: cover;
-            border-radius: 6px;
-            border: 1px solid #ddd;
-        }
-
-        /* remove button */
-        .btn-remove {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            background: red;
-            color: #fff;
-            border-radius: 50%;
-            width: 18px;
-            height: 18px;
-            font-size: 11px;
-            border: none;
-            cursor: pointer;
-        }
-
-        /* =========================
-   IMAGE MODAL (ZOOM)
-========================= */
-        .image-modal {
-            display: none;
-            position: fixed;
-            z-index: 99999;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.95);
-
-            justify-content: center;
-            align-items: center;
-        }
-
-        /* wrapper biar bisa scroll kalau besar */
-        #imageWrapper {
-            /* max-width: 95vw; */
-            /* max-height: 95vh; */
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        /* 🔥 IMAGE ZOOM */
-        .img-zoom {
-            /* max-width: vw; */
-            /* max-height: 100vh; */
-            /* object-fit: contain; */
-            max-width: none;
-            max-height: none;
-
-            cursor: grab;
-            transition: transform 0.2s ease;
-            object-fit: contain;
-            /* 🔥 ini kuncinya */
-
-        }
-
-        /* =========================
-   CLOSE BUTTON
-========================= */
-        .close-modal {
-            position: absolute;
-            top: 15px;
-            right: 20px;
-            color: #fff;
-            font-size: 25px;
-            cursor: pointer;
-        }
-
-        /* =========================
-   EXCEL TABLE
-========================= */
-        .excel-wrapper {
-            max-height: 300px;
-            overflow: auto;
-            border: 1px solid #ddd;
-        }
-
-        #excel-table thead th {
-            position: sticky;
-            top: 0;
-            z-index: 10;
-            background: #007bff;
-            color: #fff;
-            border: 1px solid #ddd;
-        }
-
-        #excel-table th,
-        #excel-table td {
-            white-space: nowrap;
-        }
-
-        /* =========================
-   META BOX
-========================= */
-        #excel-meta {
-            background: #f8f9fa;
-            padding: 10px;
-            border-radius: 6px;
-        }
-
-        /* =========================
-   QR MODAL
-========================= */
-        .modal-qr {
-            display: none;
-            position: fixed;
-            z-index: 9999;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.6);
-
-            justify-content: center;
-            align-items: center;
-        }
-
-        .modal-qr.active {
-            display: flex;
-        }
-
-        .modal-qr-box {
-            background: #111;
-            padding: 20px;
-            border-radius: 12px;
-            width: 340px;
-            text-align: center;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-        }
-
-        /* =========================
-   QR BUTTON
-========================= */
-        #btn-qr {
-            transition: 0.2s;
-        }
-
-        #btn-qr:hover {
-            background: #0056b3;
-            transform: scale(1.05);
-        }
-    </style>
 
     {{-- ================= SCRIPT ================= --}}
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -980,22 +601,22 @@
                         // 🔥 BUTTON EXPORT (CONDITIONAL)
                         // =========================
                         let btnExport = '';
-if (item.user_id == window.authUserIdd) {
+                        if (item.user_id == window.authUserIdd) {
                             btnDelete = `
         <button class="btn btn-sm btn-danger btn-delete"
             data-id="${item.id}">
             Delete
         </button>
     `;
-                        if (allApproved) {
-                            btnExport = `
+                            if (allApproved) {
+                                btnExport = `
         <button class="btn btn-sm btn-primary btn-export-excel" data-id="${item.id}">
             Export
         </button>
             ${btnDelete}
 
     `;
-                        }
+                            }
 
                         }
                         // =========================
@@ -1010,14 +631,13 @@ if (item.user_id == window.authUserIdd) {
 
                             if (item.status === 'approved') {
 
-                                let tanggal = item.approved_date ?
-                                    formatDateOnly(item.approved_date) :
-                                    '-';
-
+                              let tanggal = item.approved_date
+    ? formatDateTime(item.approved_date)
+    : '-';
                                 statusHtml = `
             <span class="badge badge-success">
                 Approved<br>
-                <small>on ${tanggal}</small>
+                <small>on ${tanggal} </small>
             </span>
         `;
                             } else {
@@ -1037,10 +657,10 @@ if (item.user_id == window.authUserIdd) {
 
                                 if (pendingStep) {
                                     statusHtml = `
-        <span class="badge badge-warning">
-            ⏳ ${pendingStep.step_name} - ${pendingStep.user_name ?? '-' } - ${pendingStep.status ?? '-' }
-        </span>
-    `;
+                                <span class="badge badge-warning">
+                                    ⏳ ${pendingStep.step_name} - ${pendingStep.user_name ?? '-' } - ${pendingStep.status ?? '-' }
+                                </span>
+                            `;
                                 }
                             }
 
@@ -1056,16 +676,14 @@ if (item.user_id == window.authUserIdd) {
                         View
                     </button>
 
-  <button
-    class="btn btn-sm btn-success btn-download-qr"
-    data-id="${item.id}"
-    data-type="${item.type_pengajuan}"
-    data-user="${item.user ? item.user.name : '-'}"
-    data-date="${item.created_at}"
->
-    QR
-</button>
-    ${btnExport}
+                    <button
+                        class="btn btn-sm btn-success btn-download-qr"
+                        data-id="${item.id}"
+                        data-type="${item.type_pengajuan}"
+                        data-user="${item.user ? item.user.name : '-'}"
+                        data-date="${item.created_at}"
+                    > QR</button>
+                 ${btnExport}
 
 
                 `;
@@ -1076,7 +694,11 @@ if (item.user_id == window.authUserIdd) {
                         <td><b>A-${item.id}</b></td>
                         <td>${item.user ? item.user.name : '-'}</td>
                         <td>${statusHtml}</td>
-                                            <td>${item.divisi ? item.divisi.nama : '-'}</td>
+                          <td>
+        ${item.urgent == 1
+            ? '<span class="badge bg-danger">Urgent</span>'
+            : '<span class="badge bg-secondary">Normal</span>'}
+    </td>
 
                         <td>${formatDate(item.created_at)}</td>
                         <td>${btnView}</td>
@@ -1120,7 +742,7 @@ if (item.user_id == window.authUserIdd) {
             let urlParams = new URLSearchParams(window.location.search);
             return urlParams.get(param);
         }
-
+        //    open MOdal
         function openPengajuanDetail(id) {
 
             $.ajax({
@@ -1145,18 +767,18 @@ if (item.user_id == window.authUserIdd) {
                         <div><b>Nomor:</b> ${res.meta.nomor ?? '-'}</div>
                         <div><b>Type:</b> ${res.meta.type_pembayaran ?? '-'}</div>
                     </div>
-    <div id="btn-chat" style="
-    width:35px;
-    height:35px;
-    background:#ffc107;
-    border-radius:8px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    cursor:pointer;
-">
-    💬
-</div>
+                        <div id="btn-chat" style="
+                        width:35px;
+                        height:35px;
+                        background:#ffc107;
+                        border-radius:8px;
+                        display:flex;
+                        align-items:center;
+                        justify-content:center;
+                        cursor:pointer;
+                    ">
+                        💬
+                    </div>
                 `;
                     }
 
@@ -1195,19 +817,17 @@ if (item.user_id == window.authUserIdd) {
                             total += Number(d.total_harga || 0);
 
                             contentHtml += `
-                        <tr>
-                            <td>${d.no}</td>
-                            <td>${d.date}</td>
-                            <td>${d.no_po}</td>
-           <td onclick="handleTap(${d.id})" style="cursor:pointer;">
-    ${d.no_inv}
-</td>
-                            <td>${d.type_biaya}</td>
-                            <td>${d.nama_barang}</td>
-                            <td>${d.qty}</td>
-                            <td>${formatRupiah(d.harga_satuan)}</td>
-                            <td>${formatRupiah(d.total_harga)}</td>
-                        </tr>
+                                <tr class="row-inv" onclick="handleTap(${d.id}, this)">
+                                    <td>${d.no}</td>
+                                    <td>${d.date}</td>
+                                    <td>${d.no_po}</td>
+                                    <td>${d.no_inv}</td>
+                                    <td>${d.type_biaya}</td>
+                                    <td>${d.nama_barang}</td>
+                                    <td>${d.qty}</td>
+                                    <td>${formatRupiah(d.harga_satuan)}</td>
+                                    <td>${formatRupiah(d.total_harga)}</td>
+                                </tr>
                     `;
                         });
 
@@ -1216,30 +836,30 @@ if (item.user_id == window.authUserIdd) {
                         let onHold = Number(res.meta?.on_hold ?? 0);
 
                         contentHtml += `
-<tr style="background:#111; color:#fff;">
-    <td colspan="9" style="text-align:right; padding:15px 20px;">
+                        <tr style="background:#111; color:#fff;">
+                            <td colspan="9" style="text-align:right; padding:15px 20px;">
 
-        <div style="font-size:20px; font-weight:bold;">
-            ${formatRupiah(grandTotal)}
-        </div>
+                                <div style="font-size:20px; font-weight:bold;">
+                                    ${formatRupiah(grandTotal)}
+                                </div>
 
-        <div style="font-size:12px; color:#aaa; margin-top:5px;">
-            yang dihold
-        </div>
+                                <div style="font-size:12px; color:#aaa; margin-top:5px;">
+                                    yang dihold
+                                </div>
 
-        <div style="font-size:13px; color:#ccc;">
-            ${formatRupiah(onHold)}
-        </div>
+                                <div style="font-size:13px; color:#ccc;">
+                                    ${formatRupiah(onHold)}
+                                </div>
 
-    </td>
-</tr>
-`;
+                            </td>
+                        </tr>
+                        `;
 
                         contentHtml += `</tbody></table></div>`;
                     }
 
                     // =========================
-                    // 🔥 ALL DIVISI → IMAGE
+                    // 🔥 ALL DIVISI → IMAGE tai
                     // =========================
                     else {
 
@@ -1248,34 +868,41 @@ if (item.user_id == window.authUserIdd) {
                         if (res.type_pengajuan === 'All Divisi') {
 
                             contentHtml += `
-        <div style="margin-bottom:15px;width:100%">
-            <button class="btn btn-success w-100 btn-approve-all"
-                data-id="${res.id}">
-                ✅ Approve This Pengajuan
-            </button>
-        </div>
-    `;
+                                <div style="margin-bottom:15px;width:100%">
+                                    <button class="btn btn-success w-100 btn-approve-all"
+                                        data-id="${res.id}">
+                                        ✅ Approve This Pengajuan
+                                    </button>
+                                </div>
+                                <p>hover image to rotate, scroll in/o to zoom</p>
+                            `;
 
-                            contentHtml += `<div class="img-grid">`;
+                            contentHtml += `<div class="pdf-container">`;
 
-                            res.files?.forEach(f => {
+                            res.files?.forEach((f, i) => {
                                 contentHtml += `
-            <div class="img-item">
-                <img src="/storage/${f.file_path}"
-                     class="img-detail"
-                     data-src="/storage/${f.file_path}">
-            </div>
-        `;
+                                    <div class="page">
+
+                                        <div class="page-header">
+                                            Halaman ${i + 1}
+                                        </div>
+
+                                        <div class="image-wrapper">
+                                            <img src="/storage/${f.file_path}" class="zoomable">
+                                            <button class="btn-rotate">⟳</button>
+                                        </div>
+
+                                    </div>
+                                `;
                             });
 
                             contentHtml += `</div>`;
                         }
 
                         contentHtml += `</div>`;
+
                     }
-                    // =========================
-                    // 🔥 APPROVAL SECTION
-                    // =========================
+
 
                     // 🔥 pastikan authUserId ada
                     if (!window.authUserId) {
@@ -1283,10 +910,10 @@ if (item.user_id == window.authUserIdd) {
                     }
 
                     let approvalHtml = `
-    <div style="margin-top:25px;">
-        <h5>Approval</h5>
-        <div style="display:flex; gap:80px; flex-wrap:wrap;">
-`;
+                        <div style="margin-top:25px;">
+                            <h5>Approval</h5>
+                            <div style="display:flex; gap:80px; flex-wrap:wrap;">
+                    `;
 
                     res.approval_steps.forEach((step, index) => {
 
@@ -1323,12 +950,12 @@ if (item.user_id == window.authUserIdd) {
                         if (isApproved) {
 
                             block = `
-            <div style="text-align:center;">
-                <small>${step.step_name}</small><br>
-                <img src="${stepImage}" width="100" height="80"><br>
-                <small>${userName}</small>
-            </div>
-        `;
+                        <div style="text-align:center;">
+                            <small>${step.step_name}</small><br>
+                            <img src="${stepImage}" width="100" height="80"><br>
+                            <small>${userName}</small>
+                        </div>
+                    `;
 
                         }
 
@@ -1340,26 +967,26 @@ if (item.user_id == window.authUserIdd) {
                             if (canApprove) {
 
                                 block = `
-                <div style="text-align:center;">
-                    <button class="btn btn-success btn-approve"
-                        data-id="${step.id}"
-                        style="padding:10px 16px; cursor:pointer;">
-                        TAP APPROVE
-                    </button><br>
-                    <small>${step.step_name}</small><br>
-                    <small>${userName}</small>
-                </div>
-            `;
+                                <div style="text-align:center;">
+                                    <button class="btn btn-success btn-approve"
+                                        data-id="${step.id}"
+                                        style="padding:10px 16px; cursor:pointer;">
+                                        TAP APPROVE
+                                    </button><br>
+                                    <small>${step.step_name}</small><br>
+                                    <small>${userName}</small>
+                                </div>
+                            `;
 
                             } else {
 
                                 block = `
-                <div style="text-align:center;">
-                    <span class="badge badge-secondary">Waiting</span><br>
-                    <small>${step.step_name}</small><br>
-                    <small>${userName}</small>
-                </div>
-            `;
+                            <div style="text-align:center;">
+                                <span class="badge badge-secondary">Waiting</span><br>
+                                <small>${step.step_name}</small><br>
+                                <small>${userName}</small>
+                            </div>
+                        `;
                             }
                         }
 
@@ -1370,17 +997,96 @@ if (item.user_id == window.authUserIdd) {
                     // CLOSE WRAPPER
                     // =========================
                     approvalHtml += `
-        </div>
-    </div>
-`;
+                            </div>
+                        </div>
+                    `;
 
                     // =========================
                     // RENDER FINAL
                     // =========================
                     $('#view-content').html(contentHtml + approvalHtml);
+                    initImageViewer();
                 }
             });
 
+        }
+
+        function initImageViewer() {
+            document.querySelectorAll('.image-wrapper').forEach(wrapper => {
+
+                const img = wrapper.querySelector('.zoomable');
+                const rotateBtn = wrapper.querySelector('.btn-rotate');
+
+                if (!img) return;
+
+                let scale = 1;
+                let rotation = 0;
+                let posX = 0;
+                let posY = 0;
+
+                let isDragging = false;
+                let startX, startY;
+
+                function update() {
+                    img.style.transform =
+                        `translate(${posX}px, ${posY}px) scale(${scale}) rotate(${rotation}deg)`;
+
+                    setTimeout(() => {
+                        if (rotation % 180 !== 0) {
+                            wrapper.style.height = img.offsetWidth + 'px';
+                        } else {
+                            wrapper.style.height = img.offsetHeight + 'px';
+                        }
+                    }, 30);
+                }
+
+                rotateBtn?.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    rotation += 90;
+                    scale = 1;
+                    posX = 0;
+                    posY = 0;
+                    update();
+                });
+
+                wrapper.addEventListener('wheel', (e) => {
+                    e.preventDefault();
+                    let delta = e.deltaY > 0 ? -0.1 : 0.1;
+                    scale += delta;
+                    if (scale < 1) scale = 1;
+                    if (scale > 4) scale = 4;
+                    update();
+                });
+
+                img.addEventListener('dblclick', () => {
+                    scale = 1;
+                    rotation = 0;
+                    posX = 0;
+                    posY = 0;
+                    update();
+                });
+
+                img.addEventListener('mousedown', (e) => {
+                    if (scale <= 1) return;
+                    isDragging = true;
+                    startX = e.clientX - posX;
+                    startY = e.clientY - posY;
+                    img.style.cursor = 'grabbing';
+                });
+
+                window.addEventListener('mousemove', (e) => {
+                    if (!isDragging) return;
+                    posX = e.clientX - startX;
+                    posY = e.clientY - startY;
+                    update();
+                });
+
+                window.addEventListener('mouseup', () => {
+                    isDragging = false;
+                    img.style.cursor = 'grab';
+                });
+
+            });
         }
 
         function formatRupiah(angka) {
@@ -1470,6 +1176,25 @@ if (item.user_id == window.authUserIdd) {
             let d = new Date(date);
             return d.toLocaleString();
         }
+        function formatDateTime(datetime) {
+    if (!datetime) return '-';
+
+    let d = new Date(datetime);
+
+    let tanggal = d.toLocaleDateString('id-ID', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    });
+
+    let jam = d.toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+
+    return `${tanggal} ${jam}`;
+}
 
         function formatDateOnly(date) {
             let d = new Date(date);
@@ -1574,38 +1299,71 @@ if (item.user_id == window.authUserIdd) {
             });
 
         });
-        $(document).ready(function() {
+        // submit pengajuan
+      $(document).ready(function(){
 
-            $('#form-pengajuan').on('submit', function(e) {
+    $('#form-pengajuan').off('submit').on('submit', function(e){
 
-                e.preventDefault(); // 🔥 WAJIB
+        e.preventDefault();
+        e.stopImmediatePropagation(); // 🔥 penting
 
-                let type = $('[name="type_pengajuan"]').val();
+        let type = $('[name="type_pengajuan"]').val();
+        let formData = new FormData(this);
 
-                let formData = new FormData(this);
+        console.log('AJAX jalan');
 
-                if (type === 'All Divisi') {
+        if (type === 'All Divisi') {
+            sendAjax('/pengajuan/store-all-divisi', formData);
+            return false;
+        }
 
-                    // selectedFiles.forEach((file) => {
-                    //     formData.append('images[]', file);
-                    // });
+        formData.set('meta_json', JSON.stringify(excelMeta));
+        formData.set('details_json', JSON.stringify(excelDetails));
+        formData.set('approval_json', JSON.stringify(excelApproval));
 
-                    sendAjax('/pengajuan/store-all-divisi', formData);
-                    return;
+        sendAjax('/pengajuan/store', formData);
+
+        return false;
+    });
+
+});
+ function sendAjax(url, formData) {
+
+    $.ajax({
+        url: url,
+        method: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        },
+
+        // 🔥 LOADING START
+        beforeSend: function () {
+
+            // disable tombol submit biar gak double click
+            $('button[type="submit"]').prop('disabled', true);
+
+            Swal.fire({
+                title: 'Mengirim...',
+                html: 'Mohon tunggu...',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                didOpen: () => {
+                    Swal.showLoading();
                 }
-
-                // FINANCE
-                formData.set('meta_json', JSON.stringify(excelMeta));
-                formData.set('details_json', JSON.stringify(excelDetails));
-                formData.set('approval_json', JSON.stringify(excelApproval));
-
-                sendAjax('/pengajuan/store', formData);
-
             });
+        },
 
-        });
-        let currentDetailId = null;
 
+        // 🔥 COMPLETE (SELALU JALAN)
+        complete: function () {
+            $('button[type="submit"]').prop('disabled', false);
+        }
+    });
+}
         function openCameraUpload(detailId) {
             currentDetailId = detailId;
 
@@ -1700,27 +1458,34 @@ if (item.user_id == window.authUserIdd) {
 
             openCameraUpload(detailId); // 📷 upload
         }
-        function handleTap(detailId) {
 
-    let now = new Date().getTime();
-    let tapGap = now - lastTap;
+        function handleTap(detailId,rowEl) {
+   // 🔥 RESET semua active
+    document.querySelectorAll('.row-inv').forEach(r => {
+        r.classList.remove('row-active');
+    });
 
-    if (tapGap < 300 && tapGap > 0) {
-        // 🔥 DOUBLE TAP
-        openCameraUpload(detailId);
+    // 🔥 set active
+    rowEl.classList.add('row-active');
+            let now = new Date().getTime();
+            let tapGap = now - lastTap;
 
-    } else {
-        // 🔥 SINGLE TAP
-        setTimeout(() => {
-            // kalau tidak double tap
-            if (new Date().getTime() - lastTap >= 300) {
-                openViewer(detailId);
+            if (tapGap < 300 && tapGap > 0) {
+                // 🔥 DOUBLE TAP
+                openCameraUpload(detailId);
+
+            } else {
+                // 🔥 SINGLE TAP
+                setTimeout(() => {
+                    // kalau tidak double tap
+                    if (new Date().getTime() - lastTap >= 300) {
+                        openViewer(detailId);
+                    }
+                }, 300);
             }
-        }, 300);
-    }
 
-    lastTap = now;
-}
+            lastTap = now;
+        }
 
         function openCameraUpload(detailId) {
 

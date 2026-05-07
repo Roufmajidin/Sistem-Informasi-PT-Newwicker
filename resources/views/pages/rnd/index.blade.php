@@ -28,6 +28,7 @@ $detail = $find->detail ?? [];
                     <h4>Upload CAD</h4>
 
                     <input type="file" id="cad-file" class="form-control"><br>
+                    <input type="text" id="master-sample" class="form-control" placeholder="Master Sample / Ukuran">
 
                     <div class="progress" style="height:20px; display:none;">
                         <div id="progress-bar"
@@ -99,6 +100,7 @@ $detail = $find->detail ?? [];
                                             <th>Ver</th>
                                             <th>By</th>
                                             <th>Status</th>
+                                            <th>Master Sample</th>
                                             <th>Action</th>
                                         </tr>
                                     </thead>
@@ -117,7 +119,7 @@ $detail = $find->detail ?? [];
                                             <td><b>V{{ $cad->version }}</b></td>
                                             <td>{{ $cad->user->name ?? '-' }}</td>
                                             <td>{{ $cad->status ?? '-' }}</td>
-
+                                            <td>{{ $cad->master_sample ?? '-' }}</td>
                                             <td>
                                                 <a href="/cad/edit/{{ $cad->id }}" class="btn btn-xs btn-warning">
                                                     Edit
@@ -185,7 +187,7 @@ $detail = $find->detail ?? [];
                         <div class="box-body">
 
                             {{-- ===== TITLE ===== --}}
-                            <div class="bom-header" >
+                            <div class="bom-header">
                                 BILL OF MATERIAL
                             </div>
 
@@ -193,20 +195,22 @@ $detail = $find->detail ?? [];
                             <table class="table bom-info">
                                 <tr>
                                     <td width="40%"><b>PRODUCT NAME</b></td>
-                                    <td>{{ $bom->name }}</td>
+                                   <td>{{ optional($bom)->name ?? '-' }}</td>
+
                                 </tr>
                                 <tr>
                                     <td><b>ARTICLE NR</b></td>
-                                    <td>{{ $bom->article_number }}</td>
+                                    <td>{{ optional($bom)->article_number ?? '-' }}</td>
 
                                 </tr>
                                 <tr>
                                     <td><b>ORDER NO.</b></td>
+                                    <td>{{ optional($bom)->order_number ?? '-' }}</td>
 
                                 </tr>
                                 <tr>
                                     <td><b>BUYER</b></td>
-                                    <td>{{ $bom->buyer }}</td>
+                                    <td>{{ optional($bom)->buyer ?? '-' }}</td>
 
                                 </tr>
                             </table>
@@ -224,42 +228,38 @@ $detail = $find->detail ?? [];
                                         </tr>
                                     </thead>
 
-                                    <tbody>
+                                 <tbody>
 
-                                        @if($bom && $bom->groups->count())
+    @forelse(optional($bom)->groups ?? [] as $group)
 
-                                        @foreach($bom->groups as $group)
+        {{-- GROUP --}}
+        <tr style="background:#ddd;font-weight:bold">
+            <td colspan="4">
+                {{ strtoupper($group->name) }}
+            </td>
+        </tr>
 
-                                        {{-- GROUP --}}
-                                        <tr style="background:#ddd;font-weight:bold">
-                                            <td colspan="4">
-                                                {{ strtoupper($group->name) }}
-                                            </td>
-                                        </tr>
+        {{-- ITEMS --}}
+        @foreach($group->items as $item)
+        <tr>
+            <td style="padding-left:20px;">
+                {{ $item->name }}
+            </td>
+            <td>{{ $item->qty ?? '-' }}</td>
+            <td>{{ $item->unit ?? '-' }}</td>
+            <td>-</td>
+        </tr>
+        @endforeach
 
-                                        {{-- ITEMS --}}
-                                        @foreach($group->items as $item)
-                                        <tr>
-                                            <td style="padding-left:20px;">
-                                                {{ $item->name }}
-                                            </td>
-                                            <td>{{ $item->qty ?? '-' }}</td>
-                                            <td>{{ $item->unit ?? '-' }}</td>
-                                            <td>-</td>
-                                        </tr>
-                                        @endforeach
+    @empty
+        <tr>
+            <td colspan="4" class="text-center text-muted">
+                ⚠️ Belum ada data BOM
+            </td>
+        </tr>
+    @endforelse
 
-                                        @endforeach
-
-                                        @else
-                                        <tr>
-                                            <td colspan="4" class="text-center text-muted">
-                                                ⚠️ Belum ada data BOM
-                                            </td>
-                                        </tr>
-                                        @endif
-
-                                    </tbody>
+</tbody>
 
                                 </table>
                             </div>
@@ -296,10 +296,11 @@ $detail = $find->detail ?? [];
             let formData = new FormData();
             formData.append('file', file);
             formData.append('article_code', "{{ $id }}"); // dari controller
+            formData.append('master_sample', $('#master-sample').val());
             formData.append('_token', "{{ csrf_token() }}");
 
             $('.progress').show();
-
+            console.log($('#master-sample').val());
             $.ajax({
                 url: '/cad/upload',
                 type: 'POST',

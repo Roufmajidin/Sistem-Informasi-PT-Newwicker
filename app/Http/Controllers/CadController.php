@@ -8,7 +8,6 @@ use App\Models\ChatRoom;
 use App\Models\DetailPo;
 use Illuminate\Http\Request;
 
-
 class CadController extends Controller
 {
     //
@@ -50,13 +49,15 @@ class CadController extends Controller
             ->max('version');
 
         $version = $latest ? $latest + 1 : 1;
-
+        // dd($request->all());
         CadModel::create([
-            'article_code' => $request->article_code,
-            'file_path'    => $path,
-            'version'      => $version,
-            'uploaded_by'  => auth()->id(),
-            'status'       => 'draft',
+            'article_code'  => $request->article_code,
+            'file_path'     => $path,
+            'version'       => $version,
+            'uploaded_by'   => auth()->id(),
+            'status'        => 'draft',
+            'master_sample' => $request->master_sample,
+
         ]);
 
         return response()->json([

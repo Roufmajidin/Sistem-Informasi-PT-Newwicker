@@ -1350,7 +1350,7 @@ document.getElementById('cameraInput').addEventListener('change', async function
     for (let file of files) {
 
         let fixed = await new Promise(resolve => {
-            fixImageOrientation(file, function(blob) {
+            fixImageOrientation(file, function (blob) {
 
                 let fixedFile = new File([blob], file.name, {
                     type: 'image/jpeg'
@@ -1365,15 +1365,16 @@ document.getElementById('cameraInput').addEventListener('change', async function
 
     renderPreview();
 });
+
 function fixImageOrientation(file, callback) {
 
     let reader = new FileReader();
 
-    reader.onload = function(e) {
+    reader.onload = function (e) {
 
         let img = new Image();
 
-        img.onload = function() {
+        img.onload = function () {
 
             EXIF.getData(file, function () {
 
@@ -1613,64 +1614,7 @@ $('form').on('submit', function (e) {
 
 });
 
-function sendAjax(url, formData) {
 
-    $.ajax({
-        url: url,
-        method: 'POST',
-        data: formData,
-        processData: false,
-        contentType: false,
-        headers: {
-            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-        },
-
-        success: function (res) {
-
-            if (!res.status) {
-                Swal.fire({
-                    customClass: {
-                        popup: 'swal-top'
-                    },
-                    icon: 'success',
-                    title: 'Berhasil',
-                    text: res.message
-                });
-                return;
-            }
-
-            Swal.fire({
-                customClass: {
-                    popup: 'swal-top'
-                },
-                icon: 'success',
-                title: 'Berhasil',
-                text: res.message || 'Pengajuan berhasil disimpan',
-                timer: 2000,
-                showConfirmButton: false
-            });
-
-            setTimeout(() => {
-                location.reload();
-            }, 2000);
-        },
-
-        error: function (xhr) {
-
-            let res = xhr.responseJSON;
-
-            Swal.fire({
-                customClass: {
-                    popup: 'swal-top'
-                },
-                icon: 'error',
-                title: 'Error',
-                text: res ?.message || 'Server error'
-            });
-        }
-    });
-
-}
 
 function extractTotals(data) {
 
