@@ -21,4 +21,9 @@ class Inventory extends Model
     {
         return $this->belongsTo(Karyawan::class);
     }
+    public function comments()
+{
+    return $this->hasMany(InventoryComment::class)
+        ->latest();
+}
 }

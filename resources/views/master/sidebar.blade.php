@@ -29,10 +29,10 @@
 
                      {{-- 🔹 Role: HRD --}}
                      @php
-                    use App\Models\Karyawan;
+                     use App\Models\Karyawan;
 
-$user = Auth::user();
-$a = $user ? Karyawan::find($user->karyawan_id) : null;
+                     $user = Auth::user();
+                     $a = $user ? Karyawan::find($user->karyawan_id) : null;
 
                      @endphp
 
@@ -63,7 +63,7 @@ $a = $user ? Karyawan::find($user->karyawan_id) : null;
 
                      {{-- 🔹 Role: Marketing --}}
                      @if(Auth::user()->role == 'marketing'|| Auth::user()->role == 'purchasing')
-                     <li>
+                     <!-- <li>
                          <a>
                              <span class="nav-caret"><i class="fa fa-caret-down"></i></span>
                              <span class="nav-icon"><i class="material-icons">&#xe5c3;</i></span>
@@ -74,8 +74,8 @@ $a = $user ? Karyawan::find($user->karyawan_id) : null;
                              <li><a href="/marketing/buyers_list"><span class="nav-text">Buyers List</span></a></li>
                              <li><a href="/marketing/release-pfi"><span class="nav-text">Release PFI</span></a></li>
                          </ul>
-                     </li>
-                                          <li>
+                     </li> -->
+                     <li>
                          <a href="{{ route('absen.riwayat') }}">
                              <span class="nav-icon"><i class="material-icons">&#xe192;</i></span>
                              <span class="nav-text">Riwayat Absen</span>
@@ -89,13 +89,13 @@ $a = $user ? Karyawan::find($user->karyawan_id) : null;
                          </a>
                      </li>
 
- <li>
+                     <li>
                          <a href="/request">
                              <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
                              <span class="nav-text">Agenda</span>
                          </a>
                      </li>
-                      <li>
+                     <li>
                          <a href="/pameran">
                              <span class="nav-icon">
                                  <i class="material-icons">&#xe8d2;
@@ -115,7 +115,7 @@ $a = $user ? Karyawan::find($user->karyawan_id) : null;
                              <span class="nav-text">Cart Buyer</span>
                          </a>
                      </li>
-                      <li>
+                     <li>
                          <a href="/request">
                              <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
                              <span class="nav-text">Agenda</span>
@@ -127,44 +127,50 @@ $a = $user ? Karyawan::find($user->karyawan_id) : null;
                              <span class="nav-text">Setting</span>
                          </a>
                      </li>
-                        <li>
+                     <li>
                          <a href="/qc">
                              <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
                              <span class="nav-text">QC page</span>
                          </a>
                      </li>
 
-                      <li>
+                     <li>
                          <a href="/marketing-pfi">
                              <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
                              <span class="nav-text">marketing</span>
                          </a>
                      </li>
-                       <li>
+                     <li>
                          <a href="/marketing-release-order">
                              <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
                              <span class="nav-text">Release Order</span>
                          </a>
                      </li>
                       <li>
+                         <a href="/bank-data">
+                             <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                             <span class="nav-text">Bank Data</span>
+                         </a>
+                     </li>
+                     <li>
                          <a href="/supplier">
                              <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
                              <span class="nav-text">Supplier</span>
                          </a>
                      </li>
-                       <li>
+                     <li>
                          <a href="/produksi">
                              <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
                              <span class="nav-text">produksi</span>
                          </a>
                      </li>
-                      <li>
+                     <li>
                          <a href="/semua-spk">
                              <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
                              <span class="nav-text">SPK</span>
                          </a>
                      </li>
-                          <li>
+                     <li>
                          <a href="/token">
                              <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
                              <span class="nav-text">Token</span>
@@ -173,7 +179,12 @@ $a = $user ? Karyawan::find($user->karyawan_id) : null;
 
 
                      @endif
-
+                     <li>
+                         <a href="/inventory">
+                             <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                             <span class="nav-text">Inventory</span>
+                         </a>
+                     </li>
                      {{-- 🔹 Role: User biasa --}}
                      @if(Auth::user()->role == NULL)
                      <li>
@@ -189,22 +200,23 @@ $a = $user ? Karyawan::find($user->karyawan_id) : null;
                              <span class="nav-text">Absen Sekarang</span>
                          </a>
                      </li>
-                      <li>
+                     <li>
                          <a href="/request">
                              <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
                              <span class="nav-text">Agenda</span>
                          </a>
                      </li>
-                      </li>
-                          <li>
+
+                     </li>
+                     <li>
                          <a href="/pengajuan">
                              <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
                              <span class="nav-text">Pengajuan</span>
                          </a>
                      </li>
                      @endif
-   </li>
-                          <li>
+                     </li>
+                     <li>
                          <a href="/pengajuan">
                              <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
                              <span class="nav-text">Pengajuan</span>

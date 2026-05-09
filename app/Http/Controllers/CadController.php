@@ -20,7 +20,7 @@ class CadController extends Controller
         })
             ->latest()
             ->first();
-
+        // dd($find);
         $cads = CadModel::with('user')
             ->where('article_code', $id)
             ->orderByDesc('version')

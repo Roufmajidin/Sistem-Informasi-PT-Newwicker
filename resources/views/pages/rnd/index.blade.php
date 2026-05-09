@@ -49,31 +49,178 @@ $detail = $find->detail ?? [];
 
                 </div>
             </div>
-            <table class="table table-bordered">
+   @php
+
+$detail = $find->detail ?? [];
+
+$priority = [
+    'no_',
+    'photo',
+    'description',
+    'article_nr_',
+    'article_nr_nw',
+    'nw_code',
+    'sub_category',
+    'qty',
+    'remark',
+    'cushion',
+    'glass',
+    'item_w',
+    'item_d',
+    'item_h',
+    'pack_w',
+    'pack_d',
+    'pack_h',
+    'composition',
+    'finishing',
+    'cbm',
+    'total_cbm',
+    'value_in_usd',
+    'fob_jakarta_in_usd'
+];
+
+/*
+|--------------------------------------------------------------------------
+| SORTING
+|--------------------------------------------------------------------------
+*/
+
+uksort($detail, function ($a, $b) use ($priority) {
+
+    $posA = array_search($a, $priority);
+    $posB = array_search($b, $priority);
+
+    $posA = $posA === false ? 999 : $posA;
+    $posB = $posB === false ? 999 : $posB;
+
+    return $posA <=> $posB;
+});
+
+/*
+|--------------------------------------------------------------------------
+| HEADER INFO
+|--------------------------------------------------------------------------
+*/
+
+$headerFields = [
+    'description',
+    'article_nr_',
+    'article_nr_nw',
+    'nw_code',
+    'sub_category',
+    'remark'
+];
+
+$headerData = [];
+
+foreach ($headerFields as $field) {
+
+    if (!empty($detail[$field])) {
+        $headerData[$field] = $detail[$field];
+    }
+}
+
+/*
+|--------------------------------------------------------------------------
+| DETAIL TABLE
+|--------------------------------------------------------------------------
+*/
+
+$detailItems = collect($detail)
+    ->except(array_merge($headerFields, ['photo']))
+    ->toArray();
+
+@endphp
+<table class="table table-bordered">
+
+    <tr>
+
+        {{-- IMAGE --}}
+        <td width="220"
+            class="text-center align-middle">
+
+            @if(!empty($detail['photo']))
+                <img src="{{ $detail['photo'] }}"
+                     width="180"
+                     style="object-fit:cover;">
+            @else
+                <span class="text-muted">
+                    No Image
+                </span>
+            @endif
+
+        </td>
+
+        {{-- INFO --}}
+        <td>
+
+            <table class="table table-bordered mb-0">
+
+                @foreach($headerData as $key => $value)
+
                 <tr>
-                    <td width="200" rowspan="2">
-                        @if(!empty($detail['photo']))
-                        <img src="{{ $detail['photo'] }}" width="180">
-                        @else
-                        <span class="text-muted">No Image</span>
-                        @endif
+
+                    <td width="220"
+                        style="font-weight:bold;background:#f7f7f7;">
+
+                        {{ strtoupper(str_replace('_', ' ', $key)) }}
+
                     </td>
 
-                    <td width="150"><b>Article Code</b></td>
                     <td>
-                        {{ $detail['article_nr_']
-                            ?? $detail['article_nr_nw']
-                            ?? $detail['nw_code']
-                            ?? '-' }}
+                        {{ $value ?: '-' }}
                     </td>
+
                 </tr>
 
-                <tr>
-                    <td><b>Description</b></td>
-                    <td>{{ $detail['description'] ?? '-' }}</td>
-                </tr>
+                @endforeach
+
             </table>
 
+        </td>
+
+    </tr>
+
+</table>
+<div class="table-responsive">
+
+    <table class="table table-bordered table-striped">
+
+        <thead>
+
+            <tr>
+
+                @foreach($detailItems as $key => $val)
+
+                    <th class="text-center">
+                        {{ strtoupper(str_replace('_', ' ', $key)) }}
+                    </th>
+
+                @endforeach
+
+            </tr>
+
+        </thead>
+
+        <tbody>
+
+            <tr>
+
+                @foreach($detailItems as $val)
+
+                    <td>
+                        {{ $val ?: '-' }}
+                    </td>
+
+                @endforeach
+
+            </tr>
+
+        </tbody>
+
+    </table>
+
+</div>
             {{-- ================= 2 COLUMN ================= --}}
             <div class="row">
 
@@ -233,7 +380,7 @@ $detail = $find->detail ?? [];
     @forelse(optional($bom)->groups ?? [] as $group)
 
         {{-- GROUP --}}
-        <tr style="background:#ddd;font-weight:bold">
+        <tr style="background:#ddd;font-weight:bold ">
             <td colspan="4">
                 {{ strtoupper($group->name) }}
             </td>

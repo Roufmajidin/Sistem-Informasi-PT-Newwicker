@@ -2,8 +2,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Inventory;
+use App\Models\InventoryComment;
 use App\Models\Karyawan;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
 class InventoryController extends Controller
@@ -18,7 +20,14 @@ class InventoryController extends Controller
         // dd($data);
         return view('pages.inventory.index', compact('data'));
     }
-
+    public function detail($id)
+    {
+        $inventory = Inventory::with([
+            'karyawan',
+            'comments.user',
+        ])->findOrFail($id);
+        return view('pages.inventory.detail', compact('inventory'));
+    }
     /**
      * Show the form for creating a new resource.
      */
@@ -39,7 +48,7 @@ class InventoryController extends Controller
             'karyawan'   => 'nullable|string|max:255',
             'keterangan' => 'nullable|string',
             'catatan'    => 'nullable|string',
-            'foto'       => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+            'foto'       => 'nullable|image|mimes:jpg,jpeg,png',
         ]);
 
         // cari karyawan (atau bisa sesuaikan logika Anda)
@@ -128,7 +137,25 @@ class InventoryController extends Controller
 
         return response()->json($results);
     }
+    public function storeComment(Request $request)
+    {
+        $request->validate([
+            'inventory_id' => 'required',
+            'message'      => 'required',
+        ]);
 
+        InventoryComment::create([
+            'inventory_id' => $request->inventory_id,
+           'user_id' => auth()->check()
+    ? auth()->id()
+    : null,
+            'message'      => $request->message,
+        ]);
+
+        return response()->json([
+            'success' => true,
+        ]);
+    }
     /**
      * Display the specified resource.
      */

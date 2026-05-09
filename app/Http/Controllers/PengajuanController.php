@@ -12,6 +12,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -33,7 +34,7 @@ class PengajuanController extends Controller
 
         try {
 
-            $type = $request->type_pengajuan;
+            $type = trim($request->type_pengajuan);
 
             // =========================
             // 🔥 ALL DIVISI
@@ -50,15 +51,25 @@ class PengajuanController extends Controller
                 ]);
 
                 // =========================
-                // FILE UPLOAD
+                // 🔥 FILE UPLOAD
                 // =========================
                 if ($request->hasFile('images')) {
 
                     foreach ($request->file('images') as $img) {
 
-                        $filename = 'pengajuan_' . time() . '_' . Str::random(5) . '.' . $img->getClientOriginalExtension();
+                        $filename =
+                        'pengajuan_' .
+                        time() .
+                        '_' .
+                        Str::random(5) .
+                        '.' .
+                        $img->getClientOriginalExtension();
 
-                        $path = $img->storeAs('pengajuan', $filename, 'public');
+                        $path = $img->storeAs(
+                            'pengajuan',
+                            $filename,
+                            'public'
+                        );
 
                         DB::table('pengajuan_files')->insert([
                             'pengajuan_id' => $pengajuan->id,
@@ -74,7 +85,7 @@ class PengajuanController extends Controller
 
                 return response()->json([
                     'status'  => true,
-                    'message' => 'Berhasil disimpan (All Divisi)',
+                    'message' => '✅ Berhasil disimpan (All Divisi)',
                 ]);
             }
 
@@ -87,28 +98,76 @@ class PengajuanController extends Controller
                 $details  = json_decode($request->details_json, true) ?? [];
                 $approval = json_decode($request->approval_json, true) ?? [];
 
-                // VALIDASI META
+                // =========================
+                // 🔥 DEBUG LOG
+                // =========================
+                Log::info([
+                    'meta'          => $meta,
+                    'details_count' => count($details),
+                ]);
+
+                // =========================
+                // 🔥 VALIDASI META
+                // =========================
                 if (! $meta || ! isset($meta['nomor'])) {
-                    return redirect('/pengajuan')
-                        ->with('error', 'Meta tidak valid');
-                }
 
-                $tanggal = \Carbon\Carbon::createFromFormat('d/m/Y', $meta['tanggal'])->format('Y-m-d');
+                    DB::rollback();
 
-                // CEK DUPLIKAT
-                $exists = PengajuanMeta::where('tanggal', $tanggal)
-                    ->where('nomor', $meta['nomor'])
-                    ->exists();
-
-                if ($exists) {
                     return response()->json([
                         'status'  => false,
-                        'message' => '❌ Data sudah ada (Tanggal: ' . $meta['tanggal'] . ' / No: ' . $meta['nomor'] . ')',
+                        'message' => '❌ Meta tidak valid',
                     ], 422);
                 }
 
                 // =========================
-                // PENGAJUAN
+                // 🔥 FORMAT TANGGAL
+                // =========================
+                $tanggal = null;
+
+                if (! empty($meta['tanggal'])) {
+
+                    try {
+
+                        $tanggal = \Carbon\Carbon::createFromFormat(
+                            'd/m/Y',
+                            trim($meta['tanggal'])
+                        )->format('Y-m-d');
+
+                    } catch (\Exception $e) {
+
+                        DB::rollback();
+
+                        return response()->json([
+                            'status'  => false,
+                            'message' => '❌ Format tanggal salah: ' . $meta['tanggal'],
+                        ], 422);
+                    }
+                }
+
+                // =========================
+                // 🔥 CEK DUPLIKAT
+                // =========================
+                $exists = PengajuanMeta::where('tanggal', $tanggal)
+                    ->where('nomor', trim($meta['nomor']))
+                    ->exists();
+
+                if ($exists) {
+
+                    DB::rollback();
+
+                    return response()->json([
+                        'status'  => false,
+                        'message' =>
+                        '❌ Data sudah ada (Tanggal: ' .
+                        $meta['tanggal'] .
+                        ' / No: ' .
+                        $meta['nomor'] .
+                        ')',
+                    ], 422);
+                }
+
+                // =========================
+                // 🔥 INSERT PENGAJUAN
                 // =========================
                 $pengajuan = Pengajuan::create([
                     'type_pengajuan' => $type,
@@ -118,73 +177,148 @@ class PengajuanController extends Controller
                 ]);
 
                 // =========================
-                // META
+                // 🔥 INSERT META
                 // =========================
                 PengajuanMeta::create([
                     'pengajuan_id'    => $pengajuan->id,
                     'tanggal'         => $tanggal,
-                    'nomor'           => $meta['nomor'],
+                    'nomor'           => trim($meta['nomor']),
                     'type_pembayaran' => $meta['type_pembayaran'] ?? null,
                     'total_transfer'  => $meta['transfer'] ?? 0,
                     'grand_total'     => $meta['grand_total'] ?? 0,
                 ]);
 
                 // =========================
-                // DETAIL
+                // 🔥 DETAIL
                 // =========================
                 $insertDetails = [];
 
                 foreach ($details as $d) {
 
+                    // skip kosong
                     if (empty($d['no'])) {
                         continue;
                     }
 
+                    // =========================
+                    // 🔥 FORMAT DATE DETAIL
+                    // =========================
+                    $detailDate = null;
+
+                    if (! empty($d['date'])) {
+
+                        try {
+
+                            $detailDate =
+                            \Carbon\Carbon::createFromFormat(
+                                'd/m/Y',
+                                trim($d['date'])
+                            )->format('Y-m-d');
+
+                        } catch (\Exception $e) {
+
+                            Log::warning([
+                                'detail_date_error' => $d['date'],
+                            ]);
+                        }
+                    }
+
                     $insertDetails[] = [
+
                         'pengajuan_id' => $pengajuan->id,
-                        'no'           => $d['no'],
-                        'date'         => isset($d['date'])
-                            ? \Carbon\Carbon::createFromFormat('d/m/Y', $d['date'])->format('Y-m-d')
-                            : null,
-                        'no_po'        => $d['no_po'],
-                        'no_inv'       => $d['no_inv'],
-                        'type_biaya'   => $d['type_biaya'],
-                        'nama_barang'  => $d['nama_barang'],
-                        'qty'          => $d['qty'],
-                        'harga_satuan' => $d['harga_satuan'],
-                        'total_harga'  => $d['total_harga'],
+
+                        'no'           => $d['no'] ?? null,
+
+                        'date'         => $detailDate,
+
+                        'no_po'        => $d['no_po'] ?? '',
+
+                        'no_inv'       => $d['no_inv'] ?? '',
+
+                        'type_biaya'   => $d['type_biaya'] ?? '',
+
+                        'nama_barang'  => $d['nama_barang'] ?? '',
+
+                        'qty'          => $d['qty'] ?? 0,
+
+                        'harga_satuan' => str_replace('.', '', $d['harga_satuan'] ?? 0),
+
+                        'total_harga'  => str_replace('.', '', $d['total_harga'] ?? 0),
+
                         'created_at'   => now(),
+
                         'updated_at'   => now(),
                     ];
                 }
 
+                // =========================
+                // 🔥 INSERT DETAIL
+                // =========================
                 if (! empty($insertDetails)) {
+
                     PengajuanDetail::insert($insertDetails);
                 }
 
                 // =========================
-                // APPROVAL STEP
+                // 🔥 APPROVAL STEP
                 // =========================
                 $steps = [
-                    ['name' => 'Made By', 'user' => auth()->user()->name ?? 'System'],
-                    ['name' => 'Checked By', 'user' => 'YANTI SUSANTI'],
-                    ['name' => 'Knowing By', 'user' => 'Eka Wahyuning Lestari'],
-                    ['name' => 'Knowing By', 'user' => 'Stanley'],
-                    ['name' => 'Approve By', 'user' => 'HBJ TANS'],
-                    ['name' => 'RECORD & CASHIED By', 'user' => 'Ainunnisyah Uwiyah'],
+
+                    [
+                        'name' => 'Made By',
+                        'user' => auth()->user()->name ?? 'System',
+                    ],
+
+                    [
+                        'name' => 'Checked By',
+                        'user' => 'YANTI SUSANTI',
+                    ],
+
+                    [
+                        'name' => 'Knowing By',
+                        'user' => 'Eka Wahyuning Lestari',
+                    ],
+
+                    [
+                        'name' => 'Knowing By',
+                        'user' => 'Stanley',
+                    ],
+
+                    [
+                        'name' => 'Approve By',
+                        'user' => 'HBJ TANS',
+                    ],
+
+                    [
+                        'name' => 'RECORD & CASHIED By',
+                        'user' => 'Ainunnisyah Uwiyah',
+                    ],
                 ];
 
                 $insertSteps = [];
 
                 foreach ($steps as $i => $s) {
+
                     $insertSteps[] = [
+
                         'pengajuan_id' => $pengajuan->id,
+
                         'step_order'   => $i + 1,
+
                         'step_name'    => $s['name'],
+
                         'user_name'    => $s['user'],
-                        'status'       => $i === 0 ? 'approved' : 'pending',
-                        'approved_at'  => $i === 0 ? now() : null,
+
+                        'status'       => $i === 0
+                            ? 'approved'
+                            : 'pending',
+
+                        'approved_at'  => $i === 0
+                            ? now()
+                            : null,
+
                         'created_at'   => now(),
+
                         'updated_at'   => now(),
                     ];
                 }
@@ -199,12 +333,28 @@ class PengajuanController extends Controller
                 ]);
             }
 
+            DB::rollback();
+
+            return response()->json([
+                'status'  => false,
+                'message' => '❌ Type pengajuan tidak dikenali',
+            ], 422);
+
         } catch (\Exception $e) {
 
             DB::rollback();
 
-            return redirect('/pengajuan')
-                ->with('error', $e->getMessage());
+            Log::error([
+                'message' => $e->getMessage(),
+                'line'    => $e->getLine(),
+                'file'    => $e->getFile(),
+            ]);
+
+            return response()->json([
+                'status'  => false,
+                'message' => $e->getMessage(),
+                'line'    => $e->getLine(),
+            ], 500);
         }
     }
     public function storeAllDivisi(Request $request)
@@ -293,6 +443,7 @@ class PengajuanController extends Controller
     }
     public function list(Request $request)
     {
+        // dd($request->all());
         $user     = auth()->user();
         $karyawan = Karyawan::find($user->karyawan_id);
 
@@ -719,24 +870,24 @@ class PengajuanController extends Controller
             'data'            => $data,
         ]);
     }
-       public function exportExcel($id)
+    public function exportExcel($id)
     {
         $pengajuan = Pengajuan::with(['details', 'user'])->findOrFail($id);
 
         // 🔥 TEMPLATE PATH
         $templatePath = base_path('public/templates/finance_template.xlsx');
 
-        if (!file_exists($templatePath)) {
+        if (! file_exists($templatePath)) {
             abort(404, 'Template tidak ditemukan: ' . $templatePath);
         }
 
         $spreadsheet = IOFactory::load($templatePath);
-        $sheet = $spreadsheet->getActiveSheet();
+        $sheet       = $spreadsheet->getActiveSheet();
 
         // =========================
         // 🔥 INSERT ROW (BIAR LAYOUT TETAP)
         // =========================
-        $startRow = 11;
+        $startRow    = 11;
         $detailCount = count($pengajuan->details);
 
         if ($detailCount > 1) {
@@ -838,7 +989,7 @@ class PengajuanController extends Controller
     {
         $path = public_path('assets/' . $filename);
 
-        if (!file_exists($path)) {
+        if (! file_exists($path)) {
             \Log::error('TTD tidak ditemukan: ' . $path);
             return;
         }
@@ -854,7 +1005,8 @@ class PengajuanController extends Controller
         $drawing->setWorksheet($sheet);
     }
 
-    public function destroy($id) {
+    public function destroy($id)
+    {
         DB::beginTransaction();
 
         try {

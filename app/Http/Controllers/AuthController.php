@@ -29,26 +29,37 @@ class AuthController extends Controller
 
     // Proses login
     public function loginWeb(Request $request)
-    {
-        // Validasi input
-        $credentials = $request->validate([
-            'email'    => ['required', 'email'],
-            'password' => ['required'],
+{
+    // Validasi input
+    $credentials = $request->validate([
+        'email'    => ['required', 'email'],
+        'password' => ['required'],
+    ]);
+
+    // simpan halaman sebelumnya
+    if ($request->has('redirect')) {
+
+        session([
+            'url.intended' => $request->redirect
         ]);
 
-        // Coba login
-        if (Auth::attempt($credentials, $request->filled('remember'))) {
-            $request->session()->regenerate();
-
-            return view('pages.dashboard.dashboard');
-
-        }
-
-        // Jika gagal
-        return back()->withErrors([
-            'email' => 'Email atau password salah.',
-        ])->onlyInput('email');
     }
+
+    // login
+    if (Auth::attempt($credentials, $request->filled('remember'))) {
+
+        $request->session()->regenerate();
+
+        // balik ke halaman sebelumnya
+        return redirect()->intended('/');
+
+    }
+
+    // gagal
+    return back()->withErrors([
+        'email' => 'Email atau password salah.',
+    ])->onlyInput('email');
+}
 
     // Logout
     public function logoutWeb(Request $request)

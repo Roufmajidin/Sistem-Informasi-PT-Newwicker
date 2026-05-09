@@ -378,12 +378,12 @@
                             if (key === 'act') {
 
                                 let rawCode =
-                                    detail.article_code ||
+                                    // detail.article_code ||
                                     detail.article_nr_ ||
                                     detail.nw_code ||
                                     '';
 
-                                let articleCode = encodeURIComponent(detail.nw_code);
+                                let articleCode = encodeURIComponent(rawCode);
 
                                 row.append(`
         <td class="${cls}">

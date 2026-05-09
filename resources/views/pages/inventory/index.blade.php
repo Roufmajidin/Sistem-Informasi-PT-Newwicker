@@ -1,335 +1,516 @@
 @extends('master.master')
+
 @section('title', "Inventory Assets")
+
 @section('content')
+
+@php
+    $isAdminInventory = auth()->check() && auth()->id() == 144;
+@endphp
+
 <div class="padding">
+
     <div class="box">
+
         <div class="p-a white lt box-shadow">
+
             <div class="row">
+
                 <div class="col-sm-6">
-                    <!-- <h6 class="mb-0 _300">List Inventory</h6> -->
-                    <smal class="text-muted">List Inventory</small>
-                        <br>
-                        <small class="text-danger">Double &lt;klik>, untuk mengupdate data.</small>
-                <div class="mb-2">
-                    <button class="btn btn-sm btn-primary" id="btnTambahRow">+ Tambah Data</button>
-                </div>
-                </div>
 
+                    <smal class="text-muted">
+                        List Inventory
+                    </small>
 
-                <div class="col-sm-6 text-sm-right">
-                    <div class="m-y-sm">
+                    <br>
 
-                        <!-- Form Import Excel -->
-                        <form id="importForm" enctype="multipart/form-data" onsubmit="return false;">
-                            @csrf_token
-                            <label for="fileUpload" class="btn btn-xs white">Bulk Data</label>
-                            <input type="file" id="fileUpload" name="file" style="display: none;">
-                        </form>
+                    <small class="text-danger">
+                        Double klik untuk melihat detail.
+                    </small>
 
-                        <span class="">Short:</span>
-                        <div class="btn-group dropdown">
-                            <button class="btn white btn-sm">Filter</button>
-                            <button class="btn white btn-sm dropdown-toggle" data-toggle="dropdown"></button>
-                            <div class="dropdown-menu dropdown-menu-scale pull-right">
-                                <a class="dropdown-item" href="#">Bulanan</a>
-                                <a class="dropdown-item" href="#">Mingguan</a>
-                                <a class="dropdown-item" href="#">Borongan</a>
-                                <div class="dropdown-divider"></div>
-                            </div>
-                        </div>
+                    @if($isAdminInventory)
+
+                    <div class="mb-2 mt-2">
+
+                        <button class="btn btn-sm btn-primary"
+                            id="btnTambahRow">
+
+                            + Tambah Data
+
+                        </button>
+
                     </div>
+
+                    @endif
+
                 </div>
+
             </div>
+
         </div>
 
-        <!-- Tabel invent -->
+        <!-- TABLE -->
         <div class="col-12">
+
             <div class="table-wrapper">
-                <table class="table table-bordered" id="inventoryTable">
+
+                <table class="table table-bordered"
+                    id="inventoryTable">
+
                     <thead style="color:white">
-                        <tr class="sticky-header" style="font-size: 12px;">
-                            <th>No.</th>
-                            <th class="sticky">Merk</th>
+
+                        <tr class="sticky-header"
+                            style="font-size:12px;">
+
+                            <th>No</th>
+                            <th>Merk</th>
                             <th>Jenis</th>
-                            <th>decription</th>
+                            <th>Description</th>
                             <th>Pemegang</th>
                             <th>Keterangan</th>
-                            <th>catatan</th>
-                            <th>foto</th>
-                            <th>updated_at</th>
+                            <th>Catatan</th>
+                            <th>Foto</th>
 
                         </tr>
-                    </thead>
-               <tbody>
-    @php $no = 1; @endphp
-    @forelse ($data as $i)
-        <tr style="font-size: 13px;">
-            <td>{{ $no++ }}</td>
-            <td class="sticky">
-                <a href="#" class="editable-merk"
-                   data-name="merk" data-pk="{{ $i->id }}"
-                   data-type="text" data-url="/inventory-inline-update"
-                   data-title="Enter merk">
-                    {{ $i->merk }}
-                </a>
-            </td>
-            <td>
-                <a href="#" class="editable-jenis"
-                   data-name="jenis" data-pk="{{ $i->id }}"
-                   data-type="text" data-url="/inventory-inline-update"
-                   data-title="Enter jenis">
-                    {{ $i->jenis }}
-                </a>
-            </td>
-            <td>
-                <a href="#" class="editable-deskripsi"
-                   data-name="deskripsi" data-pk="{{ $i->id }}"
-                   data-type="text" data-url="/inventory-inline-update"
-                   data-title="Enter deskripsi">
-                    {{ $i->deskripsi }}
-                </a>
-            </td>
-            <td>
-                <a href="#" class="editable-nama"
-                   data-name="karyawan" data-pk="{{ $i->id }}"
-                   data-type="text" data-url="/inventory-inline-update"
-                   data-title="Enter karyawan">
-                    {{ $i->karyawan->nama_lengkap ?? '-' }}
-                </a>
-            </td>
-            <td>
-                <a href="#" class="editable-keterangan"
-                   data-name="keterangan" data-pk="{{ $i->id }}"
-                   data-type="text" data-url="/inventory-inline-update"
-                   data-title="Enter keterangan">
-                    {{ $i->keterangan }}
-                </a>
-            </td>
-            <td>
-                <a href="#" class="editable-catatan"
-                   data-name="catatan" data-pk="{{ $i->id }}"
-                   data-type="text" data-url="/inventory-inline-update"
-                   data-title="Enter catatan">
-                    {{ $i->catatan }}
-                </a>
-            </td>
-            <td>
-                <a href="#"
-                   class="upload-foto"
-                   data-id="{{ $i->id }}">
-                    @if ($i->foto)
-                        <img src="{{ asset('foto_inventory/' . $i->foto) }}" width="60">
-                    @else
-                        <span>Pilih Gambar</span>
-                    @endif
-                </a>
 
-                <input type="file"
-                       accept="image/*"
-                       class="input-foto d-none"
-                       id="foto-input-{{ $i->id }}"
-                       data-id="{{ $i->id }}">
-            </td>
-        </tr>
-    @empty
-        <tr>
-            <td colspan="8" class="text-center">Tidak ada data</td>
-        </tr>
-    @endforelse
-</tbody>
+                    </thead>
+
+                    <tbody>
+
+                        @php $no = 1; @endphp
+
+                        @forelse($data as $i)
+
+                        <tr class="inventory-row"
+                            data-url="{{ route('inventory.detail', $i->id) }}"
+                            style="font-size:13px; cursor:pointer;">
+
+                            <td>
+                                {{ $no++ }}
+                            </td>
+
+                            <!-- MERK -->
+                            <td>
+
+                                @if($isAdminInventory)
+
+                                <a href="#"
+                                   class="editable-merk"
+                                   data-name="merk"
+                                   data-pk="{{ $i->id }}"
+                                   data-type="text"
+                                   data-url="/inventory-inline-update">
+
+                                    {{ $i->merk }}
+
+                                </a>
+
+                                @else
+
+                                <span>
+                                    {{ $i->merk }}
+                                </span>
+
+                                @endif
+
+                            </td>
+
+                            <!-- JENIS -->
+                            <td>
+
+                                @if($isAdminInventory)
+
+                                <a href="#"
+                                   class="editable-jenis"
+                                   data-name="jenis"
+                                   data-pk="{{ $i->id }}"
+                                   data-type="text"
+                                   data-url="/inventory-inline-update">
+
+                                    {{ $i->jenis }}
+
+                                </a>
+
+                                @else
+
+                                <span>
+                                    {{ $i->jenis }}
+                                </span>
+
+                                @endif
+
+                            </td>
+
+                            <!-- DESKRIPSI -->
+                            <td>
+
+                                @if($isAdminInventory)
+
+                                <a href="#"
+                                   class="editable-deskripsi"
+                                   data-name="deskripsi"
+                                   data-pk="{{ $i->id }}"
+                                   data-type="text"
+                                   data-url="/inventory-inline-update">
+
+                                    {{ $i->deskripsi }}
+
+                                </a>
+
+                                @else
+
+                                <span>
+                                    {{ $i->deskripsi }}
+                                </span>
+
+                                @endif
+
+                            </td>
+
+                            <!-- PEMEGANG -->
+                            <td>
+
+                                @if($isAdminInventory)
+
+                                <a href="#"
+                                   class="editable-karyawan"
+                                   data-name="karyawan"
+                                   data-pk="{{ $i->id }}"
+                                   data-type="text"
+                                   data-url="/inventory-inline-update">
+
+                                    {{ $i->karyawan->nama_lengkap ?? '-' }}
+
+                                </a>
+
+                                @else
+
+                                <span>
+                                    {{ $i->karyawan->nama_lengkap ?? '-' }}
+                                </span>
+
+                                @endif
+
+                            </td>
+
+                            <!-- KETERANGAN -->
+                            <td>
+
+                                @if($isAdminInventory)
+
+                                <a href="#"
+                                   class="editable-keterangan"
+                                   data-name="keterangan"
+                                   data-pk="{{ $i->id }}"
+                                   data-type="text"
+                                   data-url="/inventory-inline-update">
+
+                                    {{ $i->keterangan }}
+
+                                </a>
+
+                                @else
+
+                                <span>
+                                    {{ $i->keterangan }}
+                                </span>
+
+                                @endif
+
+                            </td>
+
+                            <!-- CATATAN -->
+                            <td>
+
+                                @if($isAdminInventory)
+
+                                <a href="#"
+                                   class="editable-catatan"
+                                   data-name="catatan"
+                                   data-pk="{{ $i->id }}"
+                                   data-type="text"
+                                   data-url="/inventory-inline-update">
+
+                                    {{ $i->catatan }}
+
+                                </a>
+
+                                @else
+
+                                <span>
+                                    {{ $i->catatan }}
+                                </span>
+
+                                @endif
+
+                            </td>
+
+                            <!-- FOTO -->
+                            <td>
+
+                                @if($isAdminInventory)
+
+                                <a href="#"
+                                   class="upload-foto"
+                                   data-id="{{ $i->id }}">
+
+                                @endif
+
+                                    @if($i->foto)
+
+                                        <img src="{{ asset('foto_inventory/' . $i->foto) }}"
+                                             width="60">
+
+                                    @else
+
+                                        <span>No Image</span>
+
+                                    @endif
+
+                                @if($isAdminInventory)
+
+                                </a>
+
+                                <input type="file"
+                                       accept="image/*"
+                                       class="input-foto d-none"
+                                       id="foto-input-{{ $i->id }}"
+                                       data-id="{{ $i->id }}">
+
+                                @endif
+
+                            </td>
+
+                        </tr>
+
+                        @empty
+
+                        <tr>
+
+                            <td colspan="8"
+                                class="text-center">
+
+                                Tidak ada data
+
+                            </td>
+
+                        </tr>
+
+                        @endforelse
+
+                    </tbody>
 
                 </table>
-            </div>
-        </div>
-    </div>
-    <!-- Modal hasil import -->
-    <div class="modal fade" id="importResultModal" tabindex="-1" role="dialog">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Hasil Import</h5>
-                    <button type="button" class="close" data-dismiss="modal">
-                        <span>&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body" id="resultTableBody">
 
-                </div>
-                <div class="text-right mb-2 mr-2">
-                    <button class="btn btn-sm btn-success" id="btnBulkSave">Simpan Data Baru</button>
-                </div>
             </div>
+
         </div>
+
     </div>
+
 </div>
 
-<!-- ================= JS ================ -->
+<!-- JS -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/x-editable/1.5.1/bootstrap4-editable/js/bootstrap-editable.min.js"></script>
 
 <script>
-    $.ajaxSetup({
-        headers: {
-            "X-CSRF-TOKEN": $('meta[name="csrf-token"]').attr("content"),
-        },
-    });
 
-    $(document).ready(function() {
-        // ========== Tambah Row Baru ==========
-        $("#btnTambahRow").on("click", function() {
-            if ($("#rowInput").length > 0) return; // Cegah row ganda
+$.ajaxSetup({
 
-            let newRow = `
-                <tr id="rowInput">
-                    <td>New</td>
-                    <td><input type="text" class="form-control form-control-sm" name="merk"></td>
-                    <td><input type="text" class="form-control form-control-sm" name="jenis"></td>
-                    <td><input type="text" class="form-control form-control-sm" name="deskripsi"></td>
-                    <td>
-                        <input type="text" class="form-control form-control-sm karyawan-input" name="karyawan_text" placeholder="Cari nama...">
-                        <input type="hidden" name="karyawan_id" class="karyawan-id">
-                    </td>
-                    <td><input type="text" class="form-control form-control-sm" name="keterangan"></td>
-                    <td><input type="text" class="form-control form-control-sm" name="catatan"></td>
-                    <td><input type="file" class="form-control-file form-control-sm" name="foto"></td>
-                    <td>
-                        <button class="btn btn-success btn-sm" id="btnSaveRow">Simpan</button>
-                        <button class="btn btn-danger btn-sm" id="btnCancelRow">Batal</button>
-                    </td>
-                </tr>
-            `;
-            $("#inventoryTable tbody").prepend(newRow);
-        });
+    headers: {
+        "X-CSRF-TOKEN":
+        $('meta[name="csrf-token"]').attr("content"),
+    },
 
-        // ========== Batal Tambah ==========
-        $(document).on("click", "#btnCancelRow", function() {
-            $("#rowInput").remove();
-        });
+});
 
-        // ========== Simpan Row ==========
-        $(document).on("click", "#btnSaveRow", function() {
-            let formData = new FormData();
-            $("#rowInput")
-                .find("input")
-                .each(function() {
-                    let name = $(this).attr("name");
-                    if ($(this).attr("type") === "file") {
-                        if (this.files[0]) formData.append(name, this.files[0]);
-                    } else {
-                        formData.append(name, $(this).val());
-                    }
-                });
+@if($isAdminInventory)
 
-            $.ajax({
-                url: "/inventory",
-                method: "POST",
-                data: formData,
-                processData: false,
-                contentType: false,
-                success: function(res) {
-                    if (res.success) {
-                        location.reload();
-                    }
-                },
-                error: function(xhr) {
-                    alert("Gagal simpan: " + xhr.responseText);
-                },
-            });
-        });
+// ========================
+// TAMBAH ROW
+// ========================
+$("#btnTambahRow").on("click", function(){
 
-        // ========== Upload Foto ==========
-        $(document).on("click", ".upload-foto", function(e) {
-            console.log("f")
-            e.preventDefault();
-            let id = $(this).data("id");
-            $("#foto-input-" + id).trigger("click");
-        });
+    if($("#rowInput").length > 0) return;
 
-        // ketika pilih file → preview langsung
-        $(document).on("change", ".input-foto", function() {
-            let id = $(this).data("id");
-            let file = this.files[0];
+    let newRow = `
 
-            if (file) {
-                let reader = new FileReader();
-                reader.onload = function(e) {
-                    $(`a.upload-foto[data-id="${id}"]`).html(
-                        `<img src="${e.target.result}" height="30">`
-                    );
-                };
-                reader.readAsDataURL(file);
+        <tr id="rowInput">
 
-                // kalau mau langsung upload ke server via ajax
-                let formData = new FormData();
-                formData.append("foto", file);
-                formData.append("id", id);
+            <td>New</td>
 
-                $.ajax({
-                    url: `/inventory/${id}/upload-foto`,
-                    type: "POST",
-                    data: formData,
-                    contentType: false,
-                    processData: false,
-                    success: function(res) {
-                        console.log("Upload berhasil", res);
-                    },
-                    error: function(err) {
-                        console.error("Upload gagal", err);
-                    },
-                });
+            <td>
+                <input type="text"
+                    class="form-control form-control-sm"
+                    name="merk">
+            </td>
+
+            <td>
+                <input type="text"
+                    class="form-control form-control-sm"
+                    name="jenis">
+            </td>
+
+            <td>
+                <input type="text"
+                    class="form-control form-control-sm"
+                    name="deskripsi">
+            </td>
+
+            <td>
+                <input type="text"
+                    class="form-control form-control-sm"
+                    name="keterangan">
+            </td>
+
+            <td>
+                <input type="text"
+                    class="form-control form-control-sm"
+                    name="catatan">
+            </td>
+
+            <td>
+                <input type="file"
+                    class="form-control-file"
+                    name="foto">
+            </td>
+
+            <td>
+
+                <button class="btn btn-success btn-sm"
+                    id="btnSaveRow">
+
+                    Simpan
+
+                </button>
+
+            </td>
+
+        </tr>
+
+    `;
+
+    $("#inventoryTable tbody").prepend(newRow);
+
+});
+
+// ========================
+// SAVE
+// ========================
+$(document).on("click", "#btnSaveRow", function(){
+
+    let formData = new FormData();
+
+    $("#rowInput").find("input").each(function(){
+
+        let name = $(this).attr("name");
+
+        if($(this).attr("type") == "file"){
+
+            if(this.files[0]){
+
+                formData.append(name, this.files[0]);
+
             }
-        });
 
-        // ========== Autocomplete Karyawan ==========
-        $(document).on("focus", ".karyawan-input", function() {
-            if (!$(this).data("ui-autocomplete")) {
-                $(this).autocomplete({
-                    source: function(request, response) {
-                        $.ajax({
-                            url: "{{ route('karyawan.search') }}",
-                            data: {
-                                term: request.term
-                            },
-                            success: function(data) {
-                                response(
-                                    $.map(data, function(item) {
-                                        return {
-                                            label: item.value,
-                                            value: item.value,
-                                            id: item.id,
-                                        };
-                                    })
-                                );
-                            },
-                        });
-                    },
-                    minLength: 2,
-                    select: function(event, ui) {
-                        $(this).val(ui.item.value);
-                        $(this).closest("td")
-                            .find(".karyawan-id")
-                            .val(ui.item.id);
-                        return false;
-                    },
-                });
-            }
-        });
+        }else{
 
-        // ========== Efek Scroll Header Tabel ==========
-        const tableWrapper = document.querySelector(".table-wrapper");
-        if (tableWrapper) {
-            const headerCells = document.querySelectorAll("thead th");
-            tableWrapper.addEventListener("scroll", function() {
-                if (tableWrapper.scrollTop > 0) {
-                    headerCells.forEach((th) => th.classList.add("scrolled"));
-                } else {
-                    headerCells.forEach((th) =>
-                        th.classList.remove("scrolled")
-                    );
-                }
-            });
+            formData.append(name, $(this).val());
+
         }
+
     });
+
+    $.ajax({
+
+        url:"/inventory",
+
+        method:"POST",
+
+        data:formData,
+
+        processData:false,
+
+        contentType:false,
+
+        success:function(){
+
+            location.reload();
+
+        }
+
+    });
+
+});
+
+// ========================
+// UPLOAD FOTO
+// ========================
+$(document).on("click", ".upload-foto", function(e){
+
+    e.preventDefault();
+
+    let id = $(this).data("id");
+
+    $("#foto-input-" + id).trigger("click");
+
+});
+
+$(document).on("change", ".input-foto", function(){
+
+    let id = $(this).data("id");
+
+    let file = this.files[0];
+
+    let formData = new FormData();
+
+    formData.append("foto", file);
+
+    $.ajax({
+
+        url:`/inventory/${id}/upload-foto`,
+
+        type:"POST",
+
+        data:formData,
+
+        processData:false,
+
+        contentType:false,
+
+        success:function(){
+
+            location.reload();
+
+        }
+
+    });
+
+});
+
+@endif
+
+// ========================
+// DETAIL PAGE
+// ========================
+$(document).on("dblclick", ".inventory-row td", function(){
+
+    if($(this).find("input").length > 0){
+
+        return;
+
+    }
+
+    let url = $(this).closest("tr").data("url");
+
+    if(url){
+
+        window.location.href = url;
+
+    }
+
+});
+
 </script>
 
 @endsection
