@@ -1,13 +1,15 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Models\CheckPoint;
 use App\Models\DetailPo;
+use App\Models\JenisSupplier;
 use App\Models\Po;
 use App\Models\ProductionTimeline;
 use App\Models\Spk;
 use App\Models\SpkTimeline;
-use App\Models\CheckPoint;
 use App\Models\Supplier;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Google\Client;
 use Google\Service\Calendar;
@@ -19,8 +21,7 @@ use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
-use ZipArchive;
-use Barryvdh\DomPDF\Facade\Pdf;
+
 class SpkController extends Controller
 {
     //
@@ -74,8 +75,8 @@ class SpkController extends Controller
         // =========================
         // MODE DETECTION
         // =========================
-        $mode = request()->routeIs('spk.edit') ? 'edit' : 'create';
-
+        $mode           = request()->routeIs('spk.edit') ? 'edit' : 'create';
+        $jenisSuppliers = JenisSupplier::orderBy('name')->get();
         if ($mode === 'edit') {
 
             $spkModel = Spk::findOrFail($id);
@@ -112,6 +113,7 @@ class SpkController extends Controller
                 'type'        => $data['kategori'] ?? '-',
                 'items'       => $items,
                 'mode'        => 'edit',
+                'payments'    => $data['payments'] ?? [],
             ];
         } else {
 
@@ -162,11 +164,12 @@ class SpkController extends Controller
                 'tgl_selesai' => $request->tgl_selesai,
                 'type'        => 'rangka',
                 'items'       => $items,
+                'payments'    => $data['payments'] ?? [],
                 'mode'        => 'create',
             ];
         }
         // dd($spk);
-        return view('pages.spk.index', compact('spk'));
+        return view('pages.spk.index', compact('spk','jenisSuppliers'));
     }
 // helper
     private function generateNoSpk($noPo)
@@ -326,6 +329,7 @@ class SpkController extends Controller
             'tgl_terima'  => $request->tgl_terima,
             'tgl_selesai' => $request->tgl_selesai,
             'items'       => $finalItems,
+            'payments'    => $request->payments ?? [],
         ];
 
         // =========================
@@ -1282,7 +1286,7 @@ class SpkController extends Controller
 
         return 'Calendar berhasil ditambahkan';
     }
-   public function exportPdf($kategori, $po_id)
+    public function exportPdf($kategori, $po_id)
     {
         $po = DB::table('po')->where('id', $po_id)->first();
 
@@ -1291,7 +1295,7 @@ class SpkController extends Controller
         $pdf = Pdf::loadView('pages.qc.pdf', [
             'items'    => $items,
             'kategori' => $kategori,
-            'po'       => $po
+            'po'       => $po,
         ])->setPaper('a4');
 
         return $pdf->stream("QC-{$kategori}.pdf");
@@ -1321,38 +1325,31 @@ class SpkController extends Controller
             $batch  = $r->batch;
 
             // 🔥 ambil detail item (JSON)
-            if (!isset($items[$itemId])) {
+            if (! isset($items[$itemId])) {
 
                 $detail = DB::table('detail_po')->where('id', $itemId)->first();
                 $json   = json_decode($detail->detail ?? '{}', true);
-        // dd($detail);
+                // dd($detail);
 
                 $items[$itemId] = [
-                    'article' => $json['article_nr']
-                        ?? $json['article_code']
-                        ?? $json['nw_code']
-                         ?? $json['article_nr_nw']
-                        ?? $json['no']
-                        ?? '-',
+                    'article' => $json['article_nr'] ?? $json['article_code'] ?? $json['nw_code'] ?? $json['article_nr_nw'] ?? $json['no'] ?? '-',
 
-                    'name' => $json['description']
-                        ?? $json['nama']
-                        ?? '-',
+                    'name'    => $json['description'] ?? $json['nama'] ?? '-',
 
-                    'qty' => (int) ($json['qty'] ?? 0),
+                    'qty'     => (int) ($json['qty'] ?? 0),
 
-                    'batches' => []
+                    'batches' => [],
                 ];
             }
 
             // 🔥 batch init
-            if (!isset($items[$itemId]['batches'][$batch])) {
+            if (! isset($items[$itemId]['batches'][$batch])) {
                 $items[$itemId]['batches'][$batch] = [
                     'tanggal'     => $r->tanggal_inspect,
                     'inspect'     => 0,
                     'passed'      => 0,
                     'rejected'    => 0,
-                    'checkpoints' => []
+                    'checkpoints' => [],
                 ];
             }
 
@@ -1366,17 +1363,17 @@ class SpkController extends Controller
 
             foreach ($qcRows as $qc) {
 
-             $cpId = $qc->check_point_id;
-             $a = Checkpoint::find($cpId);
-$cpName = $a->name;
-$items[$itemId]['batches'][$batch]['checkpoints'][$cpName] = [
-    'name'   => $cpName,
-    'size'   => $qc->size,
-    'remark' => $qc->remark,
-    'photos' => $photos[$qc->id] ?? []
-];
+                $cpId                                                      = $qc->check_point_id;
+                $a                                                         = Checkpoint::find($cpId);
+                $cpName                                                    = $a->name;
+                $items[$itemId]['batches'][$batch]['checkpoints'][$cpName] = [
+                    'name'   => $cpName,
+                    'size'   => $qc->size,
+                    'remark' => $qc->remark,
+                    'photos' => $photos[$qc->id] ?? [],
+                ];
             }
-        // dd($items);
+            // dd($items);
 
         }
 

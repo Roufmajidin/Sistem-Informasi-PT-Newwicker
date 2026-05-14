@@ -8,29 +8,34 @@
     <div class="box-header d-flex justify-content-between align-items-center">
         <h3>SPK PRODUKSI</h3>
 
-@if($spk['mode'] === 'edit')
-    <span class="warning">EDIT MODE</span>
-@else
-    <span class="success">CREATE MODE</span>
-@endif
+        @if($spk['mode'] === 'edit')
+        <span class="warning">EDIT MODE</span>
+        @else
+        <span class="success">CREATE MODE</span>
+        @endif
         <div style="min-width:180px">
             <label style="font-size:12px; margin-bottom:2px;"><b>Jenis SPK</b></label>
-           <select name="spk_type" id="spk_type" class="form-control form-control-sm">
-                <option value="">-- Pilih --</option>
-                <option value="rangka" {{ ($spk['type'] ?? '')=='rangka' ? 'selected' : '' }}>Rangka</option>
-                <option value="anyam" {{ ($spk['type'] ?? '')=='anyam' ? 'selected' : '' }}>Anyam</option>
-                <option value="decor" {{ ($spk['type'] ?? '')=='decor' ? 'selected' : '' }}>Decor</option>
-                <option value="cushion" {{ ($spk['type'] ?? '')=='cushion' ? 'selected' : '' }}>cushion</option>
-                <option value="Box" {{ ($spk['type'] ?? '')=='Box' ? 'selected' : '' }}>Box</option>
-                <option value="unfinish" {{ ($spk['type'] ?? '')=='unfinish' ? 'selected' : '' }}>Unfinish</option>
-                <option value="ikat" {{ ($spk['type'] ?? '')=='ikat' ? 'selected' : '' }}>Ikat</option>
-                <option value="final" {{ ($spk['type'] ?? '')=='final' ? 'selected' : '' }}>Final</option>
-            </select>
+            <select name="spk_type" id="spk_type" class="form-control form-control-sm">
+
+    <option value="">-- Pilih --</option>
+
+    @foreach($jenisSuppliers as $jenis)
+
+        <option value="{{ strtolower($jenis->name) }}"
+            {{ strtolower($spk['type'] ?? '') == strtolower($jenis->name) ? 'selected' : '' }}>
+
+            {{ $jenis->name }}
+
+        </option>
+
+    @endforeach
+
+</select>
         </div>
     </div>
-<input type="hidden" id="spk_mode" value="{{ $spk['mode'] }}">
+    <input type="hidden" id="spk_mode" value="{{ $spk['mode'] }}">
 
-<input type="hidden" id="spk_id" value="{{ $spk['id'] }}">
+    <input type="hidden" id="spk_id" value="{{ $spk['id'] }}">
 
     <div class="box-body spk-wrapper">
         <table class="table table-bordered spk-table">
@@ -61,9 +66,9 @@
                 <td colspan="3"></td>
                 <td><b>NO PO</b></td>
                 <td colspan="3" class="editable no-po" contenteditable>{{ $spk['no_po'] }}</td>
-                <td>  <button id="btnSaveSpk" class="btn btn-success btn-sm">
-            💾 Save SPK
-        </button></td>
+                <td> <button id="btnSaveSpk" class="btn btn-success btn-sm">
+                        💾 Save SPK
+                    </button></td>
             </tr>
 
             <tr>
@@ -132,19 +137,19 @@
                 <td class="text-right total">0</td>
 
                 {{-- CATATAN --}}
-               {{-- CATATAN --}}
-<td>
-    <div class="editable note-box"
-        contenteditable
-        onpaste="handlePaste(event, this)">
+                {{-- CATATAN --}}
+                <td>
+                    <div class="editable note-box"
+                        contenteditable
+                        onpaste="handlePaste(event, this)">
 
-        @foreach($item['catatan']['images'] ?? [] as $img)
-            <img src="{{ $img }}" class="preview-img">
-        @endforeach
+                        @foreach($item['catatan']['images'] ?? [] as $img)
+                        <img src="{{ $img }}" class="preview-img">
+                        @endforeach
 
-        {!! $item['catatan']['remark'] ?? '' !!}
-    </div>
-</td>
+                        {!! $item['catatan']['remark'] ?? '' !!}
+                    </div>
+                </td>
 
             </tr>
 
@@ -153,31 +158,149 @@
             <tr id="spkItemAnchor"></tr>
 
             @include('pages.spk.partial1')
-            <td colspan="3" style="vertical-align: top;margin-left:12px">
-                <table class="table table-bordered" style="font-size:12px;">
-                    <tr class="text-center">
-                        <th>Amount</th>
-                        <th>Date</th>
-                        <th>Note</th>
-                    </tr>
+           <td colspan="3" style="vertical-align: top;margin-left:12px">
 
+    <table class="table table-bordered"  style="font-size:12px; width:100%; min-width:520px;">
 
-                    <tr>
-                        <td class="editable total-amount" contenteditable></td>
-                        <td class="editable date-isian" contenteditable></td>
-                        <td class="editable note-akhir" contenteditable></td>
+    <tr class="text-center">
+        <th width="20%">Amount</th>
+        <th width="20%">Date</th>
+        <th width="20%">Note</th>
+        <th width="40%">Keterangan</th>
+    </tr>
 
-                    </tr>
+    <tbody id="paymentBody">
 
-                </table>
+        @php
+            $payments = $spk['payments'] ?? [];
+        @endphp
+
+        @if(count($payments))
+
+            @foreach($payments as $pay)
+
+                <tr class="payment-row">
+
+                    {{-- AMOUNT --}}
+                    <td class="editable total-amount" contenteditable>
+                        {{ $pay['amount'] ?? '' }}
+                    </td>
+
+                    {{-- DATE --}}
+                    <td class="editable date-isian" contenteditable>
+                        {{ $pay['date'] ?? '' }}
+                    </td>
+
+                    {{-- TYPE --}}
+                    <td>
+
+                        <select class="form-control form-control-sm payment-type">
+
+                            <option value="">-- Pilih --</option>
+
+                            <option value="dp"
+                                {{ ($pay['note'] ?? '') == 'dp' ? 'selected' : '' }}>
+                                DP
+                            </option>
+
+                            <option value="pelunasan"
+                                {{ ($pay['note'] ?? '') == 'pelunasan' ? 'selected' : '' }}>
+                                Pelunasan
+                            </option>
+
+                            <option value="bahan"
+                                {{ ($pay['note'] ?? '') == 'bahan' ? 'selected' : '' }}>
+                                Bahan
+                            </option>
+
+                        </select>
+
+                    </td>
+
+                    {{-- KETERANGAN --}}
+                    <td class="editable note-tambahan" contenteditable>
+                        {{ $pay['note_tambahan'] ?? '' }}
+                    </td>
+
+                </tr>
+
+            @endforeach
+
+        @else
+
+            <tr class="payment-row">
+
+                {{-- AMOUNT --}}
+                <td class="editable total-amount" contenteditable></td>
+
+                {{-- DATE --}}
+                <td class="editable date-isian" contenteditable></td>
+
+                {{-- TYPE --}}
+                <td>
+
+                    <select class="form-control form-control-sm payment-type">
+
+                        <option value="">-- Pilih --</option>
+                        <option value="dp">DP</option>
+                        <option value="pelunasan">Pelunasan</option>
+                        <option value="bahan">Bahan</option>
+
+                    </select>
+
+                </td>
+
+                {{-- KETERANGAN --}}
+                <td class="editable note-tambahan" contenteditable></td>
+
+            </tr>
+
+        @endif
+
+    </tbody>
+
+    <tfoot>
+
+        <tr>
+            <td colspan="4" class="text-center">
+
+                <button type="button"
+                    id="btnAddPayment"
+                    class="btn btn-sm btn-primary">
+
+                    + Tambah Baris
+
+                </button>
+
             </td>
+        </tr>
+
+        <tr>
+            <td colspan="4">
+
+                <div id="paymentSummary"
+                    style="
+                        padding:10px;
+                        font-size:13px;
+                        line-height:1.8;
+                    ">
+                </div>
+
+            </td>
+        </tr>
+
+    </tfoot>
+
+</table>
+
+</td>
         </table>
 
     </div>
 </div>
 <!-- search -->
 <!-- heler -->
- <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
     function extractNoteData(noteBox) {
@@ -203,36 +326,36 @@
 
 <!-- delete row -->
 <script>
-   document.addEventListener('click', function (e) {
-    if (e.target.classList.contains('delete-row')) {
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('delete-row')) {
 
-        const row = e.target.closest('tr');
+            const row = e.target.closest('tr');
 
-        Swal.fire({
-            title: 'Yakin?',
-            text: 'Baris ini akan dihapus',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
-            confirmButtonText: 'Ya, hapus',
-            cancelButtonText: 'Batal'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                row.remove();
-                renumberRows();
+            Swal.fire({
+                title: 'Yakin?',
+                text: 'Baris ini akan dihapus',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Ya, hapus',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    row.remove();
+                    renumberRows();
 
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Terhapus',
-                    text: 'Baris berhasil dihapus',
-                    timer: 1200,
-                    showConfirmButton: false
-                });
-            }
-        });
-    }
-});
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Terhapus',
+                        text: 'Baris berhasil dihapus',
+                        timer: 1200,
+                        showConfirmButton: false
+                    });
+                }
+            });
+        }
+    });
 
     function renumberRows() {
         document.querySelectorAll('.spk-row').forEach((row, index) => {
@@ -310,10 +433,11 @@
             grandTotal += getNumber(td);
         });
 
-        const amountCell = document.querySelector('.total-amount');
-        if (amountCell) {
-            amountCell.innerText = format(grandTotal);
-        }
+      const amountCell = document.querySelector('.grand-total-display');
+
+if (amountCell) {
+    amountCell.innerText = format(grandTotal);
+}
     }
 
     /* =====================
@@ -445,86 +569,106 @@
 </script>
 <!-- save data -->
 <script>
-document.getElementById('btnSaveSpk').addEventListener('click', function () {
+    document.getElementById('btnSaveSpk').addEventListener('click', function() {
 
-    let items = [];
+        let items = [];
+        let payments = [];
+        document.querySelectorAll('.payment-row').forEach(row => {
 
-    document.querySelectorAll('.spk-row').forEach(row => {
-        const detailId = row.dataset.detailId;
-        if (!detailId) return;
+          payments.push({
 
-        let images = [];
-        row.querySelectorAll('.image-box img').forEach(img => {
-            images.push(img.src);
+    amount: (
+        row.querySelector('.total-amount')?.innerText || ''
+    ).replace(/\./g, ''),
+
+    date:
+        row.querySelector('.date-isian')?.innerText.trim() || '',
+
+    note:
+        row.querySelector('.payment-type')?.value || '',
+
+    note_tambahan:
+        row.querySelector('.note-tambahan')?.innerText.trim() || '',
+
+});
+        });
+        document.querySelectorAll('.spk-row').forEach(row => {
+            const detailId = row.dataset.detailId;
+            if (!detailId) return;
+
+            let images = [];
+            row.querySelectorAll('.image-box img').forEach(img => {
+                images.push(img.src);
+            });
+
+            const noteBox = row.querySelector('.note-box');
+
+            items.push({
+                detail_id: detailId,
+                kode: row.querySelector('.kode-item')?.innerText.trim() || '',
+                nama: row.querySelector('.nama')?.innerText.trim() || '',
+                p: row.querySelector('.p')?.innerText.trim() || '',
+                l: row.querySelector('.l')?.innerText.trim() || '',
+                t: row.querySelector('.t')?.innerText.trim() || '',
+                material: row.querySelector('.material')?.innerText.trim() || '',
+                pcs: row.querySelector('.pcs')?.innerText.trim() || '',
+                set: row.querySelector('.set')?.innerText.trim() || '',
+                satuan: getSatuan(row),
+                harga: row.querySelector('.harga')?.innerText.trim() || '',
+                total: getNumber(row.querySelector('.total')),
+                images: images,
+                catatan: noteBox ? extractNoteData(noteBox) : {
+                    remark: '',
+                    images: []
+                }
+            });
         });
 
-        const noteBox = row.querySelector('.note-box');
-
-        items.push({
-            detail_id: detailId,
-            kode: row.querySelector('.kode-item')?.innerText.trim() || '',
-            nama: row.querySelector('.nama')?.innerText.trim() || '',
-            p: row.querySelector('.p')?.innerText.trim() || '',
-            l: row.querySelector('.l')?.innerText.trim() || '',
-            t: row.querySelector('.t')?.innerText.trim() || '',
-            material: row.querySelector('.material')?.innerText.trim() || '',
-            pcs: row.querySelector('.pcs')?.innerText.trim() || '',
-            set: row.querySelector('.set')?.innerText.trim() || '',
-            satuan: getSatuan(row),
-            harga: row.querySelector('.harga')?.innerText.trim() || '',
-             total: getNumber(row.querySelector('.total')),
-            images: images,
-            catatan: noteBox ? extractNoteData(noteBox) : {
-                remark: '',
-                images: []
-            }
-        });
-    });
-
-    const mode  = document.getElementById('spk_mode')?.value;
-    const spkId = document.getElementById('spk_id')?.value;
-const noSpkEl = document.querySelector('.no-spk');
-const noPoEl  = document.querySelector('.no-po');
+        const mode = document.getElementById('spk_mode')?.value;
+        const spkId = document.getElementById('spk_id')?.value;
+        const noSpkEl = document.querySelector('.no-spk');
+        const noPoEl = document.querySelector('.no-po');
 
 
 
-    const payload = {
-        spk_id: mode === 'edit' ? spkId : null, // 🔥 KUNCI
-        spk_type: document.getElementById('spk_type').value,
-       no_spk: noSpkEl ? noSpkEl.innerText.trim() : '',
-    no_po:  noPoEl ? noPoEl.innerText.trim() : '',
-        nama: document.getElementById('supplierInput')?.innerText || '',
-        tgl_terima: document.querySelector('.tgl-terima')?.innerText || '',
-        tgl_selesai: document.querySelector('.tgl-selesai')?.innerText || '',
-        items: items
-    };
-//     console.log('NO SPK:', payload.no_spk);
-// console.log('NO PO:', payload.no_po);
+        const payload = {
+            spk_id: mode === 'edit' ? spkId : null, // 🔥 KUNCI
+            spk_type: document.getElementById('spk_type').value,
+            no_spk: noSpkEl ? noSpkEl.innerText.trim() : '',
+            no_po: noPoEl ? noPoEl.innerText.trim() : '',
+            nama: document.getElementById('supplierInput')?.innerText || '',
+            tgl_terima: document.querySelector('.tgl-terima')?.innerText || '',
+            tgl_selesai: document.querySelector('.tgl-selesai')?.innerText || '',
+            items: items,
+            payments: payments
+        };
+        //     console.log('NO SPK:', payload.no_spk);
+        // console.log('NO PO:', payload.no_po);
 
-    // 🔥 URL DINAMIS
-    let url = '';
-    if (mode === 'edit') {
-        url = "{{ url('/spk/update') }}/" + spkId;
-    } else {
-        url = "{{ url('/spk/create') }}/" + spkId; // spkId = PO ID
-    }
+        // 🔥 URL DINAMIS
+        let url = '';
+        if (mode === 'edit') {
+            url = "{{ url('/spk/update') }}/" + spkId;
+        } else {
+            url = "{{ url('/spk/create') }}/" + spkId; // spkId = PO ID
+        }
 
-    fetch(url, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-TOKEN": "{{ csrf_token() }}"
-        },
-        body: JSON.stringify(payload)
-    })
-    .then(res => res.json())
-    .then(res => {
-      if (res.success) {
+        fetch(url, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-TOKEN": "{{ csrf_token() }}"
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.success) {
 
-        Swal.fire({
-            icon: 'success',
-            title: 'SPK Berhasil',
-            html: `
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'SPK Berhasil',
+                        html: `
                 <div style="font-size:14px">
                     ${res.message}<br><br>
                     <b>No SPK:</b><br>
@@ -533,27 +677,27 @@ const noPoEl  = document.querySelector('.no-po');
                     </span>
                 </div>
             `,
-            confirmButtonText: 'OK'
-        });
+                        confirmButtonText: 'OK'
+                    });
 
-    } else {
-        Swal.fire({
-            icon: 'error',
-            title: 'Gagal',
-            text: res.message || 'Gagal menyimpan SPK'
-        });
-    }
-    })
-    .catch(err => {
-        console.error(err);
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal',
+                        text: res.message || 'Gagal menyimpan SPK'
+                    });
+                }
+            })
+            .catch(err => {
+                console.error(err);
 
-    Swal.fire({
-        icon: 'error',
-        title: 'Error Server',
-        text: 'Terjadi kesalahan pada server'
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error Server',
+                    text: 'Terjadi kesalahan pada server'
+                });
+            });
     });
-    });
-});
 </script>
 
 
@@ -688,6 +832,202 @@ const noPoEl  = document.querySelector('.no-po');
         hitungTotal(tr);
     }
 </script>
+<script>
+
+document.getElementById('btnAddPayment').addEventListener('click', function() {
+
+    let tr = document.createElement('tr');
+
+    tr.classList.add('payment-row');
+
+    tr.innerHTML = `
+
+        <td class="editable total-amount" contenteditable></td>
+
+        <td class="editable date-isian" contenteditable></td>
+
+        <td>
+
+            <select class="form-control form-control-sm payment-type"
+                style="min-width:90px">
+
+                <option value="">-- Pilih --</option>
+
+                <option value="dp">DP</option>
+
+                <option value="pelunasan">Pelunasan</option>
+
+                <option value="bahan">Bahan</option>
+
+            </select>
+
+        </td>
+
+        <td class="editable note-tambahan"
+            contenteditable
+            style="min-width:180px">
+
+        </td>
+
+    `;
+
+    document.getElementById('paymentBody').appendChild(tr);
+
+});
+
+</script>
+<script>
+
+function parseNumber(value) {
+
+    return parseInt(
+        (value || '').toString().replace(/\./g, '')
+    ) || 0;
+}
+
+function formatRupiah(value) {
+
+    value = parseInt(
+        value.toString().replace(/[^\d]/g, '')
+    ) || 0;
+
+    return new Intl.NumberFormat('id-ID').format(value);
+}
+
+function updatePaymentSummary() {
+
+    // =========================
+    // GRAND TOTAL SPK
+    // =========================
+
+    let grandTotal = 0;
+
+    document.querySelectorAll('.total').forEach(td => {
+
+        grandTotal += parseNumber(td.innerText);
+    });
+
+    // =========================
+    // PAYMENT TOTAL
+    // =========================
+
+    let totalDp = 0;
+    let totalBahan = 0;
+    let totalPelunasan = 0;
+
+    document.querySelectorAll('.payment-row').forEach(row => {
+
+        let amount = parseNumber(
+            row.querySelector('.total-amount')?.innerText
+        );
+
+        let type = row.querySelector('.payment-type')?.value;
+
+        if (type === 'dp') {
+            totalDp += amount;
+        }
+
+        if (type === 'bahan') {
+            totalBahan += amount;
+        }
+
+        if (type === 'pelunasan') {
+            totalPelunasan += amount;
+        }
+
+    });
+
+    // =========================
+    // SISA
+    // =========================
+
+    let sisaPelunasan =
+        grandTotal - totalDp - totalBahan - totalPelunasan;
+
+    // =========================
+    // RENDER
+    // =========================
+
+    document.getElementById('paymentSummary').innerHTML = `
+
+        <div>
+            <b>Grand Total :</b>
+            Rp ${formatRupiah(grandTotal)}
+        </div>
+
+        <div>
+            <b>Total DP :</b>
+            Rp ${formatRupiah(totalDp)}
+        </div>
+
+        <div>
+            <b>Total Bahan :</b>
+            Rp ${formatRupiah(totalBahan)}
+        </div>
+
+        <div>
+            <b>Total Pelunasan :</b>
+            Rp ${formatRupiah(totalPelunasan)}
+        </div>
+
+        <hr>
+
+        <div style="
+            font-size:16px;
+            color:red;
+            font-weight:bold;
+        ">
+
+            Sisa Pelunasan :
+            Rp ${formatRupiah(sisaPelunasan)}
+
+        </div>
+
+    `;
+}
+
+// realtime update
+document.addEventListener('input', updatePaymentSummary);
+
+document.addEventListener('change', updatePaymentSummary);
+
+// load pertama
+setTimeout(updatePaymentSummary, 300);
 
 
+
+document.addEventListener('input', function(e) {
+
+    if (e.target.classList.contains('total-amount')) {
+
+       let value = e.target.innerText || '';
+
+e.target.innerText = formatRupiah(value);
+
+        placeCaretAtEnd(e.target);
+    }
+});
+
+function placeCaretAtEnd(el) {
+
+    el.focus();
+
+    if (typeof window.getSelection != "undefined"
+        && typeof document.createRange != "undefined") {
+
+        let range = document.createRange();
+
+        range.selectNodeContents(el);
+
+        range.collapse(false);
+
+        let sel = window.getSelection();
+
+        sel.removeAllRanges();
+
+        sel.addRange(range);
+    }
+}
+
+</script>
 @endsection

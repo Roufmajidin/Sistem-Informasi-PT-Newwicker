@@ -115,13 +115,17 @@ class AbsenController extends Controller
         $userLat = $request->latitude;
         $userLng = $request->longitude;
 
-        if (! isset($userLat) || ! isset($userLng)) {
+        if (!isset($userLat) || !isset($userLng)) {
             return response()->json(['message' => 'Lokasi tidak terdeteksi'], 400);
         }
 
+        // ==================== Hitung jarak ====================
         $jarak = $this->distance($userLat, $userLng, $officeLat, $officeLng);
 
-        if ($jarak > $radius) {
+        // ==================== USER EXCEPTION ====================
+        $exceptionUsers = [182]; // user bebas radius
+
+        if (!in_array($user->id, $exceptionUsers) && $jarak > $radius) {
             return response()->json([
                 'message' => 'Anda berada di luar area kantor (' . round($jarak) . ' meter). Absen ditolak.',
             ], 403);
@@ -139,7 +143,7 @@ class AbsenController extends Controller
             ->first();
 
         // ==================== Belum ada absen hari ini → Absen Masuk ====================
-        if (! $absen) {
+        if (!$absen) {
 
             Absen::create([
                 'user_id'    => $user->id,
@@ -157,14 +161,15 @@ class AbsenController extends Controller
         }
 
         // ==================== Sudah masuk tapi belum keluar → Absen Keluar ====================
-        if ($absen->jam_masuk && ! $absen->jam_keluar) {
+        if ($absen->jam_masuk && !$absen->jam_keluar) {
 
             $absen->update([
                 'jam_keluar'  => $now->format('H:i:s'),
                 'latitude_k'  => $userLat,
                 'longitude_k' => $userLng,
                 'foto_keluar' => $fotoPath,
-                'keterangan'  => 'Full H',
+                              'keterangan'  => 'Full H',
+
             ]);
 
             return response()->json([
@@ -177,12 +182,13 @@ class AbsenController extends Controller
             'message' => 'Absen hari ini sudah lengkap',
         ], 200);
     }
-    public function absenLembur(Request $request)
+
+     public function absenLembur(Request $request)
     {
         // ==================== Validasi Token ====================
         if (! $request->user()) {
             return response()->json([
-                'message' => 'Token tidak valid',
+                'message' => 'Token tidak valid'
             ], 401);
         }
 
@@ -200,7 +206,7 @@ class AbsenController extends Controller
 
         if (! isset($userLat) || ! isset($userLng)) {
             return response()->json([
-                'message' => 'Lokasi tidak terdeteksi',
+                'message' => 'Lokasi tidak terdeteksi'
             ], 400);
         }
 
@@ -267,75 +273,75 @@ class AbsenController extends Controller
             'message' => 'Lembur hari ini sudah lengkap',
         ], 200);
     }
-    public function ajukanIzin(Request $request)
-    {
-        if (! $request->user()) {
-            return response()->json(['message' => 'Token tidak valid'], 401);
-        }
 
-        $user = $request->user();
+   public function ajukanIzin(Request $request)
+{
+    if (! $request->user()) {
+        return response()->json(['message' => 'Token tidak valid'], 401);
+    }
 
-        // Validasi input
-        $validated = $request->validate([
-            'tanggal'        => 'required|string',
-            'mulai_tanggal'  => 'required|date',
-            'sampai_tanggal' => 'required|date',
-            'messages'       => 'nullable|string|max:255',
-            'keterangan'     => 'required|string|max:255',
-            'file'           => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
-        ]);
+    $user = $request->user();
 
-        // Konversi tanggal
-        try {
-            $tanggal = \Carbon\Carbon::createFromFormat('d-m-Y', $validated['tanggal'])
-                ->format('Y-m-d');
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Format tanggal tidak valid. Gunakan dd-mm-yyyy',
-            ], 422);
-        }
+    // Validasi input
+    $validated = $request->validate([
+        'tanggal'        => 'required|string',
+        'mulai_tanggal'  => 'required|date',
+        'sampai_tanggal' => 'required|date',
+        'messages'       => 'nullable|string|max:255',
+        'keterangan'     => 'required|string|max:255',
+        'file'           => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:2048',
+    ]);
 
-        // Cek existing
-        $existing = Absen::where('user_id', $user->id)
-            ->whereDate('tanggal', $validated['mulai_tanggal'])
-            ->first();
+    // Konversi tanggal
+    try {
+        $tanggal = \Carbon\Carbon::createFromFormat('d-m-Y', $validated['tanggal'])
+            ->format('Y-m-d');
+    } catch (\Exception $e) {
+        return response()->json([
+            'message' => 'Format tanggal tidak valid. Gunakan dd-mm-yyyy',
+        ], 422);
+    }
 
-        if ($existing) {
-            return response()->json([
-                'message' => 'Anda sudah mengajukan izin pada tanggal tersebut',
-                'data'    => $existing,
-            ], 200);
-        }
+    // Upload file
+    $filePath = null;
 
-        // Upload file
-        $filePath = null;
-        if ($request->hasFile('file')) {
-            $file     = $request->file('file');
-            $fileName = time() . '_' . $user->id . '.' . $file->getClientOriginalExtension();
-            $filePath = $file->storeAs('uploads/izin', $fileName, 'public');
-        }
+    if ($request->hasFile('file')) {
 
-        DB::beginTransaction();
+        $file     = $request->file('file');
 
-        try {
+        $fileName = time() . '_' . $user->id . '.' . $file->getClientOriginalExtension();
 
-            // ==================== SIMPAN ABSEN ====================
-            $absen = Absen::create([
-                'user_id'    => $user->id,
-                'tanggal'    => $tanggal,
-                'jam_masuk'  => null,
-                'jam_keluar' => null,
+        $filePath = $file->storeAs('uploads/izin', $fileName, 'public');
+    }
+
+    // Cek existing
+    $existing = Absen::where('user_id', $user->id)
+        ->whereDate('tanggal', $validated['mulai_tanggal'])
+        ->first();
+
+    // =========================
+    // JIKA SUDAH ABSEN MASUK
+    // =========================
+    if ($existing) {
+
+        // Jika sudah absen masuk
+        if ($existing->jam_masuk != null) {
+
+            $existing->update([
                 'keterangan' => $validated['keterangan'],
                 'messages'   => $validated['messages'] ?? null,
-                'foto'       => $filePath,
-                'status'     => 'pending',
+                'foto'       => $filePath ?? $existing->foto,
+                'status'     => 'izin_pulang_cepat',
             ]);
 
             // ==================== SIMPAN IZIN ====================
-            $type = IzinType::whereRaw('LOWER(name) = ?', [strtolower($validated['keterangan'])])
-                ->first();
+            $type = IzinType::whereRaw(
+                'LOWER(name) = ?',
+                [strtolower($validated['keterangan'])]
+            )->first();
 
-            $a    = $type?->id;
+            $a = $type?->id;
+
             $izin = Izin::create([
                 'user_id'        => $user->id,
                 'type_id'        => $a,
@@ -348,24 +354,71 @@ class AbsenController extends Controller
                 'status'         => 'pending',
             ]);
 
-            DB::commit();
-
             return response()->json([
-                'message' => 'Izin berhasil diajukan',
-                'absen'   => $absen,
+                'message' => 'Izin pulang cepat berhasil diajukan',
+                'data'    => $existing,
                 'izin'    => $izin,
-            ], 201);
-
-        } catch (\Exception $e) {
-
-            DB::rollBack();
-
-            return response()->json([
-                'message' => 'Gagal mengajukan izin',
-                'error'   => $e->getMessage(),
-            ], 500);
+            ], 200);
         }
+
+        return response()->json([
+            'message' => 'Anda sudah mengajukan izin pada tanggal tersebut',
+            'data'    => $existing,
+        ], 200);
     }
+
+    DB::beginTransaction();
+
+    try {
+
+        // ==================== SIMPAN ABSEN ====================
+        $absen = Absen::create([
+            'user_id'    => $user->id,
+            'tanggal'    => $tanggal,
+            'jam_masuk'  => null,
+            'jam_keluar' => null,
+            'keterangan' => $validated['keterangan'],
+            'messages'   => $validated['messages'] ?? null,
+            'foto'       => $filePath,
+            'status'     => 'pending',
+        ]);
+
+        // ==================== SIMPAN IZIN ====================
+        $type = IzinType::whereRaw('LOWER(name) = ?', [strtolower($validated['keterangan'])])
+            ->first();
+
+        $a    = $type?->id;
+
+        $izin = Izin::create([
+            'user_id'        => $user->id,
+            'type_id'        => $a,
+            'tanggal'        => $validated['keterangan'],
+
+            'mulai_tanggal'  => $validated['mulai_tanggal'],
+            'sampai_tanggal' => $validated['sampai_tanggal'],
+            'alasan'         => $validated['messages'] ?? null,
+            'file'           => $filePath,
+            'status'         => 'pending',
+        ]);
+
+        DB::commit();
+
+        return response()->json([
+            'message' => 'Izin berhasil diajukan',
+            'absen'   => $absen,
+            'izin'    => $izin,
+        ], 201);
+
+    } catch (\Exception $e) {
+
+        DB::rollBack();
+
+        return response()->json([
+            'message' => 'Gagal mengajukan izin',
+            'error'   => $e->getMessage(),
+        ], 500);
+    }
+}
 
     private function mapTypeId($keterangan)
     {

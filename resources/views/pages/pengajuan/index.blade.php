@@ -1461,7 +1461,8 @@ contentHtml += `
         // =========================
         if (type === 'All Divisi') {
 
-            sendAjax('/pengajuan/store-all-divisi', formData);
+               sendChunkAjax('/pengajuan/store-all-divisi', formData);
+
             return;
         }
 
@@ -1478,6 +1479,123 @@ contentHtml += `
 
 });
 });
+async function sendChunkAjax(url, formData) {
+
+    try {
+
+        let files = $('input[name="images[]"]')[0].files;
+
+        if (files.length === 0) {
+
+            Swal.fire({
+                icon: 'warning',
+                title: 'Foto wajib diisi'
+            });
+
+            return;
+        }
+
+        $('#btn-submit').prop('disabled', true);
+
+        Swal.fire({
+            title: 'Mengirim...',
+            html: '0%',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            showConfirmButton: false,
+
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        let chunkSize = 10;
+
+        let total = files.length;
+
+        let uploaded = 0;
+
+        let pengajuanId = null;
+
+        for (let i = 0; i < total; i += chunkSize) {
+
+            let fd = new FormData();
+
+            // copy semua selain image
+            for (let pair of formData.entries()) {
+
+                if (pair[0] !== 'images[]') {
+                    fd.append(pair[0], pair[1]);
+                }
+            }
+
+            // append chunk image
+            let chunk = Array.from(files).slice(i, i + chunkSize);
+
+            chunk.forEach(file => {
+                fd.append('images[]', file);
+            });
+
+            // request kedua dst
+            if (pengajuanId) {
+                fd.append('pengajuan_id', pengajuanId);
+            }
+
+            let res = await $.ajax({
+
+                url: url,
+                method: 'POST',
+                data: fd,
+                processData: false,
+                contentType: false,
+                timeout: 0,
+
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                }
+            });
+
+            // ambil id pertama
+            if (!pengajuanId) {
+                pengajuanId = res.pengajuan_id;
+            }
+
+            uploaded += chunk.length;
+
+            let percent = Math.round((uploaded / total) * 100);
+
+            Swal.update({
+                html: percent + '%'
+            });
+        }
+
+        Swal.fire({
+            icon: 'success',
+            title: 'Berhasil',
+            text: 'Semua file berhasil diupload',
+            timer: 2000,
+            showConfirmButton: false
+        });
+
+        setTimeout(() => {
+            location.reload();
+        }, 2000);
+
+    } catch (xhr) {
+
+        console.log(xhr);
+
+        Swal.fire({
+            icon: 'error',
+            title: 'Gagal',
+            text: xhr.responseJSON?.message || 'Server error'
+        });
+
+    } finally {
+
+        $('#btn-submit').prop('disabled', false);
+    }
+}
 function sendAjax(url, formData) {
 
     $.ajax({

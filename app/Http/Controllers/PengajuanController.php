@@ -377,16 +377,22 @@ class PengajuanController extends Controller
             // 1. SIMPAN PENGAJUAN
             // =========================
 
-            $pengajuan = Pengajuan::create([
-                'type_pengajuan' => $request->type_pengajuan,
-                'user_id'        => auth()->id() ?? 1,
-                'status'         => 'pending',
-                'no_spk'         => $request->no_spk ?? '',
-                'keterangan'     => $request->keterangan,
-                'divisi_id'      => $request->divisi_id,
-                'urgent'         => $request->urgent,
-            ]);
+            if ($request->pengajuan_id) {
 
+                $pengajuan = Pengajuan::find($request->pengajuan_id);
+
+            } else {
+
+                $pengajuan = Pengajuan::create([
+                    'type_pengajuan' => $request->type_pengajuan,
+                    'user_id'        => auth()->id() ?? 1,
+                    'status'         => 'pending',
+                    'no_spk'         => $request->no_spk ?? '',
+                    'keterangan'     => $request->keterangan,
+                    'divisi_id'      => $request->divisi_id,
+                    'urgent'         => $request->urgent,
+                ]);
+            }
             // =========================
             // 2. SIMPAN FILE
             // =========================
@@ -409,8 +415,9 @@ class PengajuanController extends Controller
             DB::commit();
 
             return response()->json([
-                'status'  => true,
-                'message' => '✅ Pengajuan berhasil disimpan',
+                'status'       => true,
+                'message'      => '✅ Pengajuan berhasil disimpan',
+                'pengajuan_id' => $pengajuan->id,
             ]);
 
         } catch (\Exception $e) {

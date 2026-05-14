@@ -58,6 +58,12 @@
                              <span class="nav-text">Izin Karyawan</span>
                          </a>
                      </li>
+                       <li>
+                         <a href="/employee-loan">
+                             <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                             <span class="nav-text">employee loan</span>
+                         </a>
+                     </li>
 
                      @endif
 

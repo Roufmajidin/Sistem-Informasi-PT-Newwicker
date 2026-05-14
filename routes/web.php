@@ -7,6 +7,7 @@ use App\Http\Controllers\BankDataController;
 use App\Http\Controllers\BomController;
 use App\Http\Controllers\BuyerController;
 use App\Http\Controllers\CadController;
+use App\Http\Controllers\EmployeeLoanController;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\KaryawanController;
@@ -35,14 +36,13 @@ Route::post('/karyawan/update-photo', [KaryawanController::class, 'updatePhoto']
 Route::post('/karyawan/update-inline', [InventoryController::class, 'updateInline'])->name('karyawan.updateInline');
 Route::post('/inventory/comment', [InventoryController::class, 'storeComment'])
     ->name('inventory.comment.store');
-    Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory.index');
+Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory.index');
 Route::post('/inventory', [InventoryController::class, 'store'])->name('inventory.store');
 Route::post('/inventory-inline-update', [InventoryController::class, 'update'])->name('inventory.inline.update');
 Route::post('/inventory/{id}/upload-foto', [InventoryController::class, 'uploadFoto'])->name('inventory.uploadFoto');
 Route::get('/inventory/karyawan/search', [InventoryController::class, 'searchKaryawan'])->name('karyawan.search');
 Route::post('/storeAbsen', [KaryawanController::class, 'storeAbsen'])->name('absen.storeAbsen');
 Route::get('/riwayat-absen', [KaryawanController::class, 'riwayat'])->name('absen.riwayat');
-
 
 Route::get('/login', [AuthController::class, 'showLoginForm'])
     ->middleware('guest')
@@ -84,7 +84,6 @@ Route::get('/karyawan-scan', [KaryawanController::class, 'scan'])->name('karyawa
 // absen vvia web
 
 // Route::get('/absen-sekarang', [KaryawanController::class, 'scan'])->name('karyawan.scan');
-
 
 // ==============================
 // ⏰ ABSENSI
@@ -270,10 +269,17 @@ Route::get('/token-list', [TokenController::class, 'list']);
 Route::post('/save-visitor', [TokenController::class, 'saveVisitor']);
 // BANK DATA
 Route::get('/bank-data', [BankDataController::class, 'index'])->name('banl-data.index');
-Route::post('/bank-data/upload', [BankDataController::class, 'upload'])    ->name('bank-data.upload');
+Route::post('/bank-data/upload', [BankDataController::class, 'upload'])->name('bank-data.upload');
 Route::post('/generate-token', [TokenController::class, 'generateToken']);
 Route::get('/inventory/{id}', [InventoryController::class, 'detail'])
     ->name('inventory.detail');
+
+Route::get('/employee-loan', [EmployeeLoanController::class, 'index'])->name('empl.index');
+Route::post('/employee-loans/{id}/approve', [EmployeeLoanController::class, 'approve'])->name('employee-loans.approve');
+Route::delete(
+    '/employee-loans/{id}',
+    [EmployeeLoanController::class, 'destroy']
+)->name('employee-loans.destroy');
 // ==============================
 // ⚙️ CEK ENV
 // ==============================

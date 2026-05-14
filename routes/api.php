@@ -4,6 +4,7 @@ use App\Http\Controllers\AbsenController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\BuyerController;
 use App\Http\Controllers\CartController;
+use App\Http\Controllers\EmployeeLoanController;
 use App\Http\Controllers\ImageController;
 use App\Http\Controllers\PengajuanController;
 use App\Http\Controllers\QcController;
@@ -60,4 +61,16 @@ Route::get('/generate-all-thumbs', [ImageController::class, 'generateAllThumbs']
 Route::prefix('products')->group(function () {
 
     Route::get('{id}', [BuyerController::class, 'product']);
+});
+
+Route::middleware('auth:sanctum')->group(function () {
+
+    Route::post(
+        '/employee-loans/store',
+        [EmployeeLoanController::class, 'store']
+    );
+    Route::get(
+        '/my-loans',
+        [EmployeeLoanController::class, 'myLoans']
+    );
 });
