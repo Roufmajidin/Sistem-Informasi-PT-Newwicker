@@ -30,4 +30,11 @@ class Po extends Model
     {
         return $this->hasMany(DetailPo::class, 'po_id');
     }
+    public function detailPo()
+    {
+        return $this->belongsTo(
+            DetailPo::class,
+            'detail_po_id'
+        );
+    }
 }

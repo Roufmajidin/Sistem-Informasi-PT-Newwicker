@@ -21,10 +21,18 @@
             <div class="col-md-6 text-end">
                 <h5>Jam Sekarang:</h5>
                 <h2 id="clock" class="fw-bold text-primary"></h2>
+                 <button id="btnAktifkan">
+    Aktifkan Kamera & Lokasi
+</button>
             </div>
+
         </div>
     </div>
-
+<div id="permissionAlert"
+     class="alert alert-danger"
+     style="display:none">
+    Kamera atau Lokasi belum diaktifkan.
+</div>
     {{-- KAMERA & LOKASI --}}
     <div class="card mb-4 shadow-sm p-3 text-center">
         <h5 class="mb-3">Kamera</h5>
@@ -40,9 +48,26 @@
             <button class="btn btn-success" id="btnAbsenMasuk" disabled>Absen Masuk</button>
             <button class="btn btn-danger" id="btnAbsenKeluar" disabled>Absen Keluar</button>
         </div>
+        <div class="mt-2">
+    <button class="btn btn-primary"
+        id="btnLemburMasuk"
+        disabled>
+        Lembur Masuk
+    </button>
+
+    <button class="btn btn-warning"
+        id="btnLemburKeluar"
+        disabled>
+        Lembur Keluar
+    </button>
+</div>
     </div>
 
     {{-- RIWAYAT ABSEN --}}
+    <div class="row">
+
+    <div class="col-md-6">
+
     <div class="card shadow-sm p-3">
         <h5 class="mb-3">Riwayat Absen Hari Ini</h5>
         <table class="table table-striped">
@@ -70,12 +95,81 @@
             </tbody>
         </table>
     </div>
+    </div>
+
+    <!-- RIWAYAT LEMBUR -->
+         <div class="col-md-6">
+
+        <div class="card shadow-sm p-3">
+
+            <h5>Riwayat Lembur Hari Ini</h5>
+
+            <table class="table table-striped">
+
+                <thead>
+                    <tr>
+                        <th>Tanggal</th>
+                        <th>Masuk</th>
+                        <th>Keluar</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    @forelse($riwayatLembur as $item)
+
+                    <tr>
+
+                        <td>{{ $item->tanggal }}</td>
+
+                        <td>{{ $item->jam_masuk }}</td>
+
+                        <td>{{ $item->jam_keluar ?? '-' }}</td>
+
+                        <td>
+                            @if($item->validate)
+                                <span class="label success">
+                                    Valid
+                                </span>
+                            @else
+                                <span class="label warning">
+                                    Pending
+                                </span>
+                            @endif
+                        </td>
+
+                    </tr>
+
+                    @empty
+
+                    <tr>
+                        <td colspan="4" class="text-center">
+                            Belum ada lembur hari ini
+                        </td>
+                    </tr>
+
+                    @endforelse
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
 </div>
+    </div>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <script>
+    const sudahKeluar ={{ $riwayat->whereNotNull('jam_keluar')->count() ? 'true' : 'false' }};
     // ================= QC JOGJA =================
     // 180 utnuk pa rohmad jogja
-    const isQcJogja = {{ auth()->user()->id == 180 ? 'true' : 'false' }};
-    console.log(isQcJogja)
+    const isQcJogja = {{ auth()->user()->id == 182 ? 'true' : 'false' }};    console.log(isQcJogja)
     // ================= JAM REALTIME =================
     function updateClock() {
         const now = new Date();
@@ -90,9 +184,6 @@
     const canvas = document.getElementById('snapshot');
     const context = canvas.getContext('2d');
 
-    navigator.mediaDevices.getUserMedia({ video: true })
-        .then(stream => video.srcObject = stream)
-        .catch(err => alert('Kamera tidak dapat diakses: ' + err.message));
 
     // ================= DATA KANTOR =================
     const kantorLat = {{ $officeLat }};
@@ -255,4 +346,153 @@
         .addEventListener('click', () => ambilFoto('keluar'));
 </script>
 
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+
+    document.getElementById('btnAktifkan')
+        .addEventListener('click', initPermission);
+
+});
+async function initPermission() {
+
+    try {
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: true
+        });
+
+        video.srcObject = stream;
+
+        navigator.geolocation.getCurrentPosition(
+            perbaruiLokasi,
+            (err) => {
+
+                Swal.fire({
+    icon: 'warning',
+    title: 'Lokasi Tidak Aktif',
+    html: `
+        <div style="text-align:left; line-height:1.8">
+            <p>
+                📍 <strong>Lokasi perangkat belum aktif.</strong>
+            </p>
+
+            <p>
+                Silakan aktifkan <strong>GPS / Lokasi</strong> terlebih dahulu.
+            </p>
+
+            <hr>
+
+            <p><strong>Jika menggunakan Chrome Android:</strong></p>
+
+            <ol style="padding-left:20px;">
+                <li>Klik ikon 🔒 di sebelah alamat website</li>
+                <li>Pilih <strong>Izin (Permissions)</strong></li>
+                <li>Ubah <strong>Location → Allow</strong></li>
+                <li>Ubah <strong>Camera → Allow</strong></li>
+                <li>Refresh halaman</li>
+            </ol>
+        </div>
+    `
+});
+
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 15000,
+                maximumAge: 0
+            }
+        );
+
+    } catch (err) {
+
+        Swal.fire({
+            icon: 'warning',
+            title: 'Kamera Diblokir',
+            html: `
+                Klik ikon 🔒 pada browser
+
+                <br><br>
+
+                Camera → Allow
+                <br>
+                Location → Allow
+
+                <br><br>
+
+                Refresh halaman setelah mengaktifkan.
+            `
+        });
+
+    }
+}
+    document
+.getElementById('btnLemburMasuk')
+.addEventListener('click', () => {
+
+    if (!sudahKeluar) {
+
+        Swal.fire({
+            icon:'warning',
+            title:'Belum Checkout',
+            text:'Silahkan checkout absen terlebih dahulu sebelum masuk lembur'
+        });
+
+        return;
+    }
+
+    ambilFotoLembur('masuk');
+});
+    function ambilFotoLembur(status) {
+
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    canvas.toBlob(blob => {
+
+        const formData = new FormData();
+
+        formData.append('status', status);
+        formData.append('foto', blob, 'lembur.png');
+        formData.append('latitude', latitude);
+        formData.append('longitude', longitude);
+
+        fetch('{{ route("lembur.store") }}', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+
+            Swal.fire({
+                icon:'success',
+                title:'Berhasil',
+                text:data.message
+            }).then(() => location.reload());
+
+        });
+
+    }, 'image/png');
+}
+
+function gagalLokasi(err) {
+
+    document.getElementById('permissionAlert')
+        .style.display = 'block';
+
+    Swal.fire({
+        icon: 'warning',
+        title: 'GPS Tidak Aktif',
+        text: 'Silahkan aktifkan lokasi pada perangkat Anda'
+    });
+
+    document.getElementById('lokasi-info').textContent =
+        err.message;
+}
+document.addEventListener('DOMContentLoaded', () => {
+    checkPermissions();
+});
+
+    </script>
 @endsection

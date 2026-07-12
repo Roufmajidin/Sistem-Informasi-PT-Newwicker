@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
@@ -19,6 +18,7 @@ class InspectSchedule extends Model
         'kategori_id',
         'rejected',
         'passed',
+        'spk_id',
     ];
 
     /* ===============================
@@ -39,8 +39,27 @@ class InspectSchedule extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
-      public function kategori()
+    public function kategori()
     {
         return $this->belongsTo(Kategori::class, 'kategori_id');
+    }
+    public function spk()
+    {
+        return $this->belongsTo(Spk::class);
+    }
+    public function qcReports()
+    {
+        return $this->hasMany(
+            QcReport::class,
+            'inspect_schedule_id'
+        );
+    }
+
+    public function reportPhotos()
+    {
+        return $this->hasMany(
+            ReportPhoto::class,
+            'inspect_schedule_id'
+        );
     }
 }

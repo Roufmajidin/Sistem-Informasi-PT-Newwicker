@@ -302,18 +302,19 @@ function renderProgressQty(batches) {
     if (!qtyText || !progress) return;
 
     const qtyAsli = parseInt(qtyText.textContent || 0);
-    let totalInspect = 0;
 
-    Object.values(batches).forEach(b => {
-        totalInspect += parseInt(b.jumlah_inspect || 0);
+    let totalPassed = 0;
+
+    Object.values(batches).forEach(batch => {
+        totalPassed += parseInt(batch.passed || 0);
     });
 
     const percent = qtyAsli
-        ? ((totalInspect / qtyAsli) * 100).toFixed(1)
+        ? ((totalPassed / qtyAsli) * 100).toFixed(1)
         : 0;
 
     progress.textContent =
-        `${totalInspect} / ${qtyAsli} (${percent}%)`;
+        `${totalPassed} / ${qtyAsli} (${percent}%)`;
 }
 
 /* =========================================================

@@ -10,11 +10,16 @@ use App\Models\Lembur;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class AuthController extends Controller
 {
     public function login(Request $request)
     {
+        DB::enableQueryLog();
+
+        $start       = microtime(true);
         $credentials = $request->validate([
             'email'    => 'required|email',
             'password' => 'required',
@@ -49,7 +54,11 @@ class AuthController extends Controller
                 $isQc = true;
             }
         }
+        Log::info('LOGIN_TIME', [
+            'seconds' => microtime(true) - $start,
+        ]);
 
+        Log::info(DB::getQueryLog());
         return response()->json([
             'message' => 'Login berhasil',
             'token'   => $token,

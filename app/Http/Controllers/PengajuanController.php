@@ -271,7 +271,7 @@ class PengajuanController extends Controller
 
                     [
                         'name' => 'Checked By',
-                        'user' => 'YANTI SUSANTI',
+                        'user' => 'Ulfah Nabila',
                     ],
 
                     [
@@ -430,7 +430,54 @@ class PengajuanController extends Controller
             ], 500);
         }
     }
+public function addImage(Request $request, $id)
+{
+    $pengajuan = Pengajuan::findOrFail($id);
 
+    // hanya pembuat pengajuan
+    if ($pengajuan->user_id != auth()->id()) {
+
+        return response()->json([
+            'status' => false,
+            'message' => 'Anda bukan pembuat pengajuan'
+        ], 403);
+    }
+
+    $request->validate([
+        'images' => 'required',
+        'images.*' => 'image|max:10240'
+    ]);
+
+    foreach ($request->file('images') as $img) {
+
+        $filename =
+            'pengajuan_' .
+            time() .
+            '_' .
+            Str::random(5) .
+            '.' .
+            $img->getClientOriginalExtension();
+
+        $path = $img->storeAs(
+            'pengajuan',
+            $filename,
+            'public'
+        );
+
+        DB::table('pengajuan_files')->insert([
+            'pengajuan_id' => $pengajuan->id,
+            'file_path'    => $path,
+            'type'         => 'image',
+            'created_at'   => now(),
+            'updated_at'   => now(),
+        ]);
+    }
+
+    return response()->json([
+        'status' => true,
+        'message' => 'Gambar berhasil ditambahkan'
+    ]);
+}
     public function reset()
     {
         if (app()->environment('production')) {

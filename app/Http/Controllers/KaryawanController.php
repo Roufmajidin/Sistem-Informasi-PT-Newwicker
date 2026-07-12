@@ -5,6 +5,7 @@ use App\Imports\KaryawanImport;
 use App\Models\Absen;
 use App\Models\Divisi;
 use App\Models\Karyawan;
+use App\Models\Lembur;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Container\Attributes\Auth;
@@ -146,10 +147,73 @@ class KaryawanController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
-    {
-        //
+    // lembur
+ public function lembur(Request $request)
+{
+    $today = Carbon::now();
+
+    $month = $request->month ?? $today->month;
+    $year  = $request->year ?? $today->year;
+    $date  = $request->date;
+
+    $daysInMonth = Carbon::create($year, $month)->daysInMonth;
+
+    $query = Lembur::with('user');
+
+    // Filter harian jika tanggal dipilih
+    if ($date) {
+        $query->whereDate('tanggal', $date);
+    } else {
+        // Filter bulanan
+        $query->whereMonth('tanggal', $month)
+              ->whereYear('tanggal', $year);
     }
+
+    $lemburs = $query
+        ->orderBy('tanggal', 'desc')
+        ->get();
+
+    return view(
+        'pages.karyawan.lembur',
+        compact(
+            'lemburs',
+            'month',
+            'year',
+            'daysInMonth'
+        )
+    );
+}
+   public function destroy($id)
+{
+    DB::beginTransaction();
+
+    try {
+
+        $karyawan = Karyawan::findOrFail($id);
+
+        // hapus user yang terhubung ke karyawan
+        User::where('karyawan_id', $id)->delete();
+
+        // hapus karyawan
+        $karyawan->delete();
+
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Karyawan dan User berhasil dihapus'
+        ]);
+
+    } catch (\Exception $e) {
+
+        DB::rollBack();
+
+        return response()->json([
+            'success' => false,
+            'message' => $e->getMessage()
+        ], 500);
+    }
+}
 
     public function import(Request $request)
     {
@@ -332,31 +396,133 @@ class KaryawanController extends Controller
             ->get();
         $divisi = User::with('karyawan')->find(auth()->id());
         $divId  = Divisi::find($divisi->karyawan->divisi_id);
-
+        $riwayatLembur = Lembur::where('user_id', auth()->id())
+            ->whereDate('tanggal', now())
+            ->get();
 // dd($divId);
-        return view('pages.karyawan.cam', compact('riwayat', 'officeLat', 'officeLng', 'radius', 'divId'));
+        return view('pages.karyawan.cam', compact('riwayat', 'officeLat', 'officeLng', 'radius', 'divId', 'riwayatLembur'));
     }
-    public function riwayat(Request $request)
-    {
-        $bulanInput = $request->get('bulan', null);
-        $tahunInput = $request->get('tahun', now()->year);
+    // store lembur
+    public function storeLembur(Request $request)
+{
+    $request->validate([
+        'status'    => 'required|in:masuk,keluar',
+        'foto'      => 'required|image',
+        'latitude'  => 'required',
+        'longitude' => 'required',
+    ]);
 
-        $tahun = is_numeric($tahunInput) ? (int) $tahunInput : now()->year;
+    $today = now()->toDateString();
 
-        $bulan = $this->normalizeMonth($bulanInput, $tahun);
+    // wajib checkout dulu
+    $absen = Absen::where('user_id', auth()->id())
+        ->whereDate('tanggal', $today)
+        ->first();
 
-        if ($bulan < 1 || $bulan > 12) {
-            $bulan = now()->month;
+    if (!$absen || !$absen->jam_keluar) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Silahkan checkout absen terlebih dahulu sebelum lembur.'
+        ], 422);
+    }
+
+    $lembur = Lembur::where('user_id', auth()->id())
+        ->whereDate('tanggal', $today)
+        ->first();
+
+    // ===============================
+    // LEMBUR MASUK
+    // ===============================
+    if ($request->status === 'masuk') {
+
+        if ($lembur && $lembur->jam_masuk) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda sudah melakukan lembur masuk hari ini.'
+            ], 422);
         }
 
-        $riwayat = Absen::where('user_id', auth()->id())
-            ->whereMonth('tanggal', $bulan)
-            ->whereYear('tanggal', $tahun)
-            ->orderByDesc('tanggal')
-            ->get();
+        $path = $request->file('foto')
+            ->store('lembur', 'public');
 
-        return view('pages.karyawan.history-absen', compact('riwayat', 'bulan', 'tahun'));
+        $lembur = Lembur::create([
+            'user_id'     => auth()->id(),
+            'tanggal'     => $today,
+            'jam_masuk'   => now()->format('H:i:s'),
+            'latitude'    => $request->latitude,
+            'longitude'   => $request->longitude,
+            'foto'        => $path,
+            'validate'    => 0,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Lembur masuk berhasil.'
+        ]);
     }
+
+    // ===============================
+    // LEMBUR KELUAR
+    // ===============================
+    if (!$lembur || !$lembur->jam_masuk) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Anda belum melakukan lembur masuk.'
+        ], 422);
+    }
+
+    if ($lembur->jam_keluar) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Anda sudah melakukan lembur keluar.'
+        ], 422);
+    }
+
+    $path = $request->file('foto')
+        ->store('lembur', 'public');
+
+    $lembur->update([
+        'jam_keluar'  => now()->format('H:i:s'),
+        'latitude_k'  => $request->latitude,
+        'longitude_k' => $request->longitude,
+        'foto_keluar' => $path,
+    ]);
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Lembur keluar berhasil.'
+    ]);
+}
+  public function riwayat(Request $request)
+{
+    $bulanInput = $request->get('bulan');
+    $tahunInput = $request->get('tahun', now()->year);
+
+    $tahun = (int) $tahunInput;
+    $bulan = $this->normalizeMonth($bulanInput, $tahun);
+
+    $riwayat = Absen::where('user_id', auth()->id())
+        ->whereMonth('tanggal', $bulan)
+        ->whereYear('tanggal', $tahun)
+        ->orderByDesc('tanggal')
+        ->get();
+
+    $lembur = Lembur::where('user_id', auth()->id())
+        ->whereMonth('tanggal', $bulan)
+        ->whereYear('tanggal', $tahun)
+        ->orderByDesc('tanggal')
+        ->get();
+
+    return view(
+        'pages.karyawan.history-absen',
+        compact(
+            'riwayat',
+            'lembur',
+            'bulan',
+            'tahun'
+        )
+    );
+}
 
     protected function normalizeMonth($bulanInput, $tahun = null)
     {
@@ -614,7 +780,10 @@ class KaryawanController extends Controller
             $date  = $request->date ?? now()->toDateString();
 
             // Ambil data absensi + relasi karyawan
-            $absens = Absen::with('user')
+         $absens = Absen::with([
+      'user.karyawan.divisi'
+
+])
                 ->whereMonth('tanggal', $month)
                 ->whereYear('tanggal', $year)
                 ->when($date, fn($q) => $q->whereDate('tanggal', $date))
@@ -680,4 +849,25 @@ class KaryawanController extends Controller
             'url'     => asset('assets/images/users/' . $filename),
         ]);
     }
+    // change password
+        public function changePassword(Request $request)
+    {
+        $request->validate([
+            'password' => 'required|min:2'
+        ]);
+
+        $user = auth()->user();
+
+        $user->password = Hash::make(
+            $request->password
+        );
+
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Password berhasil diubah'
+        ]);
+    }
+
 }

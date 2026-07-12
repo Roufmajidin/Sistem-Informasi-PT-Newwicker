@@ -13,7 +13,10 @@ class BomItem extends Model
         'unit',
         'notes',
         'parent_id',
-        'level'
+        'level',
+        'material_id',
+        'material_type',
+        'harga'
     ];
 
     public function group()

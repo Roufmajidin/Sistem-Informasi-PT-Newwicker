@@ -223,22 +223,45 @@
                     </select>
                 </div>
 
-                {{-- CAMERA (NATIVE HP) --}}
-                <div class="form-group mb-3" id="camera-section">
-                    <label>Ambil Foto</label>
+            {{-- CAMERA + GALERI --}}
+<div class="form-group mb-3" id="camera-section">
 
-                    <input type="file"
-                        id="cameraInput"
-                        name="images[]"
-                        accept="image/*"
-                        capture="environment"
-                        multiple
-                        class="form-control">
-                </div>
+    <label>Ambil Foto</label>
 
-                {{-- PREVIEW --}}
-                <div id="preview-container"></div>
+    <!-- GALERI -->
+    <input type="file"
+        id="galleryInput"
+        accept="image/*"
+        multiple
+        class="form-control">
 
+    <br>
+
+    <!-- CAMERA -->
+    <input type="file"
+        id="cameraInput"
+        accept="image/*"
+        capture="environment"
+        multiple
+        style="display:none;">
+
+    <button type="button"
+        id="btn-camera"
+        class="btn btn-primary btn-sm">
+        📷 Ambil Dari Kamera
+    </button>
+
+</div>
+<div id="preview-container"
+    style="
+        width:100%;
+        display:flex;
+        flex-wrap:wrap;
+        gap:10px;
+        margin-top:15px;
+        min-height:120px;
+    ">
+</div>
                 {{-- KETERANGAN --}}
                 <div class="form-group mb-3" id="keterangan-section">
                     <label>Keterangan</label>
@@ -811,7 +834,25 @@ img.src = qrUrl;
                     $('#view-meta').html(metaHtml);
 
                     let contentHtml = '';
+if (res.user_id == window.authUserIdd) {
 
+    contentHtml += `
+        <div style="margin-bottom:15px;">
+            <button
+                class="btn btn-primary btn-add-image"
+                data-id="${res.id}">
+                📷 Tambah Gambar
+            </button>
+
+            <input
+                type="file"
+                id="addImageInput"
+                multiple
+                accept="image/*"
+                style="display:none;">
+        </div>
+    `;
+}
                     // =========================
                     // 🔥 FINANCE → TABLE
                     // =========================
@@ -1343,39 +1384,235 @@ contentHtml += `
             $('.modal-body').scrollTop(0);
             @endif
         });
-        const input = document.querySelector('input[type="file"]');
-        const container = document.getElementById('preview-container');
+// =========================
+// STORAGE FILE
+// =========================
+// =========================
+// GLOBAL STORAGE
+// =========================
+let allFiles = [];
 
-        input.addEventListener('change', function() {
+// =========================
+// PILIH DARI GALERI
+// =========================
+$('#galleryInput').on('change', function (e) {
 
-            container.innerHTML = '';
+    let files = Array.from(e.target.files);
 
-            Array.from(this.files).forEach(file => {
+    files.forEach(file => {
+        allFiles.push(file);
+    });
 
-                let reader = new FileReader();
+    renderPreview();
 
-                reader.onload = function(e) {
+});
 
-                    let wrapper = document.createElement('div');
-                    wrapper.classList.add('preview-item');
+// =========================
+// OPEN CAMERA
+// =========================
+$('#btn-camera').on('click', function () {
 
-                    let img = document.createElement('img');
-                    img.src = e.target.result;
-                    img.classList.add('img-upload-preview');
+    $('#cameraInput').trigger('click');
 
-                    // 🔥 CLICK → ZOOM
-                    img.onclick = function() {
-                        openZoom(this.src);
-                    };
+});
 
-                    wrapper.appendChild(img);
-                    container.appendChild(wrapper);
-                };
+// =========================
+// HASIL FOTO KAMERA
+// =========================
+$('#cameraInput').on('change', function (e) {
 
-                reader.readAsDataURL(file);
-            });
+    let files = Array.from(e.target.files);
+
+    files.forEach(file => {
+        allFiles.push(file);
+    });
+
+    renderPreview();
+
+});
+
+// =========================
+// PREVIEW
+// =========================
+async function renderPreview() {
+
+    let container = $('#preview-container');
+
+    container.html('');
+
+    for (let index = 0; index < allFiles.length; index++) {
+
+        let file = allFiles[index];
+
+        await new Promise((resolve) => {
+
+            let reader = new FileReader();
+
+            reader.onload = function (e) {
+
+                let html = `
+                    <div style="
+                        width:120px;
+                        position:relative;
+                    ">
+
+                        <img
+                            src="${e.target.result}"
+                            loading="lazy"
+                            style="
+                                width:120px;
+                                height:120px;
+                                object-fit:cover;
+                                border-radius:10px;
+                                border:1px solid #ddd;
+                                cursor:pointer;
+                            "
+                            onclick="openZoom('${e.target.result}')"
+                        >
+
+                        <button
+                            type="button"
+                            class="remove-image"
+                            data-index="${index}"
+                            style="
+                                position:absolute;
+                                top:-8px;
+                                right:-8px;
+                                width:25px;
+                                height:25px;
+                                border:none;
+                                border-radius:50%;
+                                background:red;
+                                color:white;
+                                font-weight:bold;
+                                cursor:pointer;
+                            "
+                        >
+                            ×
+                        </button>
+
+                    </div>
+                `;
+
+                container.append(html);
+
+                // kasih jeda kecil supaya browser napas
+                setTimeout(resolve, 30);
+            };
+
+            reader.readAsDataURL(file);
 
         });
+
+    }
+
+}
+// =========================
+// REMOVE IMAGE
+// =========================
+$(document).on('click', '.remove-image', function () {
+
+    let index = $(this).data('index');
+
+    allFiles.splice(index, 1);
+
+    renderPreview();
+
+});
+// =========================
+// SYNC INPUT FILES
+// =========================
+function syncFiles() {
+
+    let dt = new DataTransfer();
+
+    allFiles.forEach(file => {
+        dt.items.add(file);
+    });
+
+    $('#cameraInput')[0].files = dt.files;
+
+}
+
+// =========================
+// RENDER PREVIEW
+// =========================
+function renderPreview() {
+
+    $('#preview-container').html('');
+
+    allFiles.forEach((file, index) => {
+
+        let reader = new FileReader();
+
+        reader.onload = function (e) {
+
+            let html = `
+                <div style="
+                    width:120px;
+                    position:relative;
+                ">
+
+                    <img
+                        src="${e.target.result}"
+                        style="
+                            width:120px;
+                            height:120px;
+                            object-fit:cover;
+                            border-radius:10px;
+                            border:1px solid #ddd;
+                            cursor:pointer;
+                        "
+                        onclick="openZoom('${e.target.result}')"
+                    >
+
+                    <button
+                        type="button"
+                        class="remove-image"
+                        data-index="${index}"
+                        style="
+                            position:absolute;
+                            top:-8px;
+                            right:-8px;
+                            width:25px;
+                            height:25px;
+                            border:none;
+                            border-radius:50%;
+                            background:red;
+                            color:white;
+                            font-weight:bold;
+                            cursor:pointer;
+                        "
+                    >
+                        ×
+                    </button>
+
+                </div>
+            `;
+
+            $('#preview-container').append(html);
+
+        };
+
+        reader.readAsDataURL(file);
+
+    });
+
+}
+
+// =========================
+// REMOVE IMAGE
+// =========================
+$(document).on('click', '.remove-image', function () {
+
+    let index = $(this).data('index');
+
+    allFiles.splice(index, 1);
+
+    syncFiles();
+    renderPreview();
+
+});
 
         function openZoom(src) {
             document.getElementById('modalImg').src = src;
@@ -1479,11 +1716,71 @@ contentHtml += `
 
 });
 });
+$(document).on('click', '.btn-add-image', function () {
+
+    let id = $(this).data('id');
+
+    $('#addImageInput')
+        .data('id', id)
+        .trigger('click');
+});
+$(document).on('change', '#addImageInput', function () {
+
+    let pengajuanId = $(this).data('id');
+
+    let fd = new FormData();
+
+    Array.from(this.files).forEach(file => {
+        fd.append('images[]', file);
+    });
+
+    $.ajax({
+
+        url: '/pengajuan/add-image/' + pengajuanId,
+        method: 'POST',
+
+        data: fd,
+
+        processData: false,
+        contentType: false,
+
+        headers: {
+            'X-CSRF-TOKEN':
+                $('meta[name="csrf-token"]').attr('content')
+        },
+
+        success: function (res) {
+
+            Swal.fire(
+                'Berhasil',
+                'Gambar berhasil ditambahkan',
+                'success'
+            ).then(() => {
+
+                openPengajuanDetail(pengajuanId);
+
+            });
+
+        },
+
+        error: function (xhr) {
+
+            Swal.fire(
+                'Gagal',
+                xhr.responseJSON?.message ??
+                'Upload gagal',
+                'error'
+            );
+
+        }
+    });
+
+});
 async function sendChunkAjax(url, formData) {
 
     try {
 
-        let files = $('input[name="images[]"]')[0].files;
+        let files = allFiles;
 
         if (files.length === 0) {
 

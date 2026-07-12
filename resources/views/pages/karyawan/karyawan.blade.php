@@ -8,6 +8,8 @@
                 <div class="col-sm-6">
                     <h4 class="mb-0 _300">List Karyawan</h4>
                     <small class="text-muted">PT. Newwicker Indonesia</small>
+                    <br>
+                    <small class="text-muted" style="color: red;">double tap in #no to delete</small>
                 </div>
 
                 <div class="col-sm-6 text-sm-right">
@@ -60,7 +62,12 @@
                         @endphp
                         <tr style="font-size: 10px;">
                             <!-- No (tidak editable) -->
-                            <td>{{ $no++ }}</td>
+                        <td class="delete-karyawan"
+    data-id="{{ $i->id }}"
+    style="cursor:pointer;"
+    title="Double klik untuk hapus">
+    {{ $no++ }}
+</td>
 
                             <!-- ID (tidak perlu editable biasanya) -->
                             <td>
@@ -724,7 +731,61 @@
         });
     });
 </script>
+<script>
+    $(document).on('dblclick', '.delete-karyawan', function () {
 
+    let id = $(this).data('id');
+
+    Swal.fire({
+        title: 'Delete Karyawan?',
+        html: `
+            <b>Data karyawan akan dihapus.</b><br>
+            User yang terhubung juga akan dihapus.
+        `,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, Delete',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#d33'
+    }).then((result) => {
+
+        if (result.isConfirmed) {
+
+            $.ajax({
+                url: `/karyawan/${id}/delete`,
+                type: 'DELETE',
+                data: {
+                    _token: '{{ csrf_token() }}'
+                },
+                success: function(res){
+
+                    Swal.fire({
+                        icon:'success',
+                        title:'Deleted',
+                        text:res.message,
+                        timer:1500,
+                        showConfirmButton:false
+                    });
+
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                },
+                error:function(){
+                    Swal.fire(
+                        'Error',
+                        'Gagal menghapus data',
+                        'error'
+                    );
+                }
+            });
+
+        }
+
+    });
+
+});
+</script>
 
 <script>
     document.addEventListener("DOMContentLoaded", function() {

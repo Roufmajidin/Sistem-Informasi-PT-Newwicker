@@ -44,6 +44,8 @@
                             <th>No.</th>
                             <th>Nama Lengkap</th>
                             <th>Tanggal</th>
+                                    <th>Created At</th>
+
                             <th>Keterangan</th>
                             <th>Bukti</th>
                             <th>Messages</th>
@@ -57,7 +59,10 @@
                                 <td>{{ $no++ }}</td>
                                 <td>{{ $absen->user->name }}</td>
                                 <td>{{ \Carbon\Carbon::parse($absen->tanggal)->format('d-m-Y') }}</td>
-                                <td>{{ $absen->keterangan }}</td>
+                                <td>{{ \Carbon\Carbon::parse($absen->created_at)->format('d-m-Y H:i') }}</td>
+                  <td class="text-wrap">
+
+                                    {{ $absen->keterangan }}</td>
                                 <td>
                                     @if($absen->foto)
                                         <button type="button"
@@ -114,7 +119,19 @@
         </div>
     </div>
 </div>
+<style>
 
+    .text-wrap {
+    white-space: normal !important;
+    word-break: break-word;
+
+}
+.table td {
+    white-space: normal !important;
+    word-wrap: break-word;
+    max-width: 250px;
+}
+</style>
 <!-- JS -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>

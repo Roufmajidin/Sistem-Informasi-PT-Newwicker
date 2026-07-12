@@ -8,7 +8,9 @@ class BomGroup extends Model
 {
     protected $fillable = [
         'bom_id',
-        'name'
+        'name',
+        'name_sub',
+        'harga_sub',
     ];
 
     public function bom()

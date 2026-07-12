@@ -44,46 +44,140 @@
             Data Absensi Bulan {{ \Carbon\Carbon::create()->month($bulan)->translatedFormat('F') }} {{ $tahun }}
         </h5>
 
-        <div class="table-responsive">
-            <table class="table table-striped table-hover align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th>Tanggal</th>
-                        <th>Jam Masuk</th>
-                        <th>Jam Keluar</th>
-                        <th>Status</th>
-                        <th>Jarak (m)</th>
-                        <th>Keterangan</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse ($riwayat as $absen)
+       <div class="row">
+
+    {{-- ABSENSI --}}
+    <div class="col-md-6">
+
+        <div class="card shadow-sm p-3 h-100">
+
+            <h5 class="mb-3">
+                Riwayat Absensi
+            </h5>
+
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
                         <tr>
-                            <td>{{ \Carbon\Carbon::parse($absen->tanggal)->translatedFormat('d F Y') }}</td>
-                            <td>{{ $absen->jam_masuk ?? '-' }}</td>
-                            <td>{{ $absen->jam_keluar ?? '-' }}</td>
+                            <th>Tanggal</th>
+                            <th>Masuk</th>
+                            <th>Keluar</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @forelse($riwayat as $absen)
+                        <tr>
                             <td>
-                                @if ($absen->jam_masuk && $absen->jam_keluar)
-                                    <span class="badge bg-success">Hadir</span>
-                                @elseif ($absen->jam_masuk && ! $absen->jam_keluar)
-                                    <span class="badge bg-warning text-dark">Belum Pulang</span>
+                                {{ \Carbon\Carbon::parse($absen->tanggal)->format('d/m/Y') }}
+                            </td>
+
+                            <td>
+                                {{ $absen->jam_masuk ?? '-' }}
+                            </td>
+
+                            <td>
+                                {{ $absen->jam_keluar ?? '-' }}
+                            </td>
+
+                            <td>
+                                @if($absen->jam_masuk && $absen->jam_keluar)
+                                    <span class="badge badge-success">
+                                        Hadir
+                                    </span>
+                                @elseif($absen->jam_masuk)
+                                    <span class="badge badge-warning">
+                                        Belum Pulang
+                                    </span>
                                 @else
-                                    <span class="badge bg-danger">Tidak Hadir</span>
+                                    <span class="badge badge-danger">
+                                        Tidak Hadir
+                                    </span>
                                 @endif
                             </td>
-                            <td>{{ $absen->jarak ? number_format($absen->jarak, 1) : '-' }}</td>
-                            <td>{{ $absen->keterangan ?? '-' }}</td>
                         </tr>
-                    @empty
+                        @empty
                         <tr>
-                            <td colspan="6" class="text-center text-muted">
-                                Tidak ada data absensi untuk bulan ini.
+                            <td colspan="4" class="text-center">
+                                Tidak ada data
                             </td>
                         </tr>
-                    @endforelse
-                </tbody>
-            </table>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+
         </div>
+
+    </div>
+
+    {{-- LEMBUR --}}
+    <div class="col-md-6">
+
+        <div class="card shadow-sm p-3 h-100">
+
+            <h5 class="mb-3">
+                Riwayat Lembur
+            </h5>
+
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Tanggal</th>
+                            <th>Mulai</th>
+                            <th>Selesai</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @forelse($lembur as $item)
+                        <tr>
+
+                            <td>
+                                {{ \Carbon\Carbon::parse($item->tanggal)->format('d/m/Y') }}
+                            </td>
+
+                            <td>
+                                {{ $item->jam_masuk }}
+                            </td>
+
+                            <td>
+                                {{ $item->jam_keluar ?? '-' }}
+                            </td>
+
+                            <td>
+                                @if($item->validate)
+                                    <span class="badge badge-success">
+                                        Disetujui
+                                    </span>
+                                @else
+                                    <span class="badge badge-warning">
+                                        Pending
+                                    </span>
+                                @endif
+                            </td>
+
+                        </tr>
+                        @empty
+                        <tr>
+                            <td colspan="4" class="text-center">
+                                Tidak ada data lembur
+                            </td>
+                        </tr>
+                        @endforelse
+                    </tbody>
+
+                </table>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
     </div>
 
 </div>

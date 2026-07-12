@@ -34,7 +34,43 @@ class PoController extends Controller
         //
         return view('pages.marketing.index');
     }
+    public function deletePo($id)
+    {
+        DB::beginTransaction();
 
+        try {
+
+            $po = Po::findOrFail($id);
+
+            // =========================
+            // DELETE DETAIL
+            // =========================
+            DetailPo::where('po_id', $po->id)
+                ->delete();
+
+            // =========================
+            // DELETE PO
+            // =========================
+            $po->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'PO berhasil dihapus',
+            ]);
+
+        } catch (\Throwable $e) {
+
+            DB::rollback();
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+
+        }
+    }
     /**
      * Show the form for creating a new resource.
      */
@@ -257,6 +293,7 @@ class PoController extends Controller
     {
         $company = $request->company;
         $items   = $request->items;
+    // dd($request->all());
 
         Log::info('Start import Excel PO', [
             'user_id' => auth()->id(),
@@ -288,7 +325,6 @@ class PoController extends Controller
             ], 422);
         }
 
-
         // ======================
         // SIMPAN PO
         // ======================
@@ -319,7 +355,7 @@ class PoController extends Controller
             return $result;
         };
 
-        $items = array_slice($items, 1);
+        // $items = array_slice($items, 1);
 
         foreach ($items as $item) {
             DetailPo::create([

@@ -10,7 +10,23 @@
                 </div>
             </div>
         </div>
+<div id="exportProgressContainer" style="display:none;margin-bottom:15px;">
+    <div class="alert alert-info">
+        <strong id="exportStatus">
+            Preparing export...
+        </strong>
 
+        <div class="progress mt-2">
+            <div
+                id="exportProgressBar"
+                class="progress-bar progress-bar-striped progress-bar-animated"
+                role="progressbar"
+                style="width:0%">
+                0%
+            </div>
+        </div>
+    </div>
+</div>
         <div class="col-12">
             <div class="table-wrapper">
                 <table class="table table-bordered" id="inventoryTable">
@@ -112,7 +128,10 @@ $(document).ready(function () {
                                 <button class="btn btn-sm btn-info viewBuyerBtn" data-id="${buyer.buyer_id}">
                                     👁️
                                 </button>
-                                 <button class="btn btn-sm btn-success exportBtn" data-id="${buyer.buyer_id}">
+                                 <button class="btn btn-sm btn-success exportBtn" 
+                                     data-company="${buyer.company_name ?? 'buyer'}"
+
+                                 data-id="${buyer.buyer_id}">
                                     Export
                                 </button>
                             </td>
@@ -196,23 +215,63 @@ $(document).ready(function () {
 </script>
 <script>
 document.addEventListener('click', function (e) {
-    if (e.target.closest('.exportBtn')) {
-        const btn = e.target.closest('.exportBtn');
-        const buyerId = btn.dataset.id;
 
-        if (!buyerId) {
-            alert('Buyer ID tidak ditemukan');
-            return;
-        }
+    const btn = e.target.closest('.exportBtn');
 
-        const url = `https://newwicker.my.id/public/cart-export/${buyerId}`;
+    if (!btn) return;
 
-        // trigger download
-        window.open(url, '_blank');
+    const buyerId = btn.dataset.id;
+
+    const companyName = (btn.dataset.company || 'buyer')
+        .replace(/[^\w\s-]/g, '')
+        .replace(/\s+/g, '_');
+
+    const url = `/cart-export/${buyerId}`;
+
+    $('#exportProgressContainer').show();
+
+    function setProgress(percent, text) {
+        $('#exportStatus').text(text);
+
+        $('#exportProgressBar')
+            .css('width', percent + '%')
+            .text(percent + '%');
     }
+
+    setProgress(10, 'Loading cart data...');
+
+    setTimeout(() => {
+        setProgress(30, 'Compressing images...');
+    }, 500);
+
+    setTimeout(() => {
+        setProgress(60, 'Generating Excel...');
+    }, 1500);
+
+    setTimeout(() => {
+        setProgress(90, 'Starting download...');
+    }, 2500);
+
+    setTimeout(() => {
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `cart_export_${companyName}.xlsx`;
+
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+
+        setProgress(100, 'Download started');
+
+        setTimeout(() => {
+            $('#exportProgressContainer').fadeOut();
+        }, 2000);
+
+    }, 3000);
+
 });
 </script>
-
 <style>
 .modal-body {
     overflow-x: auto;

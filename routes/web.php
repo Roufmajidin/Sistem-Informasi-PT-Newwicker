@@ -12,22 +12,54 @@ use App\Http\Controllers\ImportController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\KaryawanController;
 use App\Http\Controllers\LabelController;
+use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\MarketingController;
 use App\Http\Controllers\PameranContrller;
 use App\Http\Controllers\PdfController;
 use App\Http\Controllers\PengajuanController;
 use App\Http\Controllers\PoController;
 use App\Http\Controllers\ProduksiController;
+use App\Http\Controllers\ProduksiMnController;
 use App\Http\Controllers\QcController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\SpkController;
+use App\Http\Controllers\StockMaterialController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\TokenController;
+use App\Http\Controllers\NewPengajuanController;
 use Illuminate\Support\Facades\Route;
+Route::middleware('auth')->group(function () {
 
+    Route::post('/profile/change-password',[KaryawanController::class, 'changePassword'])->name('profile.change-password');
+
+});
+Route::get('/spk/preview/{id}', [SpkController::class, 'preview'])
+    ->name('spk.preview');
+
+Route::get('/laporan', [LaporanController::class, 'index'])
+    ->name('laporan.index');
+ Route::get('/laporan/detail/{id}',  [LaporanController::class, 'detailBarang']
+)->name('laporan.detail');
+Route::get(
+    '/laporan/detail/{id}/pdf',
+    [LaporanController::class,'pdf']
+)->name('laporan.detail.pdf');
+Route::post('/laporan/update', [LaporanController::class, 'update'])
+    ->name('laporan.update');
+Route::delete('/laporan/{id}', [LaporanController::class, 'destroy'])
+    ->name('laporan.destroy');
+// Route::get('/laporan/{stok}/detail', [LaporanController::class, 'detail'])
+//     ->name('laporan.detail');
+Route::get('/laporan/{id}/detail', [LaporanController::class, 'detail']);
+Route::post('/laporan/transaksi/store', [LaporanController::class, 'storeTransaksi'])
+    ->name('laporan.transaksi.store');
+Route::get('/stok/search', [LaporanController::class, 'searchBarang']);
+Route::get('/spk/search-spk', [LaporanController::class,'searchSpk']);
+Route::get('/spk/stok/{id}', [LaporanController::class,'detailSpk']);
 // ==============================
 // 🔐 AUTHENTICATION
 // ==============================
+
 Route::post('/karyawan/store', [KaryawanController::class, 'store'])->name('karyawan.store');
 Route::post('/karyawan/import', [KaryawanController::class, 'import'])->name('karyawan.import');
 Route::post('/karyawan/check-existing-names', [KaryawanController::class, 'checkExistingNames'])->name('karyawan.check_existing_names');
@@ -53,7 +85,25 @@ Route::post('/logout', [AuthController::class, 'logoutWeb'])->name('logout');
 Route::get('/', function () {
     return view('pages.dashboard.dashboard');
 })->middleware('auth');
+Route::get('/qc/mapping', [QcController::class, 'mapping']);
+Route::get('/qc/laporan',
+    [QcController::class, 'laporan'])
+    ->name('qc.laporan');
+Route::get('/qc/api/po', [QcController::class, 'getPo'])
+    ->middleware('auth');
+Route::get('/sqc/monitor/{id}',
+    [QcController::class, 'monitorDetail'])
+    ->name('qc.monitor.detail');
+Route::get(
+    '/qc/detail-po/{detailPo}/reports',
+    [QcController::class, 'detailPoReports']
+);
 
+Route::get('/qc/laporan-qc', [QcController::class, 'laporanQc'])
+        ->name('qc.laporans');
+
+Route::get('/inspection/filter', [QcController::class, 'filterInspection'])
+    ->name('inspection.filter');
 // ==============================
 // 📈 MARKETING
 // ==============================
@@ -79,8 +129,11 @@ Route::post('/buyers/update', [MarketingController::class, 'updateInline']);
 // ==============================
 Route::get('/karyawan', [KaryawanController::class, 'index'])->name('karyawan.index');
 Route::get('/karyawan-absen', [KaryawanController::class, 'absenkaryawan'])->name('karyawan.absen');
+Route::get('/karyawan-lembur', [KaryawanController::class, 'lembur'])->name('karyawan.lembur');
 Route::get('/izin-karyawan', [KaryawanController::class, 'izinKaryawan'])->name('karyawan.izin');
 Route::get('/karyawan-scan', [KaryawanController::class, 'scan'])->name('karyawan.scan');
+Route::post('/lembur/store', [KaryawanController::class, 'storeLembur'])
+    ->name('lembur.store');
 // absen vvia web
 
 // Route::get('/absen-sekarang', [KaryawanController::class, 'scan'])->name('karyawan.scan');
@@ -145,16 +198,15 @@ Route::get('/insert/{kategoriName}', [QcController::class, 'insertDummy']);
 Route::get('/qc/search', [QcController::class, 'ajaxPo'])->name('qc.ajax.poo');
 
 // per kategori (rangka / anyam / dll)
-Route::get('/qc/export/{kategori}/{po_id}', [SpkController::class, 'exportPdf']);
+Route::get('/qc/export/{kategori}/{po_id}', [QcController::class, 'exportPdf']);
 
 // 🔥 download semua kategori (ZIP)
-Route::get('/qc/export-all/{po_id}', [SpkController::class, 'exportAll']);
 
 Route::get('/marketing-pfi', [PoController::class, 'marketing']);
 Route::get('/marketing/ajax/po-list', [QcController::class, 'ajaxPoList'])
     ->name('marketing.ajax.po');
 Route::post('/marketing/excel/paste', [PoController::class, 'convert'])->name('marketing.excel.paste');
-
+Route::delete('/marketing/po-delete/{id}', [PoController::class, 'deletePo']);
 Route::post('/marketing/excel/upload', [PoController::class, 'uploadExcel'])
     ->name('marketing.excel.upload');
 Route::post('/marketing/excel/save', [PoController::class, 'saveExcelData'])
@@ -173,6 +225,11 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/pengajuan/view-detail/{detailId}', [PengajuanController::class, 'viewDetailImage']);
     Route::post('/pengajuan/upload-detail-image', [PengajuanController::class, 'uploadDetailImage']);
     Route::post('/pengajuan/store-all-divisi', [PengajuanController::class, 'storeAllDivisi']);
+Route::post(
+    '/pengajuan/add-image/{id}',
+    [PengajuanController::class, 'addImage']
+)->name('pengajuan.add-image');
+
     Route::get('/pengajuan/list', [PengajuanController::class, 'list']);
     Route::get('/pengajuan/detail/{id}', [PengajuanController::class, 'detail']);
     Route::get('/pengajuan/messages/{id}', [PengajuanController::class, 'getMessages']);
@@ -185,28 +242,132 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard/pending-approval', [PengajuanController::class, 'pendingMyApproval']);
 });
 Route::get('/supplier', [SupplierController::class, 'index']);
+Route::post('/supplier/store', [SupplierController::class, 'storeSupplier']);
+Route::post('/supplier/update/{id}', [SupplierController::class, 'updateSupplier']);
+Route::post('/jenis/store', [SupplierController::class, 'storeJenis']);
+Route::post('/jenis/update/{id}', [SupplierController::class, 'updateJenis']);
+Route::get('/supplier/search', [SupplierController::class, 'search']);
+
+Route::get('/qc/export-all/{po_id}', [SpkController::class, 'exportAll']);
+// draft
+Route::get('/spk/request-r', [SpkController::class, 'draftr'])->name('spk.draft');
+Route::post('/payment-request/save-draft-group', [SpkController::class, 'saveDraftGroup'])->name( 'payment-request.save-draft-group');
+Route::get('/payment-request-saved/{id}/detail',[SpkController::class, 'detailDraft'])->name( 'payment-request.detail-draft');
+//
+Route::delete('/karyawan/{id}/delete', [KaryawanController::class, 'destroy'])
+    ->name('karyawan.destroy');
+// bom
+// BOM
+Route::get(
+    '/bom',
+    [BomController::class, 'index']
+)->name('bom.index');
+
+Route::post(
+    '/bom/store',
+    [BomController::class, 'store']
+)->name('bom.store');
+
+Route::get('/bom/edit/{id}',[BomController::class, 'edit']
+)->name('bom.edit');
+
+Route::post(
+    '/bom/update/{id}',
+    [BomController::class, 'updateBom']
+)->name('bom.update');
+
+Route::delete(
+    '/bom/delete/{id}',
+    [BomController::class, 'destroyBom']
+)->name('bom.destroy');
+
+
+// MATERIAL PRICE
+Route::post(
+    '/material-price/store',
+    [BomController::class, 'bulkStore']
+)->name('material-price.bulk-store');
+
+Route::delete(
+    '/material-price/delete/{id}',
+    [BomController::class, 'destroy']
+)->name('material-price.destroy');
+
+Route::post(
+    '/material-price/update/{id}',
+    [BomController::class, 'update']
+)->name('material-price.update');
+
+
+// MATERIAL FINISHING
+Route::prefix('material-finishing')->group(function () {
+
+    Route::post(
+        '/bulk-store',
+        [BomController::class, 'bulkStoreFinishing']
+    )->name('material-finishing.bulk-store');
+
+    Route::post(
+        '/update/{id}',
+        [BomController::class, 'updateFinishing']
+    )->name('material-finishing.update');
+
+    Route::delete(
+        '/delete/{id}',
+        [BomController::class, 'destroyFinishing']
+    )->name('material-finishing.destroy');
+
+});
+// bom CRUD
+Route::get('/bom/list', [BomController::class,'list'])
+    ->name('bom.list');
+
+Route::get('/bom/show/{id}', [BomController::class,'show'])
+    ->name('bom.show');
+
+Route::get('/bom/edit/{id}', [BomController::class,'show'])
+    ->name('bom.edit');
+Route::post(
+    '/bom/update/{id}',
+    [BomController::class, 'updateBom']
+)->name('bom.update');
+
+Route::post('/bom/store', [BomController::class,'store'])
+    ->name('bom.store');
+
+Route::post('/bom/update/{id}', [BomController::class,'updateBom'])
+    ->name('bom.update');
+
 Route::get('/produksi/get-data', [SpkController::class, 'getData']);
 Route::get('/get-detail-barang', [SpkController::class, 'getDetailBarang']);
 Route::post('/produksi/save', [SpkController::class, 'saveData']);
 Route::post('/save-process', [SpkController::class, 'saveProcess']);
 Route::get('/get-timeline', [SpkController::class, 'getTimeline']);
-Route::post('/supplier/store', [SupplierController::class, 'storeSupplier']);
-Route::post('/supplier/update/{id}', [SupplierController::class, 'updateSupplier']);
 Route::get('/timeline/data', [PoController::class, 'getTimeline'])->name('timeline.data');
 Route::get('/spk/{id}', [SpkController::class, 'index'])->name('spk.index');
-Route::post('/spk/create/{po}', [SpkController::class, 'save'])->name('spk.create');
+Route::post('/spk/create/{po}', [SpkController::class, 'save'])->name('laporan');
 Route::post('/spk/update/{spk}', [SpkController::class, 'save'])->name('spk.update');
+// Route::post('/spk/create/{po}', [SpkController::class, 'save'])->name('spk.create');
+Route::post('/spk/purchase', [SpkController::class, 'purchase'])->name('spk.purchase');
+
+Route::post('/spk/change-status/{spk}', [SpkController::class, 'changeStatus']
+)->name('spk.change-status');
+Route::get('/spk/timeline/{spk}', [SpkController::class, 'timeline']);
+Route::post('/payment-request/store', [SpkController::class, 'paymentstore']);
 Route::get('/test-calendar', [SpkController::class, 'calendar'])->name('spk.calendar');
 Route::get('/add-calendar', [SpkController::class, 'addCalendar'])->name('spk.addcalendar');
 
 Route::get('/detail-po/search', [SpkController::class, 'search'])
     ->name('detailpo.search');
-Route::post('/jenis/store', [SupplierController::class, 'storeJenis']);
-Route::post('/jenis/update/{id}', [SupplierController::class, 'updateJenis']);
+
 Route::get('/spkk/timeline', [SpkController::class, 'tima'])->name('spk.time');
 Route::get('/all-spk', [SpkController::class, 'allspk'])->name('spk.all');
 Route::get('/semua-spk', [SpkController::class, 'spk'])->name('spk.semua');
 Route::get('/spk/edit/{id}', [SpkController::class, 'index'])->name('spk.edit');
+Route::get('/spk/views/{id}', [SpkController::class, 'index'])->name('spk.view');
+Route::post('/spk/update/{spk}', [SpkController::class, 'save'])->name('spk.update');
+Route::post('/spk/create/{po}', [SpkController::class, 'save'])->name('spk.create');
+
 Route::post('/spk/simpan-edit/{id}', [SpkController::class, 'saveEdit'])
     ->name('spk.simpan-edit');
 // produksi
@@ -221,6 +382,23 @@ Route::get('/chatroom/get-room/{id}', [CadController::class, 'getRoom']);
 Route::get('/chatroom/messages/{id}', [CadController::class, 'messages']);
 Route::post('/chatroom/send', [CadController::class, 'send']);
 
+Route::get('/produksi/mn', [ProduksiMnController::class, 'index'])->name('produksi.mn');
+Route::get('/qc-report/{inspectSchedule}', [ProduksiMnController::class, 'qcReport']
+)->name('qc.report');
+Route::get('/produksi/inventor', [ProduksiMnController::class, 'inventor']);
+Route::get(
+    '/inventor/spk/{id}',
+    [ProduksiMnController::class, 'inventorDetail']
+);
+Route::post(
+    '/inventor/store',
+    [ProduksiMnController::class, 'inventorStore']
+)->name('inventor.store');
+Route::delete('/inventor/delete/{id}', [ProduksiMnController::class, 'delete']);
+Route::delete(
+    '/spk/delete/{id}',
+    [SpkController::class, 'delete']
+);
 Route::prefix('pfi')->group(function () {
 
     Route::get('/import', [ImportController::class, 'index'])
@@ -247,7 +425,6 @@ Route::post('/setting/kategori', [SettingController::class, 'storeKategori']);
 Route::post('/setting/checkpoint', [SettingController::class, 'storeCheckpoint']);
 Route::post('/setting/checkpoint/mass', [SettingController::class, 'storeCheckpointMass'])
     ->name('checkpoint.store.mass');
-Route::get('/supplier/search', [SupplierController::class, 'search']);
 // Route::post('/production-timeline/store', [ProduksiController::class, 'store']);
 Route::post('/production-timeline/store', [ProduksiController::class, 'store']);
 Route::post('/production-timeline/store-batch', [ProduksiController::class, 'storeBatch']);
@@ -280,6 +457,22 @@ Route::delete(
     '/employee-loans/{id}',
     [EmployeeLoanController::class, 'destroy']
 )->name('employee-loans.destroy');
+
+// inventory bu manti
+// Route::get('/stocks', [StockMaterialController::class, 'index']);
+// Route::post('/stocks', [StockMaterialController::class, 'store']);
+// Route::get('/stocks/{id}', [StockMaterialController::class, 'show']);
+// Route::put('/stocks/{id}', [StockMaterialController::class, 'update']);
+// Route::delete('/stocks/{id}', [StockMaterialController::class, 'destroy']);
+// Route::view('/stocks', 'pages.stock_bahan');
+
+// Route::view(
+
+//     '/stocks',
+
+//     'pages.stock_bahan'
+
+// );
 // ==============================
 // ⚙️ CEK ENV
 // ==============================
@@ -292,3 +485,48 @@ Route::get('/cek-env', function () {
         'RADIUS'  => env('OFFICE_RADIUS'),
     ];
 });
+
+
+// ajukan spk sigantrure
+Route::get(
+    '/spk/{spk}/signature',
+    [SpkController::class, 'signature']
+)->name('spk.signature');
+
+Route::post(
+    '/spk/{id}/submit-signature',
+    [SpkController::class, 'submitSignature']
+)->name('spk.submit-signature');
+Route::post(
+    '/spk/signature/{id}',
+    [SpkController::class,'signSignature']
+)->name('spk.signature.sign');
+// approve pengajuan spk payment
+Route::post(
+    '/payment-request-approval/{id}/approve',
+    [SpkController::class, 'approve']
+)->name('payment-request.approve');
+Route::post(
+    '/payment-request/finance-adjustment',
+    [SpkController::class,
+    'financeAdjustment']
+);
+Route::post(
+    '/inventor/update-harga-vivi',
+    [ProduksiMnController::class,'updateHargaVivi']
+);
+
+// new pengajuan
+Route::get( '/v2/pengajuan',   [NewPengajuanController::class, 'index'])->name('png.index');
+Route::get( '/cad',   [CadController::class, 'all'])->name('cad.all');
+Route::get('/cad/history/{article}', [CadController::class, 'history'])
+    ->name('cad.history');
+Route::get('/pfi/notifications', [SpkController::class, 'notifications']);
+
+
+Route::get('/container-loading', [SpkController::class, 'indexloading'])
+    ->name('container.loading.index');
+
+Route::post('/container-loading/generate', [SpkController::class, 'generateLoading'])
+    ->name('container.loading.generate');
+Route::get('/bom/{id}/export-excel', [BomController::class, 'exportExcel'])->name('bom.export.excel');

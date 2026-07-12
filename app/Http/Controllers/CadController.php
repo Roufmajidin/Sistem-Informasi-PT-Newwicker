@@ -7,10 +7,45 @@ use App\Models\ChatMessage;
 use App\Models\ChatRoom;
 use App\Models\DetailPo;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class CadController extends Controller
 {
     //
+    public function all()
+    {
+      $latestIds = CadModel::select(DB::raw('MAX(version) as version'), 'article_code')
+    ->groupBy('article_code')
+    ->get();
+
+    $cads = CadModel::with('user')
+        ->get()
+        ->groupBy('article_code')
+        ->map(fn ($items) => $items->sortByDesc('version')->first())
+        ->values();
+
+        return view('pages.rnd.cad.index', compact('cads', 'latestIds'));
+    }
+    public function history($article)
+    {
+        $histories = CadModel::with('user')
+            ->where('article_code', $article)
+            ->orderByDesc('version')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'id'            => $item->id,
+                    'version'       => $item->version,
+                    'status'        => $item->status,
+                    'file_path'     => $item->file_path,
+                    'master_sample' => $item->master_sample,
+                    'uploaded_by'   => $item->user->name ?? '-',
+                    'created_at'    => $item->created_at?->format('d M Y H:i'),
+                ];
+            });
+
+        return response()->json($histories);
+    }
     public function index($id)
     {
         $find = DetailPo::where(function ($q) use ($id) {

@@ -10,7 +10,6 @@ $k = Karyawan::get();
 $auth = auth()->user();
 $karyawan = \App\Models\Karyawan::find($auth->karyawan_id);
 $divisiId = $karyawan->divisi_id ?? null;
-
 $allowedDivisi = [26, 38, 32, 46, 37];
 @endphp
     <div class="row">
@@ -59,16 +58,26 @@ $allowedDivisi = [26, 38, 32, 46, 37];
                 </div>
             </div>
         </div>
-
-
+         <div class="col-xs-6 col-sm-4">
+            <div class="box p-a">
+                <div class="pull-left m-r">
+                    <span class="w-48 rounded primary">
+                        <i class="material-icons"></i>
+                    </span>
+                </div>
+                <div class="clear">
+                    <h4 class="m-0 text-lg _300"><a href="#"><span class="text-sm">Ubah Password</span></a></h4>
+                    <small class="text-muted">.</small>
+                </div>
+            </div>
+        </div>
         <div class="box-body">
             <div class="row">
-
                 <!-- ================= LEFT : TIMELINE ================= -->
                 <div class="col-md-6">
                     <div class="box">
                         <div class="box-header">
-                            <h3>SPK Timeline</h3>
+                            <h3>PO Timeline</h3>
                         </div>
                         <div class="box-body">
                             <div class="streamline b-l m-b" id="timelineContainer">
@@ -77,7 +86,6 @@ $allowedDivisi = [26, 38, 32, 46, 37];
                         </div>
                     </div>
                 </div>
-
                 <!-- ================= RIGHT : TASK ================= -->
                 <div class="col-md-6">
                     <div class="box">
@@ -91,35 +99,24 @@ $allowedDivisi = [26, 38, 32, 46, 37];
                         </div>
                     </div>
                 </div>
-
             </div>
         </div>
     </div>
-
 </div>
 </div>
-
 </div>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
 <script>
     function loadSpkTimeline() {
         $.get("{{ route('spk.time') }}", function(res) {
-
             let html = '';
-
             res.forEach((row, index) => {
-
                 let badge = '';
                 let content = '';
                 let collapseId = `collapse-${row.id}`;
-
                 if (row.type === 'create') {
-
                     badge = `<span class="badge badge-success">CREATE</span>`;
-
                     let itemsHtml = '';
-
                     if (row.after?.items && Array.isArray(row.after.items)) {
                         itemsHtml = `
             <ul class="mb-0 pl-3 small text-muted">
@@ -134,7 +131,6 @@ $allowedDivisi = [26, 38, 32, 46, 37];
             </ul>
         `;
                     }
-
                     content = `
         <div class="mt-1 text-muted">
             <div><b>SPK dibuat</b></div>
@@ -144,14 +140,11 @@ $allowedDivisi = [26, 38, 32, 46, 37];
         </div>
     `;
                 }
-
                 if (row.type === 'update') {
                     badge = `<span class="badge badge-warning">UPDATE</span>`;
-
                     let changeCount = row.changes ?
                         Object.keys(row.changes).length :
                         0;
-
                     // HEADER RINGKAS
                     content = `
                     <div class="mt-1">
@@ -164,18 +157,15 @@ $allowedDivisi = [26, 38, 32, 46, 37];
                             </span>
                             <i class="ml-1 fa fa-chevron-down"></i>
                         </a>
-
                         <div class="collapse mt-2" id="${collapseId}">
                             ${renderChanges(row.changes)}
                         </div>
                     </div>
                 `;
                 }
-
                 html += `
                 <div class="sl-item mb-2">
                     <div class="sl-content">
-
                         <div class="d-flex justify-content-between">
                             <div>
                                 ${badge}
@@ -185,27 +175,20 @@ $allowedDivisi = [26, 38, 32, 46, 37];
                                 ${formatTanggal(row.time)}
                             </small>
                         </div>
-
                         ${content}
-
                     </div>
                 </div>
             `;
             });
-
             $('#spkTimelineContainer').html(html);
         });
     }
-
     function renderChanges(changes) {
         if (!changes) return '';
-
         let html = '<ul class="list-unstyled small mb-0">';
-
         Object.keys(changes).forEach(key => {
             let before = formatValue(changes[key].before);
             let after = formatValue(changes[key].after);
-
             html += `
             <li>
                 <code>${key}</code> :
@@ -215,33 +198,24 @@ $allowedDivisi = [26, 38, 32, 46, 37];
             </li>
         `;
         });
-
         html += '</ul>';
         return html;
     }
-
     function formatValue(val) {
         if (val === null) return '<i>null</i>';
-
         // IMAGE DETECT
         if (typeof val === 'string' && val.match(/\.(jpg|png|jpeg|webp)$/)) {
             return `<img src="${val}" style="height:30px;border:1px solid #ccc">`;
         }
-
         if (typeof val === 'object') {
             return JSON.stringify(val);
         }
-
         return val;
     }
-
     function formatTanggal(date) {
         return new Date(date).toLocaleString('id-ID');
     }
-
     loadSpkTimeline();
-
-
     // timeline lama
     function loadTimeline() {
         $.ajax({
@@ -249,19 +223,15 @@ $allowedDivisi = [26, 38, 32, 46, 37];
             type: "GET",
             dataType: "json",
             success: function(data) {
-
                 let html = '';
                 console.log(data)
                 data.forEach(function(item) {
-
                     let userName = item.user?.name ?? 'Unknown';
                     let remark = item.isi?.remark ?? '-';
                     let created = item.isi?.timestamp ?
                         new Date(item.isi.timestamp).toLocaleString() :
                         new Date(item.created_at).toLocaleString();
-
                     let jenisClass = item.jenis === 'edit pfi' ? 'b-success' : '';
-
                     html += `
                         <div class="sl-item ${jenisClass}">
                             <div class="sl-content">
@@ -271,27 +241,21 @@ $allowedDivisi = [26, 38, 32, 46, 37];
                         </div>
                     `;
                 });
-
                 $('#timelineContainer').html(html);
             }
         });
     }
-
     // 🔥 WAJIB DIPANGGIL
     loadTimeline();
     // loadSpkTimeline();
-
     function loadMyApproval() {
         $.get('/dashboard/pending-approval', function(res) {
-
             let html = '';
-
             html += `
         <b>${res.total_pengajuan} pengajuan</b><br>
         <small>${res.total_step} approval menunggu persetujuanmu</small>
         <hr>
     `;
-
             res.data.forEach(item => {
                 html += `
             <div>
@@ -301,11 +265,9 @@ $allowedDivisi = [26, 38, 32, 46, 37];
             </div>
         `;
             });
-
             $('#approval-box').html(html);
         });
     }
-
     loadMyApproval();
 </script>
 @endsection

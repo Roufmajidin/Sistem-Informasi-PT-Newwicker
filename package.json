@@ -8,15 +8,31 @@
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",
-        "axios": "^1.8.2",
+        "@types/react": "^19.2.17",
+        "@types/react-dom": "^19.2.3",
+        "@vitejs/plugin-react": "^4.7.0",
+        "axios": "^1.16.1",
         "concurrently": "^9.0.1",
         "html5-qrcode": "^2.3.8",
         "laravel-vite-plugin": "^1.2.0",
         "tailwindcss": "^4.0.0",
+        "typescript": "^6.0.3",
         "vite": "^6.2.4"
     },
     "dependencies": {
+        "@fortune-sheet/core": "^1.0.4",
+        "@fortune-sheet/react": "^1.0.4",
+        "@univerjs/presets": "^0.23.0",
+        "binpackingjs": "^4.1.0",
+        "jquery": "^4.0.0",
         "laravel-echo": "^2.2.6",
-        "pusher-js": "^8.4.0"
+        "lucide-react": "^1.22.0",
+        "luckyexcel": "^1.0.1",
+        "luckysheet": "^2.1.13",
+        "pusher-js": "^8.4.0",
+        "react": "^19.2.7",
+        "react-dom": "^19.2.7",
+        "three": "^0.185.0",
+        "xlsx": "^0.18.5"
     }
 }

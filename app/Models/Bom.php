@@ -12,11 +12,27 @@ class Bom extends Model
         'name',
         'article_number',
         'order_no',
-        'buyer'
+        'buyer',
+            'panjang',
+    'lebar',
+    'tinggi',
+
+    'carton_panjang',
+    'carton_lebar',
+    'carton_tinggi',
+
+    'loadability_pcs',
+    'loadability_cbm',
+
+    'image'
     ];
 
     public function groups()
     {
         return $this->hasMany(BomGroup::class, 'bom_id');
     }
+    public function summaries()
+{
+    return $this->hasMany(BomSummary::class);
+}
 }

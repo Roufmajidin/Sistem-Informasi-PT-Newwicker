@@ -1,17 +1,57 @@
-   <tr class="text-center spk-header">
-        <th rowspan="2">Article Nr</th>
-        <th rowspan="2">Gambar</th>
-        <th rowspan="2">Nama</th>
-        <th colspan="3">Ukuran</th>
-        <th rowspan="2">Material</th>
-        <th rowspan="2">PCS</th>
-        <th rowspan="2">SET</th>
-        <th rowspan="2">Harga</th>
-        <th rowspan="2">Total</th>
-        <th rowspan="2">Catatan</th>
-    </tr>
-    <tr class="text-center spk-header">
-        <th>P</th>
-        <th>L</th>
-        <th>T</th>
-    </tr>
+<tr id="dynamicHeaderRow">
+
+    <th>Article Nr</th>
+
+    <th>Gambar</th>
+
+    <th id="namaHeader">
+
+        Nama Barang
+
+        <button type="button"
+                id="btnAddHeader"
+                style="
+                    border:none;
+                    background:none;
+                    color:white;
+                    margin-left:6px;
+                    cursor:pointer;
+                ">
+            ➕
+        </button>
+
+    </th>
+
+    <!-- dynamic header -->
+@foreach($spk['custom_headers'] ?? [] as $header)
+
+    <th class="spk-dynamic-header"
+        data-custom="{{ $header['key'] }}">
+
+        {{ $header['label'] }}
+
+    </th>
+
+@endforeach
+
+    <th class="p-header">P</th>
+
+    <th>L</th>
+
+    <th>T</th>
+
+    <th>Material</th>
+
+    <th>PCS</th>
+
+    <th>SET</th>
+
+    <th>Harga</th>
+
+    <th>Total</th>
+
+    <th>Catatan</th>
+
+    <th>#</th>
+
+</tr>

@@ -21,7 +21,10 @@
                 <td>{{ $index + 1 }}</td>
                 <td class="sticky">{{ $karyawan->name }}</td>
                 <td>{{ $karyawan->status }}</td>
-                <td>{{ $karyawan->divisi_id }}</td>
+                @php
+                    $divisi = App\Models\Divisi::find($karyawan->divisi_id);
+                @endphp
+                <td>{{ $divisi ? $divisi->nama : '-' }}</td>
 
                 @forelse ($karyawan->absens as $k)
                     @php

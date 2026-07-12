@@ -341,31 +341,67 @@ class BuyerController extends Controller
                 ],
             ]);
 
-            // ================== DRAW IMAGE ==================
-            if ($photoFullPath && file_exists($photoFullPath)) {
+    // ================== DRAW IMAGE ==================
+if ($photoFullPath && file_exists($photoFullPath)) {
 
-                $drawing = new Drawing();
-                $drawing->setName('Product Image');
-                $drawing->setDescription($articleCode);
-                $drawing->setPath($photoFullPath);
-                $drawing->setHeight(160);
-                $drawing->setCoordinates("B{$row}");
-                $drawing->setOffsetX(5);
-                $drawing->setOffsetY(5);
-                $drawing->setWorksheet($sheet);
+    try {
 
-                $sheet->getRowDimension($row)->setRowHeight(145);
+        // Convert WEBP -> JPEG sementara
+        $tempDir = storage_path('app/temp_excel_images');
 
-            } else {
+        if (!file_exists($tempDir)) {
+            mkdir($tempDir, 0777, true);
+        }
 
-                logger()->warning("IMAGE NOT FOUND", [
-                    'article_code'  => $articleCode,
-                    'exhibition_id' => $exhibitionId,
-                ]);
+        $tempJpeg = $tempDir . '/' . uniqid('img_') . '.jpg';
 
-                $sheet->getRowDimension($row)->setRowHeight(30);
-            }
+        $image = imagecreatefromwebp($photoFullPath);
 
+        if ($image !== false) {
+
+            imagejpeg($image, $tempJpeg, 90);
+            imagedestroy($image);
+
+            $drawing = new Drawing();
+            $drawing->setName('Product Image');
+            $drawing->setDescription($articleCode);
+            $drawing->setPath($tempJpeg);
+            $drawing->setHeight(160);
+            $drawing->setCoordinates("B{$row}");
+            $drawing->setOffsetX(5);
+            $drawing->setOffsetY(5);
+            $drawing->setWorksheet($sheet);
+
+            $sheet->getRowDimension($row)->setRowHeight(145);
+
+        } else {
+
+            logger()->warning("FAILED TO CONVERT WEBP", [
+                'path' => $photoFullPath,
+            ]);
+
+            $sheet->getRowDimension($row)->setRowHeight(30);
+        }
+
+    } catch (\Exception $e) {
+
+        logger()->error("IMAGE CONVERSION ERROR", [
+            'message' => $e->getMessage(),
+            'path'    => $photoFullPath,
+        ]);
+
+        $sheet->getRowDimension($row)->setRowHeight(30);
+    }
+
+} else {
+
+    logger()->warning("IMAGE NOT FOUND", [
+        'article_code'  => $articleCode,
+        'exhibition_id' => $exhibitionId,
+    ]);
+
+    $sheet->getRowDimension($row)->setRowHeight(30);
+}
             $row++;
         }
 

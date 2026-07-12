@@ -9,6 +9,7 @@ class JenisSupplier extends Model
     //
      protected $fillable = [
         'name',
+        'kategori',
         'updated_by'
     ];
 

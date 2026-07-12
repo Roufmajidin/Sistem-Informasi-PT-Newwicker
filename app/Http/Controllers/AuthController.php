@@ -7,6 +7,8 @@ use Carbon\Carbon;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class AuthController extends Controller
 {
@@ -29,37 +31,37 @@ class AuthController extends Controller
 
     // Proses login
     public function loginWeb(Request $request)
-{
-    // Validasi input
-    $credentials = $request->validate([
-        'email'    => ['required', 'email'],
-        'password' => ['required'],
-    ]);
-
-    // simpan halaman sebelumnya
-    if ($request->has('redirect')) {
-
-        session([
-            'url.intended' => $request->redirect
+    {
+        // Validasi input
+        $credentials = $request->validate([
+            'email'    => ['required', 'email'],
+            'password' => ['required'],
         ]);
 
+        // simpan halaman sebelumnya
+        if ($request->has('redirect')) {
+
+            session([
+                'url.intended' => $request->redirect,
+            ]);
+
+        }
+
+        // login
+        if (Auth::attempt($credentials, $request->filled('remember'))) {
+
+            $request->session()->regenerate();
+
+            // balik ke halaman sebelumnya
+            return redirect()->intended('/');
+
+        }
+
+        // gagal
+        return back()->withErrors([
+            'email' => 'Email atau password salah.',
+        ])->onlyInput('email');
     }
-
-    // login
-    if (Auth::attempt($credentials, $request->filled('remember'))) {
-
-        $request->session()->regenerate();
-
-        // balik ke halaman sebelumnya
-        return redirect()->intended('/');
-
-    }
-
-    // gagal
-    return back()->withErrors([
-        'email' => 'Email atau password salah.',
-    ])->onlyInput('email');
-}
 
     // Logout
     public function logoutWeb(Request $request)
@@ -70,49 +72,55 @@ class AuthController extends Controller
 
         return redirect('/');
     }
-   public function login(Request $request)
-{
-    $credentials = $request->validate([
-        'email'    => 'required|email',
-        'password' => 'required',
-    ]);
+    public function login(Request $request)
+    {
+ \DB::enableQueryLog();
 
-    if (!Auth::attempt($credentials)) {
-        return response()->json([
-            'message' => 'Email atau password salah',
-        ], 401);
-    }
+$start = microtime(true);
+        $credentials = $request->validate([
+            'email'    => 'required|email',
+            'password' => 'required',
+        ]);
 
-    $request->session()->regenerate();
+        if (! Auth::attempt($credentials)) {
+            return response()->json([
+                'message' => 'Email atau password salah',
+            ], 401);
+        }
 
-    $user = Auth::user();
+        $request->session()->regenerate();
 
-    // ambil karyawan
-    $karyawan = Karyawan::where('user_id', $user->id)->first();
+        $user = Auth::user();
 
-    if (!$karyawan) {
+        // ambil karyawan
+        $karyawan = Karyawan::where('user_id', $user->id)->first();
+
+        if (! $karyawan) {
+            return response()->json([
+                'message' => 'Login berhasil',
+                'user'    => $user,
+            ]);
+        }
+
+        // ambil divisi
+        $divisi = Divisi::find($karyawan->divisi_id);
+
+        $isQc = in_array($divisi->nama, [
+            'QC RANGKA',
+            'QC ANYAM',
+        ]);
+        Log::info('LOGIN_TIME', [
+            'seconds' => microtime(true) - $start,
+        ]);
+
+        Log::info(DB::getQueryLog());
         return response()->json([
             'message' => 'Login berhasil',
-            'user' => $user,
+            'user'    => $user,
+            'qc'      => $isQc,
+            'divisi'  => $divisi->nama,
         ]);
     }
-
-    // ambil divisi
-    $divisi = Divisi::find($karyawan->divisi_id);
-
-    $isQc = in_array($divisi->nama, [
-        'QC RANGKA',
-        'QC ANYAM',
-    ]);
-
-    return response()->json([
-        'message' => 'Login berhasil',
-        'user' => $user,
-        'qc' => $isQc,
-        'divisi' => $divisi->nama,
-    ]);
-}
-
 
     public function logout(Request $request)
     {

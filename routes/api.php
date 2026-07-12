@@ -9,6 +9,9 @@ use App\Http\Controllers\ImageController;
 use App\Http\Controllers\PengajuanController;
 use App\Http\Controllers\QcController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\StockMaterialController;
+
+
 
 Route::middleware('auth:sanctum')->post('/absen', [AbsenController::class, 'absen']);
 Route::middleware('auth:sanctum')->post('/absen-lembur', [AbsenController::class, 'absenLembur']);
@@ -74,3 +77,12 @@ Route::middleware('auth:sanctum')->group(function () {
         [EmployeeLoanController::class, 'myLoans']
     );
 });
+Route::get(
+    '/stocks',
+    [StockMaterialController::class, 'index']
+);
+
+Route::post(
+    '/stocks/save-sheet',
+    [StockMaterialController::class, 'saveSheet']
+);

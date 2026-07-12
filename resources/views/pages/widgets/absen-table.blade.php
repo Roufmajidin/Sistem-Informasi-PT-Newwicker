@@ -61,7 +61,9 @@
             <td>{{ $index + 1 }}</td>
             <td class="sticky">{{ $absen->user->name ?? '-' }}</td>
             <!-- <td>{{ $absen->status }}</td> -->
-            <td>{{ $absen->user->divisi_id ?? '-' }}</td>
+       <td>
+    {{ $absen->user->divisi->nama ?? '-' }}
+</td>
             <td class="absen-td" data-user="{{ $absen->user_id }}" data-date="{{ $absen->tanggal }}">
                 {{ $absen->tanggal }}
             </td>
