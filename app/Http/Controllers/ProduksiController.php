@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use App\Models\Po;
 use App\Models\ProductionTimeline;
 use App\Models\Spk;
+use App\Models\Supplier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -254,5 +255,104 @@ class ProduksiController extends Controller
 
         return response()->json(['success' => true]);
     }
+    //mutasi mba siti
+    public function mutasi(){
+        $a = Spk::with(['po','detailPo'])->get();
+        // dd($a);
+        return view('pages.mutasi.index',compact('a'));
+    }
+   public function mutasidetail($id)
+    {
+        $spk = Spk::with('po')->findOrFail($id);
+
+        $data = $spk->data;
+
+        $supplier = Supplier::where('name', $data['sup'] ?? '')->first();
+
+        return response()->json([
+            'success'   => true,
+            'spk_id'    => $spk->id,
+            'sup_id'    => $supplier?->id,
+            'supplier'  => $supplier?->name,
+            'no_spk'    => $data['no_spk'] ?? '',
+            'no_po'     => $data['no_po'] ?? '',
+            'kategori'  => $data['kategori'] ?? '',
+            'items'     => $data['items'] ?? [],
+            'kategori'  => $data['kategori'] ?? '',
+
+        ]);
+    }
+    public function mutasiTimelineDetail(Request $request)
+{
+ $timeline = ProductionTimeline::where('spk_id', $request->spk_id)
+        ->where('detail_po_id', $request->detail_po_id)
+        ->orderBy('id')
+        ->get();
+
+    return response()->json([
+        'success' => true,
+        'timeline' => $timeline
+    ]);
+}
+// save mutasi
+    public function saveTimeline(Request $request)
+{
+    foreach ($request->rows as $row) {
+
+        // Ambil SPK untuk mendapatkan po_id
+        $spk = Spk::findOrFail($row['spk_id']);
+
+        ProductionTimeline::updateOrCreate(
+
+            [
+                'id' => $row['id'] ?: null,
+            ],
+
+            [
+                'po_id'        => $spk->po_id,
+                'spk_id'       => $row['spk_id'],
+                'detail_po_id' => $row['detail_po_id'],
+                'sup_id'       => $row['sup_id'],
+                'qty'          => $row['qty'],
+                'type'         => $row['type'],
+                'remark'       => $row['remark'],
+                'date'         => $row['date'] . ' ' . $row['time'],
+            ]
+
+        );
+    }
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Timeline berhasil disimpan.'
+    ]);
+}
+// search
+public function mutasiSearch(Request $request)
+{
+    $search = $request->search;
+
+    $query = Spk::with(['po','detailPo']);
+
+    if ($search) {
+
+        $query->where(function ($q) use ($search) {
+
+            $q->whereHas('po', function ($po) use ($search) {
+
+                $po->where('order_no','like',"%{$search}%")
+                   ->orWhere('company_name','like',"%{$search}%");
+
+            });
+
+            $q->orWhere('data','like',"%{$search}%");
+
+        });
+
+    }
+
+    return response()->json($query->latest()->get());
+
+}
 
 }

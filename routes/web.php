@@ -530,3 +530,13 @@ Route::get('/container-loading', [SpkController::class, 'indexloading'])
 Route::post('/container-loading/generate', [SpkController::class, 'generateLoading'])
     ->name('container.loading.generate');
 Route::get('/bom/{id}/export-excel', [BomController::class, 'exportExcel'])->name('bom.export.excel');
+
+
+Route::get('/mutasi', [ProduksiController::class, 'mutasi'])->name('mutasi.index');
+Route::get('/mutasi/{id}', [ProduksiController::class, 'mutasidetail'])
+    ->name('mutasi.detail');
+Route::get('/mutasi/timeline/detail', [ProduksiController::class, 'mutasiTimelineDetail'])
+    ->name('mutasi.mutasiTimelineDetail');
+Route::post('/mutasi/timeline/save',
+    [ProduksiController::class,'saveTimeline'])
+    ->name('mutasi.timeline.save');

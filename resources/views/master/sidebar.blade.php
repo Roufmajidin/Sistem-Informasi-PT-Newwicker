@@ -34,10 +34,11 @@
 
                      $user = Auth::user();
                      $a = $user ? Karyawan::find($user->karyawan_id) : null;
-                        $isSuperUser = in_array($user->email, [
+                         $isSuperUser = in_array($user->email, [
                             'info@newwicker.com',
                             'factory@newwicker.com',
                         ]);
+
                      @endphp
                      <li>
                          <a href="/pengajuan">
@@ -45,7 +46,7 @@
                              <span class="nav-text">Pengajuan</span>
                          </a>
                      </li>
-                     @if(auth()->user()->role == 'finance')
+                      @if(auth()->user()->role == 'finance')
                     <li>
                         <a href="/produksi/inventor">
                             <span class="nav-icon">
@@ -77,7 +78,7 @@
                              <span class="nav-text">Absen Karyawan</span>
                          </a>
                      </li>
-          <li>
+  <li>
                          <a href="{{ route('karyawan.lembur') }}">
                              <span class="nav-icon"><i class="material-icons">&#xe8d2;</i></span>
                              <span class="nav-text">Lembur Karyawan</span>
@@ -97,8 +98,9 @@
                      </li>
                      @endif
 
-                     @if(Auth::user()->role === 'marketing' || Auth::user()->role === 'hrd'||  Auth::user()->role === 'manager produksi' ||$isSuperUser)
-                     @if($isSuperUser)
+                                        @if(Auth::user()->role === 'marketing' || Auth::user()->role === 'hrd'||  Auth::user()->role === 'manager produksi'
+                                         ||$isSuperUser)
+                      @if($isSuperUser)
                        <li>
                          <a href="{{ route('karyawan.absen') }}">
                              <span class="nav-icon"><i class="material-icons">&#xe8d2;</i></span>
@@ -106,6 +108,7 @@
                          </a>
                      </li>
                      @endif
+
                      <li>
                          <a href="/karyawan-scan">
                              <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
@@ -162,13 +165,15 @@
                              <span class="nav-text">Monitoring Produksi</span>
                          </a>
                      </li>
+
+
                      <li>
                          <a href="/qc/laporan">
                              <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
                              <span class="nav-text">QC page</span>
                          </a>
                      </li>
-                     <li>
+<li>
                          <a href="/bom">
                              <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
                              <span class="nav-text">BOM</span>
@@ -180,7 +185,7 @@
                              <span class="nav-text">CAD Drawing</span>
                          </a>
                      </li>
-<li>
+                     <li>
                          <a>
                              <span class="nav-caret"><i class="fa fa-caret-down"></i></span>
                              <span class="nav-icon"><i class="material-icons">&#xe5c3;</i></span>
@@ -215,7 +220,13 @@
                      <li>
                          <a href="/produksi/inventor">
                              <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
-                             <span class="nav-text">invent. prod</span>
+                             <span class="nav-text">Monitoring SPK</span>
+                         </a>
+                     </li>
+                       <li>
+                         <a href="/laporan">
+                             <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                             <span class="nav-text">Warehouse</span>
                          </a>
                      </li>
 
@@ -277,19 +288,19 @@
                              <li>
                                  <a href="/produksi/inventor">
                                      <!-- <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span> -->
-                                     <span class="nav-text">Monitoring SPK</span>
+                                     <span class="nav-text">Mutasi Barang jadi</span>
                                  </a>
                              </li>
                          </ul>
 
 
-                     {{-- <li>
-                          <li>
-                         <a href="/produksi/inventor">
+                     <li>
+                         <li>
+                         <a href="/bom">
                              <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
-                             <span class="nav-text">Pengajuan SPK</span>
+                             <span class="nav-text">BOM</span>
                          </a>
-                     <li> --}}
+                     </li>
                          <!-- produksi -->
                      <li>
                          <a href="/produksi/mn">
@@ -307,17 +318,15 @@
                      <li>
                          <a href="/supplier">
                              <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
-                             <span class="nav-text">Bank data sub</span>
+                             <span class="nav-text">Supplier</span>
                          </a>
                      </li>
-                             <li><a href="/spk/request-r"><span class="nav-text">Draft payment SPK</span></a></li>
-
-                     {{-- <li>
+                     <li>
                          <a href="/produksi">
                              <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
                              <span class="nav-text">produksi</span>
                          </a>
-                     </li> --}}
+                     </li>
                      @endif
                      @if (Auth::user()->role == "gudang" || Auth::user()->role === 'hrd')
                      <!-- qc -->
@@ -369,6 +378,15 @@
                          </a>
                      </li>
                      @endif
+                              @if(Auth::user()->role == 'admin produksi')
+                                <li>
+                                 <a href="/produksi/inventor">
+                                      <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                     <span class="nav-text">Mutasi Barang jadi</span>
+                                 </a>
+                             </li>
+
+                              @endif
                      @if(Auth::user()->role === "rnd")
                      <li>
                          <a href="{{ route('absen.riwayat') }}">
@@ -382,40 +400,42 @@
                              <span class="nav-text">Absen Sekarang</span>
                          </a>
                      </li>
-                     <li>
+                       <li>
                          <a href="/marketing-release-order">
                              <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
                              <span class="nav-text">Release PFI</span>
                          </a>
                      </li>
- <li>
+
+                     <li>
                          <a href="/semua-spk?spk=rnd_spk">
                              <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
                              <span class="nav-text">SPK SAMPLES</span>
                          </a>
                      </li>
-                      <li>
+  <li>
                         <a href="/produksi/inventor">
                             <span class="nav-icon">
                                 <i class="material-icons">&#xe85e;</i>
                             </span>
-                            <span class="nav-text">SPK</span>
+                            <span class="nav-text">SPK Monitoring</span>
                         </a>
                     </li>
+
                      <li>
                          <a href="/bom">
                              <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
                              <span class="nav-text">BOM</span>
                          </a>
                      </li>
-                       <li>
+                      <li>
                          <a href="/cad">
                              <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
                              <span class="nav-text">CAD Drawing</span>
                          </a>
                      </li>
                      @endif
-                  @auth
+                       @auth
                     @if(auth()->user()->role == 'factory' || auth()->user()->role == 'coo' )
                     <li>
                         <a href="/produksi/inventor">
@@ -435,12 +455,12 @@
                     </li>
                     @endif
                     @endauth
-                     {{-- <li>
+                     <li>
                          <a href="/inventory">
                              <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
                              <span class="nav-text">Inventory (alat)</span>
                          </a>
-                     </li> --}}
+                     </li>
                      <!-- {{-- ðŸ”¹ Menu tambahan (opsional untuk semua role) --}}
                      <li class="nav-header hidden-folded">
                          <small class="text-muted">Main Menu</small>

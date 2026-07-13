@@ -327,19 +327,24 @@
                                         </td>
                                         {{-- DETAIL BUTTON --}}
                                         <td>
-                                         @if ($spk['status'] == 'draft')
-                                        <button
-                                            type="button"
-                                            class="btn btn-success btn-sm btn-ajukan"
-                                            data-id="{{ $spk['id'] }}"
-                                            data-spk="{{ $spk['no_spk'] }}">
-                                            Ajukan
-                                        </button>
-                                        @endif
-                                            <button type="button" class="btn btn-primary btn-sm btn-detail"
-                                                data-id="{{ $spk['id'] }}">
-                                                Detail
-                                            </button>
+                                          @if (auth()->user()->role != 'admin produksi')
+    @if ($spk['status'] == 'draft')
+        <button
+            type="button"
+            class="btn btn-success btn-sm btn-ajukan"
+            data-id="{{ $spk['id'] }}"
+            data-spk="{{ $spk['no_spk'] }}">
+            Ajukan
+        </button>
+    @endif
+
+    <button
+        type="button"
+        class="btn btn-primary btn-sm btn-detail"
+        data-id="{{ $spk['id'] }}">
+        Detail
+    </button>
+@endif
                                         </td>
                                     </tr>
                                 @empty
