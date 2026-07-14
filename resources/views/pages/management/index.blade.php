@@ -11,7 +11,69 @@
     body{
         background:#f5f7fb;
     }
+    .table-responsive{
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    }
 
+    .mn-table{
+        min-width:1700px;
+    }
+
+    .mn-table th,
+    .mn-table td{
+        white-space:nowrap;
+    }
+    .product-image{
+
+    width:65px;
+    height:65px;
+
+}
+.mn-table thead th{
+
+    position:sticky;
+    top:0;
+    z-index:5;
+
+}
+.item-name{
+    display:inline-block;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    max-width:220px;
+}
+
+/* Tablet */
+@media (max-width:992px){
+
+    .item-name{
+        max-width:140px;
+        font-size:13px;
+    }
+
+}
+
+/* Mobile */
+@media (max-width:768px){
+
+    .item-name{
+        max-width:90px;
+        font-size:12px;
+    }
+
+}
+
+/* iPhone Portrait */
+@media (max-width:576px){
+
+    .item-name{
+        max-width:70px;
+        font-size:11px;
+    }
+
+}
     .mn-card{
         border:none;
         /* border-radius:20px; */
@@ -141,60 +203,142 @@
         background:white;
         box-shadow:0 2px 10px rgba(0,0,0,0.05);
     }
+.mn-filter{
+    background:#fff;
+    border-radius:18px;
+    padding:20px 24px;
+    border:1px solid #edf1f5;
+    box-shadow:0 3px 15px rgba(0,0,0,.04);
+}
+.item-name{
+    display:inline-block;
+    max-width:250px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+}
 
+.mn-filter label{
+    font-size:13px;
+}
+
+.mn-filter .form-control,
+.mn-filter .form-select{
+
+    height:46px;
+    border-radius:12px;
+
+}
+
+.mn-filter .input-group-text{
+
+    border-radius:12px 0 0 12px;
+
+}
+
+.mn-filter .form-control{
+
+    border-radius:0 12px 12px 0;
+
+}
+
+.mn-filter .btn{
+
+    height:46px;
+    border-radius:12px;
+}
 </style>
 
 <div class="container-fluid py-3">
 
-    {{-- FILTER --}}
     <div class="mn-filter mb-4">
 
-        <form method="GET"
-              action="{{ route('produksi.mn') }}">
+    <form method="GET" action="{{ route('produksi.mn') }}">
 
-            <div class="d-flex gap-2 flex-wrap">
+        <div class="row align-items-end g-3">
 
-                {{-- SEARCH PO --}}
-                <input type="text"
-                       name="search_po"
-                       value="{{ request('search_po') }}"
-                       placeholder="Cari PO"
-                       class="form-control"
-                       style="max-width:260px;">
+            {{-- SEARCH --}}
+            <div class="col-lg-5">
 
-                {{-- FILTER BATCH --}}
-               <select name="tanggal"
-        class="form-control"
-        style="max-width:220px;">
+                <label class="form-label fw-semibold text-muted mb-2">
+                    Cari Purchase Order
+                </label>
 
-    <option value="">
-        Semua Tanggal
-    </option>
+                <div class="input-group">
 
-    @foreach($dates as $date)
+                    <span class="input-group-text bg-white border-end-0">
+                        <i class="fas fa-search text-secondary"></i>
+                    </span>
 
-        <option value="{{ $date }}"
-            {{ request('tanggal') == $date ? 'selected' : '' }}>
+                    <input type="text"
+                           name="search_po"
+                           value="{{ request('search_po') }}"
+                           class="form-control border-start-0"
+                           placeholder="Contoh : NW26-39">
 
-            {{ \Carbon\Carbon::parse($date)->format('d-m-Y') }}
-
-        </option>
-
-    @endforeach
-
-</select>
-
-                <button class="btn btn-primary">
-
-                    Filter
-
-                </button>
+                </div>
 
             </div>
 
-        </form>
+            {{-- DATE --}}
+            {{-- <div class="col-lg-3">
 
-    </div>
+                <label class="form-label fw-semibold text-muted mb-2">
+                    Tanggal Inspect
+                </label>
+
+                <select name="tanggal" class="form-select">
+
+                    <option value="">
+                        Semua Tanggal
+                    </option>
+
+                    @foreach($dates as $date)
+
+                        <option value="{{ $date }}"
+                            {{ request('tanggal') == $date ? 'selected' : '' }}>
+
+                            {{ \Carbon\Carbon::parse($date)->format('d M Y') }}
+
+                        </option>
+
+                    @endforeach
+
+                </select>
+
+            </div> --}}
+
+            {{-- BUTTON --}}
+            <div class="col-lg-4">
+
+                <div class="d-flex gap-2">
+
+                    <button class="btn btn-primary px-4">
+
+                        <i class="fas fa-search me-2"></i>
+
+                        Filter
+
+                    </button>
+
+                    <a href="{{ route('produksi.mn') }}"
+                       class="btn btn-light border px-4">
+
+                        <i class="fas fa-rotate-left me-2"></i>
+
+                        Reset
+
+                    </a>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </form>
+
+</div>
 
     {{-- DATA --}}
     @forelse($datas as $poIndex => $po)
@@ -228,7 +372,7 @@
 
                         <span class="badge bg-success px-3 py-2">
 
-                            Semua Batch
+                            {{-- Semua Batch --}}
 
                         </span>
 
@@ -239,7 +383,7 @@
             </div>
 @php
 
-    $categories = [
+   $categories = [
         'rangka'   => 'Rangka',
         'anyam'    => 'Anyam',
         'unfinish' => 'Unfinish',
@@ -299,7 +443,7 @@
 
                 @foreach($categories as $categoryKey => $categoryLabel)
 
-                    <th colspan="4" class="text-center">
+                   <th colspan="3" class="text-center">
                         {{ $categoryLabel }}
                     </th>
 
@@ -312,13 +456,15 @@
 
                 @foreach($categories as $categoryKey => $categoryLabel)
 
-                    @foreach($statuses as $statusKey => $status)
+                   @foreach($statuses as $statusKey => $status)
 
-                        <th class="text-center {{ $status['class'] }}">
-                            {{ $status['label'] }}
-                        </th>
+                    @continue($statusKey == 'out')
 
-                    @endforeach
+                    <th class="text-center {{ $status['class'] }}">
+                        {{ $status['label'] }}
+                    </th>
+
+                @endforeach
 
                 @endforeach
 
@@ -358,39 +504,41 @@
                     </td>
 
                     {{-- ITEM --}}
-                    <td>
+                 <td style="max-width:250px;">
 
-                        <a href="#"
-                           class="item-link"
-                           data-bs-toggle="modal"
-                           data-bs-target="#spkModal{{ $poIndex }}{{ $itemIndex }}">
+    <a href="#"
+       class="item-link text-truncate d-inline-block"
+       style="max-width:250px;"
+       title="{{ $item['item_name'] }}"
+       data-bs-toggle="modal"
+       data-bs-target="#spkModal{{ $poIndex }}{{ $itemIndex }}">
 
-                            {{ $item['item_name'] }}
+        {{ $item['item_name'] }}
 
-                        </a>
+    </a>
 
-                    </td>
+</td>
 
                     {{-- DYNAMIC CATEGORY + STATUS --}}
                     @foreach($categories as $categoryKey => $categoryLabel)
 
-                        @foreach($statuses as $statusKey => $status)
+                     @foreach($statuses as $statusKey => $status)
 
-                            @php
-                                $field = $categoryKey . '_' . $statusKey;
-                            @endphp
+                        @continue($statusKey == 'out')
 
-                            <td class="text-center">
+                        @php
+                            $field = $categoryKey . '_' . $statusKey;
+                        @endphp
 
-                                <span class="{{ $status['class'] }}">
+                        <td class="text-center">
 
-                                    {{ $item[$field] ?? 0 }}
+                            <span class="{{ $status['class'] }}">
+                                {{ $item[$field] ?? 0 }}
+                            </span>
 
-                                </span>
+                        </td>
 
-                            </td>
-
-                        @endforeach
+                    @endforeach
 
                     @endforeach
 
@@ -575,11 +723,15 @@
 
                                 </td>
 
-                                <td>
-
+                               <td>
                                     :
-                                    Rp {{ number_format($spk['harga']) }}
-
+                                    <span class="price-container"
+                                        data-price="{{ number_format($spk['harga']) }}">
+                                        <a href="#"
+                                        class="show-price text-primary text-decoration-underline">
+                                            Lihat Harga? Tap disini
+                                        </a>
+                                    </span>
                                 </td>
 
                             </tr>
@@ -624,27 +776,30 @@
 
             </div>
              <div class="fw-bold mb-3 ml-4">
-@if(!empty($spk['inspect_schedule_id']))
+            @if(!empty($spk['inspect_schedule_id']))
 
-    <a href="{{ route('qc.report', $spk['inspect_schedule_id']) }}"
-       target="_blank"
-       class="fw-bold text-primary text-decoration-none">
+            <a href="{{ url('qc/laporan-qc?' . http_build_query([
+                'detail_po_id' => $spk['detail_po_id'],
+                'kategori'     => $spk['kategori'],
+            ])) }}"
+            target="_blank"
+            class="fw-bold text-primary text-decoration-none">
 
-        Lihat Laporan
+                Lihat Laporan
 
-    </a>
+            </a>
 
-@else
+            @else
 
-    <span class="text-muted">
+                <span class="text-muted">
 
-        Tidak ada laporan
+                    Tidak/belum ada inspeksin
 
-    </span>
+                </span>
 
-@endif
+            @endif
+                        </div>
             </div>
-</div>
 
 
             {{-- PASSED --}}
@@ -659,7 +814,7 @@
                 <span class="fw-bold text-success">
 <pre>
 
-{{ print_r($spk, true) }}
+{{-- {{ print_r($spk, true) }} --}}
 
 </pre>
                     {{ $spk['passed'] }}
@@ -736,6 +891,97 @@
 
     @endforelse
 
+    <div class="modal fade" id="pricePasswordModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        Verifikasi Password
+                    </h5>
+                </div>
+
+                <div class="modal-body">
+
+                    <input
+                        type="password"
+                        id="pricePassword"
+                        class="form-control"
+                        placeholder="Masukkan Password">
+
+                    <div
+                        id="priceError"
+                        class="text-danger mt-2"
+                        style="display:none;">
+
+                        Password salah
+
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+
+                    <button
+                        class="btn btn-secondary"
+                        data-bs-dismiss="modal">
+
+                        Batal
+
+                    </button>
+
+                    <button
+                        class="btn btn-primary"
+                        id="btnCheckPricePassword">
+
+                        Lihat Harga
+
+                    </button>
+
+                </div>
+
+            </div>
+        </div>
+    </div>
 </div>
+ <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <script>
+
+let currentPriceContainer = null;
+
+$(document).on('click','.show-price',function(e){
+
+    e.preventDefault();
+
+    currentPriceContainer = $(this).closest('.price-container');
+
+    $('#pricePassword').val('');
+    $('#priceError').hide();
+
+    $('#pricePasswordModal').modal('show');
+
+});
+
+$('#btnCheckPricePassword').click(function(){
+
+    if($('#pricePassword').val() !== 'Nwidn@2026'){
+
+        $('#priceError').show();
+        return;
+
+    }
+
+    let harga = currentPriceContainer.data('price');
+
+    currentPriceContainer.html(
+        '<strong>Rp ' + harga + '</strong>'
+    );
+
+    $('#pricePasswordModal').modal('hide');
+
+});
+
+</script>
 
 @endsection

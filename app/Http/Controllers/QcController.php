@@ -1579,7 +1579,64 @@ class QcController extends Controller
     if ($request->filled('user_id')) {
         $query->where('user_id', $request->user_id);
     }
+    // tambahan
+    /*
+|--------------------------------------------------------------------------
+| Filter Detail PO
+|--------------------------------------------------------------------------
+*/
 
+if ($request->filled('detail_po_id')) {
+    $query->where('detail_po_id', $request->detail_po_id);
+}
+
+/*
+|--------------------------------------------------------------------------
+| Filter Kategori Monitoring
+|--------------------------------------------------------------------------
+*/
+
+if ($request->filled('kategori')) {
+
+    $kategori = strtolower($request->kategori);
+
+    $mapping = [
+        'rangka' => [
+            'RANGKA',
+            'RANGKA BESI',
+            'RANGKA KAYU',
+            'RANGKA ROTAN',
+            'RANGKA ALUMUNIUN',
+            'RANGKA TRIPLEK',
+            'PLAT BESI',
+        ],
+
+        'anyam' => [
+            'ANYAM',
+            'ANYAM SINTETIS',
+            'ANYAM KARAKTER',
+        ],
+
+        'unfinish' => [
+            'RANGKA + ANYAM',
+            'ANYAM + DEKOR',
+            'BASKET JOGJA',
+            'BASKE JOGJA',
+            'BASKET LOMBOKAN',
+            'BASKET TASIK',
+        ],
+    ];
+
+    if (isset($mapping[$kategori])) {
+
+        $query->whereHas('kategori', function ($q) use ($mapping, $kategori) {
+
+            $q->whereIn('kategori', $mapping[$kategori]);
+
+        });
+
+    }
+}
     /*
     |--------------------------------------------------------------------------
     | Filter Date

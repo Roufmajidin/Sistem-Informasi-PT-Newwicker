@@ -31,6 +31,42 @@ class LaporanController extends Controller
 
     return view('pages.laporan.index', compact('stoks'));
 }
+    public function warehouseHistory(Request $request)
+{
+    $query = TransaksiStok::with(['stok', 'spk']);
+
+    if ($request->filled('search')) {
+        $search = $request->search;
+
+        $query->where(function ($q) use ($search) {
+
+            $q->where('po', 'like', "%{$search}%")
+              ->orWhere('keterangan', 'like', "%{$search}%")
+              ->orWhere('tipe', 'like', "%{$search}%")
+
+              ->orWhereHas('stok', function ($qq) use ($search) {
+                    $qq->where('nama_barang', 'like', "%{$search}%")
+                       ->orWhere('kode_barang', 'like', "%{$search}%");
+
+
+
+              });
+        });
+    }
+
+    $histories = $query
+        ->latest('tanggal')
+        ->paginate(25)
+        ->withQueryString();
+
+    if ($request->ajax()) {
+            // dd($histories);
+
+        return view('pages.laporan.partials.history_table', compact('histories'))->render();
+    }
+
+    return view('pages.laporan.history', compact('histories'));
+}
    public function update(Request $request)
 {
     $data = [

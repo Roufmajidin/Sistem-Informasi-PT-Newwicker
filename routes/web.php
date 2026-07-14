@@ -38,6 +38,8 @@ Route::get('/spk/preview/{id}', [SpkController::class, 'preview'])
 
 Route::get('/laporan', [LaporanController::class, 'index'])
     ->name('laporan.index');
+Route::get('/laporan/warehouse-history', [LaporanController::class, 'warehouseHistory'])
+    ->name('laporan.warehouse-history');
  Route::get('/laporan/detail/{id}',  [LaporanController::class, 'detailBarang']
 )->name('laporan.detail');
 Route::get(

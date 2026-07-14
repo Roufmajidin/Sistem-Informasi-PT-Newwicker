@@ -377,6 +377,24 @@
                              <span class="nav-text">Agenda</span>
                          </a>
                      </li>
+                              @if(Auth::user()->email == 'johm@gmail.com')
+                               <li>
+
+                                    <a href="/produksi/mn">
+                                        <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                        <span class="nav-text">Monitoring Produksi</span>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="/produksi/inventor">
+                                        <span class="nav-icon">
+                                            <i class="material-icons">&#xe85e;</i>
+                                        </span>
+                                        <span class="nav-text">SPK Monitoring</span>
+                                    </a>
+                                </li>
+                              @endif
+
                      @endif
                               @if(Auth::user()->role == 'admin produksi')
                                 <li>
@@ -413,7 +431,7 @@
                              <span class="nav-text">SPK SAMPLES</span>
                          </a>
                      </li>
-  <li>
+                    <li>
                         <a href="/produksi/inventor">
                             <span class="nav-icon">
                                 <i class="material-icons">&#xe85e;</i>

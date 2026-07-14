@@ -20,7 +20,7 @@
             <div id="spkInfo"></div>
             <div class="box-body">
                 <div class="row mb-3">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label>Jenis Barang</label>
                         <select id="filterJenis" class="form-control">
                             <option value="">Semua Jenis</option>
@@ -31,15 +31,25 @@
 
                     </div>
                     <div class="col-md-2">
-    <label>-</label>
-    <input
-        type="text"
-        id="searchBarang"
-        class="form-control"
-        placeholder="Cari nama barang...">
-</div>
+                        <label>-</label>
+                        <input
+                            type="text"
+                            id="searchBarang"
+                            class="form-control"
+                            placeholder="Cari nama barang...">
+                    </div>
+                      <div class="col-md-2 mt-4">
+
+                        <button type="button" class="btn btn-primary" id="addRow">
+                            <i class="fa fa-info"></i>
+                           <a href="/laporan/warehouse-history"> history</a>
+                        </button>
+                    </div>
+
+
                     <div class="col-md-5 text-right">
                         <br>
+
                         <button type="button" class="btn btn-primary" id="addRow">
                             <i class="fa fa-plus"></i>
                             Tambah Baris

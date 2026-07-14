@@ -175,6 +175,7 @@ class ProduksiMnController extends Controller
             ]
         );
     }
+    // monitoring
     public function index(Request $request)
     {
         /*
@@ -303,6 +304,8 @@ class ProduksiMnController extends Controller
             ->selectRaw('
             spk_id,
             detail_po_id,
+            MIN(id) as inspect_schedule_id,
+
             SUM(passed) as total_passed,
             SUM(rejected) as total_rejected
         ')
@@ -312,10 +315,7 @@ class ProduksiMnController extends Controller
             )
             ->get()
             ->keyBy(function ($item) {
-                return;
-                $item->spk_id .
-                '_' .
-                $item->detail_po_id;
+                return $item->spk_id . '_' . $item->detail_po_id;
             });
         /*
     |--------------------------------------------------------------------------
@@ -402,18 +402,11 @@ class ProduksiMnController extends Controller
             |--------------------------------------------------------------------------
             */
                 foreach ($inspects as $inspect) {
-                    $kategoriName = strtolower(
-                        optional(
-                            $inspect->kategori
-                        )->kategori ?? ''
+                   $kategoriName = $this->getMonitoringCategory(
+                        optional($inspect->kategori)->kategori ?? ''
                     );
-                    /*
-                |--------------------------------------------------------------------------
-                | CATEGORY MAPPING
-                |--------------------------------------------------------------------------
-                */
-                    $prefix =
-                    $categories[$kategoriName] ?? null;
+
+                    $prefix = $categories[$kategoriName] ?? null;
                     if (! $prefix) {
                         continue;
                     }
@@ -466,8 +459,11 @@ class ProduksiMnController extends Controller
                             $spk->id,
                             'supplier' =>
                             $spkData['sup'] ?? '-',
-                            'kategori' =>
-                            $spkData['kategori'] ?? '-',
+                                'inspect_schedule_id' => $inspectTotal->inspect_schedule_id ?? null,
+                            'detail_po_id' => $detailPo->id,
+                            'kategori' => $this->getMonitoringCategory(
+                                $spkData['kategori'] ?? ''
+                            ),
                             'no_spk'   =>
                             $spkData['no_spk'] ?? '-',
                             'status'   =>
@@ -519,11 +515,11 @@ class ProduksiMnController extends Controller
                 | CATEGORY
                 |--------------------------------------------------------------------------
                 */
-                    $kategoriInv = strtolower(
+                    $kategoriInv = $this->getMonitoringCategory(
                         $spkInvData['kategori'] ?? ''
                     );
-                    $prefix =
-                    $categories[$kategoriInv] ?? null;
+
+                    $prefix = $categories[$kategoriInv] ?? null;
                     if (! $prefix) {
                         continue;
                     }
@@ -577,6 +573,50 @@ class ProduksiMnController extends Controller
                 $dates,
             ]
         );
+    }
+    // pew
+    private function getMonitoringCategory($jenis)
+    {
+        $jenis = strtoupper(trim($jenis));
+
+        $rangka = [
+            'RANGKA',
+            'RANGKA BESI',
+            'RANGKA KAYU',
+            'RANGKA ROTAN',
+            'RANGKA ALUMUNIUN',
+            'RANGKA TRIPLEK',
+            'PLAT BESI',
+        ];
+
+        $anyam = [
+            'ANYAM',
+            'ANYAM SINTETIS',
+            'ANYAM KARAKTER',
+        ];
+
+        $unfinish = [
+            'RANGKA + ANYAM',
+            'ANYAM + DEKOR',
+            'BASKET JOGJA',
+            'BASKE JOGJA',
+            'BASKET LOMBOKAN',
+            'BASKET TASIK',
+        ];
+
+        if (in_array($jenis, $rangka)) {
+            return 'rangka';
+        }
+
+        if (in_array($jenis, $anyam)) {
+            return 'anyam';
+        }
+
+        if (in_array($jenis, $unfinish)) {
+            return 'unfinish';
+        }
+
+        return strtolower($jenis);
     }
     public function inventor()
     {
