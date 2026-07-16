@@ -18,6 +18,7 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use App\Exports\BomExport;
+use Carbon\Carbon;
 
 
 use Illuminate\Support\Str;
@@ -443,9 +444,10 @@ public function show($id)
 
                 'notes' => $item->notes,
 
-                'total' => ($item->qty ?? 0) * ($item->harga ?? 0),
+               'total' => (float) $item->qty * (float) $item->harga,
 
             ];
+            // dd($item->qty, $item->harga);
         }
   if ($group->name_sub || $group->harga_sub) {
 
@@ -477,9 +479,11 @@ foreach ($bom->summaries as $summary) {
     ];
 
 }
+$isEdit = request()->routeIs('bom.edit');
     return view(
         'pages.bom.edit',
         compact(
+            'isEdit',
             'bom',
             'bomData',
             'masterMaterials',
@@ -803,6 +807,35 @@ public function exportExcel($id)
     }
 
     return $bomData;
+}
+    public function toggleRelease(Request $request, Bom $bom)
+{
+    $released = $request->boolean('released');
+
+    if ($released) {
+
+        $bom->update([
+            'released' => 1,
+            'released_date' => now(),
+        ]);
+
+        return response()->json([
+            'released' => true,
+            'released_date' => $bom->released_date->format('d M Y H:i'),
+            'message' => 'BOM berhasil direlease.'
+        ]);
+    }
+
+    $bom->update([
+        'released' => 0,
+        'released_date' => null,
+    ]);
+
+    return response()->json([
+        'released' => false,
+        'released_date' => null,
+        'message' => 'Release berhasil dibatalkan.'
+    ]);
 }
 }
 

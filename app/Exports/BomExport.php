@@ -200,7 +200,7 @@ $sheet->mergeCells('A6:F6');
 
                     $sheet->getRowDimension($currentRow)->setRowHeight(24);
                     $sheet->mergeCells("A{$currentRow}:E{$currentRow}");
-                    $sheet->setCellValue("A{$currentRow}", strtoupper($group->name));
+                    $sheet->setCellValue("A{$currentRow}", 'UPAH ' . strtoupper($group->name));
                     $sheet->getStyle("A{$currentRow}")->getFont()->applyFromArray($boldFont);
                     $sheet->getStyle("A{$currentRow}")->getAlignment()->applyFromArray($alignLeft);
 
@@ -245,7 +245,7 @@ $sheet->mergeCells('A6:F6');
                             $sheet->getStyle("F{$currentRow}")->getNumberFormat()->setFormatCode($numFormatCurrency);
 
                             $catCode = ($item->material_type ?? '') === 'raw' ? 'R' : 'S';
-                            $sheet->setCellValue("G{$currentRow}", $catCode)->getStyle("G{$currentRow}")->getFont()->applyFromArray($monoFont);
+                            // $sheet->setCellValue("G{$currentRow}", $catCode)->getStyle("G{$currentRow}")->getFont()->applyFromArray($monoFont);
                             $sheet->getStyle("G{$currentRow}")->getAlignment()->applyFromArray($alignCenter);
 
                             if (!empty($item->notes)) {
@@ -366,7 +366,7 @@ $sheet->mergeCells('A6:F6');
                 $supportGroupSubtotals = collect($groupRowsInfo)
                     ->filter(fn($info) => $info['startRow'] > 0 && str_contains(strtoupper($info['groupName']), 'PACKING'))
                     ->map(fn($info) => "F".($info['endRow'] + 2))->implode('+');
-                $sheet->setCellValue("F{$currentRow}", "=" . ($supportGroupSubtotals ?: '0'));
+                // $sheet->setCellValue("F{$currentRow}", "=" . ($supportGroupSubtotals ?: '0'));
                 $sheet->getStyle("F{$currentRow}")->getFont()->applyFromArray($italicFont);
                 $sheet->getStyle("F{$currentRow}")->getAlignment()->applyFromArray($alignRight);
                 $sheet->getStyle("F{$currentRow}")->getNumberFormat()->setFormatCode($numFormatCurrency);

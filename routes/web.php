@@ -542,3 +542,12 @@ Route::get('/mutasi/timeline/detail', [ProduksiController::class, 'mutasiTimelin
 Route::post('/mutasi/timeline/save',
     [ProduksiController::class,'saveTimeline'])
     ->name('mutasi.timeline.save');
+Route::get('/phpinfo', function () {
+    phpinfo();
+});
+Route::post('/bom/{bom}/toggle-release', [BomController::class, 'toggleRelease'])
+    ->name('bom.toggleRelease');
+Route::post(
+    '/history/update-po/{id}',
+    [LaporanController::class,'updatePo']
+);

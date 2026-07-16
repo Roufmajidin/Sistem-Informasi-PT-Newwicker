@@ -1,7 +1,19 @@
-<div class="table-responsive">
+<div class="row mb-3">
 
-    <table class="table table-bordered">
+    <div class="col-md-4">
 
+        <input
+            type="text"
+            id="searchBom"
+            class="form-control"
+            placeholder="Cari Name / Article Number...">
+
+    </div>
+
+</div>
+<div class="table-responsive mt-4">
+
+<table class="table table-bordered" id="bomTable">
         <thead>
 
             <tr>
@@ -9,6 +21,7 @@
                 <th>No</th>
                 <th>Name</th>
                 <th>Article Number</th>
+                <th>release</th>
                 <th width="200">Action</th>
 
             </tr>
@@ -32,6 +45,20 @@
                 <td>
                     {{ $bom->article_number }}
                 </td>
+                <td>
+                <div class="form-check">
+                    <input
+                        type="checkbox"
+                        class="form-check-input release-checkbox"
+                        data-id="{{ $bom->id }}"
+                        {{ $bom->released ? 'checked' : '' }}
+                    >
+
+                    <small class="release-date text-muted d-block">
+                        {{ $bom->released_date ? \Carbon\Carbon::parse($bom->released_date)->format('d M Y H:i') : 'not yet' }}
+                    </small>
+                </div>
+            </td>
 
                 <td>
 
@@ -70,3 +97,83 @@
     </table>
 
 </div>
+<script>
+    $(document).on('change', '.release-checkbox', function () {
+
+    let checkbox = $(this);
+
+    $.ajax({
+        url: '/bom/' + checkbox.data('id') + '/toggle-release',
+        type: 'POST',
+        data: {
+            _token: '{{ csrf_token() }}',
+            released: checkbox.is(':checked')
+        },
+
+        success: function (res) {
+
+            let dateElement = checkbox
+                .closest('td')
+                .find('.release-date');
+
+            if(res.released){
+                dateElement.text(res.released_date);
+            }else{
+                dateElement.text('');
+            }
+
+            Swal.fire({
+                toast:true,
+                position:'top-end',
+                timer:2000,
+                showConfirmButton:false,
+                icon:'success',
+                title:res.message
+            });
+
+        },
+
+        error:function(){
+
+            checkbox.prop(
+                'checked',
+                !checkbox.is(':checked')
+            );
+
+            Swal.fire(
+                'Error',
+                'Gagal mengubah status.',
+                'error'
+            );
+
+        }
+
+    });
+
+});
+// SEARCH BOM
+$('#searchBom').on('keyup', function () {
+
+    let keyword = $(this).val().toLowerCase();
+
+    $('#bomTable tbody tr').each(function () {
+
+        let name = $(this)
+            .find('td:eq(1)')
+            .text()
+            .toLowerCase();
+
+        let article = $(this)
+            .find('td:eq(2)')
+            .text()
+            .toLowerCase();
+
+        $(this).toggle(
+            name.includes(keyword) ||
+            article.includes(keyword)
+        );
+
+    });
+
+});
+</script>

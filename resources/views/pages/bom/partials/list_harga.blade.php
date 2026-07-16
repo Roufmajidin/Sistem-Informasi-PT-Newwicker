@@ -1,26 +1,49 @@
 <div class="row mb-3">
 
-    <div class="col-md-4">
-        <input type="text" id="searchMaterial" class="form-control" placeholder="Cari material...">
+  <div class="col-md-4">
+
+        <div class="input-group">
+
+            <input
+                type="text"
+                id="searchMaterial"
+                class="form-control"
+                placeholder="Cari material...">
+
+            <button
+                class="btn btn-outline-secondary"
+                id="sortMaterial"
+                title="Sort Nama">
+
+                <i class="fa fa-sort-alpha-asc"></i>
+
+            </button>
+
+        </div>
+
     </div>
 
-    <div class="col-md-8 text-right">
+    <div class="col-md-8 text-end">
 
         <button
-    type="button"
-    id="btnOpenModal"
-    class="btn btn-primary btn-sm">
+            type="button"
+            id="btnOpenModal"
+            class="btn btn-primary btn-sm">
 
-    Add Rows
+            Tambha material
 
-</button>
+        </button>
 
     </div>
+
+
 
 </div>
 <div class="table-wrapper">
 
-    <table class="table table-bordered table-striped mb-0">
+    <table
+    id="materialTable"
+    class="table table-bordered table-striped mb-0">
 
         <thead>
             <tr>
@@ -101,6 +124,109 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
 <script>
+  // =========================
+// SEARCH
+// =========================
+$('#searchMaterial').on('keyup', function () {
+
+    let keyword = $(this).val().toLowerCase();
+
+    $('#materialTable tbody tr').each(function () {
+
+        let material = (
+            $(this)
+            .find('[data-column="nama_material"]')
+            .val() || ''
+        ).toLowerCase();
+
+        let satuan = (
+            $(this)
+            .find('[data-column="satuan"]')
+            .val() || ''
+        ).toLowerCase();
+
+        if (
+            material.includes(keyword) ||
+            satuan.includes(keyword)
+        ) {
+            $(this).show();
+        } else {
+            $(this).hide();
+        }
+
+    });
+
+});
+
+// =========================
+// SORT
+// =========================
+
+let asc = true;
+
+$('#sortMaterial').on('click', function () {
+
+    let btn = $(this);
+
+    btn.prop('disabled', true);
+
+    btn.html(
+        '<span class="spinner-border spinner-border-sm"></span>'
+    );
+
+    setTimeout(function () {
+
+        let tbody = $('#materialTable tbody');
+
+        let rows = tbody.find('tr').filter(function () {
+
+            return $(this)
+                .find('[data-column="nama_material"]')
+                .length;
+
+        }).get();
+
+        rows.sort(function (a, b) {
+
+            let nameA = (
+                $(a)
+                .find('[data-column="nama_material"]')
+                .val() || ''
+            ).toLowerCase();
+
+            let nameB = (
+                $(b)
+                .find('[data-column="nama_material"]')
+                .val() || ''
+            ).toLowerCase();
+
+            return asc
+                ? nameA.localeCompare(nameB)
+                : nameB.localeCompare(nameA);
+
+        });
+
+        $.each(rows, function (_, row) {
+
+            tbody.append(row);
+
+        });
+
+        asc = !asc;
+
+        btn.html(
+
+            asc
+                ? '<i class="fa fa-sort-alpha-asc"></i>'
+                : '<i class="fa fa-sort-alpha-desc"></i>'
+
+        );
+
+        btn.prop('disabled', false);
+
+    }, 200);
+
+});
     $('#btnOpenModal').click(function(e){
 
     e.preventDefault();
@@ -239,7 +365,8 @@
         $('table tbody tr').each(function () {
 
             let material = $(this)
-                .find('[data-column="nama_material"]')
+              .find('[data-column="nama"]')
+
                 .val()
                 .toLowerCase();
 

@@ -114,6 +114,61 @@ Adjustable Glide,2000,3000,5000,6000"></textarea>
     </div>
 </div>
 <script>
+    let asc = true;
+
+$('#sortBom').on('click', function () {
+
+    let btn = $(this);
+
+    btn.prop('disabled', true);
+
+    btn.html('<span class="spinner-border spinner-border-sm"></span>');
+
+    setTimeout(function () {
+
+        let tbody = $('#finishingTable tbody');
+
+        let rows = tbody.find('tr').filter(function () {
+            return $(this).find('[data-column="nama"]').length;
+        }).get();
+
+        rows.sort(function (a, b) {
+
+            let nameA = $(a)
+                .find('[data-column="nama"]')
+                .text()
+                .trim()
+                .toLowerCase();
+
+            let nameB = $(b)
+                .find('[data-column="nama"]')
+                .text()
+                .trim()
+                .toLowerCase();
+
+            return asc
+                ? nameA.localeCompare(nameB)
+                : nameB.localeCompare(nameA);
+
+        });
+
+        $.each(rows, function (_, row) {
+            tbody.append(row);
+        });
+
+        asc = !asc;
+
+        btn.html(
+            asc
+                ? '<i class="fa fa-sort-alpha-asc"></i>'
+                : '<i class="fa fa-sort-alpha-desc"></i>'
+        );
+
+        btn.prop('disabled', false);
+
+    }, 200);
+
+});
     $(document).on(
     'click',
     '#btnOpenFinishingModal',

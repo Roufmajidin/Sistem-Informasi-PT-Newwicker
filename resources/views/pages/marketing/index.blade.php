@@ -72,7 +72,18 @@
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    $(document).ready(function() {
+        $.ajaxSetup({
+            headers: {
+                'X-CSRF-TOKEN': '{{csrf_token()}}'
+            }
+        });
 
+
+
+    })
+</script>
 <script>
 $(document).ready(function() {
     const skipCheckboxRows = 11; // checkbox mulai dari baris 12
@@ -259,11 +270,12 @@ $(document).ready(function() {
         $.ajax({
             url: '{{ route("marketing.excel.save") }}',
             type: 'POST',
-            data: {
-                _token: '{{ csrf_token() }}',
-                company: companyJSON,
-                items: items
-            },
+            contentType: 'application/json',
+             data: JSON.stringify({
+                    _token: '{{ csrf_token() }}',
+                    company: companyJSON,
+                    items: items
+                }),
             success: function(res){
                         Swal.fire({
             icon: 'success',
@@ -575,6 +587,33 @@ function buildHeaders(headerRow1, headerRow2) {
 
     return headers;
 }
+let lastChecked = null;
+
+$(document).on('click', '.rowCheckbox', function (e) {
+
+    if (!lastChecked) {
+        lastChecked = this;
+        return;
+    }
+
+    if (e.shiftKey) {
+
+        const checkboxes = $('.rowCheckbox');
+
+        const start = checkboxes.index(this);
+        const end = checkboxes.index(lastChecked);
+
+        const from = Math.min(start, end);
+        const to = Math.max(start, end);
+
+        checkboxes.slice(from, to + 1).prop(
+            'checked',
+            lastChecked.checked
+        );
+    }
+
+    lastChecked = this;
+});
 </script>
 <style>
 .rowCheckbox {

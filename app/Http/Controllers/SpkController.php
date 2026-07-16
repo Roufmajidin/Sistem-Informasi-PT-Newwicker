@@ -1857,7 +1857,13 @@ public function spk(Request $request)
                 })
                 ->filter()
                 ->values();
-
+        $approval = PaymentRequestApproval::where(
+                'payment_request_saved_id',
+                $draft->id
+            )
+            ->where('status', 'Pending')
+            ->orderBy('step')
+            ->first();
             return [
                 'id' => $draft->id,
                 'request_no' => $draft->request_no,
@@ -1867,6 +1873,8 @@ public function spk(Request $request)
                 'grand_total' => $paymentRequests->sum('payment_amount'),
                 'total_items' => $paymentRequests->count(),
                 'items' => $paymentRequests,
+                'pending_sign'  => $approval->role ?? '-',
+
             ];
         });
 
@@ -2031,7 +2039,7 @@ public function spk(Request $request)
                 'role' => 'General Manager'
             ],
             [
-                'user_id' => 200,
+                'user_id' => 134,
                 'step' => 5,
                 'role' => 'Finance'
             ],
@@ -2160,7 +2168,7 @@ public function spk(Request $request)
 
             'items' =>
             $items,
-            'is_finance' => auth()->id() == 174,
+            'is_finance' => auth()->id() == 134,
            'approvals' => $approvals->map(function ($row) {
 
             return [
@@ -2334,6 +2342,8 @@ public function spk(Request $request)
     // approve sign in pengajuan spk
   public function approve($id)
 {
+        $urutan = false;
+
     $approval =
         PaymentRequestApproval::findOrFail($id);
 
@@ -2366,32 +2376,22 @@ public function spk(Request $request)
 
         ], 422);
     }
+     if ($urutan) {
 
-    // cek approval sebelumnya
-    $previous =
-        PaymentRequestApproval::where(
-            'payment_request_saved_id',
-            $approval->payment_request_saved_id
-        )
-        ->where(
-            'step',
-            $approval->step - 1
-        )
-        ->first();
+        $previous = PaymentRequestApproval::where(
+                'payment_request_saved_id',
+                $approval->payment_request_saved_id
+            )
+            ->where('step', $approval->step - 1)
+            ->first();
 
-    if (
-        $previous &&
-        $previous->status != 'Approved'
-    ) {
+        if ($previous && $previous->status != 'Approved') {
 
-        return response()->json([
-
-            'success' => false,
-
-            'message' =>
-                'Menunggu approval sebelumnya'
-
-        ], 422);
+            return response()->json([
+                'success' => false,
+                'message' => 'Menunggu approval sebelumnya'
+            ], 422);
+        }
     }
 
     // approve

@@ -25,6 +25,25 @@
                     let needDate = res.need_date ?? '';
                     let html = `
 <div id="printArea">
+     <div class="alert alert-info mb-3 no-print">
+
+        <i class="fa fa-info-circle"></i>
+
+        <b>Petunjuk :</b>
+
+        • Scroll ke bawah hingga bagian <b>Signature</b>, lalu klik
+        <b>Approve</b>.
+
+        <br>
+
+        • Klik <b>Description (SPK)</b> untuk melihat detail SPK terkait.
+
+        <br>
+
+        • Untuk kembali ke daftar Payment Request,
+        <b>geser ke kiri</b>.
+
+    </div>
 
                     <div style="background:white;
         padding:20px;
@@ -177,7 +196,7 @@
             <td>${item.supplier ?? ''}</td>
             <td>Transfer</td>
             <td>
-                <a href="/spk/view/${item.spk_id}" target="_blank">
+                <a href="/spk/views/${item.spk_id}" target="_blank">
                     ${item.spk_no ?? ''}
                 </a>
             </td>

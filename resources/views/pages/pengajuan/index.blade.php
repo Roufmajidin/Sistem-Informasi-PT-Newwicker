@@ -27,6 +27,7 @@
                     <option value="">-- Semua --</option>
                     <option value="All Divisi">All Divisi</option>
                     <option value="Finance">Finance</option>
+                    <option value="Spk">Pengajuan SPK</option>
                 </select>
 
                 <!-- QR BUTTON -->
@@ -2216,5 +2217,14 @@ function sendAjax(url, formData) {
                 .text(message)
                 .show();
         }
+    </script>
+    <script>
+        $('#filter-type').change(function(){
+
+    if($(this).val() == 'Spk'){
+        window.location.href = '/spk/request-r';
+    }
+
+});
     </script>
     @endsection

@@ -13,7 +13,7 @@ class ImportController extends Controller
     public function preview(Request $request)
     {
         $request->validate([
-            'file' => 'required|mimes:xlsx,xls',
+             'file' => 'required|mimes:xlsx,xls|max:102400',
         ]);
 
         $spreadsheet = IOFactory::load($request->file('file')->getPathname());

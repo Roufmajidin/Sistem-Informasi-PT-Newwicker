@@ -238,23 +238,31 @@ function qtyFormat($value)
                                class="form-control">
 
                     </div>
-  <div class="col-md-3 mt-4">
-    <div class="input-group">
-                    <input type="text"
-                        id="po"
-                        class="form-control"
-                        readonly>
+                        <div class="col-md-3 mt-4">
+                            <div class="input-group">
+                                            <input type="text"
+                                                id="no_spk"
+                                                class="form-control"
+                                                readonly>
 
-                                    <button
-                    type="button"
-                    id="btnCariSpk"
-                    class="btn btn-primary">
-                    Cari
-                </button>
-                </div>
-  </div>
+                                                            <button
+                                            type="button"
+                                            id="btnCariSpk"
+                                            class="btn btn-primary">
+                                            klik? spk
+                                        </button>
+                                        </div>
+                        </div>
 
+<div class="col-md-2">
 
+                        <label>Po Number</label>
+
+                        <input type="text"
+                               id="no_po"
+                               class="form-control">
+
+                    </div>
                     <div class="col-md-2">
 
                         <label>Keterangan</label>
@@ -306,7 +314,8 @@ function qtyFormat($value)
                             <th>IN</th>
                             <th>OUT</th>
                             <th>Satuan</th>
-                            <th>PO/SPK</th>
+                            <th>PO</th>
+                            <th>SPK</th>
                             <th>Keterangan</th>
                         </tr>
 
@@ -331,14 +340,28 @@ function qtyFormat($value)
                                     ? $item->qty
                                     : '' }}
                             </td>
-<td>{{ $stok->satuan }}</td>
+                            <td>{{ $stok->satuan }}</td>
+                           @php
+                            $a = App\Models\Spk::find($item->spk_id);
+
+                            $spk = '-';
+
+                            if ($a) {
+                                $spk = data_get($a->data, 'no_spk', '-');
+                            }
+                        @endphp
+
                             <td>
                                 {{ $item->po }}
                             </td>
 
                             <td>
+                                {{ $spk }}
+                            </td>
+                               <td>
                                 {{ $item->keterangan }}
                             </td>
+
 
                         </tr>
 
@@ -450,8 +473,7 @@ $(document).on('click','.pilih-spk',function(){
 
     $('#spk_id').val(data.id);
 
-    $('#po').val(data.no_spk);
-
+$('#no_spk').val(data.no_spk);
     // $('#modalSpk').modal('hide');
 
     tampilkanDetailSpk(data);
@@ -620,7 +642,7 @@ $(document).on('click','#btnTambahTransaksi',function(){
 
             out:$('#qty_out').val(),
 
-            po:$('#po').val(),
+           po: $('#no_po').val(),
 
             spk_id:$('#spk_id').val(),
 
@@ -681,8 +703,7 @@ $(document).on('click','.spk-item',function(){
 
     $('#spk_id').val(data.id);
 
-    $('#po').val(data.no_spk);
-
+$('#no_spk').val(data.no_spk);
     $('#spkSuggestion').html('');
 
     let itemRows = '';
@@ -796,7 +817,8 @@ $(document).on('click','.pilih-spk',function(){
 
     $('#spk_id').val(data.id);
 
-    $('#po').val(data.no_spk);
+      $('#no_spk').val(data.no_spk);
+
 
     tampilkanDetailSpk(data);
 

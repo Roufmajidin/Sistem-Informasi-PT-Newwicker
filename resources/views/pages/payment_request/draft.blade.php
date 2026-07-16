@@ -432,8 +432,8 @@
                                         {{ $finance->divisi->nama ?? '-' }}
                                     </div>
                                 </td>
-                             
-                               
+
+
                                 {{-- 8. COO --}}
                                 <td width="12.5%">
                                     <div style="
@@ -475,8 +475,16 @@
                 <div class="card">
                     <div class="card-header">
                         <h5 class="mb-0">
-                            Payment Request
+                            Payment Requests
                         </h5>
+
+                        <small class="text-success">
+                            <i class="fa fa-info-circle"></i>
+                            Klik <b>Detail</b> pada pengajuan paling atas <b>(NEW)</b>. Setelah halaman detail terbuka, scroll ke bawah untuk melakukan <b>Approve</b>.
+                        </small>
+                       <div class="alert alert-warning mb-3">
+
+
                     </div>
 
                     <div class="card-body">
@@ -493,6 +501,7 @@
                                             <th>Total baris</th>
                                             <th>Grand Total</th>
                                             <th>Status</th>
+                                            <th>Pending Sign</th>
                                             <th>Action</th>
                                         </tr>
                                     </thead>
@@ -523,6 +532,11 @@
                                     '.'
                                 ) }}
                                                 </td>
+                                                <td>
+    <span class="badge bg-success text-dark">
+      Pending  {{ $draft['pending_sign'] }}
+    </span>
+</td>
                                                 <td>
                                                     {{ $draft['status'] }}
                                                 </td>
@@ -562,6 +576,7 @@
 </div>
 
 <style>
+
     .pr-th {
         border: 1px solid black;
         padding: 4px;

@@ -24,7 +24,9 @@ class Bom extends Model
     'loadability_pcs',
     'loadability_cbm',
 
-    'image'
+    'image',
+    'released',
+    'released_date'
     ];
 
     public function groups()

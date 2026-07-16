@@ -29,8 +29,27 @@ $allowedDivisi = [26, 38, 32, 46, 37];
             </h4>
             <div id="approval-box"></div>
         </div>
+
+    </div>
+     <div class="box p-a">
+        <div class="pull-left m-r">
+            <span class="w-48 rounded primary">
+                <i class="material-icons">&#xe54f;</i>
+            </span>
+        </div>
+        <div class="clear">
+            <h4 class="m-0 text-lg _300">
+                <a href="/spk/request-r">
+                    <span class="text-sm">Pengajuan Pembayaran SPK</span><br>
+                    <span class="text-sm">Klik disini untuk menuju halaman</span>
+                </a>
+            </h4>
+            {{-- <div id="approval-box"></div> --}}
+        </div>
+
     </div>
 </div>
+
 @endif
         <div class="col-xs-12 col-sm-4">
             <div class="box p-a">

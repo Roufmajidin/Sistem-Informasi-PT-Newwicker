@@ -302,5 +302,20 @@ public function pdf(Request $request, $id)
 
         return response()->json($barang);
     }
+    public function updatePo(Request $request,$id)
+    {
+        $request->validate([
+            'po'=>'nullable|string|max:100'
+        ]);
 
+        $history = TransaksiStok::findOrFail($id);
+
+        $history->update([
+            'po'=>$request->po
+        ]);
+
+       return response()->json([
+    'status' => 'success'
+]);
+    }
 }

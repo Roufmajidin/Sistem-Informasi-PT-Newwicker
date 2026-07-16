@@ -50,7 +50,7 @@
                     <div class="col-md-5 text-right">
                         <br>
 
-                        <button type="button" class="btn btn-primary" id="addRow">
+                        <button type="button" class="btn btn-primary" id="addRowss">
                             <i class="fa fa-plus"></i>
                             Tambah Baris
                         </button>
@@ -236,7 +236,7 @@ $(function () {
     // ============================
     // TAMBAH BARIS
     // ============================
-    $('#addRow').click(function () {
+    $('#addRowss').click(function () {
 
         let rowCount = $('#tableBody tr').length + 1;
 
