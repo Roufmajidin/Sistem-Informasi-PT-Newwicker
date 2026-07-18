@@ -84,21 +84,46 @@
                         </tr>
                     </table>
                 </div>
-                <div class="col-md-4">
+               <div class="col-md-4">
 
-                    <div class="border p-3 text-center">
+                <div
+                    id="upload-area"
+                    class="border p-3 text-center"
+                    style="
+                        cursor:pointer;
+                        border:2px dashed #cfd8dc !important;
+                        border-radius:12px;
+                        min-height:260px;
+                        display:flex;
+                        flex-direction:column;
+                        justify-content:center;
+                        align-items:center;
+                    ">
 
-                        <input type="file" id="bom_image" name="image" accept="image/*" class="form-control mb-2">
+                    <input
+                        type="file"
+                        id="bom_image"
+                        name="image"
+                        accept="image/*"
+                        hidden>
 
-                        <img id="preview" src="https://placehold.co/300x200" class="img-fluid border"     style="
-            width:180px;
-            height:180px;
-            object-fit:contain;
-        ">
+                    <img
+                        id="preview"
+                        src="https://placehold.co/300x200"
+                        class="img-fluid"
+                        style="
+                            width:180px;
+                            height:180px;
+                            object-fit:contain;
+                        ">
 
-                    </div>
+                    <small class="text-muted mt-2">
+                        Klik, Drag & Drop atau Ctrl + V
+                    </small>
 
                 </div>
+
+            </div>
             </div>
         </div>
     </div>
@@ -250,17 +275,24 @@
                         <tr>
 
                             <td>
-                                <button
-                                    type="button"
-                                    class="btn btn-primary btn-sm btn-select-material"
-                                    data-id="{{ $item->id }}"
-                                    data-name="{{ $item->nama }}"
-                                    data-type="{{ $item->type }}"
-                                    data-price="{{ $harga }}">
+                               @php
+                                $unit = '';
 
-                                    Pilih
+                                if($item->type == 'material_price'){
+                                    $material = $materialPrices->firstWhere('id', $item->id);
+                                    $harga = $material->harga ?? 0;
+                                    $unit  = $material->satuan ?? '';
+                                }
+                            @endphp
 
-                                </button>
+                            <button
+                                type="button"
+                                class="btn btn-primary btn-sm btn-select-material"
+                                data-id="{{ $item->id }}"
+                                data-name="{{ $item->nama }}"
+                                data-type="{{ $item->type }}"
+                                data-price="{{ $harga }}"
+                                data-unit="{{ $unit }}">
                             </td>
 
                             <td>{{ $item->id }}</td>
@@ -279,7 +311,9 @@
     </div>
 </div>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
+<script>
+console.time('Page Load');
+</script>
 <script>
     let activeMaterialInput = null;
     let sectionIndex = 0;
@@ -309,7 +343,8 @@
 
         let price =
             $(this).data('price') || 0;
-
+        let unit =
+        $(this).data('unit') || '';
         let row =
             activeMaterialInput.closest('tr');
 
@@ -322,30 +357,34 @@
             .val(type);
 
         row.find('.material-price')
-            .val(price);
-
+        .val(
+            formatNumber(price)
+        );
+        row.find('.unit')
+        .val(unit);
         calculateRow(row);
-
+            updateTotalHpp();
         $('#materialPickerModal')
             .modal('hide');
 
     });
-    function calculateRow(row){
+   function calculateRow(row){
 
-    let qty =
-        parseFloat(
-            row.find('.qty').val()
-        ) || 0;
+    let qty = parseFloat(
+        row.find('.qty').val()
+    ) || 0;
 
-    let price =
-        parseFloat(
-            row.find('.material-price').val()
-        ) || 0;
+    let price = parseFloat(
+       row.find('.material-price').val()
+    ) || 0;
 
     let total = qty * price;
 
     row.find('.material-total')
-        .val(total);
+        .val(
+            total.toLocaleString('id-ID')
+        );
+
 }
     // search material di modal
     $('#searchMasterMaterial').on(
@@ -480,7 +519,7 @@
 <td>
 
     <input
-        type="number"
+        type="text"
         class="form-control material-price"
         value="0">
 
@@ -489,7 +528,7 @@
 <td>
 
     <input
-        type="number"
+        type="text"
         readonly
         class="form-control material-total"
         value="0">
@@ -537,7 +576,7 @@
 
                 <td>
                     <input
-                        type="number"
+                        type="text"
                         class="form-control sub-price-value"
                         value="0">
                 </td>
@@ -581,6 +620,17 @@
 
     }
 );
+$(document).on('input', '.sub-price-value', function(){
+
+    let angka = unFormat($(this).val());
+
+    $(this).val(formatNumber(angka));
+
+    updateSummary();
+    updateTotalHpp();
+    saveDraft();
+
+});
     // save bom
     $('#btn-save-bom').click(function () {
 
@@ -625,16 +675,119 @@
 
             success: function (res) {
 
-                alert(
-                    'BOM berhasil disimpan'
-                );
+                   Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        title: 'Saved BOM, Duar..',
+                        showConfirmButton: false,
+                        timer: 500,
+                        timerProgressBar: true
+                    }).then(() => {
+                        location.reload();
+                    });
 
             }
 
         });
 
     });
+// image
+function loadImage(file){
 
+    if(!file) return;
+
+    let reader = new FileReader();
+
+    reader.onload = function(e){
+
+        $('#preview').attr('src', e.target.result);
+
+    };
+
+    reader.readAsDataURL(file);
+
+    // Supaya file tetap ikut saat submit FormData
+    let dt = new DataTransfer();
+    dt.items.add(file);
+
+    $('#bom_image')[0].files = dt.files;
+
+}
+$('#upload-area').on('click', function(){
+
+    $('#bom_image').click();
+
+});
+$('#bom_image').on('change', function(){
+
+    if(this.files.length){
+
+        loadImage(this.files[0]);
+
+    }
+
+});
+$('#upload-area')
+
+.on('dragover', function(e){
+
+    e.preventDefault();
+
+    $(this).css('border-color','#28a745');
+
+})
+
+.on('dragleave', function(){
+
+    $(this).css('border-color','#cfd8dc');
+
+})
+
+.on('drop', function(e){
+
+    e.preventDefault();
+
+    $(this).css('border-color','#cfd8dc');
+
+    let file = e.originalEvent.dataTransfer.files[0];
+
+    if(file){
+
+        loadImage(file);
+
+    }
+
+});
+$(document).on('paste', function (e) {
+
+    let clipboardData = e.originalEvent.clipboardData || window.clipboardData;
+
+    if (!clipboardData) return;
+
+    let items = clipboardData.items;
+
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+
+        let item = items[i];
+
+        if (item.kind === 'file' && item.type.startsWith('image/')) {
+
+            let file = item.getAsFile();
+
+            if (!file) continue;
+
+            loadImage(file);
+
+            e.preventDefault();
+
+            return;
+        }
+    }
+
+});
     function saveDraft() {
         let draft = collectBomData();
         localStorage.setItem(
@@ -664,21 +817,10 @@
         calculateRow(
             $(this).closest('tr')
         );
+updateTotalHpp();
 updateSummary();
     }
 );
-    $(document).ready(function () {
-        let draft =
-            localStorage.getItem(
-                'bom_draft'
-            );
-        if (!draft) {
-            return;
-        }
-        draft =
-            JSON.parse(draft);
-        console.log(draft);
-    });
 
    function renderDraft(draft) {
     // isi pertama
@@ -830,20 +972,20 @@ updateSummary();
 
     <td>
 
-        <input
-            type="number"
-            class="form-control material-price"
-            value="${item.price || 0}">
+       <input
+        type="text"
+        class="form-control material-price"
+        value="${Number(item.price || 0).toLocaleString('id-ID')}">
 
     </td>
 
     <td>
 
-        <input
-            type="number"
-            readonly
-            class="form-control material-total"
-            value="${item.total || 0}">
+       <input
+        type="text"
+        readonly
+        class="form-control material-total"
+        value="${Number(item.total || 0).toLocaleString('id-ID')}">
 
     </td>
 
@@ -895,7 +1037,7 @@ updateSummary();
         <input
             type="number"
             class="form-control sub-price-value"
-            value="${sub.price || 0}">
+            value="${Number(sub.price || 0).toLocaleString('id-ID')}">
 
     </td>
 
@@ -917,6 +1059,7 @@ updateSummary();
         });
 
     });
+    updateDimensionCalculation();
     $('#summary-body').html('');
 
 (draft.summaries || []).forEach(function(summary){
@@ -954,19 +1097,19 @@ updateSummary();
     <td>
 
         <input
-            type="number"
+            type="text"
             class="form-control summary-price"
-            value="${summary.price || 0}">
+            value="${Number(summary.price || 0).toLocaleString('id-ID')}">
 
     </td>
 
     <td>
 
         <input
-            type="number"
+            type="text"
             readonly
             class="form-control summary-total"
-            value="${summary.total || 0}">
+            value="${Number(summary.total || 0).toLocaleString('id-ID')}">
 
     </td>
 
@@ -987,30 +1130,7 @@ updateSummary();
 
 });
 
-$(document).on(
-    'input',
-    '.summary-name,.summary-remark,.summary-qty,.summary-price',
-    function(){
 
-        let row = $(this).closest('tr');
-
-        let qty =
-            parseFloat(
-                row.find('.summary-qty').val()
-            ) || 0;
-
-        let price =
-            parseFloat(
-                row.find('.summary-price').val()
-            ) || 0;
-
-        row.find('.summary-total')
-            .val(qty * price);
-
-        saveDraft();
-
-    }
-);
 $('.child-body tr').each(function(){
 
     calculateRow($(this));
@@ -1066,7 +1186,8 @@ updateSummary();
 
                     price: $(this)
                         .find('.material-price')
-                        .val(),
+                        .val()
+                        .replace(/\./g,''),
 
                     unit: $(this)
                         .find('.unit')
@@ -1074,7 +1195,8 @@ updateSummary();
 
                     total: $(this)
                         .find('.material-total')
-                        .val(),
+                        .val()
+                        .replace(/\./g,''),
 
                     notes: $(this)
                         .find('.specification')
@@ -1097,10 +1219,11 @@ updateSummary();
                         .find('.sub-price-name')
                         .val(),
 
-                    price: $(this)
-                        .find('.sub-price-value')
-                        .val()
-
+                  price: unFormat(
+                        $(this)
+                            .find('.sub-price-value')
+                            .val()
+                    )
                 });
 
             });
@@ -1126,13 +1249,17 @@ updateSummary();
                 .find('.summary-qty')
                 .val(),
 
-            price: $(this)
-                .find('.summary-price')
-                .val(),
+            price: unFormat(
+                $(this)
+                    .find('.summary-price')
+                    .val()
+            ),
 
-            total: $(this)
-                .find('.summary-total')
-                .val()
+            total: unFormat(
+                $(this)
+                    .find('.summary-total')
+                    .val()
+            ),
 
         });
 
@@ -1223,9 +1350,17 @@ updateSummary();
 
                 success: function (res) {
 
-                    alert(
-                        'BOM berhasil diupdate'
-                    );
+                       Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        title: 'BOM berhasil diupdate',
+                        showConfirmButton: false,
+                        timer: 2000,
+                        timerProgressBar: true
+                    }).then(() => {
+                        location.reload();
+                    });
 
                 },
 
@@ -1243,39 +1378,36 @@ updateSummary();
 function updateSummary(){
 
     let labour = 0;
-
     let material = 0;
 
     $('.sub-price-value').each(function(){
 
-        labour += parseFloat($(this).val()) || 0;
+        labour += parseFloat(
+            unFormat($(this).val())
+        ) || 0;
 
     });
 
     $('.material-total').each(function(){
 
-        material += parseFloat($(this).val()) || 0;
+        material += parseFloat(
+            unFormat($(this).val())
+        ) || 0;
 
     });
 
     $('#labour-total').text(
-        labour.toLocaleString(
-            'id-ID',
-            {
-                minimumFractionDigits:2,
-                maximumFractionDigits:2
-            }
-        )
+        labour.toLocaleString('id-ID',{
+            minimumFractionDigits:2,
+            maximumFractionDigits:2
+        })
     );
 
     $('#material-total-all').text(
-        material.toLocaleString(
-            'id-ID',
-            {
-                minimumFractionDigits:2,
-                maximumFractionDigits:2
-            }
-        )
+        material.toLocaleString('id-ID',{
+            minimumFractionDigits:2,
+            maximumFractionDigits:2
+        })
     );
 
 }
@@ -1306,14 +1438,14 @@ $('#summary-body').append(`
 
     <td>
         <input
-            type="number"
+            type="text"
             class="form-control summary-price"
             value="0">
     </td>
 
     <td>
         <input
-            type="number"
+            type="text"
             readonly
             class="form-control summary-total"
             value="0">
@@ -1337,10 +1469,18 @@ $(document).on(
         let row = $(this).closest('tr');
 
         let qty = parseFloat(row.find('.summary-qty').val()) || 0;
-        let price = parseFloat(row.find('.summary-price').val()) || 0;
 
-        row.find('.summary-total').val(qty * price);
+        let price = parseFloat(
+            unFormat(
+                row.find('.summary-price').val()
+            )
+        ) || 0;
 
+        let total = qty * price;
+
+        row.find('.summary-total').val(
+            formatNumber(total)
+        );
         updateTotalHpp();
         saveDraft();
 
@@ -1487,23 +1627,38 @@ $(document).on(
 
         let remark = row.find('.summary-remark').val().toLowerCase().trim();
 
-        let qty = parseFloat(row.find('.summary-qty').val()) || 0;
+        let qty = parseFloat(
+            row.find('.summary-qty').val()
+        ) || 0;
+
+        let price = 0;
 
         if (remark === 'hitung') {
 
-            let harga = hitungLuas();
+            price = hitungLuas();
 
-            row.find('.summary-price').val(harga.toFixed(3));
-
-            row.find('.summary-total').val((qty * harga).toFixed(3));
+            row.find('.summary-price').val(
+                formatNumber(Math.round(price))
+            );
 
         } else {
 
-            let price = parseFloat(row.find('.summary-price').val()) || 0;
-
-            row.find('.summary-total').val((qty * price).toFixed(3));
+            price = parseFloat(
+                unFormat(
+                    row.find('.summary-price').val()
+                )
+            ) || 0;
 
         }
+
+        let total = qty * price;
+
+        row.find('.summary-total').val(
+            formatNumber(Math.round(total))
+        );
+
+        updateTotalHpp();
+        saveDraft();
 
     }
 );
@@ -1527,31 +1682,138 @@ function updateTotalHpp(){
     let material = 0;
     let summary = 0;
 
-    // Total Labour
     $('.sub-price-value').each(function(){
-        labour += parseFloat($(this).val()) || 0;
+
+        labour += parseFloat(
+            unFormat($(this).val())
+        ) || 0;
+
     });
 
-    // Total Material
     $('.material-total').each(function(){
-        material += parseFloat($(this).val()) || 0;
+
+        material += parseFloat(
+            unFormat($(this).val())
+        ) || 0;
+
     });
 
-    // Total Summary
     $('.summary-total').each(function(){
-        summary += parseFloat($(this).val()) || 0;
+
+        summary += parseFloat(
+            unFormat($(this).val())
+        ) || 0;
+
     });
 
     let totalHpp = labour + material + summary;
 
     $('#total-hpp').val(
-        totalHpp.toLocaleString('id-ID',{
-            minimumFractionDigits:2,
-            maximumFractionDigits:2
-        })
+        totalHpp.toLocaleString('id-ID')
     );
 
 }
+// rumus loadabiity
+function updateDimensionCalculation() {
+
+    let p = parseFloat($('[name="panjang"]').val()) || 0;
+    let l = parseFloat($('[name="lebar"]').val()) || 0;
+    let t = parseFloat($('[name="tinggi"]').val()) || 0;
+
+    // Auto Carton
+    let cp = p + 3;
+    let cl = l + 3;
+    let ct = t + 5;
+
+    $('[name="carton_panjang"]').val(cp.toFixed(2));
+    $('[name="carton_lebar"]').val(cl.toFixed(2));
+    $('[name="carton_tinggi"]').val(ct.toFixed(2));
+
+    // Hitung CBM
+    let cbm = (cp * cl * ct) / 1000000;
+
+    $('[name="loadability_cbm"]').val(cbm.toFixed(2));
+
+    // Hitung Loadability
+    if (cbm > 0) {
+
+        let loadability = Math.round(65 / cbm);
+
+        $('[name="loadability_pcs"]').val(loadability);
+
+    } else {
+
+        $('[name="loadability_pcs"]').val('');
+
+    }
+
+    saveDraft();
+}
+$(document).on(
+    'input',
+    '[name="panjang"], [name="lebar"], [name="tinggi"]',
+    function () {
+
+        updateDimensionCalculation();
+
+    }
+);
+function formatNumber(value){
+
+    if(value === '' || value === null) return '';
+
+    return Number(value).toLocaleString('id-ID');
+
+}
+
+function unFormat(value){
+
+    return value.toString().replace(/\./g,'');
+
+}
+$(document).on('input', '.material-price', function () {
+
+    let value = $(this).val();
+
+    // hanya izinkan angka dan titik
+    value = value.replace(/[^0-9.]/g, '');
+
+    // hanya boleh satu titik
+    let parts = value.split('.');
+    if (parts.length > 2) {
+        value = parts.shift() + '.' + parts.join('');
+    }
+
+    $(this).val(value);
+
+    calculateRow($(this).closest('tr'));
+    updateSummary();
+    updateTotalHpp();
+    saveDraft();
+
+});
+$(document).on('input', '.summary-price', function () {
+
+    let angka = unFormat($(this).val());
+
+    $(this).val(formatNumber(angka));
+
+    let row = $(this).closest('tr');
+
+    let qty = parseFloat(row.find('.summary-qty').val()) || 0;
+
+    let price = parseFloat(unFormat($(this).val())) || 0;
+
+    let total = qty * price;
+
+    row.find('.summary-total').val(
+        formatNumber(total)
+    );
+
+    updateTotalHpp();
+    saveDraft();
+
+});
 </script>
 <style>
     .card{

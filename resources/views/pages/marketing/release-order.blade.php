@@ -56,14 +56,26 @@
             <div class="row" id="default-table">
                 <div class="col-sm-12">
                     <div class="box">
-                        <div class="table-responsive">
-                            <table class="table table-striped table-bordered">
+                      <div class="table-responsive po-wrapper">
+
+                              <table id="po-table"  class="table table-striped table-bordered">
                                 <thead>
-                                    <tr class="spk-header">
+                                    <tr class="">
                                         <th>Order No</th>
                                         <th>Company Name</th>
-                                        <th>Shipment Date</th>
                                         <th>Country</th>
+
+                                        <th>Release date</th>
+                                        <th>Shipment Date</th>
+                                           <th>Category</th>
+                                        <th>Actual Ship</th>
+                                       @if(strtolower(auth()->user()->role) == 'marketing')
+                                            <th>Value</th>
+                                        @endif
+                                        <th>Cont Numb</th>
+                                        <th>DO Released</th>
+                                        <th>Remark</th>
+
                                         <th width="120">Action</th>
                                     </tr>
                                 </thead>
@@ -119,6 +131,7 @@
                                     <td><b>Country</b></td>
                                     <td id="d-country"></td>
                                 </tr>
+
                             </table>
                         </div>
                         <button id="btn-save-all"
@@ -161,6 +174,9 @@
             </div>
         </div>
     </div>
+    <div id="save-status">
+    ✔ All changes saved
+    </div>
     <pre id="result"></pre>
     @push('scripts')
     <script>
@@ -174,10 +190,15 @@ const currentUsername = @json(auth()->user()->name);
         /* =====================================================
    INIT PAGE (WAJIB UNTUK PJAX)
 ===================================================== */
+ /* ===== ROLE ===== */
+            const role = ($('#role').val() || '').toLowerCase();
+            const canEdit = ['marketing','sales','export'].includes(role);
+            const canSeeValue = ['marketing','sales','export'].includes(role);
         function initPage() {
             console.log('INIT PAGE JALAN');
-            /* ===== ROLE ===== */
-            const role = $('#role').val();
+
+
+
             if (role !== 'marketing') {
                 $('#btn-save-all')
                     .prop('disabled', true)
@@ -216,12 +237,161 @@ const currentUsername = @json(auth()->user()->name);
         /* =====================================================
            LOAD TABLE
         ===================================================== */
+        // const role = ($('#role').val() || '').toLowerCase();
+
+        function canEditField(field){
+
+            switch(role){
+
+                case 'marketing':
+                    return true;
+
+                case 'export':
+                    return [
+                        'act_ship',
+                        'cont_numb',
+                        'do_released'
+                    ].includes(field);
+
+                default:
+                    return false;
+            }
+
+        }
+            function editableTd(field, value, id, type='text'){
+
+            let editable = canEditField(field);
+
+            return `
+                <td>
+                    <input
+                        type="${type}"
+                        class="po-edit ${editable ? '' : 'readonly-input'}"
+                        data-id="${id}"
+                        data-field="${field}"
+                        value="${value ?? ''}"
+                        ${editable ? '' : 'readonly tabindex="-1"'}
+                    >
+                </td>
+            `;
+        }
+        // dedaline
+        function deadlineProgress(releaseDate, shipmentDate){
+
+    if(!releaseDate || !shipmentDate){
+        return '<span class="text-muted">-</span>';
+    }
+
+    let start = new Date(releaseDate);
+    let end   = new Date(shipmentDate);
+    let now   = new Date();
+
+    let totalDays = Math.ceil((end-start)/(1000*60*60*24));
+
+    if(totalDays <= 0){
+        return '-';
+    }
+
+    let elapsedDays = Math.ceil((now-start)/(1000*60*60*24));
+
+    let percent = (elapsedDays/totalDays)*100;
+
+    percent = Math.max(0,Math.min(100,percent));
+
+    let barColor = '#28a745';
+    let textColor = '#2F437F';
+
+    if(percent >= 60){
+        barColor='#f0ad4e';
+        textColor='#2F437F';
+    }
+
+    if(percent >= 85){
+        barColor='#dc3545';
+        textColor='#dc3545';
+    }
+
+    // ===== OVERDUE =====
+
+    if(now > end){
+
+        let late = Math.ceil((now-end)/(1000*60*60*24));
+
+        return `
+        <div style="min-width:180px">
+
+            <div class="progress" style="height:18px;border-radius:20px">
+
+                <div class="progress-bar"
+                    style="
+                        width:100%;
+                        background:#dc3545;
+                        font-size:11px;
+                    ">
+                    100%
+                </div>
+
+            </div>
+
+            <div style="
+                font-size:11px;
+                margin-top:3px;
+                color:#dc3545;
+                font-weight:bold;
+            ">
+                ${totalDays} / ${totalDays} Hari
+                <br>
+                🔴 Late ${late} Hari
+            </div>
+
+        </div>
+        `;
+    }
+
+    let sisa = Math.ceil((end-now)/(1000*60*60*24));
+
+    return `
+    <div style="min-width:180px">
+
+        <div class="progress" style="height:18px;border-radius:20px">
+
+            <div class="progress-bar"
+                style="
+                    width:${percent}%;
+                    background:${barColor};
+                    font-size:11px;
+                ">
+                ${Math.round(percent)}%
+            </div>
+
+        </div>
+
+        <div style="
+            font-size:11px;
+            margin-top:3px;
+            color:${textColor};
+            font-weight:bold;
+        ">
+
+            ${Math.max(0,elapsedDays)} / ${totalDays} Hari
+            <br>
+
+            🟢 Sisa ${sisa} Hari
+
+        </div>
+
+    </div>
+    `;
+}
         function loadPoTable(keyword = '', type = '') {
             fetch(
                     `{{ route('marketing.ajax.po') }}?q=${encodeURIComponent(keyword)}&type=${encodeURIComponent(type)}`
                 )
                 .then(res => res.json())
                 .then(data => {
+                   data.forEach(po => {
+    console.log(po.shipment_date);
+});
                     const tbody = document.getElementById('po-table-body');
 
                     if (!tbody) return;
@@ -247,21 +417,50 @@ const currentUsername = @json(auth()->user()->name);
             </button>
         `;
     }
-                        tbody.innerHTML += `
-                    <tr>
-                        <td>${po.order_no}</td>
-                        <td>${po.company_name}</td>
-                        <td>${po.shipment_date ?? '-'}</td>
-                        <td>${po.country ?? '-'}</td>
-                        <td>
-                            <button class="btn btn-xs btn-success btn-view"
-                                data-id="${po.id}">
-                                View
-                            </button>
-                                           ${deleteButton}
+                     tbody.innerHTML += `
+                       <tr>
 
-                        </td>
-                    </tr>`;
+                            ${editableTd('order_no',po.order_no,po.id)}
+
+                            ${editableTd('company_name',po.company_name,po.id)}
+
+                            ${editableTd('country',po.country,po.id)}
+
+                            ${editableTd('release_date',po.release_date,po.id,'date')}
+
+                            ${editableTd('shipment_date',normalizeDate(po.shipment_date),po.id,'date')}
+
+                            <td>
+                                ${deadlineProgress(
+                                    normalizeDate(po.release_date),
+                                    normalizeDate(po.shipment_date)
+                                )}
+                            </td>
+
+                            ${editableTd('act_ship',po.act_ship,po.id,'date')}
+
+                            ${role === 'marketing'
+                                ? editableTd('value', po.value, po.id, 'number')
+                                : ''
+                            }
+
+                            ${editableTd('cont_numb',po.cont_numb,po.id)}
+
+                            ${editableTd('do_released',po.do_released,po.id)}
+
+                            ${editableTd('remark',po.remark,po.id)}
+
+                            <td>
+                                <button class="btn btn-success btn-xs btn-view"
+                                    data-id="${po.id}">
+                                    View
+                                </button>
+
+                                ${deleteButton}
+                            </td>
+
+                        </tr>
+                        `;
                     });
                 })
                 .catch(err => console.error(err));
@@ -269,6 +468,88 @@ const currentUsername = @json(auth()->user()->name);
         /* =====================================================
            VIEW DETAIL
         ===================================================== */
+        // normalize
+      function normalizeDate(date){
+
+    if(!date || date == '-') return '';
+
+    date = date.trim();
+
+    // Kalau sudah format YYYY-MM-DD
+    if(/^\d{4}-\d{2}-\d{2}$/.test(date)){
+        return date;
+    }
+
+    // Buang tulisan dalam kurung
+    date = date.replace(/\(.*?\)/g,'');
+
+    const months = {
+        january:'01',
+        february:'02',
+        march:'03',
+        april:'04',
+        may:'05',
+        june:'06',
+        july:'07',
+        august:'08',
+        september:'09',
+        october:'10',
+        november:'11',
+        december:'12'
+    };
+
+    let m = date.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/i);
+
+    if(!m) return '';
+
+    let day = m[1].padStart(2,'0');
+    let month = months[m[2].toLowerCase()];
+
+    return `${m[3]}-${month}-${day}`;
+}
+        // update
+        $(document).on('change','.po-edit',function(){
+         if($(this).prop('readonly')){
+        return;
+    }
+        let input=$(this);
+
+        $.ajax({
+            beforeSend:function(){
+
+                showSaving();
+
+            },
+            url:'/marketing/po/update-field',
+
+            type:'POST',
+
+            headers:{
+                'X-CSRF-TOKEN':
+                $('meta[name="csrf-token"]').attr('content')
+            },
+
+            data:{
+                id:input.data('id'),
+                field:input.data('field'),
+                value:input.val()
+            },
+
+            success:function(){
+                 showSaved();
+                input.addClass('is-valid');
+
+                setTimeout(function(){
+
+                    input.removeClass('is-valid');
+
+                },800);
+
+            }
+
+        });
+
+    });
         // delete
         $(document).off('click', '.btn-delete-po')
 .on('click', '.btn-delete-po', function () {
@@ -596,6 +877,29 @@ const currentUsername = @json(auth()->user()->name);
         ===================================================== */
         $(document).ready(initPage);
         $(document).on('pjax:end', initPage);
+        function showSaving(){
+
+                $('#save-status')
+                    .stop(true, true)
+                    .css('background', '#0d6efd')
+                    .text('💾 Saving...')
+                    .fadeIn(150);
+
+            }
+
+            function showSaved(){
+
+                $('#save-status')
+                    .css('background', '#198754')
+                    .text('✔ All changes saved');
+
+                setTimeout(function(){
+
+                    $('#save-status').fadeOut();
+
+                }, 1200);
+
+            }
     </script>
 
     @endpush

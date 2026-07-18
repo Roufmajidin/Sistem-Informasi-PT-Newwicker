@@ -377,7 +377,7 @@
                              <span class="nav-text">Agenda</span>
                          </a>
                      </li>
-                              @if(Auth::user()->email == 'johm@gmail.com')
+                              @if(Auth::user()->email == 'johm@gmail.com' || Auth::user()->email == 'aji@gmail.com')
                                <li>
 
                                     <a href="/produksi/mn">

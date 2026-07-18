@@ -219,6 +219,9 @@ Route::get('/marketing-release-order', [QcController::class, 'releaseOrder']);
 Route::get('/marketing/po-detail/{id}', [PoController::class, 'getPoDetail']);
 Route::post('/marketing/po-item-update-bulk',
     [PoController::class, 'updateItemBulk']);
+    // neww yupdate
+    Route::post('/marketing/po/update-field', [PoController::class, 'updatePoField'])
+    ->name('marketing.po.update.field');
 // supplier
 Route::middleware(['auth'])->group(function () {
 
@@ -551,3 +554,6 @@ Route::post(
     '/history/update-po/{id}',
     [LaporanController::class,'updatePo']
 );
+
+Route::get('/bom/search', [BomController::class, 'search'])
+    ->name('bom.search');

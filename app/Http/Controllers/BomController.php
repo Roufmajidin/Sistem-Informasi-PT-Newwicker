@@ -10,6 +10,7 @@ use App\Models\Bom;
 use App\Models\BomGroup;
 use App\Models\BomItem;
 use App\Models\BomSummary;
+use App\Models\DetailPo;
 use Illuminate\Support\Facades\DB;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -19,7 +20,7 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use App\Exports\BomExport;
 use Carbon\Carbon;
-
+use Illuminate\Support\Facades\Log;
 
 use Illuminate\Support\Str;
 class BomController extends Controller
@@ -355,13 +356,37 @@ if ($request->hasFile('image')) {
 }
 public function show($id)
 {
-    $bom = Bom::with([
-        'groups.items','summaries'
+    $start = microtime(true);
 
+    Log::info("========== BOM SHOW START : {$id} ==========");
+
+    // ======================================================
+    // Load BOM
+    // ======================================================
+    $timer = microtime(true);
+
+    $bom = Bom::with([
+        'groups.items',
+        'summaries'
     ])->findOrFail($id);
 
-    // diperlukan oleh modal material picker
+    Log::info('1. Load BOM : ' . round((microtime(true) - $timer) * 1000, 2) . ' ms');
+
+
+    // ======================================================
+    // Material Price
+    // ======================================================
+    $timer = microtime(true);
+
     $materialPrices = MaterialPrice::all();
+
+    Log::info('2. MaterialPrice::all() : ' . round((microtime(true) - $timer) * 1000, 2) . ' ms');
+
+
+    // ======================================================
+    // Material List
+    // ======================================================
+    $timer = microtime(true);
 
     $materials = MaterialPrice::select(
         'id',
@@ -376,6 +401,14 @@ public function show($id)
         return $row;
     });
 
+    Log::info('3. Load Materials : ' . round((microtime(true) - $timer) * 1000, 2) . ' ms');
+
+
+    // ======================================================
+    // Finishing
+    // ======================================================
+    $timer = microtime(true);
+
     $finishings = MaterialFinishing::select(
         'id',
         'nama'
@@ -389,9 +422,25 @@ public function show($id)
         return $row;
     });
 
+    Log::info('4. Load Finishings : ' . round((microtime(true) - $timer) * 1000, 2) . ' ms');
+
+
+    // ======================================================
+    // Merge Material
+    // ======================================================
+    $timer = microtime(true);
+
     $masterMaterials = $materials
         ->concat($finishings)
         ->values();
+
+    Log::info('5. Merge Materials : ' . round((microtime(true) - $timer) * 1000, 2) . ' ms');
+
+
+    // ======================================================
+    // Build BOM Data
+    // ======================================================
+    $timer = microtime(true);
 
     $bomData = [
 
@@ -413,7 +462,7 @@ public function show($id)
         'image' => $bom->image,
 
         'groups' => [],
-         'summaries' => []
+        'summaries' => []
 
     ];
 
@@ -422,18 +471,19 @@ public function show($id)
         $groupData = [
             'name' => $group->name,
             'items' => [],
-              'sub_prices' => []
+            'sub_prices' => []
         ];
 
         foreach ($group->items as $item) {
 
             $groupData['items'][] = [
+
                 'sub_prices' => [],
+
                 'material_id' => $item->material_id,
 
                 'material_type' => $item->material_type,
 
-                // penting
                 'price' => $item->harga,
 
                 'name' => $item->name,
@@ -444,43 +494,53 @@ public function show($id)
 
                 'notes' => $item->notes,
 
-               'total' => (float) $item->qty * (float) $item->harga,
+                'total' => (float)$item->qty * (float)$item->harga,
 
             ];
-            // dd($item->qty, $item->harga);
         }
-  if ($group->name_sub || $group->harga_sub) {
 
-        $groupData['sub_prices'][] = [
+        if ($group->name_sub || $group->harga_sub) {
 
-            'name' => $group->name_sub,
+            $groupData['sub_prices'][] = [
 
-            'price' => $group->harga_sub
+                'name' => $group->name_sub,
 
-        ];
+                'price' => $group->harga_sub
 
-    }
+            ];
+        }
+
         $bomData['groups'][] = $groupData;
     }
-foreach ($bom->summaries as $summary) {
 
-    $bomData['summaries'][] = [
+    foreach ($bom->summaries as $summary) {
 
-        'name'   => $summary->name,
+        $bomData['summaries'][] = [
 
-        'remark' => $summary->remark,
+            'name' => $summary->name,
 
-        'qty'    => $summary->qty,
+            'remark' => $summary->remark,
 
-        'price'  => $summary->price,
+            'qty' => $summary->qty,
 
-        'total'  => $summary->total,
+            'price' => $summary->price,
 
-    ];
+            'total' => $summary->total,
 
-}
-$isEdit = request()->routeIs('bom.edit');
-    return view(
+        ];
+    }
+
+    Log::info('6. Build BOM Data : ' . round((microtime(true) - $timer) * 1000, 2) . ' ms');
+
+
+    // ======================================================
+    // Render View
+    // ======================================================
+    $timer = microtime(true);
+
+    $isEdit = request()->routeIs('bom.edit');
+
+    $view = view(
         'pages.bom.edit',
         compact(
             'isEdit',
@@ -490,6 +550,12 @@ $isEdit = request()->routeIs('bom.edit');
             'materialPrices'
         )
     );
+
+    Log::info('7. Build View : ' . round((microtime(true) - $timer) * 1000, 2) . ' ms');
+
+    Log::info('========== TOTAL SHOW : ' . round((microtime(true) - $start) * 1000, 2) . ' ms ==========');
+
+    return $view;
 }
 public function updateBom(
     Request $request,
@@ -766,7 +832,8 @@ public function exportExcel($id)
 
                 'notes'         => $item->notes,
 
-                'total'         => ($item->qty ?? 0) * ($item->harga ?? 0),
+             'total' => (float) str_replace('.', '', $item->qty ?? 0)
+         * (float) str_replace('.', '', $item->harga ?? 0),
 
             ];
 
@@ -837,5 +904,40 @@ public function exportExcel($id)
         'message' => 'Release berhasil dibatalkan.'
     ]);
 }
+// get
+ public function search(Request $request)
+    {
+        $keyword = strtolower(trim($request->keyword));
+
+        $result = [];
+
+        $detailPos = DetailPo::all();
+
+        foreach ($detailPos as $detailPo) {
+
+            foreach ($detailPo->detail ?? [] as $item) {
+
+                $article = strtolower($item['article_nr_'] ?? '');
+                $desc    = strtolower($item['description'] ?? '');
+
+                if (
+                    str_contains($article, $keyword) ||
+                    str_contains($desc, $keyword)
+                ) {
+
+                    $result[] = [
+                        'detail_po_id' => $detailPo->id,
+                        'po_id'        => $detailPo->po_id,
+                        'article_nr'   => $item['article_nr_'] ?? '',
+                        'description'  => $item['description'] ?? '',
+                        'data'         => $item,
+                    ];
+                }
+            }
+        }
+
+        return response()->json($result);
+    }
+
 }
 

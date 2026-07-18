@@ -21,6 +21,7 @@ use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Worksheet\MemoryDrawing;
+use Carbon\Carbon;
 
 class PoController extends Controller
 {
@@ -550,7 +551,20 @@ class PoController extends Controller
     {
         $userId = auth()->id();
 
-        $pos = Po::with('details')->get();
+        $pos = Po::with('details')>map(function($item){
+
+    $item->shipment_date_input =
+        $this->formatDateForInput($item->shipment_date);
+
+    $item->release_date_input =
+        $this->formatDateForInput($item->release_date);
+
+    $item->act_ship_input =
+        $this->formatDateForInput($item->act_ship);
+
+    return $item;
+
+});
 
         $detailPoIds = $pos->pluck('details')->flatten()->pluck('id');
 
@@ -962,4 +976,76 @@ class PoController extends Controller
             ], 500);
         }
     }
+    // update
+    public function updatePoField(Request $request)
+    {
+        $request->validate([
+            'id'    => 'required|exists:po,id',
+            'field' => 'required|string',
+            'value' => 'nullable'
+        ]);
+
+        $allowed = [
+            'order_no',
+            'company_name',
+            'country',
+            'release_date',
+            'shipment_date',
+            'act_ship',
+            'value',
+            'cont_numb',
+            'do_released',
+            'remark',
+            'category'
+        ];
+
+        if (!in_array($request->field, $allowed)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Field tidak diizinkan'
+            ], 422);
+        }
+
+        $po = Po::findOrFail($request->id);
+
+        $po->{$request->field} = $request->value;
+
+        $po->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Data berhasil disimpan'
+        ]);
+    }
+    private function formatDateForInput($date)
+{
+    if (empty($date) || $date == '-') {
+        return null;
+    }
+
+    try {
+
+        // hilangkan keterangan dalam kurung
+        $date = preg_replace('/\(.*\)/', '', $date);
+
+        // rapikan spasi
+        $date = trim(preg_replace('/\s+/', ' ', strtoupper($date)));
+
+        return Carbon::createFromFormat('j F Y', $date)
+            ->format('Y-m-d');
+
+    } catch (\Exception $e) {
+
+        try {
+
+            return Carbon::parse($date)->format('Y-m-d');
+
+        } catch (\Exception $e) {
+
+            return null;
+
+        }
+
+    }
+}
 }

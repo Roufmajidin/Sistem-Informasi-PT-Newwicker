@@ -117,6 +117,12 @@
                 /* background: #f8f9fa; */
             }
         </style>
+        @php
+            $hideHarga = in_array(auth()->user()->email, [
+                'john@gmail.com',
+                'aji@gmail.com',
+            ]);
+        @endphp
         <div class="container-fluid py-4">
             <div class="card inventor-card">
                 <div class="card-header bg-white">
@@ -154,9 +160,13 @@
                                     <th>     Deadline </th>
                                     <th>  Tenggat </th>
                                     <th>Status</th>
+                                    @if(!$hideHarga)
+
                                       <th>Vivi </th>
                                     <th>Mr. Stanley </th>
                                     <th>Didin </th>
+                                      @endif
+
                                      <th width="120">Total Item
                                     </th>
                                     <th width="120">Action </th>
@@ -169,7 +179,10 @@
                                             {{ $loop->iteration }}
                                         </td>
                                         {{-- CLICK FOR INPUT --}}
-                                        <td class="inventor-row spk-col" data-id="{{ $spk['id'] }}">
+                                       <td
+                                            class="{{ $hideHarga ? '' : 'inventor-row' }} spk-col"
+                                            data-id="{{ $spk['id'] }}"
+                                        >
                                             <div class="fw-bold text-primary">
                                                 {{ $spk['no_spk'] }}
                                             </div>
@@ -215,137 +228,158 @@
                                             </div>
                                         </td>
                                       <td>"{{ $spk['status'] }}"</td>
+                                    @if(!$hideHarga)
 
-{{-- VIVI --}}
-<td class="text-center">
+                                    {{-- VIVI --}}
+                                    <td class="text-center">
 
-    @if(!empty($spk['signature']['checked_at']))
+                                        @if(!empty($spk['signature']['checked_at']))
 
-        <span class="badge bg-success">
-            <i class="fa fa-check"></i>
-            Signed
-        </span>
+                                            <span class="badge bg-success">
+                                                <i class="fa fa-check"></i>
+                                                Signed
+                                            </span>
 
-        <br>
+                                            <br>
 
-        <small class="text-muted">
-            {{ $spk['signature']['checked_by'] }}
-        </small>
+                                            <small class="text-muted">
+                                                {{ $spk['signature']['checked_by'] }}
+                                            </small>
 
-    @elseif($spk['status'] == 'diajukan')
+                                        @elseif($spk['status'] == 'diajukan')
 
-        <span class="badge bg-warning">
-            Pending
-        </span>
+                                            <span class="badge bg-warning">
+                                                Pending
+                                            </span>
 
-    @else
+                                        @else
 
-        <span class="text-muted">-</span>
+                                            <span class="text-muted">-</span>
 
-    @endif
+                                        @endif
 
-</td>
+                                    </td>
 
-{{-- DIDIN --}}
-<td class="text-center">
+                                    {{-- DIDIN --}}
+                                    <td class="text-center">
 
-    @if(!empty($spk['signature']['checked_at_2']))
+                                        @if(!empty($spk['signature']['checked_at_2']))
 
-        <span class="badge bg-success">
-            <i class="fa fa-check"></i>
-            Signed
-        </span>
+                                            <span class="badge bg-success">
+                                                <i class="fa fa-check"></i>
+                                                Signed
+                                            </span>
 
-        <br>
+                                            <br>
 
-        <small class="text-muted">
-            {{ $spk['signature']['checked_by_2'] }}
-        </small>
+                                            <small class="text-muted">
+                                                {{ $spk['signature']['checked_by_2'] }}
+                                            </small>
 
-    @elseif($spk['status'] == 'diajukan')
+                                        @elseif($spk['status'] == 'diajukan')
 
-        <span class="badge bg-warning">
-            Pending
-        </span>
+                                            <span class="badge bg-warning">
+                                                Pending
+                                            </span>
 
-    @else
+                                        @else
 
-        <span class="text-muted">-</span>
+                                            <span class="text-muted">-</span>
 
-    @endif
+                                        @endif
 
-</td>
+                                    </td>
 
-{{-- MR STANLEY --}}
-<td class="text-center">
+                                    {{-- MR STANLEY --}}
+                                    <td class="text-center">
 
-    @if(!empty($spk['signature']['approved_at']))
+                                        @if(!empty($spk['signature']['approved_at']))
 
-        <a href="{{ url('/spk/views/'.$spk['id']) }}">
-            <span class="badge bg-success">
-                <i class="fa fa-check"></i>
-                Signed
-            </span>
-        </a>
+                                            <a href="{{ url('/spk/views/'.$spk['id']) }}">
+                                                <span class="badge bg-success">
+                                                    <i class="fa fa-check"></i>
+                                                    Signed
+                                                </span>
+                                            </a>
 
-        <br>
+                                            <br>
 
-        <small class="text-muted">
-            {{ $spk['signature']['approved_by'] }}
-        </small>
+                                            <small class="text-muted">
+                                                {{ $spk['signature']['approved_by'] }}
+                                            </small>
 
-    @elseif(
-        $spk['status'] == 'diajukan'
-        && auth()->id() == 191
-    )
+                                        @elseif(
+                                            $spk['status'] == 'diajukan'
+                                            && auth()->id() == 191
+                                        )
 
-        <button
-            type="button"
-            class="btn btn-warning btn-sm btn-approve-spk"
-            data-id="{{ $spk['id'] }}">
-            Pending Approval
-        </button>
+                                            <button
+                                                type="button"
+                                                class="btn btn-warning btn-sm btn-approve-spk"
+                                                data-id="{{ $spk['id'] }}">
+                                                Pending Approval
+                                            </button>
 
-    @elseif($spk['status'] == 'diajukan')
+                                        @elseif($spk['status'] == 'diajukan')
 
-        <a href="{{ url('/spk/views/'.$spk['id']) }}">
-            <span class="badge bg-warning">
-                Pending Mr. Stanley
-            </span>
-        </a>
+                                            <a href="{{ url('/spk/views/'.$spk['id']) }}">
+                                                <span class="badge bg-warning">
+                                                    Pending Mr. Stanley
+                                                </span>
+                                            </a>
 
-    @else
+                                        @else
 
-        <span class="text-muted">-</span>
+                                            <span class="text-muted">-</span>
 
-    @endif
+                                        @endif
 
-</td>
-
+                                    </td>
+                                    @endif
                                         <td class="text-center inventor-row" data-id="{{ $spk['id'] }}">
                                             {{ count($spk['items']) }}
                                         </td>
                                         {{-- DETAIL BUTTON --}}
                                         <td>
-                                          @if (auth()->user()->role != 'admin produksi')
-    @if ($spk['status'] == 'draft')
-        <button
-            type="button"
-            class="btn btn-success btn-sm btn-ajukan"
-            data-id="{{ $spk['id'] }}"
-            data-spk="{{ $spk['no_spk'] }}">
-            Ajukan
-        </button>
-    @endif
 
-    <button
-        type="button"
-        class="btn btn-primary btn-sm btn-detail"
-        data-id="{{ $spk['id'] }}">
-        Detail
-    </button>
-@endif
-                                        </td>
+                                        {{-- Selain Admin Produksi dan bukan John/Aji --}}
+                                        @if(
+                                            auth()->user()->role != 'admin produksi'
+                                            && !in_array(auth()->user()->email, [
+                                                'john@gmail.com',
+                                                'aji@gmail.com',
+                                            ])
+                                        )
+
+                                            @if($spk['status'] == 'draft')
+                                                <button
+                                                    type="button"
+                                                    class="btn btn-success btn-sm btn-ajukan"
+                                                    data-id="{{ $spk['id'] }}"
+                                                    data-spk="{{ $spk['no_spk'] }}">
+                                                    Ajukan
+                                                </button>
+                                            @endif
+
+                                        @endif
+
+                                        {{-- Detail boleh untuk semua selain Admin Produksi, termasuk John & Aji --}}
+                                        @if(
+                                            auth()->user()->role != 'admin produksi'
+                                            || in_array(auth()->user()->email, [
+                                                'john@gmail.com',
+                                                'aji@gmail.com',
+                                            ])
+                                        )
+                                            <button
+                                                type="button"
+                                                class="btn btn-primary btn-sm btn-detail"
+                                                data-id="{{ $spk['id'] }}">
+                                                Detail
+                                            </button>
+                                        @endif
+
+                                    </td>
                                     </tr>
                                 @empty
                                     <tr>
@@ -493,6 +527,7 @@
                                     </div>
                                 </div>
                                 <!-- bahan baku  -->
+                                @if(!$hideHarga)
                                 <div class="card border-0 shadow-sm">
                                     <div class="card-header bg-success text-white fw-bold">
                                         LIST BAHAN BAKU PENGAMBILAN
@@ -519,7 +554,9 @@
                                         </div>
                                     </div>
                                 </div>
+                                @endif
                                 {{-- PAYMENT --}}
+                                @if(!$hideHarga)
                                 <div class="card border-0 shadow-sm">
                                     <div class="card-header bg-success text-white fw-bold">
                                         LIST PAYMENT
@@ -547,6 +584,7 @@
                                         </div>
                                     </div>
                                 </div>
+                                @endif
                             </div>
                         </div>
                     </div>
@@ -558,6 +596,7 @@
 
     @push('scripts')
         <script>
+            const hideHarga = @json($hideHarga);
             /*
                                 |--------------------------------------------------------------------------
                                 | OPEN INPUT MODAL
@@ -935,60 +974,52 @@
                                 ? hargaVivi * qty
                                 : hargaInventory * qty;
 
-                        bahanHtml += `
-                        <tr>
-                            <td>${i + 1}</td>
+                      bahanHtml += `
+<tr>
+    <td>${i + 1}</td>
 
-                            <td>
-                                ${row.tanggal ?? '-'}
-                            </td>
+    <td>${row.tanggal ?? '-'}</td>
 
-                            <td>
-                                <span class="badge bg-${
-                                    row.tipe == 'in'
-                                        ? 'success'
-                                        : 'danger'
-                                }">
-                                    ${row.tipe}
-                                </span>
-                            </td>
+    <td>
+        <span class="badge bg-${
+            row.tipe == 'in' ? 'success' : 'danger'
+        }">
+            ${row.tipe}
+        </span>
+    </td>
 
-                            <td>
-                                <div class="fw-bold">
-                                    ${row.nama_barang}
-                                </div>
+    <td>
+        <div class="fw-bold">${row.nama_barang}</div>
+        <small class="text-muted">${row.kode_barang}</small>
+    </td>
 
-                                <small class="text-muted">
-                                    ${row.kode_barang}
-                                </small>
-                            </td>
+    <td>${qty} ${row.satuan ?? ''}</td>
 
-                            <td>
-                                ${qty}
-                                ${row.satuan ?? ''}
-                            </td>
+    ${
+        !hideHarga
+        ? `
+            <td>
+                ${
+                    hargaInventory
+                        ? 'Rp ' + hargaInventory.toLocaleString('id-ID')
+                        : '-'
+                }
+            </td>
 
-                            <td>
-                                ${
-                                    hargaInventory
-                                        ? 'Rp ' + hargaInventory.toLocaleString('id-ID')
-                                        : '-'
-                                }
-                            </td>
+            <td>
+                ${hargaViviCol}
+            </td>
 
-                            <td>
-                                ${hargaViviCol}
-                            </td>
+            <td class="fw-bold text-success">
+                Rp ${total.toLocaleString('id-ID')}
+            </td>
+        `
+        : ''
+    }
 
-                            <td class="fw-bold text-success">
-                                Rp ${total.toLocaleString('id-ID')}
-                            </td>
-
-                            <td>
-                                ${row.keterangan ?? '-'}
-                            </td>
-                        </tr>
-                        `;
+    <td>${row.keterangan ?? '-'}</td>
+</tr>
+`;
                     });
 
                 } else {

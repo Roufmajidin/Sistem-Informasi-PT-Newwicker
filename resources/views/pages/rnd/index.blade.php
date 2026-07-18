@@ -13,9 +13,12 @@ $detail = $find->detail ?? [];
         {{-- HEADER --}}
         <div class="box-header">
             <h2>CAD</h2>
-            <small>___</small>
+            <small>Cad Upload view</small>
         </div>
 
+     <button class="btn btn-default btn-sm" type="button" class="btn btn-secondary" onclick="history.back()">
+        <i class="fa fa-arrow-left"></i> Kembali
+    </button>
         <input type="hidden" id="role" value="{{ auth()->user()->role }}">
         <input type="hidden" id="id" value="{{ auth()->user()->role }}">
 
