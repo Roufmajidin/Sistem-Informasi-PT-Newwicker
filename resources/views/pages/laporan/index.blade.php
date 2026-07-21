@@ -79,20 +79,18 @@
                                     <table class="table table-bordered table-striped">
                                         <thead>
                                             <tr>
-                                                <th width="50">No</th>
-                                                <th>Kode Barang</th>
-                                                <th>Nama Barang</th>
-                                                <th style="min-width:180px;">Jenis</th>
-                                                <th width="50">Satuan</th>
-                                                <th>Harga</th>
-                                                <th>Saldo</th>
-                                                <th>Stok in </th>
-                                                <th>Stok out </th>
-                                                <!-- <th>IN</th>
-                                                <th>OUT</th> -->
-                                                <th>Tanggal</th>
-                                                <th width="80">Aksi</th>
-                                                <th width="100">Detail</th>
+                                           <th width="50">No</th>
+<th width="110">Kode Barang</th>
+<th>Nama Barang</th>
+<th width="170">Jenis</th>
+<th width="60">Satuan</th>
+<th width="100">Harga</th>
+<th width="90">Saldo</th>
+<th width="80">Stok In</th>
+<th width="80">Stok Out</th>
+<th width="130">Tanggal</th>
+<th width="80">Aksi</th>
+<th width="100">Detail</th>
                                             </tr>
                                         </thead>
                                         <tbody id="tableBody">
@@ -154,20 +152,20 @@
                                                         type="number"
                                                         step="0.001"
                                                         class="form-control stok_awal"
-                                                        value="{{ $stok->stok_awal }}">
+                                                        value="{{ $stok->stok_awal- $stok->total_out }}">
 
-                                                    <small class="text-muted">
+                                                    {{-- <small class="text-muted">
                                                         Total :
                                                         {{ number_format($stok->stok_akhir,3,'.',',') }}
-                                                    </small>
+                                                    </small> --}}
                                                 </td>
 
                                                 <td>
-                                                    {{ $stok->total_in ?? 0 }}
+                                                    {{ number_format($stok->total_in,2,'.',',') }}
                                                 </td>
 
                                                 <td>
-                                                    {{ $stok->total_out ?? 0 }}
+                                                    {{ number_format($stok->total_out,2,'.',',') }}
                                                 </td>
 
                                                 <td>
@@ -225,7 +223,7 @@
             </div>
         </div>
     </div>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    {{-- <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> --}}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>

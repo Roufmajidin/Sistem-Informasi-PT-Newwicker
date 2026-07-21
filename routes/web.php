@@ -557,3 +557,13 @@ Route::post(
 
 Route::get('/bom/search', [BomController::class, 'search'])
     ->name('bom.search');
+
+Route::post('/bom/copy', [BomController::class, 'copyBom'])
+    ->name('bom.copy');
+Route::delete('/bom/{id}', [BomController::class, 'destroyBom'])
+    ->name('bom.destroys');
+
+    Route::get('/bom/create-partial', [BomController::class, 'createPartial']);
+Route::get('/bom/harga-partial', [BomController::class, 'hargaPartial']);
+Route::get('/bom/finishing-partial', [BomController::class, 'finishingPartial']);
+Route::get('/bom/released-partial', [BomController::class, 'releasedPartial']);

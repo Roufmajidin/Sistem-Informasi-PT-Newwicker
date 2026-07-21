@@ -58,9 +58,9 @@
                     @endphp
 
                     <td>{{ $spk }}</td>
-                    <td class="editable-po"
-                        data-id="{{ $item->id }}"
-                        data-value="{{ $item->po }}">
+                    <td class="js-inline-po"
+    data-id="{{ $item->id }}"
+    data-value="{{ $item->po }}">
 
                         @php
                             $po = $item->po ?? '-';
@@ -99,63 +99,3 @@
 <div class="d-flex justify-content-start mt-3">
     {{ $histories->links() }}
 </div>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
-<script>
-    $(document).on('dblclick','.editable-po',function(){
-
-    let td = $(this);
-
-    if(td.find('input').length) return;
-
-    let value = td.data('value') ?? '';
-
-    td.html(
-        '<input type="text" class="form-control form-control-sm po-input" value="'+value+'">'
-    );
-
-    td.find('input').focus().select();
-
-});
-    $(document).on('keypress','.po-input',function(e){
-
-        if(e.which==13){
-
-            $(this).blur();
-
-        }
-
-    });
-    $(document).on('blur','.po-input',function(){
-
-    let input = $(this);
-
-    let td = input.closest('td');
-
-    let id = td.data('id');
-
-    let value = input.val();
-
-    $.ajax({
-
-        url:'/history/update-po/'+id,
-
-        type:'POST',
-
-        data:{
-            _token:'{{ csrf_token() }}',
-            po:value
-        },
-
-        success:function(){
-
-            td.data('value',value);
-
-            td.html(value);
-
-        }
-
-    });
-
-});
-</script>

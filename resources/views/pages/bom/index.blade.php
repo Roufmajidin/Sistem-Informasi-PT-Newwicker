@@ -11,14 +11,30 @@
         </div>
 
         <div class="box-body">
+<div id="global-loader" style="display:none">
+    <div class="loader-content">
 
+        <div class="spinner-border text-success"
+             style="width:70px;height:70px">
+        </div>
+
+        <h4 class="mt-4">
+            Sedang mencocokkan data...
+        </h4>
+
+        <small class="text-muted">
+            Mohon tunggu sebentar
+        </small>
+
+    </div>
+</div>
             <ul class="nav nav-tabs" role="tablist">
 
                 <li class="nav-item active">
                     <a class="nav-link active"
                         data-toggle="tab"
                         href="#bom">
-                        Bill Of Material
+                        BOM Draft
                     </a>
                 </li>
 
@@ -45,26 +61,29 @@
                         Create BOM
                     </a>
                 </li>
+                 <li class="nav-item">
+                    <a class="nav-link"
+                        data-toggle="tab"
+                        href="#released-bom">
+                        Released BOM
+                    </a>
+                </li>
 
             </ul>
 
             <div class="tab-content p-a-3">
 
-                <div class="tab-pane active" id="bom">
-                    @include('pages.bom.partials.bill_of_material')
+               <div class="tab-pane active" id="bom">
+                @include('pages.bom.partials.bill_of_material')
                 </div>
 
-                <div class="tab-pane" id="harga">
-                    @include('pages.bom.partials.list_harga')
-                </div>
+                <div class="tab-pane" id="harga"></div>
 
-                <div class="tab-pane" id="finishing">
-                    @include('pages.bom.partials.material_finishing')
-                </div>
+                <div class="tab-pane" id="finishing"></div>
 
-                <div class="tab-pane" id="create-bom">
-                    @include('pages.bom.partials.create_bom')
-                </div>
+                <div class="tab-pane" id="create-bom"></div>
+
+                <div class="tab-pane" id="released-bom"></div>
 
             </div>
 
@@ -72,7 +91,35 @@
 
     </div>
 </div>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
 @include('pages.bom.partials.modal_add_harga')
+<script>
+   $.get('/bom/create-partial', function (html) {
 
+    $('#create-bom').html(html);
+
+    console.log('Create BOM Loaded');
+    console.log(typeof updateDimensionCalculation);
+
+});
+
+$('a[href="#harga"]').one('click', function () {
+
+    $('#harga').load('/bom/harga-partial');
+
+});
+
+$('a[href="#finishing"]').one('click', function () {
+
+    $('#finishing').load('/bom/finishing-partial');
+
+});
+
+$('a[href="#released-bom"]').one('click', function () {
+
+    $('#released-bom').load('/bom/released-partial');
+
+});
+</script>
 @endsection

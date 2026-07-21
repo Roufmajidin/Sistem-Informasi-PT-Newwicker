@@ -560,6 +560,7 @@ class ProduksiMnController extends Controller
     | RETURN
     |--------------------------------------------------------------------------
     */
+
         return view(
             'pages.management.index',
             [
@@ -586,7 +587,7 @@ class ProduksiMnController extends Controller
             'RANGKA ROTAN',
             'RANGKA ALUMUNIUN',
             'RANGKA TRIPLEK',
-            'PLAT BESI',
+            // 'PLAT BESI',
         ];
 
         $anyam = [

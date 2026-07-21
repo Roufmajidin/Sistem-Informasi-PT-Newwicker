@@ -1,6 +1,58 @@
 @extends('master.master')
 @section('title', "Karyawan Absen")
 @section('content')
+<style>
+    #loadingBulanan{
+
+    position:fixed;
+
+    top:0;
+    left:0;
+
+    width:100%;
+    height:100%;
+
+    background:rgba(255,255,255,.96);
+
+    z-index:999999;
+
+    display:none;
+
+    justify-content:center;
+    align-items:center;
+
+}
+
+.loading-content{
+
+    text-align:center;
+
+}
+    .table-wrapper {
+    overflow: auto;
+    max-height: calc(100vh - 250px);
+}
+
+.table-wrapper table {
+    min-width: max-content;
+}
+
+.table-wrapper thead th:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 30;
+    background: #243447;
+    color: #fff;
+}
+
+.table-wrapper tbody td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 20;
+    background: #fff;
+    font-weight: 600;
+}
+</style>
 <div class="padding">
     <div class="box">
         <div class="p-a white lt box-shadow">
@@ -78,6 +130,23 @@
 
                 <div class="col-12 mt-3">
                     <div class="table-wrapper">
+                        <div id="loadingBulanan" style="display:none;">
+                        <div class="loading-content">
+
+                            <div class="spinner-border text-success"
+                                style="width:70px;height:70px;">
+                            </div>
+
+                            <h4 class="mt-4">
+                                Sedang mengambil data...
+                            </h4>
+
+                            <small class="text-muted">
+                                Mohon tunggu sebentar
+                            </small>
+
+                        </div>
+                    </div>
                         <div id="tableBulanan" class="d-none">
                             {{-- Tabel bulanan akan di-load via AJAX --}}
                         </div>
@@ -216,15 +285,35 @@
     });
 
     function loadAbsenBulanan(month, year) {
-        fetch(`/absen/bulanan?month=${month}&year=${year}`)
-            .then(res => res.json())
-            .then(data => {
-                document.getElementById("tableBulanan").innerHTML = data.html;
-                registerClickHandlers();
-            })
-            .catch(err => {
-                console.error("Gagal memuat tabel bulanan:", err);
-            });
+
+    $('#loadingBulanan')
+        .css('display','flex')
+        .hide()
+        .fadeIn(150);
+
+    fetch(`/absen/bulanan?month=${month}&year=${year}`)
+
+        .then(res => res.json())
+
+        .then(data => {
+
+            document.getElementById("tableBulanan").innerHTML = data.html;
+
+            registerClickHandlers();
+
+            $('#loadingBulanan').fadeOut(150);
+
+        })
+
+        .catch(err => {
+
+            console.error(err);
+
+            $('#loadingBulanan').fadeOut(150);
+
+        });
+
+
     }
 </script>
 

@@ -3,6 +3,29 @@
     @section('content')
         @include('pages.management.style')
         <style>
+            /* Tinggi select */
+        .select2-container .select2-selection--single{
+            height:38px !important;
+            border:1px solid #ced4da !important;
+            border-radius:.375rem !important;
+        }
+
+        /* Posisi teks */
+        .select2-container--default .select2-selection--single .select2-selection__rendered{
+            line-height:36px !important;
+            padding-left:12px;
+        }
+
+        /* Posisi icon panah */
+        .select2-container--default .select2-selection--single .select2-selection__arrow{
+            height:36px !important;
+            right:8px;
+        }
+
+        /* Lebar penuh */
+        .select2-container{
+            width:100% !important;
+        }
             .harga-vivi-input{
     border:none;
     background:transparent;
@@ -134,8 +157,22 @@
                         {{-- RIGHT --}}
 
                         <div class="d-flex gap-2">
-                              <input type="date" id="searchSpk" class="form-control" placeholder="bulan/tgl"
-                                style="width:300px">
+                            @php
+                        $suppliers = array_unique(array_column($spks, 'supplier'));
+                        @endphp
+
+                        <input
+                            type="text"
+                            id="searchSub"
+                            list="supplierList"
+                            class="form-control"
+                            placeholder="Cari Supplier...">
+
+                        <datalist id="supplierList">
+                            @foreach($suppliers as $supplier)
+                                <option value="{{ $supplier }}">
+                            @endforeach
+                        </datalist>
                             <input type="text" id="searchSpk" class="form-control" placeholder="Cari No PO / No SPK..."
                                 style="width:300px">
                             <select id="filterSpkType" class="form-control">
@@ -592,10 +629,12 @@
             </div>
         </div>
     @endsection
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 
     @push('scripts')
         <script>
+
             const hideHarga = @json($hideHarga);
             /*
                                 |--------------------------------------------------------------------------
@@ -645,7 +684,13 @@
                     $('#inventorModal')
                         .modal('show');
                 });
+                $('#inventorTableBody tr:last .item-select').select2({
+                    width: '100%',
+                    placeholder: 'Cari Item...',
+                    dropdownParent: $('#inventorModal')
+                });
             });
+
             /*
             |--------------------------------------------------------------------------
             | ADD ROW
@@ -1531,6 +1576,66 @@
             }
         });
     }
+});
+// filter
+$(document).on('change', '#subSelect', function () {
+
+    let value = $(this).val().toLowerCase();
+
+    $('.inventor-table tbody tr').each(function () {
+
+        let supplier = $(this)
+            .find('td:eq(2)')   // kolom Supplier
+            .text()
+            .trim()
+            .toLowerCase();
+
+        if (value === '' || supplier.includes(value)) {
+            $(this).show();
+        } else {
+            $(this).hide();
+        }
+
+    });
+
+});
+$('#searchSub').on('input', function () {
+
+    let keyword = $(this).val().toLowerCase();
+
+    $('.inventor-table tbody tr').each(function () {
+
+        let supplier = $(this)
+            .find('td:eq(2)')
+            .text()
+            .trim()
+            .toLowerCase();
+
+        $(this).toggle(
+            keyword === '' || supplier.includes(keyword)
+        );
+
+    });
+
+});
+const originalOptions = $('#subSelect').html();
+
+$('#searchSub').on('keyup', function () {
+
+    let keyword = $(this).val().toLowerCase();
+
+    $('#subSelect').html(originalOptions);
+
+    $('#subSelect option').each(function () {
+
+        let text = $(this).text().toLowerCase();
+
+        if (!text.includes(keyword) && $(this).val() != '') {
+            $(this).remove();
+        }
+
+    });
+
 });
 // pending
 $(document).on('click','.btn-approve-spk',function(){

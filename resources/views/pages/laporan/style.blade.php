@@ -1,4 +1,45 @@
 <style>
+    /* Kode Barang */
+.table th:nth-child(2),
+.table td:nth-child(2){
+    width: 110px;
+    min-width: 110px;
+}
+
+/* Harga */
+.table th:nth-child(6),
+.table td:nth-child(6){
+    width: 100px;
+    min-width: 100px;
+}
+
+/* Saldo */
+.table th:nth-child(7),
+.table td:nth-child(7){
+    width: 85px;
+    min-width: 85px;
+}
+
+/* Stok IN */
+.table th:nth-child(8),
+.table td:nth-child(8){
+    width: 80px;
+    min-width: 80px;
+}
+
+/* Stok OUT */
+.table th:nth-child(9),
+.table td:nth-child(9){
+    width: 80px;
+    min-width: 80px;
+}
+
+/* Input agar mengikuti lebar kolom */
+.table td input.form-control,
+.table td select.form-control{
+    width:100%;
+    min-width:0;
+}
     .table input.form-control,
     .table select.form-control {
         border: none !important;

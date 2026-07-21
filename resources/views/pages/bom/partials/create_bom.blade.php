@@ -1,13 +1,28 @@
 <div class="container-fluid">
     {{-- HEADER BOM --}}
-    <div class="card mb-3">
-        <div class="card-header">
+    <div class="card-header d-flex justify-content-between align-items-center">
+
     @if(isset($bom))
 
-            <h5>EDIT BOM</h5>
-            @else
-            <h5>Create BOM</h5>
-            @endif
+        <h5 class="mb-0">EDIT BOM</h5>
+
+    @else
+
+        <h5 class="mb-0">CREATE BOM</h5>
+
+        <button
+            type="button"
+            id="btn-clear-draft"
+            class="btn btn-warning btn-sm">
+
+            <i class="fa fa-refresh"></i>
+            Refresh Draft
+
+        </button>
+
+    @endif
+
+</div>
         </div>
         <div class="card-body">
             <div class="row">
@@ -133,6 +148,11 @@
         <button type="button" class="btn btn-warning btn-sm" id="btn-update-bom">
 
             Update BOM
+
+        </button>
+           <button type="button" class="btn btn-primary btn-sm" id="btn-copy-bom">
+
+            Copy BOM ?
 
         </button>
 
@@ -310,9 +330,141 @@
         </div>
     </div>
 </div>
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://jquery.com"></script>
+<!-- 2. Bootstrap Next -->
+{{-- <script src="https://jsdelivr.net"></script> --}}
+
 <script>
 console.time('Page Load');
+</script>
+<script>
+    function hitungLuas() {
+
+    let c = parseFloat($('[name="carton_panjang"]').val()) || 0;
+    let d = parseFloat($('[name="carton_lebar"]').val()) || 0;
+    let e = parseFloat($('[name="carton_tinggi"]').val()) || 0;
+
+    return (
+        (c / 100 * e / 100 * 2) +
+        (d / 100 * e / 100 * 2) +
+        (d / 100 * c / 100 * 2) +
+        (0.25 * d / 100 * 4)
+    );
+
+}
+function updateTotalHpp(){
+
+    let labour = 0;
+    let material = 0;
+    let summary = 0;
+
+    $('.sub-price-value').each(function(){
+
+        labour += parseFloat(
+            unFormat($(this).val())
+        ) || 0;
+
+    });
+
+    $('.material-total').each(function(){
+
+        material += parseFloat(
+            unFormat($(this).val())
+        ) || 0;
+
+    });
+
+    $('.summary-total').each(function(){
+
+        summary += parseFloat(
+            unFormat($(this).val())
+        ) || 0;
+
+    });
+
+    let totalHpp = labour + material + summary;
+
+    $('#total-hpp').val(
+        totalHpp.toLocaleString('id-ID')
+    );
+
+}
+// rumus loadabiity
+function updateDimensionCalculation() {
+
+    let p = parseFloat($('[name="panjang"]').val()) || 0;
+    let l = parseFloat($('[name="lebar"]').val()) || 0;
+    let t = parseFloat($('[name="tinggi"]').val()) || 0;
+
+    // Auto Carton
+    let cp = p + 3;
+    let cl = l + 3;
+    let ct = t + 5;
+
+    $('[name="carton_panjang"]').val(cp.toFixed(2));
+    $('[name="carton_lebar"]').val(cl.toFixed(2));
+    $('[name="carton_tinggi"]').val(ct.toFixed(2));
+
+    // Hitung CBM
+    let cbm = (cp * cl * ct) / 1000000;
+
+    $('[name="loadability_cbm"]').val(cbm.toFixed(2));
+
+    // Hitung Loadability
+    if (cbm > 0) {
+
+        let loadability = Math.round(65 / cbm);
+
+        $('[name="loadability_pcs"]').val(loadability);
+
+    } else {
+
+        $('[name="loadability_pcs"]').val('');
+
+    }
+
+    saveDraft();
+}
+$(document).on(
+    'input',
+    '[name="panjang"], [name="lebar"], [name="tinggi"]',
+    function () {
+
+        updateDimensionCalculation();
+
+    }
+);
+function formatNumber(value){
+
+    if(value === '' || value === null) return '';
+
+    return Number(value).toLocaleString('id-ID');
+
+}
+
+function unFormat(value){
+
+    if(value === null || value === undefined || value === ''){
+        return 0;
+    }
+
+    value = value.toString().trim();
+
+    // Kalau ada koma berarti format Indonesia
+    if(value.includes(',')){
+        value = value.replace(/\./g,'').replace(',', '.');
+        return parseFloat(value) || 0;
+    }
+
+    // Kalau titik diikuti tepat 3 digit di akhir → separator ribuan
+    if(/\.\d{3}$/.test(value)){
+        value = value.replace(/\./g,'');
+        return parseFloat(value) || 0;
+    }
+
+    // Selain itu anggap titik adalah desimal
+    return parseFloat(value) || 0;
+}
 </script>
 <script>
     let activeMaterialInput = null;
@@ -374,16 +526,22 @@ console.time('Page Load');
         row.find('.qty').val()
     ) || 0;
 
-    let price = parseFloat(
-       row.find('.material-price').val()
-    ) || 0;
+let price = unFormat(
+    row.find('.material-price').val()
+);
+
+    // console.log({
+    //     material: row.find('.material-picker').val(),
+    //     qty,
+    //     price,
+    //     raw: row.find('.material-price').val()
+    // });
 
     let total = qty * price;
 
-    row.find('.material-total')
-        .val(
-            total.toLocaleString('id-ID')
-        );
+    row.find('.material-total').val(
+        total.toLocaleString('id-ID')
+    );
 
 }
     // search material di modal
@@ -620,7 +778,7 @@ console.time('Page Load');
 
     }
 );
-$(document).on('input', '.sub-price-value', function(){
+$(document).on('blur', '.sub-price-value', function(){
 
     let angka = unFormat($(this).val());
 
@@ -630,8 +788,7 @@ $(document).on('input', '.sub-price-value', function(){
     updateTotalHpp();
     saveDraft();
 
-});
-    // save bom
+});    // save bom
     $('#btn-save-bom').click(function () {
 
         let formData = new FormData();
@@ -972,10 +1129,10 @@ updateSummary();
 
     <td>
 
-       <input
-        type="text"
-        class="form-control material-price"
-        value="${Number(item.price || 0).toLocaleString('id-ID')}">
+      <input
+    type="text"
+    class="form-control material-price"
+    value="${item.price}">
 
     </td>
 
@@ -1034,10 +1191,10 @@ updateSummary();
 
     <td>
 
-        <input
-            type="number"
-            class="form-control sub-price-value"
-            value="${Number(sub.price || 0).toLocaleString('id-ID')}">
+      <input
+    type="text"
+    class="form-control sub-price-value"
+    value="${Number(sub.price || 0).toLocaleString('id-ID')}">
 
     </td>
 
@@ -1298,7 +1455,7 @@ updateSummary();
             return;
         }
         draft = JSON.parse(draft);
-        console.log('draft loaded', draft);
+        // console.log('draft loaded', draft);
         renderDraft(draft);
     });
 
@@ -1662,133 +1819,18 @@ $(document).on(
 
     }
 );
-function hitungLuas() {
 
-    let c = parseFloat($('[name="carton_panjang"]').val()) || 0;
-    let d = parseFloat($('[name="carton_lebar"]').val()) || 0;
-    let e = parseFloat($('[name="carton_tinggi"]').val()) || 0;
-
-    return (
-        (c / 100 * e / 100 * 2) +
-        (d / 100 * e / 100 * 2) +
-        (d / 100 * c / 100 * 2) +
-        (0.25 * d / 100 * 4)
-    );
-
-}
-function updateTotalHpp(){
-
-    let labour = 0;
-    let material = 0;
-    let summary = 0;
-
-    $('.sub-price-value').each(function(){
-
-        labour += parseFloat(
-            unFormat($(this).val())
-        ) || 0;
-
-    });
-
-    $('.material-total').each(function(){
-
-        material += parseFloat(
-            unFormat($(this).val())
-        ) || 0;
-
-    });
-
-    $('.summary-total').each(function(){
-
-        summary += parseFloat(
-            unFormat($(this).val())
-        ) || 0;
-
-    });
-
-    let totalHpp = labour + material + summary;
-
-    $('#total-hpp').val(
-        totalHpp.toLocaleString('id-ID')
-    );
-
-}
-// rumus loadabiity
-function updateDimensionCalculation() {
-
-    let p = parseFloat($('[name="panjang"]').val()) || 0;
-    let l = parseFloat($('[name="lebar"]').val()) || 0;
-    let t = parseFloat($('[name="tinggi"]').val()) || 0;
-
-    // Auto Carton
-    let cp = p + 3;
-    let cl = l + 3;
-    let ct = t + 5;
-
-    $('[name="carton_panjang"]').val(cp.toFixed(2));
-    $('[name="carton_lebar"]').val(cl.toFixed(2));
-    $('[name="carton_tinggi"]').val(ct.toFixed(2));
-
-    // Hitung CBM
-    let cbm = (cp * cl * ct) / 1000000;
-
-    $('[name="loadability_cbm"]').val(cbm.toFixed(2));
-
-    // Hitung Loadability
-    if (cbm > 0) {
-
-        let loadability = Math.round(65 / cbm);
-
-        $('[name="loadability_pcs"]').val(loadability);
-
-    } else {
-
-        $('[name="loadability_pcs"]').val('');
-
-    }
-
-    saveDraft();
-}
-$(document).on(
-    'input',
-    '[name="panjang"], [name="lebar"], [name="tinggi"]',
-    function () {
-
-        updateDimensionCalculation();
-
-    }
-);
-function formatNumber(value){
-
-    if(value === '' || value === null) return '';
-
-    return Number(value).toLocaleString('id-ID');
-
-}
-
-function unFormat(value){
-
-    return value.toString().replace(/\./g,'');
-
-}
 $(document).on('input', '.material-price', function () {
 
-    let value = $(this).val();
-
-    // hanya izinkan angka dan titik
-    value = value.replace(/[^0-9.]/g, '');
-
-    // hanya boleh satu titik
-    let parts = value.split('.');
-    if (parts.length > 2) {
-        value = parts.shift() + '.' + parts.join('');
-    }
-
-    $(this).val(value);
-
     calculateRow($(this).closest('tr'));
+
     updateSummary();
+
     updateTotalHpp();
+
+});
+$(document).on('blur', '.material-price', function () {
+
     saveDraft();
 
 });
@@ -1812,6 +1854,132 @@ $(document).on('input', '.summary-price', function () {
 
     updateTotalHpp();
     saveDraft();
+
+});
+$(document).on('click', '#btn-copy-bom', function () {
+
+    Swal.fire({
+
+        title: 'Copy BOM?',
+        text: 'BOM ini akan diduplikasi menjadi BOM baru.',
+        icon: 'question',
+
+        showCancelButton: true,
+
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+
+        confirmButtonText: 'Ya, Copy',
+        cancelButtonText: 'Batal'
+
+    }).then((result) => {
+
+        if (!result.isConfirmed) {
+            return;
+        }
+
+        let formData = new FormData();
+
+        formData.append('_token', '{{ csrf_token() }}');
+
+        formData.append(
+            'bom',
+            JSON.stringify(collectBomData())
+        );
+
+        let image = $('#bom_image')[0].files[0];
+
+        if (image) {
+            formData.append('image', image);
+        }
+
+        $.ajax({
+
+            url: "{{ route('bom.copy') }}",
+
+            type: "POST",
+
+            data: formData,
+
+            processData: false,
+
+            contentType: false,
+
+            beforeSend: function () {
+
+                Swal.fire({
+
+                    title: 'Sedang menyalin...',
+                    text: 'Mohon tunggu sebentar.',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+
+                });
+
+            },
+
+            success: function (res) {
+
+                Swal.fire({
+
+                    icon: "success",
+
+                    title: "Berhasil",
+
+                    text: res.message,
+
+                    confirmButtonText: "OK"
+
+                }).then(() => {
+
+                    window.location = "/bom/";
+
+                });
+
+            },
+
+            error: function (xhr) {
+
+                Swal.fire({
+
+                    icon: "error",
+
+                    title: "Gagal",
+
+                    text: xhr.responseJSON?.message ?? "Terjadi kesalahan."
+
+                });
+
+            }
+
+        });
+
+    });
+
+});
+$('#btn-clear-draft').on('click', function () {
+
+    Swal.fire({
+        title: 'Buat BOM baru?',
+        text: 'Semua draft yang belum disimpan akan dihapus.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Ya, Hapus Draft',
+        cancelButtonText: 'Batal'
+
+    }).then((result) => {
+
+        if (!result.isConfirmed) return;
+
+        localStorage.removeItem('bom_draft');
+
+        location.reload();
+
+    });
 
 });
 </script>

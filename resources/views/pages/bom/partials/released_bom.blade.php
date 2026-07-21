@@ -1,34 +1,18 @@
 <div class="row mb-3">
 
-    <div class="col-md-4 mt-4">
+    <div class="col-md-4">
 
         <input
             type="text"
-            id="searchBom"
+            id="searchBoms"
             class="form-control"
             placeholder="Cari Name / Article Number...">
 
     </div>
 
 </div>
-<div id="global-loader" style="display:none">
-    <div class="loader-content">
 
-        <div class="spinner-border text-success"
-             style="width:70px;height:70px">
-        </div>
-
-        <h4 class="mt-4">
-            Sedang mencocokkan data...
-        </h4>
-
-        <small class="text-muted">
-            Mohon tunggu sebentar
-        </small>
-
-    </div>
-</div>
-<div class="table-responsive mt-4">
+<div class="table-responsive table-sticky mt-4">
 
 <table class="table table-bordered" id="bomTable">
         <thead>
@@ -47,7 +31,7 @@
 
         <tbody>
 
-            @foreach($boms as $bom)
+            @foreach($boms_released as $bom)
 
             <tr>
 
@@ -266,7 +250,7 @@
 
 });
 // SEARCH BOM
-$('#searchBom').on('keyup', function () {
+$('#searchBoms').on('keyup', function () {
 
     let keyword = $(this).val().toLowerCase();
 
@@ -316,6 +300,58 @@ window.addEventListener('pageshow', function (event) {
 </script>
 
 <style>
+    .table-sticky{
+    max-height: calc(100vh - 260px);
+    overflow-y: auto;
+    overflow-x: auto;
+    border: 1px solid #dee2e6;
+}
+
+.table-sticky table{
+    margin-bottom: 0;
+}
+
+.table-sticky thead th{
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: #243447;
+    color: #fff;
+    white-space: nowrap;
+    box-shadow: inset 0 -1px 0 #dee2e6;
+}
+
+/* Freeze kolom No */
+.table-sticky th:first-child,
+.table-sticky td:first-child{
+    position: sticky;
+    left: 0;
+    z-index: 21;
+    background: #fff;
+}
+
+/* Header kolom No */
+.table-sticky thead th:first-child{
+    background: #243447;
+    color: #fff;
+    z-index: 30;
+}
+
+/* Freeze kolom Action */
+.table-sticky th:last-child,
+.table-sticky td:last-child{
+    position: sticky;
+    right: 0;
+    background: #fff;
+    z-index: 21;
+}
+
+/* Header kolom Action */
+.table-sticky thead th:last-child{
+    background: #243447;
+    color: #fff;
+    z-index: 30;
+}
     #global-loader{
 
     position:fixed;

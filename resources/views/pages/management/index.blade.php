@@ -643,7 +643,7 @@
                         <span class="badge bg-success px-3 py-2">
 
                             {{ strtoupper($spk['status']) }}
-
+{{ $spk['id'] }}
                         </span>
 
                     </div>

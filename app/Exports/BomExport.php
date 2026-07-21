@@ -219,47 +219,145 @@ $sheet->mergeCells('A6:F6');
 
                     $itemStartRowIndex = $currentRow;
 
-                    if (count($group->items) > 0) {
-                        foreach ($group->items as $item) {
-                            $item = is_array($item) ? (object) $item : $item;
-                            $sheet->getRowDimension($currentRow)->setRowHeight(20);
+                  if (count($group->items) > 0) {
 
-                            $sheet->setCellValue("A{$currentRow}", $item->name)->getStyle("A{$currentRow}")->getFont()->applyFromArray($regularFont);
-                            $sheet->getStyle("A{$currentRow}")->getAlignment()->applyFromArray($alignLeft);
+    foreach ($group->items as $item) {
 
-                            $sheet->setCellValue("C{$currentRow}", $item->qty)->getStyle("C{$currentRow}")->getFont()->applyFromArray($regularFont);
-                            $sheet->getStyle("C{$currentRow}")->getAlignment()->applyFromArray($alignCenter);
-                            $sheet->getStyle("C{$currentRow}")->getNumberFormat()->setFormatCode($numFormatQty);
+        $item = is_array($item) ? (object) $item : $item;
 
-                            $sheet->setCellValue("D{$currentRow}", $item->unit)->getStyle("D{$currentRow}")->getFont()->applyFromArray($regularFont);
-                            $sheet->getStyle("D{$currentRow}")->getAlignment()->applyFromArray($alignCenter);
+        $sheet->getRowDimension($currentRow)->setRowHeight(20);
 
-                            $sheet->setCellValue("E{$currentRow}", $item->price)->getStyle("E{$currentRow}")->getFont()->applyFromArray($regularFont);
-                            $sheet->getStyle("E{$currentRow}")->getAlignment()->applyFromArray($alignRight);
-                            $sheet->getStyle("E{$currentRow}")->getNumberFormat()->setFormatCode($numFormatCurrency);
+        // =========================
+        // Nama Material
+        // =========================
+        $sheet->setCellValue("A{$currentRow}", $item->name);
+        $sheet->getStyle("A{$currentRow}")
+            ->getFont()
+            ->applyFromArray($regularFont);
 
-                            // Formula Qty * Price
-                            $sheet->setCellValue("F{$currentRow}", "=C{$currentRow}*E{$currentRow}");
-                            $sheet->getStyle("F{$currentRow}")->getFont()->applyFromArray($regularFont);
-                            $sheet->getStyle("F{$currentRow}")->getAlignment()->applyFromArray($alignRight);
-                            $sheet->getStyle("F{$currentRow}")->getNumberFormat()->setFormatCode($numFormatCurrency);
+        $sheet->getStyle("A{$currentRow}")
+            ->getAlignment()
+            ->applyFromArray($alignLeft);
 
-                            $catCode = ($item->material_type ?? '') === 'raw' ? 'R' : 'S';
-                            // $sheet->setCellValue("G{$currentRow}", $catCode)->getStyle("G{$currentRow}")->getFont()->applyFromArray($monoFont);
-                            $sheet->getStyle("G{$currentRow}")->getAlignment()->applyFromArray($alignCenter);
+        // =========================
+        // Qty
+        // =========================
+        $sheet->setCellValue("C{$currentRow}", (float) $item->qty);
 
-                            if (!empty($item->notes)) {
-                                $sheet->setCellValue("H{$currentRow}", $item->notes)->getStyle("H{$currentRow}")->getFont()->applyFromArray($italicFont);
-                                $sheet->getStyle("H{$currentRow}")->getAlignment()->applyFromArray($alignLeft);
-                            }
+        $sheet->getStyle("C{$currentRow}")
+            ->getFont()
+            ->applyFromArray($regularFont);
 
-                            // Borders
-                            foreach (['A', 'C', 'D', 'E', 'F', 'G'] as $col) {
-                                $sheet->getStyle("{$col}{$currentRow}")->applyFromArray($borderThin);
-                            }
+        $sheet->getStyle("C{$currentRow}")
+            ->getAlignment()
+            ->applyFromArray($alignCenter);
 
-                            $currentRow++;
-                        }
+        $sheet->getStyle("C{$currentRow}")
+            ->getNumberFormat()
+            ->setFormatCode($numFormatQty);
+
+        // =========================
+        // Unit
+        // =========================
+        $sheet->setCellValue("D{$currentRow}", $item->unit);
+
+        $sheet->getStyle("D{$currentRow}")
+            ->getFont()
+            ->applyFromArray($regularFont);
+
+        $sheet->getStyle("D{$currentRow}")
+            ->getAlignment()
+            ->applyFromArray($alignCenter);
+
+        // =========================
+        // PRICE
+        // =========================
+        $price = $item->price;
+
+        if (is_string($price)) {
+
+            $price = trim($price);
+
+            // jika ada koma desimal (5,13)
+            if (strpos($price, ',') !== false && strpos($price, '.') === false) {
+
+                $price = str_replace(',', '.', $price);
+
+            }
+
+            $price = (float) $price;
+
+        }
+
+        $sheet->setCellValue("E{$currentRow}", $price);
+
+        $sheet->getStyle("E{$currentRow}")
+            ->getFont()
+            ->applyFromArray($regularFont);
+
+        $sheet->getStyle("E{$currentRow}")
+            ->getAlignment()
+            ->applyFromArray($alignRight);
+
+        $sheet->getStyle("E{$currentRow}")
+            ->getNumberFormat()
+            ->setFormatCode($numFormatCurrency);
+
+        // =========================
+        // TOTAL
+        // =========================
+        $sheet->setCellValue("F{$currentRow}", "=C{$currentRow}*E{$currentRow}");
+
+        $sheet->getStyle("F{$currentRow}")
+            ->getFont()
+            ->applyFromArray($regularFont);
+
+        $sheet->getStyle("F{$currentRow}")
+            ->getAlignment()
+            ->applyFromArray($alignRight);
+
+        $sheet->getStyle("F{$currentRow}")
+            ->getNumberFormat()
+            ->setFormatCode($numFormatCurrency);
+
+        // =========================
+        // Category
+        // =========================
+        $catCode = ($item->material_type ?? '') === 'raw' ? 'R' : 'S';
+
+        $sheet->getStyle("G{$currentRow}")
+            ->getAlignment()
+            ->applyFromArray($alignCenter);
+
+        // =========================
+        // Notes
+        // =========================
+        if (!empty($item->notes)) {
+
+            $sheet->setCellValue("H{$currentRow}", $item->notes);
+
+            $sheet->getStyle("H{$currentRow}")
+                ->getFont()
+                ->applyFromArray($italicFont);
+
+            $sheet->getStyle("H{$currentRow}")
+                ->getAlignment()
+                ->applyFromArray($alignLeft);
+
+        }
+
+        // =========================
+        // Border
+        // =========================
+        foreach (['A','C','D','E','F','G'] as $col) {
+
+            $sheet->getStyle("{$col}{$currentRow}")
+                ->applyFromArray($borderThin);
+
+        }
+
+        $currentRow++;
+    }
 
                         // Spacing Row
                         $sheet->getRowDimension($currentRow)->setRowHeight(12);

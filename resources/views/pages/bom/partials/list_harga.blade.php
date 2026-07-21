@@ -121,7 +121,7 @@
     </table>
 
 </div>
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+{{-- <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> --}}
 
 <script>
   // =========================
@@ -232,7 +232,11 @@ $('#sortMaterial').on('click', function () {
     e.preventDefault();
     e.stopPropagation();
 
-    $('#modalAddHarga').modal('show');
+  const modal = new bootstrap.Modal(
+    document.getElementById('modalAddHarga')
+);
+
+modal.show();
 
 });
     // SAVE
