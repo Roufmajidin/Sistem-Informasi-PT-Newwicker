@@ -11,6 +11,15 @@
     body{
         background:#f5f7fb;
     }
+    .item-col{
+    width:150px;
+    min-width:150px;
+    max-width:150px;
+}
+
+.item-link{
+    width:140px;
+}
     .table-responsive{
     overflow-x:auto;
     -webkit-overflow-scrolling:touch;
@@ -212,7 +221,7 @@
 }
 .item-name{
     display:inline-block;
-    max-width:250px;
+    /* max-width:250px; */
     overflow:hidden;
     text-overflow:ellipsis;
     white-space:nowrap;
@@ -387,9 +396,9 @@
         'rangka'   => 'Rangka',
         'anyam'    => 'Anyam',
         'unfinish' => 'Unfinish',
-        'accessories' => 'Accessories',
-        'decor' => 'Decor',
-        'ikat' => 'Ikat',
+        // 'accessories' => 'Accessories',
+        // 'decor' => 'Decor',
+        // 'ikat' => 'Ikat',
         'final'    => 'Final',
         'box'      => 'Packaging',
     ];
@@ -441,9 +450,10 @@
                     Item
                 </th>
 
-                @foreach($categories as $categoryKey => $categoryLabel)
+               @foreach($categories as $categoryKey => $categoryLabel)
 
-                   <th colspan="3" class="text-center">
+                    <th colspan="{{ in_array($categoryKey, ['final','box', 'packaging']) ? 1 : 2 }}"
+                        class="text-center">
                         {{ $categoryLabel }}
                     </th>
 
@@ -454,19 +464,25 @@
             {{-- HEADER STATUS --}}
             <tr>
 
-                @foreach($categories as $categoryKey => $categoryLabel)
+             @foreach($categories as $categoryKey => $categoryLabel)
 
-                   @foreach($statuses as $statusKey => $status)
+    @foreach($statuses as $statusKey => $status)
 
-                    @continue($statusKey == 'out')
+        @continue($statusKey == 'out')
+        @continue($statusKey == 'reject')
 
-                    <th class="text-center {{ $status['class'] }}">
-                        {{ $status['label'] }}
-                    </th>
+        {{-- Final & Packaging hanya PASS --}}
+        @if(in_array($categoryKey,['final','box']) && $statusKey == 'in')
+            @continue
+        @endif
 
-                @endforeach
+        <th class="text-center {{ $status['class'] }}">
+            {{ $status['label'] }}
+        </th>
 
-                @endforeach
+    @endforeach
+
+@endforeach
 
             </tr>
 
@@ -504,7 +520,7 @@
                     </td>
 
                     {{-- ITEM --}}
-                 <td style="max-width:250px;">
+                 <td style="max-width:150px;">
 
     <a href="#"
        class="item-link text-truncate d-inline-block"
@@ -520,27 +536,31 @@
 </td>
 
                     {{-- DYNAMIC CATEGORY + STATUS --}}
-                    @foreach($categories as $categoryKey => $categoryLabel)
+                   @foreach($categories as $categoryKey => $categoryLabel)
 
-                     @foreach($statuses as $statusKey => $status)
+    @foreach($statuses as $statusKey => $status)
 
-                        @continue($statusKey == 'out')
+        @continue($statusKey == 'out')
+        @continue($statusKey == 'reject')
 
-                        @php
-                            $field = $categoryKey . '_' . $statusKey;
-                        @endphp
+        {{-- Final & Packaging hanya PASS --}}
+        @if(in_array($categoryKey,['final','box']) && $statusKey == 'in')
+            @continue
+        @endif
 
-                        <td class="text-center">
+        @php
+            $field = $categoryKey.'_'.$statusKey;
+        @endphp
 
-                            <span class="{{ $status['class'] }}">
-                                {{ $item[$field] ?? 0 }}
-                            </span>
+        <td class="text-center">
+            <span class="{{ $status['class'] }}">
+                {{ $item[$field] ?? 0 }}
+            </span>
+        </td>
 
-                        </td>
+    @endforeach
 
-                    @endforeach
-
-                    @endforeach
+@endforeach
 
                 </tr>
 
@@ -643,7 +663,7 @@
                         <span class="badge bg-success px-3 py-2">
 
                             {{ strtoupper($spk['status']) }}
-{{ $spk['id'] }}
+                            id [{{ $spk['id'] }}]
                         </span>
 
                     </div>

@@ -82,6 +82,13 @@ $status = $spk['status'] ?? 'draft';
                         <button class="btn btn-sm btn-dark btn-status-spk" data-status="closed">
                             🔒 Close SPK
                         </button>
+                        <button
+                            id="btnCleanUnchecked"
+                            class="btn btn-danger btn-sm"
+                            style="display:none">
+
+                            🗑 Bersihkan Item Tidak Dipilih
+                        </button>
                         @endif
                     </div>
                 </td>
@@ -111,6 +118,11 @@ $status = $spk['status'] ?? 'draft';
             {{-- ITEMS --}}
             @foreach ($spk['items'] as $item)
             <tr class="spk-rowa" data-detail-id="{{ $item['detail_id'] }}">
+                <td class="text-center select-item-cell">
+                    <input
+                        type="checkbox"
+                        class="spk-item-check">
+                </td>
                 <!-- KODE -->
                 <td class="editable text-center kode-item delete-row" contenteditable>
                     {{ $item['kode'] }}
@@ -292,7 +304,7 @@ $status = $spk['status'] ?? 'draft';
                             </td>
                             <!-- TYPE -->
                             <td>
-                                <select class="form-control form-control-sm payment-type">
+                                <select class="form-control form-control-sm payment-type" style="width:70px">
                                     <option value="">-- Pilih --</option>
                                     <option value="dp"
                                         {{ ($pay['note'] ?? '') == 'dp' ? 'selected' : '' }}>
@@ -306,9 +318,18 @@ $status = $spk['status'] ?? 'draft';
                                         {{ ($pay['note'] ?? '') == 'bahan' ? 'selected' : '' }}>
                                         Bahan
                                     </option>
+                                       <option value="return_bahan"
+                                        {{ ($pay['note'] ?? '') == 'return_bahan' ? 'selected' : '' }}>
+                                        Return Bahan
+                                    </option>
+
                                     <option value="kasbon"
                                         {{ ($pay['note'] ?? '') == 'kasbon' ? 'selected' : '' }}>
                                         Kasbon
+                                    </option>
+                                    <option value="ppn"
+                                        {{ ($pay['note'] ?? '') == 'ppn' ? 'selected' : '' }}>
+                                        PPN
                                     </option>
                                 </select>
                             </td>
@@ -388,7 +409,9 @@ $status = $spk['status'] ?? 'draft';
                                     <option value="dp">DP</option>
                                     <option value="pelunasan">Pelunasan</option>
                                     <option value="bahan">Bahan</option>
+                                    <option value="return_bahan">Return Bahan</option>
                                     <option value="kasbon">Kasbon</option>
+                                    <option value="ppn">PPN</option>
                                 </select>
                             </td>
                             <!-- NOTE -->
@@ -715,6 +738,35 @@ $sign = $spk['signature'];
                 label
             });
         });
+        // check
+        document.addEventListener('change', function (e) {
+
+    if (e.target.classList.contains('spk-item-check')) {
+
+        const ada = document.querySelector('.spk-item-check:checked');
+
+        document.getElementById('btnCleanUnchecked').style.display =
+            ada ? 'inline-block' : 'none';
+
+    }
+
+});
+
+document.getElementById('btnCleanUnchecked').addEventListener('click', function () {
+
+    document.querySelectorAll('.spk-rowa').forEach(function(row){
+
+        const cb = row.querySelector('.spk-item-check');
+
+        if(cb && !cb.checked){
+
+            row.remove();
+
+        }
+
+    });
+
+});
     function addDynamicHeader(header) {
         // HEADER
         const th =
@@ -1450,6 +1502,9 @@ if (!validation.valid) {
         `;
             });
         tr.innerHTML = `
+        <td class="text-center select-item-cell">
+            <input type="checkbox" class="spk-item-check">
+        </td>
         <td class="
             editable
             text-center
@@ -1589,11 +1644,17 @@ if (!validation.valid) {
     <option value="bahan">
                     Bahan
                 </option>
+                <option value="return_bahan">
+                    Return Bahan
+                </option>
                 <option value="kasbon">
                     Kasbon
                 </option>
                 <option value="pelunasan">
                     Pelunasan
+                </option>
+                <option value="ppn">
+                    PPN
                 </option>
             </select>
         </td>
@@ -1821,11 +1882,13 @@ if(!val.valid){
         document.querySelectorAll('.total').forEach(td => {
             grandTotal += parseNumber(td.innerText);
         });
+        let totalPpn = 0;
         // =========================
         // PAYMENT TOTAL
         // =========================
-        let totalDp = 0;
+       let totalDp = 0;
         let totalBahan = 0;
+        let totalReturnBahan = 0;
         let totalPelunasan = 0;
         let totalKasbon = 0;
         document.querySelectorAll('.payment-row').forEach(row => {
@@ -1848,11 +1911,17 @@ if(!val.valid){
                 finalAmount: amount
             });
             let type = row.querySelector('.payment-type')?.value;
+            if(type === 'ppn'){
+                totalPpn += amount;
+            }
             if (type === 'dp') {
                 totalDp += amount;
             }
             if (type === 'bahan') {
                 totalBahan += amount;
+            }
+            if (type === 'return_bahan') {
+                totalReturnBahan += amount;
             }
             if (type === 'pelunasan') {
                 totalPelunasan += amount;
@@ -1861,42 +1930,107 @@ if(!val.valid){
                 totalKasbon += amount;
             }
         });
+        let bahanBersih = totalBahan - totalReturnBahan;
+
+        if (bahanBersih < 0) {
+            bahanBersih = 0;
+        }
         // =========================
         // SISA
         // =========================
-        let sisaPelunasan =
-            grandTotal -
-            totalDp -
-            totalBahan -
-            totalPelunasan -
-            totalKasbon;
+    let grandTotalSetelahPpn =
+    grandTotal + totalPpn;
+
+    let sisaPelunasan =
+        grandTotalSetelahPpn -
+        totalDp -
+        bahanBersih -
+        totalKasbon -
+        totalPelunasan;
         // =========================
         // RENDER
         // =========================
-        document.getElementById('paymentSummary').innerHTML = `
-        <div>
-            <b>Grand Total :</b>
-            Rp ${formatRupiah(grandTotal)}
-        </div>
-        <div>
-            <b>Total DP :</b>
-            Rp ${formatRupiah(totalDp)}
-        </div>
-        <div>
-            <b>Total Bahan :</b>
-            Rp ${formatRupiah(totalBahan)}
-        </div>
+      let summary = `
 <div>
-    <b>Total Kasbon :</b>
-    <span style="color:red">
-        Rp ${formatRupiah(totalKasbon)}
-    </span>
+    <b>Grand Total :</b>
+    Rp ${formatRupiah(grandTotal)}
 </div>
-        <div>
-            <b>Total Pelunasan :</b>
-            Rp ${formatRupiah(totalPelunasan)}
-        </div>
-       <hr>
+`;
+
+if (totalDp > 0) {
+    summary += `
+    <div>
+        <b>Total DP :</b>
+        Rp ${formatRupiah(totalDp)}
+    </div>`;
+}
+
+if (totalBahan > 0) {
+    summary += `
+    <div style="color:#16a34a">
+        <b>Total Bahan :</b>
+        Rp ${formatRupiah(totalBahan)}
+    </div>`;
+}
+
+if (totalReturnBahan > 0) {
+    summary += `
+    <div style="color:red">
+        <b>Return Bahan :</b>
+        Rp ${formatRupiah(totalReturnBahan)}
+    </div>`;
+}
+
+if (bahanBersih > 0) {
+    summary += `
+    <div style="color:green;font-weight:bold">
+        <b>Total Bahan Bersih :</b>
+        Rp ${formatRupiah(bahanBersih)}
+    </div>`;
+}
+
+if (totalKasbon > 0) {
+    summary += `
+    <div>
+        <b>Total Kasbon :</b>
+        <span style="color:red">
+            Rp ${formatRupiah(totalKasbon)}
+        </span>
+    </div>`;
+}
+
+if (totalPelunasan > 0) {
+    summary += `
+    <div>
+        <b>Total Pelunasan :</b>
+        Rp ${formatRupiah(totalPelunasan)}
+    </div>`;
+}
+
+if (totalPpn > 0) {
+    summary += `
+    <hr>
+
+    <div>
+        <b>Total PPN :</b>
+        <span style="color:#2563eb">
+            Rp ${formatRupiah(totalPpn)}
+        </span>
+    </div>
+
+    <div style="
+        background:#ecfeff;
+        padding:8px;
+        border-radius:8px;
+        margin-top:8px;
+        font-weight:bold;
+    ">
+        Grand Total + PPN :
+        Rp ${formatRupiah(grandTotalSetelahPpn)}
+    </div>`;
+}
+
+summary += `
 <div style="
     margin-top:12px;
     padding:12px;
@@ -1904,21 +2038,18 @@ if(!val.valid){
     background:#fff5f5;
     border:1px solid #fecaca;
 ">
-    <!-- TITLE -->
     <div style="
         font-size:16px;
         color:#dc2626;
         font-weight:bold;
-        margin-bottom:12px;
-        display:flex;
-        justify-content:space-between;
-        align-items:center;
     ">
-        <span>
-            💰 Sisa Pelunasan :
-            Rp ${formatRupiah(sisaPelunasan)}
-        </span>
-    `;
+        💰 Sisa Pelunasan :
+        Rp ${formatRupiah(sisaPelunasan)}
+    </div>
+</div>
+`;
+
+document.getElementById('paymentSummary').innerHTML = summary;
     }
     document.addEventListener('change', function(e) {
         if (
@@ -2142,6 +2273,38 @@ if(!val.valid){
 </script>
 <!-- riwayat -->
 <script>
+    // Select All
+document.addEventListener('change', function(e){
+
+    if(e.target.id === 'checkAllItems'){
+
+        document.querySelectorAll('.spk-item-check').forEach(cb=>{
+            cb.checked = e.target.checked;
+        });
+
+        toggleCleanButton();
+    }
+
+});
+
+// Checkbox per item
+document.addEventListener('change', function(e){
+
+    if(e.target.classList.contains('spk-item-check')){
+        toggleCleanButton();
+    }
+
+});
+
+function toggleCleanButton(){
+
+    const checked =
+        document.querySelectorAll('.spk-item-check:checked').length;
+
+    document.getElementById('btnCleanUnchecked').style.display =
+        checked ? 'inline-block' : 'none';
+
+}
     document.getElementById('btnRiwayatSpk')
         .addEventListener('click', function() {
             const spkId = document.getElementById('spk_id').value;
@@ -2669,6 +2832,9 @@ data.headers.forEach(h => {
         <table>
     <thead>
 <tr>
+    <th width="40" class="text-center">
+        <input type="checkbox" id="checkAllItems">
+    </th>
     <th rowspan="2">Article Nr</th>
     <th rowspan="2">Gambar</th>
     <th rowspan="2">Nama Barang</th>
@@ -3454,6 +3620,37 @@ function renderSignaturePreview(data) {
 
     return html;
 }
+// PPN
+document.addEventListener('blur', function(e){
+
+    if(!e.target.classList.contains('total-amount')) return;
+
+    const row = e.target.closest('.payment-row');
+    if(!row) return;
+
+    const type = row.querySelector('.payment-type').value;
+
+    if(type !== 'ppn') return;
+
+    let persen = parseFloat(
+        e.target.innerText
+            .replace(/[^\d.,]/g,'')
+            .replace(',','.')
+    ) || 0;
+
+    let grandTotal = 0;
+
+    document.querySelectorAll('.total').forEach(td=>{
+        grandTotal += parseNumber(td.innerText);
+    });
+
+    let nilaiPpn = grandTotal * persen / 100;
+
+    e.target.innerText = formatRupiah(Math.round(nilaiPpn));
+
+    updatePaymentSummary();
+
+}, true);
 </script>
 <style>
     .spk-dynamic-header {

@@ -1,6 +1,11 @@
 <tr id="dynamicHeaderRow">
-
-    <th>Article Nr</th>
+<th width="35" class="text-center">
+    <input
+        type="checkbox"
+        id="checkAllItems"
+        title="Select All">
+</th>
+<th class="col-article text-center">Article</th>
 
     <th>Gambar</th>
 
@@ -55,3 +60,17 @@
     <th>#</th>
 
 </tr>
+
+<style>
+    .col-check{
+    width:35px;
+    min-width:35px;
+    max-width:35px;
+}
+
+.col-article{
+    width:90px;
+    min-width:90px;
+    max-width:90px;
+}
+</style>

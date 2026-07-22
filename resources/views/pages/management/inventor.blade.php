@@ -1289,18 +1289,39 @@
                 ) {
 
                     let totalPayment = 0;
-
+                    let totalBahan = 0;
+                    let totalReturnBahan = 0;
                     res.payments.forEach((pay, i) => {
 
-                        let nilai =
-                            parseInt(
-                                pay.payment_request_amount || 0
-                            );
+                       let nilai = parseInt(pay.payment_request_amount || 0);
 
-                        saldo -= nilai;
+                        if (pay.note == 'bahan') {
 
-                        totalPayment += nilai;
+                            totalBahan += nilai;
+                            totalPayment += nilai;
+                            saldo -= nilai;
 
+                        }
+                        else if (pay.note == 'return_bahan') {
+
+                            totalReturnBahan += nilai;
+
+                            // kembalikan saldo karena bahan direturn
+                            saldo += nilai;
+
+                            // jangan tambah total payment
+                        }
+                        else {
+
+                            totalPayment += nilai;
+                            saldo -= nilai;
+
+                        }
+                        let bahanBersih = totalBahan - totalReturnBahan;
+
+                        if (bahanBersih < 0) {
+                            bahanBersih = 0;
+                        }
                         paymentHtml += `
                         <tr>
 

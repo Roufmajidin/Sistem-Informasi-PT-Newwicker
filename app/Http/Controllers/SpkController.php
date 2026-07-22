@@ -27,6 +27,7 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use App\Models\SignatureSpk;
 use App\Models\PaymentRequestApproval;
+use App\Models\TransaksiStok;
 
 class SpkController extends Controller
 {
@@ -86,6 +87,7 @@ class SpkController extends Controller
     {
         $viewOnly = $request->is('spk/views/*');
         // dd($viewOnly);
+    $bahanBaku = collect(); // <-- default kosong
 
         $mode = (
             $request->routeIs('spk.edit') ||
@@ -100,6 +102,12 @@ class SpkController extends Controller
         // =====================================================
         if ($mode === 'edit') {
             $spkModel = Spk::findOrFail($id);
+            // bahan baku
+            $bahanBaku = TransaksiStok::with('stok')
+                ->where('spk_id', $spkModel->id)
+                ->where('tipe', 'out')
+                ->orderBy('tanggal')
+                ->get();
             $data = $spkModel->data ?? [];
             // siganture approval spk
           $signature = SignatureSpk::with([
@@ -290,7 +298,9 @@ class SpkController extends Controller
             compact(
                 'spk',
                 'jenisSuppliers',
-                  'viewOnly'
+                'viewOnly',
+                'bahanBaku'
+
             )
         );
     }

@@ -27,6 +27,7 @@ use App\Http\Controllers\StockMaterialController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\TokenController;
 use App\Http\Controllers\NewPengajuanController;
+use App\Http\Controllers\EdController;
 use Illuminate\Support\Facades\Route;
 Route::middleware('auth')->group(function () {
 
@@ -567,3 +568,10 @@ Route::delete('/bom/{id}', [BomController::class, 'destroyBom'])
 Route::get('/bom/harga-partial', [BomController::class, 'hargaPartial']);
 Route::get('/bom/finishing-partial', [BomController::class, 'finishingPartial']);
 Route::get('/bom/released-partial', [BomController::class, 'releasedPartial']);
+
+// exports
+
+Route::get('/export/index', [EdController::class, 'index']);
+Route::get('/export/search-po', [EdController::class, 'searchPo'])
+    ->name('export.search-po');
+Route::get('/export/po-items/{id}', [EdController::class, 'poItems']);

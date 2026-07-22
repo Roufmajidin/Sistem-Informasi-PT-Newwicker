@@ -68,6 +68,13 @@
                         Released BOM
                     </a>
                 </li>
+                 <li class="nav-item">
+                    <a class="nav-link"
+                        data-toggle="tab"
+                        href="#cad">
+                        C A D
+                    </a>
+                </li>
 
             </ul>
 
@@ -84,6 +91,7 @@
                 <div class="tab-pane" id="create-bom"></div>
 
                 <div class="tab-pane" id="released-bom"></div>
+                <div class="tab-pane" id="cad"></div>
 
             </div>
 
