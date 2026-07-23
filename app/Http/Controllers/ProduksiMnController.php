@@ -1,21 +1,20 @@
 <?php
+
 namespace App\Http\Controllers;
 
 use App\Models\InspectSchedule;
 use App\Models\Kategori;
+use App\Models\PaymentRequest;
+use App\Models\PaymentRequestApproval;
+use App\Models\PaymentRequestSaved;
 use App\Models\Po;
 use App\Models\ProductionTimeline;
-use App\Models\QcReport;
+use App\Models\SignatureSpk;
 use App\Models\Spk;
 use App\Models\Supplier;
 use App\Models\TransaksiStok;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use App\Models\SignatureSpk;
-use App\Models\PaymentRequest;
-use App\Models\PaymentRequestSaved;
-use App\Models\PaymentRequestApproval;
 
 class ProduksiMnController extends Controller
 {
@@ -93,12 +92,9 @@ class ProduksiMnController extends Controller
         |--------------------------------------------------------------------------
         */
             $grouped[$dateKey][] = [
-                'check_point_id' =>
-                $report->check_point_id,
-                'remark'         =>
-                $remark,
-                'created_at'     =>
-                $report->created_at,
+                'check_point_id' => $report->check_point_id,
+                'remark' => $remark,
+                'created_at' => $report->created_at,
             ];
         }
         /*
@@ -112,11 +108,11 @@ class ProduksiMnController extends Controller
                 $inspect->detail_po_id
             )
             ->first();
-        $detailData  = [];
-        $itemName    = '-';
+        $detailData = [];
+        $itemName = '-';
         $articleCode = '-';
-        $qty         = '-';
-        $itemImage   = null;
+        $qty = '-';
+        $itemImage = null;
         if ($detailPo && $detailPo->detail) {
             $detailData = json_decode(
                 $detailPo->detail,
@@ -142,19 +138,14 @@ class ProduksiMnController extends Controller
     |--------------------------------------------------------------------------
     */
         $pfi = [
-            'w'  =>
-            $detailData['w'] ?? '-',
-            'd'  =>
-            $detailData['d'] ?? '-',
-            'h'  =>
-            $detailData['h'] ?? '-',
-            'sw' =>
-            $detailData['sw'] ?? '-',
-            'sd' =>
-            $detailData['sd'] ?? '-',
-            'sh' =>
-            $detailData['sh'] ?? '-',
+            'w' => $detailData['w'] ?? '-',
+            'd' => $detailData['d'] ?? '-',
+            'h' => $detailData['h'] ?? '-',
+            'sw' => $detailData['sw'] ?? '-',
+            'sd' => $detailData['sd'] ?? '-',
+            'sh' => $detailData['sh'] ?? '-',
         ];
+
         /*
     |--------------------------------------------------------------------------
     | RETURN VIEW
@@ -163,18 +154,19 @@ class ProduksiMnController extends Controller
         return view(
             'pages.management.qc_report',
             [
-                'inspect'     => $inspect,
-                'grouped'     => $grouped,
-                'photos'      => $photos,
-                'detailData'  => $detailData,
-                'itemName'    => $itemName,
+                'inspect' => $inspect,
+                'grouped' => $grouped,
+                'photos' => $photos,
+                'detailData' => $detailData,
+                'itemName' => $itemName,
                 'articleCode' => $articleCode,
-                'qty'         => $qty,
-                'itemImage'   => $itemImage,
-                'pfi'         => $pfi,
+                'qty' => $qty,
+                'itemImage' => $itemImage,
+                'pfi' => $pfi,
             ]
         );
     }
+
     // monitoring
     public function index(Request $request)
     {
@@ -193,18 +185,18 @@ class ProduksiMnController extends Controller
     |--------------------------------------------------------------------------
     */
         $categories = [
-            'rangka'    => 'rangka',
-            'anyam'     => 'anyam',
-            'unfinish'  => 'unfinish',
-            'final'     => 'final',
-            'decor'     => 'decor',
+            'rangka' => 'rangka',
+            'anyam' => 'anyam',
+            'unfinish' => 'unfinish',
+            'final' => 'final',
+            'decor' => 'decor',
             /*
         |--------------------------------------------------------------------------
         | ALIAS
         |--------------------------------------------------------------------------
         */
             'packaging' => 'box',
-            'box'       => 'box',
+            'box' => 'box',
         ];
         /*
     |--------------------------------------------------------------------------
@@ -217,7 +209,7 @@ class ProduksiMnController extends Controller
                     $qq->where(
                         'order_no',
                         'like',
-                        '%' . $searchPo . '%'
+                        '%'.$searchPo.'%'
                     );
                 });
             })
@@ -243,7 +235,7 @@ class ProduksiMnController extends Controller
             $poQuery->where(
                 'order_no',
                 'like',
-                '%' . $searchPo . '%'
+                '%'.$searchPo.'%'
             );
         }
         $pos = $poQuery->get();
@@ -273,7 +265,7 @@ class ProduksiMnController extends Controller
         $allInspects = $inspectQuery
             ->get()
             ->groupBy(function ($item) {
-                return $item->po_id . '_' . $item->detail_po_id;
+                return $item->po_id.'_'.$item->detail_po_id;
             });
         /*
     |--------------------------------------------------------------------------
@@ -315,7 +307,7 @@ class ProduksiMnController extends Controller
             )
             ->get()
             ->keyBy(function ($item) {
-                return $item->spk_id . '_' . $item->detail_po_id;
+                return $item->spk_id.'_'.$item->detail_po_id;
             });
         /*
     |--------------------------------------------------------------------------
@@ -324,12 +316,10 @@ class ProduksiMnController extends Controller
     */
         $datas = [];
         foreach ($pos as $po) {
-            $poId         = $po->id;
+            $poId = $po->id;
             $datas[$poId] = [
-                'po_number' =>
-                $po->order_no,
-                'items'     =>
-                [],
+                'po_number' => $po->order_no,
+                'items' => [],
             ];
             /*
         |--------------------------------------------------------------------------
@@ -367,14 +357,10 @@ class ProduksiMnController extends Controller
             |--------------------------------------------------------------------------
             */
                 $itemData = [
-                    'item_name'  =>
-                    $itemName,
-                    'item_image' =>
-                    $image,
-                    'qty'        =>
-                    $qty,
-                    'spks'       =>
-                    [],
+                    'item_name' => $itemName,
+                    'item_image' => $image,
+                    'qty' => $qty,
+                    'spks' => [],
                 ];
                 /*
             |--------------------------------------------------------------------------
@@ -382,10 +368,10 @@ class ProduksiMnController extends Controller
             |--------------------------------------------------------------------------
             */
                 foreach ($categories as $category) {
-                    $itemData[$category . '_pass']   = 0;
-                    $itemData[$category . '_reject'] = 0;
-                    $itemData[$category . '_in']     = 0;
-                    $itemData[$category . '_out']    = 0;
+                    $itemData[$category.'_pass'] = 0;
+                    $itemData[$category.'_reject'] = 0;
+                    $itemData[$category.'_in'] = 0;
+                    $itemData[$category.'_out'] = 0;
                 }
                 /*
             |--------------------------------------------------------------------------
@@ -393,7 +379,7 @@ class ProduksiMnController extends Controller
             |--------------------------------------------------------------------------
             */
                 $inspectKey =
-                $poId . '_' . $detailPo->id;
+                $poId.'_'.$detailPo->id;
                 $inspects =
                 $allInspects[$inspectKey] ?? collect();
                 /*
@@ -402,7 +388,7 @@ class ProduksiMnController extends Controller
             |--------------------------------------------------------------------------
             */
                 foreach ($inspects as $inspect) {
-                   $kategoriName = $this->getMonitoringCategory(
+                    $kategoriName = $this->getMonitoringCategory(
                         optional($inspect->kategori)->kategori ?? ''
                     );
 
@@ -410,9 +396,9 @@ class ProduksiMnController extends Controller
                     if (! $prefix) {
                         continue;
                     }
-                    $itemData[$prefix . '_pass']
+                    $itemData[$prefix.'_pass']
                     += $inspect->passed;
-                    $itemData[$prefix . '_reject']
+                    $itemData[$prefix.'_reject']
                     += $inspect->rejected;
                 }
                 /*
@@ -444,8 +430,8 @@ class ProduksiMnController extends Controller
                     |--------------------------------------------------------------------------
                     */
                         $inspectTotalKey =
-                        $spk->id .
-                        '_' .
+                        $spk->id.
+                        '_'.
                         $detailPo->id;
                         $inspectTotal =
                         $inspectTotals[$inspectTotalKey] ?? null;
@@ -455,27 +441,19 @@ class ProduksiMnController extends Controller
                     |--------------------------------------------------------------------------
                     */
                         $itemData['spks'][] = [
-                            'id'       =>
-                            $spk->id,
-                            'supplier' =>
-                            $spkData['sup'] ?? '-',
-                                'inspect_schedule_id' => $inspectTotal->inspect_schedule_id ?? null,
+                            'id' => $spk->id,
+                            'supplier' => $spkData['sup'] ?? '-',
+                            'inspect_schedule_id' => $inspectTotal->inspect_schedule_id ?? null,
                             'detail_po_id' => $detailPo->id,
                             'kategori' => $this->getMonitoringCategory(
                                 $spkData['kategori'] ?? ''
                             ),
-                            'no_spk'   =>
-                            $spkData['no_spk'] ?? '-',
-                            'status'   =>
-                            $spk->status ?? '-',
-                            'harga'    =>
-                            $spkItem['harga'] ?? 0,
-                            'qty'      =>
-                            $spkItem['qty'] ?? 0,
-                            'passed'   =>
-                            $inspectTotal->total_passed ?? 0,
-                            'rejected' =>
-                            $inspectTotal->total_rejected ?? 0,
+                            'no_spk' => $spkData['no_spk'] ?? '-',
+                            'status' => $spk->status ?? '-',
+                            'harga' => $spkItem['harga'] ?? 0,
+                            'qty' => $spkItem['qty'] ?? 0,
+                            'passed' => $inspectTotal->total_passed ?? 0,
+                            'rejected' => $inspectTotal->total_rejected ?? 0,
                         ];
                     }
                 }
@@ -539,10 +517,10 @@ class ProduksiMnController extends Controller
                 |--------------------------------------------------------------------------
                 */
                     if ($type == 'in') {
-                        $itemData[$prefix . '_in']
+                        $itemData[$prefix.'_in']
                         += $qtyInventory;
                     } else {
-                        $itemData[$prefix . '_out']
+                        $itemData[$prefix.'_out']
                         += $qtyInventory;
                     }
                 }
@@ -564,17 +542,14 @@ class ProduksiMnController extends Controller
         return view(
             'pages.management.index',
             [
-                'datas'        =>
-                $datas,
-                'searchPo'     =>
-                $searchPo,
-                'selectedDate' =>
-                $selectedDate,
-                'dates'        =>
-                $dates,
+                'datas' => $datas,
+                'searchPo' => $searchPo,
+                'selectedDate' => $selectedDate,
+                'dates' => $dates,
             ]
         );
     }
+
     // pew
     private function getMonitoringCategory($jenis)
     {
@@ -619,26 +594,27 @@ class ProduksiMnController extends Controller
 
         return strtolower($jenis);
     }
+
     public function inventor()
     {
         $processes = [
-            'rangka'      => 'Rangka',
-            'anyam'       => 'Anyam',
-            'unfinish'    => 'Unfinish',
+            'rangka' => 'Rangka',
+            'anyam' => 'Anyam',
+            'unfinish' => 'Unfinish',
             'accessories' => 'Accessories',
-            'decor'       => 'Decor',
-            'ikat'        => 'Ikat',
-            'final'       => 'Final',
-            'packaging'   => 'Packaging',
+            'decor' => 'Decor',
+            'ikat' => 'Ikat',
+            'final' => 'Final',
+            'packaging' => 'Packaging',
         ];
         $signatures = SignatureSpk::with([
             'madeBy',
             'checkedBy',
             'checkedBy2',
-            'approvedBy'
+            'approvedBy',
         ])
-        ->get()
-        ->keyBy('spk_id');
+            ->get()
+            ->keyBy('spk_id');
         $spks = \App\Models\Spk::latest()
             ->get()
             ->map(function ($spk) use ($signatures) {
@@ -646,159 +622,183 @@ class ProduksiMnController extends Controller
                 if (is_string($data)) {
                     $data = json_decode($data, true);
                 }
-        $signature = $signatures->get($spk->id);
+                $signature = $signatures->get($spk->id);
 
-       $deadlinePercent = 0;
-        $deadlineColor   = 'secondary';
-        $deadlineText    = 'No Deadline';
+                $deadlinePercent = 0;
+                $deadlineColor = 'secondary';
+                $deadlineText = 'No Deadline';
 
-        $tglTerima = $this->parseDate(
-            $data['tgl_terima'] ?? null
-        );
+                $tglTerima = $this->parseDate(
+                    $data['tgl_terima'] ?? null
+                );
 
-        $tglSelesai = $this->parseDate(
-            $data['tgl_selesai'] ?? null
-        );
+                $tglSelesai = $this->parseDate(
+                    $data['tgl_selesai'] ?? null
+                );
 
-        if ($tglTerima && $tglSelesai) {
+                if ($tglTerima && $tglSelesai) {
 
-            $today = now();
+                    $today = now();
 
-            $totalHari = max(
-                $tglTerima->diffInDays($tglSelesai),
-                1
-            );
+                    $totalHari = max(
+                        $tglTerima->diffInDays($tglSelesai),
+                        1
+                    );
 
-            $hariBerjalan = max(
-                $tglTerima->diffInDays(
-                    $today,
-                    false
-                ),
-                0
-            );
+                    $hariBerjalan = max(
+                        $tglTerima->diffInDays(
+                            $today,
+                            false
+                        ),
+                        0
+                    );
 
-            $deadlinePercent = min(
-                round(
-                    ($hariBerjalan / $totalHari) * 100
-                ),
-                100
-            );
+                    $deadlinePercent = min(
+                        round(
+                            ($hariBerjalan / $totalHari) * 100
+                        ),
+                        100
+                    );
 
-            $sisaHari = (int) $today->diffInDays(
-                $tglSelesai,
-                false
-            );
+                    $sisaHari = (int) $today->diffInDays(
+                        $tglSelesai,
+                        false
+                    );
 
-            if ($sisaHari < 0) {
+                    if ($sisaHari < 0) {
 
-                $deadlineColor = 'danger';
-                $deadlineText =
-                    'Overdue ' .
-                    abs($sisaHari) .
-                    ' Hari';
+                        $deadlineColor = 'danger';
+                        $deadlineText =
+                            'Overdue '.
+                            abs($sisaHari).
+                            ' Hari';
 
-                $deadlinePercent = 100;
+                        $deadlinePercent = 100;
 
-            } elseif ($sisaHari <= 3) {
+                    } elseif ($sisaHari <= 3) {
 
-                $deadlineColor = 'danger';
-                $deadlineText =
-                    'Critical (' .
-                    $sisaHari .
-                    ' hari)';
+                        $deadlineColor = 'danger';
+                        $deadlineText =
+                            'Critical ('.
+                            $sisaHari.
+                            ' hari)';
 
-            } elseif ($sisaHari <= 7) {
+                    } elseif ($sisaHari <= 7) {
 
-                $deadlineColor = 'warning';
-                $deadlineText =
-                    'Warning (' .
-                    $sisaHari .
-                    ' hari)';
+                        $deadlineColor = 'warning';
+                        $deadlineText =
+                            'Warning ('.
+                            $sisaHari.
+                            ' hari)';
 
-            } elseif ($sisaHari <= 14) {
+                    } elseif ($sisaHari <= 14) {
 
-                $deadlineColor = 'info';
-                $deadlineText =
-                    'Normal (' .
-                    $sisaHari .
-                    ' hari)';
+                        $deadlineColor = 'info';
+                        $deadlineText =
+                            'Normal ('.
+                            $sisaHari.
+                            ' hari)';
 
-            } else {
+                    } else {
 
-                $deadlineColor = 'success';
-                $deadlineText =
-                    'Safe (' .
-                    $sisaHari .
-                    ' hari)';
-            }
-        }
+                        $deadlineColor = 'success';
+                        $deadlineText =
+                            'Safe ('.
+                            $sisaHari.
+                            ' hari)';
+                    }
+                }
+
                 $items = collect($data['items'] ?? [])
                     ->map(function ($item) {
                         return [
-                            'nama'         =>
-                            $item['nama'] ?? '-',
-                            'kode'         =>
-                            $item['kode'] ?? '-',
-                            'qty'          =>
-                            $item['qty'] ?? 0,
-                            'l'            =>
-                            $item['l'] ?? '-',
-                            'p'            =>
-                            $item['p'] ?? '-',
-                            't'            =>
-                            $item['t'] ?? '-',
-                            'material'     =>
-                            $item['material'] ?? '-',
-                            'images'       =>
-                            $item['images'] ?? [],
-                            'detail_po_id' =>
-                            $item['detail_po_id'] ?? null,
+                            'nama' => $item['nama'] ?? '-',
+                            'kode' => $item['kode'] ?? '-',
+                            'qty' => $item['qty'] ?? 0,
+                            'satuan' => $item['satuan'] ?? 'pcs',
+
+                            'l' => $item['l'] ?? '-',
+                            'p' => $item['p'] ?? '-',
+                            't' => $item['t'] ?? '-',
+                            'material' => $item['material'] ?? '-',
+                            'images' => $item['images'] ?? [],
+                            'detail_po_id' => $item['detail_po_id'] ?? null,
                         ];
                     })
                     ->values()
                     ->toArray();
+                // payment blm selesai
+                $totalSpk = collect($data['items'] ?? [])->sum(function ($item) {
+
+                    $total = floatval($item['total'] ?? 0);
+
+                    foreach ($item['custom_columns'] ?? [] as $col) {
+                        $total += floatval($col['total'] ?? 0);
+                    }
+
+                    return $total;
+                });
+
+                $saldo = $totalSpk;
+
+                foreach ($data['payments'] ?? [] as $pay) {
+
+                    $nilai = floatval($pay['payment_request_amount'] ?? 0);
+
+                    if (($pay['note'] ?? '') === 'return_bahan') {
+                        $saldo += $nilai;
+                    } else {
+                        $saldo -= $nilai;
+                    }
+                }
+
+                $isFinished = $saldo <= 0;
                 return [
-                    'id'          =>
-                    $spk->id,
-                    'no_spk'      =>
-                    $data['no_spk'] ?? '-',
-                    'supplier'    =>
-                    $data['sup'] ?? '-',
-                    'supplier_id' =>
-                    $data['sup_id'] ?? null,
-                    'kategori'    =>
-                    $data['kategori'] ?? '-',
-                    'no_po'       =>
-                    $data['no_po'] ?? '-',
-                    'status'      =>
-                    $spk->status ?? '-',
-                    'tgl_terima'  =>
-                    $data['tgl_terima'] ?? '-',
-                    'tgl_selesai' =>
-                    $data['tgl_selesai'] ?? '-',
-                    'items'       =>
-                    $items,
+                    'is_finished' => $isFinished,
+                        'saldo' => $saldo,
+
+                    'id' => $spk->id,
+                    'no_spk' => $data['no_spk'] ?? '-',
+                    'supplier' => $data['sup'] ?? '-',
+                    'supplier_id' => $data['sup_id'] ?? null,
+                    'kategori' => $data['kategori'] ?? '-',
+                    'no_po' => $data['no_po'] ?? '-',
+                    'status' => $spk->status ?? '-',
+                    'tgl_terima' => $tglTerima
+                         ? $tglTerima->format('d/m/y')
+                         : '-',
+
+                    'tgl_selesai' => $tglSelesai
+                        ? $tglSelesai->format('d/m/y')
+                        : '-',
+                    'items' => $items,
                     'deadline_percent' => $deadlinePercent,
-                    'deadline_color'   => $deadlineColor,
-                    'deadline_text'    => $deadlineText,
-                // signature
+                    'deadline_color' => $deadlineColor,
+                    'deadline_text' => $deadlineText,
+                    // signature
 
-                      'signature' => [
-                    'made_at'      => $signature?->made_at,
-                    'checked_at'   => $signature?->checked_at,
-                    'approved_at'  => $signature?->approved_at,
+                    'signature' => [
+                        'made_at' => $signature?->made_at,
+                        'checked_at' => $signature?->checked_at,
+                        'checked_at_2' => $signature?->checked_at_2,
+                        'approved_at' => $signature?->approved_at,
 
-                    'made_by'      => $signature?->madeBy?->name,
-                    'checked_by'   => $signature?->checkedBy?->name,
-                    'checked_by_2' => $signature?->checkedBy2?->name,
-                    'approved_by'  => $signature?->approvedBy?->name,
-                ],
+                        'made_by' => $signature?->madeBy?->name,
+                        'checked_by' => $signature?->checkedBy?->name,
+                        'checked_by_2' => $signature?->checkedBy2?->name,
+                        'approved_by' => $signature?->approvedBy?->name,
+                    ],
 
                 ];
 
             })
             ->values()
             ->toArray();
+        $spks = collect($spks)
+            ->where('is_finished', false)
+            ->values()
+            ->toArray();
+
         // dd($spks);
         return view(
             'pages.management.inventor',
@@ -808,7 +808,228 @@ class ProduksiMnController extends Controller
             )
         );
     }
-   public function inventorDetail($id)
+
+    // arsip
+    public function inventorArsip()
+    {
+        $processes = [
+            'rangka' => 'Rangka',
+            'anyam' => 'Anyam',
+            'unfinish' => 'Unfinish',
+            'accessories' => 'Accessories',
+            'decor' => 'Decor',
+            'ikat' => 'Ikat',
+            'final' => 'Final',
+            'packaging' => 'Packaging',
+        ];
+        $signatures = SignatureSpk::with([
+            'madeBy',
+            'checkedBy',
+            'checkedBy2',
+            'approvedBy',
+        ])
+            ->get()
+            ->keyBy('spk_id');
+        $spks = \App\Models\Spk::latest()
+            ->get()
+            ->map(function ($spk) use ($signatures) {
+                $data = $spk->data;
+                if (is_string($data)) {
+                    $data = json_decode($data, true);
+                }
+                $signature = $signatures->get($spk->id);
+
+                $deadlinePercent = 0;
+                $deadlineColor = 'secondary';
+                $deadlineText = 'No Deadline';
+
+                $tglTerima = $this->parseDate(
+                    $data['tgl_terima'] ?? null
+                );
+
+                $tglSelesai = $this->parseDate(
+                    $data['tgl_selesai'] ?? null
+                );
+
+                if ($tglTerima && $tglSelesai) {
+
+                    $today = now();
+
+                    $totalHari = max(
+                        $tglTerima->diffInDays($tglSelesai),
+                        1
+                    );
+
+                    $hariBerjalan = max(
+                        $tglTerima->diffInDays(
+                            $today,
+                            false
+                        ),
+                        0
+                    );
+
+                    $deadlinePercent = min(
+                        round(
+                            ($hariBerjalan / $totalHari) * 100
+                        ),
+                        100
+                    );
+
+                    $sisaHari = (int) $today->diffInDays(
+                        $tglSelesai,
+                        false
+                    );
+
+                    if ($sisaHari < 0) {
+
+                        $deadlineColor = 'danger';
+                        $deadlineText =
+                            'Overdue '.
+                            abs($sisaHari).
+                            ' Hari';
+
+                        $deadlinePercent = 100;
+
+                    } elseif ($sisaHari <= 3) {
+
+                        $deadlineColor = 'danger';
+                        $deadlineText =
+                            'Critical ('.
+                            $sisaHari.
+                            ' hari)';
+
+                    } elseif ($sisaHari <= 7) {
+
+                        $deadlineColor = 'warning';
+                        $deadlineText =
+                            'Warning ('.
+                            $sisaHari.
+                            ' hari)';
+
+                    } elseif ($sisaHari <= 14) {
+
+                        $deadlineColor = 'info';
+                        $deadlineText =
+                            'Normal ('.
+                            $sisaHari.
+                            ' hari)';
+
+                    } else {
+
+                        $deadlineColor = 'success';
+                        $deadlineText =
+                            'Safe ('.
+                            $sisaHari.
+                            ' hari)';
+                    }
+                }
+
+                $items = collect($data['items'] ?? [])
+                    ->map(function ($item) {
+                        return [
+                            'nama' => $item['nama'] ?? '-',
+                            'kode' => $item['kode'] ?? '-',
+                            'qty' => $item['qty'] ?? 0,
+                            'satuan' => $item['satuan'] ?? 'pcs',
+
+                            'l' => $item['l'] ?? '-',
+                            'p' => $item['p'] ?? '-',
+                            't' => $item['t'] ?? '-',
+                            'material' => $item['material'] ?? '-',
+                            'images' => $item['images'] ?? [],
+                            'detail_po_id' => $item['detail_po_id'] ?? null,
+                        ];
+                    })
+                    ->values()
+                    ->toArray();
+                // payment blm selesai
+                $totalSpk = collect($data['items'] ?? [])->sum(function ($item) {
+
+                    $total = floatval($item['total'] ?? 0);
+
+                    foreach ($item['custom_columns'] ?? [] as $col) {
+                        $total += floatval($col['total'] ?? 0);
+                    }
+
+                    return $total;
+                });
+
+                $totalPayment = collect($data['payments'] ?? [])->sum(function ($pay) {
+                    return floatval($pay['amount'] ?? 0);
+                });
+
+                $isFinished = $totalPayment >= $totalSpk;
+
+                return [
+                    'is_finished' => $isFinished,
+                    'id' => $spk->id,
+                    'no_spk' => $data['no_spk'] ?? '-',
+                    'supplier' => $data['sup'] ?? '-',
+                    'supplier_id' => $data['sup_id'] ?? null,
+                    'kategori' => $data['kategori'] ?? '-',
+                    'no_po' => $data['no_po'] ?? '-',
+                    'status' => $spk->status ?? '-',
+                    'tgl_terima' => $tglTerima
+                         ? $tglTerima->format('d/m/y')
+                         : '-',
+
+                    'tgl_selesai' => $tglSelesai
+                        ? $tglSelesai->format('d/m/y')
+                        : '-',
+                    'items' => $items,
+                    'deadline_percent' => $deadlinePercent,
+                    'deadline_color' => $deadlineColor,
+                    'deadline_text' => $deadlineText,
+                    // signature
+
+                    'signature' => [
+                        'made_at' => $signature?->made_at,
+                        'checked_at' => $signature?->checked_at,
+                        'checked_at_2' => $signature?->checked_at_2,
+                        'approved_at' => $signature?->approved_at,
+
+                        'made_by' => $signature?->madeBy?->name,
+                        'checked_by' => $signature?->checkedBy?->name,
+                        'checked_by_2' => $signature?->checkedBy2?->name,
+                        'approved_by' => $signature?->approvedBy?->name,
+                    ],
+
+                ];
+
+            })
+            ->values()
+            ->toArray();
+        $spks = collect($spks)
+            ->where('is_finished', true)
+            ->values()
+            ->toArray();
+
+        // dd($spks);
+        return view(
+            'pages.management.inventor_arsip',
+            compact(
+                'spks',
+                'processes'
+            )
+        );
+    }
+
+    public function barangJadi()
+    {
+        $timelines = ProductionTimeline::with([
+            'po',
+            'spk',
+            'detailPo',
+        ])
+        // ->where('next_process', 'barang_jadi') // opsional
+            ->orderBy('date', 'desc')
+            ->get();
+
+        // dd($timelines);
+        return view('pages.admin.laporan_admin', compact('timelines'));
+    }
+
+    public function inventorDetail($id)
     {
         $spk = Spk::findOrFail($id);
 
@@ -826,87 +1047,87 @@ class ProduksiMnController extends Controller
     | ITEMS + CUSTOM COLUMN TOTAL
     |--------------------------------------------------------------------------
     */
-    // inspection result
-    $detailPoIds = collect(
-        $data['items'] ?? []
-    )->pluck('detail_po_id')->filter();
-    $kategoriId = Kategori::where(
-        'kategori',
-        $data['kategori']
-    )->value('id');
-    $inspectSummary = InspectSchedule::where(
+        // inspection result
+        $detailPoIds = collect(
+            $data['items'] ?? []
+        )->pluck('detail_po_id')->filter();
+        $kategoriId = Kategori::where(
+            'kategori',
+            $data['kategori']
+        )->value('id');
+        $inspectSummary = InspectSchedule::where(
             'spk_id',
             $spk->id
         )
-        ->selectRaw("
+            ->selectRaw('
             detail_po_id,
             SUM(passed) as passed,
             SUM(rejected) as rejected
-        ")
-        ->groupBy('detail_po_id')
-        ->get()
-        ->keyBy('detail_po_id');
-$items = collect(
-    $data['items'] ?? []
-)->map(function ($item) use ($inspectSummary) {
+        ')
+            ->groupBy('detail_po_id')
+            ->get()
+            ->keyBy('detail_po_id');
+        $items = collect(
+            $data['items'] ?? []
+        )->map(function ($item) use ($inspectSummary) {
 
-    $inspect = $inspectSummary->get(
-        $item['detail_po_id'] ?? null
-    );
-
-    $item['passed'] = (int) (
-        $inspect->passed ?? 0
-    );
-
-    $item['rejected'] = (int) (
-        $inspect->rejected ?? 0
-    );
-
-    return $item;
-
-});
-
-$items = collect(
-    $data['items'] ?? []
-)->map(function ($item) use ($inspectSummary) {
-
-    $inspect = $inspectSummary->get(
-        $item['detail_po_id'] ?? null
-    );
-
-    $item['passed'] = (int) (
-        $inspect->passed ?? 0
-    );
-
-    $item['rejected'] = (int) (
-        $inspect->rejected ?? 0
-    );
-
-    return $item;
-
-});
-
-/*
-    |--------------------------------------------------------------------------
-    | GRAND TOTAL SPK
-    |--------------------------------------------------------------------------
-    */
-       $grandTotal = $items->sum(function ($item) {
-
-        $total = (float) ($item['total'] ?? 0);
-
-        $customTotal = collect(
-            $item['custom_columns'] ?? []
-        )->sum(function ($custom) {
-
-            return (float) (
-                $custom['total'] ?? 0
+            $inspect = $inspectSummary->get(
+                $item['detail_po_id'] ?? null
             );
+
+            $item['passed'] = (int) (
+                $inspect->passed ?? 0
+            );
+
+            $item['rejected'] = (int) (
+                $inspect->rejected ?? 0
+            );
+
+            return $item;
 
         });
 
-        return $total + $customTotal;
-    });
+        $items = collect(
+            $data['items'] ?? []
+        )->map(function ($item) use ($inspectSummary) {
+
+            $inspect = $inspectSummary->get(
+                $item['detail_po_id'] ?? null
+            );
+
+            $item['passed'] = (int) (
+                $inspect->passed ?? 0
+            );
+
+            $item['rejected'] = (int) (
+                $inspect->rejected ?? 0
+            );
+
+            return $item;
+
+        });
+
+        /*
+            |--------------------------------------------------------------------------
+            | GRAND TOTAL SPK
+            |--------------------------------------------------------------------------
+            */
+        $grandTotal = $items->sum(function ($item) {
+
+            $total = (float) ($item['total'] ?? 0);
+
+            $customTotal = collect(
+                $item['custom_columns'] ?? []
+            )->sum(function ($custom) {
+
+                return (float) (
+                    $custom['total'] ?? 0
+                );
+
+            });
+
+            return $total + $customTotal;
+        });
 
         /*
     |--------------------------------------------------------------------------
@@ -932,31 +1153,29 @@ $items = collect(
             ->map(function ($row) use ($itemMap) {
 
                 return [
-                    'id'           => $row->id,
+                    'id' => $row->id,
 
                     'detail_po_id' => $row->detail_po_id,
 
-                    'item_name'    =>
-                    $itemMap[$row->detail_po_id]['nama'] ?? '-',
+                    'item_name' => $itemMap[$row->detail_po_id]['nama'] ?? '-',
 
-                    'item_code'    =>
-                    $itemMap[$row->detail_po_id]['kode'] ?? '-',
+                    'item_code' => $itemMap[$row->detail_po_id]['kode'] ?? '-',
 
-                    'qty'          => $row->qty,
+                    'qty' => $row->qty,
 
-                    'type'         => $row->type,
+                    'type' => $row->type,
 
-                    'process'      => $row->process,
+                    'process' => $row->process,
 
                     'next_process' => $row->next_process,
 
-                    'remark'       => $row->remark ?? '-',
+                    'remark' => $row->remark ?? '-',
 
-                    'date'         => \Carbon\Carbon::parse(
+                    'date' => \Carbon\Carbon::parse(
                         $row->date
                     )->format('Y-m-d'),
 
-                    'time'         => \Carbon\Carbon::parse(
+                    'time' => \Carbon\Carbon::parse(
                         $row->date
                     )->format('H:i'),
                 ];
@@ -974,85 +1193,78 @@ $items = collect(
             ->map(function ($row) {
 
                 return [
-                    'id'          => $row->id,
+                    'id' => $row->id,
 
-                    'tanggal'     => $row->tanggal,
+                    'tanggal' => $row->tanggal,
 
-                    'tipe'        => $row->tipe,
+                    'tipe' => $row->tipe,
 
-                    'qty'         => $row->qty,
+                    'qty' => $row->qty,
 
-                    'po'          => $row->po,
+                    'po' => $row->po,
 
-                    'keterangan'  => $row->keterangan,
+                    'keterangan' => $row->keterangan,
 
-                    'stok_id'     => $row->stok_id,
+                    'stok_id' => $row->stok_id,
 
-                    'kode_barang' =>
-                    $row->stok->kode_barang ?? '-',
+                    'kode_barang' => $row->stok->kode_barang ?? '-',
 
-                    'nama_barang' =>
-                    $row->stok->nama_barang ?? '-',
+                    'nama_barang' => $row->stok->nama_barang ?? '-',
 
-                    'satuan'      =>
-                    $row->stok->satuan ?? '-',
+                    'satuan' => $row->stok->satuan ?? '-',
                     'harga_vivi' => $row->harga_vivi ?? null,
-                    'harga'       =>
-                    $row->stok->harga ?? 0,
-'sst'  =>
-                    $row->stok->qty ?? 0,
-                    'stok_akhir'  =>
-                    $row->stok->stok_akhir ?? 0,
+                    'harga' => $row->stok->harga ?? 0,
+                    'sst' => $row->stok->qty ?? 0,
+                    'stok_akhir' => $row->stok->stok_akhir ?? 0,
                 ];
             });
-//             dd(
-//     collect($data['items'])->pluck('detail_po_id')
-// );
-// dd($items);
-// dd(
-//     $detailPoIds->toArray(),
-//     InspectSchedule::where('spk_id', $spk->id)->get()->toArray()
-// );
-//   $financeApproved = false;
+        //             dd(
+        //     collect($data['items'])->pluck('detail_po_id')
+        // );
+        // dd($items);
+        // dd(
+        //     $detailPoIds->toArray(),
+        //     InspectSchedule::where('spk_id', $spk->id)->get()->toArray()
+        // );
+        //   $financeApproved = false;
 
-   $financeApproved = false;
+        $financeApproved = false;
 
-$paymentRequestIds = PaymentRequest::where(
-    'spk_id',
-    $spk->id
-)->pluck('id')->toArray();
+        $paymentRequestIds = PaymentRequest::where(
+            'spk_id',
+            $spk->id
+        )->pluck('id')->toArray();
 
-if (!empty($paymentRequestIds)) {
+        if (! empty($paymentRequestIds)) {
 
-    $draft = PaymentRequestSaved::all()
-        ->first(function ($row) use ($paymentRequestIds) {
+            $draft = PaymentRequestSaved::all()
+                ->first(function ($row) use ($paymentRequestIds) {
 
-            return count(
-                array_intersect(
-                    $row->payment_request_ids ?? [],
-                    $paymentRequestIds
-                )
-            ) > 0;
+                    return count(
+                        array_intersect(
+                            $row->payment_request_ids ?? [],
+                            $paymentRequestIds
+                        )
+                    ) > 0;
 
-        });
+                });
 
-    if ($draft) {
+            if ($draft) {
 
-        $financeApproved =
-            PaymentRequestApproval::where(
-                'payment_request_saved_id',
-                $draft->id
-            )
-            ->where('status', 'Approved')
-            ->where(function ($q) {
+                $financeApproved =
+                    PaymentRequestApproval::where(
+                        'payment_request_saved_id',
+                        $draft->id
+                    )
+                        ->where('status', 'Approved')
+                        ->where(function ($q) {
 
-                $q->where('user_id', 174)
-                  ->orWhere('role', 'Finance');
+                            $q->where('user_id', 174)
+                                ->orWhere('role', 'Finance');
 
-            })
-            ->exists();
-    }
-
+                        })
+                        ->exists();
+            }
 
         }
 
@@ -1061,91 +1273,73 @@ if (!empty($paymentRequestIds)) {
 
             'grand_total' => $grandTotal,
 
-            'bahan_baku'  => $bahanBaku,
+            'bahan_baku' => $bahanBaku,
 
-            'kategori'    =>
-            $data['kategori'] ?? '-',
+            'kategori' => $data['kategori'] ?? '-',
 
-            'status'      =>
-            $spk->status ?? '-',
+            'status' => $spk->status ?? '-',
 
-            'spk'         => $spk,
+            'spk' => $spk,
 
-            'items'       => $items,
+            'items' => $items,
 
-            'spk_no'      =>
-            $data['no_spk'] ?? '-',
+            'spk_no' => $data['no_spk'] ?? '-',
 
-            'payments'    =>
-            $data['payments'] ?? [],
+            'payments' => $data['payments'] ?? [],
 
-            'supplier'    => [
-                'id'   =>
-                $supplier->id ?? null,
+            'supplier' => [
+                'id' => $supplier->id ?? null,
 
-                'name' =>
-                $supplier->name ?? '-',
+                'name' => $supplier->name ?? '-',
             ],
 
-            'timelines'   => $timelines,
+            'timelines' => $timelines,
 
-    'payments' => collect(
-        $data['payments'] ?? []
-)->map(function ($payment) {
-        $amount = (float)(
-            $payment['amount'] ?? 0
-        );
+            'payments' => collect(
+                $data['payments'] ?? []
+            )->map(function ($payment) {
+                $amount = (float) (
+                    $payment['amount'] ?? 0
+                );
 
-        $adjustment = (float)(
-            $payment['adjustment'] ?? 0
-        );
+                $adjustment = (float) (
+                    $payment['adjustment'] ?? 0
+                );
 
-        return [
+                return [
 
-            'date' =>
-                $payment['date'] ?? null,
+                    'date' => $payment['date'] ?? null,
 
-            'note' =>
-                $payment['note'] ?? '-',
-  'finance_approved' =>
-            $payment['finance_approved'] ?? false,
-            'amount' =>
-                $amount,
-                    'is_request' =>
-                $payment['is_request'] ?? null,
-            'payment_id' =>
-                $payment['payment_id'] ?? null,
+                    'note' => $payment['note'] ?? '-',
+                    'finance_approved' => $payment['finance_approved'] ?? false,
+                    'amount' => $amount,
+                    'is_request' => $payment['is_request'] ?? null,
+                    'payment_id' => $payment['payment_id'] ?? null,
 
-            'note_tambahan' =>
-                $payment['note_tambahan'] ?? null,
+                    'note_tambahan' => $payment['note_tambahan'] ?? null,
 
-            'adjustment' =>
-                $adjustment,
+                    'adjustment' => $adjustment,
 
-            'payment_request_amount' =>
-                $adjustment > 0
-                    ? $adjustment
-                    : $amount,
+                    'payment_request_amount' => $adjustment > 0
+                            ? $adjustment
+                            : $amount,
 
-            'remaining_amount' =>
-                $adjustment > 0
-                    ? ($amount - $adjustment)
-                    : 0,
+                    'remaining_amount' => $adjustment > 0
+                            ? ($amount - $adjustment)
+                            : 0,
 
-            'adjustment_by' =>
-                $payment['adjustment_by'] ?? null,
+                    'adjustment_by' => $payment['adjustment_by'] ?? null,
 
-            'adjustment_at' =>
-                $payment['adjustment_at'] ?? null,
-           'finance_approved' =>
-            $payment['finance_approved'] ?? false,
-            // vivi
-        ];
+                    'adjustment_at' => $payment['adjustment_at'] ?? null,
+                    'finance_approved' => $payment['finance_approved'] ?? false,
+                    // vivi
+                ];
 
-    })->values(),
+            })->values(),
 
         ]);
     }
+
     // vivi update
     public function updateHargaVivi(Request $request)
     {
@@ -1156,13 +1350,14 @@ if (!empty($paymentRequestIds)) {
         );
 
         $transaksi->update([
-            'harga_vivi' => $request->harga
+            'harga_vivi' => $request->harga,
         ]);
 
         return response()->json([
-            'success' => true
+            'success' => true,
         ]);
     }
+
     public function inventorStore(Request $request)
     {
         /*
@@ -1171,9 +1366,9 @@ if (!empty($paymentRequestIds)) {
     |--------------------------------------------------------------------------
     */
         $request->validate([
-            'spk_id'       => 'required',
+            'spk_id' => 'required',
             'detail_po_id' => 'required|array',
-            'qty'          => 'required|array',
+            'qty' => 'required|array',
         ]);
         /*
     |--------------------------------------------------------------------------
@@ -1220,7 +1415,7 @@ if (!empty($paymentRequestIds)) {
             ) {
                 $dateTime =
                 $request->date[$i]
-                . ' ' .
+                .' '.
                 $request->time[$i];
             }
             /*
@@ -1229,30 +1424,20 @@ if (!empty($paymentRequestIds)) {
         |--------------------------------------------------------------------------
         */
             ProductionTimeline::create([
-                'po_id'        =>
-                $poId,
-                'spk_id'       =>
-                $request->spk_id,
-                'detail_po_id' =>
-                $detailPoId,
-                'qty'          =>
-                $request->qty[$i] ?? 0,
-                'sup_id'       =>
-                $request->sup_id[$i] ?? null,
-                'process'      =>
-                $request->process[$i] ?? null,
-                'next_process' =>
-                $request->next_process[$i] ?? null,
-                'date'         =>
-                $dateTime,
-                'type'         =>
-                $request->type[$i] ?? 'in',
-                'remark'       =>
-                $request->remark[$i] ?? null,
-                'source_type'  =>
-                'inventor',
+                'po_id' => $poId,
+                'spk_id' => $request->spk_id,
+                'detail_po_id' => $detailPoId,
+                'qty' => $request->qty[$i] ?? 0,
+                'sup_id' => $request->sup_id[$i] ?? null,
+                'process' => $request->process[$i] ?? null,
+                'next_process' => $request->next_process[$i] ?? null,
+                'date' => $dateTime,
+                'type' => $request->type[$i] ?? 'in',
+                'remark' => $request->remark[$i] ?? null,
+                'source_type' => 'inventor',
             ]);
         }
+
         /*
     |--------------------------------------------------------------------------
     | RESPONSE
@@ -1263,6 +1448,7 @@ if (!empty($paymentRequestIds)) {
             'message' => 'Inventory berhasil disimpan',
         ]);
     }
+
     public function delete($id)
     {
         $timeline = ProductionTimeline::find($id);
@@ -1272,37 +1458,39 @@ if (!empty($paymentRequestIds)) {
             ], 404);
         }
         $timeline->delete();
+
         return response()->json([
             'message' => 'Data berhasil dihapus',
         ]);
     }
-    private function parseDate($date)
-{
-    if (empty($date) || $date == '-') {
-        return null;
-    }
 
-    try {
-        return \Carbon\Carbon::parse($date);
-    } catch (\Exception $e) {
+    private function parseDate($date)
+    {
+        if (empty($date) || $date == '-') {
+            return null;
+        }
 
         try {
-            return \Carbon\Carbon::createFromFormat(
-                'd/m/Y',
-                $date
-            );
+            return \Carbon\Carbon::parse($date);
         } catch (\Exception $e) {
 
             try {
                 return \Carbon\Carbon::createFromFormat(
-                    'd-M-Y',
+                    'd/m/Y',
                     $date
                 );
             } catch (\Exception $e) {
 
-                return null;
+                try {
+                    return \Carbon\Carbon::createFromFormat(
+                        'd-M-Y',
+                        $date
+                    );
+                } catch (\Exception $e) {
+
+                    return null;
+                }
             }
         }
     }
-}
 }

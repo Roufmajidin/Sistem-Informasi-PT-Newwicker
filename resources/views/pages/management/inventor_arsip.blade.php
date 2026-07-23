@@ -1,5 +1,5 @@
     @extends('master.master')
-    @section('title', 'monitorings SPK')
+    @section('title', 'Spk Selesai')
     @section('content')
         @include('pages.management.style')
 
@@ -12,13 +12,12 @@
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                         <div class="d-flex align-items-center gap-2">
                <h4 class="mb-0 fw-bold mr-4">
-    Monitoring SPK
+    Spk Selesai/arsip
 </h4>
-
-<a href="{{ route('inventor.arsip') }}"
+<a href="/produksi/inventor"
    class="btn btn-outline-secondary btn-sm ms-2"
-   title="Arsip SPK">
-    Arsip
+   title="Kembali ke Monitoring SPK">
+    <i class="fa fa-arrow-left"></i>
 </a>
                         </div>
 
@@ -285,7 +284,7 @@
                         <h4 class="mb-0">
                             DETAIL INVENTORY
                         </h4>
-                        <button type="button" class="btn-close btn-close-secondary" data-bs-dismiss="modal"><i class="fa fa-close"></i>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal">
                         </button>
                     </div>
                     <div class="modal-body">

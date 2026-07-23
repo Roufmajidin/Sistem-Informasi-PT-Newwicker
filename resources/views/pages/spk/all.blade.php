@@ -1906,7 +1906,17 @@ $(document).on(
     margin:0;
 
 }
+.sidebar-table{
+    max-height: 450px;
+    overflow-y: auto;
+}
 
+.sidebar-table thead th{
+    position: sticky;
+    top: 0;
+    background: #fff;
+    z-index: 10;
+}
 .table-box thead{
 
     background:#0f172a;

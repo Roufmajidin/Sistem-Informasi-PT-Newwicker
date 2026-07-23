@@ -64,6 +64,7 @@
                                 <th>Gross Weight</th>
                                 <th>Total CBM</th>
                                 <th>Remarks</th>
+                                <th>act</th>
 
                             </tr>
 
@@ -106,7 +107,17 @@
                                 <td id="grandTotalCbm">0.000</td>
 
                                 <td></td>
+                                <td class="text-center">
+                                <button
+                                    type="button"
+                                    class="btn btn-sm btn-outline-danger remove-item"
+                                    title="Delete Item">
 
+                                    <i class="fas fa-trash"></i>
+
+                                </button>
+
+                            </td>
                             </tr>
 
                         </tfoot>
@@ -292,15 +303,19 @@
                         name="items[${index}][total_price]">
                 </td>
 
-                <td>
+               <td>
                     <input
-                        class="form-control form-control-sm text-end"
+                        type="number"
+                        step="0.01"
+                        class="form-control form-control-sm text-end net_weight"
                         name="items[${index}][net_weight]">
                 </td>
 
                 <td>
                     <input
-                        class="form-control form-control-sm text-end"
+                        type="number"
+                        step="0.01"
+                        class="form-control form-control-sm text-end gross_weight"
                         name="items[${index}][gross_weight]">
                 </td>
 
@@ -376,7 +391,8 @@
             }
             $(document).on(
                 'input',
-                '.box_dimension,.qty_box,.qty_pcs,.unit_price',
+                '.box_dimension,.qty_box,.qty_pcs,.unit_price,.net_weight,.gross_weight',
+
                 function() {
 
                     calculateRow($(this).closest('tr'));
@@ -462,14 +478,15 @@
                         row.find('.total_cbm').val().replace(/,/g, '')
                     ) || 0;
 
-                    totalNet += parseFloat(
-                        row.find('[name$="[net_weight]"]').val()
-                    ) || 0;
+                    let qtyPcs = parseFloat(row.find('.qty_pcs').val()) || 0;
 
-                    totalGross += parseFloat(
-                        row.find('[name$="[gross_weight]"]').val()
-                    ) || 0;
+                    let net = parseFloat(row.find('.net_weight').val()) || 0;
 
+                    let gross = parseFloat(row.find('.gross_weight').val()) || 0;
+
+                    totalNet += net * qtyPcs;
+
+                    totalGross += gross * qtyPcs;
                     grandPrice += parseCurrency(
                         row.find('.total_price').val()
                     );

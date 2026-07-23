@@ -212,6 +212,13 @@
                      <li> --}}
                          <!-- produksi -->
                      <li>
+                          <li>
+                                 <a href="/produksi/in_out_barang_jadi">
+                                      <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                     <span class="nav-text">monitoring (admin)</span>
+                                 </a>
+                             </li>
+
                          <a href="/produksi/mn">
                              <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
                              <span class="nav-text">produksi</span>
@@ -401,6 +408,12 @@
                                  <a href="/produksi/inventor">
                                       <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
                                      <span class="nav-text">Mutasi Barang jadi</span>
+                                 </a>
+                             </li>
+                              <li>
+                                 <a href="/produksi/in_out_barang_jadi">
+                                      <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                     <span class="nav-text">monitoring (admin)</span>
                                  </a>
                              </li>
 

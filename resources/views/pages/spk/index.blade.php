@@ -3314,7 +3314,23 @@ function validatePaymentLimit() {
                 ? adjustment
                 : originalAmount;
 
-        totalPayment += amount;
+        const type =
+            row.querySelector('.payment-type')?.value;
+
+        switch(type){
+
+            case 'return_bahan':
+                totalPayment -= amount;
+                break;
+
+            case 'dp':
+            case 'bahan':
+            case 'kasbon':
+            case 'pelunasan':
+            case 'ppn':
+                totalPayment += amount;
+                break;
+        }
 
     });
 
@@ -3420,7 +3436,7 @@ document.addEventListener('input', function(e){
                 if(xhr.responseJSON?.message){
                     message = xhr.responseJSON.message;
                 }
-
+                console.log(xhr.responseJSON?.message)
                 Swal.fire({
                     icon: 'error',
                     title: 'Gagal',

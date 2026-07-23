@@ -9,6 +9,7 @@ class Bom extends Model
     protected $table = 'bom';
 
     protected $fillable = [
+
         'name',
         'article_number',
         'order_no',

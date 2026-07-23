@@ -392,6 +392,7 @@ Route::get('/produksi/mn', [ProduksiMnController::class, 'index'])->name('produk
 Route::get('/qc-report/{inspectSchedule}', [ProduksiMnController::class, 'qcReport']
 )->name('qc.report');
 Route::get('/produksi/inventor', [ProduksiMnController::class, 'inventor']);
+
 Route::get(
     '/inventor/spk/{id}',
     [ProduksiMnController::class, 'inventorDetail']
@@ -571,7 +572,12 @@ Route::get('/bom/released-partial', [BomController::class, 'releasedPartial']);
 
 // exports
 
-Route::get('/export/index', [EdController::class, 'index']);
+// Route::get('/produksi/inventor', [EdController::class, 'index']);
 Route::get('/export/search-po', [EdController::class, 'searchPo'])
     ->name('export.search-po');
 Route::get('/export/po-items/{id}', [EdController::class, 'poItems']);
+Route::get('/produksi/in_out_barang_jadi', [ProduksiMnController::class, 'barangJadi']);
+
+// new routing
+Route::get('/produksi/inventor/arsip', [ProduksiMnController::class, 'inventorArsip'])
+    ->name('inventor.arsip');
