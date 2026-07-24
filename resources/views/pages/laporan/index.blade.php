@@ -148,11 +148,11 @@
                                                 </td>
 
                                                 <td>
-                                                    <input
+                                                   <input
                                                         type="number"
                                                         step="0.001"
                                                         class="form-control stok_awal"
-                                                        value="{{ $stok->stok_awal- $stok->total_out }}">
+                                                        value="{{ ($stok->stok_awal ?? 0) + ($stok->total_in ?? 0) - ($stok->total_out ?? 0) }}">
 
                                                     {{-- <small class="text-muted">
                                                         Total :
@@ -286,11 +286,11 @@ $(function () {
     </td>
 
     <td>
-        <input
-            type="number"
-            step="0.001"
-            class="form-control stok_awal"
-            value="0">
+      <input
+    type="number"
+    step="0.001"
+    class="form-control stok_awal"
+    value="{{ $stok->saldo }}">
     </td>
 
     <td>0</td>

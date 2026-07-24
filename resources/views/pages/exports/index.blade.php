@@ -14,12 +14,22 @@
             @include('pages.exports.partials.shipper')
 
             {{-- IPL TABLE --}}
+
             <div class="card shadow-sm">
 
-                <div class="card-header bg-primary text-white">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+
                     <h5 class="mb-0">
                         Invoice Packing List (IPL)
                     </h5>
+
+                    <button type="button" class="btn btn-success" id="btnSaveExport">
+
+                        <i class="fa fa-save"></i>
+                        Save IPL
+
+                    </button>
+
                 </div>
 
                 <div class="table-responsive">
@@ -108,16 +118,14 @@
 
                                 <td></td>
                                 <td class="text-center">
-                                <button
-                                    type="button"
-                                    class="btn btn-sm btn-outline-danger remove-item"
-                                    title="Delete Item">
+                                    <button type="button" class="btn btn-sm btn-outline-danger remove-item"
+                                        title="Delete Item">
 
-                                    <i class="fas fa-trash"></i>
+                                        <i class="fas fa-trash"></i>
 
-                                </button>
+                                    </button>
 
-                            </td>
+                                </td>
                             </tr>
 
                         </tfoot>
@@ -331,6 +339,18 @@
                         class="form-control form-control-sm"
                         name="items[${index}][remark]">
                 </td>
+                <td class="text-center">
+
+                <button
+                    type="button"
+                    class="btn btn-sm btn-danger remove-item"
+                    title="Remove Item">
+
+                    <i class="fas fa-times"></i>
+
+                </button>
+
+            </td>
 
             </tr>`;
                     });
@@ -508,6 +528,135 @@
                 $('#grandTotalCbm').text(formatNumber(totalCbm, 3));
 
             }
+            //remove
+            $(document).on('click', '.remove-item', function() {
+
+                $(this).closest('tr').remove();
+
+                $('#itemTableBody tr').each(function(i) {
+
+                    $(this).find('td:first').text(i + 1);
+
+                });
+
+                if ($('#itemTableBody tr').length == 0) {
+
+                    $('#itemTableBody').html(`
+            <tr>
+                <td colspan="16"
+                    class="text-center text-muted">
+                    Tidak ada item
+                </td>
+            </tr>
+        `);
+
+                }
+
+                calculateFooter();
+
+            });
+            // save
+            $('#btnSaveExport').click(function(){
+
+    let payload={
+
+        po_id:$('#po_id').val(),
+
+        invoice_no:$('#invoice_no').val(),
+
+        sales_order:$('#sales_order').val(),
+
+        buyer:$('#buyer_name').val(),
+
+        shipment:{
+
+            invoice_no: $('[name="invoice_no"]').val(),
+
+            container_type: $('[name="container_type"]').val(),
+
+            container_no: $('[name="container_no"]').val(),
+
+            seal_no: $('[name="seal_no"]').val(),
+
+            vessel_name: $('[name="vessel_name"]').val(),
+
+            port_loading: $('[name="port_loading"]').val(),
+
+            port_discharge: $('[name="port_discharge"]').val(),
+
+            commodity: $('[name="commodity"]').val(),
+
+            fumigation: $('[name="fumigation"]').val(),
+
+            etd: $('[name="etd"]').val(),
+
+            eta: $('[name="eta"]').val(),
+
+            buyer_address: $('[name="buyer_address"]').val(),
+
+            customer_code: $('[name="customer_code"]').val(),
+
+            customer_po_no: $('[name="customer_po_no"]').val(),
+
+        },
+
+        items:[]
+
+    };
+
+    $('#itemTableBody tr').each(function(){
+
+        let row=$(this);
+
+        payload.items.push({
+
+            detail_po_id:row.find('[name*="[detail_po_id]"]').val(),
+
+            hs_code:row.find('[name*="[hs_code]"]').val(),
+
+            description:row.find('[name*="[description]"]').val(),
+
+            article_nr:row.find('[name*="[article_nr]"]').val(),
+
+            photo:row.find('[name*="[photo]"]').val(),
+
+            qty_pcs:row.find('.qty_pcs').val(),
+
+            qty_box:row.find('.qty_box').val(),
+
+            box_dimension:row.find('.box_dimension').val(),
+
+           cbm: parseFloat(
+    (row.find('.cbm').val() || '0')
+        .replace(/,/g,'')
+),
+
+total_cbm: parseFloat(
+    (row.find('.total_cbm').val() || '0')
+        .replace(/,/g,'')
+),
+
+            unit_price:parseCurrency(
+                row.find('.unit_price').val()
+            ),
+
+            total_price:parseCurrency(
+                row.find('.total_price').val()
+            ),
+
+            net_weight:row.find('.net_weight').val(),
+
+            gross_weight:row.find('.gross_weight').val(),
+
+            remark:row.find('[name*="[remark]"]').val()
+
+        });
+
+    });
+
+    console.log(payload);
+
+});
         </script>
     </div>
 @endpush

@@ -572,7 +572,7 @@ Route::get('/bom/released-partial', [BomController::class, 'releasedPartial']);
 
 // exports
 
-// Route::get('/produksi/inventor', [EdController::class, 'index']);
+Route::get('/export/index', [EdController::class, 'index']);
 Route::get('/export/search-po', [EdController::class, 'searchPo'])
     ->name('export.search-po');
 Route::get('/export/po-items/{id}', [EdController::class, 'poItems']);

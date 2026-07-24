@@ -1,123 +1,134 @@
 <?php
+
 namespace App\Http\Controllers;
 
 use App\Models\Spk;
 use App\Models\Stok;
 use App\Models\TransaksiStok;
-use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Request;
+
 class LaporanController extends Controller
 {
-   public function index(Request $request)
-{
-    $jenis = $request->jenis;
+    public function index(Request $request)
+    {
+        $jenis = $request->jenis;
 
-    $stoks = Stok::query()
-        ->withSum([
-            'transaksi as total_in' => function ($q) {
-                $q->where('tipe', 'in');
-            }
+        $stoks = Stok::query()
+            ->withSum([
+                'transaksi as total_in' => function ($q) {
+                    $q->where('tipe', 'in');
+                },
+            ], 'qty')
+            ->withSum([
+                'transaksi as total_out' => function ($q) {
+                    $q->where('tipe', 'out');
+                },
         ], 'qty')
-        ->withSum([
-            'transaksi as total_out' => function ($q) {
-                $q->where('tipe', 'out');
-            }
-        ], 'qty')
-        ->when($jenis, function ($q) use ($jenis) {
-            $q->where('jenis', $jenis);
-        })
-        ->orderBy('nama_barang')
-        ->get();
+            ->when($jenis, function ($q) use ($jenis) {
+                $q->where('jenis', $jenis);
+            })
+            ->orderBy('nama_barang')
+            ->get()
+            ->map(function ($stok) {
+                $stok->saldo =
+                    ($stok->stok_awal ?? 0) +
+                    ($stok->total_in ?? 0) -
+                    ($stok->total_out ?? 0);
 
-    return view('pages.laporan.index', compact('stoks'));
-}
-    public function warehouseHistory(Request $request)
-{
-    $query = TransaksiStok::with(['stok', 'spk']);
+                return $stok;
+            });
 
-    if ($request->filled('search')) {
-        $search = $request->search;
-
-        $query->where(function ($q) use ($search) {
-
-            $q->where('po', 'like', "%{$search}%")
-              ->orWhere('keterangan', 'like', "%{$search}%")
-              ->orWhere('tipe', 'like', "%{$search}%")
-
-              ->orWhereHas('stok', function ($qq) use ($search) {
-                    $qq->where('nama_barang', 'like', "%{$search}%")
-                       ->orWhere('kode_barang', 'like', "%{$search}%");
-
-
-
-              });
-        });
+        return view('pages.laporan.index', compact('stoks'));
     }
 
-    $histories = $query
-        ->latest('tanggal')
-        ->paginate(25)
-        ->withQueryString();
+    public function warehouseHistory(Request $request)
+    {
+        $query = TransaksiStok::with(['stok', 'spk']);
 
-    if ($request->ajax()) {
+        if ($request->filled('search')) {
+            $search = $request->search;
+
+            $query->where(function ($q) use ($search) {
+
+                $q->where('po', 'like', "%{$search}%")
+                    ->orWhere('keterangan', 'like', "%{$search}%")
+                    ->orWhere('tipe', 'like', "%{$search}%")
+                    ->orWhereHas('stok', function ($qq) use ($search) {
+                        $qq->where('nama_barang', 'like', "%{$search}%")
+                            ->orWhere('kode_barang', 'like', "%{$search}%");
+
+                    });
+            });
+        }
+
+        $histories = $query
+            ->latest('tanggal')
+            ->paginate(25)
+            ->withQueryString();
+
+        if ($request->ajax()) {
             // dd($histories);
 
-        return view('pages.laporan.partials.history_table', compact('histories'))->render();
+            return view('pages.laporan.partials.history_table', compact('histories'))->render();
+        }
+
+        return view('pages.laporan.history', compact('histories'));
     }
 
-    return view('pages.laporan.history', compact('histories'));
-}
-   public function update(Request $request)
-{
-    $data = [
+    public function update(Request $request)
+    {
+        $data = [
 
-        'kode_barang' => $request->kode_barang,
+            'kode_barang' => $request->kode_barang,
 
-        'nama_barang' => $request->nama_barang,
+            'nama_barang' => $request->nama_barang,
 
-        'jenis'       => $request->jenis,
+            'jenis' => $request->jenis,
 
-        'satuan'      => $request->satuan,
+            'satuan' => $request->satuan,
 
-        'harga'       => str_replace('.', '', $request->harga),
+            'harga' => str_replace('.', '', $request->harga),
 
-        'stok_awal'   => $request->stok_awal,
+            'stok_awal' => $request->stok_awal,
 
-    ];
+        ];
 
-    if ($request->id) {
+        if ($request->id) {
 
-        $stok = Stok::findOrFail($request->id);
+            $stok = Stok::findOrFail($request->id);
 
-        $stok->update($data);
+            $stok->update($data);
 
-    } else {
+        } else {
 
-        $stok = Stok::create($data);
+            $stok = Stok::create($data);
 
+        }
+
+        return response()->json([
+
+            'success' => true,
+
+            'message' => 'Data berhasil disimpan.',
+
+            'id' => $stok->id,
+
+        ]);
     }
 
-    return response()->json([
+    public function destroy($id)
+    {
+        $stok = Stok::findOrFail($id);
 
-        'success' => true,
+        $stok->delete();
 
-        'message' => 'Data berhasil disimpan.',
+        return response()->json([
+            'success' => true,
+            'message' => 'Data berhasil dihapus',
+        ]);
+    }
 
-        'id' => $stok->id,
-
-    ]);
-}
-public function destroy($id)
-{
-    $stok = Stok::findOrFail($id);
-
-    $stok->delete();
-
-    return response()->json([
-        'success' => true,
-        'message' => 'Data berhasil dihapus'
-    ]);
-}
     public function detail($id)
     {
         $stok = Stok::findOrFail($id);
@@ -125,110 +136,109 @@ public function destroy($id)
         $transaksi = TransaksiStok::where('stok_id', $id)
             ->orderBy('tanggal')
             ->get();
-// dd($transaksi);
+
+        // dd($transaksi);
         return response()->json([
-            'stok'      => $stok,
+            'stok' => $stok,
             'transaksi' => $transaksi,
         ]);
     }
-  public function detailBarang(
-    Request $request,
-    $id
-)
-{
-    $stok = Stok::findOrFail($id);
 
-    $transaksi = TransaksiStok::where(
+    public function detailBarang(
+        Request $request,
+        $id
+    ) {
+        $stok = Stok::findOrFail($id);
+
+        $transaksi = TransaksiStok::where(
             'stok_id',
             $id
         )
 
-        ->when(
-            $request->tanggal_awal,
-            fn($q)=>
-                $q->whereDate(
+            ->when(
+                $request->tanggal_awal,
+                fn ($q) => $q->whereDate(
                     'tanggal',
                     '>=',
                     $request->tanggal_awal
                 )
-        )
+            )
 
-        ->when(
-            $request->tanggal_akhir,
-            fn($q)=>
-                $q->whereDate(
+            ->when(
+                $request->tanggal_akhir,
+                fn ($q) => $q->whereDate(
                     'tanggal',
                     '<=',
                     $request->tanggal_akhir
                 )
-        )
+            )
 
-        ->orderBy('tanggal','desc')
+            ->orderBy('tanggal', 'desc')
 
-        ->get();
+            ->get();
 
-    return view(
-        'pages.laporan.detail',
-        compact(
-            'stok',
-            'transaksi'
-        )
-    );
-}
-public function pdf(Request $request, $id)
-{
-    $stok = Stok::findOrFail($id);
+        return view(
+            'pages.laporan.detail',
+            compact(
+                'stok',
+                'transaksi'
+            )
+        );
+    }
 
-    $transaksi = TransaksiStok::where(
+    public function pdf(Request $request, $id)
+    {
+        $stok = Stok::findOrFail($id);
+
+        $transaksi = TransaksiStok::where(
             'stok_id',
             $id
         )
 
-        ->when(
-            $request->tanggal_awal,
-            fn($q)=>
-                $q->whereDate(
+            ->when(
+                $request->tanggal_awal,
+                fn ($q) => $q->whereDate(
                     'tanggal',
                     '>=',
                     $request->tanggal_awal
                 )
-        )
+            )
 
-        ->when(
-            $request->tanggal_akhir,
-            fn($q)=>
-                $q->whereDate(
+            ->when(
+                $request->tanggal_akhir,
+                fn ($q) => $q->whereDate(
                     'tanggal',
                     '<=',
                     $request->tanggal_akhir
                 )
-        )
+            )
 
-        ->orderBy('tanggal')
-        ->get();
+            ->orderBy('tanggal')
+            ->get();
 
-    $totalIn = $transaksi
-        ->where('tipe','in')
-        ->sum('qty');
+        $totalIn = $transaksi
+            ->where('tipe', 'in')
+            ->sum('qty');
 
-    $totalOut = $transaksi
-        ->where('tipe','out')
-        ->sum('qty');
+        $totalOut = $transaksi
+            ->where('tipe', 'out')
+            ->sum('qty');
 
-    $pdf = Pdf::loadView(
-        'pages.laporan.pdf',
-        compact(
-            'stok',
-            'transaksi',
-            'totalIn',
-            'totalOut'
-        )
-    );
+        $pdf = Pdf::loadView(
+            'pages.laporan.pdf',
+            compact(
+                'stok',
+                'transaksi',
+                'totalIn',
+                'totalOut'
+            )
+        );
 
-    return $pdf->stream(
-        'laporan-stok-'.$stok->kode_barang.'.pdf'
-    );
-}
+        return $pdf->stream(
+            'laporan-stok-'.$stok->kode_barang.'.pdf'
+        );
+    }
+
     public function storeTransaksi(Request $request)
     {
         $request->validate([
@@ -239,12 +249,12 @@ public function pdf(Request $request, $id)
         if ($request->in > 0) {
 
             TransaksiStok::create([
-                'stok_id'    => $request->stok_id,
-                'tanggal'    => $request->tanggal,
-                'tipe'       => 'in',
-                'qty'        => $request->in,
-                'po'         => $request->po,
-                'spk_id'     => $request->spk_id,
+                'stok_id' => $request->stok_id,
+                'tanggal' => $request->tanggal,
+                'tipe' => 'in',
+                'qty' => $request->in,
+                'po' => $request->po,
+                'spk_id' => $request->spk_id,
 
                 'keterangan' => $request->keterangan,
             ]);
@@ -253,25 +263,27 @@ public function pdf(Request $request, $id)
         if ($request->out > 0) {
 
             TransaksiStok::create([
-                'stok_id'    => $request->stok_id,
-                'tanggal'    => $request->tanggal,
-                'tipe'       => 'out',
-                'qty'        => $request->out,
-                'po'         => $request->po,
-                'spk_id'     => $request->spk_id,
+                'stok_id' => $request->stok_id,
+                'tanggal' => $request->tanggal,
+                'tipe' => 'out',
+                'qty' => $request->out,
+                'po' => $request->po,
+                'spk_id' => $request->spk_id,
                 'keterangan' => $request->keterangan,
             ]);
         }
-// dd($request->out);
+
+        // dd($request->out);
         return response()->json([
             'success' => true,
         ]);
     }
+
     public function searchSpk(Request $request)
     {
         $keyword = $request->q;
         // dd($request->all());
-        $spks = Spk::where('data', 'like', '%' . $keyword . '%')
+        $spks = Spk::where('data', 'like', '%'.$keyword.'%')
             ->latest()
             ->take(10)
             ->get();
@@ -280,42 +292,44 @@ public function pdf(Request $request, $id)
 
         foreach ($spks as $spk) {
 
-            $data = $spk->data;;
+            $data = $spk->data;
 
             $result[] = [
-                'id'       => $spk->id,
-                'no_spk'   => $data['no_spk'] ?? '',
+                'id' => $spk->id,
+                'no_spk' => $data['no_spk'] ?? '',
                 'supplier' => $data['sup'] ?? '',
-                'items'    => $data['items'] ?? [],
+                'items' => $data['items'] ?? [],
             ];
         }
 
         return response()->json($result);
     }
+
     public function searchBarang(Request $request)
     {
         $q = $request->q;
 
-        $barang = Stok::where('nama_barang', 'like', $q . '%')
+        $barang = Stok::where('nama_barang', 'like', $q.'%')
             ->orderBy('nama_barang')
             ->first();
 
         return response()->json($barang);
     }
-    public function updatePo(Request $request,$id)
+
+    public function updatePo(Request $request, $id)
     {
         $request->validate([
-            'po'=>'nullable|string|max:100'
+            'po' => 'nullable|string|max:100',
         ]);
 
         $history = TransaksiStok::findOrFail($id);
 
         $history->update([
-            'po'=>$request->po
+            'po' => $request->po,
         ]);
 
-       return response()->json([
-    'status' => 'success'
-]);
+        return response()->json([
+            'status' => 'success',
+        ]);
     }
 }

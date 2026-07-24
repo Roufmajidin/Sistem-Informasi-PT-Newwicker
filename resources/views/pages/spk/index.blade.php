@@ -202,6 +202,8 @@ $status = $spk['status'] ?? 'draft';
                 <td class="hallo"></td>
                 <td class="hallo"></td>
                 <td class="hallo"></td>
+                    <td class="hallo"></td>
+
                 @foreach ($spk['custom_headers'] ?? [] as $header)
                 <td class="editable custom-column" contenteditable data-custom="{{ $header['key'] }}">
                     {{ $extra[$header['key']] ?? '' }}
@@ -231,9 +233,9 @@ $status = $spk['status'] ?? 'draft';
                 <td class="total">
                     {{ number_format($extra['total'] ?? 0) }}
                 </td>
-                <td class="editable harga" contenteditable>
-                    {{ $extra['catatan'] ?? '' }}
-                </td>
+              <td class="editable note-box" contenteditable>
+    {{ $extra['catatan'] ?? '' }}
+</td>
                 <td class="text-center">
                     <button type="button" class="btn-delete-extra"
                         style="
@@ -782,81 +784,113 @@ document.getElementById('btnCleanUnchecked').addEventListener('click', function 
             .querySelector('.p-header')
             .before(th);
         // BODY
-        document.querySelectorAll('.spk-rowa')
-            .forEach(row => {
-                const td =
-                    document.createElement('td');
-                td.classList.add(
-                    'editable',
-                    'custom-column'
-                );
-                td.contentEditable = true;
-                td.dataset.custom =
-                    header.key;
-                row.querySelector('.p')
-                    .before(td);
-            });
+     // BODY
+document.querySelectorAll('.spk-rowa').forEach(parentRow => {
+
+    // Tambah kolom ke parent row
+    const td = document.createElement('td');
+
+    td.classList.add(
+        'editable',
+        'custom-column'
+    );
+
+    td.contentEditable = true;
+    td.dataset.custom = header.key;
+
+    parentRow.querySelector('.p').before(td);
+
+    // Tambah kolom ke semua extra row milik parent
+    let next = parentRow.nextElementSibling;
+
+    while (next && next.classList.contains('extra-row')) {
+
+        const extraTd = document.createElement('td');
+
+        extraTd.classList.add(
+            'editable',
+            'custom-column'
+        );
+
+        extraTd.contentEditable = true;
+        extraTd.dataset.custom = header.key;
+
+        next.querySelector('.p').before(extraTd);
+
+        next = next.nextElementSibling;
+    }
+
+});
     }
     /* =========================================
     ADD EXTRA ROW
     ========================================= */
     document.addEventListener('click', function(e) {
-        if (e.target.classList.contains('btn-add-extra')) {
-            const parentRow = e.target.closest('.spk-rowa');
-            const tr = document.createElement('tr');
-            tr.classList.add('extra-row');
-            let html = '';
-            // dynamic header
-            document.querySelectorAll('.spk-dynamic-header')
-                .forEach(th => {
-                    html += `
-                    <td class="editable custom-column"
-                        contenteditable
-                        data-custom="${th.dataset.custom}">
-                    </td>
-                `;
-                });
-            html += `
-    <td class="editable p" contenteditable></td>
-    <td class="editable l" contenteditable></td>
-    <td class="editable t" contenteditable></td>
-    <td class="editable material" contenteditable></td>
-    <td class="editable pcs" contenteditable>0</td>
-    <td class="editable set" contenteditable>0</td>
-    <td class="editable harga" contenteditable>0</td>
-    <td class="total">0</td>
-    <td class="editable catatan" contenteditable>''</td>
-    <!-- JANGAN ADA TD CATATAN -->
-    <td class="text-center">
-        <button type="button"
-            class="btn-delete-extra"
-            style="
-                border:none;
-                background:red;
-                color:white;
-                cursor:pointer;
-                padding:2px 6px;
-            ">
-            ❌
-        </button>
-    </td>
-`;
-            tr.innerHTML = html;
-            let lastRow = parentRow;
-            let next = parentRow.nextElementSibling;
-            while (
-                next &&
-                next.classList.contains('extra-row')
-            ) {
-                lastRow = next;
-                next = next.nextElementSibling;
-            }
-            lastRow.after(tr);
-            updateRowspan(parentRow);
-            document.querySelectorAll('.extra-row .hallo')
-                .forEach(td => td.remove());
-        }
+
+    if (!e.target.classList.contains('btn-add-extra')) return;
+
+    const parentRow = e.target.closest('.spk-rowa');
+    const tr = document.createElement('tr');
+    tr.classList.add('extra-row');
+
+    let html = `
+       <td class="hallo"></td>   <!-- checkbox -->
+<td class="hallo"></td>   <!-- kode -->
+<td class="hallo"></td>   <!-- gambar -->
+<td class="hallo"></td>   <!-- nama -->
+
+    `;
+
+    // Dynamic Header
+    document.querySelectorAll('.spk-dynamic-header').forEach(th => {
+        html += `
+            <td class="editable custom-column"
+                contenteditable
+                data-custom="${th.dataset.custom}">
+            </td>
+        `;
     });
+
+    html += `
+        <td class="editable p" contenteditable></td>
+        <td class="editable l" contenteditable></td>
+        <td class="editable t" contenteditable></td>
+        <td class="editable material" contenteditable></td>
+        <td class="editable pcs" contenteditable>0</td>
+        <td class="editable set" contenteditable>0</td>
+        <td class="editable harga" contenteditable>0</td>
+        <td class="total">0</td>
+
+        <td class="editable note-box" contenteditable></td>
+
+        <td class="text-center">
+            <button type="button"
+                class="btn-delete-extra"
+                style="
+                    border:none;
+                    background:red;
+                    color:white;
+                    cursor:pointer;
+                    padding:2px 6px;">
+                ❌
+            </button>
+        </td>
+    `;
+
+    tr.innerHTML = html;
+
+    let lastRow = parentRow;
+    let next = parentRow.nextElementSibling;
+
+    while (next && next.classList.contains('extra-row')) {
+        lastRow = next;
+        next = next.nextElementSibling;
+    }
+
+    lastRow.after(tr);
+    updateRowspan(parentRow);
+
+});
     /* =========================================
     DELETE EXTRA ROW
     ========================================= */
@@ -1478,7 +1512,7 @@ if (!validation.valid) {
 </script>
 <!-- add rows -->
 <script>
-    function addItemRow(item) {
+    function     <div class="image-box">addItemRow(item) {
         const tr =
             document.createElement('tr');
         tr.classList.add('spk-rowa');
@@ -1502,7 +1536,7 @@ if (!validation.valid) {
         `;
             });
         tr.innerHTML = `
-        <td class="text-center select-item-cell">
+        <td class="text-center select-item-cell checkbox-cell">
             <input type="checkbox" class="spk-item-check">
         </td>
         <td class="
@@ -1514,9 +1548,8 @@ if (!validation.valid) {
         contenteditable>
             ${item.kode ?? ''}
         </td>
-        <td >
-            <div class="image-box">
-            </div>
+      <td class="gambar-cell">
+    <div class="image-box gambar-cell">
             <input type="file"
                    accept="image/*"
                    multiple
@@ -1552,8 +1585,8 @@ if (!validation.valid) {
             contenteditable>
             0
         </td>
-        <td class="editable text-right harga"
-            contenteditable>
+        <td class="editable text-right harga harga-cell"
+    contenteditable>
             0
         </td>
         <td class="text-right total">
@@ -1565,11 +1598,8 @@ if (!validation.valid) {
             </div>
         </td>
         <td class="text-center action-cell">
-            <button type="button"
-                    class="btn-add-extra">
-                ➕
-            </button>
-        </td>
+        <button type="button"
+            class="btn-add-extra">
     `;
         document
             .getElementById('spkItemAnchor')
@@ -1594,10 +1624,13 @@ if (!validation.valid) {
                 next.nextElementSibling;
         }
         const rowspanCells = [
+
             '.kode-item',
             '.gambar-cell',
             '.nama',
+
             '.catatan-cell',
+            '.harga-cell',
             '.action-cell'
         ];
         rowspanCells.forEach(selector => {
@@ -2583,6 +2616,7 @@ document.getElementById('previewBtn').addEventListener('click', function () {
                 label: th.innerText.trim()
             });
         });
+
     /* ==========================
        ITEMS + EXTRA ROW
     ========================== */

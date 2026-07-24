@@ -168,6 +168,8 @@ class ProduksiMnController extends Controller
     }
 
     // monitoring
+      // pew
+    // monitoring
     public function index(Request $request)
     {
         /*
@@ -316,10 +318,12 @@ class ProduksiMnController extends Controller
     */
         $datas = [];
         foreach ($pos as $po) {
+
             $poId = $po->id;
             $datas[$poId] = [
                 'po_number' => $po->order_no,
                 'items' => [],
+
             ];
             /*
         |--------------------------------------------------------------------------
@@ -361,6 +365,9 @@ class ProduksiMnController extends Controller
                     'item_image' => $image,
                     'qty' => $qty,
                     'spks' => [],
+
+                    // Tambahan
+                    'detail_kategori' => [],
                 ];
                 /*
             |--------------------------------------------------------------------------
@@ -388,10 +395,21 @@ class ProduksiMnController extends Controller
             |--------------------------------------------------------------------------
             */
                 foreach ($inspects as $inspect) {
-                    $kategoriName = $this->getMonitoringCategory(
-                        optional($inspect->kategori)->kategori ?? ''
-                    );
+                    $spk = $allSpks[$inspect->spk_id] ?? null;
 
+                    if (!$spk) {
+                        continue;
+                    }
+
+                    $spkData = is_array($spk->data)
+                        ? $spk->data
+                        : json_decode($spk->data, true);
+
+                    $jenisAsli = strtoupper(trim(
+                        $spkData['kategori'] ?? ''
+                    ));
+
+                    $kategoriName = $this->getMonitoringCategory($jenisAsli);
                     $prefix = $categories[$kategoriName] ?? null;
                     if (! $prefix) {
                         continue;
@@ -400,6 +418,19 @@ class ProduksiMnController extends Controller
                     += $inspect->passed;
                     $itemData[$prefix.'_reject']
                     += $inspect->rejected;
+                    if (!isset($itemData['detail_kategori'][$kategoriName][$jenisAsli])) {
+
+                        $itemData['detail_kategori'][$kategoriName][$jenisAsli] = [
+                            'pass' => 0,
+                            'reject' => 0,
+                            'in' => 0,
+                            'out' => 0,
+                        ];
+                    }
+
+                    $itemData['detail_kategori'][$kategoriName][$jenisAsli]['pass'] += $inspect->passed;
+
+                    $itemData['detail_kategori'][$kategoriName][$jenisAsli]['reject'] += $inspect->rejected;
                 }
                 /*
             |--------------------------------------------------------------------------
@@ -448,6 +479,7 @@ class ProduksiMnController extends Controller
                             'kategori' => $this->getMonitoringCategory(
                                 $spkData['kategori'] ?? ''
                             ),
+                            'jenis_asli' => $spkData['kategori'] ?? '',
                             'no_spk' => $spkData['no_spk'] ?? '-',
                             'status' => $spk->status ?? '-',
                             'harga' => $spkItem['harga'] ?? 0,
@@ -496,7 +528,9 @@ class ProduksiMnController extends Controller
                     $kategoriInv = $this->getMonitoringCategory(
                         $spkInvData['kategori'] ?? ''
                     );
-
+                    $jenisAsli = strtoupper(trim(
+                        $spkInvData['kategori'] ?? ''
+                    ));
                     $prefix = $categories[$kategoriInv] ?? null;
                     if (! $prefix) {
                         continue;
@@ -516,13 +550,34 @@ class ProduksiMnController extends Controller
                 | UPDATE
                 |--------------------------------------------------------------------------
                 */
-                    if ($type == 'in') {
-                        $itemData[$prefix.'_in']
-                        += $qtyInventory;
-                    } else {
-                        $itemData[$prefix.'_out']
-                        += $qtyInventory;
-                    }
+                    // Pastikan array detail sudah ada
+                if (!isset($itemData['detail_kategori'][$kategoriInv][$jenisAsli])) {
+
+                    $itemData['detail_kategori'][$kategoriInv][$jenisAsli] = [
+                        'in' => 0,
+                        'out' => 0,
+                        'pass' => 0,
+                        'reject' => 0,
+                    ];
+                }
+
+                if ($type == 'in') {
+
+                    // Total kategori
+                    $itemData[$prefix.'_in'] += $qtyInventory;
+
+                    // Detail jenis
+                    $itemData['detail_kategori'][$kategoriInv][$jenisAsli]['in'] += $qtyInventory;
+
+                } else {
+
+                    // Total kategori
+                    $itemData[$prefix.'_out'] += $qtyInventory;
+
+                    // Detail jenis
+                    $itemData['detail_kategori'][$kategoriInv][$jenisAsli]['out'] += $qtyInventory;
+
+                }
                 }
                 /*
             |--------------------------------------------------------------------------

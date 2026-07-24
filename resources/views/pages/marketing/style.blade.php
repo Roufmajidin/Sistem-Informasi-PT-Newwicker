@@ -239,27 +239,54 @@
     z-index:100;
 
 }
-#po-table th:first-child,
-#po-table td:first-child{
+/* ===========================
+   FREEZE ORDER NO
+=========================== */
+
+#po-table th:nth-child(1),
+#po-table td:nth-child(1){
 
     position:sticky;
-
     left:0;
-
+    min-width:120px;
     background:#fff;
-
     z-index:50;
 
-    min-width:120px;
+}
+
+/* ===========================
+   FREEZE COMPANY NAME
+=========================== */
+
+#po-table th:nth-child(2),
+#po-table td:nth-child(2){
+
+    position:sticky;
+    left:120px;          /* = lebar kolom pertama */
+    min-width:180px;
+    background:#fff;
+    z-index:50;
 
 }
-#po-table thead th:first-child{
+
+/* ===========================
+   HEADER
+=========================== */
+
+#po-table thead th:nth-child(1),
+#po-table thead th:nth-child(2){
 
     background:#2d4583;
-
     color:#fff;
-
     z-index:101;
+
+}
+
+/* Bayangan setelah kolom kedua */
+#po-table td:nth-child(2),
+#po-table th:nth-child(2){
+
+    box-shadow:2px 0 6px rgba(0,0,0,.15);
 
 }
 .po-wrapper{
@@ -284,5 +311,18 @@
 .readonly-input:focus{
     outline:none;
     box-shadow:none;
+}
+.po-wrapper{
+    max-height: 65vh;      /* tinggi tabel maksimal */
+    overflow-y: auto;
+    overflow-x: auto;
+}
+
+/* Header tetap di atas */
+#po-table thead th{
+    position: sticky;
+    top: 0;
+    background: #fff;
+    z-index: 10;
 }
     </style>

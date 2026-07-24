@@ -1,53 +1,100 @@
+<div id="tableContainer" style="position:relative;">
 
-<div class="table-wrapper">
+    <div id="tableLoading" class="table-loading d-none">
+        <div class="spinner-border text-primary" role="status"></div>
+        <div class="mt-2">Loading data...</div>
+    </div>
+
+   <div class="table-wrapper">
+
+    <style>
+        .ellipsis-150 {
+            width: 150px;
+            max-width: 150px;
+        }
+
+        .ellipsis-100 {
+            width: 100px;
+            max-width: 100px;
+        }
+
+        .ellipsis-150 span,
+        .ellipsis-100 span {
+            display: block;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+    </style>
 
     <table class="table table-bordered">
 
         <thead>
-            <tr style="">
-                <th>#</th>
-                <th>Description</th>
-                <th>Kode Barang</th>
-                <th>jenis</th>
-                <th>Tanggal</th>
-                <th>Qty</th>
-                <th>In/Out</th>
-                <th>Satuan</th>
-                <th>SPK / INV</th>
-                <th>Po. Numb</th>
+            <tr>
+                <th width="40">#</th>
+                <th class="ellipsis-150">Description</th>
+                <th width="120">Kode Barang</th>
+                <th class="ellipsis-100">Jenis</th>
+                <th width="100">Tanggal</th>
+                <th width="80">Qty</th>
+                <th width="70">In/Out</th>
+                <th width="70">Satuan</th>
+                <th width="130">SPK / INV</th>
+                <th width="120">Po. Numb</th>
                 <th>Remark</th>
-                <th width="80">Aksi</th>
+                <th width="120">Created at</th>
             </tr>
         </thead>
 
         <tbody>
             @forelse($histories as $item)
                 <tr>
+
                     <td>{{ $histories->firstItem() + $loop->index }}</td>
 
-                    <td>{{ $item->stok->nama_barang ?? '-' }}</td>
+                    {{-- Description --}}
+                    <td class="ellipsis-150">
+                        <span
+                            title="{{ $item->stok->nama_barang ?? '-' }}">
+                            {{ $item->stok->nama_barang ?? '-' }}
+                        </span>
+                    </td>
 
+                    {{-- Kode Barang --}}
                     <td>{{ $item->stok->kode_barang ?? '-' }}</td>
-                    <td>{{ $item->stok->jenis ?? '-' }}</td>
 
+                    {{-- Jenis --}}
+                    <td class="ellipsis-100">
+                        <span
+                            title="{{ $item->stok->jenis ?? '-' }}">
+                            {{ $item->stok->jenis ?? '-' }}
+                        </span>
+                    </td>
+
+                    {{-- Tanggal --}}
                     <td>
                         {{ \Carbon\Carbon::parse($item->tanggal)->format('d/m/Y') }}
                     </td>
 
+                    {{-- Qty --}}
                     <td>
                         {{ rtrim(rtrim(number_format($item->qty, 2, '.', ''), '0'), '.') }}
                     </td>
 
+                    {{-- IN / OUT --}}
                     <td>
-                        @if($item->tipe == 'in')
+                        @if ($item->tipe == 'in')
                             <span class="badge bg-success">IN</span>
                         @else
                             <span class="badge bg-danger">OUT</span>
                         @endif
                     </td>
 
+                    {{-- Satuan --}}
                     <td>{{ $item->stok->satuan ?? '-' }}</td>
-                   @php
+
+                    {{-- SPK --}}
+                    @php
                         $a = App\Models\Spk::find($item->spk_id);
 
                         $spk = '-';
@@ -58,34 +105,46 @@
                     @endphp
 
                     <td>{{ $spk }}</td>
+
+                    {{-- PO --}}
                     <td class="js-inline-po"
-    data-id="{{ $item->id }}"
-    data-value="{{ $item->po }}">
+                        data-id="{{ $item->id }}"
+                        data-value="{{ $item->po }}">
 
                         @php
                             $po = $item->po ?? '-';
 
                             if (!empty($po) && substr_count($po, '/') >= 2) {
                                 $parts = explode('/', $po);
-                                if(count($parts)>=3){
+
+                                if (count($parts) >= 3) {
                                     $po = trim($parts[1]);
                                 }
                             }
                         @endphp
 
-                        {{ $po }}
+                        <span title="{{ $po }}">
+                            {{ $po }}
+                        </span>
 
                     </td>
 
-                    <td>{{ $item->keterangan ?? '-' }}</td>
-
+                    {{-- Remark --}}
                     <td>
-                        {{-- Tombol aksi --}}
+                        <span title="{{ $item->keterangan ?? '-' }}">
+                            {{ $item->keterangan ?? '-' }}
+                        </span>
                     </td>
+
+                    {{-- Created At --}}
+                    <td>
+                        {{ optional($item->created_at)->format('d/m/Y H:i') }}
+                    </td>
+
                 </tr>
             @empty
                 <tr>
-                    <td colspan="10" class="text-center">
+                    <td colspan="12" class="text-center">
                         Tidak ada data.
                     </td>
                 </tr>
@@ -96,6 +155,46 @@
 
 </div>
 
+</div>
+
 <div class="d-flex justify-content-start mt-3">
     {{ $histories->links() }}
 </div>
+
+
+
+<style>
+
+.table-loading{
+    position:absolute;
+    top:0;
+    left:0;
+    right:0;
+    bottom:0;
+    background:rgba(255,255,255,.85);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-direction:column;
+    backdrop-filter: blur(1px);
+    z-index:9999;
+}
+
+.spinner-border{
+    width:3rem;
+    height:3rem;
+}
+</style>
+<script>
+$(document).on('click','.pagination a',function(e){
+
+    $('#tableLoading').removeClass('d-none');
+
+    // nonaktifkan klik ganda
+    $('.pagination a').css({
+        'pointer-events':'none',
+        'opacity':0.6
+    });
+
+});
+</script>

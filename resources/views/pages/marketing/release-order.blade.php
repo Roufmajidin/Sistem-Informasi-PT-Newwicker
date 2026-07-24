@@ -7,7 +7,6 @@
     <div class="box">
         <div class="box-header">
             <h2>Release PFI</h2>
-            <small>___</small>
         </div>
         <input type="hidden" id="role" value="{{ auth()->user()->role }}">
         <input type="hidden" id="id" value="{{ auth()->user()->role }}">
@@ -47,18 +46,13 @@
                 </div>
 
             </div>
-            <div class="col-12 d-flex justify-content-end">
-                <a href="/semua-spk"
-                    class="btn btn-primary btn-sm">
-                    All SPK
-                </a>
-            </div>
+
             <div class="row" id="default-table">
                 <div class="col-sm-12">
                     <div class="box">
                       <div class="table-responsive po-wrapper">
 
-                              <table id="po-table"  class="table table-striped table-bordered">
+                              <table id="po-table"  class="table">
                                 <thead>
                                     <tr class="">
                                         <th>Order No</th>
