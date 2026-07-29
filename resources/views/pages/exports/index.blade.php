@@ -427,15 +427,17 @@
 
             <tr>
 <td style="display:none">
-        <input
-            type="hidden"
-            name="items[${index}][po_id]"
-            value="${item.po_id}">
+   <input
+    type="hidden"
+    class="item-po-id"
+    name="items[${index}][po_id]"
+    value="${item.po_id}"> value="${item.po_id}">
     </td>
-<td style="display:none">
-    <input type="hidden"
-        name="items[${index}][detail_po_id]"
-       value="${item.id}">
+<input
+    type="hidden"
+    class="item-detail-id"
+    name="items[${index}][detail_po_id]"
+    value="${item.id}">
                 <td>${index+1}</td>
 
                 <td>
@@ -670,10 +672,17 @@
 
             function parseCurrency(value) {
 
-                return parseFloat(
-                    value.replace(/[$,]/g, '')
-                ) || 0;
+                if (!value) return 0;
 
+                value = String(value);
+
+                // buang semua karakter selain angka, titik, koma, minus
+                value = value.replace(/[^\d.,-]/g, '');
+
+                // ubah format US
+                value = value.replace(/,/g, '');
+
+                return parseFloat(value) || 0;
             }
         </script>
         <script>
@@ -753,46 +762,57 @@
             //remove
             $(document).on('click', '.remove-item', function() {
 
-                $(this).closest('tr').remove();
-                reIndexRows();
+                let row = $(this).closest('tr');
+                let itemId = row.data('item-id');
 
-                $('#itemTableBody tr').each(function(i) {
+                Swal.fire({
+                    title: 'Hapus Item?',
+                    text: 'Apakah Anda yakin ingin menghapus item ini?',
+                    icon: 'warning',
+                    showCancelButton: true
+                }).then((result) => {
 
-                    $(this).find('td:first').text(i + 1);
+                    if (!result.isConfirmed) return;
+
+                    // Belum pernah disimpan
+                    if (!itemId) {
+                        row.remove();
+                        reIndexRows();
+                        calculateFooter();
+                        refreshSalesOrder();
+                        return;
+                    }
+
+                    // Sudah tersimpan di database
+                    $.ajax({
+                        url: '/export/item/' + itemId,
+                        type: 'DELETE',
+                        headers: {
+                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                        },
+                        success: function(res) {
+
+                            if (res.success) {
+                                row.remove();
+                                reIndexRows();
+                                calculateFooter();
+                                refreshSalesOrder();
+                            }
+                        }
+                    });
 
                 });
 
-                if ($('#itemTableBody tr').length == 0) {
-
-                    $('#itemTableBody').html(`
-            <tr>
-                <td colspan="16"
-                    class="text-center text-muted">
-                    Tidak ada item
-                </td>
-            </tr>
-        `);
-
-                }
-
-                calculateFooter();
-                refreshSalesOrder();
             });
             // save
             $('#btnSaveExport').click(function() {
-
                 let payload = buildPayload();
-
-                console.log(payload);
+                console.log(payload.shipment);
 
                 if (MODE === "create") {
-
                     saveIpl(payload);
-
                 } else {
-
                     updateIpl(payload);
-
                 }
 
             });
@@ -1242,7 +1262,7 @@
 
                 let html = `
 
-                    <tr>
+                  <tr data-id="${item.item_id ?? item.id}">
                     <td style="display:none">
                         <input
                             type="hidden"
@@ -1518,9 +1538,8 @@ Belum ada item
 
                 $('#fumigation').val(IPL.fumigation);
 
-                $('#etd').val(IPL.etd);
-
-                $('#eta').val(IPL.eta);
+                $('#etd').val(IPL.etd ? IPL.etd.substring(0, 10) : '');
+                $('#eta').val(IPL.eta ? IPL.eta.substring(0, 10) : '');
 
                 /*
                 |--------------------------------------------------------------------------
@@ -1533,7 +1552,7 @@ Belum ada item
                 IPL.items.forEach(function(item) {
 
                     appendItemRow({
-
+                        item_id: item.id,
                         id: item.detail_po_id,
 
                         po_id: item.po_id,
@@ -1577,23 +1596,25 @@ Belum ada item
                 refreshSalesOrder();
 
             }
-            function reIndexRows(){
 
-    $('#itemTableBody tr').each(function(i){
+            function reIndexRows() {
 
-        $(this).find('[name]').each(function(){
+                $('#itemTableBody tr').each(function(i) {
 
-            let name=$(this).attr('name');
+                    $(this).find('[name]').each(function() {
 
-            name=name.replace(/items\[\d+\]/,'items['+i+']');
+                        let name = $(this).attr('name');
 
-            $(this).attr('name',name);
+                        name = name.replace(/items\[\d+\]/, 'items[' + i + ']');
 
-        });
+                        $(this).attr('name', name);
 
-    });
+                    });
 
-}
+                });
+
+            }
+
             function getDimension(value, index) {
 
                 if (!value) {
@@ -1610,11 +1631,9 @@ Belum ada item
             // edit
 
 
-            function updateIpl() {
+            function updateIpl(payload) {
 
-                let payload = buildPayload();
-console.log(payload);
-console.table(payload.items);
+                console.log(payload);
 
                 $.ajax({
 
@@ -1627,23 +1646,11 @@ console.table(payload.items);
                     contentType: "application/json",
 
                     headers: {
-
                         'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-
                     },
 
                     success: function(res) {
-
-                        Swal.fire({
-
-                            icon: 'success',
-
-                            title: 'Success',
-
-                            text: res.message
-
-                        });
-
+                        console.log(res);
                     }
 
                 });
@@ -1654,7 +1661,8 @@ console.table(payload.items);
 
                 let payload = {
 
-                    po_id: $('#po_id').val(),
+                    // po_id: $('#po_id').val(),
+                    po_id: $('#po_id').val(), // atau '' juga tidak masalah
 
                     invoice_no: $('#invoice_no').val(),
 
@@ -1708,19 +1716,19 @@ console.table(payload.items);
 
                     payload.items.push({
 
-                        po_id: row.find('[name*="[po_id]"]').val(),
+                        po_id: row.find('input[name$="[po_id]"]').val(),
 
-                        detail_po_id: row.find('[name*="[detail_po_id]"]').val(),
+                        detail_po_id: row.find('input[name$="[detail_po_id]"]').val(),
 
-                        po_no: row.find('[name*="[po_no]"]').val(),
+                        po_no: row.find('input[name$="[po_no]"]').val(),
 
-                        hs_code: row.find('[name*="[hs_code]"]').val(),
+                        hs_code: row.find('input[name$="[hs_code]"]').val(),
 
-                        description: row.find('[name*="[description]"]').val(),
+                        description: row.find('textarea[name$="[description]"]').val(),
 
-                        article_nr: row.find('[name*="[article_nr]"]').val(),
+                        article_nr: row.find('input[name$="[article_nr]"]').val(),
 
-                        photo: row.find('[name*="[photo]"]').val(),
+                        photo: row.find('input[name$="[photo]"]').val(),
 
                         qty_pcs: row.find('.qty_pcs').val(),
 
@@ -1728,27 +1736,19 @@ console.table(payload.items);
 
                         box_dimension: row.find('.box_dimension').val(),
 
-                        cbm: parseFloat(
-                            (row.find('.cbm').val() || '0').replace(/,/g, '')
-                        ),
+                        cbm: parseFloat((row.find('.cbm').val() || '0').replace(/,/g, '')),
 
-                        total_cbm: parseFloat(
-                            (row.find('.total_cbm').val() || '0').replace(/,/g, '')
-                        ),
+                        total_cbm: parseFloat((row.find('.total_cbm').val() || '0').replace(/,/g, '')),
 
-                        unit_price: parseCurrency(
-                            row.find('.unit_price').val()
-                        ),
+                        unit_price: parseCurrency(row.find('.unit_price').val()),
 
-                        total_price: parseCurrency(
-                            row.find('.total_price').val()
-                        ),
+                        total_price: parseCurrency(row.find('.total_price').val()),
 
                         net_weight: row.find('.net_weight').val(),
 
                         gross_weight: row.find('.gross_weight').val(),
 
-                        remark: row.find('[name*="[remark]"]').val()
+                        remark: row.find('input[name$="[remark]"]').val()
 
                     });
 

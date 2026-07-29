@@ -45,6 +45,8 @@
 
                             <th>Created By</th>
 
+
+                            <th width="180">Action</th>
                             <th width="180">Action</th>
 
                         </tr>
@@ -131,6 +133,19 @@
                                     </button>
 
                                 </td>
+                                    <td>
+
+
+                                    <a href="{{ route('export.packing-list', $data->id) }}"
+   class="btn btn-sm btn-download">
+    <i class="fa fa-download download-icon"></i>
+    <span class="btn-text"></span>
+</a>
+
+
+
+                                </td>
+
 
                             </tr>
 
@@ -162,4 +177,33 @@
         </div>
 
     </div>
+    <script>
+        $(document).on('click', '.btn-download', function () {
+
+    let btn = $(this);
+
+    btn.addClass('disabled');
+    btn.css('pointer-events', 'none');
+
+    btn.find('.download-icon')
+        .removeClass('fa-download')
+        .addClass('fa-spinner fa-spin');
+
+    btn.find('.btn-text').text(' Preparing...');
+
+    setTimeout(function () {
+
+        btn.removeClass('disabled');
+        btn.css('pointer-events', '');
+
+        btn.find('.download-icon')
+            .removeClass('fa-spinner fa-spin')
+            .addClass('fa-download');
+
+        btn.find('.btn-text').text(' Download');
+
+    }, 5000);
+
+});
+    </script>
 @endsection

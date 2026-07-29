@@ -709,137 +709,137 @@ class QcController extends Controller
         ]);
     }
 
-public function getDataApi(string $kategoriName, string $detailPoId, string $poId)
-{
-    $kategori = Kategori::where('kategori', $kategoriName)
-        ->firstOrFail();
+// public function getDataApi(string $kategoriName, string $detailPoId, string $poId)
+// {
+//     $kategori = Kategori::where('kategori', $kategoriName)
+//         ->firstOrFail();
 
-    $detail_po = DetailPo::findOrFail($detailPoId);
+//     $detail_po = DetailPo::findOrFail($detailPoId);
 
-    $nwCode = $detail_po->detail['nw_code'] ?? null;
+//     $nwCode = $detail_po->detail['nw_code'] ?? null;
 
-    $cad = CadModel::where('article_code', $nwCode)
-        ->orderByDesc('version')
-        ->first();
+//     $cad = CadModel::where('article_code', $nwCode)
+//         ->orderByDesc('version')
+//         ->first();
 
-    $checkpoints = Checkpoint::where('kategori_id', $kategori->id)->get();
+//     $checkpoints = Checkpoint::where('kategori_id', $kategori->id)->get();
 
-    $checkpointIds = $checkpoints->pluck('id');
+//     $checkpointIds = $checkpoints->pluck('id');
 
-    $qcReports = QcReport::with([
-        'inspectSchedule:id,po_id,detail_po_id,spk_id,batch,jumlah_inspect,tanggal_inspect,user_id,passed,rejected',
-        'inspectSchedule.spk',
-        'photos:id,qc_report_id,keterangan,path',
-        'checkpoint:id,name',
-    ])
-        ->where('po_id', $poId)
-        ->where('detail_po_id', $detailPoId)
-        ->whereIn('check_point_id', $checkpointIds)
-        ->get();
+//     $qcReports = QcReport::with([
+//         'inspectSchedule:id,po_id,detail_po_id,spk_id,batch,jumlah_inspect,tanggal_inspect,user_id,passed,rejected',
+//         'inspectSchedule.spk',
+//         'photos:id,qc_report_id,keterangan,path',
+//         'checkpoint:id,name',
+//     ])
+//         ->where('po_id', $poId)
+//         ->where('detail_po_id', $detailPoId)
+//         ->whereIn('check_point_id', $checkpointIds)
+//         ->get();
 
-    $batches = [];
+//     $batches = [];
 
-    foreach ($qcReports as $report) {
+//     foreach ($qcReports as $report) {
 
-        $schedule = $report->inspectSchedule;
+//         $schedule = $report->inspectSchedule;
 
-        if (! $schedule) {
-            continue;
-        }
+//         if (! $schedule) {
+//             continue;
+//         }
 
-        $spk = $schedule->spk;
+//         $spk = $schedule->spk;
 
-        $kategoriSpk = data_get($spk->data, 'kategori', 'SPK');
-        $noSpk = data_get($spk->data, 'no_spk', '');
-        $supplier = data_get($spk->data, 'sup', '');
+//         $kategoriSpk = data_get($spk->data, 'kategori', 'SPK');
+//         $noSpk = data_get($spk->data, 'no_spk', '');
+//         $supplier = data_get($spk->data, 'sup', '');
 
-        // ==========================================================
-        // KEY = SPK + BATCH
-        // ==========================================================
-        $batchKey = $noSpk . ' | Batch ' . $schedule->batch;
+//         // ==========================================================
+//         // KEY = SPK + BATCH
+//         // ==========================================================
+//         $batchKey = $noSpk . ' | Batch ' . $schedule->batch;
 
-        if (! isset($batches[$batchKey])) {
+//         if (! isset($batches[$batchKey])) {
 
-            $temuan = ReportPhoto::where(
-                'inspect_schedule_id',
-                $schedule->id
-            )
-                ->whereNull('qc_report_id')
-                ->get()
-                ->map(function ($p) {
-                    return [
-                        'keterangan' => $p->keterangan,
-                        'path' => url('/storage/' . $p->path),
-                        'raw_path' => $p->path,
-                    ];
-                })
-                ->values();
+//             $temuan = ReportPhoto::where(
+//                 'inspect_schedule_id',
+//                 $schedule->id
+//             )
+//                 ->whereNull('qc_report_id')
+//                 ->get()
+//                 ->map(function ($p) {
+//                     return [
+//                         'keterangan' => $p->keterangan,
+//                         'path' => url('/storage/' . $p->path),
+//                         'raw_path' => $p->path,
+//                     ];
+//                 })
+//                 ->values();
 
-            $batches[$batchKey] = [
+//             $batches[$batchKey] = [
 
-                'batch_ke' => $schedule->batch,
+//                 'batch_ke' => $schedule->batch,
 
-                'batch_title' => $batchKey,
+//                 'batch_title' => $batchKey,
 
-                'batch_name' => $kategoriSpk,
+//                 'batch_name' => $kategoriSpk,
 
-                'items' => $detail_po->detail,
+//                 'items' => $detail_po->detail,
 
-                'tanggal' => $schedule->tanggal_inspect,
+//                 'tanggal' => $schedule->tanggal_inspect,
 
-                'jumlah_inspect' => $schedule->jumlah_inspect,
+//                 'jumlah_inspect' => $schedule->jumlah_inspect,
 
-                'jenis' => $kategori->kategori,
+//                 'jenis' => $kategori->kategori,
 
-                'passed' => $schedule->passed,
+//                 'passed' => $schedule->passed,
 
-                'rejected' => $schedule->rejected,
+//                 'rejected' => $schedule->rejected,
 
-                'no_spk' => $noSpk,
+//                 'no_spk' => $noSpk,
 
-                'supplier' => $supplier,
+//                 'supplier' => $supplier,
 
-                'kategori_spk' => $kategoriSpk,
+//                 'kategori_spk' => $kategoriSpk,
 
-                'qty_spk' => $spk->qty ?? 0,
+//                 'qty_spk' => $spk->qty ?? 0,
 
-                'inspector' => optional($schedule->user)->name
-                    ?? User::find($schedule->user_id)->name
-                    ?? 'N/A',
+//                 'inspector' => optional($schedule->user)->name
+//                     ?? User::find($schedule->user_id)->name
+//                     ?? 'N/A',
 
-                'master_sample' => $cad->master_sample ?? null,
+//                 'master_sample' => $cad->master_sample ?? null,
 
-                'temuan' => $temuan,
+//                 'temuan' => $temuan,
 
-                'checkpoints' => [],
-            ];
-        }
+//                 'checkpoints' => [],
+//             ];
+//         }
 
-        $batches[$batchKey]['checkpoints'][$report->checkpoint->name] = [
+//         $batches[$batchKey]['checkpoints'][$report->checkpoint->name] = [
 
-            'size' => $report->size,
+//             'size' => $report->size,
 
-            'remark' => $report->remark,
+//             'remark' => $report->remark,
 
-            'photos' => $report->photos
-                ->map(function ($p) {
-                    return [
-                        'keterangan' => $p->keterangan,
-                        'path' => url('/storage/' . $p->path),
-                        'raw_path' => $p->path,
-                    ];
-                })
-                ->values(),
-        ];
-    }
+//             'photos' => $report->photos
+//                 ->map(function ($p) {
+//                     return [
+//                         'keterangan' => $p->keterangan,
+//                         'path' => url('/storage/' . $p->path),
+//                         'raw_path' => $p->path,
+//                     ];
+//                 })
+//                 ->values(),
+//         ];
+//     }
 
-    return response()->json([
-        'kategori' => $kategori->kategori,
-        'po_id' => $poId,
-        'detail_po_id' => $detailPoId,
-        'batches' => $batches,
-    ]);
-}
+//     return response()->json([
+//         'kategori' => $kategori->kategori,
+//         'po_id' => $poId,
+//         'detail_po_id' => $detailPoId,
+//         'batches' => $batches,
+//     ]);
+// }
     public function getCheckpointData(string $kategoriName)
     {
         $kategori = Kategori::where('kategori', $kategoriName)->firstOrFail();

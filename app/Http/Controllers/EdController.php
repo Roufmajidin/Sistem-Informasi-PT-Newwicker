@@ -9,6 +9,12 @@ use App\Models\Po;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+
 class EdController extends Controller
 {
     //
@@ -60,12 +66,42 @@ class EdController extends Controller
                 'pack_w' => $detail['pack_w'] ?? '',
                 'pack_d' => $detail['pack_d'] ?? '',
                 'pack_h' => $detail['pack_h'] ?? '',
-                'value' => $detail['fob_jakarta_in_usd']
-                    ?? $detail['fob_jakarta_price_in_usd_pc']
-                    ?? 0,            ];
+                // 'value' => $detail['fob_jakarta_in_usd']
+                //     ?? $detail['fob_jakarta_price_in_usd_pc']
+                //     ?? 0,            ];
+                'value' => $this->getPrice($detail),
+            ];
         }
 
         return response()->json($items);
+    }
+
+    private function getPrice(array $detail)
+    {
+        // prioritas 1
+        if (! empty($detail['final_fob_price'])) {
+            return (float) $detail['final_fob_price'];
+        }
+
+        // prioritas 2
+        if (! empty($detail['fob_jakarta_in_usd'])) {
+            return (float) $detail['fob_jakarta_in_usd'];
+        }
+
+        // prioritas 3
+        if (! empty($detail['fob_jakarta_price_in_usd_pc'])) {
+            return (float) $detail['fob_jakarta_price_in_usd_pc'];
+        }
+
+        // prioritas 4
+        if (! empty($detail['value_in_usd']) && ! empty($detail['qty'])) {
+            return round(
+                $detail['value_in_usd'] / $detail['qty'],
+                2
+            );
+        }
+
+        return 0;
     }
 
     public function saveIpl(Request $request)
@@ -228,24 +264,25 @@ class EdController extends Controller
         );
     }
 
-        public function edit($id)
-        {
-            $ipl = ExportIpl::with([
+    public function edit($id)
+    {
+        $ipl = ExportIpl::with([
 
-                'pos',
+            'pos',
 
-                'items',
+            'items',
 
-            ])->findOrFail($id);
+        ])->findOrFail($id);
+        // dd($ipl->items->toArray());
 
-            return view('pages.exports.index', [
+        return view('pages.exports.index', [
 
-                'mode' => 'edit',
+            'mode' => 'edit',
 
-                'ipl' => $ipl,
+            'ipl' => $ipl,
 
-            ]);
-        }
+        ]);
+    }
 
     public function updateIpl(Request $request, $id)
     {
@@ -304,7 +341,7 @@ class EdController extends Controller
             | Delete Old
             |--------------------------------------------------------------------------
             */
-
+            // dd($request->items);
             $ipl->pos()->delete();
 
             $ipl->items()->delete();
@@ -325,7 +362,7 @@ class EdController extends Controller
 
                     $ipl->pos()->create([
 
-                        'po_id' => $item['po_id'],
+                        'po_id' => $item['po_id'] ?? null,
 
                         'po_no' => $item['po_no'],
 
@@ -341,44 +378,29 @@ class EdController extends Controller
 
             foreach ($request->items as $item) {
 
+                if (! isset($item['po_id'])) {
+                    continue;
+                }
+
                 $ipl->items()->create([
-
                     'po_id' => $item['po_id'],
-
-                    'detail_po_id' => $item['detail_po_id'],
-
-                    'po_no' => $item['po_no'],
-
-                    'hs_code' => $item['hs_code'],
-
-                    'article_nr' => $item['article_nr'],
-
-                    'description' => $item['description'],
-
-                    'photo' => $item['photo'],
-
-                    'box_dimension' => $item['box_dimension'],
-
-                    'qty_pcs' => $item['qty_pcs'],
-
-                    'qty_box' => $item['qty_box'],
-
-                    'cbm' => $item['cbm'],
-
-                    'total_cbm' => $item['total_cbm'],
-
-                    'unit_price' => $item['unit_price'],
-
-                    'total_price' => $item['total_price'],
-
-                    'net_weight' => $item['net_weight'],
-
-                    'gross_weight' => $item['gross_weight'],
-
-                    'remark' => $item['remark'],
-
+                    'detail_po_id' => $item['detail_po_id'] ?? null,
+                    'po_no' => $item['po_no'] ?? null,
+                    'hs_code' => $item['hs_code'] ?? null,
+                    'article_nr' => $item['article_nr'] ?? null,
+                    'description' => $item['description'] ?? null,
+                    'photo' => $item['photo'] ?? null,
+                    'box_dimension' => $item['box_dimension'] ?? null,
+                    'qty_pcs' => $item['qty_pcs'] ?? 0,
+                    'qty_box' => $item['qty_box'] ?? 0,
+                    'cbm' => $item['cbm'] ?? 0,
+                    'total_cbm' => $item['total_cbm'] ?? 0,
+                    'unit_price' => $item['unit_price'] ?? 0,
+                    'total_price' => $item['total_price'] ?? 0,
+                    'net_weight' => $item['net_weight'] ?? 0,
+                    'gross_weight' => $item['gross_weight'] ?? 0,
+                    'remark' => $item['remark'] ?? null,
                 ]);
-
             }
 
             DB::commit();
@@ -405,4 +427,31 @@ class EdController extends Controller
 
         }
     }
+
+    public function deleteItem($id)
+    {
+        try {
+
+            $item = ExportIplItem::findOrFail($id);
+
+            $item->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Item berhasil dihapus.',
+            ]);
+
+        } catch (\Throwable $e) {
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+
+        }
+    }
+
+    // EXPORT DOWNLOAD
+
+
 }

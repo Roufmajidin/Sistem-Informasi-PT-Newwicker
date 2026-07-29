@@ -28,6 +28,7 @@ use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\TokenController;
 use App\Http\Controllers\NewPengajuanController;
 use App\Http\Controllers\EdController;
+use App\Http\Controllers\SofianController;
 use Illuminate\Support\Facades\Route;
 Route::middleware('auth')->group(function () {
 
@@ -570,6 +571,7 @@ Route::get('/bom/finishing-partial', [BomController::class, 'finishingPartial'])
 Route::get('/bom/released-partial', [BomController::class, 'releasedPartial']);
 
 // exports
+Route::get('/export/{id}/IPLEX', [SofianController::class, 'downloadPackingList'])->name('export.packing-list');
 
 Route::get('/export/index', [EdController::class, 'index'])->name('export.index');
 Route::get('/export/search-po', [EdController::class, 'searchPo'])
@@ -581,7 +583,8 @@ Route::get('/export/{id}/edit', [EdController::class, 'edit'])
 Route::get('/export/po-items/{id}', [EdController::class, 'poItems']);
 Route::post('/export/save-ipl', [EdController::class, 'saveIpl'])->name('export.saveIpl');
 Route::get('/export/ipl', [EdController::class, 'ipl'])->name('export.ipl');
-
+Route::delete('/export/item/{id}', [EdController::class, 'deleteItem'])
+->name('export.item.delete');
 Route::get('/produksi/in_out_barang_jadi', [ProduksiMnController::class, 'barangJadi']);
 
 // new routing
