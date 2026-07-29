@@ -6,12 +6,15 @@ use Illuminate\Database\Eloquent\Model;
 
 class BomGroupSubPrice extends Model
 {
-    protected $table = 'bom_group_sub_prices';
-
     protected $fillable = [
         'group_id',
         'name',
         'price',
+        'sort',
+    ];
+
+    protected $casts = [
+        'price' => 'decimal:2',
     ];
 
     public function group()

@@ -10,6 +10,7 @@ use App\Http\Controllers\PengajuanController;
 use App\Http\Controllers\QcController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\StockMaterialController;
+use App\Http\Controllers\ProduksiMnController;
 
 
 
@@ -86,3 +87,4 @@ Route::post(
     '/stocks/save-sheet',
     [StockMaterialController::class, 'saveSheet']
 );
+Route::get('/produksi/in_out_barang_jadi', [ProduksiMnController::class, 'barangJadi']);

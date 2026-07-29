@@ -104,7 +104,7 @@ class AbsenController extends Controller
         }
 
         $user  = $request->user();
-        $today = now()->toDateString();
+        $today = $this->getBusinessDate($user);
         $now   = now();
 
         // ==================== Lokasi kantor ====================
@@ -182,7 +182,27 @@ class AbsenController extends Controller
             'message' => 'Absen hari ini sudah lengkap',
         ], 200);
     }
+    // helperrs
+    private function getBusinessDate(User $user)
+{
+    $now = now();
 
+    // Cari lembur yang belum checkout
+    $openLembur = Lembur::where('user_id', $user->id)
+        ->whereNull('jam_keluar')
+        ->latest('tanggal')
+        ->first();
+
+    if ($openLembur) {
+
+        // Masih lembur sampai pagi
+        if ($now->hour < 7) {
+            return $openLembur->tanggal;
+        }
+    }
+
+    return $now->toDateString();
+}
      public function absenLembur(Request $request)
     {
         // ==================== Validasi Token ====================
@@ -193,7 +213,9 @@ class AbsenController extends Controller
         }
 
         $user  = $request->user();
-        $today = now()->toDateString();
+        // $today = now()->toDateString();
+               $today = $this->getBusinessDate($user);
+
         $now   = now();
 
         // ==================== Lokasi kantor ====================
@@ -211,15 +233,15 @@ class AbsenController extends Controller
         }
 
         // ==================== EXCEPTION USER 182 ====================
-        if ($user->id != 182) {
+        if ($user->id != 182 || $user->id != 136) {
 
             $jarak = $this->distance($userLat, $userLng, $officeLat, $officeLng);
 
-            if ($jarak > $radius) {
-                return response()->json([
-                    'message' => 'Anda di luar area kantor (' . round($jarak) . ' meter)',
-                ], 403);
-            }
+            // if ($jarak > $radius) {
+            //     return response()->json([
+            //         'message' => 'Anda di luar area kantor (' . round($jarak) . ' meter)',
+            //     ], 403);
+            // }
         }
 
         // ==================== Upload foto ====================
@@ -230,10 +252,54 @@ class AbsenController extends Controller
         }
 
         // ==================== Cek lembur hari ini ====================
-        $lembur = Lembur::where('user_id', $user->id)
-            ->where('tanggal', $today)
-            ->first();
+      $lembur = Lembur::where('user_id', $user->id)
+    ->whereNull('jam_keluar')
+    ->latest('tanggal')
+    ->first();
+        // ======================================================
+// LUPA CHECKOUT LEMBUR
+// Setelah jam 06.00 otomatis:
+// 1. Tutup lembur
+// 2. Buat absen masuk hari ini
+// ======================================================
+if (
+    $lembur &&
+    $lembur->jam_masuk &&
+    !$lembur->jam_keluar &&
+    $now->hour >= 6
+) {
 
+    // Tutup lembur
+    $lembur->update([
+        'jam_keluar'  => $now->format('H:i:s'),
+        'latitude_k'  => $userLat,
+        'longitude_k' => $userLng,
+        'foto_keluar' => $fotoPath,
+        'keterangan'  => 'Selesai Lembur (Otomatis)',
+    ]);
+
+    // Buat absen masuk hari ini jika belum ada
+    $absen = Absen::where('user_id', $user->id)
+        ->where('tanggal', now()->toDateString())
+        ->first();
+
+    if (! $absen) {
+
+        Absen::create([
+            'user_id'    => $user->id,
+            'tanggal'    => now()->toDateString(),
+            'jam_masuk'  => $now->format('H:i:s'),
+            'latitude'   => $userLat,
+            'longitude'  => $userLng,
+            'foto'       => $fotoPath,
+            'keterangan' => 'Hadir',
+        ]);
+    }
+
+    return response()->json([
+        'message' => 'Lembur otomatis ditutup dan absen masuk berhasil dicatat.',
+    ], 200);
+}
         // ==================== Masuk lembur ====================
         if (! $lembur) {
 

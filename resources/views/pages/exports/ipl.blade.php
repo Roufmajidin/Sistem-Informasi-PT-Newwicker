@@ -1,0 +1,165 @@
+@extends('master.master')
+
+@section('content')
+    <div class="card">
+
+        <div class="card-header d-flex justify-content-between">
+
+            <h4>Export IPL</h4>
+
+            <a href="{{ route('export.index') }}" class="btn btn-primary">
+
+                <i class="fas fa-plus"></i>
+
+                Create IPL
+
+            </a>
+
+        </div>
+
+        <div class="card-body p-0">
+
+            <div class="table-responsive">
+
+                <table class="table table-bordered table-hover">
+
+                    <thead class="thead-light">
+
+                        <tr>
+
+                            <th width="50">No</th>
+
+                            <th>Invoice No</th>
+
+                            <th>Sales Order</th>
+
+                            <th>Buyer</th>
+
+                            <th>PO</th>
+
+                            <th>Items</th>
+
+                            <th>Container</th>
+
+                            <th>ETD</th>
+
+                            <th>Created By</th>
+
+                            <th width="180">Action</th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        @forelse($datas as $data)
+                            <tr>
+
+                                <td>
+
+                                    {{ $datas->firstItem() + $loop->index }}
+
+                                </td>
+
+                                <td>
+
+                                    {{ $data->invoice_no }}
+
+                                </td>
+
+                                <td>
+
+                                    {{ $data->sales_order }}
+
+                                </td>
+
+                                <td>
+
+                                    {{ $data->buyer }}
+
+                                </td>
+
+                                <td class="text-center">
+
+                                    {{ $data->pos_count }}
+
+                                </td>
+
+                                <td class="text-center">
+
+                                    {{ $data->items_count }}
+
+                                </td>
+
+                                <td>
+
+                                    {{ $data->container_type }}
+
+                                </td>
+
+                                <td>
+
+                                    {{ optional($data->etd)->format('d M Y') }}
+
+                                </td>
+
+                                <td>
+
+                                    {{ optional($data->creator)->name }}
+
+                                </td>
+
+                                <td>
+
+                                    <a href="#" class="btn btn-sm btn-info">
+
+                                        <i class="fas fa-eye"></i>
+
+                                    </a>
+
+                                    <a href="/export/{{ $data->id}}/edit" class="btn btn-sm btn-warning">
+
+                                        <i class="fas fa-edit"></i>
+
+                                    </a>
+
+                                    <button class="btn btn-sm btn-danger">
+
+                                        <i class="fas fa-trash"></i>
+
+                                    </button>
+
+                                </td>
+
+                            </tr>
+
+                        @empty
+
+                            <tr>
+
+                                <td colspan="10" class="text-center">
+
+                                    Tidak ada data.
+
+                                </td>
+
+                            </tr>
+                        @endforelse
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+        <div class="card-footer">
+
+            {{ $datas->links() }}
+
+        </div>
+
+    </div>
+@endsection

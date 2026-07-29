@@ -172,7 +172,36 @@ class KaryawanController extends Controller
     $lemburs = $query
         ->orderBy('tanggal', 'desc')
         ->get();
+    $lemburs->each(function ($item) {
 
+    $item->warning = null;
+
+    if (!$item->jam_keluar) {
+        return;
+    }
+
+    $masuk = Carbon::createFromFormat(
+        'Y-m-d H:i:s',
+        $item->tanggal.' '.$item->jam_masuk
+    );
+
+    $keluar = Carbon::createFromFormat(
+        'Y-m-d H:i:s',
+        $item->tanggal.' '.$item->jam_keluar
+    );
+
+    // kalau checkout lewat tengah malam
+    if ($keluar->lt($masuk)) {
+        $keluar->addDay();
+    }
+
+    $menit = $masuk->diffInMinutes($keluar);
+
+    if ($menit <= 2) {
+        $item->warning =
+            '⚠ Indikasi double tap lembur. Mohon cek riwayat absen.';
+    }
+});
     return view(
         'pages.karyawan.lembur',
         compact(

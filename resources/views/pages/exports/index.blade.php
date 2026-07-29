@@ -8,28 +8,41 @@
 
         {{-- semua isi halaman --}}
         <div class="container-fluid py-4">
-
+            @if ($mode == 'create')
+                <h4>Create Export IPL</h4>
+            @else
+                <h4>Edit Export IPL</h4>
+            @endif
             {{-- Shipment Information --}}
 
             @include('pages.exports.partials.shipper')
 
             {{-- IPL TABLE --}}
 
-            <div class="card shadow-sm">
+            <div class="card shadow-sm ">
 
-                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center ">
 
                     <h5 class="mb-0">
                         Invoice Packing List (IPL)
                     </h5>
+                    <div class="d-flex gap-2">
 
-                    <button type="button" class="btn btn-success" id="btnSaveExport">
+                        <button type="button" class="btn btn-primary" id="btnAddPo">
 
-                        <i class="fa fa-save"></i>
-                        Save IPL
+                            <i class="fa fa-plus"></i>
+                            Add PO
 
-                    </button>
+                        </button>
 
+                        <button type="button" class="btn btn-success" id="btnSaveExport">
+
+                            <i class="fa fa-save"></i>
+                            Save IPL
+
+                        </button>
+
+                    </div>
                 </div>
 
                 <div class="table-responsive">
@@ -74,6 +87,8 @@
                                 <th>Gross Weight</th>
                                 <th>Total CBM</th>
                                 <th>Remarks</th>
+                                <th>PO No</th>
+
                                 <th>act</th>
 
                             </tr>
@@ -137,10 +152,185 @@
             </div>
 
         </div>
+        {{-- modals --}}
+        <!-- Modal Add PO -->
+        <div class="modal fade" id="modalAddPo" tabindex="-1" aria-hidden="true">
+
+            <div class="modal-dialog modal-xl modal-dialog-scrollable">
+
+                <div class="modal-content">
+
+                    <div class="modal-header bg-primary text-white">
+
+                        <h5 class="modal-title">
+
+                            <i class="fa fa-plus-circle me-2"></i>
+
+                            Combine Sales Order
+
+                        </h5>
+
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal">
+                        </button>
+
+                    </div>
+
+                    <div class="modal-body">
+
+                        <!-- Search -->
+                        <div class="row mb-3">
+
+                            <div class="col-md-6 position-relative">
+
+                                <label class="form-label fw-bold">
+                                    Search Sales Order
+                                </label>
+
+                                <input type="text" class="form-control" id="searchCombinePo"
+                                    placeholder="Contoh : 26-43">
+
+                                <!-- dropdown search -->
+                                <div id="combinePoResult" class="list-group position-absolute w-100 shadow"
+                                    style="z-index:1055; display:none;">
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        <hr>
+
+                        <table class="table table-bordered table-hover" id="combineItemTable">
+
+                            <thead>
+
+                                <tr>
+
+                                    <th width="40">
+                                        <input type="checkbox" id="checkAllCombine">
+                                    </th>
+
+                                    <th>Photo</th>
+
+                                    <th>Sales Order</th>
+
+                                    <th>Article</th>
+
+                                    <th>Description</th>
+
+                                    <th>Qty</th>
+
+                                    <th>FOB</th>
+
+                                </tr>
+
+                            </thead>
+
+                            <tbody>
+
+                                <tr id="emptyCombineItem">
+
+                                    <td colspan="7" class="text-center text-muted">
+
+                                        Belum ada item
+
+                                    </td>
+
+                                </tr>
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-warning" id="btnRefreshCombine">
+
+                            <i class="fas fa-sync-alt"></i>
+                            Refresh
+
+                        </button>
+
+                        <button class="btn btn-secondary" data-bs-dismiss="modal">
+
+                            Close
+
+                        </button>
+
+                        <button type="button" class="btn btn-success" id="btnAddCombine">
+
+                            <i class="fa fa-check"></i>
+
+                            Add To Table
+
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
     @endsection
 
     @push('scripts')
         <script>
+            // search modal
+            function searchCombinePo(keyword) {
+
+                if (keyword.length < 2) {
+
+                    $('#combinePoResult').hide();
+
+                    return;
+
+                }
+
+                $.ajax({
+
+                    url: '/export/search-po',
+
+                    type: 'GET',
+
+                    data: {
+                        keyword: keyword
+                    },
+
+                    success: function(data) {
+
+                        let html = '';
+
+                        data.forEach(function(item) {
+
+                            html += `
+                    <a href="#"
+                        class="list-group-item list-group-item-action combine-po-item"
+
+                        data-id="${item.id}"
+                        data-order="${item.order_no}"
+                        data-company="${item.company_name}"
+                        data-country="${item.country}"
+                        data-shipment="${item.shipment_date ?? ''}">
+
+                        <strong>${item.order_no}</strong><br>
+
+                        <small>${item.company_name}</small>
+
+                    </a>
+                `;
+
+                        });
+
+                        $('#combinePoResult').html(html).show();
+
+                    }
+
+                });
+
+            }
+
             function searchPo(keyword) {
 
                 if (keyword.length < 2) {
@@ -219,6 +409,7 @@
 
                 $('#buyer_name').val($(this).data('company'));
                 loadItems($(this).data('id'));
+
                 $('#poResult').hide();
 
             });
@@ -226,14 +417,25 @@
             function loadItems(poId) {
 
                 $.get('/export/po-items/' + poId, function(items) {
+                    console.log(items);
 
                     let html = '';
 
                     items.forEach(function(item, index) {
 
                         html += `
-            <tr>
 
+            <tr>
+<td style="display:none">
+        <input
+            type="hidden"
+            name="items[${index}][po_id]"
+            value="${item.po_id}">
+    </td>
+<td style="display:none">
+    <input type="hidden"
+        name="items[${index}][detail_po_id]"
+       value="${item.id}">
                 <td>${index+1}</td>
 
                 <td>
@@ -339,6 +541,14 @@
                         class="form-control form-control-sm"
                         name="items[${index}][remark]">
                 </td>
+                <td>
+                    <input
+                        type="text"
+                        class="form-control form-control-sm"
+                        name="items[${index}][po_no]"
+                        value="${item.order_no ?? ''}"
+                        readonly>
+                </td>
                 <td class="text-center">
 
                 <button
@@ -361,6 +571,7 @@
                     $('#itemTableBody tr').each(function() {
                         calculateRow($(this));
                         calculateFooter();
+                        refreshSalesOrder();
                     });
 
                 });
@@ -369,7 +580,18 @@
             // load po items details
             function calculateRow(row) {
 
-                let dimension = row.find('.box_dimension').val().trim();
+                let input = row.find('.box_dimension');
+
+                if (!input.length) {
+                    return;
+                }
+
+                let dimension = (input.val() || '').trim();
+
+                if (dimension === '') {
+                    return;
+                }
+
 
                 dimension = dimension
                     .replace(/×/g, 'x')
@@ -491,11 +713,11 @@
                     totalQtyBox += parseFloat(row.find('.qty_box').val()) || 0;
 
                     totalCbmBox += parseFloat(
-                        row.find('.cbm').val().replace(/,/g, '')
+                        (row.find('.cbm').val() || '0').replace(/,/g, '')
                     ) || 0;
 
                     totalCbm += parseFloat(
-                        row.find('.total_cbm').val().replace(/,/g, '')
+                        (row.find('.total_cbm').val() || '0').replace(/,/g, '')
                     ) || 0;
 
                     let qtyPcs = parseFloat(row.find('.qty_pcs').val()) || 0;
@@ -532,6 +754,7 @@
             $(document).on('click', '.remove-item', function() {
 
                 $(this).closest('tr').remove();
+                reIndexRows();
 
                 $('#itemTableBody tr').each(function(i) {
 
@@ -553,110 +776,993 @@
                 }
 
                 calculateFooter();
-
+                refreshSalesOrder();
             });
             // save
-            $('#btnSaveExport').click(function(){
+            $('#btnSaveExport').click(function() {
 
-    let payload={
+                let payload = buildPayload();
 
-        po_id:$('#po_id').val(),
+                console.log(payload);
 
-        invoice_no:$('#invoice_no').val(),
+                if (MODE === "create") {
 
-        sales_order:$('#sales_order').val(),
+                    saveIpl(payload);
 
-        buyer:$('#buyer_name').val(),
+                } else {
 
-        shipment:{
+                    updateIpl(payload);
 
-            invoice_no: $('[name="invoice_no"]').val(),
+                }
 
-            container_type: $('[name="container_type"]').val(),
+            });
+            // save ipl
+            function saveIpl(payload) {
 
-            container_no: $('[name="container_no"]').val(),
+                $.ajax({
 
-            seal_no: $('[name="seal_no"]').val(),
+                    url: "{{ route('export.saveIpl') }}",
 
-            vessel_name: $('[name="vessel_name"]').val(),
+                    type: "POST",
 
-            port_loading: $('[name="port_loading"]').val(),
+                    data: JSON.stringify(payload),
 
-            port_discharge: $('[name="port_discharge"]').val(),
+                    contentType: "application/json",
 
-            commodity: $('[name="commodity"]').val(),
+                    headers: {
 
-            fumigation: $('[name="fumigation"]').val(),
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
 
-            etd: $('[name="etd"]').val(),
+                    },
 
-            eta: $('[name="eta"]').val(),
+                    success: function(res) {
 
-            buyer_address: $('[name="buyer_address"]').val(),
+                        Swal.fire({
 
-            customer_code: $('[name="customer_code"]').val(),
+                            icon: 'success',
 
-            customer_po_no: $('[name="customer_po_no"]').val(),
+                            title: 'Success',
 
-        },
+                            text: res.message
 
-        items:[]
+                        }).then(() => {
 
-    };
+                            window.location.href = "{{ route('export.ipl') }}";
 
-    $('#itemTableBody tr').each(function(){
+                        });
 
-        let row=$(this);
+                    },
 
-        payload.items.push({
+                    error: function(xhr) {
 
-            detail_po_id:row.find('[name*="[detail_po_id]"]').val(),
+                        Swal.fire({
 
-            hs_code:row.find('[name*="[hs_code]"]').val(),
+                            icon: 'error',
 
-            description:row.find('[name*="[description]"]').val(),
+                            title: 'Error',
 
-            article_nr:row.find('[name*="[article_nr]"]').val(),
+                            text: xhr.responseJSON.message
 
-            photo:row.find('[name*="[photo]"]').val(),
+                        });
 
-            qty_pcs:row.find('.qty_pcs').val(),
+                    }
 
-            qty_box:row.find('.qty_box').val(),
+                });
 
-            box_dimension:row.find('.box_dimension').val(),
+            }
 
-           cbm: parseFloat(
-    (row.find('.cbm').val() || '0')
-        .replace(/,/g,'')
-),
 
-total_cbm: parseFloat(
-    (row.find('.total_cbm').val() || '0')
-        .replace(/,/g,'')
-),
 
-            unit_price:parseCurrency(
-                row.find('.unit_price').val()
-            ),
+            $(document).on('click', '.combine-po-item', function(e) {
 
-            total_price:parseCurrency(
-                row.find('.total_price').val()
-            ),
+                e.preventDefault();
 
-            net_weight:row.find('.net_weight').val(),
+                let po = {
 
-            gross_weight:row.find('.gross_weight').val(),
+                    id: $(this).data('id'),
+                    order_no: $(this).data('order')
 
-            remark:row.find('[name*="[remark]"]').val()
+                };
+
+                $.get('/export/po-items/' + po.id, function(items) {
+
+                    items.forEach(function(item) {
+
+                        appendCombineItem(item, po);
+
+                    });
+
+                });
+
+                $('#combinePoResult').hide();
+
+                $('#searchCombinePo').val('');
+
+            });
+
+            function searchCombinePo(keyword) {
+
+                if (keyword.length < 2) {
+
+                    $('#combinePoResult').hide();
+
+                    return;
+
+                }
+
+                $.get('/export/search-po', {
+                    keyword: keyword
+                }, function(data) {
+
+                    let html = '';
+
+                    data.forEach(function(po) {
+
+                        html += `
+                <a href="#"
+                    class="list-group-item list-group-item-action combine-po-item"
+
+                    data-id="${po.id}"
+                    data-order="${po.order_no}"
+                    data-company="${po.company_name}"
+                    data-country="${po.country}"
+                    data-shipment="${po.shipment_date ?? ''}">
+
+                    <strong>${po.order_no}</strong><br>
+                    <small>${po.company_name}</small>
+
+                </a>
+            `;
+
+                    });
+
+                    $('#combinePoResult')
+                        .html(html)
+                        .show();
+
+                });
+
+            }
+            $('#searchCombinePo').on('keyup', function() {
+
+                let value = $(this).val();
+
+                value = value.replace(/\D/g, '');
+
+                if (value.length >= 4) {
+
+                    value = value.substring(0, 2) + '-' + value.substring(2);
+
+                }
+
+                $(this).val(value);
+
+                searchCombinePo(value);
+
+            });
+            // add modals
+
+            $('#btnSearchCombine').click(function() {
+
+                let keyword = $('#searchCombinePo').val();
+
+                $.get('/export/search-po', {
+
+                    keyword: keyword
+
+                }, function(result) {
+
+                    let html = '';
+
+                    result.forEach(function(po) {
+
+                        html += `
+
+            <div class="card mb-2">
+
+                <div class="card-header d-flex justify-content-between">
+
+                    <strong>${po.order_no}</strong>
+
+                    <button
+                        class="btn btn-sm btn-primary load-detail"
+                        data-id="${po.id}">
+
+                        Show Items
+
+                    </button>
+
+                </div>
+
+                <div id="detail-${po.id}"></div>
+
+            </div>
+
+            `;
+
+                    });
+
+                    $('#combinePoResult').html(html);
+
+                });
+
+            });
+            $(document).on('click', '.load-detail', function() {
+
+                let poId = $(this).data('id');
+
+                $.get('/export/po-items/' + poId, function(items) {
+
+                    let html = '';
+
+                    html += `
+
+        <table class="table table-bordered table-sm">
+
+        <thead>
+
+        <tr>
+
+            <th width="40"></th>
+
+            <th>Photo</th>
+
+            <th>Article</th>
+
+            <th>Description</th>
+
+            <th>Qty</th>
+
+            <th>FOB</th>
+
+        </tr>
+
+        </thead>
+
+        <tbody>
+
+        `;
+
+                    items.forEach(function(item) {
+
+                        html += `
+
+            <tr>
+
+                <td>
+
+                    <input
+                        type="checkbox"
+                        class="combine-item"
+
+                        data-item='${JSON.stringify(item)}'>
+
+                </td>
+
+                <td>
+
+                    <img
+                        src="${item.photo}"
+                        width="50">
+
+                </td>
+
+                <td>${item.article_nr}</td>
+
+                <td>${item.description}</td>
+
+                <td>${item.qty}</td>
+
+                <td>${item.value}</td>
+
+            </tr>
+
+            `;
+
+                    });
+
+                    html += `
+
+        </tbody>
+
+        </table>
+
+        `;
+
+                    $('#detail-' + poId).html(html);
+
+                });
+
+            });
+            //
+            $('#searchCombinePo').on('keyup', function() {
+
+                let value = $(this).val();
+
+                value = value.replace(/\D/g, '');
+
+                if (value.length >= 4) {
+                    value = value.substring(0, 2) + '-' + value.substring(2);
+                }
+
+                $(this).val(value);
+
+                if (value.length < 2) {
+
+                    $('#combinePoList').hide();
+
+                    return;
+
+                }
+
+                $.get('/export/search-po', {
+
+                    keyword: value
+
+                }, function(data) {
+
+                    let html = '';
+
+                    data.forEach(function(po) {
+
+                        html += `
+
+            <a href="#"
+                class="list-group-item list-group-item-action combine-po-item"
+                data-id="${po.id}"
+                data-order="${po.order_no}"
+                data-company="${po.company_name}">
+
+                <strong>${po.order_no}</strong><br>
+
+                <small>${po.company_name}</small>
+
+            </a>
+
+            `;
+
+                    });
+
+                    $('#combinePoList').html(html).show();
+
+                });
+
+            });
+            // append to ipl table
+            function appendCombineItem(item, po) {
+
+                // jangan dobel
+                if ($('#combineItemTable tbody tr[data-detail="' + item.id + '"]').length) {
+                    return;
+                }
+
+                $('#emptyCombineItem').remove();
+
+                $('#combineItemTable tbody').append(`
+
+<tr data-detail="${item.id}">
+    <td><input
+    type="hidden"
+    class="combine-po-id"
+    value="${po.id}"></td>
+    <td class="text-center">
+        <input
+            type="checkbox"
+            class="combine-item"
+            checked>
+    </td>
+
+    <td>
+        <img src="${item.photo}" width="60">
+    </td>
+
+    <td>${po.order_no}</td>
+
+    <td>${item.article_nr}</td>
+
+    <td>${item.description}</td>
+
+    <td class="text-center">${item.qty}</td>
+
+    <td class="text-end">${formatCurrency(item.value)}</td>
+
+    <!-- hidden -->
+    <input type="hidden" class="combine-detail" value="${item.id}">
+    <input type="hidden" class="combine-photo" value="${item.photo}">
+    <input type="hidden" class="combine-article" value="${item.article_nr}">
+    <input type="hidden" class="combine-description" value="${item.description}">
+    <input type="hidden" class="combine-qty" value="${item.qty}">
+    <input type="hidden" class="combine-packw" value="${item.pack_w}">
+    <input type="hidden" class="combine-packd" value="${item.pack_d}">
+    <input type="hidden" class="combine-packh" value="${item.pack_h}">
+    <input type="hidden" class="combine-value" value="${item.value}">
+    <input type="hidden" class="combine-po-no" value="${po.order_no}">
+
+</tr>
+
+`);
+
+            }
+            const modalAddPo = new bootstrap.Modal(
+                document.getElementById('modalAddPo')
+            );
+
+            $('#btnAddPo').on('click', function() {
+
+                modalAddPo.show();
+
+            });
+            $('#btnAddCombine').click(function() {
+
+                $('#combineItemTable tbody tr').each(function() {
+
+                    if (!$(this).find('.combine-item').is(':checked'))
+                        return;
+
+                    let item = {
+
+                        id: $(this).find('.combine-detail').val(),
+                        po_id: $(this).find('.combine-po-id').val(),
+
+                        photo: $(this).find('.combine-photo').val(),
+
+                        article_nr: $(this).find('.combine-article').val(),
+
+                        description: $(this).find('.combine-description').val(),
+
+                        qty: $(this).find('.combine-qty').val(),
+
+                        pack_w: $(this).find('.combine-packw').val(),
+
+                        pack_d: $(this).find('.combine-packd').val(),
+
+                        pack_h: $(this).find('.combine-packh').val(),
+
+                        value: $(this).find('.combine-value').val(),
+                        order_no: $(this).find('.combine-po-no').val()
+
+                    };
+
+                    appendItemRow(item);
+
+
+                });
+
+                $('#modalAddPo').modal('hide');
+
+            });
+
+            function appendItemRow(item) {
+
+                // let index = $('#itemTableBody tr').length;
+                let index = $('#itemTableBody input[name$="[detail_po_id]"]').length;
+
+                // hapus row "Belum ada Sales Order dipilih"
+                $('#itemTableBody td[colspan]').closest('tr').remove();
+
+                let html = `
+
+                    <tr>
+                    <td style="display:none">
+                        <input
+                            type="hidden"
+                            name="items[${index}][po_id]"
+                            value="${item.po_id }">
+                    </td>
+                    <td style="display:none">
+                        <input type="hidden"
+                            name="items[${index}][detail_po_id]"
+                            value="${item.id}">
+                    </td>
+
+                    <td>${index+1}</td>
+
+                    <td>
+                        <input
+                            class="form-control form-control-sm" value="${item.hs_code ?? ''}"
+                            name="items[${index}][hs_code]">
+                    </td>
+
+                    <td>
+
+                    <img
+                    src="${item.photo}"
+                    width="60"
+                    class="img-thumbnail">
+
+                    <input
+                    type="hidden"
+                    name="items[${index}][photo]"
+                    value="${item.photo}">
+
+                    </td>
+
+                    <td>
+
+                    <textarea
+                    rows="2"
+                    class="form-control form-control-sm"
+                    name="items[${index}][description]">${item.description}</textarea>
+
+                    </td>
+
+                    <td>
+
+                    <input
+                    class="form-control form-control-sm"
+                    name="items[${index}][article_nr]"
+                    value="${item.article_nr}">
+
+                    </td>
+
+                    <td>
+
+                    <input
+                    type="text"
+                    class="form-control form-control-sm box_dimension"
+                    name="items[${index}][box_dimension]"
+                    value="${item.pack_w} x ${item.pack_d} x ${item.pack_h}">
+
+                    </td>
+
+                    <td>
+
+                    <input
+                    type="number"
+                    class="form-control form-control-sm qty_pcs"
+                    name="items[${index}][qty_pcs]"
+                    value="${item.qty}">
+
+                    </td>
+
+                    <td>
+
+                    <input
+                    type="number"
+                    class="form-control form-control-sm qty_box"
+                    name="items[${index}][qty_box]"
+                    value="${item.qty_box ?? 1}">
+
+                    </td>
+
+                    <td>
+
+                    <input
+                    readonly
+                    class="form-control form-control-sm cbm"
+                    name="items[${index}][cbm]">
+
+                    </td>
+
+                    <td>
+
+                    <input
+                    class="form-control form-control-sm unit_price"
+                    name="items[${index}][unit_price]"
+                    value="${formatCurrency(item.value)}">
+
+                    </td>
+
+                    <td>
+
+                    <input
+                    readonly
+                    class="form-control form-control-sm total_price"
+                    name="items[${index}][total_price]">
+
+                    </td>
+
+                    <td>
+
+                    <input
+                    type="number"
+                    step="0.01"
+                    class="form-control form-control-sm net_weight" value="${item.net_weight ?? ''}"
+                    name="items[${index}][net_weight]">
+
+                    </td>
+
+                    <td>
+
+                    <input
+                    type="number"
+                    step="0.01"
+                    class="form-control form-control-sm gross_weight" value="${item.gross_weight ?? ''}"
+                    name="items[${index}][gross_weight]">
+
+                    </td>
+
+                    <td>
+
+                    <input
+                    readonly
+                    class="form-control form-control-sm total_cbm"
+                    name="items[${index}][total_cbm]">
+
+                    </td>
+
+                    <td>
+
+                    <input
+                    class="form-control form-control-sm" value="${item.remark ?? ''}"
+                    name="items[${index}][remark]">
+
+                    </td>
+                    <td>
+
+                    <input
+                    type="text"
+                    class="form-control form-control-sm"
+                    name="items[${index}][po_no]"
+                    value="${item.order_no ?? ''}"
+                    readonly>
+
+                    </td>
+                    <td>
+
+                    <button
+                    type="button"
+                    class="btn btn-sm btn-danger remove-item">
+
+                    <i class="fas fa-times"></i>
+
+                    </button>
+
+                    </td>
+
+                    </tr>
+
+                    `;
+
+                $('#itemTableBody').append(html);
+
+                let row = $('#itemTableBody tr:last');
+
+                calculateRow(row);
+
+                calculateFooter();
+                refreshSalesOrder();
+
+            }
+            // refresh
+            $('#btnRefreshCombine').click(function() {
+
+                $('#combineItemTable tbody').html(`
+
+<tr id="emptyCombineItem">
+
+<td colspan="7"
+class="text-center text-muted">
+
+Belum ada item
+
+</td>
+
+</tr>
+
+`);
+
+                $('#searchCombinePo').val('');
+
+                $('#combinePoResult').hide();
+
+            });
+
+            function refreshSalesOrder() {
+
+                let poNos = [];
+
+                $('#itemTableBody').find('[name*="[po_no]"]').each(function() {
+
+                    let po = $(this).val().trim();
+
+                    if (po && !poNos.includes(po)) {
+                        poNos.push(po);
+                    }
+
+                });
+
+                let value = poNos.join(', ');
+
+                $('#sales_order').val(value);
+
+            }
+            // edit
+            $(function() {
+
+                if (MODE === "edit") {
+
+                    loadEditData();
+
+                }
+
+            });
+
+            function loadEditData() {
+
+                if (!IPL) {
+                    return;
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | Header
+                |--------------------------------------------------------------------------
+                */
+
+                $('#date').val(IPL.date);
+
+                $('#buyer_name').val(IPL.buyer);
+
+                $('#buyer_address').val(IPL.buyer_address);
+
+                $('#invoice_no').val(IPL.invoice_no);
+
+                $('#customer_code').val(IPL.customer_code);
+
+                $('#customer_po_no').val(IPL.customer_po_no);
+
+                $('#vessel_name').val(IPL.vessel_name);
+
+                $('#container_type').val(IPL.container_type);
+
+                $('#container_no').val(IPL.container_no);
+
+                $('#seal_no').val(IPL.seal_no);
+
+                $('#port_loading').val(IPL.port_loading);
+
+                $('#port_discharge').val(IPL.port_discharge);
+
+                $('#commodity').val(IPL.commodity);
+
+                $('#fumigation').val(IPL.fumigation);
+
+                $('#etd').val(IPL.etd);
+
+                $('#eta').val(IPL.eta);
+
+                /*
+                |--------------------------------------------------------------------------
+                | Items
+                |--------------------------------------------------------------------------
+                */
+
+                $('#itemTableBody').html('');
+
+                IPL.items.forEach(function(item) {
+
+                    appendItemRow({
+
+                        id: item.detail_po_id,
+
+                        po_id: item.po_id,
+
+                        order_no: item.po_no,
+
+                        article_nr: item.article_nr,
+
+                        description: item.description,
+
+                        photo: item.photo,
+
+                        qty: item.qty_pcs,
+
+                        pack_w: getDimension(item.box_dimension, 0),
+
+                        pack_d: getDimension(item.box_dimension, 1),
+
+                        pack_h: getDimension(item.box_dimension, 2),
+
+                        value: item.unit_price,
+
+                        cbm: item.cbm,
+
+                        total_cbm: item.total_cbm,
+
+                        remark: item.remark,
+
+                        hs_code: item.hs_code,
+
+                        net_weight: item.net_weight,
+
+                        gross_weight: item.gross_weight,
+
+                        qty_box: item.qty_box
+
+                    });
+
+                });
+
+                refreshSalesOrder();
+
+            }
+            function reIndexRows(){
+
+    $('#itemTableBody tr').each(function(i){
+
+        $(this).find('[name]').each(function(){
+
+            let name=$(this).attr('name');
+
+            name=name.replace(/items\[\d+\]/,'items['+i+']');
+
+            $(this).attr('name',name);
 
         });
 
     });
 
-    console.log(payload);
+}
+            function getDimension(value, index) {
 
-});
+                if (!value) {
+
+                    return '';
+
+                }
+
+                let arr = value.split(' x ');
+
+                return arr[index] ?? '';
+
+            }
+            // edit
+
+
+            function updateIpl() {
+
+                let payload = buildPayload();
+console.log(payload);
+console.table(payload.items);
+
+                $.ajax({
+
+                    url: "/export/" + IPL.id,
+
+                    type: "PUT",
+
+                    data: JSON.stringify(payload),
+
+                    contentType: "application/json",
+
+                    headers: {
+
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+
+                    },
+
+                    success: function(res) {
+
+                        Swal.fire({
+
+                            icon: 'success',
+
+                            title: 'Success',
+
+                            text: res.message
+
+                        });
+
+                    }
+
+                });
+
+            }
+
+            function buildPayload() {
+
+                let payload = {
+
+                    po_id: $('#po_id').val(),
+
+                    invoice_no: $('#invoice_no').val(),
+
+                    sales_order: $('#sales_order').val(),
+
+                    buyer: $('#buyer_name').val(),
+
+                    shipment: {
+
+                        invoice_no: $('[name="invoice_no"]').val(),
+
+                        container_type: $('[name="container_type"]').val(),
+
+                        container_no: $('[name="container_no"]').val(),
+
+                        seal_no: $('[name="seal_no"]').val(),
+
+                        vessel_name: $('[name="vessel_name"]').val(),
+
+                        port_loading: $('[name="port_loading"]').val(),
+
+                        port_discharge: $('[name="port_discharge"]').val(),
+
+                        commodity: $('[name="commodity"]').val(),
+
+                        fumigation: $('[name="fumigation"]').val(),
+
+                        etd: $('[name="etd"]').val(),
+
+                        eta: $('[name="eta"]').val(),
+
+                        buyer_address: $('[name="buyer_address"]').val(),
+
+                        customer_code: $('[name="customer_code"]').val(),
+
+                        customer_po_no: $('[name="customer_po_no"]').val(),
+
+                    },
+
+                    items: []
+
+                };
+
+                $('#itemTableBody tr').each(function() {
+
+                    let row = $(this);
+
+                    if (!row.find('.box_dimension').length) {
+                        return;
+                    }
+
+                    payload.items.push({
+
+                        po_id: row.find('[name*="[po_id]"]').val(),
+
+                        detail_po_id: row.find('[name*="[detail_po_id]"]').val(),
+
+                        po_no: row.find('[name*="[po_no]"]').val(),
+
+                        hs_code: row.find('[name*="[hs_code]"]').val(),
+
+                        description: row.find('[name*="[description]"]').val(),
+
+                        article_nr: row.find('[name*="[article_nr]"]').val(),
+
+                        photo: row.find('[name*="[photo]"]').val(),
+
+                        qty_pcs: row.find('.qty_pcs').val(),
+
+                        qty_box: row.find('.qty_box').val(),
+
+                        box_dimension: row.find('.box_dimension').val(),
+
+                        cbm: parseFloat(
+                            (row.find('.cbm').val() || '0').replace(/,/g, '')
+                        ),
+
+                        total_cbm: parseFloat(
+                            (row.find('.total_cbm').val() || '0').replace(/,/g, '')
+                        ),
+
+                        unit_price: parseCurrency(
+                            row.find('.unit_price').val()
+                        ),
+
+                        total_price: parseCurrency(
+                            row.find('.total_price').val()
+                        ),
+
+                        net_weight: row.find('.net_weight').val(),
+
+                        gross_weight: row.find('.gross_weight').val(),
+
+                        remark: row.find('[name*="[remark]"]').val()
+
+                    });
+
+                });
+
+                return payload;
+
+            }
         </script>
+        <script>
+            const MODE = "{{ $mode }}";
+
+            const IPL = @json($ipl);
+        </script>
+
     </div>
 @endpush

@@ -383,11 +383,12 @@ class QcController extends Controller
             ->first();
         $checkpoints = Checkpoint::where('kategori_id', $kategori->id)->get();
         $checkpointIds = $checkpoints->pluck('id');
-        $qcReports = QcReport::with([
-            'inspectSchedule:id,po_id,detail_po_id,batch,jumlah_inspect,tanggal_inspect,user_id,passed,rejected',
-            'photos:id,qc_report_id,keterangan,path',
-            'checkpoint:id,name',
-        ])
+       $qcReports = QcReport::with([
+                'inspectSchedule:id,po_id,detail_po_id,spk_id,batch,jumlah_inspect,tanggal_inspect,user_id,passed,rejected',
+                'inspectSchedule.spk',
+                'photos:id,qc_report_id,keterangan,path',
+                'checkpoint:id,name',
+            ])
             ->where('po_id', $poId)
             ->where('detail_po_id', $detailPoId)
             ->whereIn('check_point_id', $checkpointIds)
@@ -395,6 +396,7 @@ class QcController extends Controller
         $batches = [];
         foreach ($qcReports as $report) {
             $schedule = $report->inspectSchedule;
+            $spk = $schedule->spk;
             if (! $schedule) {
                 continue;
             }
@@ -431,6 +433,10 @@ class QcController extends Controller
                     'jenis' => $kategori->kategori,
                     'passed' => $schedule->passed,
                     'rejected' => $schedule->rejected,
+                    'no_spk' => $spk?->data['no_spk'] ?? '',
+                    'supplier' => $spk?->data['sup'] ?? '',
+                    'kategori_spk' => $spk?->data['kategori'] ?? '',
+                    'qty_spk' => $spk?->qty ?? 0,
                     'inspector' => User::find(
                         $schedule->user_id
                     )->name ?? 'N/A',
@@ -703,116 +709,137 @@ class QcController extends Controller
         ]);
     }
 
-    public function getData(string $kategoriName, string $detailPoId, string $poId)
-    {
-        /* ===============================
-       KATEGORI
-    =============================== */
-        $kategori = Kategori::where('kategori', $kategoriName)
-            ->firstOrFail();
-        /* ===============================
-       CHECKPOINT
-    =============================== */
-        $checkpoints = Checkpoint::where(
-            'kategori_id',
-            $kategori->id
-        )->get();
-        $checkpointIds = $checkpoints->pluck('id');
-        /* ===============================
-       QC REPORT
-    =============================== */
-        $qcReports = QcReport::with([
-            'inspectSchedule:id,po_id,detail_po_id,batch,jumlah_inspect,tanggal_inspect,user_id,passed,rejected',
-            'checkpoint:id,name',
-            'photos:id,qc_report_id,inspect_schedule_id,keterangan,path',
-        ])
-            ->where('po_id', $poId)
-            ->where('detail_po_id', $detailPoId)
-            ->where(function ($q) use ($checkpointIds) {
-                $q->whereIn('check_point_id', $checkpointIds)
-                // ✅ TEMUAN GLOBAL
-                    ->orWhereNull('check_point_id');
-            })
-            ->get();
-        /* ===============================
-       GROUP BATCH
-    =============================== */
-        $batches = [];
-        foreach ($qcReports as $report) {
-            $schedule = $report->inspectSchedule;
-            if (! $schedule) {
-                continue;
-            }
-            $batchKey = 'Batch '.$schedule->batch;
-            /* ===============================
-           INIT BATCH
-        =============================== */
-            if (! isset($batches[$batchKey])) {
-                $batches[$batchKey] = [
-                    'batch_ke' => $schedule->batch,
-                    'tanggal' => $schedule->tanggal_inspect,
-                    'jumlah_inspect' => $schedule->jumlah_inspect,
-                    'passed' => $schedule->passed ?? 0,
-                    'rejected' => $schedule->rejected ?? 0,
-                    'jenis' => $kategori->kategori,
-                    'inspector' => User::find(
-                        $schedule->user_id
-                    )->name ?? 'N/A',
-                    // ✅ TEMUAN GLOBAL
-                    'temuan' => [],
-                    // ✅ CHECKPOINTS
-                    'checkpoints' => [],
-                ];
-            }
-            /* ==================================================
-           TEMUAN GLOBAL
-           checkpoint_id NULL
-        ================================================== */
-            if ($report->check_point_id == null) {
-                foreach ($report->photos as $photo) {
-                    $batches[$batchKey]['temuan'][] = [
-                        'keterangan' => $photo->keterangan,
-                        'path' => url('/storage/'.$photo->path),
-                        'raw_path' => $photo->path,
-                    ];
-                }
+public function getDataApi(string $kategoriName, string $detailPoId, string $poId)
+{
+    $kategori = Kategori::where('kategori', $kategoriName)
+        ->firstOrFail();
 
-                continue;
-            }
-            /* ==================================================
-           CHECKPOINT
-        ================================================== */
-            $checkpointName = $report->checkpoint->name ?? 'Unknown';
-            if (! isset(
-                $batches[$batchKey]['checkpoints'][$checkpointName]
-            )) {
-                $batches[$batchKey]['checkpoints'][$checkpointName] = [
-                    'size' => $report->size,
-                    'remark' => $report->remark,
-                    // ✅ FOTO CHECKPOINT
-                    'photos' => [],
-                ];
-            }
-            /* ==================================================
-           FOTO CHECKPOINT
-        ================================================== */
-            foreach ($report->photos as $photo) {
-                $batches[$batchKey]['checkpoints'][$checkpointName]['photos'][] = [
-                    'keterangan' => $photo->keterangan,
-                    'path' => url('/storage/'.$photo->path),
-                    'raw_path' => $photo->path,
-                ];
-            }
+    $detail_po = DetailPo::findOrFail($detailPoId);
+
+    $nwCode = $detail_po->detail['nw_code'] ?? null;
+
+    $cad = CadModel::where('article_code', $nwCode)
+        ->orderByDesc('version')
+        ->first();
+
+    $checkpoints = Checkpoint::where('kategori_id', $kategori->id)->get();
+
+    $checkpointIds = $checkpoints->pluck('id');
+
+    $qcReports = QcReport::with([
+        'inspectSchedule:id,po_id,detail_po_id,spk_id,batch,jumlah_inspect,tanggal_inspect,user_id,passed,rejected',
+        'inspectSchedule.spk',
+        'photos:id,qc_report_id,keterangan,path',
+        'checkpoint:id,name',
+    ])
+        ->where('po_id', $poId)
+        ->where('detail_po_id', $detailPoId)
+        ->whereIn('check_point_id', $checkpointIds)
+        ->get();
+
+    $batches = [];
+
+    foreach ($qcReports as $report) {
+
+        $schedule = $report->inspectSchedule;
+
+        if (! $schedule) {
+            continue;
         }
 
-        return response()->json([
-            'kategori' => $kategori->kategori,
-            'po_id' => $poId,
-            'detail_po_id' => $detailPoId,
-            'batches' => $batches,
-        ]);
+        $spk = $schedule->spk;
+
+        $kategoriSpk = data_get($spk->data, 'kategori', 'SPK');
+        $noSpk = data_get($spk->data, 'no_spk', '');
+        $supplier = data_get($spk->data, 'sup', '');
+
+        // ==========================================================
+        // KEY = SPK + BATCH
+        // ==========================================================
+        $batchKey = $noSpk . ' | Batch ' . $schedule->batch;
+
+        if (! isset($batches[$batchKey])) {
+
+            $temuan = ReportPhoto::where(
+                'inspect_schedule_id',
+                $schedule->id
+            )
+                ->whereNull('qc_report_id')
+                ->get()
+                ->map(function ($p) {
+                    return [
+                        'keterangan' => $p->keterangan,
+                        'path' => url('/storage/' . $p->path),
+                        'raw_path' => $p->path,
+                    ];
+                })
+                ->values();
+
+            $batches[$batchKey] = [
+
+                'batch_ke' => $schedule->batch,
+
+                'batch_title' => $batchKey,
+
+                'batch_name' => $kategoriSpk,
+
+                'items' => $detail_po->detail,
+
+                'tanggal' => $schedule->tanggal_inspect,
+
+                'jumlah_inspect' => $schedule->jumlah_inspect,
+
+                'jenis' => $kategori->kategori,
+
+                'passed' => $schedule->passed,
+
+                'rejected' => $schedule->rejected,
+
+                'no_spk' => $noSpk,
+
+                'supplier' => $supplier,
+
+                'kategori_spk' => $kategoriSpk,
+
+                'qty_spk' => $spk->qty ?? 0,
+
+                'inspector' => optional($schedule->user)->name
+                    ?? User::find($schedule->user_id)->name
+                    ?? 'N/A',
+
+                'master_sample' => $cad->master_sample ?? null,
+
+                'temuan' => $temuan,
+
+                'checkpoints' => [],
+            ];
+        }
+
+        $batches[$batchKey]['checkpoints'][$report->checkpoint->name] = [
+
+            'size' => $report->size,
+
+            'remark' => $report->remark,
+
+            'photos' => $report->photos
+                ->map(function ($p) {
+                    return [
+                        'keterangan' => $p->keterangan,
+                        'path' => url('/storage/' . $p->path),
+                        'raw_path' => $p->path,
+                    ];
+                })
+                ->values(),
+        ];
     }
 
+    return response()->json([
+        'kategori' => $kategori->kategori,
+        'po_id' => $poId,
+        'detail_po_id' => $detailPoId,
+        'batches' => $batches,
+    ]);
+}
     public function getCheckpointData(string $kategoriName)
     {
         $kategori = Kategori::where('kategori', $kategoriName)->firstOrFail();
@@ -849,6 +876,9 @@ class QcController extends Controller
                 'LOWER(kategori) = ?',
                 [$kategoriName]
             )->first();
+            $kategoriTanpaSpk = ['unfinish', 'final', 'packaging'];
+
+            $useSpk = !in_array($kategoriName, $kategoriTanpaSpk);
             if (! $kategori) {
                 return response()->json([
                     'status' => 'error',
@@ -881,14 +911,14 @@ class QcController extends Controller
                 ->rejected;
             $isReinspect =
             $request->boolean('is_reinspect');
-            Log::info('================ QC INSERT =================');
+          Log::info('================ QC INSERT =================');
 
-            Log::info('QC REQUEST', [
-                'po' => $po_id,
-                'detail_po' => $detail_po_id,
-                'spk' => $spk_id,
-                'kategori' => $kategoriName,
-            ]);
+        Log::info('QC REQUEST',[
+            'po'=>$po_id,
+            'detail_po'=>$detail_po_id,
+            'spk'=>$spk_id,
+            'kategori'=>$kategoriName
+        ]);
             /*
         |--------------------------------------------------------------------------
         | VALIDASI
@@ -908,9 +938,19 @@ class QcController extends Controller
         | BATCH
         |--------------------------------------------------------------------------
         */
-            $batchKe = InspectSchedule::where('spk_id', $spk_id)
-                ->where('kategori_id', $kategori->id)
-                ->count() + 1;
+            if ($useSpk) {
+
+                    $batchKe = InspectSchedule::where('spk_id', $spk_id)
+                        ->where('kategori_id', $kategori->id)
+                        ->count() + 1;
+
+                } else {
+
+                    $batchKe = InspectSchedule::where('detail_po_id', $detail_po_id)
+                        ->where('kategori_id', $kategori->id)
+                        ->count() + 1;
+
+                }
 
             //
             /*
@@ -919,34 +959,28 @@ class QcController extends Controller
             |--------------------------------------------------------------------------
             */
 
-            $spk = Spk::findOrFail($spk_id);
+          if ($useSpk) {
 
-            $spkData = is_array($spk->data)
-                ? $spk->data
-                : json_decode($spk->data, true);
+                $batchKe = InspectSchedule::where('spk_id', $spk_id)
+                    ->where('kategori_id', $kategori->id)
+                    ->count() + 1;
 
-            $item = collect($spkData['items'])
-                ->firstWhere('detail_po_id', (int) $detail_po_id);
+            } else {
 
-            if (! $item) {
-                throw new \Exception(
-                    "Detail PO {$detail_po_id} tidak ditemukan pada SPK {$spk_id}"
-                );
+                $batchKe = InspectSchedule::where('detail_po_id', $detail_po_id)
+                    ->where('kategori_id', $kategori->id)
+                    ->count() + 1;
+
             }
-            Log::info('QC SPK', [
-                'spk' => $spk->id,
-                'qty_spk' => $qtyPo,
-                'material' => $item['material'] ?? '-',
-                'nama' => $item['nama'] ?? '-',
-            ]);
-            $qtyPo = (int) $item['qty'];
-            $totalInspect = InspectSchedule::where('spk_id', $spk_id)
+
+            $qtyPo = (int)$item['qty'];
+           $totalInspect = InspectSchedule::where('spk_id', $spk_id)
                 ->where('kategori_id', $kategori->id)
                 ->sum('jumlah_inspect');
             //
             $totalRejected = InspectSchedule::where('spk_id', $spk_id)
-                ->where('kategori_id', $kategori->id)
-                ->sum('rejected');
+            ->where('kategori_id', $kategori->id)
+            ->sum('rejected');
             if (! $isReinspect) {
 
                 // First Inspection
@@ -979,6 +1013,7 @@ class QcController extends Controller
                 }
 
             }
+
             $inspectSchedule =
             InspectSchedule::create([
                 'po_id' => $po_id,
@@ -1182,10 +1217,19 @@ class QcController extends Controller
 
         $user->load('karyawan.divisi');
 
+        // divisi dari request (khusus Sobana)
+        $requestDivisi = request('divisi');
+
+        // kalau tidak ada, pakai divisi user login
         $divisiQc = strtoupper(
-            $user->karyawan?->divisi?->nama ?? ''
+            $requestDivisi
+                ?: ($user->karyawan?->divisi?->nama ?? '')
         );
+      Log::info('dd', [
+                'schedule_id' => $divisiQc,
+            ]);
         /*
+
     |--------------------------------------------------------------------------
     | GET PO
     |--------------------------------------------------------------------------

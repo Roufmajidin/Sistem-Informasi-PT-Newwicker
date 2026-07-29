@@ -274,8 +274,7 @@ Route::post(
     [BomController::class, 'store']
 )->name('bom.store');
 
-Route::get('/bom/edit/{id}',[BomController::class, 'edit']
-)->name('bom.edit');
+Route::get('/bom/edit/{id}',[BomController::class, 'edit'])->name('bom.edit');
 
 Route::post(
     '/bom/update/{id}',
@@ -572,10 +571,17 @@ Route::get('/bom/released-partial', [BomController::class, 'releasedPartial']);
 
 // exports
 
-Route::get('/export/index', [EdController::class, 'index']);
+Route::get('/export/index', [EdController::class, 'index'])->name('export.index');
 Route::get('/export/search-po', [EdController::class, 'searchPo'])
     ->name('export.search-po');
+Route::put('/export/{id}', [EdController::class, 'updateIpl'])
+    ->name('export.updateIpl');
+Route::get('/export/{id}/edit', [EdController::class, 'edit'])
+    ->name('export.edit');
 Route::get('/export/po-items/{id}', [EdController::class, 'poItems']);
+Route::post('/export/save-ipl', [EdController::class, 'saveIpl'])->name('export.saveIpl');
+Route::get('/export/ipl', [EdController::class, 'ipl'])->name('export.ipl');
+
 Route::get('/produksi/in_out_barang_jadi', [ProduksiMnController::class, 'barangJadi']);
 
 // new routing

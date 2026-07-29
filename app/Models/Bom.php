@@ -14,28 +14,29 @@ class Bom extends Model
         'article_number',
         'order_no',
         'buyer',
-            'panjang',
-    'lebar',
-    'tinggi',
+        'panjang',
+        'lebar',
+        'tinggi',
 
-    'carton_panjang',
-    'carton_lebar',
-    'carton_tinggi',
+        'carton_panjang',
+        'carton_lebar',
+        'carton_tinggi',
 
-    'loadability_pcs',
-    'loadability_cbm',
+        'loadability_pcs',
+        'loadability_cbm',
 
-    'image',
-    'released',
-    'released_date'
+        'image',
+        'released',
+        'released_date',
     ];
 
     public function groups()
     {
         return $this->hasMany(BomGroup::class, 'bom_id');
     }
+
     public function summaries()
-{
-    return $this->hasMany(BomSummary::class);
-}
+    {
+        return $this->hasMany(BomSummary::class);
+    }
 }

@@ -8,7 +8,7 @@
 
     .inventor-table th{
         background:#111827;
-        color:white;
+        /* color:white; */
         font-size:13px;
         text-transform:uppercase;
         border:none !important;
@@ -146,7 +146,8 @@
                 min-width: 55px;
                 max-width: 55px;
 
-                background: #fff;
+                  background : white;
+
                 background-clip: padding-box;
 
                 z-index: 20;
@@ -178,38 +179,12 @@
             }
 
             /* BODY */
-            .inventor-table tbody td:nth-child(1) {
-                position: sticky;
-                left: 0;
-                background: #fff;
-                z-index: 20;
-            }
 
-            .inventor-table tbody td:nth-child(2) {
-                position: sticky;
-                left: 60px;
-                background: #fff;
-                z-index: 19;
-            }
+
+
 
             /* HEADER */
-            .inventor-table thead th:nth-child(1) {
-                position: sticky;
-                left: 0;
-                top: 0;
-                background: #1f3b7a;
-                color: #fff;
-                z-index: 120;
-            }
 
-            .inventor-table thead th:nth-child(2) {
-                position: sticky;
-                left: 60px;
-                top: 0;
-                background: #1f3b7a;
-                color: #fff;
-                z-index: 119;
-            }
 
             /* HEADER */
 

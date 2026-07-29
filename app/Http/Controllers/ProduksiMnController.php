@@ -168,7 +168,8 @@ class ProduksiMnController extends Controller
     }
 
     // monitoring
-      // pew
+    // monitoring
+    // pew
     // monitoring
     public function index(Request $request)
     {
@@ -318,12 +319,10 @@ class ProduksiMnController extends Controller
     */
         $datas = [];
         foreach ($pos as $po) {
-
             $poId = $po->id;
             $datas[$poId] = [
                 'po_number' => $po->order_no,
                 'items' => [],
-
             ];
             /*
         |--------------------------------------------------------------------------
@@ -395,30 +394,55 @@ class ProduksiMnController extends Controller
             |--------------------------------------------------------------------------
             */
                 foreach ($inspects as $inspect) {
-                    $spk = $allSpks[$inspect->spk_id] ?? null;
 
-                    if (!$spk) {
-                        continue;
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Ambil kategori
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if (! empty($inspect->spk_id)) {
+
+                        // Rangka / Anyam / dll yang memakai SPK
+                        $spk = $allSpks[$inspect->spk_id] ?? null;
+
+                        if (! $spk) {
+                            continue;
+                        }
+
+                        $spkData = is_array($spk->data)
+                            ? $spk->data
+                            : json_decode($spk->data, true);
+
+                        $jenisAsli = strtoupper(trim(
+                            $spkData['kategori'] ?? ''
+                        ));
+
+                        $kategoriName = $this->getMonitoringCategory($jenisAsli);
+
+                    } else {
+
+                        // Unfinish / Final / Packaging
+                        $jenisAsli = strtoupper(
+                            $inspect->kategori->kategori ?? ''
+                        );
+
+                        $kategoriName = strtolower(
+                            $inspect->kategori->kategori ?? ''
+                        );
+
                     }
 
-                    $spkData = is_array($spk->data)
-                        ? $spk->data
-                        : json_decode($spk->data, true);
-
-                    $jenisAsli = strtoupper(trim(
-                        $spkData['kategori'] ?? ''
-                    ));
-
-                    $kategoriName = $this->getMonitoringCategory($jenisAsli);
                     $prefix = $categories[$kategoriName] ?? null;
+
                     if (! $prefix) {
                         continue;
                     }
-                    $itemData[$prefix.'_pass']
-                    += $inspect->passed;
-                    $itemData[$prefix.'_reject']
-                    += $inspect->rejected;
-                    if (!isset($itemData['detail_kategori'][$kategoriName][$jenisAsli])) {
+
+                    $itemData[$prefix.'_pass'] += $inspect->passed;
+                    $itemData[$prefix.'_reject'] += $inspect->rejected;
+
+                    if (! isset($itemData['detail_kategori'][$kategoriName][$jenisAsli])) {
 
                         $itemData['detail_kategori'][$kategoriName][$jenisAsli] = [
                             'pass' => 0,
@@ -429,7 +453,6 @@ class ProduksiMnController extends Controller
                     }
 
                     $itemData['detail_kategori'][$kategoriName][$jenisAsli]['pass'] += $inspect->passed;
-
                     $itemData['detail_kategori'][$kategoriName][$jenisAsli]['reject'] += $inspect->rejected;
                 }
                 /*
@@ -551,33 +574,33 @@ class ProduksiMnController extends Controller
                 |--------------------------------------------------------------------------
                 */
                     // Pastikan array detail sudah ada
-                if (!isset($itemData['detail_kategori'][$kategoriInv][$jenisAsli])) {
+                    if (! isset($itemData['detail_kategori'][$kategoriInv][$jenisAsli])) {
 
-                    $itemData['detail_kategori'][$kategoriInv][$jenisAsli] = [
-                        'in' => 0,
-                        'out' => 0,
-                        'pass' => 0,
-                        'reject' => 0,
-                    ];
-                }
+                        $itemData['detail_kategori'][$kategoriInv][$jenisAsli] = [
+                            'in' => 0,
+                            'out' => 0,
+                            'pass' => 0,
+                            'reject' => 0,
+                        ];
+                    }
 
-                if ($type == 'in') {
+                    if ($type == 'in') {
 
-                    // Total kategori
-                    $itemData[$prefix.'_in'] += $qtyInventory;
+                        // Total kategori
+                        $itemData[$prefix.'_in'] += $qtyInventory;
 
-                    // Detail jenis
-                    $itemData['detail_kategori'][$kategoriInv][$jenisAsli]['in'] += $qtyInventory;
+                        // Detail jenis
+                        $itemData['detail_kategori'][$kategoriInv][$jenisAsli]['in'] += $qtyInventory;
 
-                } else {
+                    } else {
 
-                    // Total kategori
-                    $itemData[$prefix.'_out'] += $qtyInventory;
+                        // Total kategori
+                        $itemData[$prefix.'_out'] += $qtyInventory;
 
-                    // Detail jenis
-                    $itemData['detail_kategori'][$kategoriInv][$jenisAsli]['out'] += $qtyInventory;
+                        // Detail jenis
+                        $itemData['detail_kategori'][$kategoriInv][$jenisAsli]['out'] += $qtyInventory;
 
-                }
+                    }
                 }
                 /*
             |--------------------------------------------------------------------------
@@ -794,24 +817,14 @@ class ProduksiMnController extends Controller
                     return $total;
                 });
 
-                $saldo = $totalSpk;
+                $totalPayment = collect($data['payments'] ?? [])->sum(function ($pay) {
+                    return floatval($pay['amount'] ?? 0);
+                });
 
-                foreach ($data['payments'] ?? [] as $pay) {
+                $isFinished = $totalPayment >= $totalSpk;
 
-                    $nilai = floatval($pay['payment_request_amount'] ?? 0);
-
-                    if (($pay['note'] ?? '') === 'return_bahan') {
-                        $saldo += $nilai;
-                    } else {
-                        $saldo -= $nilai;
-                    }
-                }
-
-                $isFinished = $saldo <= 0;
                 return [
                     'is_finished' => $isFinished,
-                        'saldo' => $saldo,
-
                     'id' => $spk->id,
                     'no_spk' => $data['no_spk'] ?? '-',
                     'supplier' => $data['sup'] ?? '-',
@@ -1067,21 +1080,6 @@ class ProduksiMnController extends Controller
                 'processes'
             )
         );
-    }
-
-    public function barangJadi()
-    {
-        $timelines = ProductionTimeline::with([
-            'po',
-            'spk',
-            'detailPo',
-        ])
-        // ->where('next_process', 'barang_jadi') // opsional
-            ->orderBy('date', 'desc')
-            ->get();
-
-        // dd($timelines);
-        return view('pages.admin.laporan_admin', compact('timelines'));
     }
 
     public function inventorDetail($id)
@@ -1518,34 +1516,96 @@ class ProduksiMnController extends Controller
             'message' => 'Data berhasil dihapus',
         ]);
     }
+    //     private function parseDate($date)
+    // {
+    //     if (empty($date) || $date == '-') {
+    //         return null;
+    //     }
 
+    //     try {
+    //         return \Carbon\Carbon::parse($date);
+    //     } catch (\Exception $e) {
+
+    //         try {
+    //             return \Carbon\Carbon::createFromFormat(
+    //                 'd/m/Y',
+    //                 $date
+    //             );
+    //         } catch (\Exception $e) {
+
+    //             try {
+    //                 return \Carbon\Carbon::createFromFormat(
+    //                     'd-M-Y',
+    //                     $date
+    //                 );
+    //             } catch (\Exception $e) {
+
+    //                 return null;
+    //             }
+    //         }
+    //     }
+    // }
     private function parseDate($date)
     {
-        if (empty($date) || $date == '-') {
+        if (blank($date) || $date == '-') {
             return null;
+        }
+
+        $date = trim($date);
+
+        // Samakan nama bulan Indonesia → Inggris
+        $replace = [
+            'Januari' => 'January',
+            'Februari' => 'February',
+            'Maret' => 'March',
+            'Mei' => 'May',
+            'Juni' => 'June',
+            'Juli' => 'July',
+            'Agustus' => 'August',
+            'Oktober' => 'October',
+            'Desember' => 'December',
+        ];
+
+        $date = str_ireplace(array_keys($replace), array_values($replace), $date);
+
+        $formats = [
+            'd/m/Y',
+            'd-m-Y',
+            'd-n-Y',
+            'd-M-Y',
+            'd-F-Y',
+            'd M Y',
+            'Y-m-d',
+            'd/m/y',
+            'd-m-y',
+        ];
+
+        foreach ($formats as $format) {
+            try {
+                return \Carbon\Carbon::createFromFormat($format, $date);
+            } catch (\Exception $e) {
+            }
         }
 
         try {
             return \Carbon\Carbon::parse($date);
         } catch (\Exception $e) {
-
-            try {
-                return \Carbon\Carbon::createFromFormat(
-                    'd/m/Y',
-                    $date
-                );
-            } catch (\Exception $e) {
-
-                try {
-                    return \Carbon\Carbon::createFromFormat(
-                        'd-M-Y',
-                        $date
-                    );
-                } catch (\Exception $e) {
-
-                    return null;
-                }
-            }
+            return null;
         }
+    }
+
+    public function barangJadi()
+    {
+        $timelines = ProductionTimeline::with([
+            'po',
+            'spk',
+            'detailPo',
+        ])
+        // ->where('next_process', 'barang_jadi') // opsional
+            ->orderBy('date', 'desc')
+            ->get();
+
+        // dd($timelines);
+        return view('pages.admin.laporan_admin', compact('timelines'));
     }
 }

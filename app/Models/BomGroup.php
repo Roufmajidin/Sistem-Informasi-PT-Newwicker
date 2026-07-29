@@ -22,4 +22,9 @@ class BomGroup extends Model
     {
         return $this->hasMany(BomItem::class, 'group_id');
     }
+
+    public function subPrices()
+    {
+        return $this->hasMany(BomGroupSubPrice::class, 'group_id');
+    }
 }

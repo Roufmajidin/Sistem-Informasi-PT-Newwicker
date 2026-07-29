@@ -259,7 +259,21 @@
                          </a>
                      </li>
 
+  <li>
+                         <a>
+                             <span class="nav-caret"><i class="fa fa-caret-down"></i></span>
+                             <span class="nav-icon"><i class="material-icons">&#xe5c3;</i></span>
+                             <span class="nav-text">export</span>
+                         </a>
+                         <ul class="nav-sub">
+                             <li><a href="/export/index"><span class="nav-text">form gener</span></a></li>
+                             <li><a href="/export/ipl"><span class="nav-text">IPL</span></a></li>
 
+                         </ul>
+
+
+
+                     <li>
 
                      @endif
                      @if (Auth::user()->role === "purchasing"  )

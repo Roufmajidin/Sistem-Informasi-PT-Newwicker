@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers\Api;
 
 namespace App\Http\Controllers\Api;
@@ -19,9 +20,9 @@ class AuthController extends Controller
     {
         DB::enableQueryLog();
 
-        $start       = microtime(true);
+        $start = microtime(true);
         $credentials = $request->validate([
-            'email'    => 'required|email',
+            'email' => 'required|email',
             'password' => 'required',
         ]);
 
@@ -37,8 +38,8 @@ class AuthController extends Controller
         $token = $user->createToken('api-token')->plainTextToken;
 
         // default role
-        $role       = 'USER';
-        $isQc       = false;
+        $role = 'USER';
+        $isQc = false;
         $namaDivisi = null;
 
         // ambil karyawan
@@ -59,13 +60,14 @@ class AuthController extends Controller
         ]);
 
         Log::info(DB::getQueryLog());
+
         return response()->json([
             'message' => 'Login berhasil',
-            'token'   => $token,
-            'user'    => $user,
-            'role'    => $role,
-            'qc'      => $isQc,
-            'divisi'  => $namaDivisi,
+            'token' => $token,
+            'user' => $user,
+            'role' => $role,
+            'qc' => $isQc,
+            'divisi' => $namaDivisi,
         ]);
     }
 
@@ -88,7 +90,7 @@ class AuthController extends Controller
             ->get();
 
         return response()->json([
-            'user'  => $user,
+            'user' => $user,
             'absen' => $absenHariIni,
         ]);
     }
@@ -111,24 +113,48 @@ class AuthController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Terjadi kesalahan saat logout',
-                'error'   => $e->getMessage(),
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
+
     public function locationCantor()
     {
         $officeLat = config('office.lat');
         $officeLng = config('office.lon');
-        $radius    = config('office.radius'); // meter
+        $radius = config('office.radius'); // meter
+
         return response()->json([
             'success' => true,
-            'data'    => [
-                'lat'    => $officeLat,
-                'lng'    => $officeLng,
+            'data' => [
+                'lat' => $officeLat,
+                'lng' => $officeLng,
                 'radius' => $radius,
             ],
         ]);
     }
+
+    private function getBusinessDate(User $user)
+    {
+        $now = now();
+
+        // Cari lembur yang belum checkout
+        $openLembur = Lembur::where('user_id', $user->id)
+            ->whereNull('jam_keluar')
+            ->latest('tanggal')
+            ->first();
+
+        if ($openLembur) {
+
+            // Masih lembur sampai pagi
+            if ($now->hour < 7) {
+                return $openLembur->tanggal;
+            }
+        }
+
+        return $now->toDateString();
+    }
+
     public function absenMe(Request $request)
     {
         $user = $request->user();
@@ -141,7 +167,7 @@ class AuthController extends Controller
 
         $user->load(['karyawan.divisi']);
 
-        $today = now()->toDateString();
+        $today = $this->getBusinessDate($user);
 
         // ======================
         // ABSEN
@@ -155,22 +181,22 @@ class AuthController extends Controller
 
         if (! $hasToday) {
             $dummy = [
-                'id'          => null,
-                'user_id'     => $user->id,
-                'tanggal'     => $today,
-                'jam_masuk'   => null,
-                'jam_keluar'  => null,
-                'keterangan'  => null,
-                'created_at'  => null,
-                'updated_at'  => null,
-                'latitude'    => null,
-                'longitude'   => null,
-                'foto'        => null,
+                'id' => null,
+                'user_id' => $user->id,
+                'tanggal' => $today,
+                'jam_masuk' => null,
+                'jam_keluar' => null,
+                'keterangan' => null,
+                'created_at' => null,
+                'updated_at' => null,
+                'latitude' => null,
+                'longitude' => null,
+                'foto' => null,
                 'foto_keluar' => null,
-                'latitude_k'  => null,
+                'latitude_k' => null,
                 'longitude_k' => null,
-                'messages'    => null,
-                'validate'    => null,
+                'messages' => null,
+                'validate' => null,
             ];
 
             $absens->prepend((object) $dummy);
@@ -190,32 +216,51 @@ class AuthController extends Controller
         $lemburToday = $lemburList
             ->where('tanggal', $today)
             ->first();
-
+        // ============================================
+        // JIKA LEMBUR SUDAH SELESAI
+        // JANGAN ANGGAP MASIH FULL H
+        // ============================================
+        if (
+            $hasToday &&
+            $lemburToday &&
+            ! empty($lemburToday->jam_keluar)
+        ) {
+            $hasToday->keterangan = 'Selesai Lembur';
+        }
         if (! $lemburToday) {
             $lemburToday = (object) [
-                'id'          => null,
-                'user_id'     => $user->id,
-                'tanggal'     => $today,
-                'jam_masuk'   => null,
-                'jam_keluar'  => null,
-                'latitude'    => null,
-                'longitude'   => null,
-                'latitude_k'  => null,
+                'id' => null,
+                'user_id' => $user->id,
+                'tanggal' => $today,
+                'jam_masuk' => null,
+                'jam_keluar' => null,
+                'latitude' => null,
+                'longitude' => null,
+                'latitude_k' => null,
                 'longitude_k' => null,
-                'foto'        => null,
+                'foto' => null,
                 'foto_keluar' => null,
-                'keterangan'  => null,
-                'validate'    => null,
+                'keterangan' => null,
+                'validate' => null,
             ];
         }
+        $absens = $absens->map(function ($item) use ($hasToday) {
+
+            if ($hasToday && $item->id == $hasToday->id) {
+                return $hasToday;
+            }
+
+            return $item;
+        });
 
         return response()->json([
-            'user'         => $user,
-            'absen'        => $absens->values(),
-            'lembur'       => $lemburList->values(), // ✅ TAMBAHAN
+            'user' => 'aaa',
+            'absen' => $absens->values(),
+            'lembur' => $lemburList->values(), // ✅ TAMBAHAN
             'lembur_today' => $lemburToday,
         ]);
     }
+
     public function getLemburSaya(Request $request)
     {
         if (! $request->user()) {
@@ -230,7 +275,7 @@ class AuthController extends Controller
 
         return response()->json([
             'status' => true,
-            'data'   => $lembur,
+            'data' => $lembur,
         ]);
     }
 }

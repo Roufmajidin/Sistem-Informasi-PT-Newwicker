@@ -109,11 +109,38 @@
                     {{ \Carbon\Carbon::parse($lembur->tanggal)->format('d/m/Y') }}
                 </td>
 
-                <td>{{ $lembur->jam_masuk }}</td>
+              <td style="min-width:170px;">
+    <div>{{ $lembur->jam_masuk }}</div>
 
-                <td>
-                    {{ $lembur->jam_keluar ?? '-' }}
-                </td>
+    @if($lembur->warning)
+        <small class="text-danger d-block mt-1"
+               style="white-space:normal;line-height:1.25;font-size:11px;">
+            <i class="fa fa-exclamation-triangle"></i>
+            {{ $lembur->warning }}
+        </small>
+    @endif
+</td>
+
+<td style="min-width:170px;">
+
+    @if($lembur->jam_keluar)
+
+        {{ $lembur->jam_keluar }}
+
+    @else
+
+        <div>-</div>
+
+        <small class="text-danger d-block mt-1"
+               style="white-space:normal;line-height:1.25;font-size:11px;">
+            <i class="fa fa-times-circle"></i>
+            Belum checkout lembur.
+            Kemungkinan lupa melakukan absen keluar lembur.
+        </small>
+
+    @endif
+
+</td>
 
                 <td>
                     <small>

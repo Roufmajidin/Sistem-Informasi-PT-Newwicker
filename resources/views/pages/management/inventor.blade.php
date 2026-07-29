@@ -11,15 +11,14 @@
                 <div class="card-header bg-white">
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                         <div class="d-flex align-items-center gap-2">
-               <h4 class="mb-0 fw-bold mr-4">
-    Monitoring SPK
-</h4>
+                            <h4 class="mb-0 fw-bold mr-4">
+                                Monitoring SPK
+                            </h4>
 
-<a href="{{ route('inventor.arsip') }}"
-   class="btn btn-outline-secondary btn-sm ms-2"
-   title="Arsip SPK">
-    Arsip
-</a>
+                            <a href="{{ route('inventor.arsip') }}" class="btn btn-outline-secondary btn-sm ms-2"
+                                title="Arsip SPK">
+                                Arsip
+                            </a>
                         </div>
 
                         {{-- RIGHT --}}
@@ -57,13 +56,13 @@
                         <table class="table inventor-table table-bordered align-middle">
                             <thead>
                                 <tr>
-                                    <th width="60"> No </th>
-                                    <th> No SPK </th>
+                                    <th style="background:#1F3B7A" width="60"> No </th>
+                                    <th style="background:#1F3B7A"> No SPK </th>
                                     <th style="width:150px"> Supplier </th>
                                     <th> Kategori</th>
                                     <th> PO </th>
                                     <th> Tgl Terima </th>
-                                    <th> Deadline </th>
+                                    <th> Indikator </th>
                                     <th style="width:20px"> Tenggat </th>
                                     {{-- <th>Status</th> --}}
                                     @if (!$hideHarga)
@@ -79,9 +78,7 @@
                             </thead>
                             <tbody>
                                 @forelse($spks as $spk)
-                                  <tr class="spk-row"
-                                        data-id="{{ $spk['id'] }}"
-                                        data-status="{{ $spk['status'] }}">
+                                    <tr class="spk-row" data-id="{{ $spk['id'] }}" data-status="{{ $spk['status'] }}">
                                         <td>
                                             {{ $loop->iteration }}
                                         </td>
@@ -201,10 +198,7 @@
                                                 @endif
 
                                             </td>
-
-                                            {{-- MR STANLEY --}}
                                             <td class="text-center">
-
                                                 @if (!empty($spk['signature']['approved_at']))
                                                     <a href="{{ url('/spk/edit/' . $spk['id']) }}">
                                                         <span class="badge bg-success">
@@ -215,7 +209,8 @@
 
                                                     <br>
 
-                                                    <small class="text-muted">
+                                                    <small class="text-muted approved-by"
+                                                        title="{{ $spk['signature']['approved_by'] }}">
                                                         {{ $spk['signature']['approved_by'] }}
                                                     </small>
                                                 @elseif($spk['status'] == 'diajukan' && auth()->id() == 191)
@@ -226,13 +221,12 @@
                                                 @elseif($spk['status'] == 'diajukan')
                                                     <a href="{{ url('/spk/edit/' . $spk['id']) }}">
                                                         <span class="badge bg-warning">
-                                                            Pending Mr. Stanley
+                                                            Pending
                                                         </span>
                                                     </a>
                                                 @else
                                                     <span class="text-muted">-</span>
                                                 @endif
-
                                             </td>
                                         @endif
                                         <td class="text-center inventor-row" data-id="{{ $spk['id'] }}">
@@ -285,7 +279,8 @@
                         <h4 class="mb-0">
                             DETAIL INVENTORY
                         </h4>
-                        <button type="button" class="btn-close btn-close-secondary" data-bs-dismiss="modal"><i class="fa fa-close"></i>
+                        <button type="button" class="btn-close btn-close-secondary" data-bs-dismiss="modal"><i
+                                class="fa fa-close"></i>
                         </button>
                     </div>
                     <div class="modal-body">
@@ -332,6 +327,16 @@
                                                 </thead>
                                                 <tbody id="timelineArea">
                                                 </tbody>
+
+                                                <tfoot>
+                                                    <tr class="table-warning fw-bold">
+                                                        <td colspan="5" class="text-end">
+                                                            Total IN
+                                                        </td>
+                                                        <td id="totalTimelineIn">0</td>
+                                                        <td></td>
+                                                    </tr>
+                                                </tfoot>
                                             </table>
                                         </div>
                                     </div>
@@ -621,22 +626,22 @@
     ${
         !hideHarga
         ? `
-                                                                            <td>
-                                                                                ${
-                                                                                    hargaInventory
-                                                                                        ? 'Rp ' + hargaInventory.toLocaleString('id-ID')
-                                                                                        : '-'
-                                                                                }
-                                                                            </td>
+                                                                                    <td>
+                                                                                        ${
+                                                                                            hargaInventory
+                                                                                                ? 'Rp ' + hargaInventory.toLocaleString('id-ID')
+                                                                                                : '-'
+                                                                                        }
+                                                                                    </td>
 
-                                                                            <td>
-                                                                                ${hargaViviCol}
-                                                                            </td>
+                                                                                    <td>
+                                                                                        ${hargaViviCol}
+                                                                                    </td>
 
-                                                                            <td class="fw-bold text-success">
-                                                                                Rp ${total.toLocaleString('id-ID')}
-                                                                            </td>
-                                                                        `
+                                                                                    <td class="fw-bold text-success">
+                                                                                        Rp ${total.toLocaleString('id-ID')}
+                                                                                    </td>
+                                                                                `
         : ''
     }
 
@@ -723,13 +728,13 @@
                 ${
                     !isCushion
                     ? `
-                                                                                                            <td class="text-center text-success fw-bold">
-                                                                                                                ${item.passed}
-                                                                                                            </td>
-                                                                                                            <td class="text-center text-danger fw-bold">
-                                                                                                                ${item.rejected}
-                                                                                                            </td>
-                                                                                                            `
+                                                                                                                    <td class="text-center text-success fw-bold">
+                                                                                                                        ${item.passed}
+                                                                                                                    </td>
+                                                                                                                    <td class="text-center text-danger fw-bold">
+                                                                                                                        ${item.rejected}
+                                                                                                                    </td>
+                                                                                                                    `
                     : ''
                 }
             </tr>
@@ -747,64 +752,54 @@
                     |--------------------------------------------------------------------------
                     */
                     let timelineHtml = '';
+                    let totalIn = 0;
+
                     if (res.timelines.length > 0) {
+
                         res.timelines.forEach((row, i) => {
+
+                            if (row.type === 'in') {
+                                totalIn += Number(row.qty ?? 0);
+                            }
+
+
                             timelineHtml += `
-    <tr>
-        <td>
-            ${i + 1}
-        </td>
-        <td>
-            ${row.date}
-        </td>
-        <td>
-            <div class="fw-bold">
-                ${row.item_name ?? '-'}
-            </div>
-            <small class="text-muted">
-                ${row.item_code ?? '-'}
-            </small>
-        </td>
-        <td>
-            ${res.supplier.name}
-        </td>
-        <td>
-            <span class="
-                badge
-                bg-${
+        <tr>
+            <td>${i + 1}</td>
+            <td>${row.date}</td>
+            <td>
+                <div class="fw-bold">${row.item_name ?? '-'}</div>
+                <small class="text-muted">${row.item_code ?? '-'}</small>
+            </td>
+            <td>${res.supplier.name}</td>
+            <td>
+                <span class="badge bg-${
                     row.type == 'in'
-                    ? 'success'
-                    :
-                    row.type == 'return'
-                    ? 'danger'
-                    :
-                    'warning'
-                }
-            ">
-                ${row.type}
-            </span>
-        </td>
-        <td>
-            ${row.qty}
-        </td>
-        <td>
-            ${row.remark ?? '-'}
-        </td>
-    </tr>
-    `;
+                        ? 'success'
+                        : row.type == 'return'
+                        ? 'danger'
+                        : 'warning'
+                }">
+                    ${row.type}
+                </span>
+            </td>
+            <td>${row.qty}</td>
+            <td>${row.remark ?? '-'}</td>
+        </tr>`;
                         });
+
                     } else {
+
                         timelineHtml = `
-                        <tr>
-                            <td colspan="6"
-                                class="text-center text-muted py-4">
-                                Tidak ada timeline
-                            </td>
-                        </tr>
-                    `;
+        <tr>
+            <td colspan="7" class="text-center text-muted py-4">
+                Tidak ada timeline
+            </td>
+        </tr>`;
                     }
-                    $('#timelineArea')
-                        .html(timelineHtml);
+
+                    $('#timelineArea').html(timelineHtml);
+                    $('#totalTimelineIn').text(totalIn);
                     /*
                     |--------------------------------------------------------------------------
                     | PAYMENT
@@ -937,15 +932,15 @@
                     ${
                         pay.is_request
                         ? `
-                                                                                            <span class="badge bg-success">
-                                                                                                ✓ Requested
-                                                                                            </span>
-                                                                                        `
+                                                                                                    <span class="badge bg-success">
+                                                                                                        ✓ Requested
+                                                                                                    </span>
+                                                                                                `
                         : `
-                                                                                            <span class="badge bg-warning" >
-                                                                                                Belum Request
-                                                                                            </span>
-                                                                                        `
+                                                                                                    <span class="badge bg-warning" >
+                                                                                                        Belum Request
+                                                                                                    </span>
+                                                                                                `
                     }
                     </td>
             <td>
@@ -953,39 +948,39 @@
             ${
                 pay.adjustment > 0
                 ? `
-                                                                                    <div>
-                                                                                        Paid :
-                                                                                        <b>
-                                                                                            Rp ${Number(
-                                                                                                pay.payment_request_amount
-                                                                                            ).toLocaleString('id-ID')}
-                                                                                        </b>
-                                                                                    </div>
+                                                                                            <div>
+                                                                                                Paid :
+                                                                                                <b>
+                                                                                                    Rp ${Number(
+                                                                                                        pay.payment_request_amount
+                                                                                                    ).toLocaleString('id-ID')}
+                                                                                                </b>
+                                                                                            </div>
 
-                                                                                    <small class="text-danger">
-                                                                                        Sisa :
-                                                                                        Rp ${Number(
-                                                                                            pay.remaining_amount
-                                                                                        ).toLocaleString('id-ID')}
-                                                                                    </small>
-                                                                                `
+                                                                                            <small class="text-danger">
+                                                                                                Sisa :
+                                                                                                Rp ${Number(
+                                                                                                    pay.remaining_amount
+                                                                                                ).toLocaleString('id-ID')}
+                                                                                            </small>
+                                                                                        `
                 : pay.finance_approved
                 ? `
-                                                                                    <span class="badge bg-success">
-                                                                                        Full Payment
-                                                                                    </span>
-                                                                                `
+                                                                                            <span class="badge bg-success">
+                                                                                                Full Payment
+                                                                                            </span>
+                                                                                        `
                 : pay.is_request
                 ? `
-                                                                                    <span class="badge bg-warning">
-                                                                                        Menunggu Finance
-                                                                                    </span>
-                                                                                `
+                                                                                            <span class="badge bg-warning">
+                                                                                                Menunggu Finance
+                                                                                            </span>
+                                                                                        `
                 : `
-                                                                                    <span class="badge bg-secondary">
-                                                                                        Belum Request
-                                                                                    </span>
-                                                                                `
+                                                                                            <span class="badge bg-secondary">
+                                                                                                Belum Request
+                                                                                            </span>
+                                                                                        `
             }
 
             </td>
@@ -1266,24 +1261,24 @@
                     .toLocaleString('id-ID');
             }
             /*
-|--------------------------------------------------------------------------
-| CLICK ROW = DETAIL
-|--------------------------------------------------------------------------
-*/
-$(document).on('click', '.spk-row', function(e) {
+        |--------------------------------------------------------------------------
+        | CLICK ROW = DETAIL
+        |--------------------------------------------------------------------------
+        */
+            $(document).on('click', '.spk-row', function(e) {
 
-    // jangan jalan kalau klik tombol
-    if ($(e.target).closest('button,a').length) {
-        return;
-    }
+                // jangan jalan kalau klik tombol
+                if ($(e.target).closest('button,a').length) {
+                    return;
+                }
 
-    // highlight baris aktif
-    $('.inventor-table tbody tr').removeClass('active-row');
-    $(this).addClass('active-row');
+                // highlight baris aktif
+                $('.inventor-table tbody tr').removeClass('active-row');
+                $(this).addClass('active-row');
 
-    // jalankan tombol Detail
-    $(this).find('.btn-detail').trigger('click');
+                // jalankan tombol Detail
+                $(this).find('.btn-detail').trigger('click');
 
-});
+            });
         </script>
     @endpush

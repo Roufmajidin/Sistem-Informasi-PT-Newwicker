@@ -1,17 +1,17 @@
 @extends('master.master')
 @section('title', 'Laporan Stok')
 @section('content')
-@if(session('success'))
-<script>
-    toastr.success("{{ session('success') }}");
-</script>
-@endif
+    @if (session('success'))
+        <script>
+            toastr.success("{{ session('success') }}");
+        </script>
+    @endif
 
-@if(session('error'))
-<script>
-    toastr.error("{{ session('error') }}");
-</script>
-@endif
+    @if (session('error'))
+        <script>
+            toastr.error("{{ session('error') }}");
+        </script>
+    @endif
     <div class="padding">
         <div class="box">
             <div class="box-header d-flex justify-content-between">
@@ -27,22 +27,20 @@
                             <option value="bahan baku">Bahan Baku</option>
                             <option value="bahan penolong">Bahan Penolong</option>
                             <option value="bahan penolong alat">Bahan Penolong Alat</option>
+                            <option value="bahan finishing">Bahan Finishing</option>
+
                         </select>
 
                     </div>
                     <div class="col-md-2">
                         <label>-</label>
-                        <input
-                            type="text"
-                            id="searchBarang"
-                            class="form-control"
-                            placeholder="Cari nama barang...">
+                        <input type="text" id="searchBarang" class="form-control" placeholder="Cari nama barang...">
                     </div>
-                      <div class="col-md-2 mt-4">
+                    <div class="col-md-2 mt-4">
 
                         <button type="button" class="btn btn-primary" id="addRow">
                             <i class="fa fa-info"></i>
-                           <a href="/laporan/warehouse-history"> history</a>
+                            <a href="/laporan/warehouse-history"> history</a>
                         </button>
                     </div>
 
@@ -57,60 +55,58 @@
 
                     </div>
                 </div>
-                <div id="wrapperStok" style="
+                <div id="wrapperStok"
+                    style="
                     overflow-x:auto;
                     overflow-y:hidden;
                     width:100%;
                 ">
-                                    <div id="canvasStok"
-                                        style="
+                    <div id="canvasStok"
+                        style="
                         width:2200px;
                         display:flex;
                         align-items:flex-start;
                     ">
-                                        <div id="masterPanel"
-                                            style="
+                        <div id="masterPanel"
+                            style="
                             min-width:1300px;
                             padding-right:20px;
                         ">
                             <!-- tbl 1 -->
 
-                                <div class="table-responsive">
-                                    <table class="table table-bordered table-striped">
-                                        <thead>
-                                            <tr>
-                                           <th width="50">No</th>
-<th width="110">Kode Barang</th>
-<th>Nama Barang</th>
-<th width="170">Jenis</th>
-<th width="60">Satuan</th>
-<th width="100">Harga</th>
-<th width="90">Saldo</th>
-<th width="80">Stok In</th>
-<th width="80">Stok Out</th>
-<th width="130">Tanggal</th>
-<th width="80">Aksi</th>
-<th width="100">Detail</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="tableBody">
-                                            @forelse($stoks ?? [] as $key => $stok)
+                            <div class="table-stok-wrapper">
+
+                                <table class="table table-bordered table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th width="50">No</th>
+                                            <th width="110">Kode Barang</th>
+                                            <th>Nama Barang</th>
+                                            <th width="170">Jenis</th>
+                                            <th width="60">Satuan</th>
+                                            <th width="100">Harga</th>
+                                            <th width="90">Saldo</th>
+                                            <th width="80">Stok In</th>
+                                            <th width="80">Stok Out</th>
+                                            <th width="130">Tanggal</th>
+                                            <th width="80">Aksi</th>
+                                            <th width="100">Detail</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tableBody">
+                                        @forelse($stoks ?? [] as $key => $stok)
                                             <tr data-id="{{ $stok->id }}">
                                                 <td>{{ $key + 1 }}</td>
 
                                                 <td>
                                                     <input type="hidden" class="id" value="{{ $stok->id }}">
 
-                                                    <input
-                                                        type="text"
-                                                        class="form-control kode_barang"
+                                                    <input type="text" class="form-control kode_barang"
                                                         value="{{ $stok->kode_barang }}">
                                                 </td>
 
                                                 <td>
-                                                    <input
-                                                        type="text"
-                                                        class="form-control nama_barang"
+                                                    <input type="text" class="form-control nama_barang"
                                                         value="{{ $stok->nama_barang }}">
                                                 </td>
 
@@ -130,28 +126,25 @@
                                                             {{ $stok->jenis == 'bahan penolong alat' ? 'selected' : '' }}>
                                                             Bahan Penolong Alat
                                                         </option>
+                                                        <option value="bahan finishing"
+                                                            {{ $stok->jenis == 'bahan finishing' ? 'selected' : '' }}>
+                                                            Bahan Finishing
+                                                        </option>
                                                     </select>
                                                 </td>
 
                                                 <td>
-                                                    <input
-                                                        type="text"
-                                                        class="form-control satuan"
+                                                    <input type="text" class="form-control satuan"
                                                         value="{{ $stok->satuan }}">
                                                 </td>
 
                                                 <td>
-                                                    <input
-                                                        type="text"
-                                                        class="form-control harga"
-                                                        value="{{ !empty($stok->harga) ? number_format($stok->harga,0,',','.') : '' }}">
+                                                    <input type="text" class="form-control harga"
+                                                        value="{{ !empty($stok->harga) ? number_format($stok->harga, 0, ',', '.') : '' }}">
                                                 </td>
 
                                                 <td>
-                                                   <input
-                                                        type="number"
-                                                        step="0.001"
-                                                        class="form-control stok_awal"
+                                                    <input type="number" step="0.001" class="form-control stok_awal"
                                                         value="{{ ($stok->stok_awal ?? 0) + ($stok->total_in ?? 0) - ($stok->total_out ?? 0) }}">
 
                                                     {{-- <small class="text-muted">
@@ -161,33 +154,27 @@
                                                 </td>
 
                                                 <td>
-                                                    {{ number_format($stok->total_in,2,'.',',') }}
+                                                    {{ number_format($stok->total_in, 2, '.', ',') }}
                                                 </td>
 
                                                 <td>
-                                                    {{ number_format($stok->total_out,2,'.',',') }}
+                                                    {{ number_format($stok->total_out, 2, '.', ',') }}
                                                 </td>
 
                                                 <td>
-                                                    <input
-                                                        type="date"
-                                                        class="form-control tanggal"
+                                                    <input type="date" class="form-control tanggal"
                                                         value="{{ date('Y-m-d') }}">
                                                 </td>
 
                                                 <td width="120">
 
-                                                    <button
-                                                        type="button"
-                                                        class="btn btn-success btn-sm btn-save">
+                                                    <button type="button" class="btn btn-success btn-sm btn-save">
 
                                                         <i class="fa fa-save"></i>
 
                                                     </button>
 
-                                                    <button
-                                                        type="button"
-                                                        class="btn btn-danger btn-sm remove-row">
+                                                    <button type="button" class="btn btn-danger btn-sm remove-row">
 
                                                         <i class="fa fa-trash"></i>
 
@@ -197,8 +184,7 @@
 
                                                 <td>
 
-                                                    <a
-                                                        href="{{ route('laporan.detail',$stok->id) }}"
+                                                    <a href="{{ route('laporan.detail', $stok->id) }}"
                                                         class="btn btn-info btn-sm">
 
                                                         Detail
@@ -208,11 +194,11 @@
                                                 </td>
 
                                             </tr>
-                                            @empty
-                                            @endforelse
-                                        </tbody>
-                                    </table>
-                                </div>
+                                        @empty
+                                        @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
 
                         </div>
                         <!-- tbl2 -->
@@ -229,16 +215,16 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
 
     <script>
-$(function () {
+        $(function() {
 
-    // ============================
-    // TAMBAH BARIS
-    // ============================
-    $('#addRowss').click(function () {
+            // ============================
+            // TAMBAH BARIS
+            // ============================
+            $('#addRowss').click(function() {
 
-        let rowCount = $('#tableBody tr').length + 1;
+                let rowCount = $('#tableBody tr').length + 1;
 
-        let row = `
+                let row = `
 <tr data-id="">
 
     <td>${rowCount}</td>
@@ -269,6 +255,9 @@ $(function () {
 
             <option value="bahan penolong alat">
                 Bahan Penolong Alat
+            </option>
+              <option value="bahan finishing">
+                Bahan Finishing
             </option>
         </select>
     </td>
@@ -329,305 +318,305 @@ $(function () {
 </tr>
 `;
 
-        $('#tableBody').append(row);
+                $('#tableBody').append(row);
 
-    });
-
-
-    // ============================
-    // FORMAT HARGA
-    // ============================
-    $(document).on('keyup','.harga',function(){
-
-        let value=$(this).val().replace(/\D/g,'');
-
-        $(this).val(
-
-            new Intl.NumberFormat('id-ID').format(value)
-
-        );
-
-    });
+            });
 
 
-    // ============================
-    // SIMPAN
-    // ============================
-    $(document).on('click','.btn-save',function(){
+            // ============================
+            // FORMAT HARGA
+            // ============================
+            $(document).on('keyup', '.harga', function() {
 
-        let btn=$(this);
+                let value = $(this).val().replace(/\D/g, '');
 
-        let row=btn.closest('tr');
+                $(this).val(
 
-        $.ajax({
-
-            url:"{{ route('laporan.update') }}",
-
-            type:"POST",
-
-            data:{
-
-                _token:"{{ csrf_token() }}",
-
-                id:row.find('.id').val(),
-
-                kode_barang:row.find('.kode_barang').val(),
-
-                nama_barang:row.find('.nama_barang').val(),
-
-                jenis:row.find('.jenis').val(),
-
-                satuan:row.find('.satuan').val(),
-
-                harga:row.find('.harga').val(),
-
-                stok_awal:row.find('.stok_awal').val(),
-
-            },
-
-            beforeSend:function(){
-
-                btn
-                    .prop('disabled',true)
-                    .html('<i class="fa fa-spinner fa-spin"></i>');
-
-            },
-
-            success:function(res){
-
-                toastr.success(res.message);
-
-                if(row.find('.id').val()===''){
-
-                    row.find('.id').val(res.id);
-
-                    row.attr('data-id',res.id);
-
-                }
-
-            },
-
-            error:function(xhr){
-
-                toastr.error(
-
-                    xhr.responseJSON?.message ??
-
-                    'Gagal menyimpan'
+                    new Intl.NumberFormat('id-ID').format(value)
 
                 );
 
-            },
-
-            complete:function(){
-
-                btn
-                    .prop('disabled',false)
-                    .html('<i class="fa fa-save"></i>');
-
-            }
-
-        });
-
-    });
+            });
 
 
-    // ============================
-    // HAPUS BARIS BARU
-    // ============================
-    $(document).on('click','.remove-row',function(){
+            // ============================
+            // SIMPAN
+            // ============================
+            $(document).on('click', '.btn-save', function() {
 
-        let row=$(this).closest('tr');
+                let btn = $(this);
 
-        if(row.find('.id').val()===''){
+                let row = btn.closest('tr');
 
-            row.remove();
+                $.ajax({
 
-            return;
+                    url: "{{ route('laporan.update') }}",
 
-        }
+                    type: "POST",
 
-        toastr.warning(
-            'Data sudah tersimpan. Delete database akan kita buat berikutnya.'
-        );
+                    data: {
 
-    });
+                        _token: "{{ csrf_token() }}",
 
-});
-</script>
-<script>
+                        id: row.find('.id').val(),
 
-// ===========================
-// FILTER
-// ===========================
+                        kode_barang: row.find('.kode_barang').val(),
 
-function filterData(){
+                        nama_barang: row.find('.nama_barang').val(),
 
-    let keyword = $('#searchBarang')
-        .val()
-        .toLowerCase();
+                        jenis: row.find('.jenis').val(),
 
-    let jenis = $('#filterJenis')
-        .val()
-        .toLowerCase();
+                        satuan: row.find('.satuan').val(),
 
-    let no = 1;
+                        harga: row.find('.harga').val(),
 
-    $('#tableBody tr').each(function(){
+                        stok_awal: row.find('.stok_awal').val(),
 
-        let row = $(this);
+                    },
 
-        let nama = row.find('.nama_barang')
-            .val()
-            ?.toLowerCase() || '';
+                    beforeSend: function() {
 
-        let rowJenis = row.find('.jenis')
-            .val()
-            ?.toLowerCase() || '';
+                        btn
+                            .prop('disabled', true)
+                            .html('<i class="fa fa-spinner fa-spin"></i>');
 
-        let matchNama =
-            keyword=='' ||
-            nama.includes(keyword);
+                    },
 
-        let matchJenis =
-            jenis=='' ||
-            rowJenis==jenis;
+                    success: function(res) {
 
-        if(matchNama && matchJenis){
+                        toastr.success(res.message);
 
-            row.show();
+                        if (row.find('.id').val() === '') {
 
-            row.find('td:first')
-                .text(no++);
+                            row.find('.id').val(res.id);
 
-        }else{
+                            row.attr('data-id', res.id);
 
-            row.hide();
+                        }
 
-        }
+                    },
 
-    });
+                    error: function(xhr) {
 
-}
+                        toastr.error(
 
-// ===========================
-// SEARCH
-// ===========================
+                            xhr.responseJSON?.message ??
 
-$('#searchBarang').on(
-    'keyup',
-    filterData
-);
+                            'Gagal menyimpan'
 
-// ===========================
-// FILTER JENIS
-// ===========================
+                        );
 
-$('#filterJenis').on(
-    'change',
-    filterData
-);
+                    },
+
+                    complete: function() {
+
+                        btn
+                            .prop('disabled', false)
+                            .html('<i class="fa fa-save"></i>');
+
+                    }
+
+                });
+
+            });
 
 
-// ===========================
-// FORMAT HARGA
-// ===========================
+            // ============================
+            // HAPUS BARIS BARU
+            // ============================
+            $(document).on('click', '.remove-row', function() {
 
-$(document).on(
-    'keyup',
-    '.harga',
-    function(){
+                let row = $(this).closest('tr');
 
-        let value=$(this)
-            .val()
-            .replace(/\D/g,'');
+                if (row.find('.id').val() === '') {
 
-        $(this).val(
-
-            new Intl.NumberFormat(
-                'id-ID'
-            ).format(value)
-
-        );
-
-    }
-);
-
-
-// ===========================
-// AUTO SEARCH BARANG
-// ===========================
-
-$(document).on(
-    'keyup',
-    '.nama_barang',
-    function(){
-
-        let input=$(this);
-
-        let q=input.val();
-
-        if(q.length<2){
-
-            return;
-
-        }
-
-        $.get(
-
-            '/stok/search',
-
-            {q:q},
-
-            function(res){
-
-                if(!res){
+                    row.remove();
 
                     return;
 
                 }
 
-                let row=input.closest('tr');
+                toastr.warning(
+                    'Data sudah tersimpan. Delete database akan kita buat berikutnya.'
+                );
 
-                if(
-                    row.find('.kode_barang').val()===''
-                ){
+            });
 
-                    row.find('.kode_barang')
-                        .val(res.kode_barang);
+        });
+    </script>
+    <script>
+        // ===========================
+        // FILTER
+        // ===========================
+
+        function filterData() {
+
+            let keyword = $('#searchBarang')
+                .val()
+                .toLowerCase();
+
+            let jenis = $('#filterJenis')
+                .val()
+                .toLowerCase();
+
+            let no = 1;
+
+            $('#tableBody tr').each(function() {
+
+                let row = $(this);
+
+                let nama = row.find('.nama_barang')
+                    .val()
+                    ?.toLowerCase() || '';
+
+                let rowJenis = row.find('.jenis')
+                    .val()
+                    ?.toLowerCase() || '';
+
+                let matchNama =
+                    keyword == '' ||
+                    nama.includes(keyword);
+
+                let matchJenis =
+                    jenis == '' ||
+                    rowJenis == jenis;
+
+                if (matchNama && matchJenis) {
+
+                    row.show();
+
+                    row.find('td:first')
+                        .text(no++);
+
+                } else {
+
+                    row.hide();
+
                 }
 
-                if(
-                    row.find('.satuan').val()===''
-                ){
+            });
 
-                    row.find('.satuan')
-                        .val(res.satuan);
+        }
+
+        // ===========================
+        // SEARCH
+        // ===========================
+
+        $('#searchBarang').on(
+            'keyup',
+            filterData
+        );
+
+        // ===========================
+        // FILTER JENIS
+        // ===========================
+
+        $('#filterJenis').on(
+            'change',
+            filterData
+        );
+
+
+        // ===========================
+        // FORMAT HARGA
+        // ===========================
+
+        $(document).on(
+            'keyup',
+            '.harga',
+            function() {
+
+                let value = $(this)
+                    .val()
+                    .replace(/\D/g, '');
+
+                $(this).val(
+
+                    new Intl.NumberFormat(
+                        'id-ID'
+                    ).format(value)
+
+                );
+
+            }
+        );
+
+
+        // ===========================
+        // AUTO SEARCH BARANG
+        // ===========================
+
+        $(document).on(
+            'keyup',
+            '.nama_barang',
+            function() {
+
+                let input = $(this);
+
+                let q = input.val();
+
+                if (q.length < 2) {
+
+                    return;
+
                 }
 
-                if(
-                    row.find('.harga').val()===''
-                ){
+                $.get(
 
-                    row.find('.harga')
-                        .val(
+                    '/stok/search',
 
-                            new Intl.NumberFormat(
-                                'id-ID'
-                            ).format(res.harga)
+                    {
+                        q: q
+                    },
 
-                        );
+                    function(res) {
 
-                }
+                        if (!res) {
+
+                            return;
+
+                        }
+
+                        let row = input.closest('tr');
+
+                        if (
+                            row.find('.kode_barang').val() === ''
+                        ) {
+
+                            row.find('.kode_barang')
+                                .val(res.kode_barang);
+                        }
+
+                        if (
+                            row.find('.satuan').val() === ''
+                        ) {
+
+                            row.find('.satuan')
+                                .val(res.satuan);
+                        }
+
+                        if (
+                            row.find('.harga').val() === ''
+                        ) {
+
+                            row.find('.harga')
+                                .val(
+
+                                    new Intl.NumberFormat(
+                                        'id-ID'
+                                    ).format(res.harga)
+
+                                );
+
+                        }
+
+                    }
+
+                );
 
             }
 
         );
-
-    }
-
-);
-
-</script>
+    </script>
     @include('pages.laporan.style')
 @endsection

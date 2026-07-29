@@ -70,4 +70,38 @@
         background: transparent;
         z-index: 2;
     }
+
+
+    /* Container table */
+.table-stok-wrapper{
+    max-height: 650px;      /* sesuaikan tinggi */
+    overflow-y: auto;
+    overflow-x: auto;
+    border: 1px solid #dee2e6;
+}
+
+/* Sticky Header */
+.table-stok-wrapper table thead th{
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    /* background: #fff; */
+    white-space: nowrap;
+    box-shadow: inset 0 -1px 0 #dee2e6;
+}
+
+/* Supaya baris tidak terlalu tinggi */
+.table-stok-wrapper table td,
+.table-stok-wrapper table th{
+    padding: .35rem .5rem;
+    vertical-align: middle;
+}
+
+/* Input lebih pendek */
+.table-stok-wrapper input,
+.table-stok-wrapper select{
+    height: 30px;
+    padding: .2rem .45rem;
+    font-size: 12px;
+}
 </style>

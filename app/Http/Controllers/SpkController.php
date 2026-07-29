@@ -6,13 +6,16 @@ use App\Models\DetailPo;
 use App\Models\JenisSupplier;
 use App\Models\Karyawan;
 use App\Models\PaymentRequest;
+use App\Models\PaymentRequestApproval;
 use App\Models\PaymentRequestSaved;
 use App\Models\PaymentRequestSignature;
 use App\Models\Po;
 use App\Models\ProductionTimeline;
+use App\Models\SignatureSpk;
 use App\Models\Spk;
 use App\Models\SpkTimeline;
 use App\Models\Supplier;
+use App\Models\TransaksiStok;
 use Carbon\Carbon;
 use Google\Client;
 use Google\Service\Calendar;
@@ -25,9 +28,6 @@ use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
-use App\Models\SignatureSpk;
-use App\Models\PaymentRequestApproval;
-use App\Models\TransaksiStok;
 
 class SpkController extends Controller
 {
@@ -41,10 +41,12 @@ class SpkController extends Controller
             ], 404);
         }
         $spk->delete();
+
         return response()->json([
             'message' => 'SPK berhasil dihapus',
         ]);
     }
+
     private function saveBase64Image($base64, $folder = 'spk')
     {
         if (! str_starts_with($base64, 'data:image')) {
@@ -54,40 +56,44 @@ class SpkController extends Controller
         $extension = $match[1] ?? 'png';
         $image = substr($base64, strpos($base64, ',') + 1);
         $image = base64_decode($image);
-        $filename = $folder . '/' . Str::uuid() . '.' . $extension;
+        $filename = $folder.'/'.Str::uuid().'.'.$extension;
         Storage::disk('public')->put($filename, $image);
+
         return Storage::url($filename);
     }
+
     public function show($id)
     {
         $spk = [
-            'no_spk'      => '25-1254/NW 25-81/12/2025',
-            'no_po'       => 'NW 25-81',
-            'nama'        => 'PAK HERI',
-            'tgl_terima'  => '22-Dec-25',
+            'no_spk' => '25-1254/NW 25-81/12/2025',
+            'no_po' => 'NW 25-81',
+            'nama' => 'PAK HERI',
+            'tgl_terima' => '22-Dec-25',
             'tgl_selesai' => '',
-            'items'       => [
+            'items' => [
                 [
-                    'kode'     => '17744',
-                    'gambar'   => '/storage/spk/chair.jpg',
-                    'nama'     => 'ELEGANT SLIMIT CHAIR',
-                    'ukuran'   => [62, 75, 97],
+                    'kode' => '17744',
+                    'gambar' => '/storage/spk/chair.jpg',
+                    'nama' => 'ELEGANT SLIMIT CHAIR',
+                    'ukuran' => [62, 75, 97],
                     'material' => 'Rattan Frame',
-                    'qty_pcs'  => 70,
-                    'qty_set'  => '',
-                    'harga'    => 'Rp',
-                    'total'    => '-',
-                    'catatan'  => '',
+                    'qty_pcs' => 70,
+                    'qty_set' => '',
+                    'harga' => 'Rp',
+                    'total' => '-',
+                    'catatan' => '',
                 ],
             ],
         ];
+
         return view('spk.show', compact('spk'));
     }
+
     public function index(Request $request, $id)
     {
         $viewOnly = $request->is('spk/views/*');
         // dd($viewOnly);
-    $bahanBaku = collect(); // <-- default kosong
+        $bahanBaku = collect(); // <-- default kosong
 
         $mode = (
             $request->routeIs('spk.edit') ||
@@ -110,15 +116,15 @@ class SpkController extends Controller
                 ->get();
             $data = $spkModel->data ?? [];
             // siganture approval spk
-          $signature = SignatureSpk::with([
+            $signature = SignatureSpk::with([
                 'madeBy.karyawan.divisi',
                 'checkedBy.karyawan.divisi',
                 'checkedBy2.karyawan.divisi',
                 'approvedBy.karyawan.divisi',
-                'supplier'
+                'supplier',
             ])
-            ->where('spk_id', $spkModel->id)
-            ->first();
+                ->where('spk_id', $spkModel->id)
+                ->first();
             // =========================
             // PAYMENT REQUEST
             // =========================
@@ -134,39 +140,26 @@ class SpkController extends Controller
                 $data['items'] ?? []
             )->map(function ($item) {
                 return [
-                    'detail_id'      =>
-                    $item['detail_po_id'] ?? null,
-                    'kode'           =>
-                    $item['kode'] ?? '-',
-                    'nama'           =>
-                    $item['nama'] ?? '-',
+                    'detail_id' => $item['detail_po_id'] ?? null,
+                    'kode' => $item['kode'] ?? '-',
+                    'nama' => $item['nama'] ?? '-',
                     // 🔥 CUSTOM VALUE
-                    'custom_columns' =>
-                    $item['custom_columns'] ?? [],
-                    'pcs'            => ($item['satuan'] ?? '') === 'pcs'
+                    'custom_columns' => $item['custom_columns'] ?? [],
+                    'pcs' => ($item['satuan'] ?? '') === 'pcs'
                         ? $item['qty']
                         : 0,
-                    'set'            => ($item['satuan'] ?? '') === 'set'
+                    'set' => ($item['satuan'] ?? '') === 'set'
                         ? $item['qty']
                         : 0,
-                    'harga'          =>
-                    $item['harga'] ?? 0,
-                    'total'          =>
-                    $item['total'] ?? 0,
-                    'satuan'         =>
-                    $item['satuan'] ?? 'pcs',
-                    'images'         =>
-                    $item['images'] ?? [],
-                    'catatan'        =>
-                    $item['catatan'] ?? [],
-                    'p'              =>
-                    $item['p'] ?? '-',
-                    'l'              =>
-                    $item['l'] ?? '-',
-                    't'              =>
-                    $item['t'] ?? '-',
-                    'material'       =>
-                    $item['material'] ?? '-',
+                    'harga' => $item['harga'] ?? 0,
+                    'total' => $item['total'] ?? 0,
+                    'satuan' => $item['satuan'] ?? 'pcs',
+                    'images' => $item['images'] ?? [],
+                    'catatan' => $item['catatan'] ?? [],
+                    'p' => $item['p'] ?? '-',
+                    'l' => $item['l'] ?? '-',
+                    't' => $item['t'] ?? '-',
+                    'material' => $item['material'] ?? '-',
                 ];
             })->values();
             // =========================
@@ -174,35 +167,21 @@ class SpkController extends Controller
             // =========================
             $spk = [
                 'signature' => $signature,
-                'id'             =>
-                $spkModel->id,
-                'status'         =>
-                $spkModel->status ?? 'draft',
-                'request_status' =>
-                $paymentRequest->status ?? null,
-                'no_spk'         =>
-                $data['no_spk'] ?? '-',
-                'no_po'          =>
-                $data['no_po'] ?? '-',
-                'nama'           =>
-                $data['sup'] ?? '-',
-                'tgl_terima'     =>
-                $data['tgl_terima'] ?? '-',
-                'tgl_selesai'    =>
-                $data['tgl_selesai'] ?? '-',
-                'type'           =>
-                $data['kategori'] ?? '-',
-                'items'          =>
-                $items,
-                'mode'           =>
-                'edit',
-                'payments'       =>
-                $data['payments'] ?? [],
-                'checked_types'  =>
-                $data['checked_types'] ?? [],
+                'id' => $spkModel->id,
+                'status' => $spkModel->status ?? 'draft',
+                'request_status' => $paymentRequest->status ?? null,
+                'no_spk' => $data['no_spk'] ?? '-',
+                'no_po' => $data['no_po'] ?? '-',
+                'nama' => $data['sup'] ?? '-',
+                'tgl_terima' => $data['tgl_terima'] ?? '-',
+                'tgl_selesai' => $data['tgl_selesai'] ?? '-',
+                'type' => $data['kategori'] ?? '-',
+                'items' => $items,
+                'mode' => 'edit',
+                'payments' => $data['payments'] ?? [],
+                'checked_types' => $data['checked_types'] ?? [],
                 // 🔥 HEADER DINAMIS
-                'custom_headers' =>
-                $data['custom_headers'] ?? [],
+                'custom_headers' => $data['custom_headers'] ?? [],
             ];
         }
         // =====================================================
@@ -225,73 +204,50 @@ class SpkController extends Controller
                     $images[] =
                         $detail['photo'];
                 }
+
                 return [
-                    'kode'           =>
-                    $detail['article_nr_'] ?? '-',
-                    'detail_id'      =>
-                    $d['id'] ?? '-',
-                    'nama'           =>
-                    $detail['description'] ?? '-',
+                    'kode' => $detail['article_nr_'] ?? '-',
+                    'detail_id' => $d['id'] ?? '-',
+                    'nama' => $detail['description'] ?? '-',
                     // 🔥 DEFAULT CUSTOM
                     'custom_columns' => [],
-                    'p'              =>
-                    $detail['item_w'] ?? '-',
-                    'l'              =>
-                    $detail['item_d'] ?? '-',
-                    't'              =>
-                    $detail['item_h'] ?? '-',
-                    'material'       =>
-                    $detail['composition'] ?? '-',
-                    'pcs'            =>
-                    $detail['qty'] ?? 0,
-                    'set'            =>
-                    $detail['set'] ?? 0,
-                    'harga'          =>
-                    $detail['harga'] ?? 0,
-                    'catatan'        =>
-                    $d->remark_update ?? '',
-                    'images'         =>
-                    $images,
+                    'p' => $detail['item_w'] ?? '-',
+                    'l' => $detail['item_d'] ?? '-',
+                    't' => $detail['item_h'] ?? '-',
+                    'material' => $detail['composition'] ?? '-',
+                    'pcs' => $detail['qty'] ?? 0,
+                    'set' => $detail['set'] ?? 0,
+                    'harga' => $detail['harga'] ?? 0,
+                    'catatan' => $d->remark_update ?? '',
+                    'images' => $images,
                 ];
             })->values();
             // =========================
             // FINAL DATA
             // =========================
             $spk = [
-                'id'             =>
-                $po->id,
-                'status'         =>
-                'draft',
-                'request_status' =>
-                null,
-                'no_spk'         =>
-                $noSpk,
-                'no_po'          =>
-                $po->order_no,
-                'nama'           =>
-                $po->supplier_name ?? '-',
-                'tgl_terima'     =>
-                now()->format('d-M-Y'),
-                'tgl_selesai'    =>
-                $request->tgl_selesai,
-                'type'           =>
-                'rangka',
-                'items'          =>
-                $items,
-                'payments'       =>
-                [],
-                'mode'           =>
-                'create',
-                'checked_types'  =>
-                [],
+                'id' => $po->id,
+                'status' => 'draft',
+                'request_status' => null,
+                'no_spk' => $noSpk,
+                'no_po' => $po->order_no,
+                'nama' => $po->supplier_name ?? '-',
+                'tgl_terima' => now()->format('d-M-Y'),
+                'tgl_selesai' => $request->tgl_selesai,
+                'type' => 'rangka',
+                'items' => $items,
+                'payments' => [],
+                'mode' => 'create',
+                'checked_types' => [],
                 // 🔥 HEADER KOSONG
                 'custom_headers' => [],
             ];
         }
-//         dd([
-//     'id' => $id,
-//     'spk' => $spkModel
-// ]);
+
+        //         dd([
+        //     'id' => $id,
+        //     'spk' => $spkModel
+        // ]);
         // dd([$spk,$jenis])
         return view(
             'pages.spk.index',
@@ -304,12 +260,13 @@ class SpkController extends Controller
             )
         );
     }
+
     // helper
     private function generateNoSpk($noPo)
     {
-        $now      = now();
-        $year     = $now->format('y'); // 26
-        $month    = $now->format('m'); // 02
+        $now = now();
+        $year = $now->format('y'); // 26
+        $month = $now->format('m'); // 02
         $yearFull = $now->format('Y'); // 2026
         // 🔥 ambil SPK terakhir di tahun yg sama
         $lastSpk = Spk::where('data->no_spk', 'like', "{$year}-%")
@@ -325,13 +282,15 @@ class SpkController extends Controller
         }
         $urut = str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
         $tanggal = $now->format('m/Y');
+
         return "{$year}-{$urut}/{$noPo}/{$tanggal}";
     }
+
     public function save(Request $request, $poId)
     {
         $kategori = $request->spk_type;
-        $items    = $request->items ?? [];
-        $spkId    = $request->spk_id; // edit mode jika ada
+        $items = $request->items ?? [];
+        $spkId = $request->spk_id; // edit mode jika ada
         if (! $kategori || empty($items)) {
             return response()->json([
                 'success' => false,
@@ -343,9 +302,9 @@ class SpkController extends Controller
         // =========================
         $mode = $spkId ? 'edit' : 'create';
         $beforeData = null;
-        $spkModel   = null;
+        $spkModel = null;
         if ($mode === 'edit') {
-            $spkModel   = Spk::findOrFail($spkId);
+            $spkModel = Spk::findOrFail($spkId);
             $beforeData = $spkModel->data ?? [];
         }
         // =========================
@@ -405,24 +364,23 @@ class SpkController extends Controller
                     : $img;
             }
             $finalItems[] = [
-                'detail_po_id'   => $detailPo->id,
-                'kode'           => (string) ($item['kode'] ?? ''),
-                'nama'           => (string) ($item['nama'] ?? ''),
-                'qty'            => $qty,
-                'satuan'         => $item['satuan'] ?? '',
-                'material'       => (string) ($item['material'] ?? ''),
-                'p'              => (string) ($item['p'] ?? ''),
-                'l'              => (string) ($item['l'] ?? ''),
-                't'              => (string) ($item['t'] ?? ''),
-                'harga'          => (float) ($item['harga'] ?? 0),
-                'total'          => (float) ($item['total'] ?? 0),
-                'images'         => $itemImages,
-                'catatan'        => [
+                'detail_po_id' => $detailPo->id,
+                'kode' => (string) ($item['kode'] ?? ''),
+                'nama' => (string) ($item['nama'] ?? ''),
+                'qty' => $qty,
+                'satuan' => $item['satuan'] ?? '',
+                'material' => (string) ($item['material'] ?? ''),
+                'p' => (string) ($item['p'] ?? ''),
+                'l' => (string) ($item['l'] ?? ''),
+                't' => (string) ($item['t'] ?? ''),
+                'harga' => (float) ($item['harga'] ?? 0),
+                'total' => (float) ($item['total'] ?? 0),
+                'images' => $itemImages,
+                'catatan' => [
                     'remark' => (string) ($item['catatan']['remark'] ?? ''),
                     'images' => $noteImages,
                 ],
-                'custom_columns' =>
-                $item['custom_columns'] ?? [],
+                'custom_columns' => $item['custom_columns'] ?? [],
             ];
         }
         if (empty($finalItems)) {
@@ -435,43 +393,39 @@ class SpkController extends Controller
         // DATA FINAL
         // =========================
         $afterData = [
-            'status'         =>
-            $request->status ?? 'draft',
-            'kategori'       => $kategori,
-            'no_spk'         => $request->no_spk,
-            'no_po'          => $request->no_po,
-            'sup'            => $request->nama,
-            'tgl_terima'     => $request->tgl_terima,
-            'tgl_selesai'    => $request->tgl_selesai,
-            'items'          => $finalItems,
-            'payments'       => $request->payments ?? [],
-            'checked_types'  =>
-            $request->checked_types ?? [],
+            'status' => $request->status ?? 'draft',
+            'kategori' => $kategori,
+            'no_spk' => $request->no_spk,
+            'no_po' => $request->no_po,
+            'sup' => $request->nama,
+            'tgl_terima' => $request->tgl_terima,
+            'tgl_selesai' => $request->tgl_selesai,
+            'items' => $finalItems,
+            'payments' => $request->payments ?? [],
+            'checked_types' => $request->checked_types ?? [],
             // 🔥 HEADER DYNAMIC
-            'custom_headers' =>
-            $request->custom_headers ?? [],
+            'custom_headers' => $request->custom_headers ?? [],
         ];
-//         dd([
-//     'before' => $beforeData,
-//     'after' => $afterData,
-// ]);
+        //         dd([
+        //     'before' => $beforeData,
+        //     'after' => $afterData,
+        // ]);
         // =========================
         // CREATE / UPDATE
         // =========================
         if ($mode === 'create') {
             $spk = Spk::create([
-                'po_id'      => $poId,
-                    'status'         =>
-            $request->status ?? 'draft',
-                'data'       => $afterData,
+                'po_id' => $poId,
+                'status' => $request->status ?? 'draft',
+                'data' => $afterData,
                 'created_by' => auth()->id(),
             ]);
             SpkTimeline::create([
                 'spk_id' => $spk->id,
-                'data'   => [
-                    'type'  => 'create',
-                    'user'  => auth()->user()->name,
-                    'time'  => now(),
+                'data' => [
+                    'type' => 'create',
+                    'user' => auth()->user()->name,
+                    'time' => now(),
                     'after' => $afterData,
                 ],
             ]);
@@ -479,54 +433,58 @@ class SpkController extends Controller
             // $changes = $this->diffRecursive($beforeData, $afterData);
             try {
 
-    $changes = $this->diffRecursive($beforeData, $afterData);
+                $changes = $this->diffRecursive($beforeData, $afterData);
 
-    // dd([
-    //     'changes' => $changes
-    // ]);
+                // dd([
+                //     'changes' => $changes
+                // ]);
 
-} catch (\Throwable $e) {
+            } catch (\Throwable $e) {
 
-    dd([
-        'error' => $e->getMessage(),
-        'line'  => $e->getLine(),
-        'file'  => $e->getFile(),
-    ]);
+                dd([
+                    'error' => $e->getMessage(),
+                    'line' => $e->getLine(),
+                    'file' => $e->getFile(),
+                ]);
 
-}
+            }
             $spkModel->update([
-                'data'       => $afterData,
+                'data' => $afterData,
                 'updated_by' => auth()->id(),
             ]);
             SpkTimeline::create([
                 'spk_id' => $spkModel->id,
-                'data'   => [
-                    'type'    => 'update',
-                    'user'    => auth()->user()->name,
-                    'time'    => now(),
-                    'before'  => $beforeData,
-                    'after'   => $afterData,
+                'data' => [
+                    'type' => 'update',
+                    'user' => auth()->user()->name,
+                    'time' => now(),
+                    'before' => $beforeData,
+                    'after' => $afterData,
                     'changes' => $changes,
                 ],
             ]);
             $spk = $spkModel;
         }
+
         return response()->json([
             'success' => true,
             'message' => $mode === 'edit'
                 ? 'SPK berhasil diperbarui'
                 : 'SPK berhasil dibuat',
-            'spk_id'  => $spk->id,
-            'no_spk'  => $mode === 'edit' ? $spkModel->data['no_spk'] : $spk->no_spk,
+            'spk_id' => $spk->id,
+            'no_spk' => $mode === 'edit' ? $spkModel->data['no_spk'] : $spk->no_spk,
         ]);
     }
+
     public function timeline($id)
     {
         $timelines = SpkTimeline::where('spk_id', $id)
             ->latest()
             ->get();
+
         return response()->json($timelines);
     }
+
     // helper
     private function diffRecursive($before, $after, $path = '')
     {
@@ -536,30 +494,33 @@ class SpkController extends Controller
             if (! array_key_exists($key, $before)) {
                 $changes[$currentPath] = [
                     'before' => null,
-                    'after'  => $value,
+                    'after' => $value,
                 ];
+
                 continue;
             }
             if (is_array($value) && is_array($before[$key])) {
-                $nested  = $this->diffRecursive($before[$key], $value, $currentPath);
+                $nested = $this->diffRecursive($before[$key], $value, $currentPath);
                 $changes = array_merge($changes, $nested);
             } elseif ($before[$key] != $value) {
                 $changes[$currentPath] = [
                     'before' => $before[$key],
-                    'after'  => $value,
+                    'after' => $value,
                 ];
             }
         }
+
         return $changes;
     }
+
     // export to excel
     public function export($spkId)
     {
-        $spk  = Spk::findOrFail($spkId);
+        $spk = Spk::findOrFail($spkId);
         $data = $spk->data;
         $templatePath = storage_path('app/templates/SPK-TEMPLATE.xlsx');
         $spreadsheet = IOFactory::load($templatePath);
-        $sheet       = $spreadsheet->getActiveSheet();
+        $sheet = $spreadsheet->getActiveSheet();
 
         $sheet->setCellValue('B7', $data['no_spk'] ?? '');
         $sheet->setCellValue('B8', $data['sup'] ?? '');
@@ -570,7 +531,7 @@ class SpkController extends Controller
          * ITEM SETUP
          * ===================== */
         $templateRow = 14;
-        $startRow    = 14;
+        $startRow = 14;
         $items = $data['items'] ?? [];
 
         $row = 14;
@@ -586,7 +547,7 @@ class SpkController extends Controller
             $kategoriUtama = '';
 
             if (
-                !empty($item['custom_columns'][0]['kategori'])
+                ! empty($item['custom_columns'][0]['kategori'])
             ) {
                 $kategoriUtama =
                     $item['custom_columns'][0]['kategori'];
@@ -673,7 +634,7 @@ class SpkController extends Controller
     |--------------------------------------------------------------------------
     */
 
-            if (!empty($item['images'][0])) {
+            if (! empty($item['images'][0])) {
 
                 $this->insertImage(
                     $sheet,
@@ -817,17 +778,19 @@ class SpkController extends Controller
             $data['no_spk'] ?? $spk->id
         );
         $filename = "SPK-{$safeNoSpk}.xlsx";
+
         return response()->streamDownload(function () use ($spreadsheet) {
             (new Xlsx($spreadsheet))
                 ->save('php://output');
         }, $filename);
     }
+
     private function copyRowStyle($sheet, $srcRow, $dstRow)
     {
         foreach (range('A', 'K') as $col) {
             $sheet->duplicateStyle(
-                $sheet->getStyle($col . $srcRow),
-                $col . $dstRow
+                $sheet->getStyle($col.$srcRow),
+                $col.$dstRow
             );
         }
         // Copy merge
@@ -842,13 +805,14 @@ class SpkController extends Controller
             }
         }
     }
+
     private function insertImage($sheet, $path, $cell, $height = 80)
     {
         $realPath = public_path(str_replace(url('/'), '', $path));
         if (! file_exists($realPath)) {
             return;
         }
-        $drawing = new Drawing();
+        $drawing = new Drawing;
         $drawing->setPath($realPath);
         $drawing->setCoordinates($cell);
         $drawing->setHeight($height);
@@ -856,6 +820,7 @@ class SpkController extends Controller
         $drawing->setOffsetY(5);
         $drawing->setWorksheet($sheet);
     }
+
     private function addImage($sheet, $path, $cell, $height = 80)
     {
         if (! $path) {
@@ -866,7 +831,7 @@ class SpkController extends Controller
         if (! file_exists($realPath)) {
             return;
         }
-        $drawing = new Drawing();
+        $drawing = new Drawing;
         $drawing->setPath($realPath);
         $drawing->setCoordinates($cell);
         $drawing->setHeight($height);
@@ -874,6 +839,7 @@ class SpkController extends Controller
         $drawing->setOffsetY(5);
         $drawing->setWorksheet($sheet);
     }
+
     public function getTotalSpkQtyByDetailPoAndKategori(
         int $detailPoId,
         string $kategori,
@@ -887,9 +853,10 @@ class SpkController extends Controller
             ->sum(function ($spk) use ($detailPoId) {
                 return collect($spk->data['items'] ?? [])
                     ->where('detail_po_id', $detailPoId)
-                    ->sum(fn($i) => (int) ($i['qty'] ?? 0));
+                    ->sum(fn ($i) => (int) ($i['qty'] ?? 0));
             });
     }
+
     // ItemController.php
     public function search(Request $request)
     {
@@ -897,6 +864,7 @@ class SpkController extends Controller
         if (! $q) {
             return [];
         }
+
         return DetailPo::where(function ($query) use ($q) {
             $query->where('detail->article_nr_', 'like', "%{$q}%")
                 ->orWhere('detail->description', 'like', "%{$q}%");
@@ -909,20 +877,22 @@ class SpkController extends Controller
                 if (! empty($detail['photo'])) {
                     $images[] = $detail['photo'];
                 }
+
                 return [
                     'detail_id' => $row->id,
-                    'kode'      => data_get($detail, 'article_nr_'),
-                    'nama'      => data_get($detail, 'description'),
-                    'p'         => (float) data_get($detail, 'item_w'),
-                    'l'         => (float) data_get($detail, 'item_d'),
-                    't'         => (float) data_get($detail, 'item_h'),
-                    'material'  => data_get($detail, 'composition'),
-                    'qty'       => (int) data_get($detail, 'qty'),
-                    'photo'     => data_get($detail, 'photo'),
-                    'images'    => $images, // multi image ready
+                    'kode' => data_get($detail, 'article_nr_'),
+                    'nama' => data_get($detail, 'description'),
+                    'p' => (float) data_get($detail, 'item_w'),
+                    'l' => (float) data_get($detail, 'item_d'),
+                    't' => (float) data_get($detail, 'item_h'),
+                    'material' => data_get($detail, 'composition'),
+                    'qty' => (int) data_get($detail, 'qty'),
+                    'photo' => data_get($detail, 'photo'),
+                    'images' => $images, // multi image ready
                 ];
             });
     }
+
     // timeline spk
     public function tima()
     {
@@ -931,28 +901,33 @@ class SpkController extends Controller
             ->get()
             ->map(function ($row) {
                 $data = $row->data ?? [];
+
                 return [
-                    'id'      => $row->id,
-                    'spk_id'  => $row->spk_id,
-                    'type'    => $data['type'] ?? 'info',
-                    'user'    => $data['user'] ?? optional($row->user)->name,
-                    'time'    => $data['time'] ?? $row->created_at,
-                    'before'  => $data['before'] ?? null,
-                    'after'   => $data['after'] ?? null,
+                    'id' => $row->id,
+                    'spk_id' => $row->spk_id,
+                    'type' => $data['type'] ?? 'info',
+                    'user' => $data['user'] ?? optional($row->user)->name,
+                    'time' => $data['time'] ?? $row->created_at,
+                    'before' => $data['before'] ?? null,
+                    'after' => $data['after'] ?? null,
                     'changes' => $data['changes'] ?? null,
                 ];
             });
+
         return response()->json($timeline);
     }
-public function spk(Request $request)
+
+    public function spk(Request $request)
     {
-         $isRndSpk = $request->spk === 'rnd_spk';
+        $isRndSpk = $request->spk === 'rnd_spk';
+
         return view('pages.spk.all', compact('isRndSpk'));
     }
+
     public function allspk()
     {
-        $poList   = Po::all();
-        $spks     = Spk::all();
+        $poList = Po::all();
+        $spks = Spk::all();
         $detailPo = DetailPo::all();
         $result = $poList->map(function ($po) use ($spks, $detailPo) {
             // =========================
@@ -962,7 +937,7 @@ public function spk(Request $request)
                 ->where('po_id', $po->id)
                 ->map(function ($spk) {
                     return [
-                        'id'   => $spk->id,
+                        'id' => $spk->id,
                         'data' => $spk->data,
                     ];
                 });
@@ -982,10 +957,10 @@ public function spk(Request $request)
                     $summary = [];
                     foreach ($spkList as $spk) {
                         $spkId = $spk['id'];         // ✅ AMAN
-                        $data  = $spk['data'] ?? []; // 🔥 KUNCI UTAMA
+                        $data = $spk['data'] ?? []; // 🔥 KUNCI UTAMA
                         $supplier = $data['sup'] ?? '-';
                         $kategori = $data['kategori'] ?? '-';
-                        $noSpk    = $data['no_spk'] ?? '-';
+                        $noSpk = $data['no_spk'] ?? '-';
                         foreach ($data['items'] ?? [] as $spkItem) {
                             if (
                                 isset($spkItem['detail_po_id']) &&
@@ -1000,39 +975,43 @@ public function spk(Request $request)
                                 if (! isset($summary[$kategori][$supplier])) {
                                     $summary[$kategori][$supplier] = [
                                         'total_qty' => 0,
-                                        'spks'      => [],
+                                        'spks' => [],
                                     ];
                                 }
                                 // total qty supplier
                                 $summary[$kategori][$supplier]['total_qty'] += $qty;
                                 // detail per SPK
                                 $summary[$kategori][$supplier]['spks'][] = [
-                                    'spk_id'      => $spkId,
-                                    'no_spk'      => $noSpk,
-                                    'qty'         => $qty,
+                                    'spk_id' => $spkId,
+                                    'no_spk' => $noSpk,
+                                    'qty' => $qty,
                                     'tgl_selesai' => $data['tgl_selesai'] ?? null, // 🔥 INI
                                 ];
                             }
                         }
                     }
+
                     return [
-                        'id'      => $item->id,
-                        'detail'  => $detail,
+                        'id' => $item->id,
+                        'detail' => $detail,
                         'summary' => $summary,
                     ];
                 })
                 ->values();
+
             return [
                 'data_po' => [
-                    'id'      => $po->id,
-                    'no_po'   => $po->order_no,
+                    'id' => $po->id,
+                    'no_po' => $po->order_no,
                     'company' => $po->company_name,
-                    'items'   => $items,
+                    'items' => $items,
                 ],
             ];
         });
+
         return response()->json($result);
     }
+
     // get spk
     public function spkEdit($id)
     {
@@ -1042,14 +1021,14 @@ public function spk(Request $request)
         // Mapping ke format blade
         // =========================
         $spkView = [
-            'id'          => $spk->id,
-            'type'        => $data['kategori'] ?? '',
-            'no_spk'      => $data['no_spk'] ?? '',
-            'no_po'       => $data['no_po'] ?? '',
-            'nama'        => $data['sup'] ?? '',
-            'tgl_terima'  => $data['tgl_terima'] ?? '',
+            'id' => $spk->id,
+            'type' => $data['kategori'] ?? '',
+            'no_spk' => $data['no_spk'] ?? '',
+            'no_po' => $data['no_po'] ?? '',
+            'nama' => $data['sup'] ?? '',
+            'tgl_terima' => $data['tgl_terima'] ?? '',
             'tgl_selesai' => $data['tgl_selesai'] ?? '',
-            'items'       => [],
+            'items' => [],
         ];
         // =========================
         // Build item dari JSON
@@ -1058,35 +1037,37 @@ public function spk(Request $request)
             $item = $data['item'];
             $spkView['items'][] = [
                 'detail_id' => $item['detail_id'] ?? '',
-                'kode'      => $item['kode'] ?? '',
-                'nama'      => $item['nama'] ?? '',
-                'p'         => $item['p'] ?? '',
-                'l'         => $item['l'] ?? '',
-                't'         => $item['t'] ?? '',
-                'material'  => $item['material'] ?? '',
-                'pcs'       => $item['pcs'] ?? 0,
-                'set'       => $item['set'] ?? 0,
-                'harga'     => $item['harga'] ?? 0,
-                'total'     => $item['total'] ?? 0,
-                'images'    => $item['images'] ?? [],
-                'catatan'   => $item['catatan']['remark'] ?? '',
+                'kode' => $item['kode'] ?? '',
+                'nama' => $item['nama'] ?? '',
+                'p' => $item['p'] ?? '',
+                'l' => $item['l'] ?? '',
+                't' => $item['t'] ?? '',
+                'material' => $item['material'] ?? '',
+                'pcs' => $item['pcs'] ?? 0,
+                'set' => $item['set'] ?? 0,
+                'harga' => $item['harga'] ?? 0,
+                'total' => $item['total'] ?? 0,
+                'images' => $item['images'] ?? [],
+                'catatan' => $item['catatan']['remark'] ?? '',
             ];
         }
+
         // dd($spkView);
         return view('pages.spk.edit', [
             'spk' => $spkView,
         ]);
     }
+
     public function getData(Request $request)
     {
-        $poId     = $request->po_id;
+        $poId = $request->po_id;
         $detailId = $request->detail_po_id;
         $kategori = strtolower($request->kategori);
         // 🔥 ambil semua SPK dalam PO
         $spks = Spk::where('po_id', $poId)->get();
         $supplierIds = [];
-        $spkInfo     = [];
-        $allSpk      = [];
+        $spkInfo = [];
+        $allSpk = [];
         foreach ($spks as $spk) {
             $data = is_array($spk->data)
                 ? $spk->data
@@ -1107,20 +1088,20 @@ public function spk(Request $request)
                 $supplierIds[] = $supplier->id;
                 $spkInfo[] = [
                     'sup_id' => $supplier->id,
-                    'sup'    => $supplier->name,
+                    'sup' => $supplier->name,
                     'no_spk' => $data['no_spk'],
-                    'qty'    => $item['qty'] ?? 0,
+                    'qty' => $item['qty'] ?? 0,
                     'spk_id' => $spk->id,
                 ];
             }
             // ================= OUT (semua kategori tapi tetap detail_po_id sama)
             $allSpk[] = [
-                'spk_id'   => $spk->id,
-                'sup_id'   => $supplier->id,
+                'spk_id' => $spk->id,
+                'sup_id' => $supplier->id,
                 'sup_name' => $supplier->name,
                 'kategori' => $kategoriSpk,
-                'no_spk'   => $data['no_spk'],
-                'qty'      => $item['qty'] ?? 0,
+                'no_spk' => $data['no_spk'],
+                'qty' => $item['qty'] ?? 0,
             ];
         }
         // 🔥 supplier dropdown (IN)
@@ -1132,20 +1113,22 @@ public function spk(Request $request)
             ->where('detail_po_id', $detailId)
             ->where('process', $kategori)
             ->get();
+
         return response()->json([
-            'items'     => $timeline,
+            'items' => $timeline,
             'suppliers' => $suppliers,
-            'spk_info'  => $spkInfo,
-            'all_spk'   => $allSpk,
+            'spk_info' => $spkInfo,
+            'all_spk' => $allSpk,
         ]);
     }
+
     public function saveData(Request $request)
     {
         DB::beginTransaction();
         try {
-            $poId     = $request->po_id;
+            $poId = $request->po_id;
             $detailId = $request->detail_po_id;
-            $process  = strtolower($request->process);
+            $process = strtolower($request->process);
             // 🔥 delete dulu biar tidak double
             ProductionTimeline::where('po_id', $poId)
                 ->where('detail_po_id', $detailId)
@@ -1157,15 +1140,15 @@ public function spk(Request $request)
                     continue;
                 }
                 ProductionTimeline::create([
-                    'po_id'        => $poId,
+                    'po_id' => $poId,
                     'detail_po_id' => $detailId,
-                    'process'      => $process,
-                    'type'         => 'IN',
-                    'sup_id'       => $row['supplier'],
-                    'qty'          => $row['qty'],
-                    'date'         => $row['tgl'],
-                    'remark'       => $row['remark'] ?? '-',
-                    'spk_id'       => $row['spk_id'],
+                    'process' => $process,
+                    'type' => 'IN',
+                    'sup_id' => $row['supplier'],
+                    'qty' => $row['qty'],
+                    'date' => $row['tgl'],
+                    'remark' => $row['remark'] ?? '-',
+                    'spk_id' => $row['spk_id'],
                     'next_process' => null,
                 ]);
             }
@@ -1175,31 +1158,34 @@ public function spk(Request $request)
                     continue;
                 }
                 ProductionTimeline::create([
-                    'po_id'        => $poId,
+                    'po_id' => $poId,
                     'detail_po_id' => $detailId,
-                    'process'      => $process,
-                    'type'         => 'OUT',
-                    'sup_id'       => $row['supplier'], // 🔥 tujuan supplier
-                    'qty'          => $row['qty'],
-                    'date'         => now(),
-                    'remark'       => $row['remark'] ?? '-',
-                    'spk_id'       => $row['spk_id'], // 🔥 tujuan spk
+                    'process' => $process,
+                    'type' => 'OUT',
+                    'sup_id' => $row['supplier'], // 🔥 tujuan supplier
+                    'qty' => $row['qty'],
+                    'date' => now(),
+                    'remark' => $row['remark'] ?? '-',
+                    'spk_id' => $row['spk_id'], // 🔥 tujuan spk
                     'next_process' => $row['next_process'],
                 ]);
             }
             DB::commit();
+
             return response()->json(['success' => true]);
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
             ]);
         }
     }
+
     public function getDetailBarang(Request $request)
     {
-        $po_id        = $request->po_id;
+        $po_id = $request->po_id;
         $detail_po_id = $request->detail_po_id;
         $spks = Spk::where('po_id', $po_id)->get();
         $result = [];
@@ -1209,13 +1195,13 @@ public function spk(Request $request)
                 if ($item['detail_po_id'] == $detail_po_id) {
                     $supplier = Supplier::where('name', $data['sup'])->first();
                     $result[] = [
-                        'spk_id'   => $spk->id,
+                        'spk_id' => $spk->id,
                         'supplier' => [
-                            'id'   => $supplier?->id,
+                            'id' => $supplier?->id,
                             'name' => $data['sup'],
                         ],
                         'kategori' => $data['kategori'],
-                        'item'     => $item,
+                        'item' => $item,
                     ];
                 }
             }
@@ -1239,24 +1225,26 @@ public function spk(Request $request)
             )
             ->orderBy('pt.created_at', 'desc')
             ->get();
+
         return response()->json([
             'data' => $result,
             'logs' => $logs,
         ]);
     }
+
     // arsip udah bener
     public function saveProcess(Request $request)
     {
         // =========================
         // VALIDASI BASIC
         // =========================
-        $datetime = Carbon::parse($request->date . ' ' . $request->time);
+        $datetime = Carbon::parse($request->date.' '.$request->time);
         $request->validate([
-            'po_id'        => 'required',
+            'po_id' => 'required',
             'detail_po_id' => 'required',
-            'qty'          => 'required',
-            'type'         => 'required',
-            'process'      => 'required',
+            'qty' => 'required',
+            'type' => 'required',
+            'process' => 'required',
         ]);
         // =========================
         // CLEAN QTY
@@ -1264,14 +1252,14 @@ public function spk(Request $request)
         $qty = (int) str_replace(',', '', $request->qty);
         if ($qty <= 0) {
             return response()->json([
-                'status'  => false,
+                'status' => false,
                 'message' => 'Qty tidak valid',
             ], 422);
         }
         $detail_po_id = $request->detail_po_id;
-        $process      = $request->process;
-        $type         = $request->type;
-        $spk_id       = $request->spk_id;
+        $process = $request->process;
+        $type = $request->type;
+        $spk_id = $request->spk_id;
         // =========================
         // 🔥 VALIDASI MAX SPK (MASUK SUPPLIER + RETURN SERVICE)
         // =========================
@@ -1294,7 +1282,7 @@ public function spk(Request $request)
             $spk = Spk::find($spk_id);
             if (! $spk) {
                 return response()->json([
-                    'status'  => false,
+                    'status' => false,
                     'message' => 'SPK tidak ditemukan',
                 ], 422);
             }
@@ -1304,8 +1292,9 @@ public function spk(Request $request)
                 ->first()['qty'] ?? 0;
             if (($effectiveMasuk + $qty) > $maxQty) {
                 $sisa = $maxQty - $effectiveMasuk;
+
                 return response()->json([
-                    'status'  => false,
+                    'status' => false,
                     'message' => "Qty melebihi SPK. Sisa hanya {$sisa}",
                 ], 422);
             }
@@ -1350,31 +1339,33 @@ public function spk(Request $request)
             $available = $totalIn - $totalOut - $totalService;
             if ($qty > $available) {
                 return response()->json([
-                    'status'  => false,
+                    'status' => false,
                     'message' => "Qty melebihi stok tersedia ({$available})",
                 ], 422);
             }
         }
         DB::table('production_timeline')->insert([
-            'po_id'        => $request->po_id,
-            'spk_id'       => $request->spk_id,
+            'po_id' => $request->po_id,
+            'spk_id' => $request->spk_id,
             'detail_po_id' => $detail_po_id,
-            'qty'          => $qty,
-            'sup_id'       => $request->supplier_id,
-            'date'         => $request->date,
-            'type'         => $type,
-            'process'      => $request->process,
+            'qty' => $qty,
+            'sup_id' => $request->supplier_id,
+            'date' => $request->date,
+            'type' => $type,
+            'process' => $request->process,
             'next_process' => $request->next_process,
-            'source_type'  => $request->source_type,
-            'remark'       => $request->remark,
-            'created_at'   => $datetime,
-            'updated_at'   => $datetime,
+            'source_type' => $request->source_type,
+            'remark' => $request->remark,
+            'created_at' => $datetime,
+            'updated_at' => $datetime,
         ]);
+
         return response()->json([
-            'status'  => true,
+            'status' => true,
             'message' => 'Berhasil disimpan',
         ]);
     }
+
     public function getTimeline(Request $request)
     {
         $po_id = $request->po_id;
@@ -1387,8 +1378,10 @@ public function spk(Request $request)
         )
             ->where('po_id', $po_id)
             ->get();
+
         return response()->json($timeline);
     }
+
     public function getQc(Request $request)
     {
         $po_id = $request->po_id;
@@ -1397,24 +1390,28 @@ public function spk(Request $request)
             ->get()
             ->map(function ($item) {
                 return [
-                    'detail_po_id'   => $item->detail_po_id,
+                    'detail_po_id' => $item->detail_po_id,
                     'jumlah_inspect' => $item->jumlah_inspect,
-                    'passed'         => $item->passed,
-                    'rejected'       => $item->rejected,
-                    'tanggal'        => $item->tanggal_inspect,
+                    'passed' => $item->passed,
+                    'rejected' => $item->rejected,
+                    'tanggal' => $item->tanggal_inspect,
                     // 🔥 langsung ambil dari relasi
-                    'kategori'       => strtolower(trim($item->kategori?->kategori ?? '')),
+                    'kategori' => strtolower(trim($item->kategori?->kategori ?? '')),
                 ];
             });
+
         return response()->json($qc);
     }
+
     private function getService()
     {
-        $client = new Client();
+        $client = new Client;
         $client->setAuthConfig(storage_path('app/google-calendar.json'));
         $client->addScope(Calendar::CALENDAR);
+
         return new Calendar($client);
     }
+
     /**
      * ===============================
      * TEST DUMMY EVENT
@@ -1473,8 +1470,7 @@ public function spk(Request $request)
                 // UPDATE JSON
                 // =========================
                 $updatedPayments =
-                    $payments->map(function ($item)
-                    use ($pay) {
+                    $payments->map(function ($item) use ($pay) {
                         if (
                             $item['payment_id']
                             ==
@@ -1483,20 +1479,21 @@ public function spk(Request $request)
                             $item['is_request'] = false;
                             $item['pr_id'] = null;
                         }
+
                         return $item;
                     })
-                    ->values()
-                    ->toArray();
+                        ->values()
+                        ->toArray();
                 $data['payments'] =
                     $updatedPayments;
                 $spk->update([
                     'data' => $data,
                 ]);
                 DB::commit();
+
                 return response()->json([
                     'success' => true,
-                    'message' =>
-                    'Request dibatalkan',
+                    'message' => 'Request dibatalkan',
                 ]);
             }
             // =====================================================
@@ -1514,55 +1511,40 @@ public function spk(Request $request)
                 ! empty($currentPayment['pr_id'])
             ) {
                 DB::commit();
+
                 return response()->json([
                     'success' => true,
-                    'message' =>
-                    'PR sudah ada',
+                    'message' => 'PR sudah ada',
                 ]);
             }
             // =========================
             // CREATE PR
             // =========================
             $pr = PaymentRequest::create([
-                'spk_id'       =>
-                $spk->id,
-                'payment_id'   =>
-                $pay['payment_id'],
-                'request_no'   =>
-                $this->generateRequestNo(),
-                'no_spk'       =>
-                $request->no_spk,
-                'no_po'        =>
-                $spk->data['no_po'] ?? null,
-                'supplier'     =>
-                $spk->data['sup'] ?? null,
-                'kategori'     =>
-                $spk->data['kategori'] ?? null,
+                'spk_id' => $spk->id,
+                'payment_id' => $pay['payment_id'],
+                'request_no' => $this->generateRequestNo(),
+                'no_spk' => $request->no_spk,
+                'no_po' => $spk->data['no_po'] ?? null,
+                'supplier' => $spk->data['sup'] ?? null,
+                'kategori' => $spk->data['kategori'] ?? null,
                 // PAYMENT
-                'payment_type' =>
-                $pay['note'],
+                'payment_type' => $pay['note'],
                 // 'total_amount' =>
                 // (int) $pay['amount'],
-                'payment_date' =>
-                $paymentDate,
-                'note'         =>
-                $pay['note_tambahan'] ?? null,
+                'payment_date' => $paymentDate,
+                'note' => $pay['note_tambahan'] ?? null,
                 // REQUEST
-                'request_date' =>
-                now(),
-                'status'       =>
-                'draft',
-                'created_by'   =>
-                auth()->id(),
-                'spk_snapshot' =>
-                $spk->data,
+                'request_date' => now(),
+                'status' => 'draft',
+                'created_by' => auth()->id(),
+                'spk_snapshot' => $spk->data,
             ]);
             // =========================
             // UPDATE JSON
             // =========================
             $updatedPayments =
-                $payments->map(function ($item)
-                use ($pay, $pr) {
+                $payments->map(function ($item) use ($pay, $pr) {
                     if (
                         $item['payment_id']
                         ==
@@ -1572,30 +1554,33 @@ public function spk(Request $request)
                         $item['pr_id'] =
                             $pr->id;
                     }
+
                     return $item;
                 })
-                ->values()
-                ->toArray();
+                    ->values()
+                    ->toArray();
             $data['payments'] =
                 $updatedPayments;
             $spk->update([
                 'data' => $data,
             ]);
             DB::commit();
+
             return response()->json([
                 'success' => true,
-                'message' =>
-                'PR berhasil dibuat',
-                'pr_id'   => $pr->id,
+                'message' => 'PR berhasil dibuat',
+                'pr_id' => $pr->id,
             ]);
         } catch (\Throwable $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
             ], 500);
         }
     }
+
     public function saveDraftRequest(
         Request $request
     ) {
@@ -1609,23 +1594,20 @@ public function spk(Request $request)
                     'items',
                     'spk',
                 ])
-                ->whereIn(
-                    'id',
-                    $ids
-                )
-                ->get();
+                    ->whereIn(
+                        'id',
+                        $ids
+                    )
+                    ->get();
             foreach ($requests as $row) {
                 // =====================
                 // UPDATE REQUEST
                 // =====================
                 $row->update([
-                    'request_date' =>
-                    $request->request_date,
-                    'need_date'    =>
-                    $request->need_date,
+                    'request_date' => $request->request_date,
+                    'need_date' => $request->need_date,
                     // DRAFT -> PENDING
-                    'status'       =>
-                    'pending',
+                    'status' => 'pending',
                 ]);
                 // =====================
                 // UPDATE ITEMS
@@ -1669,241 +1651,240 @@ public function spk(Request $request)
                 ];
                 foreach ($roles as $role) {
                     PaymentRequestSignature::firstOrCreate([
-                        'payment_request_id' =>
-                        $row->id,
-                        'role'               =>
-                        $role,
+                        'payment_request_id' => $row->id,
+                        'role' => $role,
                     ], [
-                        'status'    =>
-                        $role == 'made_by'
+                        'status' => $role == 'made_by'
                             ? 'approved'
                             : 'pending',
-                        'signed_at' =>
-                        $role == 'made_by'
+                        'signed_at' => $role == 'made_by'
                             ? now()
                             : null,
-                        'user_id'   =>
-                        auth()->id(),
+                        'user_id' => auth()->id(),
                     ]);
                 }
             }
             DB::commit();
+
             return response()->json([
                 'success' => true,
-                'message' =>
-                'Request berhasil diajukan',
+                'message' => 'Request berhasil diajukan',
             ]);
         } catch (\Throwable $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
             ], 500);
         }
     }
-   public function draftr()
-{
-    $authUser = auth()->user();
 
-    $kepalaPurchasing = Karyawan::whereHas('divisi', function ($q) {
-        $q->where('nama', 'KEPALA PURCHASING');
-    })->first();
+    public function draftr()
+    {
+        $authUser = auth()->user();
 
-    $prodManager = Karyawan::whereHas('divisi', function ($q) {
-        $q->where('nama', 'PROD MANAGER');
-    })->first();
+        $kepalaPurchasing = Karyawan::whereHas('divisi', function ($q) {
+            $q->where('nama', 'KEPALA PURCHASING');
+        })->first();
 
-    $ceo = Karyawan::whereHas('divisi', function ($q) {
-        $q->where('nama', 'CEO');
-    })->first();
+        $prodManager = Karyawan::whereHas('divisi', function ($q) {
+            $q->where('nama', 'PROD MANAGER');
+        })->first();
 
-    $vpSales = Karyawan::whereHas('divisi', function ($q) {
-        $q->where('nama', 'VP SALES & MARKETING');
-    })->first();
+        $ceo = Karyawan::whereHas('divisi', function ($q) {
+            $q->where('nama', 'CEO');
+        })->first();
 
-    $finance = Karyawan::whereHas('divisi', function ($q) {
-        $q->where('nama', 'FINANCE ACC');
-    })->first();
+        $vpSales = Karyawan::whereHas('divisi', function ($q) {
+            $q->where('nama', 'VP SALES & MARKETING');
+        })->first();
 
-    $hrd = Karyawan::whereHas('divisi', function ($q) {
-        $q->where('nama', 'HRD GA & SHE');
-    })->first();
+        $finance = Karyawan::whereHas('divisi', function ($q) {
+            $q->where('nama', 'FINANCE ACC');
+        })->first();
 
-    $coo = Karyawan::whereHas('divisi', function ($q) {
-        $q->where('nama', 'CO');
-    })->first();
+        $hrd = Karyawan::whereHas('divisi', function ($q) {
+            $q->where('nama', 'HRD GA & SHE');
+        })->first();
 
-    /*
-    |--------------------------------------------------------------------------
-    | REQUEST DRAFT
-    |--------------------------------------------------------------------------
-    */
-    $requests = PaymentRequest::with('spk')
-        ->where('status', 'draft')
-        ->latest()
-        ->get()
-        ->map(function ($request) {
+        $coo = Karyawan::whereHas('divisi', function ($q) {
+            $q->where('nama', 'CO');
+        })->first();
 
-            if (!$request->spk) {
+        /*
+        |--------------------------------------------------------------------------
+        | REQUEST DRAFT
+        |--------------------------------------------------------------------------
+        */
+        $requests = PaymentRequest::with('spk')
+            ->where('status', 'draft')
+            ->latest()
+            ->get()
+            ->map(function ($request) {
 
-                Log::warning('SPK NOT FOUND', [
-                    'payment_request_id' => $request->id,
-                    'spk_id' => $request->spk_id
-                ]);
+                if (! $request->spk) {
 
-                return null;
-            }
+                    Log::warning('SPK NOT FOUND', [
+                        'payment_request_id' => $request->id,
+                        'spk_id' => $request->spk_id,
+                    ]);
 
-            $spkData = is_string($request->spk->data)
-                ? json_decode($request->spk->data, true)
-                : ($request->spk->data ?? []);
+                    return null;
+                }
 
-            $payment = collect(
-                $spkData['payments'] ?? []
-            )->firstWhere(
-                'payment_id',
-                $request->payment_id
-            );
+                $spkData = is_string($request->spk->data)
+                    ? json_decode($request->spk->data, true)
+                    : ($request->spk->data ?? []);
 
-            $items = collect(
-                $spkData['items'] ?? []
-            )->map(function ($item) {
+                $payment = collect(
+                    $spkData['payments'] ?? []
+                )->firstWhere(
+                    'payment_id',
+                    $request->payment_id
+                );
 
-                $mainTotal = (float) ($item['total'] ?? 0);
+                $items = collect(
+                    $spkData['items'] ?? []
+                )->map(function ($item) {
 
-                $extraTotal = collect(
-                    $item['custom_columns'] ?? []
-                )->sum(function ($row) {
-                    return (float) ($row['total'] ?? 0);
+                    $mainTotal = (float) ($item['total'] ?? 0);
+
+                    $extraTotal = collect(
+                        $item['custom_columns'] ?? []
+                    )->sum(function ($row) {
+                        return (float) ($row['total'] ?? 0);
+                    });
+
+                    return [
+                        'nama' => $item['nama'] ?? '-',
+                        'kode' => $item['kode'] ?? '-',
+                        'qty' => $item['qty'] ?? 0,
+                        'harga' => $item['harga'] ?? 0,
+                        'total' => $mainTotal + $extraTotal,
+                    ];
                 });
 
                 return [
-                    'nama'  => $item['nama'] ?? '-',
-                    'kode'  => $item['kode'] ?? '-',
-                    'qty'   => $item['qty'] ?? 0,
-                    'harga' => $item['harga'] ?? 0,
-                    'total' => $mainTotal + $extraTotal,
+                    'id' => $request->id,
+                    'request_no' => $request->request_no,
+                    'payment_id' => $request->payment_id,
+                    'status' => $request->status,
+                    'request_date' => $request->request_date,
+                    'need_date' => $request->need_date,
+
+                    'spk_id' => $request->spk_id,
+                    'spk_no' => $spkData['no_spk'] ?? '-',
+                    'no_po' => $spkData['no_po'] ?? '-',
+                    'supplier' => $spkData['sup'] ?? '-',
+                    'kategori' => $spkData['kategori'] ?? '-',
+                    'tgl_terima' => $spkData['tgl_terima'] ?? '-',
+                    'tgl_selesai' => $spkData['tgl_selesai'] ?? '-',
+
+                    'payment_note' => $payment['note'] ?? '-',
+                    'payment_amount' => $payment['amount'] ?? 0,
+                    'payment_date' => $payment['date'] ?? null,
+                    'payment_is_request' => $payment['is_request'] ?? false,
+                    'note_tambahan' => $payment['note_tambahan'] ?? null,
+
+                    'items' => $items,
+                    'grand_total_spk' => $items->sum('total'),
+                ];
+            })
+            ->filter()
+            ->values();
+
+        /*
+        |--------------------------------------------------------------------------
+        | SAVED DRAFT
+        |--------------------------------------------------------------------------
+        */
+        $draftRequests = PaymentRequestSaved::latest()
+            ->get()
+            ->map(function ($draft) {
+
+                $paymentRequests = PaymentRequest::with('spk')
+                    ->whereIn(
+                        'id',
+                        $draft->payment_request_ids ?? []
+                    )
+                    ->get()
+                    ->map(function ($request) {
+
+                        if (! $request->spk) {
+
+                            Log::warning('SPK NOT FOUND IN DRAFT', [
+                                'payment_request_id' => $request->id,
+                                'spk_id' => $request->spk_id,
+                            ]);
+
+                            return null;
+                        }
+
+                        $spkData = is_string($request->spk->data)
+                            ? json_decode($request->spk->data, true)
+                            : ($request->spk->data ?? []);
+
+                        $payment = collect(
+                            $spkData['payments'] ?? []
+                        )->firstWhere(
+                            'payment_id',
+                            $request->payment_id
+                        );
+
+                        return [
+                            'id' => $request->id,
+                            'payment_id' => $request->payment_id,
+                            'request_no' => $request->request_no,
+                            'spk_no' => $spkData['no_spk'] ?? '-',
+                            'no_po' => $spkData['no_po'] ?? '-',
+                            'supplier' => $spkData['sup'] ?? '-',
+                            'kategori' => $spkData['kategori'] ?? '-',
+                            'payment_note' => $payment['note'] ?? '-',
+                            'payment_amount' => (float) ($payment['amount'] ?? 0),
+                        ];
+                    })
+                    ->filter()
+                    ->values();
+                $approval = PaymentRequestApproval::where(
+                    'payment_request_saved_id',
+                    $draft->id
+                )
+                    ->where('status', 'Pending')
+                    ->orderBy('step')
+                    ->first();
+
+                return [
+                    'id' => $draft->id,
+                    'request_no' => $draft->request_no,
+                    'request_date' => $draft->request_date,
+                    'need_date' => $draft->need_date,
+                    'status' => $draft->status,
+                    'grand_total' => $paymentRequests->sum('payment_amount'),
+                    'total_items' => $paymentRequests->count(),
+                    'items' => $paymentRequests,
+                    'pending_sign' => $approval->role ?? '-',
+
                 ];
             });
 
-            return [
-                'id' => $request->id,
-                'request_no' => $request->request_no,
-                'payment_id' => $request->payment_id,
-                'status' => $request->status,
-                'request_date' => $request->request_date,
-                'need_date' => $request->need_date,
-
-                'spk_id' => $request->spk_id,
-                'spk_no' => $spkData['no_spk'] ?? '-',
-                'no_po' => $spkData['no_po'] ?? '-',
-                'supplier' => $spkData['sup'] ?? '-',
-                'kategori' => $spkData['kategori'] ?? '-',
-                'tgl_terima' => $spkData['tgl_terima'] ?? '-',
-                'tgl_selesai' => $spkData['tgl_selesai'] ?? '-',
-
-                'payment_note' => $payment['note'] ?? '-',
-                'payment_amount' => $payment['amount'] ?? 0,
-                'payment_date' => $payment['date'] ?? null,
-                'payment_is_request' => $payment['is_request'] ?? false,
-                'note_tambahan' => $payment['note_tambahan'] ?? null,
-
-                'items' => $items,
-                'grand_total_spk' => $items->sum('total'),
-            ];
-        })
-        ->filter()
-        ->values();
-
-    /*
-    |--------------------------------------------------------------------------
-    | SAVED DRAFT
-    |--------------------------------------------------------------------------
-    */
-    $draftRequests = PaymentRequestSaved::latest()
-        ->get()
-        ->map(function ($draft) {
-
-            $paymentRequests = PaymentRequest::with('spk')
-                ->whereIn(
-                    'id',
-                    $draft->payment_request_ids ?? []
-                )
-                ->get()
-                ->map(function ($request) {
-
-                    if (!$request->spk) {
-
-                    Log::warning('SPK NOT FOUND IN DRAFT', [
-                            'payment_request_id' => $request->id,
-                            'spk_id' => $request->spk_id
-                        ]);
-
-                        return null;
-                    }
-
-                    $spkData = is_string($request->spk->data)
-                        ? json_decode($request->spk->data, true)
-                        : ($request->spk->data ?? []);
-
-                    $payment = collect(
-                        $spkData['payments'] ?? []
-                    )->firstWhere(
-                        'payment_id',
-                        $request->payment_id
-                    );
-
-                    return [
-                        'id' => $request->id,
-                        'payment_id' => $request->payment_id,
-                        'request_no' => $request->request_no,
-                        'spk_no' => $spkData['no_spk'] ?? '-',
-                        'no_po' => $spkData['no_po'] ?? '-',
-                        'supplier' => $spkData['sup'] ?? '-',
-                        'kategori' => $spkData['kategori'] ?? '-',
-                        'payment_note' => $payment['note'] ?? '-',
-                        'payment_amount' => (float) ($payment['amount'] ?? 0),
-                    ];
-                })
-                ->filter()
-                ->values();
-        $approval = PaymentRequestApproval::where(
-                'payment_request_saved_id',
-                $draft->id
+        return view(
+            'pages.payment_request.draft',
+            compact(
+                'requests',
+                'draftRequests',
+                'authUser',
+                'kepalaPurchasing',
+                'prodManager',
+                'ceo',
+                'vpSales',
+                'finance',
+                'hrd',
+                'coo'
             )
-            ->where('status', 'Pending')
-            ->orderBy('step')
-            ->first();
-            return [
-                'id' => $draft->id,
-                'request_no' => $draft->request_no,
-                'request_date' => $draft->request_date,
-                'need_date' => $draft->need_date,
-                'status' => $draft->status,
-                'grand_total' => $paymentRequests->sum('payment_amount'),
-                'total_items' => $paymentRequests->count(),
-                'items' => $paymentRequests,
-                'pending_sign'  => $approval->role ?? '-',
+        );
+    }
 
-            ];
-        });
-
-    return view(
-        'pages.payment_request.draft',
-        compact(
-            'requests',
-            'draftRequests',
-            'authUser',
-            'kepalaPurchasing',
-            'prodManager',
-            'ceo',
-            'vpSales',
-            'finance',
-            'hrd',
-            'coo'
-        )
-    );
-}
     public function changeStatus(
         Request $request,
         Spk $spk
@@ -1941,10 +1922,10 @@ public function spk(Request $request)
                     $spk->finished_by ?? auth()->id();
             }
             $spk->save();
+
             return response()->json([
                 'success' => true,
-                'message' =>
-                'Status berhasil diubah',
+                'message' => 'Status berhasil diubah',
             ]);
         } catch (\Throwable $e) {
             return response()->json([
@@ -1953,6 +1934,7 @@ public function spk(Request $request)
             ], 500);
         }
     }
+
     public function saveDraftGroup(
         Request $request
     ) {
@@ -1961,11 +1943,9 @@ public function spk(Request $request)
 
             'ids' => 'required|array',
 
-            'request_date' =>
-            'required|date',
+            'request_date' => 'required|date',
 
-            'need_date' =>
-            'required|date',
+            'need_date' => 'required|date',
         ]);
 
         $paymentRequests =
@@ -1994,7 +1974,7 @@ public function spk(Request $request)
                 $paymentRequest->payment_id
             );
 
-            $grandTotal += (float)(
+            $grandTotal += (float) (
                 $payment['amount'] ?? 0
             );
         }
@@ -2002,63 +1982,55 @@ public function spk(Request $request)
         $saved =
             PaymentRequestSaved::create([
 
-                'request_no' =>
-                'DR-' .
+                'request_no' => 'DR-'.
                     now()->format('ymdHis'),
 
-                'request_date' =>
-                $request->request_date,
+                'request_date' => $request->request_date,
 
-                'need_date' =>
-                $request->need_date,
+                'need_date' => $request->need_date,
 
-                'payment_request_ids' =>
-                $request->ids,
+                'payment_request_ids' => $request->ids,
 
-                'grand_total' =>
-                $grandTotal,
+                'grand_total' => $grandTotal,
 
-                'status' =>
-                'Diajukan',
+                'status' => 'Diajukan',
 
-                'created_by' =>
-                auth()->id(),
+                'created_by' => auth()->id(),
             ]);
-            // user tap
+        // user tap
         $approvers = [
 
             [
                 'user_id' => 171,
                 'step' => 1,
-                'role' => 'Head Purchasing'
+                'role' => 'Head Purchasing',
             ],
 
             [
                 'user_id' => 178,
                 'step' => 2,
-                'role' => 'Production Manager'
+                'role' => 'Production Manager',
             ],
-             [
+            [
                 'user_id' => 191,
                 'step' => 3,
-                'role' => 'Director'
+                'role' => 'Director',
             ],
-             [
+            [
                 'user_id' => 141,
                 'step' => 4,
-                'role' => 'General Manager'
+                'role' => 'General Manager',
             ],
             [
                 'user_id' => 134,
                 'step' => 5,
-                'role' => 'Finance'
+                'role' => 'Finance',
             ],
-
 
             [
                 'user_id' => 190,
                 'step' => 6,
-                'role' => 'CEO'
+                'role' => 'CEO',
             ],
 
         ];
@@ -2075,7 +2047,7 @@ public function spk(Request $request)
 
                 'role' => $approval['role'],
 
-                'status' => 'Pending'
+                'status' => 'Pending',
 
             ]);
         }
@@ -2084,132 +2056,96 @@ public function spk(Request $request)
             $request->ids
         )->update([
 
-            'status' =>
-            'saved'
+            'status' => 'saved',
         ]);
 
         return response()->json([
 
             'success' => true,
 
-            'message' =>
-            'Draft berhasil dibuat',
+            'message' => 'Draft berhasil dibuat',
 
-            'id' =>
-            $saved->id,
+            'id' => $saved->id,
         ]);
     }
+
     public function detailDraft($id)
     {
         $draft = PaymentRequestSaved::findOrFail($id);
+
         $approvals = PaymentRequestApproval::with('user')
-            ->where(
-                'payment_request_saved_id',
-                $draft->id
-            )
+            ->where('payment_request_saved_id', $draft->id)
             ->orderBy('step')
             ->get();
+
         $items = PaymentRequest::with('spk')
-            ->whereIn(
-                'id',
-                $draft->payment_request_ids ?? []
-            )
+            ->whereIn('id', $draft->payment_request_ids ?? [])
             ->get()
             ->map(function ($request) {
 
-                $spkData = is_string(
-                    $request->spk->data
-                )
-                    ? json_decode(
-                        $request->spk->data,
-                        true
-                    )
+                // Jika SPK tidak ditemukan
+                if (! $request->spk) {
+                    return [
+                        'supplier' => '-',
+                        'spk_id' => $request->spk_id,
+                        'no_po' => '-',
+                        'spk_no' => '-',
+                        'payment_note' => '-',
+                        'payment_id' => $request->payment_id,
+                        'adjustment' => 0,
+                        'payment_amount' => 0,
+                        'payment_request_amount' => 0,
+                    ];
+                }
+
+                $spkData = is_string($request->spk->data)
+                    ? json_decode($request->spk->data, true)
                     : $request->spk->data;
 
-                $payment = collect(
-                    $spkData['payments'] ?? []
-                )->firstWhere(
-                    'payment_id',
-                    $request->payment_id
-                );
+                $payment = collect($spkData['payments'] ?? [])
+                    ->firstWhere('payment_id', $request->payment_id);
 
                 return [
-
-                    'supplier' =>
-                    $spkData['sup'] ?? '-',
-                    'spk_id' =>
-                    $request->spk_id,
-
-                    'no_po' =>
-                    $spkData['no_po'] ?? '-',
-
-                    'spk_no' =>
-                    $spkData['no_spk'] ?? '-',
-
-                    'payment_note' =>
-                    $payment['note'] ?? '-',
-                     'payment_id' => $request->payment_id,
-                    'adjustment' =>
-                        $payment['adjustment'] ?? 0,
-                    'payment_amount' =>
-                    (float) (
-                        $payment['amount'] ?? 0
-                    ),
-                    'payment_request_amount' =>
-                    !empty($payment['adjustment'])
-                        ? (float)$payment['adjustment']
-                        : (float)($payment['amount'] ?? 0),
+                    'supplier' => $spkData['sup'] ?? '-',
+                    'spk_id' => $request->spk_id,
+                    'no_po' => $spkData['no_po'] ?? '-',
+                    'spk_no' => $spkData['no_spk'] ?? '-',
+                    'payment_note' => $payment['note'] ?? '-',
+                    'payment_id' => $request->payment_id,
+                    'adjustment' => $payment['adjustment'] ?? 0,
+                    'payment_amount' => (float) ($payment['amount'] ?? 0),
+                    'payment_request_amount' => ! empty($payment['adjustment'])
+                        ? (float) $payment['adjustment']
+                        : (float) ($payment['amount'] ?? 0),
                 ];
             });
 
         return response()->json([
-
-            'id' =>
-            $draft->id,
-
-            'request_no' =>
-            $draft->request_no,
-            'request_date' =>
-            $draft->request_date,
-            'need_date' =>
-            $draft->need_date,
-            'grand_total' =>
-            $draft->grand_total,
-
-            'items' =>
-            $items,
+            'id' => $draft->id,
+            'request_no' => $draft->request_no,
+            'request_date' => $draft->request_date,
+            'need_date' => $draft->need_date,
+            'grand_total' => $draft->grand_total,
+            'items' => $items,
             'is_finance' => auth()->id() == 134,
-           'approvals' => $approvals->map(function ($row) {
-
-            return [
-
-                'id' => $row->id,
-
-                'user_id' => $row->user_id,
-
-                'name' => $row->user->name,
-
-                'role' => $row->role,
-
-                'signature' => $row->user->signature,
-
-                'status' => $row->status,
-
-              'approved_at' => $row->approved_at
-                ? $row->approved_at->format('d/m/Y H:i')
-                : null,
-
-                'can_approve' =>
-                    auth()->id() == $row->user_id
-                    &&
-                    $row->status == 'Pending',
-
-            ];
-
-        }),
-
+            'approvals' => $approvals->map(function ($row) {
+                return [
+                    'id' => $row->id,
+                    'user_id' => $row->user_id,
+                    'name' => optional($row->user)->name,
+                    'role' => $row->role,
+                    'signature' => optional($row->user)->signature,
+                    'status' => $row->status,
+                    'approved_at' => $row->approved_at
+                        ? $row->approved_at->format('d/m/Y H:i')
+                        : null,
+                    'can_approve' => auth()->id() == $row->user_id
+                        && $row->status == 'Pending',
+                ];
+            }),
         ]);
     }
+
     // payment request draft
     private function generateRequestNo()
     {
@@ -2246,11 +2182,13 @@ public function spk(Request $request)
             '0',
             STR_PAD_LEFT
         );
+
         // =========================
         // RESULT
         // =========================
         return "PR/NW/{$year}/{$urut}";
     }
+
     public function calendar()
     {
         $service = $this->getService();
@@ -2258,50 +2196,55 @@ public function spk(Request $request)
         $calendarId = '824e23d84ab88f2e4279aba16457256aca6caddd108e8b1118a6756f3dd0920b@group.calendar.google.com';
         // waktu dummy
         $start = now()->addMinutes(2);
-        $end   = now()->addHour();
+        $end = now()->addHour();
         $event = new Event([
-            'summary'     => '🔥 SPK - Waya',
+            'summary' => '🔥 SPK - Waya',
             'description' => 'Deadline produksi',
-            'start'       => [
+            'start' => [
                 'dateTime' => $start->format('Y-m-d\TH:i:s'),
                 'timeZone' => 'Asia/Jakarta',
             ],
-            'end'         => [
+            'end' => [
                 'dateTime' => $end->format('Y-m-d\TH:i:s'),
                 'timeZone' => 'Asia/Jakarta',
             ],
-            'reminders'   => [
+            'reminders' => [
                 'useDefault' => false,
-                'overrides'  => [
+                'overrides' => [
                     ['method' => 'popup', 'minutes' => 0], // langsung notif
                 ],
             ],
         ]);
         $created = $service->events->insert($calendarId, $event);
+
         return response()->json([
-            'status'   => 'success',
+            'status' => 'success',
             'event_id' => $created->getId(),
-            'link'     => $created->htmlLink,
+            'link' => $created->htmlLink,
         ]);
     }
+
     public function addCalendar()
     {
         $service = $this->getService();
         $calendarId = '824e23d84ab88f2e4279aba16457256aca6caddd108e8b1118a6756f3dd0920b@group.calendar.google.com';
-        $entry = new \Google\Service\Calendar\CalendarListEntry();
+        $entry = new \Google\Service\Calendar\CalendarListEntry;
         $entry->setId($calendarId);
         $service->calendarList->insert($entry);
+
         return 'Calendar berhasil ditambahkan';
     }
-    public function preview($id)
-{
-    $spk = Spk::findOrFail($id);
 
-    return view(
-        'pages.spk.preview',
-        compact('spk')
-    );
-}
+    public function preview($id)
+    {
+        $spk = Spk::findOrFail($id);
+
+        return view(
+            'pages.spk.preview',
+            compact('spk')
+        );
+    }
+
     public function submitSignature(Request $request, $id)
     {
         $spk = Spk::findOrFail($id);
@@ -2318,7 +2261,7 @@ public function spk(Request $request)
         SignatureSpk::updateOrCreate(
 
             [
-                'spk_id' => $spk->id
+                'spk_id' => $spk->id,
             ],
 
             [
@@ -2341,170 +2284,168 @@ public function spk(Request $request)
         );
 
         $spk->update([
-            'status' => 'diajukan'
+            'status' => 'diajukan',
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'SPK berhasil diajukan'
+            'message' => 'SPK berhasil diajukan',
         ]);
     }
+
     // approve sign in pengajuan spk
-  public function approve($id)
-{
+    public function approve($id)
+    {
         $urutan = false;
 
-    $approval =
-        PaymentRequestApproval::findOrFail($id);
+        $approval =
+            PaymentRequestApproval::findOrFail($id);
 
-    // hanya user yang berhak
-    if (
-        $approval->user_id != auth()->id()
-    ) {
+        // hanya user yang berhak
+        if (
+            $approval->user_id != auth()->id()
+        ) {
 
-        return response()->json([
+            return response()->json([
 
-            'success' => false,
+                'success' => false,
 
-            'message' =>
-                'Anda tidak memiliki hak approval'
+                'message' => 'Anda tidak memiliki hak approval',
 
-        ], 403);
-    }
+            ], 403);
+        }
 
-    // sudah approve
-    if (
-        $approval->status == 'Approved'
-    ) {
+        // sudah approve
+        if (
+            $approval->status == 'Approved'
+        ) {
 
-        return response()->json([
+            return response()->json([
 
-            'success' => false,
+                'success' => false,
 
-            'message' =>
-                'Data sudah di approve'
+                'message' => 'Data sudah di approve',
 
-        ], 422);
-    }
-     if ($urutan) {
+            ], 422);
+        }
+        if ($urutan) {
 
-        $previous = PaymentRequestApproval::where(
+            $previous = PaymentRequestApproval::where(
                 'payment_request_saved_id',
                 $approval->payment_request_saved_id
             )
-            ->where('step', $approval->step - 1)
-            ->first();
+                ->where('step', $approval->step - 1)
+                ->first();
 
-        if ($previous && $previous->status != 'Approved') {
+            if ($previous && $previous->status != 'Approved') {
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Menunggu approval sebelumnya'
-            ], 422);
-        }
-    }
-
-    // approve
-    $approval->update([
-
-        'status' => 'Approved',
-
-        'approved_at' => now()
-
-    ]);
-    // finn
-    // FINANCE APPROVAL
-if ($approval->user_id == 174) {
-
-    $draft = PaymentRequestSaved::find(
-        $approval->payment_request_saved_id
-    );
-
-    $paymentRequests = PaymentRequest::whereIn(
-        'id',
-        $draft->payment_request_ids ?? []
-    )->get();
-
-    foreach ($paymentRequests as $pr) {
-
-        $spk = Spk::find($pr->spk_id);
-
-        if (!$spk) {
-            continue;
-        }
-
-        $data = is_string($spk->data)
-            ? json_decode($spk->data, true)
-            : $spk->data;
-
-        foreach ($data['payments'] as &$payment) {
-
-            if (
-                ($payment['payment_id'] ?? null)
-                == $pr->payment_id
-            ) {
-
-                $payment['finance_approved'] = true;
-                $payment['finance_approved_at'] = now()
-                    ->format('Y-m-d H:i:s');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Menunggu approval sebelumnya',
+                ], 422);
             }
         }
 
-        $spk->update([
-            'data' => $data
+        // approve
+        $approval->update([
+
+            'status' => 'Approved',
+
+            'approved_at' => now(),
+
+        ]);
+        // finn
+        // FINANCE APPROVAL
+        if ($approval->user_id == 174) {
+
+            $draft = PaymentRequestSaved::find(
+                $approval->payment_request_saved_id
+            );
+
+            $paymentRequests = PaymentRequest::whereIn(
+                'id',
+                $draft->payment_request_ids ?? []
+            )->get();
+
+            foreach ($paymentRequests as $pr) {
+
+                $spk = Spk::find($pr->spk_id);
+
+                if (! $spk) {
+                    continue;
+                }
+
+                $data = is_string($spk->data)
+                    ? json_decode($spk->data, true)
+                    : $spk->data;
+
+                foreach ($data['payments'] as &$payment) {
+
+                    if (
+                        ($payment['payment_id'] ?? null)
+                        == $pr->payment_id
+                    ) {
+
+                        $payment['finance_approved'] = true;
+                        $payment['finance_approved_at'] = now()
+                            ->format('Y-m-d H:i:s');
+                    }
+                }
+
+                $spk->update([
+                    'data' => $data,
+                ]);
+            }
+        }
+
+        // cek apakah semua sudah approve
+        $draft =
+            PaymentRequestSaved::find(
+                $approval->payment_request_saved_id
+            );
+
+        $pendingCount =
+            PaymentRequestApproval::where(
+                'payment_request_saved_id',
+                $draft->id
+            )
+                ->where(
+                    'status',
+                    'Pending'
+                )
+                ->count();
+
+        if ($pendingCount == 0) {
+
+            $draft->update([
+
+                'status' => 'Approved',
+
+            ]);
+
+            PaymentRequest::whereIn(
+                'id',
+                $draft->payment_request_ids ?? []
+            )->update([
+
+                'status' => 'Approved',
+
+            ]);
+        }
+
+        return response()->json([
+
+            'success' => true,
+
+            'message' => 'Approval berhasil disimpan',
+
         ]);
     }
-}
 
-    // cek apakah semua sudah approve
-    $draft =
-        PaymentRequestSaved::find(
-            $approval->payment_request_saved_id
-        );
-
-    $pendingCount =
-        PaymentRequestApproval::where(
-            'payment_request_saved_id',
-            $draft->id
-        )
-        ->where(
-            'status',
-            'Pending'
-        )
-        ->count();
-
-    if ($pendingCount == 0) {
-
-        $draft->update([
-
-            'status' => 'Approved'
-
-        ]);
-
-        PaymentRequest::whereIn(
-            'id',
-            $draft->payment_request_ids ?? []
-        )->update([
-
-            'status' => 'Approved'
-
-        ]);
-    }
-
-    return response()->json([
-
-        'success' => true,
-
-        'message' =>
-            'Approval berhasil disimpan'
-
-    ]);
-}
-// finance adusment
+    // finance adusment
     public function financeAdjustment(
         Request $request
-    )
-    {
+    ) {
         $spk = Spk::findOrFail(
             $request->spk_id
         );
@@ -2519,8 +2460,7 @@ if ($approval->user_id == 174) {
             : $spk->data;
 
         foreach (
-            $data['payments']
-            as &$payment
+            $data['payments'] as &$payment
         ) {
 
             if (
@@ -2538,439 +2478,426 @@ if ($approval->user_id == 174) {
 
                 $payment['adjustment_at'] =
                     now()
-                    ->format(
-                        'Y-m-d H:i:s'
-                    );
+                        ->format(
+                            'Y-m-d H:i:s'
+                        );
             }
         }
 
         $spk->update([
 
-               'data' => $data
-
+            'data' => $data,
 
         ]);
 
         return response()->json([
 
-            'success' => true
+            'success' => true,
 
         ]);
     }
+
     // approve
-   public function signSignature(Request $request, $id)
-{
-    $signature = SignatureSpk::findOrFail($id);
-    $spk = Spk::findOrFail($signature->spk_id);
+    public function signSignature(Request $request, $id)
+    {
+        $signature = SignatureSpk::findOrFail($id);
+        $spk = Spk::findOrFail($signature->spk_id);
 
-    /*
-    |--------------------------------------------------------------------------
-    | CHECKER 1 (VIVI)
-    |--------------------------------------------------------------------------
-    */
-    if ($request->type === 'checked') {
+        /*
+        |--------------------------------------------------------------------------
+        | CHECKER 1 (VIVI)
+        |--------------------------------------------------------------------------
+        */
+        if ($request->type === 'checked') {
 
-        if (auth()->id() != $signature->checked_by) {
+            if (auth()->id() != $signature->checked_by) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Anda bukan Checker 1',
+                ], 403);
+            }
+
+            $signature->update([
+                'checked_at' => now(),
+                'checked_remark' => $request->remark,
+            ]);
+
+            SpkTimeline::create([
+                'spk_id' => $spk->id,
+                'data' => json_encode([
+                    'time' => now()->format('d M Y H:i'),
+                    'type' => 'checked',
+                    'user' => auth()->user()->name,
+                    'remark' => $request->remark,
+                ]),
+            ]);
+
             return response()->json([
-                'success' => false,
-                'message' => 'Anda bukan Checker 1'
-            ], 403);
+                'success' => true,
+                'message' => 'SPK berhasil di-check oleh Checker 1',
+            ]);
         }
 
-        $signature->update([
-            'checked_at'     => now(),
-            'checked_remark' => $request->remark,
-        ]);
+        /*
+        |--------------------------------------------------------------------------
+        | CHECKER 2 (DIDIN)
+        |--------------------------------------------------------------------------
+        */
+        if ($request->type === 'checked_2') {
 
-        SpkTimeline::create([
-            'spk_id' => $spk->id,
-            'data' => json_encode([
-                'time'   => now()->format('d M Y H:i'),
-                'type'   => 'checked',
-                'user'   => auth()->user()->name,
-                'remark' => $request->remark,
-            ])
-        ]);
+            if (auth()->id() != $signature->checked_by_2) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Anda bukan Checker 2',
+                ], 403);
+            }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'SPK berhasil di-check oleh Checker 1'
-        ]);
-    }
+            $signature->update([
+                'checked_at_2' => now(),
+                'checked_2_remark' => $request->remark,
+            ]);
 
-    /*
-    |--------------------------------------------------------------------------
-    | CHECKER 2 (DIDIN)
-    |--------------------------------------------------------------------------
-    */
-    if ($request->type === 'checked_2') {
+            SpkTimeline::create([
+                'spk_id' => $spk->id,
+                'data' => json_encode([
+                    'time' => now()->format('d M Y H:i'),
+                    'type' => 'checked_2',
+                    'user' => auth()->user()->name,
+                    'remark' => $request->remark,
+                ]),
+            ]);
 
-        if (auth()->id() != $signature->checked_by_2) {
             return response()->json([
-                'success' => false,
-                'message' => 'Anda bukan Checker 2'
-            ], 403);
+                'success' => true,
+                'message' => 'SPK berhasil di-check oleh Checker 2',
+            ]);
         }
 
-        $signature->update([
-            'checked_at_2'     => now(),
-            'checked_2_remark' => $request->remark,
-        ]);
+        /*
+        |--------------------------------------------------------------------------
+        | APPROVED (MR STANLEY)
+        |--------------------------------------------------------------------------
+        */
+        if ($request->type === 'approved') {
 
-        SpkTimeline::create([
-            'spk_id' => $spk->id,
-            'data' => json_encode([
-                'time'   => now()->format('d M Y H:i'),
-                'type'   => 'checked_2',
-                'user'   => auth()->user()->name,
-                'remark' => $request->remark,
-            ])
-        ]);
+            if (auth()->id() != 191) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Hanya Mr Stanley yang dapat melakukan approval ini',
+                ], 403);
+            }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'SPK berhasil di-check oleh Checker 2'
-        ]);
-    }
+            $signature->update([
+                'approved_by' => auth()->id(),
+                'approved_at' => now(),
+                'approved_remark' => $request->remark,
+            ]);
 
-    /*
-    |--------------------------------------------------------------------------
-    | APPROVED (MR STANLEY)
-    |--------------------------------------------------------------------------
-    */
-    if ($request->type === 'approved') {
+            $spk->update([
+                'status' => 'approved',
+            ]);
 
-        if (auth()->id() != 191) {
+            SpkTimeline::create([
+                'spk_id' => $spk->id,
+                'data' => json_encode([
+                    'time' => now()->format('d M Y H:i'),
+                    'type' => 'approved',
+                    'user' => auth()->user()->name,
+                    'remark' => $request->remark,
+                ]),
+            ]);
+
             return response()->json([
-                'success' => false,
-                'message' => 'Hanya Mr Stanley yang dapat melakukan approval ini'
-            ], 403);
+                'success' => true,
+                'message' => 'SPK berhasil di-approve',
+            ]);
         }
 
-        $signature->update([
-            'approved_by'     => auth()->id(),
-            'approved_at'     => now(),
-            'approved_remark' => $request->remark,
-        ]);
-
-        $spk->update([
-            'status' => 'approved'
-        ]);
-
-        SpkTimeline::create([
-            'spk_id' => $spk->id,
-            'data' => json_encode([
-                'time'   => now()->format('d M Y H:i'),
-                'type'   => 'approved',
-                'user'   => auth()->user()->name,
-                'remark' => $request->remark,
-            ])
-        ]);
-
         return response()->json([
-            'success' => true,
-            'message' => 'SPK berhasil di-approve'
-        ]);
+            'success' => false,
+            'message' => 'Invalid request',
+        ], 400);
     }
 
-    return response()->json([
-        'success' => false,
-        'message' => 'Invalid request'
-    ], 400);
-}
+    public function notifications()
+    {
+        $pfis = Po::query()
+            ->whereDate(
+                'created_at',
+                '>=',
+                now()->subDays(7)
+            )
+            ->latest('created_at')
+            ->get()
+            ->map(function ($pfi) {
 
-public function notifications()
-{
-    $pfis = Po::query()
-        ->whereDate(
-            'created_at',
-            '>=',
-            now()->subDays(7)
-        )
-        ->latest('created_at')
-        ->get()
-        ->map(function ($pfi) {
+                $shipmentDate =
+                    $this->parseShipmentDate(
+                        $pfi->shipment_date
+                    );
 
-            $shipmentDate =
-                $this->parseShipmentDate(
-                    $pfi->shipment_date
-                );
+                return [
+                    'id' => $pfi->id,
+                    'order_no' => $pfi->order_no,
 
-            return [
-                'id' => $pfi->id,
-                'order_no' => $pfi->order_no,
+                    'shipment_date' => $shipmentDate
+                        ? $shipmentDate->format('d/m/Y')
+                        : ($pfi->shipment_date ?: '-'),
 
-                'shipment_date' => $shipmentDate
-                    ? $shipmentDate->format('d/m/Y')
-                    : ($pfi->shipment_date ?: '-'),
+                    'created_at' => $pfi->created_at
+                        ->format('d/m/Y H:i'),
+                ];
+            });
 
-                'created_at' => $pfi->created_at
-                    ->format('d/m/Y H:i'),
-            ];
-        });
-
-    return response()->json($pfis);
-}
-
-/*
-|--------------------------------------------------------------------------
-| FLEXIBLE DATE PARSER
-|--------------------------------------------------------------------------
-*/
-private function parseShipmentDate($value)
-{
-    if (blank($value)) {
-        return null;
+        return response()->json($pfis);
     }
-
-    $value = trim($value);
 
     /*
     |--------------------------------------------------------------------------
-    | HAPUS KETERANGAN DALAM KURUNG
+    | FLEXIBLE DATE PARSER
     |--------------------------------------------------------------------------
     */
+    private function parseShipmentDate($value)
+    {
+        if (blank($value)) {
+            return null;
+        }
 
-    $value = preg_replace(
-        '/\(.*?\)/',
-        '',
-        $value
-    );
+        $value = trim($value);
 
-    $value = trim($value);
+        /*
+        |--------------------------------------------------------------------------
+        | HAPUS KETERANGAN DALAM KURUNG
+        |--------------------------------------------------------------------------
+        */
 
-    /*
-    |--------------------------------------------------------------------------
-    | NORMALISASI BULAN INDONESIA
-    |--------------------------------------------------------------------------
-    */
-
-    $months = [
-        'JANUARI' => 'JANUARY',
-        'FEBRUARI' => 'FEBRUARY',
-        'MARET' => 'MARCH',
-        'APRIL' => 'APRIL',
-        'MEI' => 'MAY',
-        'JUNI' => 'JUNE',
-        'JULI' => 'JULY',
-        'AGUSTUS' => 'AUGUST',
-        'SEPTEMBER' => 'SEPTEMBER',
-        'OKTOBER' => 'OCTOBER',
-        'NOVEMBER' => 'NOVEMBER',
-        'DESEMBER' => 'DECEMBER',
-    ];
-
-    $upper = strtoupper($value);
-
-    foreach ($months as $id => $en) {
-        $upper = str_replace(
-            $id,
-            $en,
-            $upper
+        $value = preg_replace(
+            '/\(.*?\)/',
+            '',
+            $value
         );
-    }
 
-    $value = $upper;
+        $value = trim($value);
 
-    /*
-    |--------------------------------------------------------------------------
-    | COBA PARSE OTOMATIS
-    |--------------------------------------------------------------------------
-    */
+        /*
+        |--------------------------------------------------------------------------
+        | NORMALISASI BULAN INDONESIA
+        |--------------------------------------------------------------------------
+        */
 
-    try {
-        return Carbon::parse($value);
-    } catch (\Exception $e) {
-        //
-    }
+        $months = [
+            'JANUARI' => 'JANUARY',
+            'FEBRUARI' => 'FEBRUARY',
+            'MARET' => 'MARCH',
+            'APRIL' => 'APRIL',
+            'MEI' => 'MAY',
+            'JUNI' => 'JUNE',
+            'JULI' => 'JULY',
+            'AGUSTUS' => 'AUGUST',
+            'SEPTEMBER' => 'SEPTEMBER',
+            'OKTOBER' => 'OCTOBER',
+            'NOVEMBER' => 'NOVEMBER',
+            'DESEMBER' => 'DECEMBER',
+        ];
 
-    /*
-    |--------------------------------------------------------------------------
-    | FORMAT MANUAL
-    |--------------------------------------------------------------------------
-    */
+        $upper = strtoupper($value);
 
-    $formats = [
-        'd/m/Y',
-        'd-m-Y',
-        'Y-m-d',
-        'd/n/Y',
-        'd-n-Y',
-        'j/n/Y',
-        'j-n-Y',
-    ];
+        foreach ($months as $id => $en) {
+            $upper = str_replace(
+                $id,
+                $en,
+                $upper
+            );
+        }
 
-    foreach ($formats as $format) {
+        $value = $upper;
+
+        /*
+        |--------------------------------------------------------------------------
+        | COBA PARSE OTOMATIS
+        |--------------------------------------------------------------------------
+        */
 
         try {
-
-            return Carbon::createFromFormat(
-                $format,
-                $value
-            );
-
+            return Carbon::parse($value);
         } catch (\Exception $e) {
             //
         }
-    }
 
-    return null;
-}
-public function indexloading(){
-    return view('pages.loading.index');
-}
-public function generateLoading(Request $request)
-{
-    $containers = [
+        /*
+        |--------------------------------------------------------------------------
+        | FORMAT MANUAL
+        |--------------------------------------------------------------------------
+        */
 
-        '20FT' => [
-            'length' => 589,
-            'width' => 235,
-            'height' => 239,
-        ],
-
-        '40HC' => [
-            'length' => 1203,
-            'width' => 235,
-            'height' => 269,
-        ],
-
-    ];
-
-    $container =
-        $containers[
-            $request->container
+        $formats = [
+            'd/m/Y',
+            'd-m-Y',
+            'Y-m-d',
+            'd/n/Y',
+            'd-n-Y',
+            'j/n/Y',
+            'j-n-Y',
         ];
 
-    $items3d = [];
+        foreach ($formats as $format) {
 
-    $totalCbm = 0;
-    $totalCarton = 0;
+            try {
 
-    $x = 0;
-    $y = 0;
-    $z = 0;
+                return Carbon::createFromFormat(
+                    $format,
+                    $value
+                );
 
-    foreach (
-        $request->items
-        as $item
-    )
+            } catch (\Exception $e) {
+                //
+            }
+        }
+
+        return null;
+    }
+
+    public function indexloading()
     {
-        $cbm =
-            (
-                $item['length'] *
-                $item['width'] *
-                $item['height']
-            ) / 1000000;
+        return view('pages.loading.index');
+    }
 
-        $totalCbm +=
-            $cbm *
-            $item['qty'];
+    public function generateLoading(Request $request)
+    {
+        $containers = [
 
-        $totalCarton +=
-            $item['qty'];
+            '20FT' => [
+                'length' => 589,
+                'width' => 235,
+                'height' => 239,
+            ],
 
-        for (
-            $i = 0;
-            $i < $item['qty'];
-            $i++
-        )
-        {
-            $items3d[] = [
+            '40HC' => [
+                'length' => 1203,
+                'width' => 235,
+                'height' => 269,
+            ],
 
-                'name' =>
-                    $item['name'],
+        ];
 
-                'length' =>
-                    $item['length'],
+        $container =
+            $containers[
+                $request->container
+            ];
 
-                'width' =>
-                    $item['width'],
+        $items3d = [];
 
-                'height' =>
-                    $item['height'],
+        $totalCbm = 0;
+        $totalCarton = 0;
 
-                'x' => $x,
-                'y' => $y,
-                'z' => $z,
+        $x = 0;
+        $y = 0;
+        $z = 0;
 
-                'color' =>
-                    sprintf(
+        foreach (
+            $request->items as $item
+        ) {
+            $cbm =
+                (
+                    $item['length'] *
+                    $item['width'] *
+                    $item['height']
+                ) / 1000000;
+
+            $totalCbm +=
+                $cbm *
+                $item['qty'];
+
+            $totalCarton +=
+                $item['qty'];
+
+            for (
+                $i = 0;
+                $i < $item['qty'];
+                $i++
+            ) {
+                $items3d[] = [
+
+                    'name' => $item['name'],
+
+                    'length' => $item['length'],
+
+                    'width' => $item['width'],
+
+                    'height' => $item['height'],
+
+                    'x' => $x,
+                    'y' => $y,
+                    'z' => $z,
+
+                    'color' => sprintf(
                         '0x%06X',
                         mt_rand(
                             0,
                             0xFFFFFF
                         )
-                    )
-            ];
+                    ),
+                ];
 
-            $x +=
-                $item['length'];
+                $x +=
+                    $item['length'];
 
-            if (
-                $x +
-                $item['length']
-                >
-                $container['length']
-            )
-            {
-                $x = 0;
-                $z +=
-                    $item['width'];
-            }
+                if (
+                    $x +
+                    $item['length']
+                    >
+                    $container['length']
+                ) {
+                    $x = 0;
+                    $z +=
+                        $item['width'];
+                }
 
-            if (
-                $z +
-                $item['width']
-                >
-                $container['width']
-            )
-            {
-                $z = 0;
-                $y +=
-                    $item['height'];
+                if (
+                    $z +
+                    $item['width']
+                    >
+                    $container['width']
+                ) {
+                    $z = 0;
+                    $y +=
+                        $item['height'];
+                }
             }
         }
-    }
 
-    $containerVolume =
-        (
-            $container['length']
-            *
-            $container['width']
-            *
-            $container['height']
-        ) / 1000000;
+        $containerVolume =
+            (
+                $container['length']
+                *
+                $container['width']
+                *
+                $container['height']
+            ) / 1000000;
 
-    return response()->json([
+        return response()->json([
 
-        'po_name' =>
-            $request->po_name,
+            'po_name' => $request->po_name,
 
-        'container' =>
-            $container,
+            'container' => $container,
 
-        'items' =>
-            $items3d,
+            'items' => $items3d,
 
-        'total_cbm' =>
-            round(
+            'total_cbm' => round(
                 $totalCbm,
                 2
             ),
 
-        'total_carton' =>
-            $totalCarton,
+            'total_carton' => $totalCarton,
 
-        'utilization' =>
-            round(
+            'utilization' => round(
                 (
                     $totalCbm /
                     $containerVolume
                 ) * 100,
                 2
-            )
+            ),
 
-    ]);
-}
+        ]);
+    }
 }
