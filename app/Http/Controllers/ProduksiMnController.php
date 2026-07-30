@@ -1608,4 +1608,39 @@ class ProduksiMnController extends Controller
         // dd($timelines);
         return view('pages.admin.laporan_admin', compact('timelines'));
     }
+
+
+public function paymentSpk(Request $request)
+{
+    $spk = Spk::all();
+
+    $sort = $request->sort ?? 'po';
+
+    $spk = $spk->sortBy(function ($spk) use ($sort) {
+        $data = is_array($spk->data)
+            ? $spk->data
+            : json_decode($spk->data, true);
+
+        switch ($sort) {
+            case 'sub':
+                return $data['sup'] ?? '';
+
+            case 'kategori':
+                return $data['kategori'] ?? '';
+
+            case 'po':
+            default:
+                return $data['no_po'] ?? '';
+        }
+    });
+
+
+    $qtyIn = ProductionTimeline::where('type', 'service_keluar')
+    ->selectRaw('detail_po_id, SUM(qty) qty_in')
+    ->groupBy('detail_po_id')
+    ->pluck('qty_in', 'detail_po_id');
+
+// dd($qtyIn);
+        return view('pages.spk.monitoring-payment.index', compact('spk', 'qtyIn'));
+}
 }

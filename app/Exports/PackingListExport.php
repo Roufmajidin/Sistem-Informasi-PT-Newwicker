@@ -126,7 +126,7 @@ class PackingListExport implements WithEvents
         $sheet->getStyle('A16')->getAlignment()->setWrapText(true);
 
         $sheet->mergeCells('A18:D18');
-        $sheet->setCellValue('A18', 'TEL: ' . ($this->ipl->customer_code ?? ''));
+        // $sheet->setCellValue('A18', 'TEL: ' . ($this->ipl->customer_code ?? ''));
 
         // Right details
         $etdFormatted = $this->ipl->etd ? date('d M Y', strtotime($this->ipl->etd)) : '';
@@ -214,14 +214,24 @@ class PackingListExport implements WithEvents
                     $sheet->setCellValue("E{$currentRow}", '-');
                 }
             }
-
+$netWeight = (float)$item->net_weight * (float)$item->qty_box;
+$grossWeight = (float)$item->gross_weight * (float)$item->qty_box;
             $sheet->setCellValue("F{$currentRow}", $item->description);
             $sheet->setCellValue("G{$currentRow}", $item->box_dimension);
             $sheet->setCellValue("H{$currentRow}", $item->qty_box ?? $item->qty_pcs);
             $sheet->setCellValue("I{$currentRow}", 'CTNS');
-            $sheet->setCellValue("J{$currentRow}", (float)$item->net_weight);
-            $sheet->setCellValue("K{$currentRow}", (float)$item->gross_weight);
-            $sheet->setCellValue("L{$currentRow}", (float)$item->total_cbm);
+            $sheet->setCellValue(
+                "J{$currentRow}",
+                '=' . $item->net_weight . '*H' . $currentRow
+            );
+            $sheet->setCellValue(
+                "K{$currentRow}",
+                "={$item->gross_weight}*H{$currentRow}"
+            );
+                  $sheet->setCellValue(
+    "L{$currentRow}",
+    "={$item->cbm}*H{$currentRow}"
+);
 
             // Alignments
             $sheet->getStyle("A{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);

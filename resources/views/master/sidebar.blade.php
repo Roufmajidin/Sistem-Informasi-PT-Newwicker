@@ -200,6 +200,12 @@
                                      <span class="nav-text">Monitoring SPK</span>
                                  </a>
                              </li>
+                              <li>
+                                 <a href="/produksi/monitoring-payment-spk">
+                                     <!-- <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span> -->
+                                     <span class="nav-text">Monitoring payment spk</span>
+                                 </a>
+                             </li>
                          </ul>
 
 
@@ -268,6 +274,7 @@
                          <ul class="nav-sub">
                              <li><a href="/export/index"><span class="nav-text">form gener</span></a></li>
                              <li><a href="/export/ipl"><span class="nav-text">IPL</span></a></li>
+                             <li><a href="/export/stock"><span class="nav-text">Stock</span></a></li>
 
                          </ul>
 

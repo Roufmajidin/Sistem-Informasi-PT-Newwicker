@@ -2,18 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\DetailPo;
 use App\Models\ExportIpl;
 use App\Models\ExportIplItem;
 use App\Models\ExportIplPo;
 use App\Models\Po;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-
-use PhpOffice\PhpSpreadsheet\IOFactory;
-use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
-use PhpOffice\PhpSpreadsheet\Style\Border;
-use PhpOffice\PhpSpreadsheet\Style\Alignment;
-use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 
 class EdController extends Controller
 {
@@ -451,7 +446,71 @@ class EdController extends Controller
         }
     }
 
-    // EXPORT DOWNLOAD
+    public function check(Request $request, $detailPoId)
+    {
+        $detailPo = DetailPo::findOrFail($detailPoId);
 
+        $detail = is_array($detailPo->detail)
+            ? $detailPo->detail
+            : json_decode($detailPo->detail, true);
+
+        $qtyPo = (float) ($detail['qty'] ?? 0);
+
+        $usedQty = ExportIplItem::where('detail_po_id', $detailPoId)
+            ->when($request->item_id, function ($q) use ($request) {
+                $q->where('id', '!=', $request->item_id);
+            })
+            ->sum('qty_pcs');
+
+        return response()->json([
+            'qty_po' => $qtyPo,
+            'used_qty' => $usedQty,
+            'available_qty' => max(0, $qtyPo - $usedQty),
+            'is_full' => $usedQty >= $qtyPo,
+        ]);
+    }
+
+    public function stock()
+    {
+        $po = Po::with('detailPos')
+            ->orderBy('order_no')
+            ->get();
+
+        foreach ($po as $itemPo) {
+
+            foreach ($itemPo->detailPos as $detail) {
+
+                $detail->item = is_array($detail->detail)
+                    ? $detail->detail
+                    : json_decode($detail->detail, true);
+
+            }
+
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Qty Loaded per Export
+        |--------------------------------------------------------------------------
+        */
+
+        $loadedItems = ExportIplItem::with('exportIpl')
+            ->select(
+                'id',
+                'export_ipl_id',
+                'detail_po_id',
+                'qty_pcs'
+            )
+            ->orderBy('export_ipl_id')
+            ->get()
+            ->groupBy('detail_po_id');
+
+        return view('pages.exports.so', compact(
+            'po',
+            'loadedItems'
+        ));
+    }
+    // EXPORT DOWNLOAD
+    // ada di helpers
 
 }

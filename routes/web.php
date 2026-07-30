@@ -392,6 +392,7 @@ Route::get('/produksi/mn', [ProduksiMnController::class, 'index'])->name('produk
 Route::get('/qc-report/{inspectSchedule}', [ProduksiMnController::class, 'qcReport']
 )->name('qc.report');
 Route::get('/produksi/inventor', [ProduksiMnController::class, 'inventor']);
+Route::get('/produksi/monitoring-payment-spk', [ProduksiMnController::class, 'paymentSpk'])->name('payment-spk');
 
 Route::get(
     '/inventor/spk/{id}',
@@ -572,6 +573,8 @@ Route::get('/bom/released-partial', [BomController::class, 'releasedPartial']);
 
 // exports
 Route::get('/export/{id}/IPLEX', [SofianController::class, 'downloadPackingList'])->name('export.packing-list');
+Route::get('/export/{id}/INVEX', [SofianController::class, 'downloadInvoiceList'])->name('export.inv-list');
+Route::get('/export/stock', [EdController::class, 'stock'])->name('export.stock');
 
 Route::get('/export/index', [EdController::class, 'index'])->name('export.index');
 Route::get('/export/search-po', [EdController::class, 'searchPo'])
@@ -583,6 +586,11 @@ Route::get('/export/{id}/edit', [EdController::class, 'edit'])
 Route::get('/export/po-items/{id}', [EdController::class, 'poItems']);
 Route::post('/export/save-ipl', [EdController::class, 'saveIpl'])->name('export.saveIpl');
 Route::get('/export/ipl', [EdController::class, 'ipl'])->name('export.ipl');
+Route::get(
+    '/export/check-detail/{detail_po_id}',
+    [EdController::class, 'check']
+    )->name('export.check');
+
 Route::delete('/export/item/{id}', [EdController::class, 'deleteItem'])
 ->name('export.item.delete');
 Route::get('/produksi/in_out_barang_jadi', [ProduksiMnController::class, 'barangJadi']);

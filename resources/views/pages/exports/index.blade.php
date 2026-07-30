@@ -136,7 +136,7 @@
                                     <button type="button" class="btn btn-sm btn-outline-danger remove-item"
                                         title="Delete Item">
 
-                                        <i class="fas fa-trash"></i>
+                                        <i class="fa fa-trash"></i>
 
                                     </button>
 
@@ -170,7 +170,7 @@
 
                         </h5>
 
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal">
+                        <button type="button" class="btn-close btn-close" data-bs-dismiss="modal">
                         </button>
 
                     </div>
@@ -623,8 +623,7 @@
                 let cbm = (p * l * t) / 1000000;
 
                 // CBM / Box
-                row.find('.cbm').val(formatNumber(cbm, 2));
-
+                row.find('.cbm').val(cbm.toFixed(3));
                 // Total CBM
                 row.find('.total_cbm').val(formatNumber(cbm * qtyBox, 2));
 
@@ -1263,6 +1262,7 @@
                 let html = `
 
                   <tr data-id="${item.item_id ?? item.id}">
+
                     <td style="display:none">
                         <input
                             type="hidden"
@@ -1757,6 +1757,44 @@ Belum ada item
                 return payload;
 
             }
+            $(document).on('input', '.qty_pcs', function() {
+
+                let row = $(this).closest('tr');
+
+                let detailPoId = row.find('input[name$="[detail_po_id]"]').val();
+                let itemId = row.data('id'); // id export_ipl_items
+
+                let qtyInput = $(this);
+
+                $.get('/export/check-detail/' + detailPoId, {
+                    item_id: itemId
+                }, function(res) {
+
+                    let qty = parseFloat(qtyInput.val()) || 0;
+
+                    if (qty > res.available_qty) {
+
+                        qtyInput.addClass('is-invalid');
+
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Qty melebihi sisa',
+                            text: `Qty PO : ${res.qty_po}
+Sudah digunakan : ${res.used_qty}
+Sisa : ${res.available_qty}`
+                        });
+
+                        qtyInput.val(res.available_qty);
+
+                    } else {
+
+                        qtyInput.removeClass('is-invalid');
+
+                    }
+
+                });
+
+            });
         </script>
         <script>
             const MODE = "{{ $mode }}";

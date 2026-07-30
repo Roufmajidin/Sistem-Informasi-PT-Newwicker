@@ -11,10 +11,59 @@
 
     width:100%;
 
-    text-align:center;
+    /* text-align:center; */
 
 }
+.item-code {
+    max-width: 180px;   /* sesuaikan */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.item-a {
+    max-width: 100px;   /* sesuaikan */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.item-b {
+    max-width: 90px;   /* sesuaikan */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.card-header{
+    background: #fff;
+    border-bottom: 1px solid #dee2e6;
+}
 
+#searchTable{
+    padding-left: 15px;
+}
+
+#sortBy{
+    min-width: 180px;
+}
+.po-divider td{
+    border-bottom:4px solid #0d6efd !important;
+}
+.table-responsive{
+    max-height: 75vh; /* sesuaikan tinggi */
+    overflow: auto;
+}
+
+.table-responsive table{
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.table-responsive thead th{
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #f8f9fa; /* sama seperti table-light */
+    box-shadow: inset 0 -1px 0 #dee2e6;
+}
 #itemTableBody textarea{
 
     resize:none;

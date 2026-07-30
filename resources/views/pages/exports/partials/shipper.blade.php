@@ -23,128 +23,118 @@
                <div class="row">
 
                    {{-- LEFT --}}
-                   <div class="col-md-6">
+               <div class="col-md-6">
 
-                       <table class="table table-borderless table-sm mb-0">
+    <table class="table table-borderless table-sm mb-0 w-100">
 
-                           {{-- SHIPPER --}}
-                           <tr>
-                               <th colspan="2" class="bg-light">
-                                   SHIPPER :
-                               </th>
-                           </tr>
+        <colgroup>
+            <col style="width:130px;">
+            <col style="width:15px;">
+            <col>
+        </colgroup>
 
-                           <tr>
-                               <td colspan="2">
-                                   <strong>PT. NEWWICKER INDONESIA</strong>
-                               </td>
-                           </tr>
+        <tr>
+            <th colspan="3" class="bg-light">BUYER :</th>
+        </tr>
 
-                           <tr>
-                               <td colspan="2">
-                                   JL. KISABALANANG BLOK. SIPANCING RT.005 RW.002,
-                               </td>
-                           </tr>
+        <tr>
+            <td colspan="3">
+                <input id="buyer_name"
+                    name="buyer_name"
+                    class="form-control form-control-sm">
+            </td>
+        </tr>
 
-                           <tr>
-                               <td colspan="2">
-                                   DESA MEGU CILIK, KEC. WERU, CIREBON - INDONESIA
-                               </td>
-                           </tr>
+        <tr>
+            <td colspan="3">
+                <textarea id="buyer_address"
+                    name="buyer_address"
+                    rows="3"
+                    class="form-control form-control-sm"></textarea>
+            </td>
+        </tr>
 
-                           <tr>
-                               <td colspan="2">
-                                   PHONE : 0231-325880 - export@newwicker.com
-                               </td>
-                           </tr>
+        <tr>
+            <th>Date</th>
+            <td>:</td>
+            <td>
+                <input type="date"
+                    id="date"
+                    name="date"
+                    class="form-control form-control-sm">
+            </td>
+        </tr>
 
-                           {{-- BUYER --}}
-                           <tr>
-                               <th colspan="2" class="bg-light pt-3">
-                                   BUYER :
-                               </th>
-                           </tr>
+        <tr>
+            <th>Sales Order No</th>
+            <td>:</td>
+            <td style="position:relative">
 
-                           <tr>
-                               <td colspan="2">
-                                   <input id="buyer_name" class="form-control form-control-sm" name="buyer_name">
-                               </td>
-                           </tr>
+                <input type="text"
+                    class="form-control form-control-sm"
+                    id="sales_order"
+                    autocomplete="off">
 
-                           <tr>
-                               <td colspan="2">
-                                   <textarea id="buyer_address" name="buyer_address" rows="4" class="form-control form-control-sm"
-                                       placeholder="Buyer Address"></textarea>
-                               </td>
-                           </tr>
+                <input type="hidden"
+                    id="po_id"
+                    name="po_id">
 
-                       </table>
+                <div id="poResult"
+                    class="list-group shadow-sm"
+                    style="display:none;
+                           position:absolute;
+                           width:100%;
+                           z-index:9999;
+                           max-height:250px;
+                           overflow:auto;">
+                </div>
 
-                   </div>
+            </td>
+        </tr>
+
+        <tr>
+            <th>Invoice No</th>
+            <td>:</td>
+            <td>
+                <input type="text"
+                    name="invoice_no"
+                    id="invoice_no"
+                    class="form-control form-control-sm">
+            </td>
+        </tr>
+
+        <tr>
+            <th>Customer Code</th>
+            <td>:</td>
+            <td>
+                <input type="text"
+                    name="customer_code"
+                    id="customer_code"
+                    class="form-control form-control-sm">
+            </td>
+        </tr>
+
+        <tr>
+            <th>Customer PO No</th>
+            <td>:</td>
+            <td>
+                <input type="text"
+                    name="customer_po_no"
+                    id="customer_po_no"
+                    class="form-control form-control-sm">
+            </td>
+        </tr>
+
+    </table>
+
+</div>
 
                    {{-- RIGHT --}}
                    <div class="col-lg-6">
 
                        <table class="table table-sm table-borderless align-middle">
 
-                           <tr>
-                               <th width="180">Date</th>
-                               <td width="15">:</td>
-                               <t<input type="date" id="date" name="date">
-                                   </td>
-                           </tr>
 
-                           <tr>
-                           <tr>
-                               <th>Sales Order No</th>
-                               <td>:</td>
-                               <td style="position:relative">
-
-                                   <input type="text" class="form-control form-control-sm" id="sales_order"
-                                       autocomplete="off" placeholder="Search Sales Order...">
-
-                                   <input type="hidden" id="po_id" name="po_id">
-
-                                   <div id="poResult" class="list-group shadow-sm"
-                                       style="
-                                        display:none;
-                                        position:absolute;
-                                        z-index:9999;
-                                        width:100%;
-                                        max-height:250px;
-                                        overflow:auto;
-                                    ">
-                                   </div>
-
-                               </td>
-                           </tr>
-
-                           <tr>
-                               <th>Invoice No</th>
-                               <td>:</td>
-                               <td>
-                                   <input type="text" name="invoice_no" class="form-control form-control-sm"
-                                       id="invoice_no" placeholder="Invoice No">
-                               </td>
-                           </tr>
-
-                           <tr>
-                               <th>Customer Code</th>
-                               <td>:</td>
-                               <td>
-                                   <input id="customer_code" name="customer_code" class="form-control form-control-sm"
-                                       placeholder="Customer Code">
-                               </td>
-                           </tr>
-
-                           <tr>
-                               <th>Customer PO No</th>
-                               <td>:</td>
-                               <td>
-                                   <input type="text" id="customer_po_no" name="customer_po_no"
-                                       class="form-control form-control-sm" placeholder="Customer PO No">
-                               </td>
-                           </tr>
 
                            <tr>
                                <th>Vessel Name</th>

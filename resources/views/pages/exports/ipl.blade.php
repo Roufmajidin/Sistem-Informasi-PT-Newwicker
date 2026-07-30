@@ -3,13 +3,13 @@
 @section('content')
     <div class="card">
 
-        <div class="card-header d-flex justify-content-between">
+        <div class="card-header d-flex justify-content-between mt-4">
 
-            <h4>Export IPL</h4>
+            <h4>Invoice Packing list</h4>
 
             <a href="{{ route('export.index') }}" class="btn btn-primary">
 
-                <i class="fas fa-plus"></i>
+                <i class="fa fa-plus"></i>
 
                 Create IPL
 
@@ -116,34 +116,37 @@
 
                                     <a href="#" class="btn btn-sm btn-info">
 
-                                        <i class="fas fa-eye"></i>
+                                        <i class="fa fa-eye"></i>
 
                                     </a>
 
-                                    <a href="/export/{{ $data->id}}/edit" class="btn btn-sm btn-warning">
+                                    <a href="/export/{{ $data->id }}/edit" class="btn btn-sm btn-warning">
 
-                                        <i class="fas fa-edit"></i>
+                                        <i class="fa fa-edit"></i>
 
                                     </a>
 
                                     <button class="btn btn-sm btn-danger">
 
-                                        <i class="fas fa-trash"></i>
+                                        <i class="fa fa-trash"></i>
 
                                     </button>
 
                                 </td>
-                                    <td>
+                                <td class="text-end">
+                                    <div class="d-flex justify-content-end gap-2">
+                                        <a href="{{ route('export.packing-list', $data->id) }}"
+                                            class="btn btn-sm btn-success btn-download">
+                                            <i class="fa fa-download download-icon"></i>
+                                            <span class="btn-text">PL</span>
+                                        </a>
 
-
-                                    <a href="{{ route('export.packing-list', $data->id) }}"
-   class="btn btn-sm btn-download">
-    <i class="fa fa-download download-icon"></i>
-    <span class="btn-text"></span>
-</a>
-
-
-
+                                        <a href="{{ route('export.inv-list', $data->id) }}"
+                                            class="btn btn-sm btn-download btn-warning">
+                                            <i class="fa fa-download download-icon"></i>
+                                            <span class="btn-text">IL</span>
+                                        </a>
+                                    </div>
                                 </td>
 
 
@@ -178,32 +181,32 @@
 
     </div>
     <script>
-        $(document).on('click', '.btn-download', function () {
+        $(document).on('click', '.btn-download', function() {
 
-    let btn = $(this);
+            let btn = $(this);
 
-    btn.addClass('disabled');
-    btn.css('pointer-events', 'none');
+            btn.addClass('disabled');
+            btn.css('pointer-events', 'none');
 
-    btn.find('.download-icon')
-        .removeClass('fa-download')
-        .addClass('fa-spinner fa-spin');
+            btn.find('.download-icon')
+                .removeClass('fa-download')
+                .addClass('fa-spinner fa-spin');
 
-    btn.find('.btn-text').text(' Preparing...');
+            btn.find('.btn-text').text(' Preparing...');
 
-    setTimeout(function () {
+            setTimeout(function() {
 
-        btn.removeClass('disabled');
-        btn.css('pointer-events', '');
+                btn.removeClass('disabled');
+                btn.css('pointer-events', '');
 
-        btn.find('.download-icon')
-            .removeClass('fa-spinner fa-spin')
-            .addClass('fa-download');
+                btn.find('.download-icon')
+                    .removeClass('fa-spinner fa-spin')
+                    .addClass('fa-download');
 
-        btn.find('.btn-text').text(' Download');
+                btn.find('.btn-text').text(' Download');
 
-    }, 5000);
+            }, 5000);
 
-});
+        });
     </script>
 @endsection
