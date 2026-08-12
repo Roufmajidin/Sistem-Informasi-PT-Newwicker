@@ -1,408 +1,386 @@
 @extends('master.master')
-@section('title', "CAD - master data")
+@section('title', 'CAD - master data')
 @section('content')
 
-@php
-$detail = $find->detail ?? [];
-@endphp
+    @php
+        $detail = $find->detail ?? [];
+    @endphp
+    @include('pages.exports.partials.style')
 
-<div class="padding">
-    <div class="box">
-
-
-        {{-- HEADER --}}
+    <div class="padding">
+        <div class="box">
 
 
-        <input type="hidden" id="role" value="{{ auth()->user()->role }}">
-        <input type="hidden" id="id" value="{{ auth()->user()->role }}">
+            {{-- HEADER --}}
 
-        {{-- ================= HEADER INFO ================= --}}
-        <div class="box-body">
-            <!-- modal -->
-            <div id="modal-upload" style="display:none;">
-                <div style="background:#fff;padding:20px;border:1px solid #ddd;max-width:400px">
 
-                    <h4>Upload CAD</h4>
+            <input type="hidden" id="role" value="{{ auth()->user()->role }}">
+            <input type="hidden" id="id" value="{{ auth()->user()->role }}">
 
-                    <input type="file" id="cad-file" class="form-control"><br>
-                    <input type="text" id="master-sample" class="form-control" placeholder="Master Sample / Ukuran">
+            {{-- ================= HEADER INFO ================= --}}
+            <div class="box-body">
+                <!-- modal -->
+                <div id="modal-upload" style="display:none;">
+                    <div style="background:#fff;padding:20px;border:1px solid #ddd;max-width:400px">
 
-                    <div class="progress" style="height:20px; display:none;">
-                        <div id="progress-bar"
-                            style="height:100%;width:0%;background:#28a745;color:#fff;text-align:center;">
-                            0%
+                        <h4>Upload CAD</h4>
+
+                        <input type="file" id="cad-file" class="form-control"><br>
+                        <input type="text" id="master-sample" class="form-control" placeholder="Master Sample / Ukuran">
+
+                        <div class="progress" style="height:20px; display:none;">
+                            <div id="progress-bar"
+                                style="height:100%;width:0%;background:#28a745;color:#fff;text-align:center;">
+                                0%
+                            </div>
                         </div>
+
+                        <br>
+
+                        <button class="btn btn-success btn-sm" id="btn-submit-upload">
+                            Upload
+                        </button>
+
+                        <button class="btn btn-default btn-sm" id="btn-close-modal">
+                            Close
+                        </button>
+
                     </div>
-
-                    <br>
-
-                    <button class="btn btn-success btn-sm" id="btn-submit-upload">
-                        Upload
-                    </button>
-
-                    <button class="btn btn-default btn-sm" id="btn-close-modal">
-                        Close
-                    </button>
-
                 </div>
-            </div>
-   @php
+                @php
 
-$detail = $find->detail ?? [];
+                    $detail = $find->detail ?? [];
 
-$priority = [
-    'no_',
-    'photo',
-    'description',
-    'article_nr_',
-    'article_nr_nw',
-    'nw_code',
-    'sub_category',
-    'qty',
-    'remark',
-    'cushion',
-    'glass',
-    'item_w',
-    'item_d',
-    'item_h',
-    'pack_w',
-    'pack_d',
-    'pack_h',
-    'composition',
-    'finishing',
-    'cbm',
-    'total_cbm',
-    'value_in_usd',
-    'fob_jakarta_in_usd'
-];
+                    $priority = [
+                        'no_',
+                        'photo',
+                        'description',
+                        'article_nr_',
+                        'article_nr_nw',
+                        'nw_code',
+                        'sub_category',
+                        'qty',
+                        'remark',
+                        'cushion',
+                        'glass',
+                        'item_w',
+                        'item_d',
+                        'item_h',
+                        'pack_w',
+                        'pack_d',
+                        'pack_h',
+                        'composition',
+                        'finishing',
+                        'cbm',
+                        'total_cbm',
+                        'value_in_usd',
+                        'fob_jakarta_in_usd',
+                    ];
 
-/*
+                    /*
 |--------------------------------------------------------------------------
 | SORTING
 |--------------------------------------------------------------------------
 */
 
-uksort($detail, function ($a, $b) use ($priority) {
+                    uksort($detail, function ($a, $b) use ($priority) {
+                        $posA = array_search($a, $priority);
+                        $posB = array_search($b, $priority);
 
-    $posA = array_search($a, $priority);
-    $posB = array_search($b, $priority);
+                        $posA = $posA === false ? 999 : $posA;
+                        $posB = $posB === false ? 999 : $posB;
 
-    $posA = $posA === false ? 999 : $posA;
-    $posB = $posB === false ? 999 : $posB;
+                        return $posA <=> $posB;
+                    });
 
-    return $posA <=> $posB;
-});
-
-/*
+                    /*
 |--------------------------------------------------------------------------
 | HEADER INFO
 |--------------------------------------------------------------------------
 */
 
-$headerFields = [
-    'description',
-    'article_nr_',
-    'article_nr_nw',
-    'nw_code',
-    'sub_category',
-    'remark'
-];
+                    $headerFields = [
+                        'description',
+                        'article_nr_',
+                        'article_nr_nw',
+                        'nw_code',
+                        'sub_category',
+                        'remark',
+                    ];
 
-$headerData = [];
+                    $headerData = [];
 
-foreach ($headerFields as $field) {
+                    foreach ($headerFields as $field) {
+                        if (!empty($detail[$field])) {
+                            $headerData[$field] = $detail[$field];
+                        }
+                    }
 
-    if (!empty($detail[$field])) {
-        $headerData[$field] = $detail[$field];
-    }
-}
-
-/*
+                    /*
 |--------------------------------------------------------------------------
 | DETAIL TABLE
 |--------------------------------------------------------------------------
 */
 
-$detailItems = collect($detail)
-    ->except(array_merge($headerFields, ['photo']))
-    ->toArray();
+                    $detailItems = collect($detail)
+                        ->except(array_merge($headerFields, ['photo']))
+                        ->toArray();
 
-@endphp
-<!-- <table class="table table-bordered">
+                @endphp
+                <!-- <table class="table table-bordered">
 
+        <tr>
+
+            {{-- IMAGE --}}
+            <td width="220"
+                class="text-center align-middle">
+
+                @if (!empty($detail['photo']))
+    <img src="{{ $detail['photo'] }}"
+                         width="180"
+                         style="object-fit:cover;">
+@else
+    <span class="text-muted">
+                        No Image
+                    </span>
+    @endif
+
+            </td>
+
+            {{-- INFO --}}
+            <td>
+
+                <table class="table table-bordered mb-0">
+
+                    @foreach ($headerData as $key => $value)
     <tr>
 
-        {{-- IMAGE --}}
-        <td width="220"
-            class="text-center align-middle">
+                        <td width="220"
+                            style="font-weight:bold;background:#f7f7f7;">
 
-            @if(!empty($detail['photo']))
-                <img src="{{ $detail['photo'] }}"
-                     width="180"
-                     style="object-fit:cover;">
-            @else
-                <span class="text-muted">
-                    No Image
-                </span>
-            @endif
+                            {{ strtoupper(str_replace('_', ' ', $key)) }}
 
-        </td>
+                        </td>
 
-        {{-- INFO --}}
-        <td>
+                        <td>
+                            {{ $value ?: '-' }}
+                        </td>
 
-            <table class="table table-bordered mb-0">
+                    </tr>
+    @endforeach
 
-                @foreach($headerData as $key => $value)
+                </table>
+
+            </td>
+
+        </tr>
+
+    </table>
+    <div class="table-responsive">
+
+        <table class="table table-bordered table-striped">
+
+            <thead>
 
                 <tr>
 
-                    <td width="220"
-                        style="font-weight:bold;background:#f7f7f7;">
-
-                        {{ strtoupper(str_replace('_', ' ', $key)) }}
-
-                    </td>
-
-                    <td>
-                        {{ $value ?: '-' }}
-                    </td>
+                    @foreach ($detailItems as $key => $val)
+    <th class="text-center">
+                            {{ strtoupper(str_replace('_', ' ', $key)) }}
+                        </th>
+    @endforeach
 
                 </tr>
 
-                @endforeach
+            </thead>
 
-            </table>
+            <tbody>
 
-        </td>
+                <tr>
 
-    </tr>
+                    @foreach ($detailItems as $val)
+    <td>
+                            {{ $val ?: '-' }}
+                        </td>
+    @endforeach
 
-</table>
-<div class="table-responsive">
+                </tr>
 
-    <table class="table table-bordered table-striped">
+            </tbody>
 
-        <thead>
+        </table>
 
-            <tr>
+    </div> -->
+                {{-- ================= 2 COLUMN ================= --}}
+                <div class="row">
 
-                @foreach($detailItems as $key => $val)
+                    {{-- ================= LEFT : CAD ================= --}}
+                    <div class="col-md-8">
 
-                    <th class="text-center">
-                        {{ strtoupper(str_replace('_', ' ', $key)) }}
-                    </th>
-
-                @endforeach
-
-            </tr>
-
-        </thead>
-
-        <tbody>
-
-            <tr>
-
-                @foreach($detailItems as $val)
-
-                    <td>
-                        {{ $val ?: '-' }}
-                    </td>
-
-                @endforeach
-
-            </tr>
-
-        </tbody>
-
-    </table>
-
-</div> -->
-            {{-- ================= 2 COLUMN ================= --}}
-            <div class="row">
-
-                {{-- ================= LEFT : CAD ================= --}}
-                <div class="col-md-8">
-
-                    <div class="box">
-                        <div class="box-header">
-                            <h4>CAD Files</h4>
-                        </div>
-
-                        <div class="box-body">
-
-                            <button class="btn btn-primary btn-sm mb-2" id="btn-upload-cad">
-                                Upload CAD
-                            </button>
-
-                            <div class="table-responsive">
-                                <table class="table table-striped table-bordered">
-                                    <thead>
-                                        <tr>
-                                            <th>#</th>
-                                            <th>File</th>
-                                            <th>Uploader</th>
-                                            <th>Article Code/Nr.</th>
-                                            <th>Master Sample</th>
-                                            <th>History</th>
-                                            <th>Action</th>
-                                        </tr>
-                                    </thead>
-
-                                    <tbody>
-                                        @forelse($cads as $i => $cad)
-                                   <tr class="cad-row clickable-row"
-    data-article="{{ $cad->article_code }}">
-                                            <td>{{ $i+1 }}</td>
-
-                                            <td>
-                                                <a href="{{ asset('storage/'.$cad->file_path) }}" target="_blank">
-                                                    View
-                                                </a>
-                                            </td>
-
-                                            <td>{{ $cad->user->name ?? '-' }}</td>
-                                            <td>{{ $cad->article_code ?? '-' }}</td>
-                                            <td>{{ $cad->master_sample ?? '-' }}</td>
-                                            <td>
-                                                <button
-                                                    class="btn btn-info btn-xs btn-history"
-                                                    data-article="{{ $cad->article_code }}">
-                                                    History
-                                                </button>
-                                            </td>
-                                            <td>
-
-
-                                                <button class="btn btn-xs btn-danger btn-delete"
-                                                    data-id="{{ $cad->id }}">
-                                                    Del
-                                                </button>
-                                            </td>
-                                        </tr>
-                                        @empty
-                                        <tr>
-                                            <td colspan="6" class="text-center text-muted">
-                                                Belum ada CAD
-                                            </td>
-                                        </tr>
-                                        @endforelse
-                                    </tbody>
-
-                                </table>
+                        <div class="box">
+                            <div class="box-header">
+                                <h4>CAD Files</h4>
                             </div>
 
-                        </div>
-                    </div>
+                            <div class="box-body">
 
-                </div>
+                                {{-- <button class="btn btn-primary btn-sm mb-2" id="btn-upload-cad">
+                                    Upload CAD
+                                </button> --}}
+<div class="mb-2">
+    <input type="text"
+           id="searchCad"
+           class="form-control"
+           placeholder="Search Article, Item, Uploader, Master Sample...">
+</div>
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-bordered">
+                                        <thead>
+                                            <tr>
+                                                <th>#</th>
+
+                                                 <th>Article Code/Nr.</th>
+                                                <th>Item Name</th>
+                                                <th>Master Sample</th>
+
+                                                <th>History</th>
+
+                                                <th>Action</th>
+                                                <th>Uploader</th>
+                                            </tr>
+                                        </thead>
+
+                                        <tbody id="cadTable">
+                                            @forelse($cads as $i => $cad)
+                                                <tr class="cad-row clickable-row"
+    data-url="{{ asset('storage/'.$cad->file_path) }}">
+                                                    <td>{{ $i + 1 }}</td>
 
 
 
+                                                    <td>{{ $cad->article_code ?? '-' }}</td>
+                                                    <td>{{ $cad->item_name }}</td>
+                                                    <td>{{ $cad->master_sample ?? '-' }}</td>
+                                                    <td>
+                                                        <button class="btn btn-info btn-xs btn-history"
+                                                            data-article="{{ $cad->article_code }}">
+                                                            History
+                                                        </button>
+                                                    </td>
+                                                          <td>
 
 
+                                                        <button class="btn btn-xs btn-danger btn-delete"
+                                                            data-id="{{ $cad->id }}">
+                                                            Del
+                                                        </button>
+                                                    </td>
+                                                    <td>{{ $cad->user->name ?? '-' }}</td>
 
-</tbody>
 
-                                </table>
+                                                </tr>
+                                            @empty
+                                                <tr>
+                                                    <td colspan="6" class="text-center text-muted">
+                                                        Belum ada CAD
+                                                    </td>
+                                                </tr>
+                                            @endforelse
+                                        </tbody>
+
+                                    </table>
+                                </div>
+
                             </div>
-
                         </div>
+
                     </div>
 
+
+
+
+
+
+                    </tbody>
+
+                    </table>
                 </div>
+
             </div>
         </div>
+
+    </div>
+    </div>
+    </div>
     </div>
 
     <div id="historyDrawer" class="drawer">
 
-    <div class="p-3 border-bottom">
+        <div class="p-3 border-bottom">
 
-        <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex justify-content-between align-items-center">
 
-            <h4 class="mb-0">
-                CAD History
-            </h4>
+                <h4 class="mb-0">
+                    CAD History
+                </h4>
 
-            <button
-                class="btn btn-danger btn-sm"
-                id="closeDrawer">
-                Close
-            </button>
+                <button class="btn btn-danger btn-sm" id="closeDrawer">
+                    Close
+                </button>
+
+            </div>
 
         </div>
 
-    </div>
+        <div class="p-3">
 
-    <div class="p-3">
+            {{-- Tombol tampilkan form --}}
+            <div class="mb-3">
 
-        {{-- Tombol tampilkan form --}}
-        <div class="mb-3">
+                <button id="btn-show-upload" class="btn btn-primary btn-sm">
 
-            <button
-                id="btn-show-upload"
-                class="btn btn-primary btn-sm">
-
-                <i class="fa fa-upload"></i>
-                Upload New Version
-
-            </button>
-
-        </div>
-
-        {{-- Form Upload (Hidden) --}}
-        <div
-            id="upload-card"
-            class="card mb-3"
-            style="display:none;">
-
-            <div class="card-body">
-
-                <label>Upload New CAD Version</label>
-
-                <input
-                    type="file"
-                    id="drawer-cad-file"
-                    class="form-control">
-
-                <br>
-
-                <input
-                    type="text"
-                    id="drawer-master-sample"
-                    class="form-control"
-                    placeholder="Master Sample">
-
-                <br>
-
-                <button
-                    id="btn-upload-version"
-                    class="btn btn-success btn-sm">
-
-                    Upload
+                    <i class="fa fa-upload"></i>
+                    Upload New Version
 
                 </button>
 
-                <button
-                    id="btn-cancel-upload"
-                    class="btn btn-secondary btn-sm">
+            </div>
 
-                    Cancel
+            {{-- Form Upload (Hidden) --}}
+            <div id="upload-card" class="card mb-3" style="display:none;">
 
-                </button>
+                <div class="card-body">
 
-                <div
-                    id="upload-wrapper"
-                    class="progress mt-2"
-                    style="display:none;height:22px;">
+                    <label>Upload New CAD Version</label>
 
-                    <div
-                        id="upload-progress"
-                        class="progress-bar progress-bar-striped progress-bar-animated"
-                        style="width:0%;">
+                    <input type="file" id="drawer-cad-file" class="form-control">
 
-                        0%
+                    <br>
+
+                    <input type="text" id="drawer-master-sample" class="form-control" placeholder="Master Sample">
+
+                    <br>
+
+                    <button id="btn-upload-version" class="btn btn-success btn-sm">
+
+                        Upload
+
+                    </button>
+
+                    <button id="btn-cancel-upload" class="btn btn-secondary btn-sm">
+
+                        Cancel
+
+                    </button>
+
+                    <div id="upload-wrapper" class="progress mt-2" style="display:none;height:22px;">
+
+                        <div id="upload-progress" class="progress-bar progress-bar-striped progress-bar-animated"
+                            style="width:0%;">
+
+                            0%
+
+                        </div>
 
                     </div>
 
@@ -410,123 +388,186 @@ $detailItems = collect($detail)
 
             </div>
 
-        </div>
+            {{-- History Content --}}
+            <div id="historyContent">
 
-        {{-- History Content --}}
-        <div id="historyContent">
+            </div>
 
         </div>
 
     </div>
-
-</div>
     <!-- script -->
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script>
-const Toast = Swal.mixin({
-    toast: true,
-    position: 'top-end',
-    showConfirmButton: false,
-    timer: 1500
-});
-</script>
     <script>
-        let selectedRow = null;
-        let currentArticle = null;
-$(document).on('click', '#btn-show-upload', function(){
-
-    $('#upload-card').slideDown();
-
-    $(this).hide();
-
-});
-$(document).on('click','#btn-upload-version',function(){
-    let file = $('#drawer-cad-file')[0].files[0];
-
-    if(!file){
-
-        Toast.fire({
-            icon:'warning',
-            title:'Choose file first'
+        const Toast = Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 1500
         });
+    </script>
+    <script>
+        $(document).on('click', '.clickable-row', function(e){
 
+    // Jangan redirect kalau klik tombol History / Delete
+    if ($(e.target).closest('button,a').length) {
         return;
     }
 
-    let btn = $(this);
+    $('.clickable-row').removeClass('cad-row-active');
 
-    let formData = new FormData();
+    $(this).addClass('cad-row-active');
 
-    formData.append('file', file);
+    let url = $(this).data('url');
 
-    formData.append(
-        'article_code',
-        currentArticle
-    );
+    window.open(url, '_blank'); // buka file CAD
+});
+        let selectedRow = null;
+        let currentArticle = null;
+        $(document).on('click', '#btn-show-upload', function() {
 
-    formData.append(
-        'master_sample',
-        $('#drawer-master-sample').val()
-    );
+            $('#upload-card').slideDown();
 
-    formData.append(
-        '_token',
-        '{{ csrf_token() }}'
-    );
+            $(this).hide();
 
-    btn.prop('disabled', true);
+        });
+        $('#searchCad').on('keyup', function () {
 
-    $('#upload-wrapper').show();
+    let value = $(this).val().toLowerCase();
 
-    $.ajax({
+    $('#cadTable tr').filter(function () {
 
-        url:'/cad/upload',
-        method:'POST',
+        $(this).toggle(
+            $(this).text().toLowerCase().indexOf(value) > -1
+        );
 
-        data:formData,
+    });
 
-        contentType:false,
-        processData:false,
+});
+        $(document).on('click', '#btn-upload-version', function() {
+            let file = $('#drawer-cad-file')[0].files[0];
 
-        xhr:function(){
+            if (!file) {
 
-            let xhr =
-                new window.XMLHttpRequest();
+                Toast.fire({
+                    icon: 'warning',
+                    title: 'Choose file first'
+                });
 
-            xhr.upload.addEventListener(
-                'progress',
-                function(e){
+                return;
+            }
 
-                    if(e.lengthComputable){
+            let btn = $(this);
 
-                        let percent =
-                            Math.round(
-                                (e.loaded/e.total)*100
-                            );
+            let formData = new FormData();
 
-                        $('#upload-progress')
-                            .css(
-                                'width',
-                                percent+'%'
-                            )
-                            .text(
-                                percent+'%'
-                            );
-                    }
+            formData.append('file', file);
 
-                }
+            formData.append(
+                'article_code',
+                currentArticle
             );
 
-            return xhr;
-        },
+            formData.append(
+                'master_sample',
+                $('#drawer-master-sample').val()
+            );
 
-        success:function(res){
+            formData.append(
+                '_token',
+                '{{ csrf_token() }}'
+            );
 
-            Toast.fire({
-                icon:'success',
-                title:'CAD uploaded'
+            btn.prop('disabled', true);
+
+            $('#upload-wrapper').show();
+
+            $.ajax({
+
+                url: '/cad/upload',
+                method: 'POST',
+
+                data: formData,
+
+                contentType: false,
+                processData: false,
+
+                xhr: function() {
+
+                    let xhr =
+                        new window.XMLHttpRequest();
+
+                    xhr.upload.addEventListener(
+                        'progress',
+                        function(e) {
+
+                            if (e.lengthComputable) {
+
+                                let percent =
+                                    Math.round(
+                                        (e.loaded / e.total) * 100
+                                    );
+
+                                $('#upload-progress')
+                                    .css(
+                                        'width',
+                                        percent + '%'
+                                    )
+                                    .text(
+                                        percent + '%'
+                                    );
+                            }
+
+                        }
+                    );
+
+                    return xhr;
+                },
+
+                success: function(res) {
+
+                    Toast.fire({
+                        icon: 'success',
+                        title: 'CAD uploaded'
+                    });
+
+                    $('#upload-card').slideUp();
+
+                    $('#btn-show-upload').show();
+
+                    $('#drawer-cad-file').val('');
+                    $('#drawer-master-sample').val('');
+
+                    $('#upload-wrapper').hide();
+
+                    $('#upload-progress')
+                        .css('width', '0%')
+                        .text('0%');
+
+                    loadHistory(currentArticle);
+
+                },
+
+                error: function() {
+
+                    Toast.fire({
+                        icon: 'error',
+                        title: 'Upload failed'
+                    });
+
+                },
+
+                complete: function() {
+
+                    btn.prop('disabled', false);
+
+                }
+
             });
+
+        });
+        $(document).on('click', '#btn-cancel-upload', function() {
 
             $('#upload-card').slideUp();
 
@@ -535,55 +576,19 @@ $(document).on('click','#btn-upload-version',function(){
             $('#drawer-cad-file').val('');
             $('#drawer-master-sample').val('');
 
-            $('#upload-wrapper').hide();
+        });
 
-            $('#upload-progress')
-                .css('width','0%')
-                .text('0%');
+        function loadHistory(article) {
 
-            loadHistory(currentArticle);
-
-        },
-
-        error:function(){
-
-            Toast.fire({
-                icon:'error',
-                title:'Upload failed'
-            });
-
-        },
-
-        complete:function(){
-
-            btn.prop('disabled', false);
-
-        }
-
-    });
-
-});
-$(document).on('click', '#btn-cancel-upload', function(){
-
-    $('#upload-card').slideUp();
-
-    $('#btn-show-upload').show();
-
-    $('#drawer-cad-file').val('');
-    $('#drawer-master-sample').val('');
-
-});
-function loadHistory(article){
-
-    $('#historyContent').html(`
+            $('#historyContent').html(`
         <div class="text-center p-3">
             Loading...
         </div>
     `);
 
-    $.get('/cad/history/' + article, function(res){
+            $.get('/cad/history/' + article, function(res) {
 
-        let html = `
+                let html = `
             <table class="table table-bordered table-sm">
                 <thead>
                     <tr>
@@ -596,9 +601,9 @@ function loadHistory(article){
                 <tbody>
         `;
 
-        res.forEach(row => {
+                res.forEach(row => {
 
-            html += `
+                    html += `
                 <tr>
                     <td>
                         <span class="badge badge-primary">
@@ -617,51 +622,47 @@ function loadHistory(article){
                            View
                         </a>
 
-                        <button
-                            class="btn btn-xs btn-danger btn-delete-history"
-                            data-id="${row.id}">
-                            Del
-                        </button>
+
                     </td>
                 </tr>
             `;
-        });
+                });
 
-        html += `
+                html += `
                 </tbody>
             </table>
         `;
 
-        $('#historyContent').html(html);
+                $('#historyContent').html(html);
 
-    });
+            });
 
-}
-$(document).on('click', '.btn-history', function () {
+        }
+        $(document).on('click', '.btn-history', function() {
 
-    let article = $(this).data('article');
-    currentArticle = $(this).data('article');
+            let article = $(this).data('article');
+            currentArticle = $(this).data('article');
 
-    // reset semua highlight
-    $('.cad-row').removeClass('cad-row-active');
+            // reset semua highlight
+            $('.cad-row').removeClass('cad-row-active');
 
-    // highlight row yg diklik
-    selectedRow = $(this).closest('tr');
+            // highlight row yg diklik
+            selectedRow = $(this).closest('tr');
 
-    selectedRow.addClass('cad-row-active');
+            selectedRow.addClass('cad-row-active');
 
-    // buka drawer
-    $('#historyDrawer').addClass('show');
+            // buka drawer
+            $('#historyDrawer').addClass('show');
 
-    $('#historyContent').html(`
+            $('#historyContent').html(`
         <div class="text-center p-3">
             Loading...
         </div>
     `);
 
-    $.get('/cad/history/' + article, function(res){
+            $.get('/cad/history/' + article, function(res) {
 
-        let html = `
+                let html = `
             <table class="table table-bordered table-sm">
                 <thead>
                     <tr>
@@ -675,9 +676,9 @@ $(document).on('click', '.btn-history', function () {
                 <tbody>
         `;
 
-        res.forEach(row => {
+                res.forEach(row => {
 
-            html += `
+                    html += `
                 <tr>
                     <td>
                         <span class="badge badge-primary">
@@ -705,26 +706,26 @@ $(document).on('click', '.btn-history', function () {
 
                 </tr>
             `;
-        });
+                });
 
-        html += `
+                html += `
                 </tbody>
             </table>
         `;
 
-        $('#historyContent').html(html);
+                $('#historyContent').html(html);
 
-    });
-  loadHistory(currentArticle);
-});
-// close
-$(document).on('click', '#closeDrawer', function () {
+            });
+            loadHistory(currentArticle);
+        });
+        // close
+        $(document).on('click', '#closeDrawer', function() {
 
-    $('#historyDrawer').removeClass('show');
+            $('#historyDrawer').removeClass('show');
 
-    $('.cad-row').removeClass('cad-row-active');
+            $('.cad-row').removeClass('cad-row-active');
 
-});
+        });
     </script>
 
     <style>
@@ -784,7 +785,8 @@ $(document).on('click', '#closeDrawer', function () {
         .table-scroll thead th {
             border-bottom: 2px solid #ddd;
         }
-        .drawer{
+
+        .drawer {
             position: fixed;
             top: 0;
             right: -650px;
@@ -793,23 +795,24 @@ $(document).on('click', '#closeDrawer', function () {
             background: #fff;
             z-index: 9999;
             transition: .3s;
-            box-shadow: -5px 0 15px rgba(0,0,0,.15);
+            box-shadow: -5px 0 15px rgba(0, 0, 0, .15);
         }
 
-        .drawer.show{
+        .drawer.show {
             right: 0;
         }
 
-        .cad-row-active{
-            background: rgba(13,110,253,.12) !important;
+        .cad-row-active {
+            background: rgba(13, 110, 253, .12) !important;
             transition: .2s;
         }
 
-        .cad-row-active td{
-            border-color: rgba(13,110,253,.35) !important;
+        .cad-row-active td {
+            border-color: rgba(13, 110, 253, .35) !important;
         }
-        .clickable-row{
-    cursor:pointer;
-}
+
+        .clickable-row {
+            cursor: pointer;
+        }
     </style>
-    @endsection
+@endsection

@@ -7,6 +7,7 @@
     <div class="box">
         <div class="box-header">
             <h2>Release PFI</h2>
+            <small>___</small>
         </div>
         <input type="hidden" id="role" value="{{ auth()->user()->role }}">
         <input type="hidden" id="id" value="{{ auth()->user()->role }}">
@@ -46,16 +47,33 @@
                 </div>
 
             </div>
-
+            <!--<div class="col-12 d-flex justify-content-end">-->
+            <!--    <a href="/semua-spk"-->
+            <!--        class="btn btn-primary btn-sm">-->
+            <!--        All SPK-->
+            <!--    </a>-->
+            <!--</div>-->
             <div class="row" id="default-table">
                 <div class="col-sm-12">
                     <div class="box">
                       <div class="table-responsive po-wrapper">
 
-                              <table id="po-table"  class="table">
+                              <table id="po-table"  class="table-bordered">
                                 <thead>
                                     <tr class="">
-                                        <th>Order No</th>
+                                       <th
+                                            id="sort-order-no"
+                                            style="cursor:pointer;white-space:nowrap;user-select:none;">
+
+                                            Order No
+
+                                            <i
+                                                id="sort-order-icon"
+                                                class="fa fa-sort ml-1"
+                                                style="color:white">
+                                            </i>
+
+                                        </th>
                                         <th>Company Name</th>
                                         <th>Country</th>
 
@@ -63,9 +81,9 @@
                                         <th>Shipment Date</th>
                                            <th>Category</th>
                                         <th>Actual Ship</th>
-                                       @if(strtolower(auth()->user()->role) == 'marketing')
-                                            <th>Value</th>
-                                        @endif
+                                     @if(in_array(strtolower(auth()->user()->role), ['marketing','sales','export','finance']))
+    <th>Value</th>
+@endif
                                         <th>Cont Numb</th>
                                         <th>DO Released</th>
                                         <th>Remark</th>
@@ -171,9 +189,24 @@
     <div id="save-status">
     ✔ All changes saved
     </div>
+     <div id="loadingOverlay">
+    <div class="loading-content">
+        <div class="spinner-border text-primary"
+             style="width:60px;height:60px"></div>
+
+        <h5 class="mt-3">
+            Sedang mengambil data...
+        </h5>
+
+        <small class="text-muted">
+            Mohon tunggu sebentar
+        </small>
+    </div>
+</div>
     <pre id="result"></pre>
     @push('scripts')
     <script>
+        let orderSort = 'asc';
 const currentUsername = @json(auth()->user()->name);
 </script>
     <script>
@@ -186,8 +219,8 @@ const currentUsername = @json(auth()->user()->name);
 ===================================================== */
  /* ===== ROLE ===== */
             const role = ($('#role').val() || '').toLowerCase();
-            const canEdit = ['marketing','sales','export'].includes(role);
-            const canSeeValue = ['marketing','sales','export'].includes(role);
+            const canEdit = ['marketing','sales','export', 'finance'].includes(role);
+            const canSeeValue = ['marketing','sales','export', 'finance'].includes(role);
         function initPage() {
             console.log('INIT PAGE JALAN');
 
@@ -378,9 +411,12 @@ const currentUsername = @json(auth()->user()->name);
     `;
 }
         function loadPoTable(keyword = '', type = '') {
-            fetch(
-                    `{{ route('marketing.ajax.po') }}?q=${encodeURIComponent(keyword)}&type=${encodeURIComponent(type)}`
-                )
+           fetch(
+`{{ route('marketing.ajax.po') }}
+?q=${encodeURIComponent(keyword)}
+&type=${encodeURIComponent(type)}
+&sort=${orderSort}`
+)
                 .then(res => res.json())
                 .then(data => {
                    data.forEach(po => {
@@ -433,10 +469,10 @@ const currentUsername = @json(auth()->user()->name);
 
                             ${editableTd('act_ship',po.act_ship,po.id,'date')}
 
-                            ${role === 'marketing'
-                                ? editableTd('value', po.value, po.id, 'number')
-                                : ''
-                            }
+                          ${canSeeValue
+    ? editableTd('value', po.value, po.id, 'number')
+    : ''
+}
 
                             ${editableTd('cont_numb',po.cont_numb,po.id)}
 
@@ -894,6 +930,18 @@ const currentUsername = @json(auth()->user()->name);
                 }, 1200);
 
             }
+            $(document).on('click','#sort-order-no',function(){
+
+    orderSort = orderSort === 'asc'
+        ? 'desc'
+        : 'asc';
+
+    loadPoTable(
+        $('#search-qc').val(),
+        $('#filter-spk-type').val()
+    );
+
+});
     </script>
 
     @endpush

@@ -1,5 +1,5 @@
 @extends('master.master')
-
+{{-- IPL BLADE --}}
 @section('content')
     <div class="card">
 
@@ -35,9 +35,9 @@
 
                             <th>Buyer</th>
 
-                            <th>PO</th>
+                            {{-- <th>PO</th> --}}
 
-                            <th>Items</th>
+                            <th>Items Total</th>
 
                             <th>Container</th>
 
@@ -46,8 +46,9 @@
                             <th>Created By</th>
 
 
+                            <th width="180">Released</th>
                             <th width="180">Action</th>
-                            <th width="180">Action</th>
+                            <th width="180">Download</th>
 
                         </tr>
 
@@ -82,11 +83,7 @@
 
                                 </td>
 
-                                <td class="text-center">
-
-                                    {{ $data->pos_count }}
-
-                                </td>
+                                
 
                                 <td class="text-center">
 
@@ -105,20 +102,31 @@
                                     {{ optional($data->etd)->format('d M Y') }}
 
                                 </td>
-
                                 <td>
 
                                     {{ optional($data->creator)->name }}
 
                                 </td>
+<td class="">
+    @if(is_null($data->released))
+        <input type="checkbox"
+               name="selected[]"
+               value="{{ $data->id }}"
+               class="release-checkbox"> no yet
+    @else
+        <span class="badge badge-success">
+            {{ \Carbon\Carbon::parse($data->release_date)->format('d/m/Y') }}
+        </span>
+    @endif
+</td>
 
                                 <td>
 
-                                    <a href="#" class="btn btn-sm btn-info">
+                                    {{-- <a href="#" class="btn btn-sm btn-info">
 
                                         <i class="fa fa-eye"></i>
 
-                                    </a>
+                                    </a> --}}
 
                                     <a href="/export/{{ $data->id }}/edit" class="btn btn-sm btn-warning">
 
@@ -134,7 +142,7 @@
 
                                 </td>
                                 <td class="text-end">
-                                    <div class="d-flex justify-content-end gap-2">
+                                    <div class="d-flex justify-content-end gap-2" style="margin-right: 20px">
                                         <a href="{{ route('export.packing-list', $data->id) }}"
                                             class="btn btn-sm btn-success btn-download">
                                             <i class="fa fa-download download-icon"></i>

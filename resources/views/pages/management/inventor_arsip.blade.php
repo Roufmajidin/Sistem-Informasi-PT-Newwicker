@@ -284,7 +284,7 @@
                         <h4 class="mb-0">
                             DETAIL INVENTORY
                         </h4>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal">
+                        <button type="button" class="btn-close btn-close-secondary" data-bs-dismiss="modal"><i class="fa fa-close"></i>
                         </button>
                     </div>
                     <div class="modal-body">
@@ -352,7 +352,7 @@
                                                             <th>Bahan</th>
                                                             <th>potong bahan</th>
                                                             <th>harga inventory</th>
-                                                            <th>harga (adjusment)</th>
+                                                            <th>harga (KONTRAK)</th>
                                                             <th>Total</th>
                                                             <th>Keterangan</th>
                                                         </tr>

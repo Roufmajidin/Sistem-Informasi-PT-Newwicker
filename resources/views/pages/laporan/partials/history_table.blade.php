@@ -156,7 +156,43 @@
 </div>
 
 </div>
+@php
+    $showSummary =
+        request()->filled('search') ||
+        request()->filled('date_from') ||
+        request()->filled('date_to') ||
+        request()->filled('type');
+@endphp
 
+@if($showSummary)
+
+<div class="d-flex justify-content-between align-items-center mt-3 mb-2">
+
+    <div>
+
+        <strong>Record Data :</strong>
+        {{ number_format($summary->total_transaksi) }}
+
+        &nbsp; | &nbsp;
+
+        <strong>Total Qty :</strong>
+        {{ number_format($summary->total_qty,2) }}
+
+        &nbsp; | &nbsp;
+
+        <strong>Total Nilai :</strong>
+
+        <span class="text-success font-weight-bold">
+
+            Rp {{ number_format($summary->total_value,0,',','.') }}
+
+        </span>
+
+    </div>
+
+</div>
+
+@endif
 <div class="d-flex justify-content-start mt-3">
     {{ $histories->links() }}
 </div>

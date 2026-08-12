@@ -95,11 +95,11 @@ class ProduksiMnController extends Controller
         */
             $grouped[$dateKey][] = [
                 'check_point_id' =>
-                $report->check_point_id,
-                'remark'         =>
-                $remark,
-                'created_at'     =>
-                $report->created_at,
+                    $report->check_point_id,
+                'remark' =>
+                    $remark,
+                'created_at' =>
+                    $report->created_at,
             ];
         }
         /*
@@ -113,11 +113,11 @@ class ProduksiMnController extends Controller
                 $inspect->detail_po_id
             )
             ->first();
-        $detailData  = [];
-        $itemName    = '-';
+        $detailData = [];
+        $itemName = '-';
         $articleCode = '-';
-        $qty         = '-';
-        $itemImage   = null;
+        $qty = '-';
+        $itemImage = null;
         if ($detailPo && $detailPo->detail) {
             $detailData = json_decode(
                 $detailPo->detail,
@@ -129,13 +129,13 @@ class ProduksiMnController extends Controller
         |--------------------------------------------------------------------------
         */
             $itemName =
-            $detailData['description'] ?? $detailData['nama'] ?? $detailData['item'] ?? '-';
+                $detailData['description'] ?? $detailData['nama'] ?? $detailData['item'] ?? '-';
             $articleCode =
-            $detailData['article'] ?? $detailData['article_code'] ?? $detailData['article_no'] ?? $detailData['code'] ?? '-';
+                $detailData['article'] ?? $detailData['article_code'] ?? $detailData['article_no'] ?? $detailData['code'] ?? '-';
             $qty =
-            $detailData['qty'] ?? '-';
+                $detailData['qty'] ?? '-';
             $itemImage =
-            $detailData['photo'] ?? null;
+                $detailData['photo'] ?? null;
         }
         /*
     |--------------------------------------------------------------------------
@@ -143,18 +143,18 @@ class ProduksiMnController extends Controller
     |--------------------------------------------------------------------------
     */
         $pfi = [
-            'w'  =>
-            $detailData['w'] ?? '-',
-            'd'  =>
-            $detailData['d'] ?? '-',
-            'h'  =>
-            $detailData['h'] ?? '-',
+            'w' =>
+                $detailData['w'] ?? '-',
+            'd' =>
+                $detailData['d'] ?? '-',
+            'h' =>
+                $detailData['h'] ?? '-',
             'sw' =>
-            $detailData['sw'] ?? '-',
+                $detailData['sw'] ?? '-',
             'sd' =>
-            $detailData['sd'] ?? '-',
+                $detailData['sd'] ?? '-',
             'sh' =>
-            $detailData['sh'] ?? '-',
+                $detailData['sh'] ?? '-',
         ];
         /*
     |--------------------------------------------------------------------------
@@ -164,47 +164,48 @@ class ProduksiMnController extends Controller
         return view(
             'pages.management.qc_report',
             [
-                'inspect'     => $inspect,
-                'grouped'     => $grouped,
-                'photos'      => $photos,
-                'detailData'  => $detailData,
-                'itemName'    => $itemName,
+                'inspect' => $inspect,
+                'grouped' => $grouped,
+                'photos' => $photos,
+                'detailData' => $detailData,
+                'itemName' => $itemName,
                 'articleCode' => $articleCode,
-                'qty'         => $qty,
-                'itemImage'   => $itemImage,
-                'pfi'         => $pfi,
+                'qty' => $qty,
+                'itemImage' => $itemImage,
+                'pfi' => $pfi,
             ]
         );
     }
     public function index(Request $request)
     {
+        dd("asas");
         /*
     |--------------------------------------------------------------------------
     | FILTER
     |--------------------------------------------------------------------------
     */
         $searchPo =
-        $request->search_po;
+            $request->search_po;
         $selectedDate =
-        $request->tanggal;
+            $request->tanggal;
         /*
     |--------------------------------------------------------------------------
     | CATEGORY MAP
     |--------------------------------------------------------------------------
     */
         $categories = [
-            'rangka'    => 'rangka',
-            'anyam'     => 'anyam',
-            'unfinish'  => 'unfinish',
-            'final'     => 'final',
-            'decor'     => 'decor',
+            'rangka' => 'rangka',
+            'anyam' => 'anyam',
+            'unfinish' => 'unfinish',
+            'final' => 'final',
+            'decor' => 'decor',
             /*
         |--------------------------------------------------------------------------
         | ALIAS
         |--------------------------------------------------------------------------
         */
             'packaging' => 'box',
-            'box'       => 'box',
+            'box' => 'box',
         ];
         /*
     |--------------------------------------------------------------------------
@@ -302,21 +303,18 @@ class ProduksiMnController extends Controller
     */
         $inspectTotals = InspectSchedule::query()
             ->selectRaw('
-            spk_id,
-            detail_po_id,
-            SUM(passed) as total_passed,
-            SUM(rejected) as total_rejected
-        ')
+        spk_id,
+        detail_po_id,
+        SUM(passed) as total_passed,
+        SUM(rejected) as total_rejected
+    ')
             ->groupBy(
                 'spk_id',
                 'detail_po_id'
             )
             ->get()
             ->keyBy(function ($item) {
-                return;
-                $item->spk_id .
-                '_' .
-                $item->detail_po_id;
+                return $item->spk_id . '_' . $item->detail_po_id;
             });
         /*
     |--------------------------------------------------------------------------
@@ -325,12 +323,12 @@ class ProduksiMnController extends Controller
     */
         $datas = [];
         foreach ($pos as $po) {
-            $poId         = $po->id;
+            $poId = $po->id;
             $datas[$poId] = [
                 'po_number' =>
-                $po->order_no,
-                'items'     =>
-                [],
+                    $po->order_no,
+                'items' =>
+                    [],
             ];
             /*
         |--------------------------------------------------------------------------
@@ -344,7 +342,7 @@ class ProduksiMnController extends Controller
             |--------------------------------------------------------------------------
             */
                 $detail =
-                $detailPo->detail ?? [];
+                    $detailPo->detail ?? [];
                 if (is_string($detail)) {
                     $detail = json_decode(
                         $detail,
@@ -357,25 +355,25 @@ class ProduksiMnController extends Controller
             |--------------------------------------------------------------------------
             */
                 $qty =
-                $detail['qty'] ?? 0;
+                    $detail['qty'] ?? 0;
                 $itemName =
-                $detail['description'] ?? $detail['nama'] ?? $detail['item'] ?? '-';
+                    $detail['description'] ?? $detail['nama'] ?? $detail['item'] ?? '-';
                 $image =
-                $detail['photo'] ?? null;
+                    $detail['photo'] ?? null;
                 /*
             |--------------------------------------------------------------------------
             | DEFAULT ITEM
             |--------------------------------------------------------------------------
             */
                 $itemData = [
-                    'item_name'  =>
-                    $itemName,
+                    'item_name' =>
+                        $itemName,
                     'item_image' =>
-                    $image,
-                    'qty'        =>
-                    $qty,
-                    'spks'       =>
-                    [],
+                        $image,
+                    'qty' =>
+                        $qty,
+                    'spks' =>
+                        [],
                 ];
                 /*
             |--------------------------------------------------------------------------
@@ -383,10 +381,10 @@ class ProduksiMnController extends Controller
             |--------------------------------------------------------------------------
             */
                 foreach ($categories as $category) {
-                    $itemData[$category . '_pass']   = 0;
+                    $itemData[$category . '_pass'] = 0;
                     $itemData[$category . '_reject'] = 0;
-                    $itemData[$category . '_in']     = 0;
-                    $itemData[$category . '_out']    = 0;
+                    $itemData[$category . '_in'] = 0;
+                    $itemData[$category . '_out'] = 0;
                 }
                 /*
             |--------------------------------------------------------------------------
@@ -394,34 +392,76 @@ class ProduksiMnController extends Controller
             |--------------------------------------------------------------------------
             */
                 $inspectKey =
-                $poId . '_' . $detailPo->id;
+                    $poId . '_' . $detailPo->id;
                 $inspects =
-                $allInspects[$inspectKey] ?? collect();
+                    $allInspects[$inspectKey] ?? collect();
                 /*
             |--------------------------------------------------------------------------
             | LOOP INSPECT
             |--------------------------------------------------------------------------
             */
                 foreach ($inspects as $inspect) {
+
                     $kategoriName = strtolower(
-                        optional(
-                            $inspect->kategori
-                        )->kategori ?? ''
+                        trim(
+                            optional($inspect->kategori)->kategori ?? ''
+                        )
                     );
+
                     /*
-                |--------------------------------------------------------------------------
-                | CATEGORY MAPPING
-                |--------------------------------------------------------------------------
-                */
-                    $prefix =
-                    $categories[$kategoriName] ?? null;
-                    if (! $prefix) {
+                    |--------------------------------------------------------------------------
+                    | CATEGORY MAPPING
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $prefix = null;
+
+                    // RANGKA + ANYAM
+                    // Hasil inspection tahap Rangka masuk ke kolom Rangka
+                    if (
+                        str_contains($kategoriName, 'rangka') &&
+                        str_contains($kategoriName, 'anyam')
+                    ) {
+                        $prefix = 'rangka';
+                    }
+
+                    // RANGKA biasa
+                    elseif ($kategoriName === 'rangka') {
+                        $prefix = 'rangka';
+                    }
+
+                    // ANYAM biasa
+                    elseif ($kategoriName === 'anyam') {
+                        $prefix = 'anyam';
+                    }
+
+                    // UNFINISH
+                    elseif ($kategoriName === 'unfinish') {
+                        $prefix = 'unfinish';
+                    }
+
+                    // FINAL
+                    elseif ($kategoriName === 'final') {
+                        $prefix = 'final';
+                    }
+
+                    // PACKAGING / BOX
+                    elseif (
+                        $kategoriName === 'packaging' ||
+                        $kategoriName === 'box'
+                    ) {
+                        $prefix = 'box';
+                    }
+
+                    if (!$prefix) {
                         continue;
                     }
+
                     $itemData[$prefix . '_pass']
-                    += $inspect->passed;
+                        += (int) $inspect->passed;
+
                     $itemData[$prefix . '_reject']
-                    += $inspect->rejected;
+                        += (int) $inspect->rejected;
                 }
                 /*
             |--------------------------------------------------------------------------
@@ -430,7 +470,7 @@ class ProduksiMnController extends Controller
             */
                 foreach ($po->spks as $spk) {
                     $spkData =
-                    $spk->data;
+                        $spk->data;
                     if (is_string($spkData)) {
                         $spkData = json_decode(
                             $spkData,
@@ -438,7 +478,7 @@ class ProduksiMnController extends Controller
                         );
                     }
                     $spkItems =
-                    $spkData['items'] ?? [];
+                        $spkData['items'] ?? [];
                     foreach ($spkItems as $spkItem) {
                         if (
                             ($spkItem['detail_po_id'] ?? null)
@@ -452,35 +492,35 @@ class ProduksiMnController extends Controller
                     |--------------------------------------------------------------------------
                     */
                         $inspectTotalKey =
-                        $spk->id .
-                        '_' .
-                        $detailPo->id;
+                            $spk->id .
+                            '_' .
+                            $detailPo->id;
                         $inspectTotal =
-                        $inspectTotals[$inspectTotalKey] ?? null;
+                            $inspectTotals[$inspectTotalKey] ?? null;
                         /*
                     |--------------------------------------------------------------------------
                     | PUSH SPK
                     |--------------------------------------------------------------------------
                     */
                         $itemData['spks'][] = [
-                            'id'       =>
-                            $spk->id,
+                            'id' =>
+                                $spk->id,
                             'supplier' =>
-                            $spkData['sup'] ?? '-',
+                                $spkData['sup'] ?? '-',
                             'kategori' =>
-                            $spkData['kategori'] ?? '-',
-                            'no_spk'   =>
-                            $spkData['no_spk'] ?? '-',
-                            'status'   =>
-                            $spk->status ?? '-',
-                            'harga'    =>
-                            $spkItem['harga'] ?? 0,
-                            'qty'      =>
-                            $spkItem['qty'] ?? 0,
-                            'passed'   =>
-                            $inspectTotal->total_passed ?? 0,
+                                $spkData['kategori'] ?? '-',
+                            'no_spk' =>
+                                $spkData['no_spk'] ?? '-',
+                            'status' =>
+                                $spk->status ?? '-',
+                            'harga' =>
+                                $spkItem['harga'] ?? 0,
+                            'qty' =>
+                                $spkItem['qty'] ?? 0,
+                            'passed' =>
+                                $inspectTotal->total_passed ?? 0,
                             'rejected' =>
-                            $inspectTotal->total_rejected ?? 0,
+                                $inspectTotal->total_rejected ?? 0,
                         ];
                     }
                 }
@@ -490,7 +530,7 @@ class ProduksiMnController extends Controller
             |--------------------------------------------------------------------------
             */
                 $inventories =
-                $allInventories[$detailPo->id] ?? collect();
+                    $allInventories[$detailPo->id] ?? collect();
                 foreach ($inventories as $inventory) {
                     /*
                 |--------------------------------------------------------------------------
@@ -498,8 +538,8 @@ class ProduksiMnController extends Controller
                 |--------------------------------------------------------------------------
                 */
                     $spkInv =
-                    $allSpks[$inventory->spk_id] ?? null;
-                    if (! $spkInv) {
+                        $allSpks[$inventory->spk_id] ?? null;
+                    if (!$spkInv) {
                         continue;
                     }
                     /*
@@ -508,7 +548,7 @@ class ProduksiMnController extends Controller
                 |--------------------------------------------------------------------------
                 */
                     $spkInvData =
-                    $spkInv->data;
+                        $spkInv->data;
                     if (is_string($spkInvData)) {
                         $spkInvData = json_decode(
                             $spkInvData,
@@ -524,8 +564,8 @@ class ProduksiMnController extends Controller
                         $spkInvData['kategori'] ?? ''
                     );
                     $prefix =
-                    $categories[$kategoriInv] ?? null;
-                    if (! $prefix) {
+                        $categories[$kategoriInv] ?? null;
+                    if (!$prefix) {
                         continue;
                     }
                     /*
@@ -537,7 +577,7 @@ class ProduksiMnController extends Controller
                         $inventory->type ?? ''
                     );
                     $qtyInventory =
-                    $inventory->qty ?? 0;
+                        $inventory->qty ?? 0;
                     /*
                 |--------------------------------------------------------------------------
                 | UPDATE
@@ -545,10 +585,10 @@ class ProduksiMnController extends Controller
                 */
                     if ($type == 'in') {
                         $itemData[$prefix . '_in']
-                        += $qtyInventory;
+                            += $qtyInventory;
                     } else {
                         $itemData[$prefix . '_out']
-                        += $qtyInventory;
+                            += $qtyInventory;
                     }
                 }
                 /*
@@ -568,36 +608,36 @@ class ProduksiMnController extends Controller
         return view(
             'pages.management.index',
             [
-                'datas'        =>
-                $datas,
-                'searchPo'     =>
-                $searchPo,
+                'datas' =>
+                    $datas,
+                'searchPo' =>
+                    $searchPo,
                 'selectedDate' =>
-                $selectedDate,
-                'dates'        =>
-                $dates,
+                    $selectedDate,
+                'dates' =>
+                    $dates,
             ]
         );
     }
     public function inventor()
     {
         $processes = [
-            'rangka'      => 'Rangka',
-            'anyam'       => 'Anyam',
-            'unfinish'    => 'Unfinish',
+            'rangka' => 'Rangka',
+            'anyam' => 'Anyam',
+            'unfinish' => 'Unfinish',
             'accessories' => 'Accessories',
-            'decor'       => 'Decor',
-            'ikat'        => 'Ikat',
-            'final'       => 'Final',
-            'packaging'   => 'Packaging',
+            'decor' => 'Decor',
+            'ikat' => 'Ikat',
+            'final' => 'Final',
+            'packaging' => 'Packaging',
         ];
         $signatures = SignatureSpk::with([
             'madeBy',
             'checkedBy',
             'approvedBy'
         ])
-        ->get()
-        ->keyBy('spk_id');
+            ->get()
+            ->keyBy('spk_id');
         $spks = \App\Models\Spk::latest()
             ->get()
             ->map(function ($spk) use ($signatures) {
@@ -605,152 +645,152 @@ class ProduksiMnController extends Controller
                 if (is_string($data)) {
                     $data = json_decode($data, true);
                 }
-        $signature = $signatures->get($spk->id);
+                $signature = $signatures->get($spk->id);
 
-       $deadlinePercent = 0;
-        $deadlineColor   = 'secondary';
-        $deadlineText    = 'No Deadline';
+                $deadlinePercent = 0;
+                $deadlineColor = 'secondary';
+                $deadlineText = 'No Deadline';
 
-        $tglTerima = $this->parseDate(
-            $data['tgl_terima'] ?? null
-        );
+                $tglTerima = $this->parseDate(
+                    $data['tgl_terima'] ?? null
+                );
 
-        $tglSelesai = $this->parseDate(
-            $data['tgl_selesai'] ?? null
-        );
+                $tglSelesai = $this->parseDate(
+                    $data['tgl_selesai'] ?? null
+                );
 
-        if ($tglTerima && $tglSelesai) {
+                if ($tglTerima && $tglSelesai) {
 
-            $today = now();
+                    $today = now();
 
-            $totalHari = max(
-                $tglTerima->diffInDays($tglSelesai),
-                1
-            );
+                    $totalHari = max(
+                        $tglTerima->diffInDays($tglSelesai),
+                        1
+                    );
 
-            $hariBerjalan = max(
-                $tglTerima->diffInDays(
-                    $today,
-                    false
-                ),
-                0
-            );
+                    $hariBerjalan = max(
+                        $tglTerima->diffInDays(
+                            $today,
+                            false
+                        ),
+                        0
+                    );
 
-            $deadlinePercent = min(
-                round(
-                    ($hariBerjalan / $totalHari) * 100
-                ),
-                100
-            );
+                    $deadlinePercent = min(
+                        round(
+                            ($hariBerjalan / $totalHari) * 100
+                        ),
+                        100
+                    );
 
-            $sisaHari = (int) $today->diffInDays(
-                $tglSelesai,
-                false
-            );
+                    $sisaHari = (int) $today->diffInDays(
+                        $tglSelesai,
+                        false
+                    );
 
-            if ($sisaHari < 0) {
+                    if ($sisaHari < 0) {
 
-                $deadlineColor = 'danger';
-                $deadlineText =
-                    'Overdue ' .
-                    abs($sisaHari) .
-                    ' Hari';
+                        $deadlineColor = 'danger';
+                        $deadlineText =
+                            'Overdue ' .
+                            abs($sisaHari) .
+                            ' Hari';
 
-                $deadlinePercent = 100;
+                        $deadlinePercent = 100;
 
-            } elseif ($sisaHari <= 3) {
+                    } elseif ($sisaHari <= 3) {
 
-                $deadlineColor = 'danger';
-                $deadlineText =
-                    'Critical (' .
-                    $sisaHari .
-                    ' hari)';
+                        $deadlineColor = 'danger';
+                        $deadlineText =
+                            'Critical (' .
+                            $sisaHari .
+                            ' hari)';
 
-            } elseif ($sisaHari <= 7) {
+                    } elseif ($sisaHari <= 7) {
 
-                $deadlineColor = 'warning';
-                $deadlineText =
-                    'Warning (' .
-                    $sisaHari .
-                    ' hari)';
+                        $deadlineColor = 'warning';
+                        $deadlineText =
+                            'Warning (' .
+                            $sisaHari .
+                            ' hari)';
 
-            } elseif ($sisaHari <= 14) {
+                    } elseif ($sisaHari <= 14) {
 
-                $deadlineColor = 'info';
-                $deadlineText =
-                    'Normal (' .
-                    $sisaHari .
-                    ' hari)';
+                        $deadlineColor = 'info';
+                        $deadlineText =
+                            'Normal (' .
+                            $sisaHari .
+                            ' hari)';
 
-            } else {
+                    } else {
 
-                $deadlineColor = 'success';
-                $deadlineText =
-                    'Safe (' .
-                    $sisaHari .
-                    ' hari)';
-            }
-        }
+                        $deadlineColor = 'success';
+                        $deadlineText =
+                            'Safe (' .
+                            $sisaHari .
+                            ' hari)';
+                    }
+                }
                 $items = collect($data['items'] ?? [])
                     ->map(function ($item) {
                         return [
-                            'nama'         =>
-                            $item['nama'] ?? '-',
-                            'kode'         =>
-                            $item['kode'] ?? '-',
-                            'qty'          =>
-                            $item['qty'] ?? 0,
-                            'l'            =>
-                            $item['l'] ?? '-',
-                            'p'            =>
-                            $item['p'] ?? '-',
-                            't'            =>
-                            $item['t'] ?? '-',
-                            'material'     =>
-                            $item['material'] ?? '-',
-                            'images'       =>
-                            $item['images'] ?? [],
+                            'nama' =>
+                                $item['nama'] ?? '-',
+                            'kode' =>
+                                $item['kode'] ?? '-',
+                            'qty' =>
+                                $item['qty'] ?? 0,
+                            'l' =>
+                                $item['l'] ?? '-',
+                            'p' =>
+                                $item['p'] ?? '-',
+                            't' =>
+                                $item['t'] ?? '-',
+                            'material' =>
+                                $item['material'] ?? '-',
+                            'images' =>
+                                $item['images'] ?? [],
                             'detail_po_id' =>
-                            $item['detail_po_id'] ?? null,
+                                $item['detail_po_id'] ?? null,
                         ];
                     })
                     ->values()
                     ->toArray();
                 return [
-                    'id'          =>
-                    $spk->id,
-                    'no_spk'      =>
-                    $data['no_spk'] ?? '-',
-                    'supplier'    =>
-                    $data['sup'] ?? '-',
+                    'id' =>
+                        $spk->id,
+                    'no_spk' =>
+                        $data['no_spk'] ?? '-',
+                    'supplier' =>
+                        $data['sup'] ?? '-',
                     'supplier_id' =>
-                    $data['sup_id'] ?? null,
-                    'kategori'    =>
-                    $data['kategori'] ?? '-',
-                    'no_po'       =>
-                    $data['no_po'] ?? '-',
-                    'status'      =>
-                    $spk->status ?? '-',
-                    'tgl_terima'  =>
-                    $data['tgl_terima'] ?? '-',
+                        $data['sup_id'] ?? null,
+                    'kategori' =>
+                        $data['kategori'] ?? '-',
+                    'no_po' =>
+                        $data['no_po'] ?? '-',
+                    'status' =>
+                        $spk->status ?? '-',
+                    'tgl_terima' =>
+                        $data['tgl_terima'] ?? '-',
                     'tgl_selesai' =>
-                    $data['tgl_selesai'] ?? '-',
-                    'items'       =>
-                    $items,
+                        $data['tgl_selesai'] ?? '-',
+                    'items' =>
+                        $items,
                     'deadline_percent' => $deadlinePercent,
-                    'deadline_color'   => $deadlineColor,
-                    'deadline_text'    => $deadlineText,
-                // signature
+                    'deadline_color' => $deadlineColor,
+                    'deadline_text' => $deadlineText,
+                    // signature
+    
+                    'signature' => [
+                        'made_at' => $signature?->made_at,
+                        'checked_at' => $signature?->checked_at,
+                        'approved_at' => $signature?->approved_at,
 
-                      'signature' => [
-                    'made_at'      => $signature?->made_at,
-                    'checked_at'   => $signature?->checked_at,
-                    'approved_at'  => $signature?->approved_at,
-
-                    'made_by'      => $signature?->madeBy?->name,
-                    'checked_by'   => $signature?->checkedBy?->name,
-                    'approved_by'  => $signature?->approvedBy?->name,
-                ],
+                        'made_by' => $signature?->madeBy?->name,
+                        'checked_by' => $signature?->checkedBy?->name,
+                        'approved_by' => $signature?->approvedBy?->name,
+                    ],
 
                 ];
 
@@ -768,7 +808,7 @@ class ProduksiMnController extends Controller
     }
     // helper
 
-   public function inventorDetail($id)
+    public function inventorDetail($id)
     {
         $spk = Spk::findOrFail($id);
 
@@ -786,71 +826,71 @@ class ProduksiMnController extends Controller
     | ITEMS + CUSTOM COLUMN TOTAL
     |--------------------------------------------------------------------------
     */
-    // inspection result
-    $detailPoIds = collect(
-        $data['items'] ?? []
-    )->pluck('detail_po_id')->filter();
-    $kategoriId = Kategori::where(
-        'kategori',
-        $data['kategori']
-    )->value('id');
-    $inspectSummary = InspectSchedule::where(
+        // inspection result
+        $detailPoIds = collect(
+            $data['items'] ?? []
+        )->pluck('detail_po_id')->filter();
+        $kategoriId = Kategori::where(
+            'kategori',
+            $data['kategori']
+        )->value('id');
+        $inspectSummary = InspectSchedule::where(
             'spk_id',
             $spk->id
         )
-        ->selectRaw("
+            ->selectRaw("
             detail_po_id,
             SUM(passed) as passed,
             SUM(rejected) as rejected
         ")
-        ->groupBy('detail_po_id')
-        ->get()
-        ->keyBy('detail_po_id');
-$items = collect(
-    $data['items'] ?? []
-)->map(function ($item) use ($inspectSummary) {
+            ->groupBy('detail_po_id')
+            ->get()
+            ->keyBy('detail_po_id');
+        $items = collect(
+            $data['items'] ?? []
+        )->map(function ($item) use ($inspectSummary) {
 
-    $inspect = $inspectSummary->get(
-        $item['detail_po_id'] ?? null
-    );
+            $inspect = $inspectSummary->get(
+                $item['detail_po_id'] ?? null
+            );
 
-    $item['passed'] = (int) (
-        $inspect->passed ?? 0
-    );
+            $item['passed'] = (int) (
+                $inspect->passed ?? 0
+            );
 
-    $item['rejected'] = (int) (
-        $inspect->rejected ?? 0
-    );
+            $item['rejected'] = (int) (
+                $inspect->rejected ?? 0
+            );
 
-    return $item;
+            return $item;
 
-});
+        });
 
-$items = collect(
-    $data['items'] ?? []
-)->map(function ($item) use ($inspectSummary) {
+        $items = collect(
+            $data['items'] ?? []
+        )->map(function ($item) use ($inspectSummary) {
 
-    $inspect = $inspectSummary->get(
-        $item['detail_po_id'] ?? null
-    );
+            $inspect = $inspectSummary->get(
+                $item['detail_po_id'] ?? null
+            );
 
-    $item['passed'] = (int) (
-        $inspect->passed ?? 0
-    );
+            $item['passed'] = (int) (
+                $inspect->passed ?? 0
+            );
 
-    $item['rejected'] = (int) (
-        $inspect->rejected ?? 0
-    );
+            $item['rejected'] = (int) (
+                $inspect->rejected ?? 0
+            );
 
-    return $item;
+            return $item;
 
-});
+        });
 
-/*
-    |--------------------------------------------------------------------------
-    | GRAND TOTAL SPK
-    |--------------------------------------------------------------------------
-    */
+        /*
+            |--------------------------------------------------------------------------
+            | GRAND TOTAL SPK
+            |--------------------------------------------------------------------------
+            */
         $grandTotal = $items->sum('total');
 
         /*
@@ -877,31 +917,31 @@ $items = collect(
             ->map(function ($row) use ($itemMap) {
 
                 return [
-                    'id'           => $row->id,
+                    'id' => $row->id,
 
                     'detail_po_id' => $row->detail_po_id,
 
-                    'item_name'    =>
-                    $itemMap[$row->detail_po_id]['nama'] ?? '-',
+                    'item_name' =>
+                        $itemMap[$row->detail_po_id]['nama'] ?? '-',
 
-                    'item_code'    =>
-                    $itemMap[$row->detail_po_id]['kode'] ?? '-',
+                    'item_code' =>
+                        $itemMap[$row->detail_po_id]['kode'] ?? '-',
 
-                    'qty'          => $row->qty,
+                    'qty' => $row->qty,
 
-                    'type'         => $row->type,
+                    'type' => $row->type,
 
-                    'process'      => $row->process,
+                    'process' => $row->process,
 
                     'next_process' => $row->next_process,
 
-                    'remark'       => $row->remark ?? '-',
+                    'remark' => $row->remark ?? '-',
 
-                    'date'         => \Carbon\Carbon::parse(
+                    'date' => \Carbon\Carbon::parse(
                         $row->date
                     )->format('Y-m-d'),
 
-                    'time'         => \Carbon\Carbon::parse(
+                    'time' => \Carbon\Carbon::parse(
                         $row->date
                     )->format('H:i'),
                 ];
@@ -919,38 +959,38 @@ $items = collect(
             ->map(function ($row) {
 
                 return [
-                    'id'          => $row->id,
+                    'id' => $row->id,
 
-                    'tanggal'     => $row->tanggal,
+                    'tanggal' => $row->tanggal,
 
-                    'tipe'        => $row->tipe,
+                    'tipe' => $row->tipe,
 
-                    'qty'         => $row->qty,
+                    'qty' => $row->qty,
 
-                    'po'          => $row->po,
+                    'po' => $row->po,
 
-                    'keterangan'  => $row->keterangan,
+                    'keterangan' => $row->keterangan,
 
-                    'stok_id'     => $row->stok_id,
+                    'stok_id' => $row->stok_id,
 
                     'kode_barang' =>
-                    $row->stok->kode_barang ?? '-',
+                        $row->stok->kode_barang ?? '-',
 
                     'nama_barang' =>
-                    $row->stok->nama_barang ?? '-',
+                        $row->stok->nama_barang ?? '-',
 
-                    'satuan'      =>
-                    $row->stok->satuan ?? '-',
+                    'satuan' =>
+                        $row->stok->satuan ?? '-',
                     'harga_vivi' => $row->harga_vivi ?? null,
-                    'harga'       =>
-                    $row->stok->harga ?? 0,
-'sst'  =>
-                    $row->stok->qty ?? 0,
-                    'stok_akhir'  =>
-                    $row->stok->stok_akhir ?? 0,
+                    'harga' =>
+                        $row->stok->harga ?? 0,
+                    'sst' =>
+                        $row->stok->qty ?? 0,
+                    'stok_akhir' =>
+                        $row->stok->stok_akhir ?? 0,
                 ];
             });
-//             dd(
+        //             dd(
 //     collect($data['items'])->pluck('detail_po_id')
 // );
 // dd($items);
@@ -960,43 +1000,43 @@ $items = collect(
 // );
 //   $financeApproved = false;
 
-   $financeApproved = false;
+        $financeApproved = false;
 
-$paymentRequestIds = PaymentRequest::where(
-    'spk_id',
-    $spk->id
-)->pluck('id')->toArray();
+        $paymentRequestIds = PaymentRequest::where(
+            'spk_id',
+            $spk->id
+        )->pluck('id')->toArray();
 
-if (!empty($paymentRequestIds)) {
+        if (!empty($paymentRequestIds)) {
 
-    $draft = PaymentRequestSaved::all()
-        ->first(function ($row) use ($paymentRequestIds) {
+            $draft = PaymentRequestSaved::all()
+                ->first(function ($row) use ($paymentRequestIds) {
 
-            return count(
-                array_intersect(
-                    $row->payment_request_ids ?? [],
-                    $paymentRequestIds
-                )
-            ) > 0;
+                    return count(
+                        array_intersect(
+                            $row->payment_request_ids ?? [],
+                            $paymentRequestIds
+                        )
+                    ) > 0;
 
-        });
+                });
 
-    if ($draft) {
+            if ($draft) {
 
-        $financeApproved =
-            PaymentRequestApproval::where(
-                'payment_request_saved_id',
-                $draft->id
-            )
-            ->where('status', 'Approved')
-            ->where(function ($q) {
+                $financeApproved =
+                    PaymentRequestApproval::where(
+                        'payment_request_saved_id',
+                        $draft->id
+                    )
+                        ->where('status', 'Approved')
+                        ->where(function ($q) {
 
-                $q->where('user_id', 174)
-                  ->orWhere('role', 'Finance');
+                            $q->where('user_id', 174)
+                                ->orWhere('role', 'Finance');
 
-            })
-            ->exists();
-    }
+                        })
+                        ->exists();
+            }
 
 
         }
@@ -1006,88 +1046,88 @@ if (!empty($paymentRequestIds)) {
 
             'grand_total' => $grandTotal,
 
-            'bahan_baku'  => $bahanBaku,
+            'bahan_baku' => $bahanBaku,
 
-            'kategori'    =>
-            $data['kategori'] ?? '-',
+            'kategori' =>
+                $data['kategori'] ?? '-',
 
-            'status'      =>
-            $spk->status ?? '-',
+            'status' =>
+                $spk->status ?? '-',
 
-            'spk'         => $spk,
+            'spk' => $spk,
 
-            'items'       => $items,
+            'items' => $items,
 
-            'spk_no'      =>
-            $data['no_spk'] ?? '-',
+            'spk_no' =>
+                $data['no_spk'] ?? '-',
 
-            'payments'    =>
-            $data['payments'] ?? [],
+            'payments' =>
+                $data['payments'] ?? [],
 
-            'supplier'    => [
-                'id'   =>
-                $supplier->id ?? null,
+            'supplier' => [
+                'id' =>
+                    $supplier->id ?? null,
 
                 'name' =>
-                $supplier->name ?? '-',
+                    $supplier->name ?? '-',
             ],
 
-            'timelines'   => $timelines,
+            'timelines' => $timelines,
 
-    'payments' => collect(
-        $data['payments'] ?? []
-)->map(function ($payment) {
-        $amount = (float)(
-            $payment['amount'] ?? 0
-        );
+            'payments' => collect(
+                $data['payments'] ?? []
+            )->map(function ($payment) {
+                $amount = (float) (
+                    $payment['amount'] ?? 0
+                );
 
-        $adjustment = (float)(
-            $payment['adjustment'] ?? 0
-        );
+                $adjustment = (float) (
+                    $payment['adjustment'] ?? 0
+                );
 
-        return [
+                return [
 
-            'date' =>
-                $payment['date'] ?? null,
+                    'date' =>
+                        $payment['date'] ?? null,
 
-            'note' =>
-                $payment['note'] ?? '-',
-  'finance_approved' =>
-            $payment['finance_approved'] ?? false,
-            'amount' =>
-                $amount,
+                    'note' =>
+                        $payment['note'] ?? '-',
+                    'finance_approved' =>
+                        $payment['finance_approved'] ?? false,
+                    'amount' =>
+                        $amount,
                     'is_request' =>
-                $payment['is_request'] ?? null,
-            'payment_id' =>
-                $payment['payment_id'] ?? null,
+                        $payment['is_request'] ?? null,
+                    'payment_id' =>
+                        $payment['payment_id'] ?? null,
 
-            'note_tambahan' =>
-                $payment['note_tambahan'] ?? null,
+                    'note_tambahan' =>
+                        $payment['note_tambahan'] ?? null,
 
-            'adjustment' =>
-                $adjustment,
+                    'adjustment' =>
+                        $adjustment,
 
-            'payment_request_amount' =>
-                $adjustment > 0
-                    ? $adjustment
-                    : $amount,
+                    'payment_request_amount' =>
+                        $adjustment > 0
+                        ? $adjustment
+                        : $amount,
 
-            'remaining_amount' =>
-                $adjustment > 0
-                    ? ($amount - $adjustment)
-                    : 0,
+                    'remaining_amount' =>
+                        $adjustment > 0
+                        ? ($amount - $adjustment)
+                        : 0,
 
-            'adjustment_by' =>
-                $payment['adjustment_by'] ?? null,
+                    'adjustment_by' =>
+                        $payment['adjustment_by'] ?? null,
 
-            'adjustment_at' =>
-                $payment['adjustment_at'] ?? null,
-           'finance_approved' =>
-            $payment['finance_approved'] ?? false,
-            // vivi
-        ];
+                    'adjustment_at' =>
+                        $payment['adjustment_at'] ?? null,
+                    'finance_approved' =>
+                        $payment['finance_approved'] ?? false,
+                    // vivi
+                ];
 
-    })->values(),
+            })->values(),
 
         ]);
     }
@@ -1116,9 +1156,9 @@ if (!empty($paymentRequestIds)) {
     |--------------------------------------------------------------------------
     */
         $request->validate([
-            'spk_id'       => 'required',
+            'spk_id' => 'required',
             'detail_po_id' => 'required|array',
-            'qty'          => 'required|array',
+            'qty' => 'required|array',
         ]);
         /*
     |--------------------------------------------------------------------------
@@ -1137,7 +1177,7 @@ if (!empty($paymentRequestIds)) {
     |--------------------------------------------------------------------------
     */
         $poId =
-        $spkData['po_id'] ?? $spk->po_id ?? null;
+            $spkData['po_id'] ?? $spk->po_id ?? null;
         /*
     |--------------------------------------------------------------------------
     | DELETE OLD
@@ -1160,13 +1200,13 @@ if (!empty($paymentRequestIds)) {
         */
             $dateTime = now();
             if (
-                ! empty($request->date[$i]) &&
-                ! empty($request->time[$i])
+                !empty($request->date[$i]) &&
+                !empty($request->time[$i])
             ) {
                 $dateTime =
-                $request->date[$i]
-                . ' ' .
-                $request->time[$i];
+                    $request->date[$i]
+                    . ' ' .
+                    $request->time[$i];
             }
             /*
         |--------------------------------------------------------------------------
@@ -1174,28 +1214,28 @@ if (!empty($paymentRequestIds)) {
         |--------------------------------------------------------------------------
         */
             ProductionTimeline::create([
-                'po_id'        =>
-                $poId,
-                'spk_id'       =>
-                $request->spk_id,
+                'po_id' =>
+                    $poId,
+                'spk_id' =>
+                    $request->spk_id,
                 'detail_po_id' =>
-                $detailPoId,
-                'qty'          =>
-                $request->qty[$i] ?? 0,
-                'sup_id'       =>
-                $request->sup_id[$i] ?? null,
-                'process'      =>
-                $request->process[$i] ?? null,
+                    $detailPoId,
+                'qty' =>
+                    $request->qty[$i] ?? 0,
+                'sup_id' =>
+                    $request->sup_id[$i] ?? null,
+                'process' =>
+                    $request->process[$i] ?? null,
                 'next_process' =>
-                $request->next_process[$i] ?? null,
-                'date'         =>
-                $dateTime,
-                'type'         =>
-                $request->type[$i] ?? 'in',
-                'remark'       =>
-                $request->remark[$i] ?? null,
-                'source_type'  =>
-                'inventor',
+                    $request->next_process[$i] ?? null,
+                'date' =>
+                    $dateTime,
+                'type' =>
+                    $request->type[$i] ?? 'in',
+                'remark' =>
+                    $request->remark[$i] ?? null,
+                'source_type' =>
+                    'inventor',
             ]);
         }
         /*
@@ -1211,7 +1251,7 @@ if (!empty($paymentRequestIds)) {
     public function delete($id)
     {
         $timeline = ProductionTimeline::find($id);
-        if (! $timeline) {
+        if (!$timeline) {
             return response()->json([
                 'message' => 'Data tidak ditemukan',
             ], 404);
@@ -1221,47 +1261,47 @@ if (!empty($paymentRequestIds)) {
             'message' => 'Data berhasil dihapus',
         ]);
     }
-   private function parseDate($date)
-{
-    if (empty($date)) {
-        return null;
+    private function parseDate($date)
+    {
+        if (empty($date)) {
+            return null;
+        }
+
+        try {
+
+            $date = trim($date);
+
+            $bulan = [
+                'JANUARI' => 'JANUARY',
+                'FEBRUARI' => 'FEBRUARY',
+                'MARET' => 'MARCH',
+                'APRIL' => 'APRIL',
+                'MEI' => 'MAY',
+                'JUNI' => 'JUNE',
+                'JULI' => 'JULY',
+                'AGUSTUS' => 'AUGUST',
+                'SEPTEMBER' => 'SEPTEMBER',
+                'OKTOBER' => 'OCTOBER',
+                'NOVEMBER' => 'NOVEMBER',
+                'DESEMBER' => 'DECEMBER',
+            ];
+
+            $date = strtoupper($date);
+
+            $date = str_replace(
+                array_keys($bulan),
+                array_values($bulan),
+                $date
+            );
+
+            $date = str_replace('/', '-', $date);
+
+            return Carbon::parse($date);
+
+        } catch (\Exception $e) {
+
+            return null;
+
+        }
     }
-
-    try {
-
-        $date = trim($date);
-
-        $bulan = [
-            'JANUARI'   => 'JANUARY',
-            'FEBRUARI'  => 'FEBRUARY',
-            'MARET'     => 'MARCH',
-            'APRIL'     => 'APRIL',
-            'MEI'       => 'MAY',
-            'JUNI'      => 'JUNE',
-            'JULI'      => 'JULY',
-            'AGUSTUS'   => 'AUGUST',
-            'SEPTEMBER' => 'SEPTEMBER',
-            'OKTOBER'   => 'OCTOBER',
-            'NOVEMBER'  => 'NOVEMBER',
-            'DESEMBER'  => 'DECEMBER',
-        ];
-
-        $date = strtoupper($date);
-
-        $date = str_replace(
-            array_keys($bulan),
-            array_values($bulan),
-            $date
-        );
-
-        $date = str_replace('/', '-', $date);
-
-        return Carbon::parse($date);
-
-    } catch (\Exception $e) {
-
-        return null;
-
-    }
-}
 }

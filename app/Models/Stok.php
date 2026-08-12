@@ -2,6 +2,7 @@
 namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 class Stok extends Model
+
 {
     protected $fillable = [
         'kode_barang',

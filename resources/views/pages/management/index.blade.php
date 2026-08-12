@@ -300,28 +300,32 @@
                             </label>
 
                             <div class="input-group">
-
                                 <span class="input-group-text bg-white border-end-0">
                                     <i class="fas fa-search text-secondary"></i>
                                 </span>
 
                                 <input type="text" name="search_po" value="{{ request('search_po') }}"
-                                    class="form-control border-start-0" placeholder="Contoh : NW26-39">
+                                    class="form-control border-start-0" placeholder="Cari No PO atau Buyer...">
+                            </div>
 
+                            <div class="form-text" style="font-size:12px ">
+                                <i class="fa fa-info-circle"></i>
+                                Search berdasarkan <b>No PO</b> atau <b>Nama Buyer</b>. Tekan <kbd>Enter</kbd> atau klik
+                                <b>Filter</b>.
                             </div>
 
                         </div>
-                        <div class="col-lg-3">
-                            <label class="form-label fw-semibold text-muted mb-2">
-                                Urutkan
-                            </label>
+                        <button type="submit" name="sort"
+                            value="{{ request('sort', 'desc') == 'asc' ? 'desc' : 'asc' }}"
+                            class="btn btn-outline-secondary" title="Sort Release Date">
 
-                            <select id="sortPo" class="form-select">
-                                <option value="po">PO Code</option>
-                                <option value="release">Release Date</option>
-                            </select>
-                        </div>
+                            @if (request('sort', 'desc') == 'asc')
+                                <i class="fa fa-sort-desc"></i>
+                            @else
+                                <i class="fa fa-sort-asc"></i>
+                            @endif
 
+                        </button>
                         {{-- DATE --}}
                         {{-- <div class="col-lg-3">
 
@@ -384,36 +388,29 @@
             {{-- DATA --}}
             @forelse($datas as $poIndex => $po)
 
-                <div class="mn-card mb-5" data-po="{{ $po['po_number'] }}" data-release="{{ $po['release_date'] ?? '' }}">
+                <div class="mn-card mb-5">
+
                     {{-- HEADER --}}
                     <div class="mn-header d-flex justify-content-between align-items-center spk-header">
 
                         <div>
 
-                            <h5>
-
+                            <h6>
                                 PO : {{ $po['po_number'] }}
-
-                            </h5>
+                                <span class="">
+                                    ({{ $po['buyer_name'] }})
+                                </span>
+                            </h6>
 
                         </div>
 
                         <div>
 
-                            @if (request('batch'))
-                                <span class="badge bg-warning text-dark px-3 py-2">
+                            <button type="button" class="btn btn-success btn-sm btn-toggle-po">
 
-                                    Batch {{ request('batch') }}
+                                <i class="fa fa-chevron-down"></i>
 
-                                </span>
-                            @else
-                                <span class="badge bg-success px-3 py-2">
-
-                                    {{-- Semua Batch --}}
-
-                                </span>
-                            @endif
-
+                            </button>
                         </div>
 
                     </div>
@@ -455,7 +452,7 @@
                     @endphp
 
                     {{-- TABLE --}}
-                    <div class="table-responsive">
+                    <div class="table-responsive po-table">
 
                         <table class="table mn-table align-middle">
 
@@ -516,7 +513,8 @@
                                         <td class="text-center">
 
                                             @if (!empty($item['item_image']))
-                                                <img src="{{ $item['item_image'] }}" class="product-image">
+                                                <img src="{{ $item['item_image'] }}" class="product-image" loading="lazy"
+                                                    decoding="async">
                                             @else
                                                 -
                                             @endif
@@ -628,7 +626,8 @@
                                     <div class="d-flex gap-3 mb-4">
 
                                         @if ($item['item_image'])
-                                            <img src="{{ $item['item_image'] }}" class="product-image">
+                                            <img src="{{ $item['item_image'] }}" class="product-image" loading="lazy"
+                                                decoding="async">
                                         @endif
 
                                         <div>
@@ -906,7 +905,6 @@
                         </div>
 
                     </div>
-
                 @endforelse
 
                 <div class="modal fade" id="pricePasswordModal" tabindex="-1">
@@ -986,6 +984,28 @@
                     );
 
                     $('#pricePasswordModal').modal('hide');
+
+                });
+                // minimae 
+                $(document).on('click', '.btn-toggle-po', function() {
+
+                    let card = $(this).closest('.mn-card');
+
+                    card.find('.po-table').slideToggle(200);
+
+                    let icon = $(this).find('i');
+
+                    if (icon.hasClass('fa-chevron-down')) {
+
+                        icon.removeClass('fa-chevron-down')
+                            .addClass('fa-chevron-right');
+
+                    } else {
+
+                        icon.removeClass('fa-chevron-right')
+                            .addClass('fa-chevron-down');
+
+                    }
 
                 });
             </script>

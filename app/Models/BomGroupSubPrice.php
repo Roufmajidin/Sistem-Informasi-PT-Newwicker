@@ -19,6 +19,6 @@ class BomGroupSubPrice extends Model
 
     public function group()
     {
-        return $this->belongsTo(BomGroup::class, 'group_id');
+        return $this->belongsTo(BomProdGroup::class, 'group_id');
     }
 }

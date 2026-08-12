@@ -7,6 +7,7 @@
         "dev": "vite"
     },
     "devDependencies": {
+        "@laravel/echo-react": "^2.4.0",
         "@tailwindcss/vite": "^4.0.0",
         "@types/react": "^19.2.17",
         "@types/react-dom": "^19.2.3",
@@ -14,7 +15,9 @@
         "axios": "^1.16.1",
         "concurrently": "^9.0.1",
         "html5-qrcode": "^2.3.8",
+        "laravel-echo": "^2.4.0",
         "laravel-vite-plugin": "^1.2.0",
+        "pusher-js": "^8.6.0",
         "tailwindcss": "^4.0.0",
         "typescript": "^6.0.3",
         "vite": "^6.2.4"
@@ -25,11 +28,9 @@
         "@univerjs/presets": "^0.23.0",
         "binpackingjs": "^4.1.0",
         "jquery": "^4.0.0",
-        "laravel-echo": "^2.2.6",
         "lucide-react": "^1.22.0",
         "luckyexcel": "^1.0.1",
         "luckysheet": "^2.1.13",
-        "pusher-js": "^8.4.0",
         "react": "^19.2.7",
         "react-dom": "^19.2.7",
         "three": "^0.185.0",

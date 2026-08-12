@@ -197,6 +197,10 @@
                             </tr>
                         </thead>
                         <tbody>
+                               @php
+                                           $totalDraft = collect($requests)->sum('payment_amount');
+
+                                        @endphp
                             @php
                                 $no = 1; @endphp
                                 @foreach($requests as $row)
@@ -248,6 +252,19 @@
                                     </tr>
                                 @endforeach
                         </tbody>
+                                <tfoot>
+    <tr class="table-success">
+        <th colspan="10" class="text-end">
+            TOTAL DRAFT
+        </th>
+
+        <th>
+            Rp {{ number_format($totalDraft, 0, ',', '.') }}
+        </th>
+
+        <th colspan="3"></th>
+    </tr>
+</tfoot>
                     </table>
                     {{-- SIGNATURE SECTION --}}
                     <div style="
@@ -506,6 +523,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
+                                     
                                         @forelse($draftRequests as $draft)
                                             <tr class="draft-row" data-id="{{ $draft['id'] }}">
                                                 <td>
@@ -556,6 +574,7 @@
                                             </tr>
                                         @endforelse
                                     </tbody>
+                            
                                 </table>
                             </div>
                             <div class="draft-detail" id="draftDetailArea" >

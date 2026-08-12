@@ -121,7 +121,7 @@
 
                             <!-- Page title - Bind to $state's title -->
                             <div class="mb-0 h5 no-wrap" ng-bind="$state.current.data.title" id="pageTitle"></div>
-
+{{-- master blade --}}
                             <!-- navbar collapse -->
                             <div class="collapse navbar-collapse" id="collapse">
                                 <!-- link and dropdown -->
@@ -129,7 +129,8 @@
                                     <li class="nav-item dropdown">
                                         <a class="nav-link" href data-toggle="dropdown">
                                             <!-- <i class="fa fa-fw fa-info text-muted"></i> -->
-                                            <span>System Informasi PT Newwicker Indonesia</span>
+                                            {{-- <span>System Informasi PT Newwicker Indonesia</span> --}}
+                                            @yield('btn')
                                         </a>
                                     </li>
                                 </ul>
@@ -345,7 +346,7 @@
                     <script src="{{asset('assets/main.js')}}"></script>
                     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
                     <script src="{{asset('assets/cam/cam.js')}}" type="text/javascript"></script>
-                    <script src="{{asset('assets/chatr.js')}}" type="text/javascript"></script>
+                    {{-- <script src="{{asset('assets/chatr.js')}}" type="text/javascript"></script> --}}
                     <!-- <script src="{{asset('assets/pengajuan.js')}}" type="text/javascript"></script> -->
 
                     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>

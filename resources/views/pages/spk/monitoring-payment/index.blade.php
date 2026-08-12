@@ -31,11 +31,11 @@
                             Urutkan
                         </label>
 
-                        <select id="sortBy" class="form-select form-select-sm" style="width:200px">
-                            <option value="po">📦 No PO</option>
-                            <option value="sub">👤 Sub</option>
-                            <option value="kategori">🏷️ Kategori</option>
-                            <option value="saldo">💰 Saldo Terbesar</option>
+                        <select id="sortBy" class="form-select form-select-sm ml-2" style="width:200px">
+                            <option value="sub">Sub</option>
+                            <option value="po">No PO</option>
+                            <option value="kategori"> Kategori</option>
+                            <option value="saldo"> Saldo Terbesar</option>
                         </select>
 
                     </div>
@@ -74,7 +74,7 @@
 
                     <tbody>
 
-                        @php$no = 1;
+                        @php $no = 1;
                         @endphp
 
                         @foreach ($spk as $row)
@@ -119,8 +119,13 @@
 
                                     <td class="item-code">{{ $item['nama'] }}</td>
                                     <td>{{ number_format($item['qty']) }}</td>
-                                    <td>{{ number_format($qtyIn[$item['detail_po_id']] ?? 0) }}</td>
+                                    @php
+    $qtyKey = $row->id . '_' . ($item['detail_po_id'] ?? 0);
+@endphp
 
+<td>
+    {{ number_format($qtyIn[$qtyKey] ?? 0) }}
+</td>
                                     @if ($index == 0)
                                         <td rowspan="{{ $rowspan }}">{{ number_format($total, 0, ',', '.') }}</td>
                                         <td rowspan="{{ $rowspan }}">{{ number_format($saldo, 0, ',', '.') }}</td>

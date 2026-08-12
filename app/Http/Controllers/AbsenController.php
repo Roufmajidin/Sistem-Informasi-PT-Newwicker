@@ -266,6 +266,7 @@ if (
     $lembur &&
     $lembur->jam_masuk &&
     !$lembur->jam_keluar &&
+    $lembur->tanggal < $today &&
     $now->hour >= 6
 ) {
 

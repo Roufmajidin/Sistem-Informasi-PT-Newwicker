@@ -13,7 +13,8 @@ class TransaksiStok extends Model
         'po',
         'spk_id',
         'keterangan',
-        'harga_vivi'
+        'harga_vivi',
+        'no_invoice'
     ];
     public function spk()
     {

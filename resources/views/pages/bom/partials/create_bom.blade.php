@@ -226,14 +226,51 @@
         </div>
     </div>
     </div>
+    
     <div class="modal fade" id="materialPickerModal">
-        <div class="modal-dialog modal-xl">
+        <div class="modal-dialog modal-xl"      style="max-width:70vw;">>
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5>
+                           <div class="modal-header">
+
+                <div>
+                    <h5 class="modal-title mb-0">
                         Pilih Material
                     </h5>
+
+                    <small class="text-muted">
+                        Pilih material yang akan digunakan pada BOM
+                    </small>
                 </div>
+
+                <div class="d-flex align-items-center">
+
+                    <span class="text-muted mr-2">
+                        Material tidak ada?
+                    </span>
+
+                    <button
+                        type="button"
+                        class="btn btn-success btn-sm"
+                        id="btnAddMaterial">
+
+                        <i class="fa fa-plus"></i>
+                        Tambah Material
+
+                    </button>
+
+                    <button
+                        type="button"
+                        class="close ml-3"
+                        data-dismiss="modal">
+
+                        <span>&times;</span>
+
+                    </button>
+
+                </div>
+
+            </div>
+
                 <div class="modal-body">
                     <input type="text" id="searchMasterMaterial" class="form-control mb-3"
                         placeholder="Cari material...">
@@ -246,55 +283,89 @@
                                 <th>ID</th>
                                 <th>Nama</th>
                                 <th>Jenis</th>
+                                <th>harga</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            @foreach ($masterMaterials as $item)
-                                @php
-
-                                    $harga = 0;
-
-                                    if ($item->type == 'material_price') {
-                                        $material = $materialPrices->firstWhere('id', $item->id);
-
-                                        $harga = $material->harga ?? 0;
-                                    }
-
-                                @endphp
-
-                                <tr>
-
-                                    <td>
-                                        @php
-                                            $unit = '';
-
-                                            if ($item->type == 'material_price') {
-                                                $material = $materialPrices->firstWhere('id', $item->id);
-                                                $harga = $material->harga ?? 0;
-                                                $unit = $material->satuan ?? '';
-                                            }
-                                        @endphp
-
-                                        <button type="button" class="btn btn-primary btn-sm btn-select-material"
-                                            data-id="{{ $item->id }}" data-name="{{ $item->nama }}"
-                                            data-type="{{ $item->type }}" data-price="{{ $harga }}"
-                                            data-unit="{{ $unit }}">
-                                    </td>
-
-                                    <td>{{ $item->id }}</td>
-
-                                    <td>{{ $item->nama }}</td>
-
-                                    <td>{{ $item->jenis }}</td>
-
-                                </tr>
-                            @endforeach
+                      <tbody id="materialMasterBody">
                         </tbody>
                     </table>
                 </div>
             </div>
         </div>
     </div>
+    <div class="modal fade" id="addMaterialModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+
+            <form id="formAddMaterial">
+
+                @csrf
+
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        Tambah Material
+                    </h5>
+
+                    <button
+                        type="button"
+                        class="close"
+                        data-dismiss="modal">
+
+                        <span>&times;</span>
+
+                    </button>
+                </div>
+
+                <div class="modal-body">
+
+                    <div class="alert alert-info mb-3">
+                        Format:
+                        <br>
+                        <b>Nama Material,Harga,Satuan</b>
+                        <br><br>
+
+                        Contoh:
+                        <br>
+                        Rotan Sintetis,25000,KG
+                        <br>
+                        Cushion,120000,PCS
+                    </div>
+
+                    <textarea
+                        class="form-control"
+                        id="materials"
+                        name="materials"
+                        rows="8"
+                        placeholder="Nama Material,Harga,Satuan"></textarea>
+
+                </div>
+
+                <div class="modal-footer">
+
+                    <button
+                        type="button"
+                        class="btn btn-secondary"
+                        data-dismiss="modal">
+
+                        Batal
+
+                    </button>
+
+                    <button
+                        type="submit"
+                        class="btn btn-success">
+
+                        Simpan
+
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+</div>
     <script src="https://jquery.com"></script>
     <!-- 2. Bootstrap Next -->
     {{-- <script src="https://jsdelivr.net"></script> --}}
@@ -436,58 +507,52 @@
     <script>
         let activeMaterialInput = null;
         let sectionIndex = 0;
-        // klik child
-        $(document).on(
-            'click',
-            '.material-picker',
-            function() {
-                activeMaterialInput = $(this);
-                $('#materialPickerModal')
-                    .modal('show');
-            });
+    {{-- let activeMaterialInput = null; --}}
+
+$(document).on('click', '.material-picker', function () {
+
+    activeMaterialInput = $(this);
+
+    loadMaterialMaster();
+
+    $('#materialPickerModal').modal('show');
+
+});
         // pili material dari modal
-        $(document).on(
-            'click',
-            '.btn-select-material',
-            function() {
+   $(document).on('click', '.btn-select-material', function () {
 
-                let id =
-                    $(this).data('id');
+    if (!activeMaterialInput) {
+        console.error('activeMaterialInput null');
+        return;
+    }
 
-                let nama =
-                    $(this).data('name');
+    let btn = $(this);
 
-                let type =
-                    $(this).data('type');
+    let id    = btn.data('id');
+    let nama  = btn.data('name');
+    let type  = btn.data('type');
+    let price = btn.data('price') || 0;
+    let unit  = btn.data('unit') || '';
 
-                let price =
-                    $(this).data('price') || 0;
-                let unit =
-                    $(this).data('unit') || '';
-                let row =
-                    activeMaterialInput.closest('tr');
+    let row = activeMaterialInput.closest('tr');
 
-                activeMaterialInput.val(nama);
+    activeMaterialInput.val(nama);
 
-                row.find('.material-id')
-                    .val(id);
+    row.find('.material-id').val(id);
+    row.find('.material-type').val(type);
+    row.find('.material-price').val(formatNumber(price));
+    row.find('.unit').val(unit);
 
-                row.find('.material-type')
-                    .val(type);
+    calculateRow(row);
+    updateTotalHpp();
 
-                row.find('.material-price')
-                    .val(
-                        formatNumber(price)
-                    );
-                row.find('.unit')
-                    .val(unit);
-                calculateRow(row);
-                updateTotalHpp();
-                $('#materialPickerModal')
-                    .modal('hide');
+    // pindahkan fokus ke input
+    activeMaterialInput.trigger('focus');
 
-            });
+    // baru tutup modal
+    $('#materialPickerModal').modal('hide');
 
+});
         function calculateRow(row) {
 
             let qty = parseFloat(
@@ -677,7 +742,6 @@
 `;
                 tbody.append(row);
                 updateSummary();
-
                 saveDraft();
             });
         // add sub harga
@@ -731,6 +795,9 @@
                 $(this)
                     .closest('tr')
                     .remove();
+                updateSummary();
+    updateTotalHpp();
+    saveDraft();
             });
         updateSummary();
         $(document).on(
@@ -743,6 +810,8 @@
                     .remove();
                 updateSummary();
                 saveDraft();
+                    updateTotalHpp();
+
 
             }
         );
@@ -803,7 +872,7 @@
 
             $.ajax({
 
-                url: "{{ route('bom.store') }}",
+                url: "/bom/store",
 
                 type: 'POST',
 
@@ -1814,39 +1883,21 @@
         //     updateTotalHpp();
 
         // });
-        $(document).on('input', '.material-price', function() {
+   $(document).on('blur', '.material-price', function () {
 
-            const input = this;
+    let angka = unFormat($(this).val());
 
-            // Posisi cursor
-            let cursor = input.selectionStart;
+    $(this).val(
+        angka.toLocaleString('id-ID', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 4
+        })
+    );
 
-            // Nilai sebelum diformat
-            let before = input.value;
-
-            // Ambil angka saja
-            let angka = before.replace(/\./g, '');
-
-            if (angka === '') {
-                input.value = '';
-                return;
-            }
-
-            // Format rupiah
-            let formatted = Number(angka).toLocaleString('id-ID');
-
-            input.value = formatted;
-
-            // Hitung selisih panjang string
-            let diff = formatted.length - before.length;
-
-            // Kembalikan cursor
-            input.setSelectionRange(cursor + diff, cursor + diff);
-
-            calculateRow($(this).closest('tr'));
-            updateSummary();
-            updateTotalHpp();
-        });
+    calculateRow($(this).closest('tr'));
+    updateSummary();
+    updateTotalHpp();
+})
         $(document).on('blur', '.material-price', function() {
 
             saveDraft();
@@ -1907,7 +1958,7 @@
 
                 $.ajax({
 
-                    url: "{{ route('bom.copy') }}",
+                    url: "/bom/copy",
 
                     type: "POST",
 
@@ -1948,7 +1999,7 @@
 
                         }).then(() => {
 
-                            window.location = "/bom/";
+                            window.location = "/bom-produksi/";
 
                         });
 
@@ -1995,3 +2046,96 @@
 
         });
     </script>
+    <script>
+  function loadMaterialMaster(keyword = '') {
+
+    $.ajax({
+
+        url: '/ajaxBom',
+
+        type: 'GET',
+
+        data: {
+            keyword: keyword
+        },
+
+        success: function(datas) {
+
+            let html = '';
+
+       datas.forEach(function(item){
+
+    html += `
+        <tr>
+
+            <td>
+                <button
+                    class="btn btn-primary btn-sm btn-select-material"
+
+                    data-id="${item.id}"
+                    data-name="${item.name}"
+                    data-type="${item.type}"
+                    data-price="${item.price}"
+                    data-unit="${item.unit}">
+
+                    Pilih
+
+                </button>
+            </td>
+
+            <td>${item.id}</td>
+
+            <td>${item.name}</td>
+
+            <td>${item.jenis}</td>
+
+            <td>${formatNumber(item.price)}</td>
+
+        </tr>
+    `;
+
+});
+
+            $('#materialMasterBody').html(html);
+
+        }
+
+    });
+
+
+}
+//add material 
+$('#btnAddMaterial').click(function () {
+
+    $('#addMaterialModal').modal('show');
+
+});
+// save material 
+$('#formAddMaterial').submit(function(e){
+
+    e.preventDefault();
+
+    $.ajax({
+
+        url:'/bom-material-price/store',
+
+        type:'POST',
+
+        data:$(this).serialize(),
+
+        success:function(res){
+
+            $('#addMaterialModal').modal('hide');
+
+            $('#formAddMaterial')[0].reset();
+
+            // refresh list material
+            loadMaterialMaster($('#searchMasterMaterial').val());
+
+        }
+
+    });
+
+});
+    </script>
+

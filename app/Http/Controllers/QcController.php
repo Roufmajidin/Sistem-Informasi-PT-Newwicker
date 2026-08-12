@@ -20,6 +20,11 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use App\Exports\QcExports;
+use Maatwebsite\Excel\Facades\Excel;
 
 // aa
 class QcController extends Controller
@@ -75,9 +80,9 @@ class QcController extends Controller
             if (in_array($col, ['W', 'D', 'H'])) {
                 $wdhCount++;
                 if ($wdhCount <= 3) {
-                    $headers[] = 'item_'.strtolower($col);
+                    $headers[] = 'item_' . strtolower($col);
                 } else {
-                    $headers[] = 'packing_'.strtolower($col);
+                    $headers[] = 'packing_' . strtolower($col);
                 }
 
                 continue;
@@ -87,7 +92,7 @@ class QcController extends Controller
             // ===== DUPLICATE HEADER (Remark Remark, dll) =====
             if (isset($headerRepeat[$key])) {
                 $headerRepeat[$key]++;
-                $key .= '_'.$headerRepeat[$key];
+                $key .= '_' . $headerRepeat[$key];
             } else {
                 $headerRepeat[$key] = 1;
                 // suffix _1 hanya jika nanti ada duplikat
@@ -102,7 +107,7 @@ class QcController extends Controller
         for ($i = 1; $i < count($lines); $i++) {
             $cols = array_map('trim', explode("\t", $lines[$i]));
             // skip baris bukan item
-            if (! isset($cols[0]) || ! is_numeric($cols[0])) {
+            if (!isset($cols[0]) || !is_numeric($cols[0])) {
                 continue;
             }
             $row = [];
@@ -185,32 +190,58 @@ class QcController extends Controller
     {
         $q = $request->q;
         $type = $request->type;
-        $pos = Po::with('details')
-        // =========================
-        // SEARCH
-        // =========================
+        $sort = $request->sort ?? 'desc'; // default terbaru
+
+        $query = Po::with('details')
+
+            // =========================
+            // SEARCH
+            // =========================
             ->when($q, function ($query) use ($q) {
+
                 $query->where(function ($sub) use ($q) {
+
                     $sub->where('order_no', 'like', "%{$q}%")
                         ->orWhere('company_name', 'like', "%{$q}%");
+
                 });
+
             })
-        // =========================
-        // FILTER TYPE
-        // =========================
+
+            // =========================
+            // FILTER TYPE
+            // =========================
             ->when($type, function ($query) use ($type) {
-                // NWS
+
                 if ($type === 'NWS') {
+
                     $query->where('order_no', 'like', 'NWS%');
+
                 }
-                // NW (bukan NWS)
+
                 if ($type === 'NW') {
+
                     $query->where('order_no', 'like', 'NW%')
                         ->where('order_no', 'not like', 'NWS%');
+
                 }
-            })
-            ->latest()
-            ->get();
+
+            });
+
+        // =========================
+        // SORT ORDER NO
+        // =========================
+        if ($sort == 'asc') {
+
+            $query->orderBy('order_no', 'asc');
+
+        } else {
+
+            $query->orderBy('order_no', 'desc');
+
+        }
+
+        $pos = $query->get();
 
         return response()->json($pos);
     }
@@ -293,7 +324,9 @@ class QcController extends Controller
     //     ]);
     // }
     // new
-    public function getInspect() {}
+    public function getInspect()
+    {
+    }
 
     public function exportPdf($kategori, $po_id)
     {
@@ -328,7 +361,7 @@ class QcController extends Controller
             $itemId = $r->detail_po_id;
             $batch = $r->batch;
             // ðŸ”¥ ambil detail item (JSON)
-            if (! isset($items[$itemId])) {
+            if (!isset($items[$itemId])) {
                 $detail = DB::table('detail_po')->where('id', $itemId)->first();
                 $json = json_decode($detail->detail ?? '{}', true);
                 // dd($detail);
@@ -340,7 +373,7 @@ class QcController extends Controller
                 ];
             }
             // ðŸ”¥ batch init
-            if (! isset($items[$itemId]['batches'][$batch])) {
+            if (!isset($items[$itemId]['batches'][$batch])) {
                 $items[$itemId]['batches'][$batch] = [
                     'tanggal' => $r->tanggal_inspect,
                     'inspect' => 0,
@@ -383,12 +416,12 @@ class QcController extends Controller
             ->first();
         $checkpoints = Checkpoint::where('kategori_id', $kategori->id)->get();
         $checkpointIds = $checkpoints->pluck('id');
-       $qcReports = QcReport::with([
-                'inspectSchedule:id,po_id,detail_po_id,spk_id,batch,jumlah_inspect,tanggal_inspect,user_id,passed,rejected',
-                'inspectSchedule.spk',
-                'photos:id,qc_report_id,keterangan,path',
-                'checkpoint:id,name',
-            ])
+        $qcReports = QcReport::with([
+            'inspectSchedule:id,po_id,detail_po_id,spk_id,batch,jumlah_inspect,tanggal_inspect,user_id,passed,rejected',
+            'inspectSchedule.spk',
+            'photos:id,qc_report_id,keterangan,path',
+            'checkpoint:id,name',
+        ])
             ->where('po_id', $poId)
             ->where('detail_po_id', $detailPoId)
             ->whereIn('check_point_id', $checkpointIds)
@@ -397,14 +430,14 @@ class QcController extends Controller
         foreach ($qcReports as $report) {
             $schedule = $report->inspectSchedule;
             $spk = $schedule->spk;
-            if (! $schedule) {
+            if (!$schedule) {
                 continue;
             }
-            $batchKey = 'Batch '.$schedule->batch;
+            $batchKey = 'Batch ' . $schedule->batch;
             // / ===================================================
             // / CREATE BATCH
             // / ===================================================
-            if (! isset($batches[$batchKey])) {
+            if (!isset($batches[$batchKey])) {
                 // / ===============================================
                 // / TEMUAN GLOBAL
                 // / qc_report_id = NULL
@@ -419,7 +452,7 @@ class QcController extends Controller
                         return [
                             'keterangan' => $p->keterangan,
                             'path' => url(
-                                '/storage/'.$p->path
+                                '/storage/' . $p->path
                             ),
                             'raw_path' => $p->path,
                         ];
@@ -459,7 +492,7 @@ class QcController extends Controller
                         return [
                             'keterangan' => $p->keterangan,
                             'path' => url(
-                                '/storage/'.$p->path
+                                '/storage/' . $p->path
                             ),
                             'raw_path' => $p->path,
                         ];
@@ -557,7 +590,7 @@ class QcController extends Controller
                     ReportPhoto::create([
                         'qc_report_id' => $qcReport->id,
                         'keterangan' => "Foto {$kategoriName} batch {$batchKe}",
-                        'path' => 'uploads/qc/'.Str::random(12).'.jpg',
+                        'path' => 'uploads/qc/' . Str::random(12) . '.jpg',
                     ]);
                 }
             }
@@ -709,137 +742,137 @@ class QcController extends Controller
         ]);
     }
 
-// public function getDataApi(string $kategoriName, string $detailPoId, string $poId)
-// {
-//     $kategori = Kategori::where('kategori', $kategoriName)
-//         ->firstOrFail();
+    // public function getDataApi(string $kategoriName, string $detailPoId, string $poId)
+    // {
+    //     $kategori = Kategori::where('kategori', $kategoriName)
+    //         ->firstOrFail();
 
-//     $detail_po = DetailPo::findOrFail($detailPoId);
+    //     $detail_po = DetailPo::findOrFail($detailPoId);
 
-//     $nwCode = $detail_po->detail['nw_code'] ?? null;
+    //     $nwCode = $detail_po->detail['nw_code'] ?? null;
 
-//     $cad = CadModel::where('article_code', $nwCode)
-//         ->orderByDesc('version')
-//         ->first();
+    //     $cad = CadModel::where('article_code', $nwCode)
+    //         ->orderByDesc('version')
+    //         ->first();
 
-//     $checkpoints = Checkpoint::where('kategori_id', $kategori->id)->get();
+    //     $checkpoints = Checkpoint::where('kategori_id', $kategori->id)->get();
 
-//     $checkpointIds = $checkpoints->pluck('id');
+    //     $checkpointIds = $checkpoints->pluck('id');
 
-//     $qcReports = QcReport::with([
-//         'inspectSchedule:id,po_id,detail_po_id,spk_id,batch,jumlah_inspect,tanggal_inspect,user_id,passed,rejected',
-//         'inspectSchedule.spk',
-//         'photos:id,qc_report_id,keterangan,path',
-//         'checkpoint:id,name',
-//     ])
-//         ->where('po_id', $poId)
-//         ->where('detail_po_id', $detailPoId)
-//         ->whereIn('check_point_id', $checkpointIds)
-//         ->get();
+    //     $qcReports = QcReport::with([
+    //         'inspectSchedule:id,po_id,detail_po_id,spk_id,batch,jumlah_inspect,tanggal_inspect,user_id,passed,rejected',
+    //         'inspectSchedule.spk',
+    //         'photos:id,qc_report_id,keterangan,path',
+    //         'checkpoint:id,name',
+    //     ])
+    //         ->where('po_id', $poId)
+    //         ->where('detail_po_id', $detailPoId)
+    //         ->whereIn('check_point_id', $checkpointIds)
+    //         ->get();
 
-//     $batches = [];
+    //     $batches = [];
 
-//     foreach ($qcReports as $report) {
+    //     foreach ($qcReports as $report) {
 
-//         $schedule = $report->inspectSchedule;
+    //         $schedule = $report->inspectSchedule;
 
-//         if (! $schedule) {
-//             continue;
-//         }
+    //         if (! $schedule) {
+    //             continue;
+    //         }
 
-//         $spk = $schedule->spk;
+    //         $spk = $schedule->spk;
 
-//         $kategoriSpk = data_get($spk->data, 'kategori', 'SPK');
-//         $noSpk = data_get($spk->data, 'no_spk', '');
-//         $supplier = data_get($spk->data, 'sup', '');
+    //         $kategoriSpk = data_get($spk->data, 'kategori', 'SPK');
+    //         $noSpk = data_get($spk->data, 'no_spk', '');
+    //         $supplier = data_get($spk->data, 'sup', '');
 
-//         // ==========================================================
-//         // KEY = SPK + BATCH
-//         // ==========================================================
-//         $batchKey = $noSpk . ' | Batch ' . $schedule->batch;
+    //         // ==========================================================
+    //         // KEY = SPK + BATCH
+    //         // ==========================================================
+    //         $batchKey = $noSpk . ' | Batch ' . $schedule->batch;
 
-//         if (! isset($batches[$batchKey])) {
+    //         if (! isset($batches[$batchKey])) {
 
-//             $temuan = ReportPhoto::where(
-//                 'inspect_schedule_id',
-//                 $schedule->id
-//             )
-//                 ->whereNull('qc_report_id')
-//                 ->get()
-//                 ->map(function ($p) {
-//                     return [
-//                         'keterangan' => $p->keterangan,
-//                         'path' => url('/storage/' . $p->path),
-//                         'raw_path' => $p->path,
-//                     ];
-//                 })
-//                 ->values();
+    //             $temuan = ReportPhoto::where(
+    //                 'inspect_schedule_id',
+    //                 $schedule->id
+    //             )
+    //                 ->whereNull('qc_report_id')
+    //                 ->get()
+    //                 ->map(function ($p) {
+    //                     return [
+    //                         'keterangan' => $p->keterangan,
+    //                         'path' => url('/storage/' . $p->path),
+    //                         'raw_path' => $p->path,
+    //                     ];
+    //                 })
+    //                 ->values();
 
-//             $batches[$batchKey] = [
+    //             $batches[$batchKey] = [
 
-//                 'batch_ke' => $schedule->batch,
+    //                 'batch_ke' => $schedule->batch,
 
-//                 'batch_title' => $batchKey,
+    //                 'batch_title' => $batchKey,
 
-//                 'batch_name' => $kategoriSpk,
+    //                 'batch_name' => $kategoriSpk,
 
-//                 'items' => $detail_po->detail,
+    //                 'items' => $detail_po->detail,
 
-//                 'tanggal' => $schedule->tanggal_inspect,
+    //                 'tanggal' => $schedule->tanggal_inspect,
 
-//                 'jumlah_inspect' => $schedule->jumlah_inspect,
+    //                 'jumlah_inspect' => $schedule->jumlah_inspect,
 
-//                 'jenis' => $kategori->kategori,
+    //                 'jenis' => $kategori->kategori,
 
-//                 'passed' => $schedule->passed,
+    //                 'passed' => $schedule->passed,
 
-//                 'rejected' => $schedule->rejected,
+    //                 'rejected' => $schedule->rejected,
 
-//                 'no_spk' => $noSpk,
+    //                 'no_spk' => $noSpk,
 
-//                 'supplier' => $supplier,
+    //                 'supplier' => $supplier,
 
-//                 'kategori_spk' => $kategoriSpk,
+    //                 'kategori_spk' => $kategoriSpk,
 
-//                 'qty_spk' => $spk->qty ?? 0,
+    //                 'qty_spk' => $spk->qty ?? 0,
 
-//                 'inspector' => optional($schedule->user)->name
-//                     ?? User::find($schedule->user_id)->name
-//                     ?? 'N/A',
+    //                 'inspector' => optional($schedule->user)->name
+    //                     ?? User::find($schedule->user_id)->name
+    //                     ?? 'N/A',
 
-//                 'master_sample' => $cad->master_sample ?? null,
+    //                 'master_sample' => $cad->master_sample ?? null,
 
-//                 'temuan' => $temuan,
+    //                 'temuan' => $temuan,
 
-//                 'checkpoints' => [],
-//             ];
-//         }
+    //                 'checkpoints' => [],
+    //             ];
+    //         }
 
-//         $batches[$batchKey]['checkpoints'][$report->checkpoint->name] = [
+    //         $batches[$batchKey]['checkpoints'][$report->checkpoint->name] = [
 
-//             'size' => $report->size,
+    //             'size' => $report->size,
 
-//             'remark' => $report->remark,
+    //             'remark' => $report->remark,
 
-//             'photos' => $report->photos
-//                 ->map(function ($p) {
-//                     return [
-//                         'keterangan' => $p->keterangan,
-//                         'path' => url('/storage/' . $p->path),
-//                         'raw_path' => $p->path,
-//                     ];
-//                 })
-//                 ->values(),
-//         ];
-//     }
+    //             'photos' => $report->photos
+    //                 ->map(function ($p) {
+    //                     return [
+    //                         'keterangan' => $p->keterangan,
+    //                         'path' => url('/storage/' . $p->path),
+    //                         'raw_path' => $p->path,
+    //                     ];
+    //                 })
+    //                 ->values(),
+    //         ];
+    //     }
 
-//     return response()->json([
-//         'kategori' => $kategori->kategori,
-//         'po_id' => $poId,
-//         'detail_po_id' => $detailPoId,
-//         'batches' => $batches,
-//     ]);
-// }
+    //     return response()->json([
+    //         'kategori' => $kategori->kategori,
+    //         'po_id' => $poId,
+    //         'detail_po_id' => $detailPoId,
+    //         'batches' => $batches,
+    //     ]);
+    // }
     public function getCheckpointData(string $kategoriName)
     {
         $kategori = Kategori::where('kategori', $kategoriName)->firstOrFail();
@@ -879,7 +912,7 @@ class QcController extends Controller
             $kategoriTanpaSpk = ['unfinish', 'final', 'packaging'];
 
             $useSpk = !in_array($kategoriName, $kategoriTanpaSpk);
-            if (! $kategori) {
+            if (!$kategori) {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'Kategori tidak ditemukan',
@@ -891,34 +924,34 @@ class QcController extends Controller
         |--------------------------------------------------------------------------
         */
             $po_id =
-            $request->po_id;
+                $request->po_id;
             $detail_po_id =
-            $request->detail_po_id;
+                $request->detail_po_id;
             $spk_id =
-            $request->spk_id;
+                $request->spk_id;
             $reports =
-            $request->reports ?? [];
+                $request->reports ?? [];
             $findings =
-            $request->findings ?? [];
+                $request->findings ?? [];
             $qtyInspection =
-            (int) $request
-                ->qty_inspection;
+                (int) $request
+                    ->qty_inspection;
             $passed =
-            (int) $request
-                ->passed;
+                (int) $request
+                    ->passed;
             $rejected =
-            (int) $request
-                ->rejected;
+                (int) $request
+                    ->rejected;
             $isReinspect =
-            $request->boolean('is_reinspect');
-          Log::info('================ QC INSERT =================');
+                $request->boolean('is_reinspect');
+            Log::info('================ QC INSERT =================');
 
-        Log::info('QC REQUEST',[
-            'po'=>$po_id,
-            'detail_po'=>$detail_po_id,
-            'spk'=>$spk_id,
-            'kategori'=>$kategoriName
-        ]);
+            Log::info('QC REQUEST', [
+                'po' => $po_id,
+                'detail_po' => $detail_po_id,
+                'spk' => $spk_id,
+                'kategori' => $kategoriName,
+            ]);
             /*
         |--------------------------------------------------------------------------
         | VALIDASI
@@ -940,17 +973,17 @@ class QcController extends Controller
         */
             if ($useSpk) {
 
-                    $batchKe = InspectSchedule::where('spk_id', $spk_id)
-                        ->where('kategori_id', $kategori->id)
-                        ->count() + 1;
+                $batchKe = InspectSchedule::where('spk_id', $spk_id)
+                    ->where('kategori_id', $kategori->id)
+                    ->count() + 1;
 
-                } else {
+            } else {
 
-                    $batchKe = InspectSchedule::where('detail_po_id', $detail_po_id)
-                        ->where('kategori_id', $kategori->id)
-                        ->count() + 1;
+                $batchKe = InspectSchedule::where('detail_po_id', $detail_po_id)
+                    ->where('kategori_id', $kategori->id)
+                    ->count() + 1;
 
-                }
+            }
 
             //
             /*
@@ -959,7 +992,7 @@ class QcController extends Controller
             |--------------------------------------------------------------------------
             */
 
-          if ($useSpk) {
+            if ($useSpk) {
 
                 $batchKe = InspectSchedule::where('spk_id', $spk_id)
                     ->where('kategori_id', $kategori->id)
@@ -973,61 +1006,59 @@ class QcController extends Controller
 
             }
 
-            $qtyPo = (int)$item['qty'];
-           $totalInspect = InspectSchedule::where('spk_id', $spk_id)
-                ->where('kategori_id', $kategori->id)
-                ->sum('jumlah_inspect');
-            //
-            $totalRejected = InspectSchedule::where('spk_id', $spk_id)
-            ->where('kategori_id', $kategori->id)
-            ->sum('rejected');
-            if (! $isReinspect) {
+            if ($useSpk) {
 
-                // First Inspection
+                $spk = \App\Models\Spk::findOrFail($spk_id);
+                $spkData = is_array($spk->data) ? $spk->data : json_decode($spk->data, true);
 
-                $remaining = $qtyPo - $totalInspect;
+                $item = collect($spkData['items'] ?? [])->first(function ($i) use ($detail_po_id) {
+                    return ($i['detail_po_id'] ?? null) == $detail_po_id;
+                });
 
-                if ($qtyInspection > $remaining) {
-
-                    return response()->json([
-                        'status' => 'error',
-                        'message' => 'Sisa qty hanya '.$remaining,
-                    ], 422);
-
+                if (!$item) {
+                    throw new \Exception('Item SPK tidak ditemukan');
                 }
+
+                $qtyPo = (int) ($item['qty'] ?? 0);
+
+                $totalInspect = InspectSchedule::where('spk_id', $spk_id)
+                    ->where('detail_po_id', $detail_po_id)
+                    ->where('kategori_id', $kategori->id)
+                    ->sum('jumlah_inspect');
+
+                $totalRejected = InspectSchedule::where('spk_id', $spk_id)
+                    ->where('kategori_id', $kategori->id)
+                    ->sum('rejected');
 
             } else {
 
-                // Re-Inspection
+                $detailPo = DetailPo::findOrFail($detail_po_id);
+                $qtyPo = (int) ($detailPo->detail['qty'] ?? 0);
 
-                if ($qtyInspection > $totalRejected) {
+                $totalInspect = InspectSchedule::where('detail_po_id', $detail_po_id)
+                    ->where('kategori_id', $kategori->id)
+                    ->sum('jumlah_inspect');
 
-                    return response()->json([
-
-                        'status' => 'error',
-
-                        'message' => 'Qty reject yang bisa di-reinspect hanya '.$totalRejected,
-
-                    ], 422);
-
-                }
+                $totalRejected = InspectSchedule::where('detail_po_id', $detail_po_id)
+                    ->where('kategori_id', $kategori->id)
+                    ->sum('rejected');
 
             }
 
             $inspectSchedule =
-            InspectSchedule::create([
-                'po_id' => $po_id,
-                'detail_po_id' => $detail_po_id,
-                'kategori_id' => $kategori->id,
-                'batch' => $batchKe,
-                'jumlah_inspect' => $qtyInspection,
-                'passed' => $passed,
-                'rejected' => $rejected,
-                'tanggal_inspect' => now()
-                    ->toDateString(),
-                'user_id' => auth()->id() ?? 1,
-                'spk_id' => $spk_id,
-            ]);
+                InspectSchedule::create([
+                    'po_id' => $po_id,
+                    'detail_po_id' => $detail_po_id,
+                    'kategori_id' => $kategori->id,
+                    'batch' => $batchKe,
+                    'jumlah_inspect' => $qtyInspection,
+                    'passed' => $passed,
+                    'rejected' => $rejected,
+                    'tanggal_inspect' => now()
+                        ->toDateString(),
+                    'user_id' => auth()->id() ?? 1,
+                    'spk_id' => $useSpk ? $spk_id : null,
+                ]);
             /*
         |--------------------------------------------------------------------------
         | SAVE TIMELINE
@@ -1112,8 +1143,8 @@ class QcController extends Controller
             if ($request->hasFile('finding_images')) {
                 foreach ($request->file('finding_images') as $index => $file) {
                     $filename =
-                    Str::uuid().'.'.
-                    $file->getClientOriginalExtension();
+                        Str::uuid() . '.' .
+                        $file->getClientOriginalExtension();
                     $path = $file->storeAs(
                         'uploads/qc',
                         $filename,
@@ -1142,18 +1173,18 @@ class QcController extends Controller
                             $checkpointId
                         )
                         ->first();
-                    if (! $checkpointReport) {
+                    if (!$checkpointReport) {
                         continue;
                     }
                     foreach ($photos as $index => $file) {
                         if (
-                            ! $file instanceof \Illuminate\Http\UploadedFile
+                            !$file instanceof \Illuminate\Http\UploadedFile
                         ) {
                             continue;
                         }
                         $filename =
-                        Str::uuid().'.'.
-                        $file->getClientOriginalExtension();
+                            Str::uuid() . '.' .
+                            $file->getClientOriginalExtension();
                         $path = $file->storeAs(
                             'uploads/qc',
                             $filename,
@@ -1209,6 +1240,19 @@ class QcController extends Controller
 
         return view('pages.qc.detail', compact('data', 'detailP', 'jenis'));
     }
+    public function shows($id)
+    {
+        $data = Po::findOrFail($id);
+
+        $detailP = DetailPo::where('po_id', $data->id)->get();
+
+        $jenis = Kategori::all();
+
+        return view(
+            'pages.qc.detail',
+            compact('data', 'detailP', 'jenis')
+        );
+    }
 
     public function getPo()
     {
@@ -1223,11 +1267,11 @@ class QcController extends Controller
         // kalau tidak ada, pakai divisi user login
         $divisiQc = strtoupper(
             $requestDivisi
-                ?: ($user->karyawan?->divisi?->nama ?? '')
+            ?: ($user->karyawan?->divisi?->nama ?? '')
         );
-      Log::info('dd', [
-                'schedule_id' => $divisiQc,
-            ]);
+        Log::info('dd', [
+            'schedule_id' => $divisiQc,
+        ]);
         /*
 
     |--------------------------------------------------------------------------
@@ -1299,8 +1343,8 @@ class QcController extends Controller
             ->get()
             ->groupBy(function ($item) {
 
-                return (string)
-                $item->article_code;
+                return (string) 
+                    $item->article_code;
 
             });
 
@@ -1311,15 +1355,15 @@ class QcController extends Controller
     */
 
         $inspectionSchedules =
-        InspectSchedule::with([
-            'kategori',
-            'user',
-        ])
-            ->whereIn(
-                'detail_po_id',
-                $detailPoIds
-            )
-            ->get();
+            InspectSchedule::with([
+                'kategori',
+                'user',
+            ])
+                ->whereIn(
+                    'detail_po_id',
+                    $detailPoIds
+                )
+                ->get();
 
         /*
     |--------------------------------------------------------------------------
@@ -1327,24 +1371,9 @@ class QcController extends Controller
     |--------------------------------------------------------------------------
     */
 
-        $pos->each(function ($po) use (
+        $pos->each(function ($po) use ($bomMap, $cads, $inspectionSchedules, $divisiQc) {
 
-            $bomMap,
-            $cads,
-            $inspectionSchedules,
-            $divisiQc
-
-        ) {
-
-            $po->details->each(function ($detail) use (
-
-                $po,
-                $bomMap,
-                $cads,
-                $inspectionSchedules,
-                $divisiQc
-
-            ) {
+            $po->details->each(function ($detail) use ($po, $bomMap, $cads, $inspectionSchedules, $divisiQc) {
 
                 /*
             |--------------------------------------------------------------------------
@@ -1395,12 +1424,12 @@ class QcController extends Controller
             */
 
                 $detail->inspection_schedules =
-                $inspectionSchedules
-                    ->where(
-                        'detail_po_id',
-                        $detail->id
-                    )
-                    ->values();
+                    $inspectionSchedules
+                        ->where(
+                            'detail_po_id',
+                            $detail->id
+                        )
+                        ->values();
 
                 /*
             |--------------------------------------------------------------------------
@@ -1419,7 +1448,7 @@ class QcController extends Controller
                     );
 
                     if (
-                        ! $this->matchDivisi(
+                        !$this->matchDivisi(
                             $divisiQc,
                             $kategoriSpk
                         )
@@ -1438,7 +1467,7 @@ class QcController extends Controller
                     }
 
                     $items =
-                    $spkData['items'] ?? [];
+                        $spkData['items'] ?? [];
 
                     foreach ($items as $item) {
 
@@ -1721,7 +1750,7 @@ class QcController extends Controller
 
             $inspect->spk_item = null;
 
-            if ($inspect->spk && ! empty($inspect->spk->data)) {
+            if ($inspect->spk && !empty($inspect->spk->data)) {
 
                 $spkData = is_array($inspect->spk->data)
                     ? $inspect->spk->data
@@ -1831,5 +1860,42 @@ class QcController extends Controller
             'html' => $html,
             'total' => $inspection->count(),
         ]);
+    }
+    // export
+    public function exportPass(Request $request)
+    {
+        $inspection = InspectSchedule::with([
+            'kategori',
+            'user',
+            'spk',
+            'detailPo',
+            'po'
+        ]);
+
+        // filter inspector
+        if ($request->filled('inspector')) {
+            $inspection->where('user_id', $request->inspector);
+        }
+
+        // filter tanggal
+        if ($request->filled('from') && $request->filled('to')) {
+            $inspection->whereBetween('tanggal_inspect', [
+                $request->from,
+                $request->to
+            ]);
+        }
+
+        $inspection = $inspection
+            ->orderBy('tanggal_inspect', 'desc')
+            ->get();
+
+        return Excel::download(
+            new QcExports(
+                $inspection,
+                $request->from,
+                $request->to
+            ),
+            'QC_PASS_' . $request->from . '_' . $request->to . '.xlsx'
+        );
     }
 }

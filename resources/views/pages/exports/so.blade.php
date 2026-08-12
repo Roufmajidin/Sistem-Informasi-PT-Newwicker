@@ -85,7 +85,7 @@
                                     <th width="80">Qty loaded</th>
                                     <th width="80">CBM</th>
                                     <th width="90">Total CBM</th>
-                                    <th width="180">Finishing</th>
+                                    <th width="180">-</th>
 
                                 </tr>
 
@@ -158,16 +158,16 @@
 
 </td>
 
-                                        <td class="text-center">
-                                            {{ $item['cbm'] ?? 0 }}
+                                       <td class="text-center">
+                                            {{ rtrim(rtrim(number_format((float)($item['cbm'] ?? 0), 2, '.', ''), '0'), '.') }}
                                         </td>
 
                                         <td class="text-center">
-                                            {{ $item['total_cbm'] ?? 0 }}
+                                            {{ rtrim(rtrim(number_format((float)($item['total_cbm'] ?? 0), 2, '.', ''), '0'), '.') }}
                                         </td>
 
                                         <td>
-                                            {{ $item['finishing'] ?? '-' }}
+                                            {{-- {{ $item['finishing'] ?? '-' }} --}}
                                         </td>
 
                                     </tr>

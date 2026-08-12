@@ -3,6 +3,7 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Auth\AuthenticationException;
+use App\Http\Middleware\ActivityLogMiddleware;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -15,14 +16,14 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function ($middleware) {
 
         //
+        $middleware->append(
+            ActivityLogMiddleware::class
+        );
     })
 
     ->withExceptions(function (Exceptions $exceptions) {
 
-        $exceptions->render(function (
-            AuthenticationException $e,
-            $request
-        ) {
+        $exceptions->render(function (AuthenticationException $e, $request) {
 
             if (
                 $request->expectsJson()

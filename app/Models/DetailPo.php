@@ -24,8 +24,8 @@ class DetailPo extends Model
         return $this->belongsTo(Po::class);
     }
     public function spks()
-{
-    return $this->hasMany(Spk::class, 'detail_po_id');
-}
+    {
+        return $this->hasMany(Spk::class, 'detail_po_id');
+    }
 
 }

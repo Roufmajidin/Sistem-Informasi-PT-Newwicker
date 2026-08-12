@@ -9,6 +9,8 @@ class ExportIpl extends Model
     protected $fillable = [
         'invoice_no',
         'sales_order',
+        'released',
+        'release_date',
 
         'buyer',
         'buyer_address',
@@ -60,4 +62,19 @@ class ExportIpl extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+    public function exportDocumentsInvoice()
+{
+    return $this->hasMany(
+        ExportDocument::class,
+        'invoice_id'
+    );
+}
+
+public function exportDocumentsPacking()
+{
+    return $this->hasMany(
+        ExportDocument::class,
+        'packing_list_id'
+    );
+}
 }

@@ -22,4 +22,8 @@ class Supplier extends Model
     {
         return $this->belongsTo(JenisSupplier::class, 'jenis_supplier_id');
     }
+    public function supKontrak()
+{
+    return $this->hasMany(SupKontrak::class, 'supplier_id');
+}
 }

@@ -44,4 +44,10 @@ class Po extends Model
             'detail_po_id'
         );
     }
+    public function exportDocuments()
+{
+    return $this->hasMany(
+        ExportDocument::class
+    );
+}
 }

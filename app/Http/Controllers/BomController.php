@@ -52,7 +52,8 @@ class BomController extends Controller
         $materials =
             MaterialPrice::select(
                 'id',
-                'nama_material as nama'
+                'nama_material as nama',
+                      'harga'
             )
                 ->get()
                 ->map(function ($row) {
@@ -149,7 +150,35 @@ class BomController extends Controller
             'success' => true,
         ]);
     }
+ public function bulkStored(Request $request)
+{
+    $rows = explode("\n", trim($request->materials));
 
+    $lastMaterial = null;
+
+    foreach ($rows as $row) {
+
+        $row = trim($row);
+
+        if (empty($row)) {
+            continue;
+        }
+
+        $cols = array_map('trim', explode(',', $row));
+
+        $lastMaterial = MaterialPrice::create([
+            'nama_material' => $cols[0] ?? '',
+            'harga'         => $cols[1] ?? 0,
+            'satuan'        => $cols[2] ?? null,
+        ]);
+    }
+
+    return response()->json([
+        'success'  => true,
+        'message'  => 'Material berhasil disimpan',
+        'material' => $lastMaterial
+    ]);
+}
     // finishsing
     public function bulkStoreFinishing(Request $request)
     {
@@ -744,7 +773,11 @@ class BomController extends Controller
                         'level' => 1,
 
                     ]);
-
+                    Log::info('ITEM SAVE', [
+                        'harga' => $item['price'] ?? null,
+                        'harga_type' => gettype($item['price'] ?? null),
+                        'material_type' => $item['material_type'] ?? null,
+                    ]);
                 }
 
             }
@@ -806,10 +839,11 @@ class BomController extends Controller
         // $filename = $bom->article_number
         //     ? 'BOM_'.$bom->article_number.'.xlsx'
         //     : 'BOM_'.Str::slug($bom->name, '_').'.xlsx';
-        $filename = Str::slug($bom->name, ' ')
-        .' - '
-        .$bom->article_number
-        .'.xlsx';
+       $filename = 'BOM_'
+    . Str::slug($bom->name, ' ')
+    . ' - '
+    . $bom->article_number
+    . '.xlsx';
 
         return Excel::download(new BomExport($bomData), $filename);
     }
@@ -1118,7 +1152,7 @@ class BomController extends Controller
             // =========================
             // CREATE HEADER BOM
             // =========================
-            $bom = Bom::create([
+            $bom = BomProd::create([
 
                 'name' => $data['name'] ?? '',
 
@@ -1153,8 +1187,12 @@ class BomController extends Controller
             foreach ($data['groups'] as $groupData) {
 
                 $sub = $groupData['sub_prices'][0] ?? null;
-
-                $group = BomGroup::create([
+                Log::info('SUB PRICES', [
+                    'header' => $groupData['name'],
+                    'count' => count($groupData['sub_prices'] ?? []),
+                    'data' => $groupData['sub_prices'] ?? [],
+                ]);
+                $group = BomProdGroup::create([
 
                     'bom_id' => $bom->id,
 
@@ -1172,7 +1210,7 @@ class BomController extends Controller
 
                 foreach ($groupData['items'] as $item) {
 
-                    BomItem::create([
+                    BomProdItem::create([
 
                         'group_id' => $group->id,
 
@@ -1206,7 +1244,7 @@ class BomController extends Controller
 
             foreach ($data['summaries'] ?? [] as $summary) {
 
-                BomSummary::create([
+                BomProdSummary::create([
 
                     'bom_id' => $bom->id,
 
@@ -1378,4 +1416,58 @@ class BomController extends Controller
             compact('boms_released')
         );
     }
+public function ajaxMaterialPrice(Request $request)
+{
+    $keyword = $request->keyword;
+
+    // Material
+    $materials = MaterialPrice::query()
+        ->when($keyword, function ($q) use ($keyword) {
+            $q->where('nama_material', 'like', "%{$keyword}%");
+        })
+        ->latest() // sama dengan orderByDesc('created_at')
+        // atau ->orderByDesc('id')
+        ->get([
+            'id',
+            'nama_material',
+            'harga',
+            'satuan'
+        ])
+        ->map(function ($item) {
+
+            return [
+                'id'    => $item->id,
+                'name'  => $item->nama_material,
+                'type'  => 'material_price',
+                'jenis' => 'Material',
+                'price' => $item->harga,
+                'unit'  => $item->satuan,
+            ];
+
+        });
+
+    // Finishing
+    $finishings = MaterialFinishing::query()
+        ->when($keyword, function ($q) use ($keyword) {
+            $q->where('nama', 'like', "%{$keyword}%");
+        })
+        ->latest() // atau ->orderByDesc('id')
+        ->get()
+        ->map(function ($item) {
+
+            return [
+                'id'    => $item->id,
+                'name'  => $item->nama,
+                'type'  => 'material_finishing',
+                'jenis' => 'Finishing',
+                'price' => $item->jenis_propan,
+                'unit'  => '',
+            ];
+
+        });
+
+    return response()->json(
+        $materials->concat($finishings)->values()
+    );
+}
 }

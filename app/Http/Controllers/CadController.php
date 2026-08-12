@@ -8,24 +8,63 @@ use App\Models\ChatRoom;
 use App\Models\DetailPo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-
 class CadController extends Controller
 {
     //
-    public function all()
-    {
-      $latestIds = CadModel::select(DB::raw('MAX(version) as version'), 'article_code')
-    ->groupBy('article_code')
-    ->get();
+public function all()
+{
+    $latestIds = CadModel::select(
+            DB::raw('MAX(version) as version'),
+            'article_code'
+        )
+        ->groupBy('article_code')
+        ->get();
+
+    // Mapping Article Code => Nama Item
+    $detailMap = DetailPo::all()
+        ->mapWithKeys(function ($row) {
+
+            $detail = $row->detail ?? [];
+
+            $article =
+                $detail['article_nr_']
+                ?? $detail['article_nr_nw']
+                ?? null;
+
+            $name =
+                $detail['description']
+                ?? '-';
+
+            return $article
+                ? [$article => $name]
+                : [];
+
+        });
 
     $cads = CadModel::with('user')
         ->get()
         ->groupBy('article_code')
-        ->map(fn ($items) => $items->sortByDesc('version')->first())
+        ->map(function ($items) use ($detailMap) {
+
+            $cad = $items
+                ->sortByDesc('version')
+                ->first();
+
+            // Tambahkan nama item
+            $cad->item_name =
+                $detailMap[$cad->article_code]
+                ?? '-';
+
+            return $cad;
+
+        })
         ->values();
 
-        return view('pages.rnd.cad.index', compact('cads', 'latestIds'));
-    }
+    return view(
+        'pages.rnd.cad.index',
+        compact('cads', 'latestIds')
+    );
+}
     public function history($article)
     {
         $histories = CadModel::with('user')

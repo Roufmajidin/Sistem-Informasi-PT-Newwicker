@@ -1,4 +1,30 @@
   <style>
+    #loadingOverlay{
+
+    position:fixed;
+
+    top:0;
+    left:0;
+
+    width:100%;
+    height:100%;
+
+    background:rgba(255,255,255,.92);
+
+    display:none;
+
+    justify-content:center;
+    align-items:center;
+
+    z-index:999999;
+
+}
+
+.loading-content{
+
+    text-align:center;
+
+}
         .freeze-wrapper {
             max-height: 600px;
             overflow: auto;
