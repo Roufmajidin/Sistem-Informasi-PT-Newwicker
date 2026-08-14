@@ -28,6 +28,8 @@ use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use App\Exports\ExportPengajuanSpk;
+use App\Exports\ExportAllPaymentRequest;
 
 class SpkController extends Controller
 {
@@ -35,7 +37,7 @@ class SpkController extends Controller
     public function delete($id)
     {
         $spk = Spk::find($id);
-        if (! $spk) {
+        if (!$spk) {
             return response()->json([
                 'message' => 'SPK tidak ditemukan',
             ], 404);
@@ -49,14 +51,14 @@ class SpkController extends Controller
 
     private function saveBase64Image($base64, $folder = 'spk')
     {
-        if (! str_starts_with($base64, 'data:image')) {
+        if (!str_starts_with($base64, 'data:image')) {
             return $base64;
         }
         preg_match('/data:image\/(.*?);base64,/', $base64, $match);
         $extension = $match[1] ?? 'png';
         $image = substr($base64, strpos($base64, ',') + 1);
         $image = base64_decode($image);
-        $filename = $folder.'/'.Str::uuid().'.'.$extension;
+        $filename = $folder . '/' . Str::uuid() . '.' . $extension;
         Storage::disk('public')->put($filename, $image);
 
         return Storage::url($filename);
@@ -200,7 +202,7 @@ class SpkController extends Controller
             $items = $po->details->map(function ($d) {
                 $detail = $d->detail;
                 $images = [];
-                if (! empty($detail['photo'])) {
+                if (!empty($detail['photo'])) {
                     $images[] =
                         $detail['photo'];
                 }
@@ -291,7 +293,7 @@ class SpkController extends Controller
         $kategori = $request->spk_type;
         $items = $request->items ?? [];
         $spkId = $request->spk_id; // edit mode jika ada
-        if (! $kategori || empty($items)) {
+        if (!$kategori || empty($items)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Data tidak lengkap',
@@ -327,7 +329,7 @@ class SpkController extends Controller
             }
             // ===== DETAIL PO
             $detailPo = DetailPo::find($item['detail_id']);
-            if (! $detailPo) {
+            if (!$detailPo) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Detail PO tidak ditemukan',
@@ -491,7 +493,7 @@ class SpkController extends Controller
         $changes = [];
         foreach ($after as $key => $value) {
             $currentPath = $path ? "$path.$key" : $key;
-            if (! array_key_exists($key, $before)) {
+            if (!array_key_exists($key, $before)) {
                 $changes[$currentPath] = [
                     'before' => null,
                     'after' => $value,
@@ -547,7 +549,7 @@ class SpkController extends Controller
             $kategoriUtama = '';
 
             if (
-                ! empty($item['custom_columns'][0]['kategori'])
+                !empty($item['custom_columns'][0]['kategori'])
             ) {
                 $kategoriUtama =
                     $item['custom_columns'][0]['kategori'];
@@ -634,7 +636,7 @@ class SpkController extends Controller
     |--------------------------------------------------------------------------
     */
 
-            if (! empty($item['images'][0])) {
+            if (!empty($item['images'][0])) {
 
                 $this->insertImage(
                     $sheet,
@@ -789,8 +791,8 @@ class SpkController extends Controller
     {
         foreach (range('A', 'K') as $col) {
             $sheet->duplicateStyle(
-                $sheet->getStyle($col.$srcRow),
-                $col.$dstRow
+                $sheet->getStyle($col . $srcRow),
+                $col . $dstRow
             );
         }
         // Copy merge
@@ -809,7 +811,7 @@ class SpkController extends Controller
     private function insertImage($sheet, $path, $cell, $height = 80)
     {
         $realPath = public_path(str_replace(url('/'), '', $path));
-        if (! file_exists($realPath)) {
+        if (!file_exists($realPath)) {
             return;
         }
         $drawing = new Drawing;
@@ -823,12 +825,12 @@ class SpkController extends Controller
 
     private function addImage($sheet, $path, $cell, $height = 80)
     {
-        if (! $path) {
+        if (!$path) {
             return;
         }
         // kalau path masih URL
         $realPath = public_path(str_replace(url('/'), '', $path));
-        if (! file_exists($realPath)) {
+        if (!file_exists($realPath)) {
             return;
         }
         $drawing = new Drawing;
@@ -853,7 +855,7 @@ class SpkController extends Controller
             ->sum(function ($spk) use ($detailPoId) {
                 return collect($spk->data['items'] ?? [])
                     ->where('detail_po_id', $detailPoId)
-                    ->sum(fn ($i) => (int) ($i['qty'] ?? 0));
+                    ->sum(fn($i) => (int) ($i['qty'] ?? 0));
             });
     }
 
@@ -861,7 +863,7 @@ class SpkController extends Controller
     public function search(Request $request)
     {
         $q = trim($request->q);
-        if (! $q) {
+        if (!$q) {
             return [];
         }
 
@@ -874,7 +876,7 @@ class SpkController extends Controller
             ->map(function ($row) {
                 $detail = $row->detail ?? [];
                 $images = [];
-                if (! empty($detail['photo'])) {
+                if (!empty($detail['photo'])) {
                     $images[] = $detail['photo'];
                 }
 
@@ -968,11 +970,11 @@ class SpkController extends Controller
                             ) {
                                 $qty = (int) ($spkItem['qty'] ?? 0);
                                 // init kategori
-                                if (! isset($summary[$kategori])) {
+                                if (!isset($summary[$kategori])) {
                                     $summary[$kategori] = [];
                                 }
                                 // init supplier
-                                if (! isset($summary[$kategori][$supplier])) {
+                                if (!isset($summary[$kategori][$supplier])) {
                                     $summary[$kategori][$supplier] = [
                                         'total_qty' => 0,
                                         'spks' => [],
@@ -1075,11 +1077,11 @@ class SpkController extends Controller
             $items = collect($data['items'] ?? []);
             // 🔥 filter detail_po_id
             $item = $items->firstWhere('detail_po_id', $detailId);
-            if (! $item) {
+            if (!$item) {
                 continue; // ❗ skip kalau bukan item ini
             }
             $supplier = Supplier::where('name', $data['sup'])->first();
-            if (! $supplier) {
+            if (!$supplier) {
                 continue;
             }
             $kategoriSpk = strtolower($data['kategori']);
@@ -1238,7 +1240,7 @@ class SpkController extends Controller
         // =========================
         // VALIDASI BASIC
         // =========================
-        $datetime = Carbon::parse($request->date.' '.$request->time);
+        $datetime = Carbon::parse($request->date . ' ' . $request->time);
         $request->validate([
             'po_id' => 'required',
             'detail_po_id' => 'required',
@@ -1280,7 +1282,7 @@ class SpkController extends Controller
             $effectiveMasuk = $totalMasuk - $totalService;
             // ambil data SPK
             $spk = Spk::find($spk_id);
-            if (! $spk) {
+            if (!$spk) {
                 return response()->json([
                     'status' => false,
                     'message' => 'SPK tidak ditemukan',
@@ -1432,7 +1434,7 @@ class SpkController extends Controller
             // FORMAT DATE
             // =========================
             $paymentDate = null;
-            if (! empty($pay['date'])) {
+            if (!empty($pay['date'])) {
                 try {
                     $paymentDate =
                         strlen($pay['date']) == 8
@@ -1451,7 +1453,7 @@ class SpkController extends Controller
             // =====================================================
             // UNCHECK
             // =====================================================
-            if (! $pay['is_request']) {
+            if (!$pay['is_request']) {
                 // =========================
                 // FIND PR BY PAYMENT ID
                 // =========================
@@ -1508,7 +1510,7 @@ class SpkController extends Controller
             // SUDAH ADA PR?
             // =========================
             if (
-                ! empty($currentPayment['pr_id'])
+                !empty($currentPayment['pr_id'])
             ) {
                 DB::commit();
 
@@ -1723,7 +1725,7 @@ class SpkController extends Controller
             ->get()
             ->map(function ($request) {
 
-                if (! $request->spk) {
+                if (!$request->spk) {
 
                     Log::warning('SPK NOT FOUND', [
                         'payment_request_id' => $request->id,
@@ -1740,9 +1742,9 @@ class SpkController extends Controller
                 $payment = collect(
                     $spkData['payments'] ?? []
                 )->firstWhere(
-                    'payment_id',
-                    $request->payment_id
-                );
+                        'payment_id',
+                        $request->payment_id
+                    );
 
                 $items = collect(
                     $spkData['items'] ?? []
@@ -1811,7 +1813,7 @@ class SpkController extends Controller
                     ->get()
                     ->map(function ($request) {
 
-                        if (! $request->spk) {
+                        if (!$request->spk) {
 
                             Log::warning('SPK NOT FOUND IN DRAFT', [
                                 'payment_request_id' => $request->id,
@@ -1828,9 +1830,9 @@ class SpkController extends Controller
                         $payment = collect(
                             $spkData['payments'] ?? []
                         )->firstWhere(
-                            'payment_id',
-                            $request->payment_id
-                        );
+                                'payment_id',
+                                $request->payment_id
+                            );
 
                         return [
                             'id' => $request->id,
@@ -1864,6 +1866,7 @@ class SpkController extends Controller
                     'total_items' => $paymentRequests->count(),
                     'items' => $paymentRequests,
                     'pending_sign' => $approval->role ?? '-',
+                    'ainun_saved_recon' => $draft->ainun_saved_recon,
 
                 ];
             });
@@ -1894,12 +1897,14 @@ class SpkController extends Controller
             // =========================
             // VALIDASI
             // =========================
-            if (! in_array($status, [
-                'draft',
-                'progress',
-                'finished',
-                'closed',
-            ])) {
+            if (
+                !in_array($status, [
+                    'draft',
+                    'progress',
+                    'finished',
+                    'closed',
+                ])
+            ) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Status tidak valid',
@@ -1970,9 +1975,9 @@ class SpkController extends Controller
             $payment = collect(
                 $spkData['payments'] ?? []
             )->firstWhere(
-                'payment_id',
-                $paymentRequest->payment_id
-            );
+                    'payment_id',
+                    $paymentRequest->payment_id
+                );
 
             $grandTotal += (float) (
                 $payment['amount'] ?? 0
@@ -1982,7 +1987,7 @@ class SpkController extends Controller
         $saved =
             PaymentRequestSaved::create([
 
-                'request_no' => 'DR-'.
+                'request_no' => 'DR-' .
                     now()->format('ymdHis'),
 
                 'request_date' => $request->request_date,
@@ -2056,8 +2061,8 @@ class SpkController extends Controller
             $request->ids
         )->update([
 
-            'status' => 'saved',
-        ]);
+                    'status' => 'saved',
+                ]);
 
         return response()->json([
 
@@ -2084,7 +2089,7 @@ class SpkController extends Controller
             ->map(function ($request) {
 
                 // Jika SPK tidak ditemukan
-                if (! $request->spk) {
+                if (!$request->spk) {
                     return [
                         'supplier' => '-',
                         'spk_id' => $request->spk_id,
@@ -2114,7 +2119,7 @@ class SpkController extends Controller
                     'payment_id' => $request->payment_id,
                     'adjustment' => $payment['adjustment'] ?? 0,
                     'payment_amount' => (float) ($payment['amount'] ?? 0),
-                    'payment_request_amount' => ! empty($payment['adjustment'])
+                    'payment_request_amount' => !empty($payment['adjustment'])
                         ? (float) $payment['adjustment']
                         : (float) ($payment['amount'] ?? 0),
                 ];
@@ -2371,7 +2376,7 @@ class SpkController extends Controller
 
                 $spk = Spk::find($pr->spk_id);
 
-                if (! $spk) {
+                if (!$spk) {
                     continue;
                 }
 
@@ -2428,9 +2433,9 @@ class SpkController extends Controller
                 $draft->payment_request_ids ?? []
             )->update([
 
-                'status' => 'Approved',
+                        'status' => 'Approved',
 
-            ]);
+                    ]);
         }
 
         return response()->json([
@@ -2470,7 +2475,7 @@ class SpkController extends Controller
             ) {
 
                 $payment['adjustment'] =
-                    (float)
+                    (float) 
                     $request->adjustment;
 
                 $payment['adjustment_by'] =
@@ -2900,4 +2905,17 @@ class SpkController extends Controller
 
         ]);
     }
+    // finance export 
+    public function exportPengajuanSpk($id)
+    {
+        $saved = PaymentRequestSaved::findOrFail($id);
+
+        return ExportPengajuanSpk::export(
+            $saved
+        );
+    }
+    public function exportAllPaymentRequest()
+{
+    return ExportAllPaymentRequest::export();
+}
 }

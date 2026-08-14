@@ -304,8 +304,9 @@
                                     <i class="fas fa-search text-secondary"></i>
                                 </span>
 
-                                <input type="text" name="search_po" value="{{ request('search_po') }}"
-                                    class="form-control border-start-0" placeholder="Cari No PO atau Buyer...">
+                                <input type="text" id="searchMonitoring" name="search_po"
+                                    value="{{ request('search_po') }}" class="form-control border-start-0"
+                                    placeholder="Cari No PO atau Buyer..." autocomplete="off">
                             </div>
 
                             <div class="form-text" style="font-size:12px ">
@@ -386,6 +387,7 @@
             </div>
 
             {{-- DATA --}}
+            <div id="monitoringResult"></div>
             @forelse($datas as $poIndex => $po)
 
                 <div class="mn-card mb-5">
@@ -593,7 +595,7 @@
                     </div>
 
                 </div>
-
+</div>
                 {{-- ========================================================= --}}
                 {{-- MODAL LUAR TABLE --}}
                 {{-- ========================================================= --}}
@@ -1008,6 +1010,8 @@
                     }
 
                 });
+
+                
             </script>
 
         @endsection

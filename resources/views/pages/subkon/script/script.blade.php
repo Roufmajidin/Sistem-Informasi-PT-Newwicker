@@ -45,7 +45,7 @@
         |--------------------------------------------------------------------------
         */
 
-       
+
         /*
         |--------------------------------------------------------------------------
         | ARTICLE SEARCH
@@ -414,197 +414,197 @@
         |--------------------------------------------------------------------------
         */
 
-     $(document).on(
-    'click',
-    '.kategori-item',
-    function() {
+        $(document).on(
+            'click',
+            '.kategori-item',
+            function() {
 
-        const item = $(this);
+                const item = $(this);
 
-        const kategori = item.data('id');
+                const kategori = item.data('id');
 
-        console.log('Kategori dipilih:', kategori);
+                console.log('Kategori dipilih:', kategori);
 
-        // nilai yang dikirim ke Laravel
-        $('#kategori').val(kategori);
+                // nilai yang dikirim ke Laravel
+                $('#kategori').val(kategori);
 
-        // nilai yang ditampilkan di input
-        $('#kategori_search').val(kategori);
+                // nilai yang ditampilkan di input
+                $('#kategori_search').val(kategori);
 
-        // tutup hasil pencarian
-        $('#kategoriSearchResult')
-            .empty()
-            .removeClass('show');
+                // tutup hasil pencarian
+                $('#kategoriSearchResult')
+                    .empty()
+                    .removeClass('show');
 
-    }
-);
+            }
+        );
         /*
         |--------------------------------------------------------------------------
         | SAVE
         |--------------------------------------------------------------------------
         */
 
-     $('#formTambahKontrak').on('submit', function (e) {
+        $('#formTambahKontrak').on('submit', function(e) {
 
-    e.preventDefault();
+            e.preventDefault();
 
-    const form = $(this);
+            const form = $(this);
 
-    const id = $('#subkon_id').val();
+            const id = $('#subkon_id').val();
 
-    const article = $('#article_code').val().trim();
-    const supplier = $('#supplier_id').val();
-    const harga = $('#harga_kontrak').val();
+            const article = $('#article_code').val().trim();
+            const supplier = $('#supplier_id').val();
+            const harga = $('#harga_kontrak').val();
 
-    if (!article) {
-        showError('Article Code wajib diisi.');
-        return;
-    }
-
-    if (!supplier) {
-        showError('Supplier wajib dipilih.');
-        return;
-    }
-
-    if (!harga || parseFloat(harga) < 0) {
-        showError('Harga kontrak wajib diisi.');
-        return;
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | TENTUKAN CREATE / UPDATE
-    |--------------------------------------------------------------------------
-    */
-
-    let url;
-    let method;
-
-    if (id) {
-
-        // EDIT
-        url = "{{ url('/subkon') }}/" + id;
-
-        method = 'PUT';
-
-    } else {
-
-        // CREATE
-        url = "{{ route('subkon.store') }}";
-
-        method = 'POST';
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | BUTTON
-    |--------------------------------------------------------------------------
-    */
-
-    const button = $('#btnSimpanKontrak');
-
-    button
-        .prop('disabled', true)
-        .html(
-            '<i class="fas fa-spinner fa-spin"></i> ' +
-            (id ? 'Mengupdate...' : 'Menyimpan...')
-        );
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | DATA
-    |--------------------------------------------------------------------------
-    */
-
-    const formData = new FormData(
-        document.getElementById('formTambahKontrak')
-    );
-
-    /*
-     * Kalau update, Laravel perlu _method PUT
-     */
-    if (id) {
-        formData.append('_method', 'PUT');
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | AJAX
-    |--------------------------------------------------------------------------
-    */
-
-    $.ajax({
-
-        url: url,
-
-        type: 'POST',
-
-        data: formData,
-
-        processData: false,
-
-        contentType: false,
-
-        success: function (response) {
-
-            if (response.success) {
-
-                $('#modalTambahKontrak')
-                    .modal('hide');
-
-                location.reload();
-
+            if (!article) {
+                showError('Article Code wajib diisi.');
+                return;
             }
 
-        },
-
-        error: function (xhr) {
-
-            console.error(xhr);
-
-            let message =
-                'Terjadi kesalahan saat menyimpan.';
-
-            if (
-                xhr.responseJSON &&
-                xhr.responseJSON.errors
-            ) {
-
-                message = Object.values(
-                    xhr.responseJSON.errors
-                )
-                .flat()
-                .join('<br>');
-
-            } else if (
-                xhr.responseJSON &&
-                xhr.responseJSON.message
-            ) {
-
-                message =
-                    xhr.responseJSON.message;
+            if (!supplier) {
+                showError('Supplier wajib dipilih.');
+                return;
             }
 
-            showError(message);
+            if (!harga || parseFloat(harga) < 0) {
+                showError('Harga kontrak wajib diisi.');
+                return;
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | TENTUKAN CREATE / UPDATE
+            |--------------------------------------------------------------------------
+            */
+
+            let url;
+            let method;
+
+            if (id) {
+
+                // EDIT
+                url = "{{ url('/subkon') }}/" + id;
+
+                method = 'PUT';
+
+            } else {
+
+                // CREATE
+                url = "{{ route('subkon.store') }}";
+
+                method = 'POST';
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | BUTTON
+            |--------------------------------------------------------------------------
+            */
+
+            const button = $('#btnSimpanKontrak');
 
             button
-                .prop('disabled', false)
+                .prop('disabled', true)
                 .html(
-                    '<i class="fas fa-save"></i> ' +
-                    (id
-                        ? 'Update Kontrak'
-                        : 'Simpan Kontrak')
+                    '<i class="fas fa-spinner fa-spin"></i> ' +
+                    (id ? 'Mengupdate...' : 'Menyimpan...')
                 );
 
-        }
 
-    });
+            /*
+            |--------------------------------------------------------------------------
+            | DATA
+            |--------------------------------------------------------------------------
+            */
 
-});
+            const formData = new FormData(
+                document.getElementById('formTambahKontrak')
+            );
+
+            /*
+             * Kalau update, Laravel perlu _method PUT
+             */
+            if (id) {
+                formData.append('_method', 'PUT');
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | AJAX
+            |--------------------------------------------------------------------------
+            */
+
+            $.ajax({
+
+                url: url,
+
+                type: 'POST',
+
+                data: formData,
+
+                processData: false,
+
+                contentType: false,
+
+                success: function(response) {
+
+                    if (response.success) {
+
+                        $('#modalTambahKontrak')
+                            .modal('hide');
+
+                        location.reload();
+
+                    }
+
+                },
+
+                error: function(xhr) {
+
+                    console.error(xhr);
+
+                    let message =
+                        'Terjadi kesalahan saat menyimpan.';
+
+                    if (
+                        xhr.responseJSON &&
+                        xhr.responseJSON.errors
+                    ) {
+
+                        message = Object.values(
+                                xhr.responseJSON.errors
+                            )
+                            .flat()
+                            .join('<br>');
+
+                    } else if (
+                        xhr.responseJSON &&
+                        xhr.responseJSON.message
+                    ) {
+
+                        message =
+                            xhr.responseJSON.message;
+                    }
+
+                    showError(message);
+
+                    button
+                        .prop('disabled', false)
+                        .html(
+                            '<i class="fas fa-save"></i> ' +
+                            (id ?
+                                'Update Kontrak' :
+                                'Simpan Kontrak')
+                        );
+
+                }
+
+            });
+
+        });
 
         /*
         |--------------------------------------------------------------------------
@@ -684,19 +684,59 @@
 
             const id = $(this).data('id');
 
+            /*
+            |--------------------------------------------------------------------------
+            | RESET
+            |--------------------------------------------------------------------------
+            */
+
             resetFormKontrak();
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | MODE EDIT
+            |--------------------------------------------------------------------------
+            */
 
             $('#modalKontrakTitle').text(
                 'Edit Kontrak Supplier'
             );
 
-            $('#btnSimpanKontrak').html(
-                '<i class="fas fa-save"></i> Update Kontrak'
-            );
-
             $('#btnSimpanKontrak')
-                .prop('disabled', true);
+                .prop('disabled', true)
+                .html(
+                    '<i class="fas fa-spinner fa-spin"></i> Memuat...'
+                );
 
+
+            /*
+            |--------------------------------------------------------------------------
+            | DISABLE INPUT
+            |--------------------------------------------------------------------------
+            */
+
+            $('#article_code').prop('disabled', true);
+            $('#supplier_search').prop('disabled', true);
+            $('#kategori_search').prop('disabled', true);
+            $('#harga_kontrak').prop('disabled', true);
+            $('#remark').prop('disabled', true);
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | TAMPILKAN MODAL LANGSUNG
+            |--------------------------------------------------------------------------
+            */
+
+            $('#modalTambahKontrak').modal('show');
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | AJAX
+            |--------------------------------------------------------------------------
+            */
 
             $.ajax({
 
@@ -706,40 +746,17 @@
 
                 type: 'GET',
 
-                beforeSend: function() {
-
-                    $('#article_code').prop(
-                        'disabled',
-                        true
-                    );
-
-                    $('#supplier_search').prop(
-                        'disabled',
-                        true
-                    );
-
-                    $('#kategori_search').prop(
-                        'disabled',
-                        true
-                    );
-
-                    $('#harga_kontrak').prop(
-                        'disabled',
-                        true
-                    );
-
-                    $('#remark').prop(
-                        'disabled',
-                        true
-                    );
-
-                },
-
                 success: function(response) {
 
                     if (!response.success) {
+
+                        showError(
+                            'Data kontrak tidak ditemukan.'
+                        );
+
                         return;
                     }
+
 
                     const data =
                         response.data;
@@ -777,7 +794,7 @@
 
                     /*
                     |--------------------------------------------------------------------------
-                    | TAMPILKAN INFO ARTICLE
+                    | ARTICLE INFO
                     |--------------------------------------------------------------------------
                     */
 
@@ -826,7 +843,7 @@
                     */
 
                     $('#harga_kontrak').val(
-                        data.harga_kontrak || 0
+                        data.harga_kontrak || ''
                     );
 
 
@@ -873,22 +890,33 @@
                     );
 
 
+                    /*
+                    |--------------------------------------------------------------------------
+                    | BUTTON
+                    |--------------------------------------------------------------------------
+                    */
+
                     $('#btnSimpanKontrak')
-                        .prop('disabled', false);
-
-
-                    $('#modalTambahKontrak')
-                        .modal('show');
+                        .prop('disabled', false)
+                        .html(
+                            '<i class="fas fa-save"></i> Update Kontrak'
+                        );
 
                 },
 
                 error: function(xhr) {
 
-                    alert(
+                    console.error(xhr);
+
+                    showError(
                         'Gagal mengambil data kontrak.'
                     );
 
-                    console.error(xhr);
+                    $('#btnSimpanKontrak')
+                        .prop('disabled', false)
+                        .html(
+                            '<i class="fas fa-save"></i> Update Kontrak'
+                        );
 
                 }
 
@@ -896,169 +924,168 @@
 
         }
     );
-  function resetFormKontrak() {
 
-    $('#formTambahKontrak')[0].reset();
+    function resetFormKontrak() {
 
-    // WAJIB: kembali ke mode CREATE
-    $('#subkon_id').val('');
+        $('#formTambahKontrak')[0].reset();
 
-    $('#detail_po_id').val('');
+        // WAJIB: kembali ke mode CREATE
+        $('#subkon_id').val('');
 
-    $('#supplier_id').val('');
+        $('#detail_po_id').val('');
 
-    $('#kategori').val('');
+        $('#supplier_id').val('');
 
-    $('#description').val('');
+        $('#kategori').val('');
 
-    $('#articleSearchResult')
-        .empty()
-        .removeClass('show');
+        $('#description').val('');
 
-    $('#supplierSearchResult')
-        .empty()
-        .removeClass('show');
+        $('#articleSearchResult')
+            .empty()
+            .removeClass('show');
 
-    $('#kategoriSearchResult')
-        .empty()
-        .removeClass('show');
+        $('#supplierSearchResult')
+            .empty()
+            .removeClass('show');
 
-    $('#articleInfo')
-        .addClass('d-none');
+        $('#kategoriSearchResult')
+            .empty()
+            .removeClass('show');
 
-    $('#formTambahKontrakError')
-        .addClass('d-none')
-        .empty();
+        $('#articleInfo')
+            .addClass('d-none');
 
-    $('#btnSimpanKontrak')
-        .prop('disabled', false)
-        .html(
-            '<i class="fas fa-save"></i> Simpan Kontrak'
-        );
-}
+        $('#formTambahKontrakError')
+            .addClass('d-none')
+            .empty();
 
-
+        $('#btnSimpanKontrak')
+            .prop('disabled', false)
+            .html(
+                '<i class="fas fa-save"></i> Simpan Kontrak'
+            );
+    }
 </script>
 <script>
-document.addEventListener('DOMContentLoaded', function () {
+    document.addEventListener('DOMContentLoaded', function() {
 
-    const searchInput = document.getElementById('searchSubkon');
-    const clearButton = document.getElementById('clearSearchSubkon');
-    const tbody = document.getElementById('subkonTableBody');
-    const info = document.getElementById('searchSubkonInfo');
+        const searchInput = document.getElementById('searchSubkon');
+        const clearButton = document.getElementById('clearSearchSubkon');
+        const tbody = document.getElementById('subkonTableBody');
+        const info = document.getElementById('searchSubkonInfo');
 
-    if (!searchInput || !tbody) {
-        console.log('Element search/table tidak ditemukan');
-        return;
-    }
+        if (!searchInput || !tbody) {
+            console.log('Element search/table tidak ditemukan');
+            return;
+        }
 
-    function filterTable() {
+        function filterTable() {
 
-        const keyword = searchInput.value
-            .toLowerCase()
-            .trim();
-
-        const rows = tbody.querySelectorAll('tr');
-
-        let total = 0;
-        let found = 0;
-
-        rows.forEach(function (row) {
-
-            const cells = row.querySelectorAll('td');
-
-            // Row "Belum ada data"
-            if (cells.length === 1 && cells[0].hasAttribute('colspan')) {
-                return;
-            }
-
-            total++;
-
-            /*
-             * Ambil SEMUA isi td di dalam tr
-             */
-            const text = Array.from(cells)
-                .map(function (td) {
-                    return td.textContent || '';
-                })
-                .join(' ')
+            const keyword = searchInput.value
                 .toLowerCase()
-                .replace(/\s+/g, ' ')
                 .trim();
 
+            const rows = tbody.querySelectorAll('tr');
+
+            let total = 0;
+            let found = 0;
+
+            rows.forEach(function(row) {
+
+                const cells = row.querySelectorAll('td');
+
+                // Row "Belum ada data"
+                if (cells.length === 1 && cells[0].hasAttribute('colspan')) {
+                    return;
+                }
+
+                total++;
+
+                /*
+                 * Ambil SEMUA isi td di dalam tr
+                 */
+                const text = Array.from(cells)
+                    .map(function(td) {
+                        return td.textContent || '';
+                    })
+                    .join(' ')
+                    .toLowerCase()
+                    .replace(/\s+/g, ' ')
+                    .trim();
+
+                /*
+                 * Cari keyword
+                 */
+                const match =
+                    keyword === '' ||
+                    text.includes(keyword);
+
+                row.style.display = match ?
+                    '' :
+                    'none';
+
+                if (match) {
+                    found++;
+                }
+
+            });
+
             /*
-             * Cari keyword
+             * Info hasil
              */
-            const match =
-                keyword === '' ||
-                text.includes(keyword);
+            if (keyword === '') {
 
-            row.style.display = match
-                ? ''
-                : 'none';
+                info.textContent =
+                    total + ' data';
 
-            if (match) {
-                found++;
+            } else {
+
+                info.textContent =
+                    found + ' dari ' + total + ' data ditemukan';
+
             }
+        }
 
-        });
 
         /*
-         * Info hasil
+         |--------------------------------------------------------------------------
+         | SEARCH
+         |--------------------------------------------------------------------------
          */
-        if (keyword === '') {
 
-            info.textContent =
-                total + ' data';
-
-        } else {
-
-            info.textContent =
-                found + ' dari ' + total + ' data ditemukan';
-
-        }
-    }
+        searchInput.addEventListener(
+            'input',
+            filterTable
+        );
 
 
-    /*
-     |--------------------------------------------------------------------------
-     | SEARCH
-     |--------------------------------------------------------------------------
-     */
+        /*
+         |--------------------------------------------------------------------------
+         | CLEAR
+         |--------------------------------------------------------------------------
+         */
 
-    searchInput.addEventListener(
-        'input',
-        filterTable
-    );
+        clearButton.addEventListener(
+            'click',
+            function() {
 
+                searchInput.value = '';
 
-    /*
-     |--------------------------------------------------------------------------
-     | CLEAR
-     |--------------------------------------------------------------------------
-     */
+                filterTable();
 
-    clearButton.addEventListener(
-        'click',
-        function () {
+                searchInput.focus();
 
-            searchInput.value = '';
-
-            filterTable();
-
-            searchInput.focus();
-
-        }
-    );
+            }
+        );
 
 
-    /*
-     |--------------------------------------------------------------------------
-     | INITIAL
-     |--------------------------------------------------------------------------
-     */
+        /*
+         |--------------------------------------------------------------------------
+         | INITIAL
+         |--------------------------------------------------------------------------
+         */
 
-    filterTable();
+        filterTable();
 
-});
+    });
 </script>

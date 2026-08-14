@@ -271,11 +271,12 @@ class ProduksiMnController extends Controller
 
         if ($searchPo) {
 
-            $poQuery->where(
-                'order_no',
-                'like',
-                '%' . $searchPo . '%'
-            );
+            $poQuery->where(function ($q) use ($searchPo) {
+
+                $q->where('order_no', 'like', '%' . $searchPo . '%')
+                    ->orWhere('company_name', 'like', '%' . $searchPo . '%');
+
+            });
         }
 
 
@@ -471,12 +472,12 @@ class ProduksiMnController extends Controller
                     $po->order_no,
 
                 'buyer_name' =>
-                    $po->buyer_name
+                    $po->company_name
+                    ?? $po->company_name
                     ?? $po->buyer
                     ?? '',
 
-                'items' =>
-                    [],
+                'items' => [],
             ];
 
 

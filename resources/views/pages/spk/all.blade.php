@@ -1,138 +1,127 @@
 @extends('master.master')
-@section('title', "All SPK")
+@section('title', 'All SPK')
 @section('content')
-<div class="padding">
+    <div class="padding">
 
-    <div class="box">
+        <div class="box">
 
-        {{-- HEADER --}}
-        <div class="box-header">
+            {{-- HEADER --}}
+            <div class="box-header">
 
-            <div class="row">
+                <div class="row">
 
-                <div class="col-md-6">
+                    <div class="col-md-6">
 
-                    <h2 class="m-0">
-                        Semua SPK
-                    </h2>
-
-                    <small class="text-muted">
-                        System Informasi PT Newwicker Indonesia
-                    </small>
-
-                </div>
-
-                <div class="col-md-6 text-right">
-
-                    <select
-                        id="spkTypeFilter"
-                        class="form-control"
-                        style="width:220px;display:inline-block"
-                        {{ $isRndSpk ? 'disabled' : '' }}
-                    >
-                        <option value="ALL"
-                            {{ !$isRndSpk ? 'selected' : '' }}>
+                        <h2 class="m-0">
                             Semua SPK
-                        </option>
+                        </h2>
 
-                        <option value="NW">
-                            SPK Produksi (NW)
-                        </option>
+                        <small class="text-muted">
+                            System Informasi PT Newwicker Indonesia
+                        </small>
 
-                        <option value="NWS"
-                            {{ $isRndSpk ? 'selected' : '' }}>
-                            SPK Sampel (NWS)
-                        </option>
+                    </div>
 
-                    </select>
+                    <div class="col-md-6 text-right">
 
-                </div>
+                        <select id="spkTypeFilter" class="form-control" style="width:220px;display:inline-block"
+                            {{ $isRndSpk ? 'disabled' : '' }}>
+                            <option value="ALL" {{ !$isRndSpk ? 'selected' : '' }}>
+                                Semua SPK
+                            </option>
 
-            </div>
+                            <option value="NW">
+                                SPK Produksi (NW)
+                            </option>
 
-        </div>
+                            <option value="NWS" {{ $isRndSpk ? 'selected' : '' }}>
+                                SPK Sampel (NWS)
+                            </option>
 
-        {{-- BODY --}}
-        <div class="box-body">
-
-            <div class="row">
-
-                {{-- ================= LEFT ================= --}}
-                <div class="col-lg-4 col-md-5">
-
-                    <div class="spk-sidebar">
-
-                        <div class="sidebar-toolbar">
-
-                            <input
-                                type="text"
-                                id="searchPo"
-                                class="form-control"
-                                placeholder="Cari SPK, Buyer atau PO..."
-                            >
-
-                        </div>
-
-                        <div class="sidebar-table">
-
-                            <table class="table table-hover table-spk">
-
-                                <thead>
-
-                                    <tr>
-
-                                        <th width="40">
-                                            No
-                                        </th>
-
-                                        <th>
-                                            Buyer Name
-                                        </th>
-
-                                        <th width="110">
-                                            PO
-                                        </th>
-
-                                        <th width="120">
-                                            Aksi
-                                        </th>
-
-                                    </tr>
-
-                                </thead>
-
-                                <tbody id="po-table-body">
-
-                                    <tr>
-
-                                        <td colspan="4"
-                                            class="text-center text-muted">
-
-                                            Loading...
-
-                                        </td>
-
-                                    </tr>
-
-                                </tbody>
-
-                            </table>
-
-                        </div>
+                        </select>
 
                     </div>
 
                 </div>
 
-               {{-- ================= RIGHT ================= --}}
-<div class="col-lg-8 col-md-7" id="detailColumn">
+            </div>
 
-    <div id="spkDetailBox" style="display:none">
+            {{-- BODY --}}
+            <div class="box-body">
 
-        {{-- TOP BAR --}}
-        <div class="detail-topbar">
+                <div class="row">
 
-            {{-- <div class="pull-left">
+                    {{-- ================= LEFT ================= --}}
+                    <div class="col-lg-4 col-md-5">
+
+                        <div class="spk-sidebar">
+
+                            <div class="sidebar-toolbar">
+
+                                <input type="text" id="searchPo" class="form-control"
+                                    placeholder="Cari SPK, Buyer atau PO...">
+
+                            </div>
+
+                            <div class="sidebar-table">
+
+                                <table class="table table-hover table-spk">
+
+                                    <thead>
+
+                                        <tr>
+
+                                            <th width="40">
+                                                No
+                                            </th>
+
+                                            <th>
+                                                Buyer Name
+                                            </th>
+
+                                            <th width="110">
+                                                PO
+                                            </th>
+
+                                            <th width="120">
+                                                Aksi
+                                            </th>
+
+                                        </tr>
+
+                                    </thead>
+
+                                    <tbody id="po-table-body">
+
+                                        <tr>
+
+                                            <td colspan="4" class="text-center text-muted">
+
+                                                Loading...
+
+                                            </td>
+
+                                        </tr>
+
+                                    </tbody>
+
+                                </table>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    {{-- ================= RIGHT ================= --}}
+                    <div class="col-lg-8 col-md-7" id="detailColumn">
+
+                        <div id="spkDetailBox" style="display:none">
+
+                            {{-- TOP BAR --}}
+                            <div class="detail-topbar">
+
+                                {{-- <div class="pull-left">
 
                 <a
                     href="javascript:void(0)"
@@ -147,9 +136,9 @@
 
             </div> --}}
 
-            <div class="pull-right">
+                                <div class="pull-right">
 
-                {{-- <button
+                                    {{-- <button
                     class="btn btn-outline-primary">
 
                     <i class="fa fa-download"></i>
@@ -158,288 +147,278 @@
 
                 </button> --}}
 
-                <a
-    href="javascript:void(0)"
-    id="btnCreateSpk"
-    class="btn btn-primary">
+                                    <a href="javascript:void(0)" id="btnCreateSpk" class="btn btn-primary">
 
-    <i class="fa fa-plus"></i>
+                                        <i class="fa fa-plus"></i>
 
-    Buat SPK Baru
+                                        Buat SPK Baru
 
-</a>
-                <button
-                    id="btnExpandDetail"
-                    class="btn btn-default">
+                                    </a>
+                                    <button id="btnExpandDetail" class="btn btn-default">
 
-                    <i class="fa fa-expand"></i>
+                                        <i class="fa fa-expand"></i>
 
-                </button>
+                                    </button>
 
-            </div>
+                                </div>
 
-            <div class="clearfix"></div>
+                                <div class="clearfix"></div>
 
-        </div>
+                            </div>
 
-        {{-- CARD --}}
-        <div class="detail-card">
+                            {{-- CARD --}}
+                            <div class="detail-card">
 
-            <div class="detail-header">
+                                <div class="detail-header">
 
-                <div>
+                                    <div>
 
-                    <h2>
+                                        <h5>
 
-                        Detail SPK
+                                            Detail SPK
 
-                    </h2>
+                                        </h5>
 
-                    <div
-                        id="detailPoTitle"
-                        class="detail-po">
+                                        <div id="detailPoTitle" class="detail-po">
+
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                                {{-- SUMMARY --}}
+                                <div class="row summary-row" style="margin-bottom:10px">
+
+                                    <div class="col-md-3">
+
+                                        <div class="summary-card">
+
+                                            <div class="summary-icon blue">
+
+                                                <i class="fa fa-cube"></i>
+
+                                            </div>
+
+                                            <div>
+
+                                                <small>Total Item</small>
+
+                                                <h3 id="sumItem">
+
+                                                    0
+
+                                                </h3>
+
+                                            </div>
+
+                                        </div>
+
+                                    </div>
+
+                                    <div class="col-md-3">
+
+                                        <div class="summary-card">
+
+                                            <div class="summary-icon green">
+
+                                                <i class="fa fa-dropbox"></i>
+
+                                            </div>
+
+                                            <div>
+
+                                                <small>Total Qty</small>
+
+                                                <h3 id="sumQty">
+
+                                                    0
+
+                                                </h3>
+
+                                            </div>
+
+                                        </div>
+
+                                    </div>
+
+                                    <div class="col-md-3">
+
+                                        <div class="summary-card">
+
+                                            <div class="summary-icon purple">
+
+                                                <i class="fa fa-arrows-alt"></i>
+
+                                            </div>
+
+                                            <div>
+
+                                                <small>Total CBM</small>
+
+                                                <h3 id="sumCBM">
+
+                                                    0
+
+                                                </h3>
+
+                                            </div>
+
+                                        </div>
+
+                                    </div>
+
+                                    <div class="col-md-3">
+
+                                        <div class="summary-card">
+
+                                            <div class="summary-icon blue">
+
+                                                <i class="fa fa-file"></i>
+
+                                            </div>
+
+                                            <div>
+
+                                                <small>Dokumen</small>
+
+                                                <h3 id="sumDoc">
+
+                                                    0
+
+                                                </h3>
+
+                                            </div>
+
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                            {{-- TABLE --}}
+                            <div class="box table-box">
+
+                                <div class="table-responsive">
+
+                                    <table class="table table-bordered">
+
+                                        <tbody id="spk-detail-body">
+
+                                        </tbody>
+
+                                    </table>
+
+                                </div>
+
+                            </div>
+
+                        </div>
 
                     </div>
 
                 </div>
-
-            </div>
-
-            {{-- SUMMARY --}}
-            <div class="row summary-row" style="margin-bottom:10px">
-
-                <div class="col-md-3">
-
-                    <div class="summary-card">
-
-                        <div class="summary-icon blue">
-
-                            <i class="fa fa-cube"></i>
-
-                        </div>
-
-                        <div>
-
-                            <small>Total Item</small>
-
-                            <h3 id="sumItem">
-
-                                0
-
-                            </h3>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-                <div class="col-md-3">
-
-                    <div class="summary-card">
-
-                        <div class="summary-icon green">
-
-                            <i class="fa fa-dropbox"></i>
-
-                        </div>
-
-                        <div>
-
-                            <small>Total Qty</small>
-
-                            <h3 id="sumQty">
-
-                                0
-
-                            </h3>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-                <div class="col-md-3">
-
-                    <div class="summary-card">
-
-                        <div class="summary-icon purple">
-
-                            <i class="fa fa-arrows-alt"></i>
-
-                        </div>
-
-                        <div>
-
-                            <small>Total CBM</small>
-
-                            <h3 id="sumCBM">
-
-                                0
-
-                            </h3>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-                <div class="col-md-3">
-
-                    <div class="summary-card">
-
-                        <div class="summary-icon blue">
-
-                            <i class="fa fa-file"></i>
-
-                        </div>
-
-                        <div>
-
-                            <small>Dokumen</small>
-
-                            <h3 id="sumDoc">
-
-                                0
-
-                            </h3>
-
-                        </div>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-        </div>
-
-        {{-- TABLE --}}
-        <div class="box table-box">
-
-            <div class="table-responsive">
-
-                <table class="table table-bordered">
-
-                    <tbody id="spk-detail-body">
-
-                    </tbody>
-
-                </table>
-
-            </div>
-
-        </div>
-
-    </div>
-
-</div>
 
             </div>
 
         </div>
 
-    </div>
+</div> @endsection
+@push('scripts')
+    <!-- jQuery (WAJIB PERTAMA) -->
 
-</div>        @endsection
-        @push('scripts')
-        <!-- jQuery (WAJIB PERTAMA) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/js/bootstrap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/js/bootstrap.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-        <script>
-            console.log(window.history.length);
-            // ===============================
-            // GLOBAL VARIABLE (WAJIB DI LUAR)
-            // ===============================
-            let currentKeyword = '';
+    <script>
+        console.log(window.history.length);
+        // ===============================
+        // GLOBAL VARIABLE (WAJIB DI LUAR)
+        // ===============================
+        let currentKeyword = '';
         let currentType = '{{ $isRndSpk ? 'NWS' : 'ALL' }}';
-            let cacheData = [];
+        let cacheData = [];
 
-            // ===============================
-            // DOWNLOAD SPK
-            // ===============================
-        $('#searchPo').on('input', function () {
+        // ===============================
+        // DOWNLOAD SPK
+        // ===============================
+        $('#searchPo').on('input', function() {
 
-                currentKeyword = $(this).val().trim().toLowerCase();
+            currentKeyword = $(this).val().trim().toLowerCase();
 
-                loadSpkTable();
+            loadSpkTable();
 
-            });
-            $(document).on('click', '.btn-download-spk', function() {
-                const spkId = $(this).data('id');
-                window.open(`/spk/export/${spkId}`, '_blank');
-            });
+        });
+        $(document).on('click', '.btn-download-spk', function() {
+            const spkId = $(this).data('id');
+            window.open(`/spk/export/${spkId}`, '_blank');
+        });
 
-            // ===============================
-            // LOAD DATA PO
-            // ===============================
-         function loadSpkTable() {
+        // ===============================
+        // LOAD DATA PO
+        // ===============================
+        function loadSpkTable() {
 
-    $.get("{{ route('spk.all') }}", function(res) {
+            $.get("{{ route('spk.all') }}", function(res) {
 
-        let data = res;
+                let data = res;
 
-        // FILTER
-data = res.filter(function(po){
+                // FILTER
+                data = res.filter(function(po) {
 
-    let noPo = (po.data_po?.no_po || '');
-    let buyer = (po.data_po?.company || '');
+                    let noPo = (po.data_po?.no_po || '');
+                    let buyer = (po.data_po?.company || '');
 
-    let prefix = noPo.split(' ')[0];
+                    let prefix = noPo.split(' ')[0];
 
-    let matchType =
-        currentType === 'ALL'
-        ||
-        prefix === currentType;
+                    let matchType =
+                        currentType === 'ALL' ||
+                        prefix === currentType;
 
-    let matchKeyword =
-        currentKeyword === ''
-        ||
-        noPo.toLowerCase().includes(currentKeyword)
-        ||
-        buyer.toLowerCase().includes(currentKeyword);
+                    let matchKeyword =
+                        currentKeyword === '' ||
+                        noPo.toLowerCase().includes(currentKeyword) ||
+                        buyer.toLowerCase().includes(currentKeyword);
 
-    return matchType && matchKeyword;
+                    return matchType && matchKeyword;
 
-});
-
-        // cache harus isi data yang tampil
-        cacheData = data;
-
-        let html = '';
-        let no = 1;
-
-        // LOOP DATA YANG SUDAH DIFILTER
-        data.forEach((po, index) => {
-
-            let poId = po.data_po?.id;
-            let poNo = po.data_po?.no_po ?? '-';
-            let buyerName = po.data_po?.company ?? '-';
-
-            let spkIds = new Set();
-
-            (po.data_po?.items || []).forEach(item => {
-
-                let summary = item.summary || {};
-
-                Object.values(summary).forEach(suppliers => {
-                    Object.values(suppliers).forEach(supplier => {
-                        (supplier.spks || []).forEach(spk => {
-                            spkIds.add(spk.spk_id);
-                        });
-                    });
                 });
 
-            });
+                // cache harus isi data yang tampil
+                cacheData = data;
 
-            let spkCount = spkIds.size;
+                let html = '';
+                let no = 1;
 
-          html += `
+                // LOOP DATA YANG SUDAH DIFILTER
+                data.forEach((po, index) => {
+
+                    let poId = po.data_po?.id;
+                    let poNo = po.data_po?.no_po ?? '-';
+                    let buyerName = po.data_po?.company ?? '-';
+
+                    let spkIds = new Set();
+
+                    (po.data_po?.items || []).forEach(item => {
+
+                        let summary = item.summary || {};
+
+                        Object.values(summary).forEach(suppliers => {
+                            Object.values(suppliers).forEach(supplier => {
+                                (supplier.spks || []).forEach(spk => {
+                                    spkIds.add(spk.spk_id);
+                                });
+                            });
+                        });
+
+                    });
+
+                    let spkCount = spkIds.size;
+
+                    html += `
 <tr class="po-row">
 
     <td class="text-center">
@@ -487,127 +466,127 @@ data = res.filter(function(po){
 
 </tr>
 `;
-        });
+                });
 
-      $('#po-table-body').html(html);
-    });
-}
-
-            // ===============================
-            // CLICK VIEW SPK (EXPAND TABLE)
-            // ===============================
-         $(document).on('click', '.btn-view-spk', function() {
-
-        $('#po-table-body tr')
-        .removeClass('selected-row');
-
-        $(this)
-            .closest('tr')
-            .addClass('selected-row');
-        let index =
-            $(this).data('index');
-
-        let po =
-            cacheData[index];
-
-        let poId =
-            po.data_po.id;
-
-        let items =
-            po.data_po.items || [];
-// summary
-// ===============================
-// SUMMARY
-// ===============================
-
-let totalItem = items.length;
-
-let totalQty = 0;
-let totalCBM = 0;
-let totalDoc = 0;
-
-items.forEach(item => {
-
-    let d = item.detail || {};
-
-    totalQty += parseFloat(d.qty || 0);
-
-    totalCBM += parseFloat(d.total_cbm || 0);
-
-    let summary = item.summary || {};
-
-    Object.values(summary).forEach(suppliers => {
-
-        Object.values(suppliers).forEach(supplier => {
-
-            totalDoc += (supplier.spks || []).length;
-
-        });
-
-    });
-
-});
-
-$('#sumItem').text(totalItem);
-
-$('#sumQty').text(totalQty);
-
-$('#sumCBM').text(totalCBM.toFixed(3));
-
-$('#sumDoc').text(totalDoc);
-
-
-    $('#btnCreateSpk').attr(
-        'href',
-        '/spk/' + poId
-    );
-    /*
-    |--------------------------------------------------------------------------
-    | CATEGORY
-    |--------------------------------------------------------------------------
-    */
-
-    let categories = [];
-
-items.forEach(item => {
-
-    let summary = item.summary || {};
-
-    Object.keys(summary).forEach(kategori => {
-
-        let key = kategori
-            .trim()
-            .toUpperCase();
-
-        if (!categories.includes(key)) {
-            categories.push(key);
+                $('#po-table-body').html(html);
+            });
         }
 
-    });
+        // ===============================
+        // CLICK VIEW SPK (EXPAND TABLE)
+        // ===============================
+        $(document).on('click', '.btn-view-spk', function() {
 
-});
+            $('#po-table-body tr')
+                .removeClass('selected-row');
 
-// urutkan alphabet
-categories.sort();
+            $(this)
+                .closest('tr')
+                .addClass('selected-row');
+            let index =
+                $(this).data('index');
 
-let totalCategory = categories.length;
+            let po =
+                cacheData[index];
 
-    /*
-    |--------------------------------------------------------------------------
-    | CATEGORY COUNT
-    |--------------------------------------------------------------------------
-    */
+            let poId =
+                po.data_po.id;
 
-    // let totalCategory =
-    //     Object.keys(categories).length;
+            let items =
+                po.data_po.items || [];
+            // summary
+            // ===============================
+            // SUMMARY
+            // ===============================
 
-    /*
-    |--------------------------------------------------------------------------
-    | TABLE HEADER
-    |--------------------------------------------------------------------------
-    */
+            let totalItem = items.length;
 
-    let html = `
+            let totalQty = 0;
+            let totalCBM = 0;
+            let totalDoc = 0;
+
+            items.forEach(item => {
+
+                let d = item.detail || {};
+
+                totalQty += parseFloat(d.qty || 0);
+
+                totalCBM += parseFloat(d.total_cbm || 0);
+
+                let summary = item.summary || {};
+
+                Object.values(summary).forEach(suppliers => {
+
+                    Object.values(suppliers).forEach(supplier => {
+
+                        totalDoc += (supplier.spks || []).length;
+
+                    });
+
+                });
+
+            });
+
+            $('#sumItem').text(totalItem);
+
+            $('#sumQty').text(totalQty);
+
+            $('#sumCBM').text(totalCBM.toFixed(3));
+
+            $('#sumDoc').text(totalDoc);
+
+
+            $('#btnCreateSpk').attr(
+                'href',
+                '/spk/' + poId
+            );
+            /*
+            |--------------------------------------------------------------------------
+            | CATEGORY
+            |--------------------------------------------------------------------------
+            */
+
+            let categories = [];
+
+            items.forEach(item => {
+
+                let summary = item.summary || {};
+
+                Object.keys(summary).forEach(kategori => {
+
+                    let key = kategori
+                        .trim()
+                        .toUpperCase();
+
+                    if (!categories.includes(key)) {
+                        categories.push(key);
+                    }
+
+                });
+
+            });
+
+            // urutkan alphabet
+            categories.sort();
+
+            let totalCategory = categories.length;
+
+            /*
+            |--------------------------------------------------------------------------
+            | CATEGORY COUNT
+            |--------------------------------------------------------------------------
+            */
+
+            // let totalCategory =
+            //     Object.keys(categories).length;
+
+            /*
+            |--------------------------------------------------------------------------
+            | TABLE HEADER
+            |--------------------------------------------------------------------------
+            */
+
+            let html = `
 
         <table class="table table-sm table-bordered">
 
@@ -648,8 +627,8 @@ let totalCategory = categories.length;
                 <tr>
 
                    ${categories.map(cat => `
-    <th>${cat}</th>
-`).join('')}
+        <th>${cat}</th>
+    `).join('')}
 
                 </tr>
 
@@ -659,61 +638,61 @@ let totalCategory = categories.length;
 
     `;
 
-    /*
-    |--------------------------------------------------------------------------
-    | LOOP ITEM
-    |--------------------------------------------------------------------------
-    */
+            /*
+            |--------------------------------------------------------------------------
+            | LOOP ITEM
+            |--------------------------------------------------------------------------
+            */
 
-    items.forEach((item, i) => {
-console.log('PO:', po.data_po.no_po);
-console.log('ITEMS:', items);
-        let d =
-            item.detail || {};
+            items.forEach((item, i) => {
+                console.log('PO:', po.data_po.no_po);
+                console.log('ITEMS:', items);
+                let d =
+                    item.detail || {};
 
-        let summary =
-            item.summary || {};
+                let summary =
+                    item.summary || {};
 
-        /*
-        |--------------------------------------------------------------------------
-        | CREATE EMPTY MAP
-        |--------------------------------------------------------------------------
-        */
+                /*
+                |--------------------------------------------------------------------------
+                | CREATE EMPTY MAP
+                |--------------------------------------------------------------------------
+                */
 
-       let map = {};
+                let map = {};
 
-categories.forEach(cat => {
-    map[cat] = [];
-});
+                categories.forEach(cat => {
+                    map[cat] = [];
+                });
 
-        /*
-        |--------------------------------------------------------------------------
-        | LOOP SUMMARY
-        |--------------------------------------------------------------------------
-        */
+                /*
+                |--------------------------------------------------------------------------
+                | LOOP SUMMARY
+                |--------------------------------------------------------------------------
+                */
 
-        Object.keys(summary).forEach(kategori => {
+                Object.keys(summary).forEach(kategori => {
 
-            Object.keys(summary[kategori]).forEach(supplier => {
+                    Object.keys(summary[kategori]).forEach(supplier => {
 
-                let data =
-                    summary[kategori][supplier];
+                        let data =
+                            summary[kategori][supplier];
 
-                (data.spks || []).forEach(spk => {
+                        (data.spks || []).forEach(spk => {
 
-                    let tgl =
-                        spk.tgl_selesai || '';
+                            let tgl =
+                                spk.tgl_selesai || '';
 
-                    let deadline =
-                        getDeadlineLabel(tgl);
+                            let deadline =
+                                getDeadlineLabel(tgl);
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | CONTENT
-                    |--------------------------------------------------------------------------
-                    */
+                            /*
+                            |--------------------------------------------------------------------------
+                            | CONTENT
+                            |--------------------------------------------------------------------------
+                            */
 
-                    let content = `
+                            let content = `
 
                         <div class="spk-card"
                              data-id="${spk.spk_id}"
@@ -772,61 +751,61 @@ categories.forEach(cat => {
 
                     `;
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | NORMALIZE CATEGORY
-                    |--------------------------------------------------------------------------
-                    */
+                            /*
+                            |--------------------------------------------------------------------------
+                            | NORMALIZE CATEGORY
+                            |--------------------------------------------------------------------------
+                            */
 
-                  let key = kategori
-                    .trim()
-                    .toUpperCase();
+                            let key = kategori
+                                .trim()
+                                .toUpperCase();
 
-                if (map[key]) {
-                    map[key].push(content);
-                }
+                            if (map[key]) {
+                                map[key].push(content);
+                            }
+
+                        });
+
+                    });
 
                 });
 
-            });
+                /*
+                |--------------------------------------------------------------------------
+                | MAX ROW
+                |--------------------------------------------------------------------------
+                */
 
-        });
+                let lengths =
+                    Object.keys(map).map(cat => {
 
-        /*
-        |--------------------------------------------------------------------------
-        | MAX ROW
-        |--------------------------------------------------------------------------
-        */
+                        return map[cat].length;
 
-        let lengths =
-            Object.keys(map).map(cat => {
+                    });
 
-                return map[cat].length;
+                let maxRow =
+                    Math.max(...lengths, 1);
 
-            });
+                /*
+                |--------------------------------------------------------------------------
+                | ROW TABLE
+                |--------------------------------------------------------------------------
+                */
 
-        let maxRow =
-            Math.max(...lengths, 1);
+                for (let r = 0; r < maxRow; r++) {
 
-        /*
-        |--------------------------------------------------------------------------
-        | ROW TABLE
-        |--------------------------------------------------------------------------
-        */
+                    html += `<tr>`;
 
-        for (let r = 0; r < maxRow; r++) {
+                    /*
+                    |--------------------------------------------------------------------------
+                    | FIRST ROW
+                    |--------------------------------------------------------------------------
+                    */
 
-            html += `<tr>`;
+                    if (r === 0) {
 
-            /*
-            |--------------------------------------------------------------------------
-            | FIRST ROW
-            |--------------------------------------------------------------------------
-            */
-
-            if (r === 0) {
-
-                html += `
+                        html += `
 
                     <td rowspan="${maxRow}">
 
@@ -848,23 +827,23 @@ categories.forEach(cat => {
     ${
         d.images && d.images.length
         ? `
-            <img
-                src="${d.images[0]}"
-                class="article-image">
-        `
+                <img
+                    src="${d.images[0]}"
+                    class="article-image">
+            `
         : d.photo
         ? `
-            <img
-                src="${d.photo}"
-                class="article-image">
-        `
+                <img
+                    src="${d.photo}"
+                    class="article-image">
+            `
         : `
-            <div class="article-no-image">
+                <div class="article-no-image">
 
-                No Image
+                    No Image
 
-            </div>
-        `
+                </div>
+            `
     }
 
     <div class="article-code">
@@ -896,33 +875,33 @@ categories.forEach(cat => {
 
                 `;
 
-            }
+                    }
 
-            /*
-            |--------------------------------------------------------------------------
-            | CATEGORY COLUMN
-            |--------------------------------------------------------------------------
-            */
+                    /*
+                    |--------------------------------------------------------------------------
+                    | CATEGORY COLUMN
+                    |--------------------------------------------------------------------------
+                    */
 
-         categories.forEach(cat => {
+                    categories.forEach(cat => {
 
-            html += `
+                        html += `
                 <td>
                     ${map[cat][r] || ''}
                 </td>
             `;
 
-        });
+                    });
 
-            /*
-            |--------------------------------------------------------------------------
-            | ACTION
-            |--------------------------------------------------------------------------
-            */
+                    /*
+                    |--------------------------------------------------------------------------
+                    | ACTION
+                    |--------------------------------------------------------------------------
+                    */
 
-            if (r === 0) {
+                    if (r === 0) {
 
-                html += `
+                        html += `
 
                     <td rowspan="${maxRow}">
 
@@ -937,15 +916,15 @@ categories.forEach(cat => {
 
                 `;
 
-            }
+                    }
 
-            html += `</tr>`;
+                    html += `</tr>`;
 
-        }
+                }
 
-    });
+            });
 
-    html += `
+            html += `
 
             </tbody>
 
@@ -953,16 +932,16 @@ categories.forEach(cat => {
 
     `;
 
-    /*
-    |--------------------------------------------------------------------------
-    | SHOW DETAIL
-    |--------------------------------------------------------------------------
-    */
+            /*
+            |--------------------------------------------------------------------------
+            | SHOW DETAIL
+            |--------------------------------------------------------------------------
+            */
 
-    $('#spkDetailBox')
-        .show();
+            $('#spkDetailBox')
+                .show();
 
-    $('#detailPoTitle').html(`
+            $('#detailPoTitle').html(`
 
         <b>
 
@@ -976,7 +955,7 @@ categories.forEach(cat => {
 
     `);
 
-    $('#spk-detail-body').html(`
+            $('#spk-detail-body').html(`
 
         <tr>
 
@@ -991,119 +970,118 @@ categories.forEach(cat => {
 
     `);
 
-    /*
-    |--------------------------------------------------------------------------
-    | SCROLL
-    |--------------------------------------------------------------------------
-    */
+            /*
+            |--------------------------------------------------------------------------
+            | SCROLL
+            |--------------------------------------------------------------------------
+            */
 
-    $('html, body').animate({
+            $('html, body').animate({
 
-        scrollTop:
-            $('#spkDetailBox').offset().top - 20
+                scrollTop: $('#spkDetailBox').offset().top - 20
 
-    }, 400);
+            }, 400);
 
-});
+        });
 
-            // ===============================
-            // EDIT SPK
-            // ===============================
-            $(document).on('click', '.btn-edit-spk', function() {
-                let spkId = $(this).data('id');
-                window.location.href = `/spk/edit/${spkId}`;
-            });
+        // ===============================
+        // EDIT SPK
+        // ===============================
+        $(document).on('click', '.btn-edit-spk', function() {
+            let spkId = $(this).data('id');
+            window.location.href = `/spk/edit/${spkId}`;
+        });
 
-            $(document).on('click', '.spk-link', function() {
-                let spkId = $(this).data('spk-id');
-                window.location.href = `/spk/edit/${spkId}`;
-            });
+        $(document).on('click', '.spk-link', function() {
+            let spkId = $(this).data('spk-id');
+            window.location.href = `/spk/edit/${spkId}`;
+        });
 
-            // ===============================
-            // INIT
-            // ===============================
+        // ===============================
+        // INIT
+        // ===============================
 
-          $(document).ready(function() {
+        $(document).ready(function() {
 
-                let initialType =
-                    '{{ $isRndSpk ? 'NWS' : 'ALL' }}';
+            let initialType =
+                '{{ $isRndSpk ? 'NWS' : 'ALL' }}';
 
-                loadSpkTable(
-                    initialType
-                );
+            loadSpkTable(
+                initialType
+            );
 
-            });
-            $('#spkTypeFilter').on('change', function () {
+        });
+        $('#spkTypeFilter').on('change', function() {
 
-                currentType = $(this).val();
+            currentType = $(this).val();
 
-                loadSpkTable();
+            loadSpkTable();
 
-            });
-            // load ddline spk
-            function getDeadlineLabel(dateStr) {
+        });
+        // load ddline spk
+        function getDeadlineLabel(dateStr) {
 
-                if (!dateStr) return '-';
+            if (!dateStr) return '-';
 
-                /*
-                |--------------------------------------------------------------------------
-                | FORMAT DD/MM/YYYY
-                |--------------------------------------------------------------------------
-                */
+            /*
+            |--------------------------------------------------------------------------
+            | FORMAT DD/MM/YYYY
+            |--------------------------------------------------------------------------
+            */
 
-                let parts =
-                    dateStr.split('/');
+            let parts =
+                dateStr.split('/');
 
-                let date = new Date(
+            let date = new Date(
 
-                    parts[2],
+                parts[2],
 
-                    parts[1] - 1,
+                parts[1] - 1,
 
-                    parts[0]
-                );
+                parts[0]
+            );
 
-                let today =
-                    new Date();
+            let today =
+                new Date();
 
-                /*
-                |--------------------------------------------------------------------------
-                | RESET HOUR
-                |--------------------------------------------------------------------------
-                */
+            /*
+            |--------------------------------------------------------------------------
+            | RESET HOUR
+            |--------------------------------------------------------------------------
+            */
 
-                today.setHours(
-                    0, 0, 0, 0
-                );
+            today.setHours(
+                0, 0, 0, 0
+            );
 
-                date.setHours(
-                    0, 0, 0, 0
-                );
+            date.setHours(
+                0, 0, 0, 0
+            );
 
-                /*
-                |--------------------------------------------------------------------------
-                | DIFFERENCE
-                |--------------------------------------------------------------------------
-                */
+            /*
+            |--------------------------------------------------------------------------
+            | DIFFERENCE
+            |--------------------------------------------------------------------------
+            */
 
-                let diff = Math.ceil(
+            let diff = Math.ceil(
 
-                    (date - today)
+                (date - today)
 
-                    /
+                /
 
-                    (1000 * 60 * 60 * 24)
-                );
+                (1000 * 60 * 60 * 24)
+            );
 
-                /*
-                |--------------------------------------------------------------------------
-                | TODAY
-                |--------------------------------------------------------------------------
-                */
+            /*
+            |--------------------------------------------------------------------------
+            | TODAY
+            |--------------------------------------------------------------------------
+            */
 
-                if (diff === 0) {
+            if (diff === 0) {
 
-                    return `
+                return `
 
             <span style="
                 color:green;
@@ -1114,17 +1092,17 @@ categories.forEach(cat => {
 
             </span>
         `;
-                }
+            }
 
-                /*
-                |--------------------------------------------------------------------------
-                | LATE
-                |--------------------------------------------------------------------------
-                */
+            /*
+            |--------------------------------------------------------------------------
+            | LATE
+            |--------------------------------------------------------------------------
+            */
 
-                if (diff < 0) {
+            if (diff < 0) {
 
-                    return `
+                return `
 
             <span style="
                 color:red;
@@ -1136,17 +1114,17 @@ categories.forEach(cat => {
 
             </span>
         `;
-                }
+            }
 
-                /*
-                |--------------------------------------------------------------------------
-                | WARNING <= 7 HARI
-                |--------------------------------------------------------------------------
-                */
+            /*
+            |--------------------------------------------------------------------------
+            | WARNING <= 7 HARI
+            |--------------------------------------------------------------------------
+            */
 
-                if (diff <= 7) {
+            if (diff <= 7) {
 
-                    return `
+                return `
 
             <span style="
                 color:red;
@@ -1157,15 +1135,15 @@ categories.forEach(cat => {
 
             </span>
         `;
-                }
+            }
 
-                /*
-                |--------------------------------------------------------------------------
-                | NORMAL
-                |--------------------------------------------------------------------------
-                */
+            /*
+            |--------------------------------------------------------------------------
+            | NORMAL
+            |--------------------------------------------------------------------------
+            */
 
-                return `
+            return `
 
         <span style="
             color:#6b7280;
@@ -1175,129 +1153,231 @@ categories.forEach(cat => {
 
         </span>
     `;
-            }
-            // delete
-            let holdTimer = null;
+        }
+        // delete
+        let holdTimer = null;
 
         let holdInterval = null;
-$(document).on(
-    'click',
-    '.spk-card',
-    function(e) {
+        $(document).on(
+            'click',
+            '.spk-card',
+            function(e) {
 
-        if (
-            $(e.target)
-            .closest('button')
-            .length
-        ) {
-            return;
-        }
+                if (
+                    $(e.target)
+                    .closest('button')
+                    .length
+                ) {
+                    return;
+                }
 
-        $('.spk-card')
-            .removeClass(
-                'selected-spk'
-            );
+                $('.spk-card')
+                    .removeClass(
+                        'selected-spk'
+                    );
 
-        $(this)
-            .addClass(
-                'selected-spk'
-            );
+                $(this)
+                    .addClass(
+                        'selected-spk'
+                    );
 
-    }
-);
-$(document).on('pointerdown', '.spk-card', function(e) {
-
-    /*
-    |--------------------------------------------------------------------------
-    | JANGAN TRIGGER SAAT KLIK BUTTON
-    |--------------------------------------------------------------------------
-    */
-
-    if (
-        $(e.target).closest('button').length
-    ) {
-        return;
-    }
-
-    let card =
-        $(this);
-
-    let spkId =
-        card.data('id');
-
-    let spkNo =
-        card.data('no');
-
-    let progress =
-        card.find('.hold-progress');
-
-    let width = 0;
-
-    /*
-    |--------------------------------------------------------------------------
-    | RESET
-    |--------------------------------------------------------------------------
-    */
-
-    progress.css({
-
-        width: '0%',
-
-        opacity: 1
-
-    });
-
-    /*
-    |--------------------------------------------------------------------------
-    | ANIMATION
-    |--------------------------------------------------------------------------
-    */
-
-    holdInterval = setInterval(function() {
-
-        width += 2;
-
-        progress.css(
-            'width',
-            width + '%'
+            }
         );
+        $(document).on('pointerdown', '.spk-card', function(e) {
 
-    }, 100);
+            /*
+            |--------------------------------------------------------------------------
+            | JANGAN TRIGGER SAAT KLIK BUTTON
+            |--------------------------------------------------------------------------
+            */
 
-    /*
-    |--------------------------------------------------------------------------
-    | HOLD 5 DETIK
-    |--------------------------------------------------------------------------
-    */
+            if (
+                $(e.target).closest('button').length
+            ) {
+                return;
+            }
 
-    holdTimer = setTimeout(function() {
+            let card =
+                $(this);
 
-        clearInterval(
-            holdInterval
-        );
+            let spkId =
+                card.data('id');
 
-        progress.css(
-            'opacity',
-            0
-        );
+            let spkNo =
+                card.data('no');
 
-        Swal.fire({
+            let progress =
+                card.find('.hold-progress');
 
-            title: 'Yakin hapus SPK?',
-            html: `
+            let width = 0;
+
+            /*
+            |--------------------------------------------------------------------------
+            | RESET
+            |--------------------------------------------------------------------------
+            */
+
+            progress.css({
+
+                width: '0%',
+
+                opacity: 1
+
+            });
+
+            /*
+            |--------------------------------------------------------------------------
+            | ANIMATION
+            |--------------------------------------------------------------------------
+            */
+
+            holdInterval = setInterval(function() {
+
+                width += 2;
+
+                progress.css(
+                    'width',
+                    width + '%'
+                );
+
+            }, 100);
+
+            /*
+            |--------------------------------------------------------------------------
+            | HOLD 5 DETIK
+            |--------------------------------------------------------------------------
+            */
+
+            holdTimer = setTimeout(function() {
+
+                clearInterval(
+                    holdInterval
+                );
+
+                progress.css(
+                    'opacity',
+                    0
+                );
+
+                Swal.fire({
+
+                    title: 'Yakin hapus SPK?',
+                    html: `
                 SPK :
                 <br>
                 <b>${spkNo}</b>
             `,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#d33',
-            confirmButtonText: 'Ya Delete',
-            cancelButtonText: 'Cancel'
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    confirmButtonText: 'Ya Delete',
+                    cancelButtonText: 'Cancel'
 
-        }).then((result) => {
+                }).then((result) => {
 
-            if (result.isConfirmed) {
+                    if (result.isConfirmed) {
+
+                        $.ajax({
+
+                            url: `/spk/delete/${spkId}`,
+
+                            type: 'DELETE',
+
+                            data: {
+                                _token: $('meta[name="csrf-token"]').attr('content')
+                            },
+
+                            success: function(res) {
+
+                                Swal.fire({
+
+                                    icon: 'success',
+                                    title: 'Deleted',
+                                    text: res.message
+
+                                });
+
+                                loadSpkTable();
+
+                                $('#spkDetailBox')
+                                    .hide();
+
+                            },
+
+                            error: function() {
+
+                                Swal.fire({
+
+                                    icon: 'error',
+                                    title: 'Oops',
+                                    text: 'Gagal delete SPK'
+
+                                });
+
+                            }
+
+                        });
+
+                    }
+
+                });
+
+            }, 5000);
+
+        });
+
+        /*
+        |--------------------------------------------------------------------------
+        | CANCEL HOLD
+        |--------------------------------------------------------------------------
+        */
+
+        $(document).on(
+            'pointerup pointerleave pointercancel',
+            '.spk-card',
+            function() {
+
+                clearTimeout(
+                    holdTimer
+                );
+
+                clearInterval(
+                    holdInterval
+                );
+
+                $(this)
+                    .find('.hold-progress')
+                    .css({
+
+                        width: '0%',
+
+                        opacity: 0
+
+                    });
+
+            }
+        );
+        $(document).on('click', '.btn-delete-spk', function() {
+
+            let spkId = $(this).data('id');
+            let spkNo = $(this).data('no');
+
+            Swal.fire({
+
+                title: 'Hapus SPK?',
+                html: `
+            SPK <b>${spkNo}</b><br>
+            akan dihapus.
+        `,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                confirmButtonText: 'Ya, Hapus',
+                cancelButtonText: 'Batal'
+
+            }).then((result) => {
+
+                if (!result.isConfirmed) return;
 
                 $.ajax({
 
@@ -1306,734 +1386,1024 @@ $(document).on('pointerdown', '.spk-card', function(e) {
                     type: 'DELETE',
 
                     data: {
-                        _token:
-                        $('meta[name="csrf-token"]').attr('content')
+                        _token: $('meta[name="csrf-token"]').attr('content')
                     },
 
                     success: function(res) {
 
                         Swal.fire({
-
                             icon: 'success',
-                            title: 'Deleted',
+                            title: 'Berhasil',
                             text: res.message
-
                         });
 
                         loadSpkTable();
 
-                        $('#spkDetailBox')
-                            .hide();
+                        $('#spkDetailBox').hide();
 
                     },
 
                     error: function() {
 
                         Swal.fire({
-
                             icon: 'error',
-                            title: 'Oops',
-                            text: 'Gagal delete SPK'
-
+                            title: 'Gagal',
+                            text: 'SPK tidak dapat dihapus.'
                         });
 
                     }
 
                 });
 
-            }
-
-        });
-
-    }, 5000);
-
-});
-
-/*
-|--------------------------------------------------------------------------
-| CANCEL HOLD
-|--------------------------------------------------------------------------
-*/
-
-$(document).on(
-    'pointerup pointerleave pointercancel',
-    '.spk-card',
-    function() {
-
-        clearTimeout(
-            holdTimer
-        );
-
-        clearInterval(
-            holdInterval
-        );
-
-        $(this)
-            .find('.hold-progress')
-            .css({
-
-                width: '0%',
-
-                opacity: 0
-
             });
 
-    }
-);
-$(document).on('click', '.btn-delete-spk', function () {
-
-    let spkId = $(this).data('id');
-    let spkNo = $(this).data('no');
-
-    Swal.fire({
-
-        title: 'Hapus SPK?',
-        html: `
-            SPK <b>${spkNo}</b><br>
-            akan dihapus.
-        `,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#dc3545',
-        confirmButtonText: 'Ya, Hapus',
-        cancelButtonText: 'Batal'
-
-    }).then((result) => {
-
-        if (!result.isConfirmed) return;
-
-        $.ajax({
-
-            url: `/spk/delete/${spkId}`,
-
-            type: 'DELETE',
-
-            data: {
-                _token: $('meta[name="csrf-token"]').attr('content')
-            },
-
-            success: function (res) {
-
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Berhasil',
-                    text: res.message
-                });
-
-                loadSpkTable();
-
-                $('#spkDetailBox').hide();
-
-            },
-
-            error: function () {
-
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Gagal',
-                    text: 'SPK tidak dapat dihapus.'
-                });
-
-            }
-
         });
+        /*
+        |--------------------------------------------------------------------------
+        | EXPAND / COLLAPSE DETAIL
+        |--------------------------------------------------------------------------
+        */
 
-    });
+        let isExpanded = false;
 
-});
-/*
-|--------------------------------------------------------------------------
-| EXPAND / COLLAPSE DETAIL
-|--------------------------------------------------------------------------
-*/
+        $(document).on(
+            'click',
+            '#btnExpandDetail',
+            function() {
 
-let isExpanded = false;
+                isExpanded = !isExpanded;
 
-$(document).on(
-    'click',
-    '#btnExpandDetail',
-    function(){
+                if (isExpanded) {
 
-        isExpanded = !isExpanded;
+                    $('#sidebarColumn')
+                        .hide();
 
-        if(isExpanded){
+                    $('#detailColumn')
+                        .removeClass(
+                            'col-lg-8 col-md-7'
+                        )
+                        .addClass(
+                            'col-lg-12 col-md-12'
+                        );
 
-            $('#sidebarColumn')
-                .hide();
-
-            $('#detailColumn')
-                .removeClass(
-                    'col-lg-8 col-md-7'
-                )
-                .addClass(
-                    'col-lg-12 col-md-12'
-                );
-
-            $(this)
-                .html(`
+                    $(this)
+                        .html(`
                     <i class="fa fa-compress"></i>
                 `)
-                .attr(
-                    'title',
-                    'Kembalikan'
-                );
+                        .attr(
+                            'title',
+                            'Kembalikan'
+                        );
 
-        }else{
+                } else {
 
-            $('#sidebarColumn')
-                .show();
+                    $('#sidebarColumn')
+                        .show();
 
-            $('#detailColumn')
-                .removeClass(
-                    'col-lg-12 col-md-12'
-                )
-                .addClass(
-                    'col-lg-8 col-md-7'
-                );
+                    $('#detailColumn')
+                        .removeClass(
+                            'col-lg-12 col-md-12'
+                        )
+                        .addClass(
+                            'col-lg-8 col-md-7'
+                        );
 
-            $(this)
-                .html(`
+                    $(this)
+                        .html(`
                     <i class="fa fa-expand"></i>
                 `)
-                .attr(
-                    'title',
-                    'Perbesar'
-                );
+                        .attr(
+                            'title',
+                            'Perbesar'
+                        );
+
+                }
+
+            });
+    </script>
+    <style>
+        /* =========================================================
+       IMPROVE TABLE - SPK LIST
+    ========================================================= */
+
+        .spk-sidebar {
+            border: 1px solid #e8edf3;
+            border-radius: 16px;
+            background: #fff;
+            box-shadow: 0 6px 22px rgba(15, 23, 42, .05);
+        }
+
+        /* Search */
+        .sidebar-toolbar {
+            padding: 14px;
+            background: #fff;
+            border-bottom: 1px solid #eef2f7;
+        }
+
+        .sidebar-toolbar input {
+            height: 40px !important;
+            border: 1px solid #dfe6ee;
+            border-radius: 10px !important;
+            box-shadow: none;
+            font-size: 13px;
+            padding-left: 14px;
+        }
+
+        .sidebar-toolbar input:focus {
+            border-color: #93c5fd;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, .08);
+        }
+
+
+        /* Table */
+        .table-spk {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .table-spk thead th {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+
+            background: #f8fafc !important;
+            color: #64748b;
+
+            border: none !important;
+            border-bottom: 1px solid #e5eaf0 !important;
+
+            padding: 11px 10px !important;
+
+            font-size: 10px !important;
+            font-weight: 700;
+
+            letter-spacing: .5px;
+            text-transform: uppercase;
+        }
+
+
+        /* Body */
+        .table-spk tbody td {
+            padding: 11px 10px !important;
+
+            border: none !important;
+            border-bottom: 1px solid #f1f5f9 !important;
+
+            color: #334155;
+            font-size: 12px;
+
+            vertical-align: middle !important;
+        }
+
+
+        /* Row */
+        .table-spk tbody tr {
+            position: relative;
+            transition: all .18s ease;
+        }
+
+        .table-spk tbody tr:hover {
+            background: #f8fbff !important;
+        }
+
+        .table-spk tbody tr:hover td {
+            border-bottom-color: #e5edf7 !important;
+        }
+
+
+        /* Selected */
+        .table-spk tbody tr.selected-row {
+            background: #eff6ff !important;
+        }
+
+        .table-spk tbody tr.selected-row td {
+            color: #1e40af;
+            border-bottom-color: #dbeafe !important;
+        }
+
+        .table-spk tbody tr.selected-row td:first-child {
+            box-shadow: inset 3px 0 0 #2563eb;
+        }
+
+
+        /* Number */
+        .table-spk tbody td:first-child {
+            width: 40px;
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+
+        /* Buyer */
+        .buyer-name {
+            font-weight: 700;
+            color: #1e293b;
+
+            max-width: 150px;
+
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        .selected-row .buyer-name {
+            color: #1d4ed8;
+        }
+
+
+        /* PO */
+        .po-number {
+            display: inline-flex;
+            align-items: center;
+
+            padding: 4px 8px;
+
+            background: #f1f5f9;
+            color: #475569;
+
+            border-radius: 6px;
+
+            font-size: 10px;
+            font-weight: 700;
+
+            white-space: nowrap;
+        }
+
+        .selected-row .po-number {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+
+        /* View button */
+        .btn-view-spk {
+            border-radius: 7px !important;
+
+            padding: 5px 9px !important;
+
+            font-size: 10px !important;
+            font-weight: 600;
+
+            border-color: #bfdbfe !important;
+            color: #2563eb !important;
+
+            background: #fff;
+        }
+
+        .btn-view-spk:hover {
+            background: #2563eb !important;
+            color: #fff !important;
+            border-color: #2563eb !important;
+        }
+
+
+        /* Action */
+        .table-spk .btn-link {
+            color: #94a3b8;
+            padding: 4px 7px;
+            border-radius: 6px;
+        }
+
+        .table-spk .btn-link:hover {
+            background: #f1f5f9;
+            color: #334155;
+        }
+
+        body {
+            background: #f4f7fb;
+        }
+
+        /* =========================================================
+       DETAIL TABLE
+    ========================================================= */
+
+        #spk-detail-body {
+            background: #fff;
+        }
+
+        #spk-detail-body>tr>td {
+            padding: 0 !important;
+        }
+
+
+        /* Dynamic table */
+        #spk-detail-body table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin: 0;
+        }
+
+        #spk-detail-body table thead th {
+            background: #f8fafc !important;
+
+            color: #64748b !important;
+
+            border: none !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+
+            padding: 10px 8px !important;
+
+            font-size: 10px;
+            font-weight: 700;
+
+            text-transform: uppercase;
+            letter-spacing: .4px;
+
+            white-space: nowrap;
+        }
+
+        #spk-detail-body table tbody td {
+            border: none !important;
+            border-bottom: 1px solid #eef2f7 !important;
+
+            padding: 10px 8px !important;
+
+            font-size: 11px;
+
+            color: #334155;
+
+            vertical-align: top;
+        }
+
+        #spk-detail-body table tbody tr:hover {
+            background: #f8fbff;
+        }
+
+
+        /* Article */
+        .article-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .article-image,
+        .article-no-image {
+            width: 64px !important;
+            height: 64px !important;
+
+            border-radius: 9px !important;
+        }
+
+        .article-code {
+            margin-top: 3px !important;
+
+            font-size: 10px !important;
+
+            color: #64748b;
+        }
+
+
+        /* Description */
+        #spk-detail-body td:nth-child(3) {
+            color: #475569;
+            line-height: 1.45;
+        }
+
+
+        /* Qty */
+        #spk-detail-body td:nth-child(4) {
+            text-align: center;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+
+        /* CBM */
+        #spk-detail-body td:nth-child(5) {
+            text-align: center;
+            font-family: monospace;
+            color: #475569;
+        }
+
+        /* =========================================================
+       COMPACT SUMMARY DETAIL SPK
+    ========================================================= */
+
+        .summary-row {
+            margin-top: 10px !important;
+            margin-bottom: 12px !important;
+        }
+
+        .summary-card {
+            min-height: 58px !important;
+            height: 58px !important;
+
+            padding: 8px 12px !important;
+
+            border-radius: 10px !important;
+
+            gap: 10px !important;
+
+            box-shadow: 0 2px 8px rgba(15, 23, 42, .04) !important;
+        }
+
+
+        /* ICON */
+        .summary-icon {
+            width: 38px !important;
+            height: 38px !important;
+
+            min-width: 38px !important;
+            min-height: 38px !important;
+
+            border-radius: 10px !important;
+
+            font-size: 15px !important;
+        }
+
+
+        /* LABEL */
+        .summary-card small {
+            font-size: 9px !important;
+            line-height: 1.1 !important;
+
+            margin-bottom: 3px !important;
+
+            white-space: nowrap;
+        }
+
+
+        /* NUMBER */
+        .summary-card h3 {
+            font-size: 18px !important;
+
+            line-height: 1 !important;
+
+            margin: 0 !important;
+        }
+
+
+        /* JARAK ANTAR CARD */
+        .summary-row>div {
+            padding-left: 6px !important;
+            padding-right: 6px !important;
+        }
+
+
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+
+            .summary-card {
+                height: 54px !important;
+                min-height: 54px !important;
+
+                padding: 7px 9px !important;
+            }
+
+            .summary-icon {
+                width: 34px !important;
+                height: 34px !important;
+                min-width: 34px !important;
+                min-height: 34px !important;
+
+                font-size: 13px !important;
+            }
+
+            .summary-card h3 {
+                font-size: 16px !important;
+            }
+
+            .summary-card small {
+                font-size: 8px !important;
+            }
+        }
+
+        .padding {
+            padding: 20px;
+        }
+
+        /* ===========================================
+       LEFT SIDEBAR
+    =========================================== */
+
+        .spk-sidebar {
+
+            background: #fff;
+
+            border-radius: 18px;
+
+            overflow: hidden;
+
+            border: 1px solid #edf2f7;
+
+            box-shadow:
+                0 8px 25px rgba(15, 23, 42, .06);
 
         }
 
-});
-        </script>
-        <style>
-         body{
-    background:#f4f7fb;
-}
+        .sidebar-toolbar {
 
-.padding{
-    padding:20px;
-}
+            padding: 18px;
 
-/* ===========================================
-   LEFT SIDEBAR
-=========================================== */
+            border-bottom: 1px solid #edf2f7;
 
-.spk-sidebar{
+            background: #fafcff;
 
-    background:#fff;
+        }
 
-    border-radius:18px;
+        .sidebar-toolbar input {
 
-    overflow:hidden;
+            border-radius: 10px;
 
-    border:1px solid #edf2f7;
+            height: 42px;
 
-    box-shadow:
-        0 8px 25px rgba(15,23,42,.06);
+        }
 
-}
+        .sidebar-table {
 
-.sidebar-toolbar{
+            max-height: 70vh;
 
-    padding:18px;
+            overflow-y: auto;
 
-    border-bottom:1px solid #edf2f7;
+        }
 
-    background:#fafcff;
+        /* ===========================================
+       TABLE LEFT
+    =========================================== */
 
-}
+        .table-spk {
 
-.sidebar-toolbar input{
+            margin-bottom: 0;
 
-    border-radius:10px;
+        }
 
-    height:42px;
+        .table-spk thead th {
 
-}
+            background: #fff;
 
-.sidebar-table{
+            border-top: none;
 
-    max-height:70vh;
+            border-bottom: 1px solid #edf2f7;
 
-    overflow-y:auto;
+            color: #64748b;
 
-}
+            font-size: 12px;
 
-/* ===========================================
-   TABLE LEFT
-=========================================== */
+            font-weight: 700;
 
-.table-spk{
+            text-transform: uppercase;
 
-    margin-bottom:0;
+            letter-spacing: .4px;
 
-}
+        }
 
-.table-spk thead th{
+        .table-spk tbody td {
 
-    background:#fff;
+            vertical-align: middle;
 
-    border-top:none;
+            border-color: #f1f5f9;
 
-    border-bottom:1px solid #edf2f7;
+            padding: 14px 10px;
 
-    color:#64748b;
+        }
 
-    font-size:12px;
+        .table-spk tbody tr {
 
-    font-weight:700;
+            transition: .25s;
 
-    text-transform:uppercase;
+            cursor: pointer;
 
-    letter-spacing:.4px;
+        }
 
-}
+        .table-spk tbody tr:hover {
 
-.table-spk tbody td{
+            background: #f8fbff;
 
-    vertical-align:middle;
+        }
 
-    border-color:#f1f5f9;
+        .selected-row {
 
-    padding:14px 10px;
+            background: #eef5ff !important;
 
-}
+        }
 
-.table-spk tbody tr{
+        .selected-row td {
 
-    transition:.25s;
+            border-color: #dbeafe !important;
 
-    cursor:pointer;
+        }
 
-}
+        /* ===========================================
+       DETAIL
+    =========================================== */
 
-.table-spk tbody tr:hover{
+        .detail-topbar {
 
-    background:#f8fbff;
+            display: flex;
 
-}
+            justify-content: space-between;
 
-.selected-row{
+            align-items: center;
 
-    background:#eef5ff !important;
+            margin-bottom: 20px;
 
-}
+        }
 
-.selected-row td{
+        .btn-back {
 
-    border-color:#dbeafe !important;
+            color: #2563eb;
 
-}
+            font-weight: 600;
 
-/* ===========================================
-   DETAIL
-=========================================== */
+        }
 
-.detail-topbar{
+        .btn-back:hover {
 
-    display:flex;
+            text-decoration: none;
 
-    justify-content:space-between;
+        }
 
-    align-items:center;
+        .detail-card {
 
-    margin-bottom:20px;
+            background: #fff;
 
-}
+            border-radius: 18px;
 
-.btn-back{
+            padding: 25px;
 
-    color:#2563eb;
+            box-shadow:
+                0 8px 30px rgba(15, 23, 42, .06);
 
-    font-weight:600;
+            margin-bottom: 20px;
 
-}
+        }
 
-.btn-back:hover{
+        .detail-header {
 
-    text-decoration:none;
+            display: flex;
 
-}
+            justify-content: space-between;
 
-.detail-card{
+            align-items: center;
 
-    background:#fff;
+            margin-bottom: 5px;
 
-    border-radius:18px;
+        }
 
-    padding:25px;
+        .detail-header h2 {
 
-    box-shadow:
-        0 8px 30px rgba(15,23,42,.06);
+            margin: 0;
 
-    margin-bottom:20px;
+            font-size: 18px;
 
-}
+            font-weight: 700;
 
-.detail-header{
+        }
 
-    display:flex;
+        .detail-po {
 
-    justify-content:space-between;
+            color: #64748b;
 
-    align-items:center;
+            margin-top: 5px;
 
-    margin-bottom:5px;
+        }
 
-}
+        /* ===========================================
+       SUMMARY
+    =========================================== */
 
-.detail-header h2{
+        .summary-row {
 
-    margin:0;
+            margin-top: 15px;
+            margin-bottom: 18px;
 
-    font-size:18px;
+        }
 
-    font-weight:700;
+        .summary-card {
 
-}
+            display: flex;
+            align-items: center;
+            gap: 12px;
 
-.detail-po{
+            background: #fff;
 
-    color:#64748b;
+            border: 1px solid #edf2f7;
 
-    margin-top:5px;
+            border-radius: 12px;
 
-}
+            padding: 12px 16px;
 
-/* ===========================================
-   SUMMARY
-=========================================== */
+            min-height: 72px;
 
-.summary-row{
+            transition: .25s;
 
-    margin-top:15px;
-    margin-bottom:18px;
+            box-shadow: 0 3px 12px rgba(0, 0, 0, .04);
 
-}
+        }
 
-.summary-card{
+        .summary-card:hover {
 
-    display:flex;
-    align-items:center;
-    gap:12px;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 18px rgba(0, 0, 0, .08);
 
-    background:#fff;
+        }
 
-    border:1px solid #edf2f7;
+        .summary-icon {
 
-    border-radius:12px;
+            width: 42px;
+            height: 42px;
 
-    padding:12px 16px;
+            border-radius: 10px;
 
-    min-height:72px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
 
-    transition:.25s;
+            color: #fff;
 
-    box-shadow:0 3px 12px rgba(0,0,0,.04);
+            font-size: 18px;
 
-}
+            flex-shrink: 0;
 
-.summary-card:hover{
+        }
 
-    transform:translateY(-2px);
-    box-shadow:0 8px 18px rgba(0,0,0,.08);
+        .summary-card small {
 
-}
+            display: block;
 
-.summary-icon{
+            font-size: 11px;
 
-    width:42px;
-    height:42px;
+            color: #64748b;
 
-    border-radius:10px;
+            margin-bottom: 2px;
 
-    display:flex;
-    justify-content:center;
-    align-items:center;
+        }
 
-    color:#fff;
+        .summary-card h3 {
 
-    font-size:18px;
+            margin: 0;
 
-    flex-shrink:0;
+            font-size: 28px;
 
-}
+            font-weight: 700;
 
-.summary-card small{
+            line-height: 1;
 
-    display:block;
+        }
 
-    font-size:11px;
+        .summary-card {
 
-    color:#64748b;
+            min-height: 62px;
+            padding: 10px 14px;
 
-    margin-bottom:2px;
+        }
 
-}
+        .summary-icon {
 
-.summary-card h3{
+            width: 36px;
+            height: 36px;
 
-    margin:0;
+            font-size: 15px;
 
-    font-size:28px;
+        }
 
-    font-weight:700;
+        .summary-card h3 {
 
-    line-height:1;
+            font-size: 22px;
 
-}
-.summary-card{
+        }
 
-    min-height:62px;
-    padding:10px 14px;
+        .summary-card small {
 
-}
+            font-size: 10px;
 
-.summary-icon{
+        }
 
-    width:36px;
-    height:36px;
+        .summary-card:hover {
 
-    font-size:15px;
+            transform: translateY(-3px);
 
-}
+            box-shadow:
+                0 12px 25px rgba(0, 0, 0, .06);
 
-.summary-card h3{
+        }
 
-    font-size:22px;
+        .summary-card small {
 
-}
+            display: block;
 
-.summary-card small{
+            color: #64748b;
 
-    font-size:10px;
+        }
 
-}
+        .summary-card h3 {
 
-.summary-card:hover{
+            margin: 6px 0 0;
 
-    transform:translateY(-3px);
+            font-size: 18px;
 
-    box-shadow:
-        0 12px 25px rgba(0,0,0,.06);
+            font-weight: 700;
 
-}
+        }
 
-.summary-card small{
+        /* ===========================================
+       ICON
+    =========================================== */
 
-    display:block;
+        .summary-icon {
 
-    color:#64748b;
+            width: 58px;
 
-}
+            height: 58px;
 
-.summary-card h3{
+            border-radius: 15px;
 
-    margin:6px 0 0;
+            display: flex;
 
-    font-size:18px;
+            justify-content: center;
 
-    font-weight:700;
+            align-items: center;
 
-}
+            color: #fff;
 
-/* ===========================================
-   ICON
-=========================================== */
+            font-size: 22px;
 
-.summary-icon{
+            flex-shrink: 0;
 
-    width:58px;
+        }
 
-    height:58px;
+        .summary-icon.blue {
 
-    border-radius:15px;
+            background: #2563eb;
 
-    display:flex;
+        }
 
-    justify-content:center;
+        .summary-icon.green {
 
-    align-items:center;
+            background: #16a34a;
 
-    color:#fff;
+        }
 
-    font-size:22px;
+        .summary-icon.purple {
 
-    flex-shrink:0;
+            background: #7c3aed;
 
-}
+        }
 
-.summary-icon.blue{
+        .summary-icon.orange {
 
-    background:#2563eb;
+            background: #ea580c;
 
-}
+        }
 
-.summary-icon.green{
+        /* ===========================================
+       TABLE DETAIL
+    =========================================== */
 
-    background:#16a34a;
+        .table-box {
 
-}
+            border-radius: 18px;
 
-.summary-icon.purple{
+            overflow: hidden;
 
-    background:#7c3aed;
+            box-shadow:
+                0 8px 25px rgba(15, 23, 42, .05);
 
-}
+        }
 
-.summary-icon.orange{
+        .table-box table {
 
-    background:#ea580c;
+            margin: 0;
 
-}
+        }
 
-/* ===========================================
-   TABLE DETAIL
-=========================================== */
+        .sidebar-table {
+            max-height: 450px;
+            overflow-y: auto;
+        }
 
-.table-box{
+        .sidebar-table thead th {
+            position: sticky;
+            top: 0;
+            background: #fff;
+            z-index: 10;
+        }
 
-    border-radius:18px;
+        .table-box thead {
 
-    overflow:hidden;
+            background: #0f172a;
 
-    box-shadow:
-        0 8px 25px rgba(15,23,42,.05);
+        }
 
-}
+        .table-box thead th {
 
-.table-box table{
+            color: #fff;
 
-    margin:0;
+            border: none;
 
-}
-.sidebar-table{
-    max-height: 450px;
-    overflow-y: auto;
-}
+        }
 
-.sidebar-table thead th{
-    position: sticky;
-    top: 0;
-    background: #fff;
-    z-index: 10;
-}
-.table-box thead{
+        .table-box tbody td {
 
-    background:#0f172a;
+            vertical-align: top;
 
-}
+        }
 
-.table-box thead th{
+        /* ===========================================
+       BUTTON
+    =========================================== */
 
-    color:#fff;
+        .btn {
 
-    border:none;
+            border-radius: 10px;
 
-}
+        }
 
-.table-box tbody td{
+        .btn-outline-primary {
 
-    vertical-align:top;
+            border: 1px solid #2563eb;
 
-}
+            color: #2563eb;
 
-/* ===========================================
-   BUTTON
-=========================================== */
+            background: #fff;
 
-.btn{
+        }
 
-    border-radius:10px;
+        .btn-outline-primary:hover {
 
-}
+            background: #2563eb;
 
-.btn-outline-primary{
+            color: #fff;
 
-    border:1px solid #2563eb;
+        }
 
-    color:#2563eb;
+        /* ===========================================
+       EXPAND
+    =========================================== */
 
-    background:#fff;
+        #btnExpandDetail {
 
-}
+            width: 42px;
 
-.btn-outline-primary:hover{
+            height: 42px;
 
-    background:#2563eb;
+            border-radius: 10px;
 
-    color:#fff;
+        }
 
-}
+        .spk-card {
 
-/* ===========================================
-   EXPAND
-=========================================== */
+            position: relative;
 
-#btnExpandDetail{
+            z-index: 999;
 
-    width:42px;
+            cursor: pointer;
 
-    height:42px;
+        }
 
-    border-radius:10px;
+        /* ===========================================
+       SCROLL
+    =========================================== */
 
-}
-.spk-card{
+        .sidebar-table::-webkit-scrollbar {
 
-    position:relative;
+            width: 8px;
 
-    z-index:999;
+        }
 
-    cursor:pointer;
+        .sidebar-table::-webkit-scrollbar-thumb {
 
-}
-/* ===========================================
-   SCROLL
-=========================================== */
+            background: #cbd5e1;
 
-.sidebar-table::-webkit-scrollbar{
+            border-radius: 20px;
 
-    width:8px;
+        }
 
-}
+        .article-image {
 
-.sidebar-table::-webkit-scrollbar-thumb{
+            width: 80px;
 
-    background:#cbd5e1;
+            height: 80px;
 
-    border-radius:20px;
+            object-fit: cover;
 
-}
-.article-image{
+            border-radius: 10px;
 
-    width:80px;
+            border: 1px solid #eee;
 
-    height:80px;
+            background: #fff;
 
-    object-fit:cover;
+            display: block;
 
-    border-radius:10px;
+            margin: auto;
 
-    border:1px solid #eee;
+        }
 
-    background:#fff;
+        .article-code {
 
-    display:block;
+            margin-top: 8px;
 
-    margin:auto;
+            font-size: 12px;
 
-}
+            font-weight: 600;
 
-.article-code{
+            color: #64748b;
 
-    margin-top:8px;
-
-    font-size:12px;
-
-    font-weight:600;
-
-    color:#64748b;
-
-}
-        </style>
-        @endpush
+        }
+    </style>
+@endpush

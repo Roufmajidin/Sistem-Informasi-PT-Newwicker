@@ -485,22 +485,6 @@ body {
    CATATAN
    ========================================================= */
 
-.spk-table .note-box,
-.spk-table .catatan-cell {
-    width: 150px !important;
-
-    min-width: 150px !important;
-    max-width: 150px !important;
-
-    padding: 7px 9px !important;
-
-    white-space: pre-line;
-
-    overflow-wrap: break-word;
-
-    line-height: 1.35;
-}
-
 
 /* =========================================================
    ACTION
@@ -1156,7 +1140,7 @@ body {
         padding: 6px 7px !important;
     }
 
-    .spk-table tbody td {
+    .spk-table tbody td {   
         font-size: 11px;
 
         padding: 5px 7px !important;
@@ -1324,7 +1308,305 @@ body {
 
     padding-right: 12px !important;
 }
+
+    /* =========================================================
+       DATE INPUT - DD/MM/YY
+       ========================================================= */
+    .tgl-terima,
+    .tgl-selesai {
+        min-width: 180px !important;
+        width: 180px !important;
+        white-space: nowrap !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        padding: 5px 8px !important;
+        vertical-align: middle !important;
+    }
+
+    .tgl-terima:focus,
+    .tgl-selesai:focus {
+        outline: 1px solid #3b82f6;
+        background: #fff;
+    }
 </style>
+
+<style>
+/* =========================================================
+   CLEAN UI 100%
+   Hanya mengatur ukuran/spacing visual.
+   Tidak mengubah struktur table, rowspan, JS, search, add row,
+   save, preview, date picker, maupun salin JPEG.
+   ========================================================= */
+
+html, body {
+    overflow-x: hidden !important;
+}
+
+/* HEADER TOOLBAR */
+.box-header {
+    min-height: 48px !important;
+    height: 48px !important;
+    padding: 6px 10px !important;
+}
+
+.box-header h3 {
+    font-size: 13px !important;
+    margin: 0 !important;
+    white-space: nowrap !important;
+}
+
+.box-header .warning,
+.box-header .success {
+    font-size: 9px !important;
+    padding: 2px 5px !important;
+    white-space: nowrap !important;
+}
+
+.box-header > div:last-child {
+    min-width: 360px !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 5px !important;
+}
+
+.box-header > div:last-child > label {
+    display: none !important;
+}
+
+.box-header > div:last-child > select {
+    width: 105px !important;
+    height: 28px !important;
+    margin: 0 !important;
+    font-size: 10px !important;
+}
+
+.box-header > div:last-child > div {
+    margin: 0 !important;
+}
+
+.box-header > div:last-child button {
+    width: auto !important;
+    min-width: 78px !important;
+    height: 28px !important;
+    margin: 0 !important;
+    padding: 3px 8px !important;
+    font-size: 9px !important;
+    white-space: nowrap !important;
+}
+
+/* MAIN WORKSPACE */
+.box-body.spk-wrapper {
+    padding: 5px 8px 10px !important;
+    overflow-x: auto !important;
+}
+
+/*
+ * Ini yang membuat halaman terasa seperti satu workspace.
+ * Semua isi SPK diperkecil sedikit secara proporsional,
+ * bukan dipaksa mengecil per-cell sehingga table rusak.
+ */
+@media (min-width: 1000px) {
+    #printArea {
+        zoom: 0.88;
+    }
+}
+
+/* SEARCH */
+#itemSearch {
+    min-height: 28px !important;
+    height: 28px !important;
+    padding: 5px 8px !important;
+    font-size: 10px !important;
+}
+
+/* INFO SPK
+   Jangan menyentuh nth-child tabel utama karena info dan item
+   berada pada table yang sama.
+*/
+#supplierInput {
+    height: 27px !important;
+    min-height: 27px !important;
+    padding: 4px 7px !important;
+    font-size: 10px !important;
+}
+
+/* DATE */
+.tgl-terima,
+.tgl-selesai {
+    min-width: 160px !important;
+    width: 160px !important;
+}
+
+.spk-date-wrap {
+    min-width: 145px !important;
+    height: 23px !important;
+}
+
+.spk-date-display {
+    height: 23px !important;
+    line-height: 23px !important;
+    font-size: 10px !important;
+}
+
+/* MAIN TABLE:
+   Pertahankan table-layout auto agar rowspan dan info header
+   tidak rusak.
+*/
+.spk-table {
+    table-layout: auto !important;
+    font-size: 10px !important;
+    min-width: 0 !important;
+}
+
+.spk-table thead th {
+    height: 29px !important;
+    padding: 5px 5px !important;
+    font-size: 9px !important;
+}
+
+.spk-table tbody td {
+    padding: 4px 5px !important;
+    font-size: 9px !important;
+}
+
+/* Compact only the known item columns */
+.kode-item,
+.article-cell {
+    min-width: 70px !important;
+    width: 70px !important;
+}
+
+.gambar-cell {
+    min-width: 68px !important;
+    width: 68px !important;
+}
+
+.nama,
+.nama-barang {
+    min-width: 120px !important;
+    width: 120px !important;
+    max-width: 150px !important;
+}
+
+.dynamic-column,
+.hallo,
+.extra-column,
+.spk-dynamic-header {
+    min-width: 55px !important;
+    width: 55px !important;
+}
+
+.spk-table .p,
+.spk-table .l,
+.spk-table .t {
+    min-width: 40px !important;
+    width: 40px !important;
+}
+
+.spk-table .material {
+    min-width: 105px !important;
+    width: 105px !important;
+    max-width: 125px !important;
+}
+
+.spk-table .pcs,
+.spk-table .set {
+    min-width: 48px !important;
+    width: 48px !important;
+}
+
+.spk-table .harga,
+.spk-table .total {
+    min-width: 75px !important;
+    width: 75px !important;
+}
+
+.spk-table .note-box,
+.spk-table .catatan-cell {
+    min-width: 80px !important;
+    width: 80px !important;
+}
+
+.spk-table .action-cell {
+    min-width: 30px !important;
+    width: 30px !important;
+}
+
+/* Images */
+.preview-img {
+    max-width: 58px !important;
+    max-height: 48px !important;
+}
+
+.image-box {
+    min-height: 48px !important;
+}
+
+/* Buttons inside table */
+.btn-add-extra,
+.btn-delete-extra {
+    font-size: 8px !important;
+    padding: 2px 5px !important;
+}
+
+/* BOTTOM SECTIONS */
+.bahan-wrapper,
+.payment-wrapper {
+    margin-top: 8px !important;
+}
+
+.section-title-green {
+    padding: 6px 9px !important;
+    font-size: 9px !important;
+}
+
+.bahan-table {
+    font-size: 9px !important;
+    min-width: 0 !important;
+}
+
+.bahan-table th,
+.bahan-table td {
+    padding: 4px 5px !important;
+    font-size: 9px !important;
+}
+
+.payment-wrapper {
+    gap: 10px !important;
+}
+
+.payment-table {
+    font-size: 9px !important;
+}
+
+.payment-table th,
+.payment-table td {
+    padding: 4px 5px !important;
+    font-size: 9px !important;
+}
+
+#paymentSummary {
+    padding: 6px !important;
+    font-size: 9px !important;
+}
+
+/* SIGNATURE */
+.card.mt-4 {
+    margin-top: 8px !important;
+}
+
+.card-header {
+    padding: 5px 8px !important;
+    font-size: 10px !important;
+}
+
+.card-body {
+    padding: 6px !important;
+}
+</style>
+
 
     @php
         $checkedTypes = $spk['checked_types'] ?? [];
@@ -1362,6 +1644,11 @@ body {
                         Preview
                     </button>
                 </div>
+                <div style="margin-top:8px">
+                    <button type="button" class="btn btn-primary btn-sm w-100" id="copyJpegBtn">
+                        📋 Salin (JPEG)
+                    </button>
+                </div>
             </div>
         </div>
         <input type="hidden" id="spk_mode" value="{{ $spk['mode'] }}">
@@ -1386,11 +1673,11 @@ body {
                 </tr>
                 {{-- INFO --}}
                 <tr>
-                    <td><b>NO SPK</b></td>
-                    <td colspan="1" class="editable no-spk" contenteditable>{{ $spk['no_spk'] }}</td>
-                    <td colspan="3"></td>
+                    <td colspan="2"><b>NO SPK</b></td>
+                    <td colspan="3" class="editable no-spk" contenteditable>{{ $spk['no_spk'] }}</td>
+                    <td colspan="4"></td>
                     <td><b>NO PO</b></td>
-                    <td colspan="3" class="editable no-po" contenteditable>{{ $spk['no_po'] }}</td>
+                    <td colspan="1" class="editable no-po" contenteditable>{{ $spk['no_po'] }}</td>
                     <td> <button id="btnSaveSpk" class="btn btn-success btn-sm">
                             💾 Save SPK
                         </button>
@@ -1413,8 +1700,8 @@ body {
                     </td>
                 </tr>
                 <tr>
-                    <td><b>Nama</b></td>
-                    <td colspan="4" style="position:relative">
+                    <td colspan="2"><b>Nama</b></td>
+                    <td colspan="3" style="position:relative">
                         <div contenteditable="true" class="editable" id="supplierInput">
                             {{ $spk['nama'] }}
                         </div>
@@ -1423,29 +1710,106 @@ body {
                     </td>
                     <td colspan="7"></td>
                 </tr>
+                @php
+                    $tglTerimaRaw = trim((string) ($spk['tgl_terima'] ?? ''));
+                    $tglSelesaiRaw = trim((string) ($spk['tgl_selesai'] ?? ''));
+
+                    $tglTerimaValue = '';
+                    $tglSelesaiValue = '';
+
+                    if ($tglTerimaRaw !== '' && $tglTerimaRaw !== '-') {
+                        try {
+                            $tglTerimaValue = \Carbon\Carbon::parse($tglTerimaRaw)->format('Y-m-d');
+                        } catch (\Throwable $e) {
+                            $tglTerimaValue = '';
+                        }
+                    }
+
+                    if ($tglSelesaiRaw !== '' && $tglSelesaiRaw !== '-') {
+                        try {
+                            $tglSelesaiValue = \Carbon\Carbon::parse($tglSelesaiRaw)->format('Y-m-d');
+                        } catch (\Throwable $e) {
+                            $tglSelesaiValue = '';
+                        }
+                    }
+                @endphp
+
                 <tr>
-                    <td><b>Tgl Terima</b></td>
-                    <td colspan="4" class="editable tgl-terima" contenteditable>{{ $spk['tgl_terima'] }}</td>
+                    <td colspan="2"><b>Tgl Terima</b></td>
+                    <td colspan="3"
+                        class="editable tgl-terima"
+                        style="min-width:180px; width:180px; white-space:nowrap; overflow:visible;">
+                        <div class="spk-date-wrap">
+                            <input
+                                type="text"
+                                class="spk-date-display"
+                                value="{{ $tglTerimaValue ? date('d/m/y', strtotime($tglTerimaValue)) : '' }}"
+                                placeholder="dd/mm/yy"
+                                inputmode="numeric"
+                                autocomplete="off"
+                                readonly
+                                onclick="openSpkDatePicker(this)"
+                            >
+                            <input
+                                type="date"
+                                class="spk-date-picker"
+                                value="{{ $tglTerimaValue }}"
+                                tabindex="-1"
+                                aria-hidden="true"
+                            >
+                        </div>
+                    </td>
                     <td colspan="7"></td>
                 </tr>
                 <tr>
-                    <td><b>Tgl Selesai</b></td>
-                    <td colspan="4" class="editable tgl-selesai" contenteditable>{{ $spk['tgl_selesai'] }}</td>
+                    <td colspan="2"><b>Tgl Selesai</b></td>
+                    <td colspan="3"
+                        class="editable tgl-selesai"
+                        style="min-width:180px; width:180px; white-space:nowrap; overflow:visible;">
+                        <div class="spk-date-wrap">
+                            <input
+                                type="text"
+                                class="spk-date-display"
+                                value="{{ $tglSelesaiValue ? date('d/m/y', strtotime($tglSelesaiValue)) : '' }}"
+                                placeholder="dd/mm/yy"
+                                inputmode="numeric"
+                                autocomplete="off"
+                                readonly
+                                onclick="openSpkDatePicker(this)"
+                            >
+                            <input
+                                type="date"
+                                class="spk-date-picker"
+                                value="{{ $tglSelesaiValue }}"
+                                tabindex="-1"
+                                aria-hidden="true"
+                            >
+                        </div>
+                    </td>
                     <td colspan="7"></td>
                 </tr>
                 @include('pages.spk.partial2')
                 {{-- ITEMS --}}
                 @foreach ($spk['items'] as $item)
+                    @php
+                        $extraRowCount = count(
+                            array_slice($item['custom_columns'] ?? [], 1)
+                        );
+                        $itemRowspan = $extraRowCount + 1;
+                    @endphp
                     <tr class="spk-rowa" data-detail-id="{{ $item['detail_id'] }}">
                         <td class="text-center select-item-cell">
                             <input type="checkbox" class="spk-item-check">
                         </td>
                         <!-- KODE -->
-                        <td class="editable text-center kode-item delete-row" contenteditable>
+                        <td rowspan="{{ $itemRowspan }}"
+                            class="editable text-center kode-item delete-row"
+                            contenteditable>
                             {{ $item['kode'] }}
                         </td>
                         <!-- GAMBAR -->
-                        <td class="gambar-cell">
+                        <td rowspan="{{ $itemRowspan }}"
+                            class="gambar-cell">
                             <div class="image-box gambar-cell" contenteditable onpaste="handlePaste(event,this)">
                                 @foreach ($item['images'] as $img)
                                     <img src="{{ $img }}" class="preview-img">
@@ -1455,7 +1819,9 @@ body {
                                 onchange="uploadPreview(this)">
                         </td>
                         <!-- NAMA -->
-                        <td class="editable nama" contenteditable>
+                        <td rowspan="{{ $itemRowspan }}"
+                            class="editable nama"
+                            contenteditable>
                             {{ $item['nama'] }}
                         </td>
                         <!-- CUSTOM COLUMN -->
@@ -1516,9 +1882,6 @@ body {
                     <!-- extra -->
                     @foreach (array_slice($item['custom_columns'] ?? [], 1) as $extra)
                         <tr class="extra-row">
-                            <td class="hallo"></td>
-                            <td class="hallo"></td>
-                            <td class="hallo"></td>
                             <td class="hallo"></td>
 
                             @foreach ($spk['custom_headers'] ?? [] as $header)
@@ -1978,6 +2341,7 @@ body {
     <!-- search -->
     <!-- heler -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script>
         /* =========================================
             ADD HEADER BUTTON
@@ -2110,12 +2474,8 @@ body {
             tr.classList.add('extra-row');
 
             let html = `
-       <td class="hallo"></td>   <!-- checkbox -->
-<td class="hallo"></td>   <!-- kode -->
-<td class="hallo"></td>   <!-- gambar -->
-<td class="hallo"></td>   <!-- nama -->
-
-    `;
+                <td class="hallo"></td>
+            `;
 
             // Dynamic Header
             document.querySelectorAll('.spk-dynamic-header').forEach(th => {
@@ -2664,8 +3024,8 @@ body {
                 no_spk: noSpkEl ? noSpkEl.innerText.trim() : '',
                 no_po: noPoEl ? noPoEl.innerText.trim() : '',
                 nama: document.getElementById('supplierInput')?.innerText || '',
-                tgl_terima: document.querySelector('.tgl-terima')?.innerText || '',
-                tgl_selesai: document.querySelector('.tgl-selesai')?.innerText || '',
+                tgl_terima: getSpkDateValue('.tgl-terima'),
+                tgl_selesai: getSpkDateValue('.tgl-selesai'),
                 items: items,
                 payments: payments
             };
@@ -2763,7 +3123,7 @@ body {
     </script>
     <!-- add rows -->
     <script>
-        function < div class = "image-box" > addItemRow(item) {
+        function addItemRow(item) {
             const tr =
                 document.createElement('tr');
             tr.classList.add('spk-rowa');
@@ -2876,14 +3236,9 @@ body {
                     next.nextElementSibling;
             }
             const rowspanCells = [
-
                 '.kode-item',
                 '.gambar-cell',
-                '.nama',
-
-                '.catatan-cell',
-                '.harga-cell',
-                '.action-cell'
+                '.nama'
             ];
             rowspanCells.forEach(selector => {
                 const cell =
@@ -3859,7 +4214,7 @@ body {
                 no_spk: document.querySelector('.no-spk')?.innerText.trim() || '',
                 no_po: document.querySelector('.no-po')?.innerText.trim() || '',
                 nama_supplier: document.getElementById('supplierInput')?.innerText.trim() || '',
-                tgl_terima: document.querySelector('.tgl-terima')?.innerText.trim() || '',
+                tgl_terima: getSpkDateValue('.tgl-terima'),
                 tgl_selesai: document.querySelector('.tgl-selesai')?.innerText.trim() || ''
             };
             /* ==========================
@@ -4108,7 +4463,7 @@ body {
     </th>
     <th rowspan="2">Article Nr</th>
     <th rowspan="2">Gambar</th>
-    <th rowspan="2">Nama Barang</th>
+    <th rowspan="2">Desc</th>
     ${customHeaderHtml}
     <th colspan="3">
         Ukuran
@@ -4125,7 +4480,7 @@ body {
     <th rowspan="2">
         Total
     </th>
-    <th rowspan="2">
+    <th rowspan="">
         Catatan
     </th>
 </tr>
@@ -4179,6 +4534,196 @@ body {
             win.document.write(html);
             win.document.close();
         }
+
+
+        /* =========================================================
+           SALIN PREVIEW SEBAGAI JPEG
+           ========================================================= */
+        document.getElementById('copyJpegBtn')?.addEventListener('click', async function() {
+            const btn = this;
+            const originalText = btn.innerHTML;
+
+            if (typeof html2canvas === 'undefined') {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal',
+                    text: 'Library screenshot belum tersedia.'
+                });
+                return;
+            }
+
+            if (!navigator.clipboard || typeof ClipboardItem === 'undefined') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Tidak didukung',
+                    text: 'Browser ini belum mendukung salin gambar ke clipboard.'
+                });
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '⏳ Menyiapkan...';
+
+            let originalOpen = window.open;
+            let capturedHtml = '';
+
+            try {
+                /*
+                 * renderPrevieww() sudah menghasilkan layout preview yang sama
+                 * dengan tombol Preview. Kita tangkap HTML-nya tanpa membuka
+                 * window baru.
+                 */
+                window.open = function() {
+                    return {
+                        document: {
+                            open: function() {},
+                            write: function(html) {
+                                capturedHtml += html;
+                            },
+                            close: function() {}
+                        }
+                    };
+                };
+
+                // Menjalankan handler Preview untuk mendapatkan data + HTML.
+                document.getElementById('previewBtn').click();
+
+                window.open = originalOpen;
+
+                if (!capturedHtml) {
+                    throw new Error('Preview HTML tidak berhasil dibuat.');
+                }
+
+                /*
+                 * Hapus script print dari preview karena yang kita butuhkan
+                 * adalah gambar bersih, bukan membuka dialog print.
+                 */
+                capturedHtml = capturedHtml
+                    .replace(/<script[\s\S]*?<\/script>/gi, '');
+
+                const iframe = document.createElement('iframe');
+                iframe.style.position = 'fixed';
+                iframe.style.left = '-100000px';
+                iframe.style.top = '0';
+                iframe.style.width = '1200px';
+                iframe.style.height = '10px';
+                iframe.style.border = '0';
+                iframe.setAttribute('aria-hidden', 'true');
+
+                document.body.appendChild(iframe);
+
+                await new Promise((resolve, reject) => {
+                    const timer = setTimeout(
+                        () => reject(new Error('Preview terlalu lama dimuat.')),
+                        15000
+                    );
+
+                    iframe.onload = function() {
+                        clearTimeout(timer);
+                        resolve();
+                    };
+
+                    iframe.srcdoc = capturedHtml;
+                });
+
+                const doc = iframe.contentDocument;
+                const body = doc?.body;
+
+                if (!body) {
+                    throw new Error('Area preview tidak ditemukan.');
+                }
+
+                /*
+                 * Tunggu semua gambar selesai dimuat agar JPEG tidak
+                 * kehilangan logo / foto produk.
+                 */
+                const images = Array.from(body.querySelectorAll('img'));
+
+                await Promise.all(
+                    images.map(img => {
+                        if (img.complete) return Promise.resolve();
+
+                        return new Promise(resolve => {
+                            img.onload = resolve;
+                            img.onerror = resolve;
+                        });
+                    })
+                );
+
+                await new Promise(resolve => setTimeout(resolve, 150));
+
+                const canvas = await html2canvas(body, {
+                    backgroundColor: '#ffffff',
+                    scale: Math.min(window.devicePixelRatio || 1, 2),
+                    useCORS: true,
+                    allowTaint: false,
+                    logging: false,
+                    imageTimeout: 15000,
+                    width: body.scrollWidth,
+                    height: body.scrollHeight,
+                    windowWidth: Math.max(body.scrollWidth, 1200),
+                    windowHeight: body.scrollHeight
+                });
+
+                iframe.remove();
+
+                /*
+                 * Clipboard API browser umumnya TIDAK menerima image/jpeg.
+                 * Chrome akan melempar:
+                 * "Type image/jpeg not supported on write".
+                 *
+                 * Jadi:
+                 * 1. Canvas tetap dibuat dari preview.
+                 * 2. JPEG tetap dibuat untuk kebutuhan file/export.
+                 * 3. Untuk clipboard, gunakan PNG karena image/png adalah
+                 *    format gambar yang didukung ClipboardItem.
+                 *
+                 * Secara visual hasil salin tetap sama seperti JPEG.
+                 */
+                const jpegBlob = await new Promise(resolve => {
+                    canvas.toBlob(resolve, 'image/jpeg', 0.95);
+                });
+
+                if (!jpegBlob) {
+                    throw new Error('JPEG gagal dibuat.');
+                }
+
+                const clipboardBlob = await new Promise(resolve => {
+                    canvas.toBlob(resolve, 'image/png');
+                });
+
+                if (!clipboardBlob) {
+                    throw new Error('Gambar untuk clipboard gagal dibuat.');
+                }
+
+                await navigator.clipboard.write([
+                    new ClipboardItem({
+                        'image/png': clipboardBlob
+                    })
+                ]);
+
+                btn.innerHTML = '✅ Tersalin';
+
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }, 1800);
+
+            } catch (error) {
+                window.open = originalOpen;
+
+                console.error('Salin JPEG:', error);
+
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal menyalin',
+                    text: error.message || 'Preview tidak dapat disalin ke clipboard.'
+                });
+
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        });
 
         function renderAgreement() {
             return `
@@ -6286,3 +6831,175 @@ body {
     </script>
   
 @endsection
+
+
+
+
+<style>
+    .tgl-terima,
+    .tgl-selesai {
+        min-width: 180px !important;
+        width: 180px !important;
+        padding: 3px 6px !important;
+        vertical-align: middle !important;
+        overflow: visible !important;
+    }
+
+    .spk-date-wrap {
+        position: relative;
+        width: 100%;
+        min-width: 160px;
+        height: 24px;
+    }
+
+    .spk-date-display {
+        display: block;
+        width: 100%;
+        height: 24px;
+        box-sizing: border-box;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        color: #1f2937;
+        font-size: 11px;
+        line-height: 24px;
+        padding: 0 28px 0 5px;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .spk-date-display::placeholder {
+        color: #9ca3af;
+    }
+
+    .spk-date-display:focus {
+        outline: 1px solid #3b82f6;
+        background: #fff;
+        border-radius: 2px;
+    }
+
+    .spk-date-picker {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        pointer-events: none;
+        right: 2px;
+        top: 50%;
+    }
+
+    .spk-date-wrap::after {
+        content: '📅';
+        position: absolute;
+        right: 5px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 11px;
+        pointer-events: none;
+    }
+</style>
+
+
+<script>
+(function () {
+    function pad2(value) {
+        return String(value).padStart(2, '0');
+    }
+
+    function isoToDisplay(iso) {
+        if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return '';
+
+        const parts = iso.split('-');
+        return parts[2] + '/' + parts[1] + '/' + parts[0].slice(-2);
+    }
+
+    function displayToIso(display) {
+        if (!display) return '';
+
+        const m = String(display).trim().match(/^(\d{2})\/(\d{2})\/(\d{2})$/);
+        if (!m) return '';
+
+        let year = Number(m[3]);
+        year += year >= 70 ? 1900 : 2000;
+
+        const month = Number(m[2]);
+        const day = Number(m[1]);
+
+        const d = new Date(year, month - 1, day);
+
+        if (
+            d.getFullYear() !== year ||
+            d.getMonth() !== month - 1 ||
+            d.getDate() !== day
+        ) {
+            return '';
+        }
+
+        return year + '-' + pad2(month) + '-' + pad2(day);
+    }
+
+    window.openSpkDatePicker = function (displayInput) {
+        const wrap = displayInput.closest('.spk-date-wrap');
+        const picker = wrap?.querySelector('.spk-date-picker');
+
+        if (!picker) return;
+
+        // Modern browsers support showPicker().
+        try {
+            if (typeof picker.showPicker === 'function') {
+                picker.showPicker();
+                return;
+            }
+        } catch (error) {
+            // Fallback below.
+        }
+
+        picker.style.pointerEvents = 'auto';
+        picker.click();
+        picker.style.pointerEvents = 'none';
+    };
+
+    document.addEventListener('change', function (event) {
+        const picker = event.target.closest('.spk-date-picker');
+
+        if (!picker) return;
+
+        const wrap = picker.closest('.spk-date-wrap');
+        const display = wrap?.querySelector('.spk-date-display');
+
+        if (!display) return;
+
+        display.value = isoToDisplay(picker.value);
+
+        // Keep existing save/input listeners informed.
+        display.dispatchEvent(new Event('input', { bubbles: true }));
+        display.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    window.getSpkDateValue = function (selector) {
+        const picker = document.querySelector(selector + ' .spk-date-picker');
+
+        if (picker?.value) {
+            return picker.value;
+        }
+
+        const display = document.querySelector(selector + ' .spk-date-display');
+
+        return display ? displayToIso(display.value) : '';
+    };
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.spk-date-wrap').forEach(function (wrap) {
+            const picker = wrap.querySelector('.spk-date-picker');
+            const display = wrap.querySelector('.spk-date-display');
+
+            if (!picker || !display) return;
+
+            if (picker.value) {
+                display.value = isoToDisplay(picker.value);
+            }
+        });
+    });
+})();
+
+</script>

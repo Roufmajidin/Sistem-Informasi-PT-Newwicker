@@ -11,11 +11,11 @@
         <div class="mb-3">
 
             <h4 class="mb-1">
-                Subkon Kontrak
+                Sub Kontrak
             </h4>
 
             <small class="text-muted">
-                Daftar harga kontrak supplier
+                List Sub Kontrak Supplier
             </small>
 
         </div>
@@ -93,6 +93,7 @@
                             <th width="50">No</th>
 
                             <th>Article Code</th>
+                            <th>Desc</th>
 
                             <th>Supplier</th>
 
@@ -131,6 +132,9 @@
                                     <strong>
                                         {{ $item->article_code }}
                                     </strong>
+                                </td>
+                                  <td>
+                                        {{ $item->description }}
                                 </td>
 
 

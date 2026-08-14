@@ -202,10 +202,10 @@ class SubkonController extends Controller
                 'max:100',
             ],
 
-    'description' => [
-        'nullable',
-        'string',
-    ],
+            'description' => [
+                'nullable',
+                'string',
+            ],
             'supplier_id' => [
                 'required',
                 'exists:suppliers,id',
@@ -277,290 +277,290 @@ class SubkonController extends Controller
         ]);
     }
     public function editData(SupKontrak $subkon)
-{
-    $subkon->load('supplier', 'detailPo');
-
-    return response()->json([
-        'success' => true,
-
-        'data' => [
-            'id' => $subkon->id,
-
-            'article_code' => $subkon->article_code,
-
-            'detail_po_id' => $subkon->detail_po_id,
-
-            'description' => $subkon->description,
-
-            'supplier_id' => $subkon->supplier_id,
-
-            'supplier_name' => $subkon->supplier?->name,
-
-            'kategori' => $subkon->kategori,
-
-            'harga_kontrak' => $subkon->harga_kontrak,
-
-            'remark' => $subkon->remark,
-        ],
-    ]);
-}
-public function update(Request $request, SupKontrak $subkon)
-{
-    $validated = $request->validate([
-
-        'article_code' => [
-            'required',
-            'string',
-            'max:100',
-        ],
-
-        'detail_po_id' => [
-            'nullable',
-            'exists:detail_po,id',
-        ],
-
-        'description' => [
-            'nullable',
-            'string',
-        ],
-
-        'supplier_id' => [
-            'required',
-            'exists:suppliers,id',
-        ],
-
-        'kategori' => [
-            'nullable',
-            'string',
-            'max:100',
-        ],
-
-        'harga_kontrak' => [
-            'required',
-            'numeric',
-            'min:0',
-        ],
-
-        'remark' => [
-            'nullable',
-            'string',
-        ],
-    ]);
-
-
-    $timeline = $subkon->update_remark ?? [];
-
-    $changes = [];
-
-    /*
-    |--------------------------------------------------------------------------
-    | ARTICLE
-    |--------------------------------------------------------------------------
-    */
-
-    if (
-        $subkon->article_code !==
-        $validated['article_code']
-    ) {
-        $changes['article_code'] = [
-            'lama' => $subkon->article_code,
-            'baru' => $validated['article_code'],
-        ];
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | DESCRIPTION
-    |--------------------------------------------------------------------------
-    */
-
-    if (
-        ($subkon->description ?? '') !==
-        ($validated['description'] ?? '')
-    ) {
-        $changes['description'] = [
-            'lama' => $subkon->description,
-            'baru' => $validated['description'] ?? null,
-        ];
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | DETAIL PO
-    |--------------------------------------------------------------------------
-    */
-
-    if (
-        (int) ($subkon->detail_po_id ?? 0) !==
-        (int) ($validated['detail_po_id'] ?? 0)
-    ) {
-        $changes['detail_po_id'] = [
-            'lama' => $subkon->detail_po_id,
-            'baru' => $validated['detail_po_id'] ?? null,
-        ];
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | SUPPLIER
-    |--------------------------------------------------------------------------
-    */
-
-    if (
-        (int) $subkon->supplier_id !==
-        (int) $validated['supplier_id']
-    ) {
-        $changes['supplier_id'] = [
-            'lama' => $subkon->supplier_id,
-            'baru' => $validated['supplier_id'],
-        ];
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | KATEGORI
-    |--------------------------------------------------------------------------
-    */
-
-    if (
-        ($subkon->kategori ?? '') !==
-        ($validated['kategori'] ?? '')
-    ) {
-        $changes['kategori'] = [
-            'lama' => $subkon->kategori,
-            'baru' => $validated['kategori'] ?? null,
-        ];
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | HARGA
-    |--------------------------------------------------------------------------
-    */
-
-    if (
-        (float) $subkon->harga_kontrak !==
-        (float) $validated['harga_kontrak']
-    ) {
-        $changes['harga_kontrak'] = [
-            'lama' => $subkon->harga_kontrak,
-            'baru' => $validated['harga_kontrak'],
-        ];
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | REMARK
-    |--------------------------------------------------------------------------
-    */
-
-    if (
-        ($subkon->remark ?? '') !==
-        ($validated['remark'] ?? '')
-    ) {
-        $changes['remark'] = [
-            'lama' => $subkon->remark,
-            'baru' => $validated['remark'] ?? null,
-        ];
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | SIMPAN TIMELINE
-    |--------------------------------------------------------------------------
-    */
-
-    if (!empty($changes)) {
-
-        $timeline[] = [
-            'action' => 'updated',
-
-            'timestamp' =>
-                now()->toDateTimeString(),
-
-            'user_id' =>
-                auth()->id(),
-
-            'user_name' =>
-                auth()->user()?->name,
-
-            'changes' =>
-                $changes,
-        ];
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | UPDATE
-    |--------------------------------------------------------------------------
-    */
-
-    $subkon->update([
-
-        'article_code' =>
-            $validated['article_code'],
-
-        'detail_po_id' =>
-            $validated['detail_po_id'] ?? null,
-
-        'description' =>
-            $validated['description'] ?? null,
-
-        'supplier_id' =>
-            $validated['supplier_id'],
-
-        'kategori' =>
-            $validated['kategori'] ?? null,
-
-        'harga_kontrak' =>
-            $validated['harga_kontrak'],
-
-        'remark' =>
-            $validated['remark'] ?? null,
-
-        'update_remark' =>
-            $timeline,
-    ]);
-
-
-    return response()->json([
-        'success' => true,
-
-        'message' =>
-            'Kontrak supplier berhasil diperbarui.',
-
-        'data' =>
-            $subkon->load('supplier'),
-    ]);
-}
-public function destroy(SupKontrak $subkon)
-{
-    try {
-
-        $subkon->delete();
-
-        return redirect()
-            ->back()
-            ->with(
-                'success',
-                'Kontrak supplier berhasil dihapus.'
-            );
-
-    } catch (\Throwable $e) {
+    {
+        $subkon->load('supplier', 'detailPo');
 
         return response()->json([
-            'success' => false,
-            'message' => 'Gagal menghapus kontrak supplier.',
-            'error' => $e->getMessage(),
-        ], 500);
+            'success' => true,
+
+            'data' => [
+                'id' => $subkon->id,
+
+                'article_code' => $subkon->article_code,
+
+                'detail_po_id' => $subkon->detail_po_id,
+
+                'description' => $subkon->description,
+
+                'supplier_id' => $subkon->supplier_id,
+
+                'supplier_name' => $subkon->supplier?->name,
+
+                'kategori' => $subkon->kategori,
+
+                'harga_kontrak' => $subkon->harga_kontrak,
+
+                'remark' => $subkon->remark,
+            ],
+        ]);
     }
-}
+    public function update(Request $request, SupKontrak $subkon)
+    {
+        $validated = $request->validate([
+
+            'article_code' => [
+                'required',
+                'string',
+                'max:100',
+            ],
+
+            'detail_po_id' => [
+                'nullable',
+                'exists:detail_po,id',
+            ],
+
+            'description' => [
+                'nullable',
+                'string',
+            ],
+
+            'supplier_id' => [
+                'required',
+                'exists:suppliers,id',
+            ],
+
+            'kategori' => [
+                'nullable',
+                'string',
+                'max:100',
+            ],
+
+            'harga_kontrak' => [
+                'required',
+                'numeric',
+                'min:0',
+            ],
+
+            'remark' => [
+                'nullable',
+                'string',
+            ],
+        ]);
+
+
+        $timeline = $subkon->update_remark ?? [];
+
+        $changes = [];
+
+        /*
+        |--------------------------------------------------------------------------
+        | ARTICLE
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $subkon->article_code !==
+            $validated['article_code']
+        ) {
+            $changes['article_code'] = [
+                'lama' => $subkon->article_code,
+                'baru' => $validated['article_code'],
+            ];
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | DESCRIPTION
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            ($subkon->description ?? '') !==
+            ($validated['description'] ?? '')
+        ) {
+            $changes['description'] = [
+                'lama' => $subkon->description,
+                'baru' => $validated['description'] ?? null,
+            ];
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | DETAIL PO
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            (int) ($subkon->detail_po_id ?? 0) !==
+            (int) ($validated['detail_po_id'] ?? 0)
+        ) {
+            $changes['detail_po_id'] = [
+                'lama' => $subkon->detail_po_id,
+                'baru' => $validated['detail_po_id'] ?? null,
+            ];
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SUPPLIER
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            (int) $subkon->supplier_id !==
+            (int) $validated['supplier_id']
+        ) {
+            $changes['supplier_id'] = [
+                'lama' => $subkon->supplier_id,
+                'baru' => $validated['supplier_id'],
+            ];
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | KATEGORI
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            ($subkon->kategori ?? '') !==
+            ($validated['kategori'] ?? '')
+        ) {
+            $changes['kategori'] = [
+                'lama' => $subkon->kategori,
+                'baru' => $validated['kategori'] ?? null,
+            ];
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | HARGA
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            (float) $subkon->harga_kontrak !==
+            (float) $validated['harga_kontrak']
+        ) {
+            $changes['harga_kontrak'] = [
+                'lama' => $subkon->harga_kontrak,
+                'baru' => $validated['harga_kontrak'],
+            ];
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | REMARK
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            ($subkon->remark ?? '') !==
+            ($validated['remark'] ?? '')
+        ) {
+            $changes['remark'] = [
+                'lama' => $subkon->remark,
+                'baru' => $validated['remark'] ?? null,
+            ];
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SIMPAN TIMELINE
+        |--------------------------------------------------------------------------
+        */
+
+        if (!empty($changes)) {
+
+            $timeline[] = [
+                'action' => 'updated',
+
+                'timestamp' =>
+                    now()->toDateTimeString(),
+
+                'user_id' =>
+                    auth()->id(),
+
+                'user_name' =>
+                    auth()->user()?->name,
+
+                'changes' =>
+                    $changes,
+            ];
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | UPDATE
+        |--------------------------------------------------------------------------
+        */
+
+        $subkon->update([
+
+            'article_code' =>
+                $validated['article_code'],
+
+            'detail_po_id' =>
+                $validated['detail_po_id'] ?? null,
+
+            'description' =>
+                $validated['description'] ?? null,
+
+            'supplier_id' =>
+                $validated['supplier_id'],
+
+            'kategori' =>
+                $validated['kategori'] ?? null,
+
+            'harga_kontrak' =>
+                $validated['harga_kontrak'],
+
+            'remark' =>
+                $validated['remark'] ?? null,
+
+            'update_remark' =>
+                $timeline,
+        ]);
+
+
+        return response()->json([
+            'success' => true,
+
+            'message' =>
+                'Kontrak supplier berhasil diperbarui.',
+
+            'data' =>
+                $subkon->load('supplier'),
+        ]);
+    }
+    public function destroy(SupKontrak $subkon)
+    {
+        try {
+
+            $subkon->delete();
+
+            return redirect()
+                ->back()
+                ->with(
+                    'success',
+                    'Kontrak supplier berhasil dihapus.'
+                );
+
+        } catch (\Throwable $e) {
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menghapus kontrak supplier.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

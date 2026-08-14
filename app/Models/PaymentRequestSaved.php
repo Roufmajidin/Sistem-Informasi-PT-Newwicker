@@ -12,7 +12,7 @@ class PaymentRequestSaved extends Model
     protected $fillable = [
 
         'request_no',
-
+        'ainun_saved_recon',
         'request_date',
 
         'need_date',

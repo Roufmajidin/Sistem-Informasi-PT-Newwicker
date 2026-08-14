@@ -35,7 +35,7 @@ use App\Http\Controllers\ITController;
 use App\Http\Controllers\MonitoringInvoiceController;
 use App\Http\Controllers\MasterController;
 use App\Http\Controllers\SubkonController;
-
+use App\Http\Controllers\UpahController;
 Route::middleware('auth')->group(function () {
 
     Route::post('/profile/change-password', [KaryawanController::class, 'changePassword'])->name('profile.change-password');
@@ -845,3 +845,129 @@ Route::prefix('subkon')
             'timeline'
         ])->name('timeline');
     });
+
+  // UPAH
+Route::prefix('upah')
+    ->name('upah.')
+    ->group(function () {
+
+        /*
+        |--------------------------------------------------------------------------
+        | MASTER UPAH BORONGAN
+        |--------------------------------------------------------------------------
+        */
+
+        Route::get('/', [
+            UpahController::class,
+            'index'
+        ])->name('index');
+
+        Route::post('/', [
+            UpahController::class,
+            'store'
+        ])->name('store');
+
+        Route::get('/ajax/articles', [
+            UpahController::class,
+            'searchArticle'
+        ])->name('ajax.articles');
+
+        Route::get('/{upah}/data', [
+            UpahController::class,
+            'editData'
+        ])->name('data');
+
+        Route::put('/{upah}', [
+            UpahController::class,
+            'update'
+        ])->name('update');
+
+        Route::delete('/{upah}', [
+            UpahController::class,
+            'destroy'
+        ])->name('destroy');
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | MASTER UPAH BORONGAN - MASS
+        |--------------------------------------------------------------------------
+        */
+
+        Route::post('/mass', [
+            UpahController::class,
+            'storeMass'
+        ])->name('mass.store');
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | TRANSAKSI UPAH
+        |--------------------------------------------------------------------------
+        */
+
+        Route::get('/transaksi', [
+            UpahController::class,
+            'upah'
+        ])->name('transaksi');
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SEARCH ARTICLE TRANSAKSI
+        |--------------------------------------------------------------------------
+        */
+
+        Route::get('/transaksi/search-article', [
+            UpahController::class,
+            'searchUpahArticle'
+        ])->name('transaksi.search.article');
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SEARCH PEKERJAAN
+        |--------------------------------------------------------------------------
+        */
+
+        Route::get('/transaksi/search-pekerjaan', [
+            UpahController::class,
+            'searchPekerjaan'
+        ])->name('transaksi.search.pekerjaan');
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | STORE TRANSAKSI NORMAL
+        |--------------------------------------------------------------------------
+        */
+
+        Route::post('/transaksi', [
+            UpahController::class,
+            'storeUpah'
+        ])->name('transaksi.store');
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | STORE TRANSAKSI MASS
+        |--------------------------------------------------------------------------
+        */
+
+        Route::post('/transaksi/mass', [
+            UpahController::class,
+            'storeMassUpah'
+        ])->name('transaksi.mass.store');
+        Route::get('/export', [UpahController::class, 'export'])
+            ->name('upah.transaksi.export');
+    });
+    
+    // finance export 
+    Route::get(
+    '/payment-request-saved/{id}/export',
+    [SpkController::class, 'exportPengajuanSpk']
+)->name('payment-request-saved.export');
+Route::get(
+    '/payment-request/export-all',
+    [SpkController::class, 'exportAllPaymentRequest']
+)->name('payment-request.export-all');
