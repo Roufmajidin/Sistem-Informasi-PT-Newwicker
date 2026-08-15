@@ -15,7 +15,25 @@ use PhpOffice\PhpSpreadsheet\Worksheet\PageSetup;
 class ExportPengajuanSpk
 {
     /**
-     * Export satu Draft Request / DR
+     * =========================================================================
+     * EXPORT SATU DRAFT REQUEST / DR
+     * =========================================================================
+     *
+     * Controller cukup:
+     *
+     * return ExportPengajuanSpk::export($saved);
+     *
+     * Semua proses:
+     *
+     * - mengambil Payment Request
+     * - mengambil snapshot
+     * - mengambil nama_sub
+     * - grouping / sorting nama_sub
+     * - adjustment finance
+     * - adjustment by finance
+     * - membuat Excel
+     *
+     * dilakukan di helper ini.
      */
     public static function export(PaymentRequestSaved $saved)
     {
@@ -41,6 +59,7 @@ class ExportPengajuanSpk
         $paymentRequestIds =
             $saved->payment_request_ids ?? [];
 
+
         if (is_string($paymentRequestIds)) {
 
             $paymentRequestIds =
@@ -49,6 +68,7 @@ class ExportPengajuanSpk
                     true
                 ) ?? [];
         }
+
 
         if (!is_array($paymentRequestIds)) {
 
@@ -60,6 +80,9 @@ class ExportPengajuanSpk
         |--------------------------------------------------------------------------
         | LOAD PAYMENT REQUEST
         |--------------------------------------------------------------------------
+        |
+        | Hanya Payment Request yang masuk ke DR ini.
+        |
         */
 
         $paymentRequests =
@@ -90,6 +113,315 @@ class ExportPengajuanSpk
 
         /*
         |--------------------------------------------------------------------------
+        | PREPARE DATA UNTUK GROUPING NAMA SUB
+        |--------------------------------------------------------------------------
+        |
+        | Contoh data awal:
+        |
+        | Pak Waya
+        | Pak Waya
+        | Pak Sobana
+        | Pak Sobana
+        | Pak Sobana
+        | Pak Yanto
+        |
+        | Akan diurutkan:
+        |
+        | Pak Sobana
+        | Pak Sobana
+        | Pak Sobana
+        | Pak Waya
+        | Pak Waya
+        | Pak Yanto
+        |
+        */
+
+        $sortedRequests = [];
+
+
+        foreach (
+            $paymentRequests
+            as $request
+        ) {
+
+            /*
+            |--------------------------------------------------------------------------
+            | SPK CHECK
+            |--------------------------------------------------------------------------
+            */
+
+            if (!$request->spk) {
+
+                \Log::warning(
+                    'EXPORT PENGAJUAN - SPK NOT FOUND',
+                    [
+                        'saved_id' =>
+                            $saved->id,
+
+                        'payment_request_id' =>
+                            $request->id,
+
+                        'spk_id' =>
+                            $request->spk_id,
+                    ]
+                );
+
+                continue;
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | SNAPSHOT PENGAJUAN
+            |--------------------------------------------------------------------------
+            */
+
+            $snapshot =
+                $request->spk_snapshot;
+
+
+            if (is_string($snapshot)) {
+
+                $snapshot =
+                    json_decode(
+                        $snapshot,
+                        true
+                    );
+            }
+
+
+            if (!is_array($snapshot)) {
+
+                $snapshot = [];
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | DATA SPK TERBARU
+            |--------------------------------------------------------------------------
+            |
+            | Selain untuk fallback nama_sub,
+            | data ini nanti digunakan untuk adjustment Finance.
+            |
+            */
+
+            $currentSpkData =
+                $request->spk->data;
+
+
+            if (is_string($currentSpkData)) {
+
+                $currentSpkData =
+                    json_decode(
+                        $currentSpkData,
+                        true
+                    );
+            }
+
+
+            if (!is_array($currentSpkData)) {
+
+                $currentSpkData = [];
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | NAMA SUB
+            |--------------------------------------------------------------------------
+            |
+            | Prioritas:
+            |
+            | 1. snapshot[sup]
+            | 2. snapshot[nama_sub]
+            | 3. snapshot[sub]
+            | 4. data SPK[sup]
+            | 5. data SPK[nama_sub]
+            | 6. data SPK[sub]
+            | 7. property model
+            |
+            */
+
+            $namaSub =
+                trim(
+                    $snapshot['sup']
+                    ?? $snapshot['nama_sub']
+                    ?? $snapshot['sub']
+                    ?? ''
+                );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | FALLBACK DATA SPK
+            |--------------------------------------------------------------------------
+            */
+
+            if ($namaSub === '') {
+
+                $namaSub =
+                    trim(
+                        $currentSpkData['sup']
+                        ?? $currentSpkData['nama_sub']
+                        ?? $currentSpkData['sub']
+                        ?? ''
+                    );
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | FALLBACK PAYMENT REQUEST MODEL
+            |--------------------------------------------------------------------------
+            */
+
+            if ($namaSub === '') {
+
+                $namaSub =
+                    trim(
+                        $request->sup
+                        ?? $request->sup
+                        ?? ''
+                    );
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | FALLBACK SPK MODEL
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                $namaSub === ''
+                &&
+                $request->spk
+            ) {
+
+                $namaSub =
+                    trim(
+                        $request->spk->sup
+                        ?? $request->spk->nama_sub
+                        ?? ''
+                    );
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | JIKA BENAR-BENAR TIDAK ADA
+            |--------------------------------------------------------------------------
+            */
+
+            if ($namaSub === '') {
+
+                $namaSub =
+                    'TANPA SUB';
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | NORMALIZE UNTUK SORTING
+            |--------------------------------------------------------------------------
+            |
+            | Pak Waya
+            | PAK WAYA
+            | pak waya
+            |
+            | dianggap kelompok yang sama.
+            |
+            */
+
+            $namaSubKey =
+                self::normalizeSub(
+                    $namaSub
+                );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | SIMPAN
+            |--------------------------------------------------------------------------
+            */
+
+            $sortedRequests[] = [
+
+                'request' =>
+                    $request,
+
+                'snapshot' =>
+                    $snapshot,
+
+                'currentSpkData' =>
+                    $currentSpkData,
+
+                'namaSub' =>
+                    $namaSub,
+
+                'namaSubKey' =>
+                    $namaSubKey,
+            ];
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SORT / GROUPING NAMA SUB
+        |--------------------------------------------------------------------------
+        |
+        | Semua grouping dilakukan DI HELPER.
+        |
+        */
+
+        usort(
+            $sortedRequests,
+            function (
+                $a,
+                $b
+            ) {
+
+                /*
+                |--------------------------------------------------------------------------
+                | SORT NAMA SUB
+                |--------------------------------------------------------------------------
+                */
+
+                $compare =
+                    strcasecmp(
+                        $a['namaSubKey'],
+                        $b['namaSubKey']
+                    );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | JIKA NAMA SUB SAMA
+                |--------------------------------------------------------------------------
+                |
+                | Pertahankan urutan berdasarkan
+                | ID Payment Request.
+                |
+                */
+
+                if ($compare === 0) {
+
+                    return (
+                        $a['request']->id
+                        <=>
+                        $b['request']->id
+                    );
+                }
+
+
+                return $compare;
+            }
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
         | TITLE
         |--------------------------------------------------------------------------
         */
@@ -99,8 +431,9 @@ class ExportPengajuanSpk
             'PENGAJUAN PEMBAYARAN'
         );
 
+
         $sheet->mergeCells(
-            'A1:K1'
+            'A1:L1'
         );
 
 
@@ -115,20 +448,24 @@ class ExportPengajuanSpk
             'Date'
         );
 
+
         $sheet->setCellValue(
             'C5',
             $requestDate
         );
+
 
         $sheet->setCellValue(
             'A6',
             'No.'
         );
 
+
         $sheet->setCellValue(
             'C6',
             $saved->request_no ?? ''
         );
+
 
         $sheet->setCellValue(
             'E6',
@@ -144,31 +481,48 @@ class ExportPengajuanSpk
 
         $headers = [
 
-            'A7' => 'No.',
+            'A7' =>
+                'No.',
 
-            'B7' => 'Date',
+            'B7' =>
+                'Date',
 
-            'C7' => 'NO PO',
+            'C7' =>
+                'Nama Sub',
 
-            'D7' => 'NO. INV / NO. SPK',
+            'D7' =>
+                'NO PO',
 
-            'E7' => 'TYPE BIAYA',
+            'E7' =>
+                'NO. INV / NO. SPK',
 
-            'F7' => 'Nama Barang/Item/Jasa',
+            'F7' =>
+                'TYPE BIAYA',
 
-            'G7' => 'QTY',
+            'G7' =>
+                'Nama Barang/Item/Jasa',
 
-            'H7' => 'Diajukan',
+            'H7' =>
+                'QTY',
 
-            'I7' => 'Adjustment Finance',
+            'I7' =>
+                'Diajukan',
 
-            'J7' => 'Adjustment By Finance',
+            'J7' =>
+                'Adjustment Finance',
 
-            'K7' => 'Total Harga',
+            'K7' =>
+                'Adjustment By Finance',
+
+            'L7' =>
+                'Total Harga',
         ];
 
 
-        foreach ($headers as $cell => $value) {
+        foreach (
+            $headers
+            as $cell => $value
+        ) {
 
             $sheet->setCellValue(
                 $cell,
@@ -184,14 +538,18 @@ class ExportPengajuanSpk
         */
 
         $sheet
-            ->getStyle('A1:K1')
+            ->getStyle(
+                'A1:L1'
+            )
             ->getFont()
             ->setBold(true)
             ->setSize(14);
 
 
         $sheet
-            ->getStyle('A1:K1')
+            ->getStyle(
+                'A1:L1'
+            )
             ->getAlignment()
             ->setHorizontal(
                 Alignment::HORIZONTAL_CENTER
@@ -208,7 +566,9 @@ class ExportPengajuanSpk
         */
 
         $sheet
-            ->getStyle('A5:C6')
+            ->getStyle(
+                'A5:C6'
+            )
             ->getFont()
             ->setBold(true);
 
@@ -220,7 +580,9 @@ class ExportPengajuanSpk
         */
 
         $headerStyle =
-            $sheet->getStyle('A7:K7');
+            $sheet->getStyle(
+                'A7:L7'
+            );
 
 
         $headerStyle
@@ -273,84 +635,60 @@ class ExportPengajuanSpk
 
         /*
         |--------------------------------------------------------------------------
-        | LOOP PAYMENT REQUEST
+        | LOOP DATA YANG SUDAH DI-GROUP
         |--------------------------------------------------------------------------
         */
 
-        foreach ($paymentRequests as $request) {
+        foreach (
+            $sortedRequests
+            as $sortedItem
+        ) {
 
-            /*
-            |--------------------------------------------------------------------------
-            | SPK
-            |--------------------------------------------------------------------------
-            */
+            $request =
+                $sortedItem['request'];
 
-            if (!$request->spk) {
-
-                \Log::warning(
-                    'EXPORT PENGAJUAN - SPK NOT FOUND',
-                    [
-                        'saved_id' =>
-                            $saved->id,
-
-                        'payment_request_id' =>
-                            $request->id,
-
-                        'spk_id' =>
-                            $request->spk_id,
-                    ]
-                );
-
-                continue;
-            }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | SNAPSHOT PENGAJUAN
-            |--------------------------------------------------------------------------
-            |
-            | Ini adalah angka asli ketika Payment Request dibuat.
-            |
-            */
 
             $snapshot =
-                $request->spk_snapshot;
+                $sortedItem['snapshot'];
 
 
-            if (is_string($snapshot)) {
-
-                $snapshot =
-                    json_decode(
-                        $snapshot,
-                        true
-                    );
-            }
+            $currentSpkData =
+                $sortedItem['currentSpkData'];
 
 
-            if (!is_array($snapshot)) {
-
-                $snapshot = [];
-            }
+            $namaSub =
+                $sortedItem['namaSub'];
 
 
             /*
             |--------------------------------------------------------------------------
             | PAYMENT DARI SNAPSHOT
             |--------------------------------------------------------------------------
+            |
+            | Ini nominal ASLI saat Payment Request dibuat.
+            |
             */
 
             $payment =
                 collect(
-                    $snapshot['payments'] ?? []
+                    $snapshot['payments']
+                    ?? []
                 )->first(
-                    function ($item) use ($request) {
+                    function (
+                        $item
+                    ) use (
+                        $request
+                    ) {
 
-                        return (string) (
-                            $item['payment_id'] ?? ''
-                        )
-                        ===
-                        (string) $request->payment_id;
+                        return
+                            (string) (
+                                $item['payment_id']
+                                ?? ''
+                            )
+                            ===
+                            (string) (
+                                $request->payment_id
+                            );
                     }
                 );
 
@@ -363,38 +701,7 @@ class ExportPengajuanSpk
 
             if (!$payment) {
 
-                $payment =
-                    [];
-            }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | DATA SPK TERBARU
-            |--------------------------------------------------------------------------
-            |
-            | Dipakai untuk adjustment Finance.
-            |
-            */
-
-            $currentSpkData =
-                $request->spk->data;
-
-
-            if (is_string($currentSpkData)) {
-
-                $currentSpkData =
-                    json_decode(
-                        $currentSpkData,
-                        true
-                    );
-            }
-
-
-            if (!is_array($currentSpkData)) {
-
-                $currentSpkData =
-                    [];
+                $payment = [];
             }
 
 
@@ -402,19 +709,34 @@ class ExportPengajuanSpk
             |--------------------------------------------------------------------------
             | PAYMENT TERBARU
             |--------------------------------------------------------------------------
+            |
+            | Dipakai untuk mengambil:
+            |
+            | - adjustment
+            | - adjustment_by
+            |
             */
 
             $currentPayment =
                 collect(
-                    $currentSpkData['payments'] ?? []
+                    $currentSpkData['payments']
+                    ?? []
                 )->first(
-                    function ($item) use ($request) {
+                    function (
+                        $item
+                    ) use (
+                        $request
+                    ) {
 
-                        return (string) (
-                            $item['payment_id'] ?? ''
-                        )
-                        ===
-                        (string) $request->payment_id;
+                        return
+                            (string) (
+                                $item['payment_id']
+                                ?? ''
+                            )
+                            ===
+                            (string) (
+                                $request->payment_id
+                            );
                     }
                 );
 
@@ -427,7 +749,8 @@ class ExportPengajuanSpk
 
             $hargaAsli =
                 self::toNumber(
-                    $payment['amount'] ?? 0
+                    $payment['amount']
+                    ?? 0
                 );
 
 
@@ -437,9 +760,12 @@ class ExportPengajuanSpk
             |--------------------------------------------------------------------------
             */
 
-            $adjustment = null;
+            $adjustment =
+                null;
 
-            $adjustmentBy = null;
+
+            $adjustmentBy =
+                null;
 
 
             if ($currentPayment) {
@@ -447,6 +773,7 @@ class ExportPengajuanSpk
                 $adjustment =
                     $currentPayment['adjustment']
                     ?? null;
+
 
                 $adjustmentBy =
                     $currentPayment['adjustment_by']
@@ -460,7 +787,8 @@ class ExportPengajuanSpk
             |--------------------------------------------------------------------------
             */
 
-            $adjustmentAmount = 0;
+            $adjustmentAmount =
+                0;
 
 
             if (
@@ -482,7 +810,8 @@ class ExportPengajuanSpk
             |--------------------------------------------------------------------------
             */
 
-            $adjustmentByName = '';
+            $adjustmentByName =
+                '';
 
 
             if (
@@ -490,12 +819,6 @@ class ExportPengajuanSpk
                 &&
                 $adjustmentBy !== ''
             ) {
-
-                /*
-                |--------------------------------------------------------------------------
-                | Jika adjustment_by berupa ID user
-                |--------------------------------------------------------------------------
-                */
 
                 $user =
                     User::find(
@@ -524,11 +847,11 @@ class ExportPengajuanSpk
             | TOTAL HARGA
             |--------------------------------------------------------------------------
             |
-            | Jika adjustment Finance > 0:
-            |     gunakan adjustment
+            | Jika ada adjustment:
+            |     pakai adjustment
             |
-            | Jika tidak:
-            |     gunakan harga asli
+            | Jika tidak ada adjustment:
+            |     pakai angka asli
             |
             */
 
@@ -556,7 +879,11 @@ class ExportPengajuanSpk
                 $snapshot;
 
 
-            if (empty($spkData)) {
+            if (
+                empty(
+                    $spkData
+                )
+            ) {
 
                 $spkData =
                     $currentSpkData;
@@ -589,12 +916,24 @@ class ExportPengajuanSpk
 
             /*
             |--------------------------------------------------------------------------
-            | C - NO PO
+            | C - NAMA SUB
             |--------------------------------------------------------------------------
             */
 
             $sheet->setCellValue(
                 "C{$row}",
+                $namaSub
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | D - NO PO
+            |--------------------------------------------------------------------------
+            */
+
+            $sheet->setCellValue(
+                "D{$row}",
                 $spkData['no_po']
                     ?? $request->no_po
                     ?? ''
@@ -603,12 +942,12 @@ class ExportPengajuanSpk
 
             /*
             |--------------------------------------------------------------------------
-            | D - NO SPK
+            | E - NO SPK
             |--------------------------------------------------------------------------
             */
 
             $sheet->setCellValue(
-                "D{$row}",
+                "E{$row}",
                 $spkData['no_spk']
                     ?? $request->no_spk
                     ?? ''
@@ -617,12 +956,12 @@ class ExportPengajuanSpk
 
             /*
             |--------------------------------------------------------------------------
-            | E - TYPE BIAYA
+            | F - TYPE BIAYA
             |--------------------------------------------------------------------------
             */
 
             $sheet->setCellValue(
-                "E{$row}",
+                "F{$row}",
                 $payment['note']
                     ?? ''
             );
@@ -630,12 +969,12 @@ class ExportPengajuanSpk
 
             /*
             |--------------------------------------------------------------------------
-            | F - NAMA ITEM
+            | G - NAMA BARANG / ITEM / JASA
             |--------------------------------------------------------------------------
             */
 
             $sheet->setCellValue(
-                "F{$row}",
+                "G{$row}",
                 $payment['note_tambahan']
                     ?? $payment['note']
                     ?? ''
@@ -644,62 +983,62 @@ class ExportPengajuanSpk
 
             /*
             |--------------------------------------------------------------------------
-            | G - QTY
+            | H - QTY
             |--------------------------------------------------------------------------
             */
 
             $sheet->setCellValue(
-                "G{$row}",
+                "H{$row}",
                 1
             );
 
 
             /*
             |--------------------------------------------------------------------------
-            | H - HARGA ASLI
+            | I - DIAJUKAN / HARGA ASLI
             |--------------------------------------------------------------------------
             */
 
             $sheet->setCellValue(
-                "H{$row}",
+                "I{$row}",
                 $hargaAsli
             );
 
 
             /*
             |--------------------------------------------------------------------------
-            | I - ADJUSTMENT FINANCE
+            | J - ADJUSTMENT FINANCE
             |--------------------------------------------------------------------------
             */
 
             $sheet->setCellValue(
-                "I{$row}",
+                "J{$row}",
                 $adjustmentAmount
             );
 
 
             /*
             |--------------------------------------------------------------------------
-            | J - ADJUSTMENT BY FINANCE
+            | K - ADJUSTMENT BY FINANCE
             |--------------------------------------------------------------------------
             */
 
             $sheet->setCellValue(
-                "J{$row}",
+                "K{$row}",
                 $adjustmentByName
             );
 
 
             /*
             |--------------------------------------------------------------------------
-            | K - TOTAL HARGA
+            | L - TOTAL HARGA
             |--------------------------------------------------------------------------
             */
 
             $sheet->setCellValue(
-                "K{$row}",
-                "=G{$row}*"
-                . "IF(I{$row}>0,I{$row},H{$row})"
+                "L{$row}",
+                "=H{$row}*"
+                . "IF(J{$row}>0,J{$row},I{$row})"
             );
 
 
@@ -732,25 +1071,27 @@ class ExportPengajuanSpk
 
 
         $sheet->mergeCells(
-            "A{$totalRow}:J{$totalRow}"
+            "A{$totalRow}:K{$totalRow}"
         );
 
 
-        if ($row > $startRow) {
+        if (
+            $row > $startRow
+        ) {
 
             $lastDataRow =
                 $row - 1;
 
 
             $sheet->setCellValue(
-                "K{$totalRow}",
-                "=SUM(K{$startRow}:K{$lastDataRow})"
+                "L{$totalRow}",
+                "=SUM(L{$startRow}:L{$lastDataRow})"
             );
 
         } else {
 
             $sheet->setCellValue(
-                "K{$totalRow}",
+                "L{$totalRow}",
                 0
             );
         }
@@ -762,12 +1103,14 @@ class ExportPengajuanSpk
         |--------------------------------------------------------------------------
         */
 
-        if ($row > $startRow) {
+        if (
+            $row > $startRow
+        ) {
 
             $dataStyle =
                 $sheet->getStyle(
-                    "A{$startRow}:K" .
-                    ($row - 1)
+                    "A{$startRow}:L"
+                    . ($row - 1)
                 );
 
 
@@ -788,14 +1131,14 @@ class ExportPengajuanSpk
 
             /*
             |--------------------------------------------------------------------------
-            | CENTER
+            | CENTER NO + DATE
             |--------------------------------------------------------------------------
             */
 
             $sheet
                 ->getStyle(
-                    "A{$startRow}:B" .
-                    ($row - 1)
+                    "A{$startRow}:B"
+                    . ($row - 1)
                 )
                 ->getAlignment()
                 ->setHorizontal(
@@ -803,10 +1146,33 @@ class ExportPengajuanSpk
                 );
 
 
+            /*
+            |--------------------------------------------------------------------------
+            | NAMA SUB
+            |--------------------------------------------------------------------------
+            */
+
             $sheet
                 ->getStyle(
-                    "G{$startRow}:G" .
-                    ($row - 1)
+                    "C{$startRow}:C"
+                    . ($row - 1)
+                )
+                ->getAlignment()
+                ->setHorizontal(
+                    Alignment::HORIZONTAL_LEFT
+                );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | CENTER QTY
+            |--------------------------------------------------------------------------
+            */
+
+            $sheet
+                ->getStyle(
+                    "H{$startRow}:H"
+                    . ($row - 1)
                 )
                 ->getAlignment()
                 ->setHorizontal(
@@ -822,13 +1188,48 @@ class ExportPengajuanSpk
 
             $sheet
                 ->getStyle(
-                    "H{$startRow}:I" .
-                    ($row - 1)
+                    "I{$startRow}:J"
+                    . ($row - 1)
                 )
                 ->getAlignment()
                 ->setHorizontal(
                     Alignment::HORIZONTAL_RIGHT
                 );
+
+
+            $sheet
+                ->getStyle(
+                    "L{$startRow}:L"
+                    . ($row - 1)
+                )
+                ->getAlignment()
+                ->setHorizontal(
+                    Alignment::HORIZONTAL_RIGHT
+                );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | WRAP TEXT
+            |--------------------------------------------------------------------------
+            */
+
+            $sheet
+                ->getStyle(
+                    "C{$startRow}:G"
+                    . ($row - 1)
+                )
+                ->getAlignment()
+                ->setWrapText(true);
+
+
+            $sheet
+                ->getStyle(
+                    "K{$startRow}:K"
+                    . ($row - 1)
+                )
+                ->getAlignment()
+                ->setWrapText(true);
         }
 
 
@@ -840,7 +1241,7 @@ class ExportPengajuanSpk
 
         $sheet
             ->getStyle(
-                "G{$startRow}:I{$totalRow}"
+                "H{$startRow}:J{$totalRow}"
             )
             ->getNumberFormat()
             ->setFormatCode(
@@ -850,7 +1251,7 @@ class ExportPengajuanSpk
 
         $sheet
             ->getStyle(
-                "K{$startRow}:K{$totalRow}"
+                "L{$startRow}:L{$totalRow}"
             )
             ->getNumberFormat()
             ->setFormatCode(
@@ -866,7 +1267,7 @@ class ExportPengajuanSpk
 
         $totalStyle =
             $sheet->getStyle(
-                "A{$totalRow}:K{$totalRow}"
+                "A{$totalRow}:L{$totalRow}"
             );
 
 
@@ -907,44 +1308,59 @@ class ExportPengajuanSpk
             ->getColumnDimension('A')
             ->setWidth(7);
 
+
         $sheet
             ->getColumnDimension('B')
             ->setWidth(14);
 
+
         $sheet
             ->getColumnDimension('C')
-            ->setWidth(16);
+            ->setWidth(20);
+
 
         $sheet
             ->getColumnDimension('D')
-            ->setWidth(24);
+            ->setWidth(16);
+
 
         $sheet
             ->getColumnDimension('E')
-            ->setWidth(20);
+            ->setWidth(24);
+
 
         $sheet
             ->getColumnDimension('F')
-            ->setWidth(32);
+            ->setWidth(20);
+
 
         $sheet
             ->getColumnDimension('G')
-            ->setWidth(8);
+            ->setWidth(32);
+
 
         $sheet
             ->getColumnDimension('H')
-            ->setWidth(18);
+            ->setWidth(8);
+
 
         $sheet
             ->getColumnDimension('I')
-            ->setWidth(20);
+            ->setWidth(18);
+
 
         $sheet
             ->getColumnDimension('J')
-            ->setWidth(24);
+            ->setWidth(20);
+
 
         $sheet
             ->getColumnDimension('K')
+            ->setWidth(24);
+
+
+        $sheet
+            ->getColumnDimension('L')
             ->setWidth(18);
 
 
@@ -962,33 +1378,6 @@ class ExportPengajuanSpk
         $sheet
             ->getRowDimension(7)
             ->setRowHeight(40);
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | WRAP TEXT
-        |--------------------------------------------------------------------------
-        */
-
-        if ($row > $startRow) {
-
-            $sheet
-                ->getStyle(
-                    "C{$startRow}:F" .
-                    ($row - 1)
-                )
-                ->getAlignment()
-                ->setWrapText(true);
-
-
-            $sheet
-                ->getStyle(
-                    "J{$startRow}:J" .
-                    ($row - 1)
-                )
-                ->getAlignment()
-                ->setWrapText(true);
-        }
 
 
         /*
@@ -1035,12 +1424,16 @@ class ExportPengajuanSpk
 
         $sheet
             ->getPageSetup()
-            ->setFitToWidth(1);
+            ->setFitToWidth(
+                1
+            );
 
 
         $sheet
             ->getPageSetup()
-            ->setFitToHeight(0);
+            ->setFitToHeight(
+                0
+            );
 
 
         /*
@@ -1052,7 +1445,7 @@ class ExportPengajuanSpk
         $sheet
             ->getPageSetup()
             ->setPrintArea(
-                "A1:K{$totalRow}"
+                "A1:L{$totalRow}"
             );
 
 
@@ -1105,26 +1498,84 @@ class ExportPengajuanSpk
 
 
     /**
-     * Convert nominal ke angka.
+     * =========================================================================
+     * NORMALIZE NAMA SUB
+     * =========================================================================
      *
      * Contoh:
-     * 15.415.351 -> 15415351
-     * 14.000.000 -> 14000000
+     *
+     * Pak Waya
+     * PAK WAYA
+     * pak waya
+     * Pak    Waya
+     *
+     * dianggap sebagai satu kelompok:
+     *
+     * PAK WAYA
      */
-    private static function toNumber($value)
-    {
+    private static function normalizeSub(
+        $value
+    ) {
+
+        $value =
+            trim(
+                (string) $value
+            );
+
+
+        $value =
+            preg_replace(
+                '/\s+/',
+                ' ',
+                $value
+            );
+
+
+        return strtoupper(
+            $value
+        );
+    }
+
+
+    /**
+     * =========================================================================
+     * CONVERT NOMINAL KE ANGKA
+     * =========================================================================
+     *
+     * Contoh:
+     *
+     * 15.415.351
+     *     =>
+     * 15415351
+     *
+     * 14.000.000
+     *     =>
+     * 14000000
+     *
+     * 15.415.351,50
+     *     =>
+     * 15415351.50
+     */
+    private static function toNumber(
+        $value
+    ) {
+
         if (
-            $value === null ||
+            $value === null
+            ||
             $value === ''
         ) {
+
             return 0;
         }
 
 
         if (
-            is_int($value) ||
+            is_int($value)
+            ||
             is_float($value)
         ) {
+
             return (float) $value;
         }
 
@@ -1137,7 +1588,7 @@ class ExportPengajuanSpk
 
         /*
         |--------------------------------------------------------------------------
-        | HAPUS Rp / SPASI
+        | HAPUS RP / SPASI
         |--------------------------------------------------------------------------
         */
 
@@ -1150,6 +1601,7 @@ class ExportPengajuanSpk
 
 
         if ($value === '') {
+
             return 0;
         }
 
@@ -1202,9 +1654,15 @@ class ExportPengajuanSpk
         */
 
         if (
-            strpos($value, '.') !== false
+            strpos(
+                $value,
+                '.'
+            ) !== false
             &&
-            strpos($value, ',') !== false
+            strpos(
+                $value,
+                ','
+            ) !== false
         ) {
 
             $value =
@@ -1273,9 +1731,13 @@ class ExportPengajuanSpk
 
 
             if (
-                isset($parts[1])
+                isset(
+                    $parts[1]
+                )
                 &&
-                strlen($parts[1]) === 3
+                strlen(
+                    $parts[1]
+                ) === 3
             ) {
 
                 $value =
