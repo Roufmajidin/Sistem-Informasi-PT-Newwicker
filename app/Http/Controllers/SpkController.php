@@ -30,7 +30,7 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use App\Exports\ExportPengajuanSpk;
 use App\Exports\ExportAllPaymentRequest;
-
+use App\Models\Kredit;
 class SpkController extends Controller
 {
     //
@@ -2915,7 +2915,2198 @@ class SpkController extends Controller
         );
     }
     public function exportAllPaymentRequest()
+    {
+        // dd()
+        return ExportAllPaymentRequest::export();
+    }
+
+    // rekon
+    public function setSavedRecon($id)
+    {
+        try {
+
+            DB::beginTransaction();
+
+            /*
+            |--------------------------------------------------------------------------
+            | 1. AMBIL PAYMENT REQUEST SAVED
+            |--------------------------------------------------------------------------
+            */
+
+            $saved = PaymentRequestSaved::findOrFail($id);
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | 2. AMBIL PAYMENT REQUEST IDS
+            |--------------------------------------------------------------------------
+            */
+
+            $paymentRequestIds = $saved->payment_request_ids;
+
+            if (is_string($paymentRequestIds)) {
+
+                $paymentRequestIds = json_decode(
+                    $paymentRequestIds,
+                    true
+                );
+            }
+
+            $paymentRequestIds = array_values(
+                array_filter(
+                    (array) $paymentRequestIds
+                )
+            );
+
+
+            if (empty($paymentRequestIds)) {
+
+                throw new \Exception(
+                    'Payment Request IDs tidak ditemukan pada Saved.'
+                );
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | 3. AMBIL PAYMENT REQUEST
+            |--------------------------------------------------------------------------
+            */
+
+            $paymentRequests = PaymentRequest::whereIn(
+                'id',
+                $paymentRequestIds
+            )
+                ->orderBy('id')
+                ->get();
+
+
+            if ($paymentRequests->isEmpty()) {
+
+                throw new \Exception(
+                    'Payment Request tidak ditemukan.'
+                );
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | HASIL
+            |--------------------------------------------------------------------------
+            */
+
+            $inserted = [];
+
+            $updated = [];
+
+            $skipped = [];
+
+            $totalNominal = 0;
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | 4. LOOP SEMUA PAYMENT REQUEST
+            |--------------------------------------------------------------------------
+            */
+
+            foreach ($paymentRequests as $paymentRequest) {
+
+                /*
+                |--------------------------------------------------------------------------
+                | SPK ID
+                |--------------------------------------------------------------------------
+                */
+
+                $spkId = $paymentRequest->spk_id;
+
+
+                if (!$spkId) {
+
+                    $skipped[] = [
+
+                        'payment_request_id' =>
+                            $paymentRequest->id,
+
+                        'reason' =>
+                            'SPK ID kosong.',
+                    ];
+
+                    continue;
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | 5. AMBIL SPK ASLI
+                |--------------------------------------------------------------------------
+                |
+                | BUKAN spk_snapshot.
+                |
+                | Adjustment terbaru berada di SPK.
+                |
+                */
+
+                $spk = Spk::find($spkId);
+
+
+                if (!$spk) {
+
+                    $skipped[] = [
+
+                        'payment_request_id' =>
+                            $paymentRequest->id,
+
+                        'spk_id' =>
+                            $spkId,
+
+                        'reason' =>
+                            'SPK tidak ditemukan.',
+                    ];
+
+                    continue;
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | 6. DATA SPK
+                |--------------------------------------------------------------------------
+                */
+
+                $spkData = $spk->data;
+
+
+                if (is_string($spkData)) {
+
+                    $spkData = json_decode(
+                        $spkData,
+                        true
+                    );
+                }
+
+
+                if (!is_array($spkData)) {
+                    $spkData = [];
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | 7. PAYMENT DARI SPK ASLI
+                |--------------------------------------------------------------------------
+                */
+
+                $payments =
+                    $spkData['payments']
+                    ?? [];
+
+
+                if (
+                    !is_array($payments) ||
+                    empty($payments)
+                ) {
+
+                    $skipped[] = [
+
+                        'payment_request_id' =>
+                            $paymentRequest->id,
+
+                        'spk_id' =>
+                            $spkId,
+
+                        'reason' =>
+                            'Payment pada SPK tidak ditemukan.',
+                    ];
+
+                    continue;
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | 8. PAYMENT ID PAYMENT REQUEST
+                |--------------------------------------------------------------------------
+                */
+
+                $paymentId =
+                    $paymentRequest->payment_id;
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | 9. CARI PAYMENT DI SPK
+                |--------------------------------------------------------------------------
+                */
+
+                $matchedPayment = null;
+
+
+                foreach ($payments as $payment) {
+
+                    if (
+                        !empty($paymentId)
+                        &&
+                        ($payment['payment_id'] ?? null)
+                        === $paymentId
+                    ) {
+
+                        $matchedPayment = $payment;
+
+                        break;
+                    }
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | 10. FALLBACK BERDASARKAN PR_ID
+                |--------------------------------------------------------------------------
+                */
+
+                if (!$matchedPayment) {
+
+                    foreach ($payments as $payment) {
+
+                        if (
+                            isset($payment['pr_id'])
+                            &&
+                            $payment['pr_id'] !== null
+                            &&
+                            (string) $payment['pr_id']
+                            ===
+                            (string) $paymentRequest->id
+                        ) {
+
+                            $matchedPayment = $payment;
+
+                            break;
+                        }
+                    }
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | 11. PAYMENT TIDAK DITEMUKAN
+                |--------------------------------------------------------------------------
+                */
+
+                if (!$matchedPayment) {
+
+                    $skipped[] = [
+
+                        'payment_request_id' =>
+                            $paymentRequest->id,
+
+                        'spk_id' =>
+                            $spkId,
+
+                        'payment_id' =>
+                            $paymentId,
+
+                        'reason' =>
+                            'Payment Request tidak cocok dengan payment pada SPK.',
+                    ];
+
+                    continue;
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | 12. AMOUNT ASLI SPK
+                |--------------------------------------------------------------------------
+                */
+
+                $amount = (float) (
+                    $matchedPayment['amount']
+                    ?? 0
+                );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | 13. ADJUSTMENT DARI SPK
+                |--------------------------------------------------------------------------
+                */
+
+                $adjustment = (float) (
+                    $matchedPayment['adjustment']
+                    ?? 0
+                );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | 14. TENTUKAN NOMINAL KREDIT
+                |--------------------------------------------------------------------------
+                */
+
+                if ($adjustment > 0) {
+
+                    /*
+                    | Ada recon Ainun
+                    */
+
+                    $nominal =
+                        $adjustment;
+
+                    $ketExtra =
+                        'RECON';
+
+                } else {
+
+                    /*
+                    | Tidak ada recon
+                    */
+
+                    $nominal =
+                        $amount;
+
+                    $ketExtra =
+                        null;
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | 15. VALIDASI NOMINAL
+                |--------------------------------------------------------------------------
+                */
+
+                if ($nominal <= 0) {
+
+                    $skipped[] = [
+
+                        'payment_request_id' =>
+                            $paymentRequest->id,
+
+                        'spk_id' =>
+                            $spkId,
+
+                        'payment_id' =>
+                            $paymentId,
+
+                        'amount' =>
+                            $amount,
+
+                        'adjustment' =>
+                            $adjustment,
+
+                        'reason' =>
+                            'Nominal payment 0.',
+                    ];
+
+                    continue;
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | 16. KETERANGAN PAYMENT
+                |--------------------------------------------------------------------------
+                */
+
+                $ket = strtoupper(
+                    trim(
+                        $matchedPayment['note']
+                        ?? 'PAYMENT'
+                    )
+                );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | 17. CEK APAKAH SUDAH ADA DI KREDIT
+                |--------------------------------------------------------------------------
+                */
+
+                $existing = Kredit::query()
+                    ->where(
+                        'spk_id',
+                        $spkId
+                    )
+                    ->where(
+                        'payment_requests_id',
+                        $paymentRequest->id
+                    )
+                    ->where(
+                        'payment_request_saved_id',
+                        $saved->id
+                    )
+                    ->first();
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | 18. UPDATE JIKA SUDAH ADA
+                |--------------------------------------------------------------------------
+                */
+
+                if ($existing) {
+
+                    $existing->nominal =
+                        $nominal;
+
+                    $existing->ket =
+                        $ket;
+
+                    $existing->ket_extra =
+                        $ketExtra;
+
+                    $existing->save();
+
+
+                    $updated[] = [
+
+                        'kredit_id' =>
+                            $existing->id,
+
+                        'spk_id' =>
+                            $spkId,
+
+                        'payment_request_id' =>
+                            $paymentRequest->id,
+
+                        'payment_id' =>
+                            $paymentId,
+
+                        'amount_asli' =>
+                            $amount,
+
+                        'adjustment_recon' =>
+                            $adjustment,
+
+                        'nominal_kredit' =>
+                            $nominal,
+
+                        'ket' =>
+                            $ket,
+
+                        'ket_extra' =>
+                            $ketExtra,
+                    ];
+
+
+                    $totalNominal +=
+                        $nominal;
+
+
+                    continue;
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | 19. INSERT KE TABEL KREDIT
+                |--------------------------------------------------------------------------
+                */
+
+                $kredit = Kredit::create([
+
+                    'spk_id' =>
+                        $spkId,
+
+                    'payment_requests_id' =>
+                        $paymentRequest->id,
+
+                    'nominal' =>
+                        $nominal,
+
+                    'ket' =>
+                        $ket,
+
+                    'payment_request_saved_id' =>
+                        $saved->id,
+
+                    'ket_extra' =>
+                        $ketExtra,
+
+                ]);
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | TOTAL
+                |--------------------------------------------------------------------------
+                */
+
+                $totalNominal +=
+                    $nominal;
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | HASIL INSERT
+                |--------------------------------------------------------------------------
+                */
+
+                $inserted[] = [
+
+                    'kredit_id' =>
+                        $kredit->id,
+
+                    'spk_id' =>
+                        $spkId,
+
+                    'payment_request_id' =>
+                        $paymentRequest->id,
+
+                    'payment_request_saved_id' =>
+                        $saved->id,
+
+                    'payment_id' =>
+                        $paymentId,
+
+                    'no_spk' =>
+                        $spkData['no_spk']
+                        ?? $paymentRequest->no_spk,
+
+                    'supplier' =>
+                        $spkData['sup']
+                        ?? $paymentRequest->supplier,
+
+                    'tanggal' =>
+                        $matchedPayment['date']
+                        ?? null,
+
+                    'amount_asli' =>
+                        $amount,
+
+                    'adjustment_recon' =>
+                        $adjustment,
+
+                    'nominal_kredit' =>
+                        $nominal,
+
+                    'ket' =>
+                        $ket,
+
+                    'ket_extra' =>
+                        $ketExtra,
+                ];
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | 20. SET AINUN RECON SELESAI
+            |--------------------------------------------------------------------------
+            |
+            | SETELAH BULK KREDIT BERHASIL
+            |
+            */
+
+            $saved->ainun_saved_recon = 1;
+
+            $saved->save();
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | 21. COMMIT
+            |--------------------------------------------------------------------------
+            */
+
+            DB::commit();
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | 22. RESPONSE
+            |--------------------------------------------------------------------------
+            */
+
+            return response()->json([
+
+                'success' =>
+                    true,
+
+                'message' =>
+                    'Recon Ainun berhasil diselesaikan dan data berhasil masuk ke Kredit.',
+
+                'saved_id' =>
+                    $saved->id,
+
+                'request_no' =>
+                    $saved->request_no,
+
+                'ainun_saved_recon' =>
+                    $saved->ainun_saved_recon,
+
+                'payment_request_count' =>
+                    count($paymentRequestIds),
+
+                'inserted_count' =>
+                    count($inserted),
+
+                'updated_count' =>
+                    count($updated),
+
+                'skipped_count' =>
+                    count($skipped),
+
+                'total_nominal' =>
+                    $totalNominal,
+
+                'inserted' =>
+                    $inserted,
+
+                'updated' =>
+                    $updated,
+
+                'skipped' =>
+                    $skipped,
+
+            ]);
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            \Log::error(
+                'GAGAL SET AINUN RECON + BULK KREDIT',
+                [
+                    'saved_id' =>
+                        $id,
+
+                    'error' =>
+                        $e->getMessage(),
+
+                    'line' =>
+                        $e->getLine(),
+
+                    'file' =>
+                        $e->getFile(),
+                ]
+            );
+
+
+            return response()->json([
+
+                'success' =>
+                    false,
+
+                'message' =>
+                    'Gagal menyelesaikan recon Ainun.',
+
+                'error' =>
+                    $e->getMessage(),
+
+            ], 500);
+        }
+    }
+    // hutang
+   public function hutang()
 {
-    return ExportAllPaymentRequest::export();
+    /*
+    |--------------------------------------------------------------------------
+    | 1. AMBIL SEMUA SPK
+    |--------------------------------------------------------------------------
+    */
+
+    $spks = Spk::query()
+        ->orderBy('id')
+        ->get();
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 2. AMBIL SEMUA KREDIT
+    |--------------------------------------------------------------------------
+    |
+    | Tabel kredit adalah sumber pembayaran Kreditor.
+    |
+    | Termasuk:
+    | - Sebelum ERP
+    | - Payment Request
+    | - Recon
+    |
+    */
+
+    $kredits = Kredit::query()
+        ->orderBy('id')
+        ->get()
+        ->groupBy('spk_id');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 3. PAYMENT REQUEST YANG TERKAIT KREDIT
+    |--------------------------------------------------------------------------
+    */
+
+    $paymentRequestIds = $kredits
+        ->flatten()
+        ->pluck('payment_requests_id')
+        ->filter()
+        ->unique()
+        ->values();
+
+
+    $paymentRequests = collect();
+
+
+    if ($paymentRequestIds->isNotEmpty()) {
+
+        $paymentRequests = PaymentRequest::query()
+            ->whereIn(
+                'id',
+                $paymentRequestIds
+            )
+            ->get()
+            ->keyBy('id');
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 4. PAYMENT REQUEST SAVED
+    |--------------------------------------------------------------------------
+    */
+
+    $savedIds = $kredits
+        ->flatten()
+        ->pluck('payment_request_saved_id')
+        ->filter()
+        ->unique()
+        ->values();
+
+
+    $savedRequests = collect();
+
+
+    if ($savedIds->isNotEmpty()) {
+
+        $savedRequests = PaymentRequestSaved::query()
+            ->whereIn(
+                'id',
+                $savedIds
+            )
+            ->get()
+            ->keyBy('id');
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 5. ROW KREDITOR
+    |--------------------------------------------------------------------------
+    */
+
+    $rows = collect();
+
+
+    foreach ($spks as $spk) {
+
+        /*
+        |--------------------------------------------------------------------------
+        | DATA SPK
+        |--------------------------------------------------------------------------
+        */
+
+        $data = $spk->data;
+
+
+        if (is_string($data)) {
+
+            $data = json_decode(
+                $data,
+                true
+            );
+        }
+
+
+        if (!is_array($data)) {
+
+            $data = [];
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | IDENTITAS SPK
+        |--------------------------------------------------------------------------
+        */
+
+        $noSpk = $data['no_spk']
+            ?? $spk->no_spk
+            ?? '-';
+
+
+        $noPo = $data['no_po']
+            ?? $spk->no_po
+            ?? '-';
+
+
+        $supplier = $data['sup']
+            ?? $spk->supplier
+            ?? '-';
+
+
+        $kategori = $data['kategori']
+            ?? $spk->kategori
+            ?? 'SPK';
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | TIMELINE SPK
+        |--------------------------------------------------------------------------
+        */
+
+        $tglTerima =
+            $data['tgl_terima']
+            ?? null;
+
+
+        $tglSelesai =
+            $data['tgl_selesai']
+            ?? null;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | ITEMS
+        |--------------------------------------------------------------------------
+        */
+
+        $items =
+            $data['items']
+            ?? [];
+
+
+        if (!is_array($items)) {
+
+            $items = [];
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | TOTAL PEMBELIAN
+        |--------------------------------------------------------------------------
+        */
+
+        $pembelian = 0;
+
+
+        foreach ($items as $item) {
+
+            $qty = (float) (
+                $item['qty']
+                ?? 0
+            );
+
+
+            $harga = (float) (
+                $item['harga']
+                ?? 0
+            );
+
+
+            $totalItem = isset(
+                $item['total']
+            )
+                ? (float) $item['total']
+                : (
+                    $qty * $harga
+                );
+
+
+            $pembelian +=
+                $totalItem;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | PAYMENTS SPK
+        |--------------------------------------------------------------------------
+        */
+
+        $payments =
+            $data['payments']
+            ?? [];
+
+
+        if (!is_array($payments)) {
+
+            $payments = [];
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | POTONGAN BAHAN
+        |--------------------------------------------------------------------------
+        */
+
+        $potonganBahan = 0;
+
+        $timelineBahan = [];
+
+
+        foreach ($payments as $payment) {
+
+            $note = strtolower(
+                trim(
+                    $payment['note']
+                    ?? ''
+                )
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | PAYMENT BAHAN
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                $note === 'bahan'
+                ||
+                str_contains(
+                    $note,
+                    'bahan'
+                )
+            ) {
+
+                $amount = (float) (
+                    $payment['amount']
+                    ?? 0
+                );
+
+
+                $adjustment = (float) (
+                    $payment['adjustment']
+                    ?? 0
+                );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | JIKA ADA ADJUSTMENT
+                |--------------------------------------------------------------------------
+                */
+
+                $nominalBahan =
+                    $adjustment > 0
+                        ? $adjustment
+                        : $amount;
+
+
+                $potonganBahan +=
+                    $nominalBahan;
+
+
+                $timelineBahan[] = [
+
+                    'date' =>
+                        $payment['date']
+                        ?? null,
+
+                    'amount' =>
+                        $amount,
+
+                    'adjustment' =>
+                        $adjustment,
+
+                    'nominal' =>
+                        $nominalBahan,
+
+                    'payment_id' =>
+                        $payment['payment_id']
+                        ?? null,
+
+                    'note' =>
+                        $payment['note']
+                        ?? 'Bahan',
+
+                    'note_tambahan' =>
+                        $payment['note_tambahan']
+                        ?? null,
+                ];
+            }
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | KREDIT SPK
+        |--------------------------------------------------------------------------
+        */
+
+        $spkKredits = $kredits->get(
+            $spk->id,
+            collect()
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | DETAIL SEBELUM ERP
+        |--------------------------------------------------------------------------
+        */
+
+        $sebelumErpDetails = $spkKredits
+            ->filter(function ($kredit) {
+
+                return strtolower(
+                    trim(
+                        $kredit->ket_extra
+                        ?? ''
+                    )
+                ) === 'sebelum erp';
+
+            })
+            ->values();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | TOTAL SEBELUM ERP
+        |--------------------------------------------------------------------------
+        */
+
+        $totalSebelumErp =
+            $sebelumErpDetails->sum(
+                function ($kredit) {
+
+                    return (float) (
+                        $kredit->nominal
+                        ?? 0
+                    );
+                }
+            );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | DETAIL PEMBAYARAN PENGAJUAN
+        |--------------------------------------------------------------------------
+        |
+        | Semua kredit selain Sebelum ERP.
+        |
+        */
+
+        $pengajuanDetails = $spkKredits
+            ->filter(function ($kredit) {
+
+                return strtolower(
+                    trim(
+                        $kredit->ket_extra
+                        ?? ''
+                    )
+                ) !== 'sebelum erp';
+
+            })
+            ->values();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | TOTAL PEMBAYARAN
+        |--------------------------------------------------------------------------
+        |
+        | SEMUA yang ada di tabel kredit.
+        |
+        */
+
+        $pembayaran =
+            $spkKredits->sum(
+                function ($kredit) {
+
+                    return (float) (
+                        $kredit->nominal
+                        ?? 0
+                    );
+                }
+            );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | DETAIL PEMBAYARAN UNTUK HOVER
+        |--------------------------------------------------------------------------
+        */
+
+        $paymentDetails = [];
+
+
+        foreach ($spkKredits as $kredit) {
+
+            $isSebelumErp =
+                strtolower(
+                    trim(
+                        $kredit->ket_extra
+                        ?? ''
+                    )
+                ) === 'sebelum erp';
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | PAYMENT REQUEST
+            |--------------------------------------------------------------------------
+            */
+
+            $paymentRequest = null;
+
+
+            if ($kredit->payment_requests_id) {
+
+                $paymentRequest =
+                    $paymentRequests->get(
+                        $kredit->payment_requests_id
+                    );
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | SAVED
+            |--------------------------------------------------------------------------
+            */
+
+            $saved = null;
+
+
+            if ($kredit->payment_request_saved_id) {
+
+                $saved =
+                    $savedRequests->get(
+                        $kredit->payment_request_saved_id
+                    );
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | RECON
+            |--------------------------------------------------------------------------
+            */
+
+            $isRecon =
+                strtoupper(
+                    trim(
+                        $kredit->ket_extra
+                        ?? ''
+                    )
+                ) === 'RECON';
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | REQUEST NO
+            |--------------------------------------------------------------------------
+            */
+
+            $requestNo =
+                $paymentRequest->request_no
+                ?? $saved->request_no
+                ?? null;
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | REQUEST DATE
+            |--------------------------------------------------------------------------
+            */
+
+            $requestDate = null;
+
+
+            if (
+                $paymentRequest
+                &&
+                $paymentRequest->request_date
+            ) {
+
+                $requestDate =
+                    $paymentRequest
+                        ->request_date
+                        ->format('d/m/Y');
+
+            } elseif (
+                $saved
+                &&
+                $saved->request_date
+            ) {
+
+                $requestDate =
+                    $saved
+                        ->request_date
+                        ->format('d/m/Y');
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | PAYMENT DETAIL
+            |--------------------------------------------------------------------------
+            */
+
+            $paymentDetails[] = [
+
+                'kredit_id' =>
+                    $kredit->id,
+
+                'payment_request_id' =>
+                    $kredit->payment_requests_id,
+
+                'saved_id' =>
+                    $kredit->payment_request_saved_id,
+
+                'request_no' =>
+                    $requestNo,
+
+                'request_date' =>
+                    $requestDate,
+
+                'nominal' =>
+                    (float) (
+                        $kredit->nominal
+                        ?? 0
+                    ),
+
+                'ket' =>
+                    $kredit->ket
+                    ?? '-',
+
+                'ket_extra' =>
+                    $kredit->ket_extra
+                    ?? null,
+
+                'is_sebelum_erp' =>
+                    $isSebelumErp,
+
+                'is_recon' =>
+                    $isRecon,
+
+                'saved_recon' =>
+                    $saved
+                    ? (
+                        (int)
+                        $saved->ainun_saved_recon === 1
+                    )
+                    : false,
+            ];
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | DETAIL RECON
+        |--------------------------------------------------------------------------
+        */
+
+        $reconDetails =
+            collect(
+                $paymentDetails
+            )
+            ->filter(function ($payment) {
+
+                return $payment['is_recon'] === true;
+            })
+            ->values()
+            ->toArray();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | TOTAL RECON
+        |--------------------------------------------------------------------------
+        */
+
+        $totalRecon =
+            collect(
+                $reconDetails
+            )->sum(function ($item) {
+
+                return (float) (
+                    $item['nominal']
+                    ?? 0
+                );
+            });
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SALDO AKHIR
+        |--------------------------------------------------------------------------
+        |
+        | Pembelian
+        | - Potongan Bahan
+        | - Semua Kredit
+        |
+        */
+
+        $saldoAkhir =
+            $pembelian
+            -
+            $potonganBahan
+            -
+            $pembayaran;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | STATUS
+        |--------------------------------------------------------------------------
+        */
+
+        $term =
+            $saldoAkhir <= 0
+                ? 'Lunas'
+                : 'Belum Lunas';
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SORT TIMELINE BAHAN
+        |--------------------------------------------------------------------------
+        */
+
+        usort(
+            $timelineBahan,
+            function ($a, $b) {
+
+                return strcmp(
+                    (string) (
+                        $a['date']
+                        ?? ''
+                    ),
+                    (string) (
+                        $b['date']
+                        ?? ''
+                    )
+                );
+            }
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | PUSH ROW
+        |--------------------------------------------------------------------------
+        */
+
+        $rows->push([
+
+            'no' =>
+                $rows->count() + 1,
+
+            'spk_id' =>
+                $spk->id,
+
+            'kategori' =>
+                $kategori,
+
+            'tgl_invoice' =>
+                $tglTerima,
+
+            'no_spk' =>
+                $noSpk,
+
+            'no_invoice_spk' =>
+                $noSpk,
+
+            'no_po' =>
+                $noPo,
+
+            'tanggal_jt' =>
+                $tglSelesai,
+
+            'supplier' =>
+                $supplier,
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | KEUANGAN
+            |--------------------------------------------------------------------------
+            */
+
+            'pembelian' =>
+                $pembelian,
+
+            'potongan_bahan' =>
+                $potonganBahan,
+
+            'pembayaran' =>
+                $pembayaran,
+
+            'saldo_akhir' =>
+                $saldoAkhir,
+
+            'term' =>
+                $term,
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | SEBELUM ERP
+            |--------------------------------------------------------------------------
+            */
+
+            'sebelum_erp' =>
+                $totalSebelumErp,
+
+            'sebelum_erp_details' =>
+                $sebelumErpDetails
+                    ->map(function ($kredit) {
+
+                        return [
+
+                            'id' =>
+                                $kredit->id,
+
+                            'nominal' =>
+                                (float) $kredit->nominal,
+
+                            'ket' =>
+                                $kredit->ket,
+
+                            'ket_extra' =>
+                                $kredit->ket_extra,
+
+                        ];
+
+                    })
+                    ->values()
+                    ->toArray(),
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | PAYMENT DETAIL
+            |--------------------------------------------------------------------------
+            */
+
+            'payment_details' =>
+                $paymentDetails,
+
+            'pengajuan_details' =>
+                $pengajuanDetails
+                    ->map(function ($kredit) {
+
+                        return [
+
+                            'id' =>
+                                $kredit->id,
+
+                            'payment_request_id' =>
+                                $kredit->payment_requests_id,
+
+                            'saved_id' =>
+                                $kredit->payment_request_saved_id,
+
+                            'nominal' =>
+                                (float) $kredit->nominal,
+
+                            'ket' =>
+                                $kredit->ket,
+
+                            'ket_extra' =>
+                                $kredit->ket_extra,
+
+                        ];
+
+                    })
+                    ->values()
+                    ->toArray(),
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | RECON
+            |--------------------------------------------------------------------------
+            */
+
+            'recon_details' =>
+                $reconDetails,
+
+            'total_recon' =>
+                $totalRecon,
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | BAHAN
+            |--------------------------------------------------------------------------
+            */
+
+            'timeline_bahan' =>
+                $timelineBahan,
+
+            'total_timeline_bahan' =>
+                count($timelineBahan),
+
+        ]);
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | TOTAL
+    |--------------------------------------------------------------------------
+    */
+
+    $totalSpk =
+        $rows->sum(function ($row) {
+
+            return (float) (
+                $row['pembelian']
+                ?? 0
+            );
+        });
+
+
+    $totalPotonganBahan =
+        $rows->sum(function ($row) {
+
+            return (float) (
+                $row['potongan_bahan']
+                ?? 0
+            );
+        });
+
+
+    $totalPembayaran =
+        $rows->sum(function ($row) {
+
+            return (float) (
+                $row['pembayaran']
+                ?? 0
+            );
+        });
+
+
+    $totalSebelumErp =
+        $rows->sum(function ($row) {
+
+            return (float) (
+                $row['sebelum_erp']
+                ?? 0
+            );
+        });
+
+
+    $totalHutang =
+        $rows->sum(function ($row) {
+
+            return (float) (
+                $row['saldo_akhir']
+                ?? 0
+            );
+        });
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | RETURN
+    |--------------------------------------------------------------------------
+    */
+
+    return view(
+        'pages.kreditor.index',
+        compact(
+            'rows',
+            'totalSpk',
+            'totalPotonganBahan',
+            'totalPembayaran',
+            'totalSebelumErp',
+            'totalHutang'
+        )
+    );
 }
+    private function findOriginalPaymentAmount(
+        $payments,
+        $paymentId
+    ) {
+        if (
+            empty($paymentId)
+            ||
+            !is_array($payments)
+        ) {
+            return 0;
+        }
+
+
+        foreach ($payments as $payment) {
+
+            if (
+                ($payment['payment_id'] ?? null)
+                === $paymentId
+            ) {
+
+                return (float) (
+                    $payment['amount']
+                    ?? 0
+                );
+            }
+        }
+
+
+        return 0;
+    }
+    // jumping 
+
+
+    public function jump()
+    {
+        $spks = Spk::query()
+            ->orderBy('id')
+            ->get();
+
+        $result = [];
+
+        foreach ($spks as $spk) {
+
+            $data = $spk->data;
+
+            if (is_string($data)) {
+                $data = json_decode($data, true) ?? [];
+            }
+
+            if (!is_array($data)) {
+                continue;
+            }
+
+            $payments = $data['payments'] ?? [];
+
+            if (!is_array($payments) || count($payments) < 2) {
+                continue;
+            }
+
+            $isJanggal = false;
+
+            foreach ($payments as $i => $payment) {
+
+                if (!isset($payments[$i + 1])) {
+                    continue;
+                }
+
+                $current = filter_var(
+                    $payment['is_request'] ?? false,
+                    FILTER_VALIDATE_BOOLEAN
+                );
+
+                $next = filter_var(
+                    $payments[$i + 1]['is_request'] ?? false,
+                    FILTER_VALIDATE_BOOLEAN
+                );
+
+                if (
+                    $current === false &&
+                    $next === true
+                ) {
+                    $isJanggal = true;
+                    break;
+                }
+            }
+
+            if (!$isJanggal) {
+                continue;
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | CARI POSISI FALSE -> TRUE
+            |--------------------------------------------------------------------------
+            */
+
+            $transitionIndex = null;
+
+            foreach ($payments as $i => $payment) {
+
+                if (!isset($payments[$i + 1])) {
+                    continue;
+                }
+
+                $current = filter_var(
+                    $payment['is_request'] ?? false,
+                    FILTER_VALIDATE_BOOLEAN
+                );
+
+                $next = filter_var(
+                    $payments[$i + 1]['is_request'] ?? false,
+                    FILTER_VALIDATE_BOOLEAN
+                );
+
+                if (
+                    $current === false &&
+                    $next === true
+                ) {
+                    $transitionIndex = $i;
+                    break;
+                }
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | PAYMENT SEBELUM ERP
+            |--------------------------------------------------------------------------
+            */
+
+            $beforeErp = [];
+
+            if ($transitionIndex !== null) {
+
+                for ($i = 0; $i <= $transitionIndex; $i++) {
+
+                    $payment = $payments[$i];
+
+                    $beforeErp[] = [
+                        'index' => $i,
+                        'date' => $payment['date'] ?? null,
+                        'note' => $payment['note'] ?? null,
+                        'amount' => (float) (
+                            $payment['amount'] ?? 0
+                        ),
+                        'is_request' => filter_var(
+                            $payment['is_request'] ?? false,
+                            FILTER_VALIDATE_BOOLEAN
+                        ),
+                        'payment_id' => $payment['payment_id'] ?? null,
+                        'pr_id' => $payment['pr_id'] ?? null,
+                    ];
+                }
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | PAYMENT PERTAMA YANG REQUEST
+            |--------------------------------------------------------------------------
+            */
+
+            $firstRequest = null;
+
+            if (
+                $transitionIndex !== null &&
+                isset($payments[$transitionIndex + 1])
+            ) {
+
+                $payment = $payments[$transitionIndex + 1];
+
+                $firstRequest = [
+                    'index' =>
+                        $transitionIndex + 1,
+
+                    'date' =>
+                        $payment['date'] ?? null,
+
+                    'note' =>
+                        $payment['note'] ?? null,
+
+                    'amount' =>
+                        (float) (
+                            $payment['amount'] ?? 0
+                        ),
+
+                    'is_request' =>
+                        true,
+
+                    'payment_id' =>
+                        $payment['payment_id'] ?? null,
+
+                    'pr_id' =>
+                        $payment['pr_id'] ?? null,
+                ];
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | TOTAL SEBELUM ERP
+            |--------------------------------------------------------------------------
+            */
+
+            $beforeErpTotal = collect($beforeErp)
+                ->sum('amount');
+
+            /*
+            |--------------------------------------------------------------------------
+            | SELURUH PAYMENT UNTUK TIMELINE
+            |--------------------------------------------------------------------------
+            */
+
+            $paymentTimeline = collect($payments)
+                ->map(function ($payment, $index) {
+
+                    return [
+                        'index' =>
+                            $index,
+
+                        'date' =>
+                            $payment['date'] ?? null,
+
+                        'note' =>
+                            $payment['note'] ?? null,
+
+                        'amount' =>
+                            (float) (
+                                $payment['amount'] ?? 0
+                            ),
+
+                        'is_request' =>
+                            filter_var(
+                                $payment['is_request'] ?? false,
+                                FILTER_VALIDATE_BOOLEAN
+                            ),
+
+                        'payment_id' =>
+                            $payment['payment_id'] ?? null,
+
+                        'pr_id' =>
+                            $payment['pr_id'] ?? null,
+
+                        'adjustment' =>
+                            (float) (
+                                $payment['adjustment'] ?? 0
+                            ),
+                    ];
+
+                })
+                ->values()
+                ->toArray();
+
+            /*
+            |--------------------------------------------------------------------------
+            | RESULT
+            |--------------------------------------------------------------------------
+            */
+
+            $result[] = [
+
+                'SPK_ID' =>
+                    $spk->id,
+
+                'NO_SPK' =>
+                    $data['no_spk'] ?? null,
+
+                'NO_PO' =>
+                    $data['no_po'] ?? null,
+
+                'SUPPLIER' =>
+                    $data['sup'] ?? null,
+
+                'KATEGORI' =>
+                    $data['kategori'] ?? null,
+
+                'TRANSITION_INDEX' =>
+                    $transitionIndex,
+
+                'BEFORE_ERP' =>
+                    $beforeErp,
+
+                'BEFORE_ERP_TOTAL' =>
+                    $beforeErpTotal,
+
+                'FIRST_REQUEST' =>
+                    $firstRequest,
+
+                'PAYMENT_TIMELINE' =>
+                    $paymentTimeline,
+            ];
+        }
+
+        return view(
+            'pages.kreditor.janggal',
+            compact('result')
+        );
+    }
+    // bulk sementara
+    public function bulkGenerate($status = 'dp')
+    {
+        $status = strtolower(trim($status));
+
+        if (!in_array($status, ['dp', 'kasbon'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Status hanya boleh dp atau kasbon.',
+            ], 422);
+        }
+
+        $spks = Spk::query()
+            ->orderBy('id')
+            ->get();
+
+        $inserted = [];
+        $skipped = [];
+
+        DB::beginTransaction();
+
+        try {
+
+            foreach ($spks as $spk) {
+
+                $data = $spk->data;
+
+                if (is_string($data)) {
+                    $data = json_decode($data, true) ?? [];
+                }
+
+                if (!is_array($data)) {
+                    continue;
+                }
+
+                $payments = $data['payments'] ?? [];
+
+                if (!is_array($payments) || empty($payments)) {
+                    continue;
+                }
+
+
+                foreach ($payments as $payment) {
+
+                    $note = strtolower(
+                        trim($payment['note'] ?? '')
+                    );
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | FILTER SESUAI STATUS
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if ($status === 'dp') {
+
+                        if ($note !== 'dp') {
+                            continue;
+                        }
+
+                        $ket = 'DP';
+
+                    } else {
+
+                        if ($note !== 'kasbon') {
+                            continue;
+                        }
+
+                        $ket = 'KASBON';
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | HANYA PAYMENT YANG BELUM REQUEST
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $isRequest = filter_var(
+                        $payment['is_request'] ?? false,
+                        FILTER_VALIDATE_BOOLEAN
+                    );
+
+                    if ($isRequest) {
+                        continue;
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | NOMINAL
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $nominal = (float) (
+                        $payment['amount'] ?? 0
+                    );
+
+                    if ($nominal <= 0) {
+                        continue;
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | PAYMENT ID
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $paymentId =
+                        $payment['payment_id']
+                        ?? null;
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | CEK DUPLIKASI
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $query = Kredit::where('spk_id', $spk->id)
+                        ->where('ket', $ket)
+                        ->where('ket_extra', 'Sebelum ERP')
+                        ->where('nominal', $nominal);
+
+                    if ($paymentId) {
+
+                        /*
+                        | Karena tabel kredit saat ini belum punya
+                        | kolom payment_id, sementara gunakan
+                        | kombinasi SPK + ket + nominal.
+                        */
+
+                        $alreadyExists = $query->exists();
+
+                    } else {
+
+                        $alreadyExists = $query->exists();
+                    }
+
+
+                    if ($alreadyExists) {
+
+                        $skipped[] = [
+
+                            'spk_id' =>
+                                $spk->id,
+
+                            'no_spk' =>
+                                $data['no_spk'] ?? null,
+
+                            'supplier' =>
+                                $data['sup'] ?? null,
+
+                            'payment_id' =>
+                                $paymentId,
+
+                            'nominal' =>
+                                $nominal,
+
+                            'ket' =>
+                                $ket,
+
+                            'reason' =>
+                                'Sudah ada',
+
+                        ];
+
+                        continue;
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | INSERT
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $kredit = Kredit::create([
+
+                        'spk_id' =>
+                            $spk->id,
+
+                        'payment_requests_id' =>
+                            null,
+
+                        'nominal' =>
+                            $nominal,
+
+                        'ket' =>
+                            $ket,
+
+                        'payment_request_saved_id' =>
+                            null,
+
+                        'ket_extra' =>
+                            'Sebelum ERP',
+
+                    ]);
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | HASIL
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $inserted[] = [
+
+                        'kredit_id' =>
+                            $kredit->id,
+
+                        'spk_id' =>
+                            $spk->id,
+
+                        'no_spk' =>
+                            $data['no_spk'] ?? null,
+
+                        'supplier' =>
+                            $data['sup'] ?? null,
+
+                        'tanggal' =>
+                            $payment['date'] ?? null,
+
+                        'payment_id' =>
+                            $paymentId,
+
+                        'nominal' =>
+                            $nominal,
+
+                        'ket' =>
+                            $ket,
+
+                        'ket_extra' =>
+                            'Sebelum ERP',
+
+                    ];
+                }
+            }
+
+
+            DB::commit();
+
+
+            return response()->json([
+
+                'success' =>
+                    true,
+
+                'status' =>
+                    $status,
+
+                'message' =>
+                    'Bulk ' . strtoupper($status) .
+                    ' berhasil diproses.',
+
+                'inserted_count' =>
+                    count($inserted),
+
+                'skipped_count' =>
+                    count($skipped),
+
+                'inserted' =>
+                    $inserted,
+
+                'skipped' =>
+                    $skipped,
+
+            ]);
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+
+                'success' =>
+                    false,
+
+                'message' =>
+                    'Bulk generate gagal.',
+
+                'error' =>
+                    $e->getMessage(),
+
+                'line' =>
+                    $e->getLine(),
+
+            ], 500);
+        }
+    }
 }

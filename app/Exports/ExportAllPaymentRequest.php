@@ -3,6 +3,7 @@
 namespace App\Exports;
 
 use App\Models\PaymentRequest;
+use App\Models\PaymentRequestSaved;
 use App\Models\User;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -28,14 +29,147 @@ class ExportAllPaymentRequest
 
         /*
         |--------------------------------------------------------------------------
-        | GROUP BERDASARKAN NO SPK
+        | AMBIL SEMUA PAYMENT REQUEST SAVED
+        |--------------------------------------------------------------------------
+        |
+        | SUMBER TGL PENGAJUAN
+        |
+        | payment_request_saveds.request_date
+        |
+        */
+
+        $savedRequests = PaymentRequestSaved::query()
+            ->orderBy('request_date')
+            ->orderBy('id')
+            ->get();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | MAPPING PAYMENT REQUEST ID -> SAVED
+        |--------------------------------------------------------------------------
+        |
+        | Contoh:
+        |
+        | payment_request_saveds
+        |
+        | id                  = 25
+        | request_date        = 2026-08-14
+        | payment_request_ids = ["384"]
+        |
+        | Maka:
+        |
+        | 384 => 2026-08-14
+        |
+        */
+
+        $savedRequestMap = [];
+
+
+        foreach (
+            $savedRequests
+            as $saved
+        ) {
+
+            $paymentRequestIds =
+                $saved->payment_request_ids
+                ?? [];
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | JIKA JSON STRING
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                is_string(
+                    $paymentRequestIds
+                )
+            ) {
+
+                $paymentRequestIds =
+                    json_decode(
+                        $paymentRequestIds,
+                        true
+                    )
+                    ?? [];
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | VALIDASI ARRAY
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                !is_array(
+                    $paymentRequestIds
+                )
+            ) {
+
+                continue;
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | MAP SETIAP PAYMENT REQUEST
+            |--------------------------------------------------------------------------
+            */
+
+            foreach (
+                $paymentRequestIds
+                as $paymentRequestId
+            ) {
+
+                /*
+                |--------------------------------------------------------------------------
+                | RAW REQUEST DATE
+                |--------------------------------------------------------------------------
+                |
+                | Sengaja menggunakan getRawOriginal()
+                | supaya tidak terkena pergeseran timezone.
+                |
+                */
+
+                $rawRequestDate =
+                    $saved->getRawOriginal(
+                        'request_date'
+                    );
+
+
+                $savedRequestMap[
+                    (string) $paymentRequestId
+                ] = [
+
+                    'saved_id' =>
+                        $saved->id,
+
+                    'request_no' =>
+                        $saved->request_no,
+
+                    'request_date' =>
+                        $rawRequestDate,
+                ];
+            }
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | GROUP PAYMENT REQUEST BERDASARKAN NO SPK
         |--------------------------------------------------------------------------
         */
 
         $groups = [];
 
 
-        foreach ($paymentRequests as $request) {
+        foreach (
+            $paymentRequests
+            as $request
+        ) {
 
             /*
             |--------------------------------------------------------------------------
@@ -43,17 +177,29 @@ class ExportAllPaymentRequest
             |--------------------------------------------------------------------------
             */
 
-            $snapshot = $request->spk_snapshot;
+            $snapshot =
+                $request->spk_snapshot;
 
-            if (is_string($snapshot)) {
 
-                $snapshot = json_decode(
-                    $snapshot,
-                    true
-                );
+            if (
+                is_string(
+                    $snapshot
+                )
+            ) {
+
+                $snapshot =
+                    json_decode(
+                        $snapshot,
+                        true
+                    );
             }
 
-            if (!is_array($snapshot)) {
+
+            if (
+                !is_array(
+                    $snapshot
+                )
+            ) {
 
                 $snapshot = [];
             }
@@ -74,23 +220,57 @@ class ExportAllPaymentRequest
 
             /*
             |--------------------------------------------------------------------------
+            | FALLBACK KE PAYMENT REQUEST
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                $noSpk === ''
+            ) {
+
+                $noSpk =
+                    trim(
+                        $request->no_spk
+                        ?? ''
+                    );
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
             | FALLBACK KE SPK
             |--------------------------------------------------------------------------
             */
 
-            if ($noSpk === '' && $request->spk) {
+            if (
+                $noSpk === ''
+                &&
+                $request->spk
+            ) {
 
-                $spkData = $request->spk->data;
+                $spkData =
+                    $request->spk->data;
 
-                if (is_string($spkData)) {
 
-                    $spkData = json_decode(
-                        $spkData,
-                        true
-                    );
+                if (
+                    is_string(
+                        $spkData
+                    )
+                ) {
+
+                    $spkData =
+                        json_decode(
+                            $spkData,
+                            true
+                        );
                 }
 
-                if (is_array($spkData)) {
+
+                if (
+                    is_array(
+                        $spkData
+                    )
+                ) {
 
                     $noSpk =
                         trim(
@@ -107,7 +287,9 @@ class ExportAllPaymentRequest
             |--------------------------------------------------------------------------
             */
 
-            if ($noSpk === '') {
+            if (
+                $noSpk === ''
+            ) {
 
                 $noSpk =
                     'TANPA-SPK';
@@ -116,7 +298,7 @@ class ExportAllPaymentRequest
 
             /*
             |--------------------------------------------------------------------------
-            | GROUP
+            | NORMALIZE GROUP KEY
             |--------------------------------------------------------------------------
             */
 
@@ -130,11 +312,25 @@ class ExportAllPaymentRequest
                 );
 
 
-            if (!isset($groups[$groupKey])) {
+            /*
+            |--------------------------------------------------------------------------
+            | CREATE GROUP
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                !isset(
+                    $groups[$groupKey]
+                )
+            ) {
 
                 $groups[$groupKey] = [
-                    'no_spk' => $noSpk,
-                    'items' => [],
+
+                    'no_spk' =>
+                        $noSpk,
+
+                    'items' =>
+                        [],
                 ];
             }
 
@@ -146,8 +342,12 @@ class ExportAllPaymentRequest
             */
 
             $groups[$groupKey]['items'][] = [
-                'request' => $request,
-                'snapshot' => $snapshot,
+
+                'request' =>
+                    $request,
+
+                'snapshot' =>
+                    $snapshot,
             ];
         }
 
@@ -171,6 +371,7 @@ class ExportAllPaymentRequest
         $defaultSheet =
             $spreadsheet->getActiveSheet();
 
+
         $spreadsheet->removeSheetByIndex(
             $spreadsheet->getIndex(
                 $defaultSheet
@@ -184,19 +385,23 @@ class ExportAllPaymentRequest
         |--------------------------------------------------------------------------
         */
 
-        foreach ($groups as $group) {
+        foreach (
+            $groups
+            as $group
+        ) {
 
             self::createSheet(
                 $spreadsheet,
                 $group['no_spk'],
-                $group['items']
+                $group['items'],
+                $savedRequestMap
             );
         }
 
 
         /*
         |--------------------------------------------------------------------------
-        | KALAU TIDAK ADA DATA
+        | JIKA TIDAK ADA DATA
         |--------------------------------------------------------------------------
         */
 
@@ -208,9 +413,11 @@ class ExportAllPaymentRequest
             $sheet =
                 $spreadsheet->createSheet();
 
+
             $sheet->setTitle(
                 'Tidak Ada Data'
             );
+
 
             $sheet->setCellValue(
                 'A1',
@@ -226,9 +433,9 @@ class ExportAllPaymentRequest
         */
 
         $filename =
-            'All-Payment-Request-' .
-            now()->format('YmdHis') .
-            '.xlsx';
+            'All-Payment-Request-'
+            . now()->format('YmdHis')
+            . '.xlsx';
 
 
         /*
@@ -277,7 +484,8 @@ class ExportAllPaymentRequest
     private static function createSheet(
         Spreadsheet $spreadsheet,
         string $noSpk,
-        array $items
+        array $items,
+        array $savedRequestMap
     ) {
 
         /*
@@ -294,12 +502,13 @@ class ExportAllPaymentRequest
 
         /*
         |--------------------------------------------------------------------------
-        | CREATE
+        | CREATE SHEET
         |--------------------------------------------------------------------------
         */
 
         $sheet =
             $spreadsheet->createSheet();
+
 
         $sheet->setTitle(
             $sheetName
@@ -317,8 +526,9 @@ class ExportAllPaymentRequest
             'PAYMENT REQUEST'
         );
 
+
         $sheet->mergeCells(
-            'A1:K1'
+            'A1:L1'
         );
 
 
@@ -333,13 +543,15 @@ class ExportAllPaymentRequest
             'NO. SPK'
         );
 
+
         $sheet->setCellValue(
             'C3',
             $noSpk
         );
 
+
         $sheet->mergeCells(
-            'C3:K3'
+            'C3:L3'
         );
 
 
@@ -350,10 +562,13 @@ class ExportAllPaymentRequest
         */
 
         $firstItem =
-            $items[0] ?? null;
+            $items[0]
+            ?? null;
+
 
         $firstSnapshot =
-            $firstItem['snapshot'] ?? [];
+            $firstItem['snapshot']
+            ?? [];
 
 
         $supplier =
@@ -366,13 +581,15 @@ class ExportAllPaymentRequest
             'SUPPLIER'
         );
 
+
         $sheet->setCellValue(
             'C4',
             $supplier
         );
 
+
         $sheet->mergeCells(
-            'C4:K4'
+            'C4:L4'
         );
 
 
@@ -384,27 +601,41 @@ class ExportAllPaymentRequest
 
         $headers = [
 
-            'A6' => 'No.',
+            'A6' =>
+                'No.',
 
-            'B6' => 'No. PR',
+            'B6' =>
+                'No. PR',
 
-            'C6' => 'Date',
+            'C6' =>
+                'Tgl Pengajuan',
 
-            'D6' => 'No. PO',
+            'D6' =>
+                'Date',
 
-            'E6' => 'No. SPK',
+            'E6' =>
+                'No. PO',
 
-            'F6' => 'Ket.',
+            'F6' =>
+                'No. SPK',
 
-            'G6' => 'Harga Asli',
+            'G6' =>
+                'Ket.',
 
-            'H6' => 'Adjustment Finance',
+            'H6' =>
+                'Harga Asli',
 
-            'I6' => 'Adjustment By Finance',
+            'I6' =>
+                'Adjustment Finance',
 
-            'J6' => 'Total Harga',
+            'J6' =>
+                'Adjustment By Finance',
 
-            'K6' => 'Status',
+            'K6' =>
+                'Total Harga',
+
+            'L6' =>
+                'Status',
         ];
 
 
@@ -422,18 +653,22 @@ class ExportAllPaymentRequest
 
         /*
         |--------------------------------------------------------------------------
-        | STYLE HEADER
+        | HEADER STYLE
         |--------------------------------------------------------------------------
         */
 
-        $sheet
-            ->getStyle('A6:K6')
+        $headerStyle =
+            $sheet->getStyle(
+                'A6:L6'
+            );
+
+
+        $headerStyle
             ->getFont()
             ->setBold(true);
 
 
-        $sheet
-            ->getStyle('A6:K6')
+        $headerStyle
             ->getAlignment()
             ->setHorizontal(
                 Alignment::HORIZONTAL_CENTER
@@ -444,8 +679,7 @@ class ExportAllPaymentRequest
             ->setWrapText(true);
 
 
-        $sheet
-            ->getStyle('A6:K6')
+        $headerStyle
             ->getFill()
             ->setFillType(
                 Fill::FILL_SOLID
@@ -456,8 +690,7 @@ class ExportAllPaymentRequest
             );
 
 
-        $sheet
-            ->getStyle('A6:K6')
+        $headerStyle
             ->getBorders()
             ->getAllBorders()
             ->setBorderStyle(
@@ -471,19 +704,30 @@ class ExportAllPaymentRequest
         |--------------------------------------------------------------------------
         */
 
-        $startRow = 7;
-
-        $row = $startRow;
-
-        $no = 1;
-
-        $grandTotal = 0;
+        $startRow =
+            7;
 
 
-        foreach ($items as $item) {
+        $row =
+            $startRow;
+
+
+        $no =
+            1;
+
+
+        $grandTotal =
+            0;
+
+
+        foreach (
+            $items
+            as $item
+        ) {
 
             $request =
                 $item['request'];
+
 
             $snapshot =
                 $item['snapshot'];
@@ -497,23 +741,37 @@ class ExportAllPaymentRequest
 
             $payment =
                 collect(
-                    $snapshot['payments'] ?? []
+                    $snapshot['payments']
+                    ?? []
                 )->first(
-                    function ($payment) use ($request) {
+                    function (
+                        $payment
+                    ) use (
+                        $request
+                    ) {
 
-                        return (string) (
-                            $payment['payment_id']
-                            ?? ''
-                        )
-                        ===
-                        (string) (
-                            $request->payment_id
-                        );
+                        return
+                            (string) (
+                                $payment['payment_id']
+                                ?? ''
+                            )
+                            ===
+                            (string) (
+                                $request->payment_id
+                            );
                     }
                 );
 
 
-            if (!$payment) {
+            /*
+            |--------------------------------------------------------------------------
+            | PAYMENT TIDAK DITEMUKAN
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                !$payment
+            ) {
 
                 $payment = [];
             }
@@ -525,12 +783,17 @@ class ExportAllPaymentRequest
             |--------------------------------------------------------------------------
             */
 
-            $currentSpkData = [];
+            $currentSpkData =
+                [];
 
-            if ($request->spk) {
+
+            if (
+                $request->spk
+            ) {
 
                 $currentSpkData =
                     $request->spk->data;
+
 
                 if (
                     is_string(
@@ -545,13 +808,15 @@ class ExportAllPaymentRequest
                         );
                 }
 
+
                 if (
                     !is_array(
                         $currentSpkData
                     )
                 ) {
 
-                    $currentSpkData = [];
+                    $currentSpkData =
+                        [];
                 }
             }
 
@@ -567,16 +832,21 @@ class ExportAllPaymentRequest
                     $currentSpkData['payments']
                     ?? []
                 )->first(
-                    function ($payment) use ($request) {
+                    function (
+                        $payment
+                    ) use (
+                        $request
+                    ) {
 
-                        return (string) (
-                            $payment['payment_id']
-                            ?? ''
-                        )
-                        ===
-                        (string) (
-                            $request->payment_id
-                        );
+                        return
+                            (string) (
+                                $payment['payment_id']
+                                ?? ''
+                            )
+                            ===
+                            (string) (
+                                $request->payment_id
+                            );
                     }
                 );
 
@@ -600,22 +870,34 @@ class ExportAllPaymentRequest
             |--------------------------------------------------------------------------
             */
 
-            $adjustment = null;
+            $adjustment =
+                null;
 
-            $adjustmentBy = null;
+
+            $adjustmentBy =
+                null;
 
 
-            if ($currentPayment) {
+            if (
+                $currentPayment
+            ) {
 
                 $adjustment =
                     $currentPayment['adjustment']
                     ?? null;
+
 
                 $adjustmentBy =
                     $currentPayment['adjustment_by']
                     ?? null;
             }
 
+
+            /*
+            |--------------------------------------------------------------------------
+            | ADJUSTMENT NUMBER
+            |--------------------------------------------------------------------------
+            */
 
             $adjustmentAmount =
                 self::toNumber(
@@ -625,11 +907,12 @@ class ExportAllPaymentRequest
 
             /*
             |--------------------------------------------------------------------------
-            | ADJUSTMENT BY
+            | ADJUSTMENT BY FINANCE
             |--------------------------------------------------------------------------
             */
 
-            $adjustmentByName = '';
+            $adjustmentByName =
+                '';
 
 
             if (
@@ -644,7 +927,9 @@ class ExportAllPaymentRequest
                     );
 
 
-                if ($user) {
+                if (
+                    $user
+                ) {
 
                     $adjustmentByName =
                         $user->name
@@ -662,8 +947,15 @@ class ExportAllPaymentRequest
 
             /*
             |--------------------------------------------------------------------------
-            | TOTAL
+            | TOTAL HARGA
             |--------------------------------------------------------------------------
+            |
+            | Jika adjustment > 0:
+            |     pakai adjustment
+            |
+            | Jika tidak:
+            |     pakai harga asli
+            |
             */
 
             if (
@@ -688,11 +980,6 @@ class ExportAllPaymentRequest
             |--------------------------------------------------------------------------
             | KETERANGAN
             |--------------------------------------------------------------------------
-            |
-            | Contoh:
-            | DP
-            | Pelunasan
-            |
             */
 
             $keterangan =
@@ -704,13 +991,48 @@ class ExportAllPaymentRequest
 
             /*
             |--------------------------------------------------------------------------
-            | DATE
+            | DATE PEMBAYARAN
             |--------------------------------------------------------------------------
+            |
+            | Tetap dari:
+            |
+            | spk_snapshot.payments[].date
+            |
             */
 
             $paymentDate =
                 $payment['date']
                 ?? '';
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | TANGGAL PENGAJUAN
+            |--------------------------------------------------------------------------
+            |
+            | PENTING:
+            |
+            | BUKAN:
+            |
+            | $request->created_at
+            | $request->request_date
+            |
+            |
+            | SUMBER:
+            |
+            | payment_request_saveds.request_date
+            |
+            | berdasarkan:
+            |
+            | payment_request_saveds.payment_request_ids
+            |
+            */
+
+            $tanggalPengajuan =
+                self::getTanggalPengajuan(
+                    $request->id,
+                    $savedRequestMap
+                );
 
 
             /*
@@ -726,7 +1048,13 @@ class ExportAllPaymentRequest
 
             /*
             |--------------------------------------------------------------------------
-            | WRITE
+            | WRITE DATA
+            |--------------------------------------------------------------------------
+            */
+
+            /*
+            |--------------------------------------------------------------------------
+            | A - NO
             |--------------------------------------------------------------------------
             */
 
@@ -736,68 +1064,148 @@ class ExportAllPaymentRequest
             );
 
 
+            /*
+            |--------------------------------------------------------------------------
+            | B - NO PR
+            |--------------------------------------------------------------------------
+            */
+
             $sheet->setCellValue(
                 "B{$row}",
                 $request->request_no
-                    ?? ''
+                ?? ''
             );
 
 
+            /*
+            |--------------------------------------------------------------------------
+            | C - TGL PENGAJUAN
+            |--------------------------------------------------------------------------
+            */
+
             $sheet->setCellValue(
                 "C{$row}",
+                $tanggalPengajuan
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | D - DATE PEMBAYARAN
+            |--------------------------------------------------------------------------
+            */
+
+            $sheet->setCellValue(
+                "D{$row}",
                 $paymentDate
             );
 
 
-            $sheet->setCellValue(
-                "D{$row}",
-                $snapshot['no_po']
-                    ?? ''
-            );
-
+            /*
+            |--------------------------------------------------------------------------
+            | E - NO PO
+            |--------------------------------------------------------------------------
+            */
 
             $sheet->setCellValue(
                 "E{$row}",
-                $snapshot['no_spk']
-                    ?? $noSpk
+                $snapshot['no_po']
+                ?? $request->no_po
+                ?? ''
             );
 
 
+            /*
+            |--------------------------------------------------------------------------
+            | F - NO SPK
+            |--------------------------------------------------------------------------
+            */
+
             $sheet->setCellValue(
                 "F{$row}",
+                $snapshot['no_spk']
+                ?? $request->no_spk
+                ?? $noSpk
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | G - KETERANGAN
+            |--------------------------------------------------------------------------
+            */
+
+            $sheet->setCellValue(
+                "G{$row}",
                 $keterangan
             );
 
 
+            /*
+            |--------------------------------------------------------------------------
+            | H - HARGA ASLI
+            |--------------------------------------------------------------------------
+            */
+
             $sheet->setCellValue(
-                "G{$row}",
+                "H{$row}",
                 $hargaAsli
             );
 
 
+            /*
+            |--------------------------------------------------------------------------
+            | I - ADJUSTMENT FINANCE
+            |--------------------------------------------------------------------------
+            */
+
             $sheet->setCellValue(
-                "H{$row}",
+                "I{$row}",
                 $adjustmentAmount
             );
 
 
+            /*
+            |--------------------------------------------------------------------------
+            | J - ADJUSTMENT BY FINANCE
+            |--------------------------------------------------------------------------
+            */
+
             $sheet->setCellValue(
-                "I{$row}",
+                "J{$row}",
                 $adjustmentByName
             );
 
 
+            /*
+            |--------------------------------------------------------------------------
+            | K - TOTAL HARGA
+            |--------------------------------------------------------------------------
+            */
+
             $sheet->setCellValue(
-                "J{$row}",
+                "K{$row}",
                 $totalHarga
             );
 
 
+            /*
+            |--------------------------------------------------------------------------
+            | L - STATUS
+            |--------------------------------------------------------------------------
+            */
+
             $sheet->setCellValue(
-                "K{$row}",
+                "L{$row}",
                 $status
             );
 
+
+            /*
+            |--------------------------------------------------------------------------
+            | NEXT ROW
+            |--------------------------------------------------------------------------
+            */
 
             $row++;
 
@@ -821,13 +1229,25 @@ class ExportAllPaymentRequest
         );
 
 
+        /*
+        |--------------------------------------------------------------------------
+        | MERGE TOTAL
+        |--------------------------------------------------------------------------
+        */
+
         $sheet->mergeCells(
-            "A{$totalRow}:I{$totalRow}"
+            "A{$totalRow}:J{$totalRow}"
         );
 
 
+        /*
+        |--------------------------------------------------------------------------
+        | GRAND TOTAL DI KOLOM K
+        |--------------------------------------------------------------------------
+        */
+
         $sheet->setCellValue(
-            "J{$totalRow}",
+            "K{$totalRow}",
             $grandTotal
         );
 
@@ -838,12 +1258,14 @@ class ExportAllPaymentRequest
         |--------------------------------------------------------------------------
         */
 
-        if ($row > $startRow) {
+        if (
+            $row > $startRow
+        ) {
 
             $dataStyle =
                 $sheet->getStyle(
-                    "A{$startRow}:K" .
-                    ($row - 1)
+                    "A{$startRow}:L"
+                    . ($row - 1)
                 );
 
 
@@ -870,8 +1292,8 @@ class ExportAllPaymentRequest
 
             $sheet
                 ->getStyle(
-                    "A{$startRow}:E" .
-                    ($row - 1)
+                    "A{$startRow}:F"
+                    . ($row - 1)
                 )
                 ->getAlignment()
                 ->setHorizontal(
@@ -881,8 +1303,8 @@ class ExportAllPaymentRequest
 
             $sheet
                 ->getStyle(
-                    "K{$startRow}:K" .
-                    ($row - 1)
+                    "L{$startRow}:L"
+                    . ($row - 1)
                 )
                 ->getAlignment()
                 ->setHorizontal(
@@ -892,14 +1314,14 @@ class ExportAllPaymentRequest
 
             /*
             |--------------------------------------------------------------------------
-            | WRAP
+            | WRAP TEXT
             |--------------------------------------------------------------------------
             */
 
             $sheet
                 ->getStyle(
-                    "A{$startRow}:K" .
-                    ($row - 1)
+                    "A{$startRow}:L"
+                    . ($row - 1)
                 )
                 ->getAlignment()
                 ->setWrapText(true);
@@ -908,13 +1330,13 @@ class ExportAllPaymentRequest
 
         /*
         |--------------------------------------------------------------------------
-        | MONEY FORMAT
+        | NUMBER FORMAT
         |--------------------------------------------------------------------------
         */
 
         $sheet
             ->getStyle(
-                "G{$startRow}:H{$totalRow}"
+                "H{$startRow}:I{$totalRow}"
             )
             ->getNumberFormat()
             ->setFormatCode(
@@ -924,7 +1346,7 @@ class ExportAllPaymentRequest
 
         $sheet
             ->getStyle(
-                "J{$startRow}:J{$totalRow}"
+                "K{$startRow}:K{$totalRow}"
             )
             ->getNumberFormat()
             ->setFormatCode(
@@ -938,18 +1360,18 @@ class ExportAllPaymentRequest
         |--------------------------------------------------------------------------
         */
 
-        $sheet
-            ->getStyle(
-                "A{$totalRow}:K{$totalRow}"
-            )
+        $totalStyle =
+            $sheet->getStyle(
+                "A{$totalRow}:L{$totalRow}"
+            );
+
+
+        $totalStyle
             ->getFont()
             ->setBold(true);
 
 
-        $sheet
-            ->getStyle(
-                "A{$totalRow}:K{$totalRow}"
-            )
+        $totalStyle
             ->getBorders()
             ->getAllBorders()
             ->setBorderStyle(
@@ -969,31 +1391,40 @@ class ExportAllPaymentRequest
 
             'B' => 22,
 
-            'C' => 14,
+            'C' => 16,
 
-            'D' => 16,
+            'D' => 14,
 
-            'E' => 24,
+            'E' => 16,
 
-            'F' => 18,
+            'F' => 24,
 
             'G' => 18,
 
-            'H' => 22,
+            'H' => 18,
 
-            'I' => 24,
+            'I' => 22,
 
-            'J' => 18,
+            'J' => 24,
 
-            'K' => 15,
+            'K' => 18,
+
+            'L' => 15,
         ];
 
 
-        foreach ($widths as $column => $width) {
+        foreach (
+            $widths
+            as $column => $width
+        ) {
 
             $sheet
-                ->getColumnDimension($column)
-                ->setWidth($width);
+                ->getColumnDimension(
+                    $column
+                )
+                ->setWidth(
+                    $width
+                );
         }
 
 
@@ -1057,12 +1488,16 @@ class ExportAllPaymentRequest
 
         $sheet
             ->getPageSetup()
-            ->setFitToWidth(1);
+            ->setFitToWidth(
+                1
+            );
 
 
         $sheet
             ->getPageSetup()
-            ->setFitToHeight(0);
+            ->setFitToHeight(
+                0
+            );
 
 
         /*
@@ -1074,14 +1509,134 @@ class ExportAllPaymentRequest
         $sheet
             ->getPageSetup()
             ->setPrintArea(
-                "A1:K{$totalRow}"
+                "A1:L{$totalRow}"
             );
     }
 
 
     /*
     |--------------------------------------------------------------------------
-    | SHEET NAME
+    | GET TANGGAL PENGAJUAN
+    |--------------------------------------------------------------------------
+    |
+    | paymentRequestId
+    |        ↓
+    | payment_request_saveds.payment_request_ids
+    |        ↓
+    | payment_request_saveds.request_date
+    |
+    */
+
+    private static function getTanggalPengajuan(
+        $paymentRequestId,
+        array $savedRequestMap
+    ) {
+
+        $key =
+            (string) $paymentRequestId;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | TIDAK ADA DATA SAVED
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            !isset(
+                $savedRequestMap[$key]
+            )
+        ) {
+
+            return '';
+        }
+
+
+        $rawDate =
+            $savedRequestMap[$key]['request_date']
+            ?? null;
+
+
+        if (
+            !$rawDate
+        ) {
+
+            return '';
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | AMBIL TANGGAL RAW SAJA
+        |--------------------------------------------------------------------------
+        |
+        | Contoh:
+        |
+        | 2026-08-14
+        |
+        | 2026-08-14 00:00:00
+        |
+        | 2026-08-13 17:00:00
+        |
+        | semuanya diambil bagian:
+        |
+        | YYYY-MM-DD
+        |
+        */
+
+        $dateOnly =
+            substr(
+                (string) $rawDate,
+                0,
+                10
+            );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | VALIDASI
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            !preg_match(
+                '/^\d{4}-\d{2}-\d{2}$/',
+                $dateOnly
+            )
+        ) {
+
+            return '';
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | FORMAT INDONESIA
+        |--------------------------------------------------------------------------
+        */
+
+        try {
+
+            return
+                \Carbon\Carbon::createFromFormat(
+                    'Y-m-d',
+                    $dateOnly
+                )->format(
+                    'd/m/Y'
+                );
+
+        } catch (
+            \Throwable $e
+        ) {
+
+            return '';
+        }
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | MAKE SHEET NAME
     |--------------------------------------------------------------------------
     */
 
@@ -1091,7 +1646,7 @@ class ExportAllPaymentRequest
 
         /*
         |--------------------------------------------------------------------------
-        | HILANGKAN KARAKTER TERLARANG EXCEL
+        | HAPUS KARAKTER TERLARANG EXCEL
         |--------------------------------------------------------------------------
         */
 
@@ -1110,10 +1665,14 @@ class ExportAllPaymentRequest
         */
 
         $name =
-            trim($name);
+            trim(
+                $name
+            );
 
 
-        if ($name === '') {
+        if (
+            $name === ''
+        ) {
 
             $name =
                 'Sheet';
@@ -1136,7 +1695,7 @@ class ExportAllPaymentRequest
 
     /*
     |--------------------------------------------------------------------------
-    | NUMBER FORMAT
+    | TO NUMBER
     |--------------------------------------------------------------------------
     */
 
@@ -1145,7 +1704,8 @@ class ExportAllPaymentRequest
     ) {
 
         if (
-            $value === null ||
+            $value === null
+            ||
             $value === ''
         ) {
 
@@ -1154,7 +1714,8 @@ class ExportAllPaymentRequest
 
 
         if (
-            is_int($value) ||
+            is_int($value)
+            ||
             is_float($value)
         ) {
 
@@ -1170,7 +1731,7 @@ class ExportAllPaymentRequest
 
         /*
         |--------------------------------------------------------------------------
-        | HAPUS Rp / SPASI
+        | HAPUS RP / SPASI
         |--------------------------------------------------------------------------
         */
 
@@ -1182,7 +1743,9 @@ class ExportAllPaymentRequest
             );
 
 
-        if ($value === '') {
+        if (
+            $value === ''
+        ) {
 
             return 0;
         }
@@ -1236,9 +1799,15 @@ class ExportAllPaymentRequest
         */
 
         if (
-            strpos($value, '.') !== false
+            strpos(
+                $value,
+                '.'
+            ) !== false
             &&
-            strpos($value, ',') !== false
+            strpos(
+                $value,
+                ','
+            ) !== false
         ) {
 
             $value =
@@ -1307,9 +1876,13 @@ class ExportAllPaymentRequest
 
 
             if (
-                isset($parts[1])
+                isset(
+                    $parts[1]
+                )
                 &&
-                strlen($parts[1]) === 3
+                strlen(
+                    $parts[1]
+                ) === 3
             ) {
 
                 $value =

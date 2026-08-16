@@ -1,26 +1,215 @@
-
 {{-- script --}}
 <script>
-  $(document).on(
-    'click',
-    '.btn-detail-draft',
-    function () {
+    $(document).on(
+        'change',
+        '.ainun-recon-check',
+        function() {
 
-        let draftId = $(this).data('id');
+            const checkbox = $(this);
 
-        $('.draft-row').removeClass(
-            'active-row'
-        );
+            const id = checkbox.data('id');
 
-        $(this)
-            .closest('tr')
-            .addClass(
+            /*
+            |--------------------------------------------------------------------------
+            | STATUS CHECKBOX SEKARANG
+            |--------------------------------------------------------------------------
+            */
+
+            const checked = checkbox.is(':checked');
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | JIKA DICENTANG
+            |--------------------------------------------------------------------------
+            */
+
+            if (checked) {
+
+                Swal.fire({
+
+                    title: 'Selesai recons?',
+
+                    text: 'Apply to kreditor database?',
+
+                    icon: 'question',
+
+                    showCancelButton: true,
+
+                    confirmButtonText: 'Ya',
+
+                    cancelButtonText: 'Cancel',
+
+                    confirmButtonColor: '#198754',
+
+                    cancelButtonColor: '#6c757d',
+
+                    reverseButtons: true,
+
+                }).then(function(result) {
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | CANCEL
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if (!result.isConfirmed) {
+
+                        checkbox.prop(
+                            'checked',
+                            false
+                        );
+
+                        return;
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | APPLY
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $.ajax({
+
+                        url: `/payment-request-saved/${id}/set-recon`,
+
+                        type: 'POST',
+
+                        data: {
+
+                            _token: $('meta[name="csrf-token"]')
+                                .attr('content'),
+
+                        },
+
+
+                        beforeSend: function() {
+
+                            Swal.fire({
+
+                                title: 'Processing...',
+
+                                text: 'Applying to kreditor database',
+
+                                allowOutsideClick: false,
+
+                                allowEscapeKey: false,
+
+                                didOpen: function() {
+
+                                    Swal.showLoading();
+
+                                }
+
+                            });
+
+                        },
+
+
+                        success: function(res) {
+
+                            if (!res.success) {
+
+                                checkbox.prop(
+                                    'checked',
+                                    false
+                                );
+
+                                Swal.fire({
+
+                                    icon: 'error',
+
+                                    title: 'Gagal',
+
+                                    text: res.message ??
+                                        'Gagal menyimpan recon.'
+
+                                });
+
+                                return;
+                            }
+
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | SUCCESS
+                            |--------------------------------------------------------------------------
+                            */
+
+                            Swal.fire({
+
+                                icon: 'success',
+
+                                title: 'Selesai',
+
+                                text: 'Data berhasil di-apply ke kreditor database.',
+
+                                timer: 1500,
+
+                                showConfirmButton: false
+
+                            });
+
+                        },
+
+
+                        error: function(xhr) {
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | JIKA ERROR
+                            |--------------------------------------------------------------------------
+                            */
+
+                            checkbox.prop(
+                                'checked',
+                                false
+                            );
+
+
+                            Swal.fire({
+
+                                icon: 'error',
+
+                                title: 'Gagal',
+
+                                text: xhr.responseJSON?.message ??
+                                    'Terjadi kesalahan saat menyimpan recon.'
+
+                            });
+
+                        }
+
+                    });
+
+                });
+
+            }
+
+        }
+    );
+    $(document).on(
+        'click',
+        '.btn-detail-draft',
+        function() {
+
+            let draftId = $(this).data('id');
+
+            $('.draft-row').removeClass(
                 'active-row'
             );
 
+            $(this)
+                .closest('tr')
+                .addClass(
+                    'active-row'
+                );
+
             $.get(
                 `/payment-request-saved/${draftId}/detail`,
-                function (res) {
+                function(res) {
                     let requestDate = res.request_date ?? '';
                     let needDate = res.need_date ?? '';
                     let html = `
@@ -177,18 +366,18 @@
                         </thead>
                         <tbody>
         `;
-        let grandTotal = 0;
+                    let grandTotal = 0;
 
-      let totalPaymentRequest = 0;
+                    let totalPaymentRequest = 0;
 
-      res.items.forEach(function (item, index) {
-        grandTotal += Number(
-            item.payment_amount || 0
-        );
-      totalPaymentRequest += Number(
-        item.payment_request_amount || 0
-    );
-    html += `
+                    res.items.forEach(function(item, index) {
+                        grandTotal += Number(
+                            item.payment_amount || 0
+                        );
+                        totalPaymentRequest += Number(
+                            item.payment_request_amount || 0
+                        );
+                        html += `
         <tr style="font-size:11px;">
             <td>${index + 1}</td>
             <td>${item.no_po ?? ''}</td>
@@ -227,10 +416,10 @@
             </td>
         </tr>
     `;
-});
-let remainingAmount =
-    grandTotal - totalPaymentRequest;
-html += `
+                    });
+                    let remainingAmount =
+                        grandTotal - totalPaymentRequest;
+                    html += `
 <tr
     style="
         font-weight:bold;
@@ -265,7 +454,7 @@ html += `
 </tr>
 
 `;
-             html += `
+                    html += `
 
 <div
     class="signature-section"
@@ -302,9 +491,9 @@ html += `
             </td>
 
 `;
-res.approvals.forEach(function (approval) {
-console.log(res.approvals);
-    html += `
+                    res.approvals.forEach(function(approval) {
+                        console.log(res.approvals);
+                        html += `
 
         <td width="12.5%">
 
@@ -389,253 +578,239 @@ console.log(res.approvals);
 
     `;
 
-});
-                $('#draftDetailArea').html(html);
+                    });
+                    $('#draftDetailArea').html(html);
 
-setTimeout(function () {
+                    setTimeout(function() {
 
-    $('.draft-wrapper').animate({
-        scrollLeft:
-            $('.draft-wrapper')[0].scrollWidth
-    }, 1000);
+                        $('.draft-wrapper').animate({
+                            scrollLeft: $('.draft-wrapper')[0].scrollWidth
+                        }, 1000);
 
-}, 200);
+                    }, 200);
                 }
             );
         }
     );
-  $(window).on('load', function () {
+    $(window).on('load', function() {
 
-    const noReq = new URLSearchParams(
-        window.location.search
-    ).get('no_req');
+        const noReq = new URLSearchParams(
+            window.location.search
+        ).get('no_req');
 
-    if (!noReq) return;
+        if (!noReq) return;
 
-    const draftTabBtn = $(
-        '[data-bs-target="#draft-request-tab"]'
-    );
+        const draftTabBtn = $(
+            '[data-bs-target="#draft-request-tab"]'
+        );
 
-    draftTabBtn.trigger('click');
+        draftTabBtn.trigger('click');
 
-    setTimeout(function () {
+        setTimeout(function() {
 
-        const btn = $('.btn-detail-draft')
-            .filter(function () {
+            const btn = $('.btn-detail-draft')
+                .filter(function() {
 
-                return String(
-                    $(this).data('request')
-                ).trim() === noReq.trim();
+                    return String(
+                        $(this).data('request')
+                    ).trim() === noReq.trim();
 
-            });
-
-        if (!btn.length) return;
-
-        btn.trigger('click');
-
-        setTimeout(function () {
-
-            const wrapper =
-                document.querySelector(
-                    '.draft-wrapper'
-                );
-
-            if (wrapper) {
-
-                wrapper.scrollTo({
-                    left:
-                        wrapper.scrollWidth,
-                    behavior:
-                        'smooth'
                 });
 
-            }
+            if (!btn.length) return;
+
+            btn.trigger('click');
+
+            setTimeout(function() {
+
+                const wrapper =
+                    document.querySelector(
+                        '.draft-wrapper'
+                    );
+
+                if (wrapper) {
+
+                    wrapper.scrollTo({
+                        left: wrapper.scrollWidth,
+                        behavior: 'smooth'
+                    });
+
+                }
+
+            }, 800);
 
         }, 800);
 
-    }, 800);
-
-});
+    });
 </script>
 <script>
     // adjustment finance
     $(document).on(
-    'keypress',
-    '.finance-adjustment',
-    function (e) {
+        'keypress',
+        '.finance-adjustment',
+        function(e) {
 
-        if (e.which != 13) {
-            return;
-        }
-
-        let input = $(this);
-
-        $.post(
-            '/payment-request/finance-adjustment',
-            {
-                _token:
-                    $('meta[name="csrf-token"]')
-                    .attr('content'),
-
-                spk_id:
-                    input.data('spk'),
-
-                payment_id:
-                    input.data('payment'),
-
-                adjustment:
-                    input.val()
-            },
-            function () {
-
-                Swal.fire({
-
-                    icon:'success',
-
-                    title:'Saved',
-
-                    timer:1000,
-
-                    showConfirmButton:false
-
-                });
-
-            }
-        );
-
-    }
-);
-    // approve
-    $(document).on(
-    'click',
-    '.btn-approve',
-    function () {
-
-        let id =
-            $(this).data('id');
-
-        Swal.fire({
-
-            title: 'Approve Request?',
-
-            text:
-                'Setelah di approve data tidak dapat dibatalkan.',
-
-            icon: 'question',
-
-            showCancelButton: true,
-
-            confirmButtonColor: '#198754',
-
-            cancelButtonColor: '#6c757d',
-
-            confirmButtonText: 'Ya, Approve',
-
-            cancelButtonText: 'Batal'
-
-        }).then((result) => {
-
-            if (!result.isConfirmed) {
+            if (e.which != 13) {
                 return;
             }
 
-            $.ajax({
+            let input = $(this);
 
-                url:
-                    `/payment-request-approval/${id}/approve`,
+            $.post(
+                '/payment-request/finance-adjustment', {
+                    _token: $('meta[name="csrf-token"]')
+                        .attr('content'),
 
-                type: 'POST',
+                    spk_id: input.data('spk'),
 
-                data: {
+                    payment_id: input.data('payment'),
 
-                    _token:
-                        $('meta[name="csrf-token"]')
-                        .attr('content')
-
+                    adjustment: input.val()
                 },
-
-                beforeSend: function () {
-
-                    Swal.fire({
-
-                        title: 'Processing...',
-
-                        text:
-                            'Mohon tunggu',
-
-                        allowOutsideClick: false,
-
-                        didOpen: () => {
-
-                            Swal.showLoading();
-
-                        }
-
-                    });
-
-                },
-
-                success: function (res) {
+                function() {
 
                     Swal.fire({
 
                         icon: 'success',
 
-                        title: 'Approved',
+                        title: 'Saved',
 
-                        text:
-                            'Approval berhasil disimpan',
-
-                        timer: 1500,
+                        timer: 1000,
 
                         showConfirmButton: false
 
-                    }).then(() => {
-
-                        location.reload();
-
                     });
 
-                },
+                }
+            );
 
-              error: function (xhr) {
+        }
+    );
+    // approve
+    $(document).on(
+        'click',
+        '.btn-approve',
+        function() {
 
-                Swal.fire({
+            let id =
+                $(this).data('id');
 
-                    icon: 'warning',
+            Swal.fire({
 
-                    title: 'Tidak Bisa Approve',
+                title: 'Approve Request?',
 
-                    text:
-                        xhr.responseJSON?.message ??
-                        'Approval gagal'
+                text: 'Setelah di approve data tidak dapat dibatalkan.',
+
+                icon: 'question',
+
+                showCancelButton: true,
+
+                confirmButtonColor: '#198754',
+
+                cancelButtonColor: '#6c757d',
+
+                confirmButtonText: 'Ya, Approve',
+
+                cancelButtonText: 'Batal'
+
+            }).then((result) => {
+
+                if (!result.isConfirmed) {
+                    return;
+                }
+
+                $.ajax({
+
+                    url: `/payment-request-approval/${id}/approve`,
+
+                    type: 'POST',
+
+                    data: {
+
+                        _token: $('meta[name="csrf-token"]')
+                            .attr('content')
+
+                    },
+
+                    beforeSend: function() {
+
+                        Swal.fire({
+
+                            title: 'Processing...',
+
+                            text: 'Mohon tunggu',
+
+                            allowOutsideClick: false,
+
+                            didOpen: () => {
+
+                                Swal.showLoading();
+
+                            }
+
+                        });
+
+                    },
+
+                    success: function(res) {
+
+                        Swal.fire({
+
+                            icon: 'success',
+
+                            title: 'Approved',
+
+                            text: 'Approval berhasil disimpan',
+
+                            timer: 1500,
+
+                            showConfirmButton: false
+
+                        }).then(() => {
+
+                            location.reload();
+
+                        });
+
+                    },
+
+                    error: function(xhr) {
+
+                        Swal.fire({
+
+                            icon: 'warning',
+
+                            title: 'Tidak Bisa Approve',
+
+                            text: xhr.responseJSON?.message ??
+                                'Approval gagal'
+
+                        });
+
+                    }
 
                 });
 
-            }
-
             });
 
-        });
+        }
+    );
+    $(document).on(
+        'click',
+        '#btn-print',
+        function() {
 
-    }
-);
-     $(document).on(
-    'click',
-    '#btn-print',
-    function () {
+            let printContents =
+                $('#printArea').html();
 
-        let printContents =
-            $('#printArea').html();
+            let printWindow =
+                window.open(
+                    '',
+                    '',
+                    'width=1200,height=900'
+                );
 
-        let printWindow =
-            window.open(
-                '',
-                '',
-                'width=1200,height=900'
-            );
-
-        printWindow.document.write(`
+            printWindow.document.write(`
             <html>
             <head>
 
@@ -686,98 +861,97 @@ setTimeout(function () {
             </html>
         `);
 
-        printWindow.document.close();
+            printWindow.document.close();
 
-        printWindow.focus();
+            printWindow.focus();
 
-        setTimeout(function(){
-            printWindow.print();
+            setTimeout(function() {
+                printWindow.print();
 
-            printWindow.close();
+                printWindow.close();
 
-        },500);
+            }, 500);
 
-    }
-);
+        }
+    );
 
-// hint
-$(window).on('load', function () {
+    // hint
+    $(window).on('load', function() {
 
-    const noReq = new URLSearchParams(
-        window.location.search
-    ).get('no_req');
+        const noReq = new URLSearchParams(
+            window.location.search
+        ).get('no_req');
 
-    if (!noReq) return;
+        if (!noReq) return;
 
-    setTimeout(function () {
+        setTimeout(function() {
 
-        const btn = $('.btn-detail-draft')
-            .filter(function () {
+            const btn = $('.btn-detail-draft')
+                .filter(function() {
 
-                return (
-                    String(
-                        $(this).data('request')
-                    ).trim() === noReq.trim()
-                );
+                    return (
+                        String(
+                            $(this).data('request')
+                        ).trim() === noReq.trim()
+                    );
 
-            });
+                });
 
-        if (btn.length) {
+            if (btn.length) {
 
-            btn.trigger('click');
+                btn.trigger('click');
+
+            }
+
+        }, 1000);
+
+    });
+</script>
+<style>
+    @media print {
+        .card-title {
+
+            display: none !important;
 
         }
 
-    }, 1000);
+        .nav,
+        .nav-tabs,
+        .nav-item,
+        .spk-wrapper>.nav-tabs {
 
-});
+            display: none !important;
 
-</script>
-<style>
+        }
 
-@media print {
- .card-title {
+        @page {
+            size: A4 landscape;
+            margin: 10mm;
+        }
 
-        display: none !important;
+        body {
+            margin: 0;
+        }
 
+        #btn-print {
+            display: none !important;
+        }
+
+        .no-print {
+            display: none !important;
+        }
+
+        table {
+            page-break-inside: auto;
+        }
+
+        tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+        }
+
+        .signature-section {
+            page-break-inside: avoid;
+        }
     }
-    .nav,
-    .nav-tabs,
-    .nav-item,
-    .spk-wrapper > .nav-tabs {
-
-        display: none !important;
-
-    }
-    @page {
-        size: A4 landscape;
-        margin: 10mm;
-    }
-
-    body {
-        margin:0;
-    }
-
-    #btn-print {
-        display:none !important;
-    }
-
-    .no-print {
-        display:none !important;
-    }
-
-    table {
-        page-break-inside:auto;
-    }
-
-    tr {
-        page-break-inside:avoid;
-        page-break-after:auto;
-    }
-
-    .signature-section {
-        page-break-inside:avoid;
-    }
-}
-
 </style>

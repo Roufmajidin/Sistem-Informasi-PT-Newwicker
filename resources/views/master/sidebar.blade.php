@@ -240,6 +240,19 @@
                                  </li>
                              </ul>
                          </li>
+                         {{-- ppic --}}
+                            <li>
+                             <a>
+                                 <span class="nav-caret"><i class="fa fa-caret-down"></i></span>
+                                 <span class="nav-icon"><i class="material-icons">&#xe5c3;</i></span>
+                                 <span class="nav-text">PPIC</span>
+                             </a>
+                             <ul class="nav-sub">
+                                 <li><a href="/spek"><span class="nav-text">Spek Database</span></a></li>
+
+                            
+                             </ul>
+                         </li>
                          {{-- admin --}}
                             <li>
                              <a>

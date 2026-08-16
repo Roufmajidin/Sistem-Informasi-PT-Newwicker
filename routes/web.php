@@ -36,6 +36,8 @@ use App\Http\Controllers\MonitoringInvoiceController;
 use App\Http\Controllers\MasterController;
 use App\Http\Controllers\SubkonController;
 use App\Http\Controllers\UpahController;
+use App\Http\Controllers\SpekController;
+
 Route::middleware('auth')->group(function () {
 
     Route::post('/profile/change-password', [KaryawanController::class, 'changePassword'])->name('profile.change-password');
@@ -971,3 +973,46 @@ Route::get(
     '/payment-request/export-all',
     [SpkController::class, 'exportAllPaymentRequest']
 )->name('payment-request.export-all');
+
+Route::get(
+    '/kreditor-data',
+    [SpkController::class, 'jump']
+)->name('kreditor.index');
+Route::get(
+    '/hutang',
+    [SpkController::class, 'hutang']
+)->name('kreditor.idx');
+// rekon ainun
+Route::post(
+    '/payment-request-saved/{id}/set-recon',
+    [SpkController::class, 'setSavedRecon']
+)->name('payment-request-saved.set-recon');
+
+// /bulk sementara
+Route::get(
+    '/kreditss/bulk-generate/{status}',
+    [SpkController::class, 'bulkGenerate']
+)->name('kredit.bulkGenerate');
+
+// vivi
+
+Route::prefix('spek')->name('spek.')->group(function () {
+
+    Route::get('/', [SpekController::class, 'index'])
+        ->name('index');
+
+    Route::get('/create', [SpekController::class, 'create'])
+        ->name('create');
+
+    Route::post('/', [SpekController::class, 'store'])
+        ->name('store');
+
+    Route::get('/{spek}/edit', [SpekController::class, 'edit'])
+        ->name('edit');
+
+    Route::put('/{spek}', [SpekController::class, 'update'])
+        ->name('update');
+        Route::get('/image/{path}', [SpekController::class, 'image'])
+    ->where('path', '.*')
+    ->name('image');
+});
