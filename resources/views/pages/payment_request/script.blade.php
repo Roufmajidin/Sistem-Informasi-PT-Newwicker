@@ -229,8 +229,7 @@
 
         <br>
 
-        • Untuk kembali ke daftar Payment Request,
-        <b>geser ke kiri</b>.
+        • Untuk kembali ke daftar Payment Request, klik tombol <b>← Back</b> di samping judul Payment Requests.
 
     </div>
 
@@ -583,9 +582,13 @@
 
                     setTimeout(function() {
 
-                        $('.draft-wrapper').animate({
-                            scrollLeft: $('.draft-wrapper')[0].scrollWidth
-                        }, 1000);
+                        const wrapper = $('.draft-wrapper')[0];
+
+if (wrapper) {
+    $(wrapper).animate({
+        scrollLeft: wrapper.clientWidth
+    }, 500);
+}
 
                     }, 200);
                 }
@@ -630,10 +633,10 @@
 
                 if (wrapper) {
 
-                    wrapper.scrollTo({
-                        left: wrapper.scrollWidth,
-                        behavior: 'smooth'
-                    });
+                wrapper.scrollTo({
+    left: wrapper.clientWidth,
+    behavior: 'smooth'
+});
 
                 }
 

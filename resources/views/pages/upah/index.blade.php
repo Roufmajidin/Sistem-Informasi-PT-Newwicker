@@ -2,6 +2,303 @@
 
 @section('content')
 
+
+<style>
+/* =========================================================
+   TABLE STYLE - SAME VISUAL LANGUAGE AS BOM C_CREATE
+   This is UI ONLY. Existing markup, IDs, AJAX and JS are kept.
+   ========================================================= */
+
+#tableUpahWrapper{
+    width:100%;
+    overflow-x:auto;
+    overflow-y:visible;
+    background:#fff;
+    border:1px solid #e2e6eb;
+    border-radius:8px;
+    box-shadow:0 1px 4px rgba(16,24,40,.035);
+    scrollbar-width:thin;
+}
+
+#tableUpahWrapper::-webkit-scrollbar{
+    height:6px;
+}
+
+#tableUpahWrapper::-webkit-scrollbar-track{
+    background:#f3f4f6;
+}
+
+#tableUpahWrapper::-webkit-scrollbar-thumb{
+    background:#cbd1d8;
+    border-radius:20px;
+}
+
+/* Main table */
+#tableUpah{
+    width:100%;
+    min-width:900px;
+    margin:0!important;
+    border:0!important;
+    border-collapse:separate!important;
+    border-spacing:0!important;
+    background:#fff;
+    font-size:10px;
+}
+
+/* Header */
+#tableUpah thead th{
+    height:34px;
+    padding:7px 9px!important;
+    background:#f8f9fb!important;
+    color:#667085!important;
+    border:0!important;
+    border-bottom:1px solid #e4e7ec!important;
+    font-size:9px!important;
+    font-weight:700!important;
+    line-height:1.2;
+    letter-spacing:.01em;
+    white-space:nowrap;
+    vertical-align:middle!important;
+}
+
+#tableUpah thead th + th{
+    border-left:1px solid #eef0f3!important;
+}
+
+/* Body */
+#tableUpah tbody tr{
+    height:39px;
+    background:#fff;
+    transition:background .12s ease;
+}
+
+#tableUpah tbody tr:hover{
+    background:#f8fbff!important;
+}
+
+#tableUpah tbody td{
+    height:39px;
+    padding:6px 9px!important;
+    color:#344054;
+    background:transparent!important;
+    border:0!important;
+    border-bottom:1px solid #edf0f2!important;
+    font-size:9.5px!important;
+    line-height:1.25;
+    vertical-align:middle!important;
+}
+
+#tableUpah tbody tr:last-child td{
+    border-bottom:0!important;
+}
+
+/* Number column */
+#tableUpah tbody td:first-child{
+    width:48px;
+    color:#667085;
+    text-align:center;
+    font-size:9px!important;
+}
+
+/* Article */
+#tableUpah tbody td:nth-child(2){
+    color:#172033;
+    font-weight:650;
+}
+
+/* Description */
+#tableUpah tbody td:nth-child(3){
+    color:#667085;
+}
+
+/* Jenis badge-like appearance without changing markup */
+#tableUpah tbody td:nth-child(4){
+    color:#344054;
+    font-weight:600;
+}
+
+/* Price */
+#tableUpah tbody td:nth-child(5){
+    color:#172033;
+    font-weight:700;
+    font-variant-numeric:tabular-nums;
+    white-space:nowrap;
+}
+
+/* Updated */
+#tableUpah tbody td:nth-child(6){
+    color:#667085;
+    white-space:nowrap;
+}
+
+/* Action */
+#tableUpah tbody td:last-child{
+    width:125px;
+    white-space:nowrap;
+    text-align:center;
+}
+
+/* Compact action buttons.
+   Existing IDs/classes are untouched. */
+#tableUpah .btn{
+    width:29px;
+    height:29px;
+    min-width:29px;
+    min-height:29px;
+    padding:0!important;
+    margin:0 2px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:6px!important;
+    font-size:9px!important;
+    line-height:1;
+    box-shadow:none!important;
+    transition:all .12s ease;
+}
+
+#tableUpah .btn i{
+    font-size:9px;
+}
+
+#tableUpah .btn-info{
+    color:#2563eb!important;
+    background:#eff6ff!important;
+    border:1px solid #bfdbfe!important;
+}
+
+#tableUpah .btn-info:hover{
+    background:#dbeafe!important;
+    border-color:#93c5fd!important;
+}
+
+#tableUpah .btn-warning{
+    color:#b45309!important;
+    background:#fffbeb!important;
+    border:1px solid #fde68a!important;
+}
+
+#tableUpah .btn-warning:hover{
+    background:#fef3c7!important;
+    border-color:#fcd34d!important;
+}
+
+#tableUpah .btn-danger{
+    color:#dc2626!important;
+    background:#fef2f2!important;
+    border:1px solid #fecaca!important;
+}
+
+#tableUpah .btn-danger:hover{
+    background:#fee2e2!important;
+    border-color:#fca5a5!important;
+}
+
+/* Empty state */
+#tableUpah .empty-row td{
+    height:120px!important;
+    color:#98a2b3!important;
+    background:#fff!important;
+    font-size:10px!important;
+}
+
+/* Search/toolbar to visually match compact table */
+.upah-toolbar{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex-wrap:wrap;
+}
+
+.upah-search{
+    height:34px;
+    position:relative;
+    width:300px;
+}
+
+.upah-search .form-control{
+    height:34px!important;
+    min-height:34px!important;
+    padding:5px 34px 5px 30px!important;
+    border:1px solid #dfe3e8!important;
+    border-radius:6px!important;
+    box-shadow:none!important;
+    font-size:10px!important;
+}
+
+.upah-search .form-control:focus{
+    border-color:#93c5fd!important;
+    box-shadow:0 0 0 2px rgba(37,99,235,.07)!important;
+}
+
+.upah-search-icon{
+    position:absolute;
+    left:10px;
+    top:50%;
+    transform:translateY(-50%);
+    z-index:2;
+    color:#98a2b3;
+    font-size:10px;
+}
+
+.upah-search-clear{
+    position:absolute;
+    right:7px;
+    top:50%;
+    transform:translateY(-50%);
+    width:22px;
+    height:22px;
+    padding:0;
+    border:0;
+    background:transparent;
+    color:#98a2b3;
+    cursor:pointer;
+    border-radius:4px;
+}
+
+.upah-search-clear:hover{
+    background:#f2f4f7;
+    color:#475467;
+}
+
+.btn-tambah-upah{
+    height:34px;
+    min-height:34px;
+    padding:0 11px!important;
+    border-radius:6px!important;
+    font-size:9.5px!important;
+    font-weight:650!important;
+    box-shadow:none!important;
+}
+
+/* Search info */
+.upah-search-info{
+    min-height:18px;
+    color:#98a2b3;
+    font-size:8.5px;
+}
+
+/* Responsive */
+@media(max-width:800px){
+    #tableUpahWrapper{
+        border-radius:7px;
+    }
+
+    .upah-toolbar{
+        align-items:stretch;
+    }
+
+    .upah-search{
+        width:100%;
+    }
+
+    .btn-tambah-upah{
+        width:100%;
+    }
+}
+</style>
+
+
     <div class="container-fluid">
 
         {{-- =====================================================

@@ -1,232 +1,1013 @@
-    @include('pages.bom.partials.bom_style')
+@include('pages.bom.partials.bom_style')
 
-    <div class="container-fluid">
-        {{-- HEADER BOM --}}
-        <div class="card-header d-flex justify-content-between align-items-center">
+@include('pages.bom2.partials.c_bom_style')
+
+
+<style>
+/* =========================================================
+   BOM CREATE / EDIT - COMPACT ERP UI
+   UI ONLY. Existing IDs/classes used by JS are preserved.
+   Designed for Chrome zoom 100%.
+   ========================================================= */
+
+.bom-compact-page{
+    --bc-primary:#2563eb;
+    --bc-primary-hover:#1d4ed8;
+    --bc-success:#16a34a;
+    --bc-warning:#d97706;
+    --bc-danger:#dc2626;
+    --bc-text:#172033;
+    --bc-muted:#667085;
+    --bc-border:#e4e7ec;
+    --bc-soft:#f8fafc;
+    --bc-blue-soft:#eff6ff;
+    color:var(--bc-text);
+    font-size:11px;
+    padding:5px 8px 25px;
+}
+
+/* ---------- TOP HEADER ---------- */
+
+.bom-compact-page .bom-topbar{
+    min-height:58px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:14px;
+    padding:10px 14px;
+    margin-bottom:10px;
+    background:#fff;
+    border:1px solid var(--bc-border);
+    border-radius:8px;
+    box-shadow:0 1px 5px rgba(16,24,40,.04);
+}
+
+.bom-compact-page .bom-title{
+    min-width:0;
+}
+
+.bom-compact-page .bom-title h1{
+    margin:0;
+    font-size:17px;
+    line-height:1.2;
+    font-weight:750;
+    letter-spacing:-.02em;
+}
+
+.bom-compact-page .bom-title p{
+    margin:3px 0 0;
+    color:var(--bc-muted);
+    font-size:9px;
+}
+
+.bom-compact-page .bom-actions{
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    gap:6px;
+    flex-wrap:wrap;
+}
+
+.bom-compact-page .bom-actions .btn{
+    height:30px;
+    min-height:30px;
+    padding:0 10px;
+    border-radius:6px;
+    font-size:9.5px;
+    font-weight:650;
+    line-height:28px;
+}
+
+/* ---------- TOP INFO GRID ---------- */
+
+.bom-compact-page .bom-info-grid{
+    display:grid;
+    grid-template-columns:minmax(0,1.8fr) minmax(245px,.72fr);
+    gap:10px;
+    margin-bottom:10px;
+}
+
+.bom-compact-page .bom-card{
+    background:#fff;
+    border:1px solid var(--bc-border);
+    border-radius:8px;
+    overflow:hidden;
+    box-shadow:0 1px 5px rgba(16,24,40,.035);
+}
+
+.bom-compact-page .bom-card-head{
+    min-height:45px;
+    padding:8px 12px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    border-bottom:1px solid #edf0f4;
+}
+
+.bom-compact-page .bom-card-title{
+    font-size:11.5px;
+    font-weight:750;
+}
+
+.bom-compact-page .bom-card-subtitle{
+    margin-top:2px;
+    color:#98a2b3;
+    font-size:8.5px;
+}
+
+/* ---------- PRODUCT TABLE ---------- */
+
+.bom-compact-page .bom-product-table{
+    width:100%;
+    margin:0;
+    border:0;
+}
+
+.bom-compact-page .bom-product-table th{
+    width:145px;
+    padding:8px 11px;
+    background:#fcfcfd;
+    color:#344054;
+    border:0;
+    border-right:1px solid #edf0f4;
+    border-bottom:1px solid #f0f2f5;
+    font-size:9px;
+    font-weight:700;
+    vertical-align:middle;
+    white-space:nowrap;
+}
+
+.bom-compact-page .bom-product-table td{
+    padding:7px 10px;
+    border:0;
+    border-bottom:1px solid #f0f2f5;
+    vertical-align:middle;
+}
+
+.bom-compact-page .bom-product-table tr:last-child th,
+.bom-compact-page .bom-product-table tr:last-child td{
+    border-bottom:0;
+}
+
+.bom-compact-page .form-control{
+    min-height:32px;
+    height:32px;
+    padding:4px 9px;
+    border:1px solid #dfe3e8;
+    border-radius:6px;
+    color:#344054;
+    background:#fff;
+    font-size:10px;
+    box-shadow:none!important;
+}
+
+.bom-compact-page .form-control:focus{
+    border-color:#93c5fd;
+    box-shadow:0 0 0 3px rgba(37,99,235,.07)!important;
+}
+
+.bom-compact-page .dimension-grid{
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:6px;
+}
+
+.bom-compact-page .loadability-grid{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:6px;
+}
+
+/* ---------- PHOTO ---------- */
+
+.bom-compact-page .bom-photo{
+    padding:10px;
+}
+
+.bom-compact-page #upload-area{
+    min-height:228px!important;
+    padding:10px!important;
+    border:1.5px dashed #cbd5e1!important;
+    border-radius:8px!important;
+    background:linear-gradient(180deg,#fbfdff,#f8fafc);
+}
+
+.bom-compact-page #preview{
+    width:145px!important;
+    height:145px!important;
+    object-fit:contain!important;
+    border-radius:6px;
+}
+
+.bom-compact-page .upload-caption{
+    margin-top:5px;
+    color:#667085;
+    font-size:8.5px;
+}
+
+.bom-compact-page .upload-hint{
+    margin-top:5px;
+    color:#98a2b3;
+    font-size:8px;
+}
+
+/* ---------- LABOUR & MATERIAL ---------- */
+
+.bom-compact-page .bom-main-card{
+    background:#fff;
+    border:1px solid var(--bc-border);
+    border-radius:8px;
+    overflow:hidden;
+    box-shadow:0 1px 5px rgba(16,24,40,.035);
+}
+
+.bom-compact-page .bom-main-head{
+    min-height:48px;
+    padding:8px 12px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    border-bottom:1px solid #e8edf2;
+    background:#fff;
+}
+
+.bom-compact-page .bom-main-title{
+    display:flex;
+    align-items:center;
+    gap:8px;
+}
+
+.bom-compact-page .bom-main-title-icon{
+    width:28px;
+    height:28px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:6px;
+    background:#eff6ff;
+    color:var(--bc-primary);
+    font-size:12px;
+}
+
+.bom-compact-page .bom-main-title strong{
+    font-size:11.5px;
+}
+
+.bom-compact-page .bom-main-title small{
+    display:block;
+    margin-top:2px;
+    color:#98a2b3;
+    font-size:8.5px;
+}
+
+.bom-compact-page .bom-main-actions{
+    display:flex;
+    align-items:center;
+    gap:5px;
+    flex-wrap:wrap;
+}
+
+.bom-compact-page .bom-main-actions .btn{
+    height:29px;
+    min-height:29px;
+    padding:0 9px;
+    border-radius:6px;
+    font-size:9px;
+}
+
+.bom-compact-page #bom-sections{
+    padding:8px;
+    background:#f8fafc;
+}
+
+/* Dynamic section headers generated by the existing JS */
+.bom-compact-page #bom-sections .card{
+    margin-bottom:8px!important;
+    border:1px solid #dfe5ec!important;
+    border-radius:7px!important;
+    overflow:hidden;
+    box-shadow:0 1px 4px rgba(16,24,40,.03);
+}
+
+.bom-compact-page #bom-sections .card-header{
+    min-height:38px;
+    padding:6px 9px!important;
+    background:#fff!important;
+    color:var(--bc-text)!important;
+    border-bottom:1px solid #edf0f4!important;
+}
+
+.bom-compact-page #bom-sections .card-body{
+    padding:7px!important;
+}
+
+.bom-compact-page #bom-sections .table{
+    margin-bottom:0;
+    font-size:9px;
+}
+
+.bom-compact-page #bom-sections .table thead th{
+    padding:6px 7px;
+    background:#f8fafc;
+    color:#667085;
+    border-color:#e8edf2;
+    font-size:8.5px;
+    font-weight:750;
+    white-space:nowrap;
+}
+
+.bom-compact-page #bom-sections .table tbody td{
+    padding:5px 6px;
+    border-color:#edf0f4;
+    vertical-align:middle;
+}
+
+.bom-compact-page #bom-sections .table tbody tr:hover{
+    background:#fbfdff;
+}
+
+.bom-compact-page #bom-sections .form-control{
+    min-height:29px;
+    height:29px;
+    padding:3px 7px;
+    font-size:9px;
+}
+
+.bom-compact-page #bom-sections .btn{
+    min-height:27px;
+    height:27px;
+    padding:0 7px;
+    border-radius:5px;
+    font-size:8.5px;
+}
+
+.bom-compact-page #bom-sections .section-name{
+    height:31px;
+    font-size:9.5px;
+}
+
+/* ---------- COST SUMMARY ---------- */
+
+.bom-compact-page .bom-summary{
+    margin-top:8px;
+    padding:9px;
+    border:1px solid #e4e7ec;
+    border-radius:7px;
+    background:#fff;
+}
+
+.bom-compact-page .bom-summary-head{
+    min-height:32px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    margin-bottom:7px;
+}
+
+.bom-compact-page .bom-summary-title{
+    font-size:10.5px;
+    font-weight:750;
+}
+
+.bom-compact-page .bom-summary-sub{
+    margin-top:2px;
+    color:#98a2b3;
+    font-size:8px;
+}
+
+.bom-compact-page .bom-totals{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:6px;
+    margin-bottom:8px;
+}
+
+.bom-compact-page .bom-total{
+    padding:7px 9px;
+    border:1px solid #e8edf2;
+    border-radius:6px;
+    background:#fcfcfd;
+}
+
+.bom-compact-page .bom-total-label{
+    color:#98a2b3;
+    font-size:8px;
+}
+
+.bom-compact-page .bom-total-value{
+    margin-top:2px;
+    color:#172033;
+    font-size:13px;
+    font-weight:750;
+}
+
+.bom-compact-page #summary-body{
+    font-size:9px;
+}
+
+.bom-compact-page #summary-body td,
+.bom-compact-page #summary-body th{
+    padding:5px 6px;
+    border-color:#edf0f4;
+}
+
+.bom-compact-page .bom-summary-table thead th{
+    padding:6px;
+    background:#f8fafc;
+    color:#667085;
+    border-color:#e8edf2;
+    font-size:8.5px;
+}
+
+.bom-compact-page .bom-total-hpp{
+    margin-top:8px;
+    padding:8px 10px;
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    gap:10px;
+    border-top:1px solid #e8edf2;
+    background:#fbfcfe;
+}
+
+.bom-compact-page .bom-total-hpp label{
+    margin:0;
+    color:#667085;
+    font-size:9px;
+    font-weight:750;
+}
+
+.bom-compact-page #total-hpp{
+    width:155px;
+    text-align:right;
+    font-size:10.5px;
+    font-weight:750;
+}
+
+/* ---------- EMPTY STATE ---------- */
+
+.bom-compact-page #bom-sections:empty:after{
+    content:"Belum ada header BOM. Klik Add Header untuk mulai.";
+    display:block;
+    padding:25px 10px;
+    text-align:center;
+    color:#98a2b3;
+    font-size:9.5px;
+}
+
+/* ---------- MODALS ---------- */
+
+.bom-compact-page + .modal .modal-content{
+    border:0;
+    border-radius:9px;
+    overflow:hidden;
+    box-shadow:0 18px 60px rgba(15,23,42,.18);
+}
+
+/* Modal lives outside the wrapper in this Blade, so keep selectors global
+   but compact and harmless to the existing JS. */
+#materialPickerModal .modal-header,
+#addMaterialModal .modal-header{
+    padding:10px 13px;
+    border-bottom:1px solid #edf0f4;
+}
+
+#materialPickerModal .modal-body,
+#addMaterialModal .modal-body{
+    padding:10px 13px;
+}
+
+#materialPickerModal .modal-footer,
+#addMaterialModal .modal-footer{
+    padding:8px 13px;
+    border-top:1px solid #edf0f4;
+}
+
+#materialPickerModal .table{
+    font-size:9.5px;
+}
+
+#materialPickerModal .table thead th{
+    padding:6px 7px;
+    background:#f8fafc;
+    color:#667085;
+    border-color:#e8edf2;
+    font-size:8.5px;
+}
+
+#materialPickerModal .table tbody td{
+    padding:5px 6px;
+    border-color:#edf0f4;
+    vertical-align:middle;
+}
+
+#searchMasterMaterial{
+    height:32px;
+    font-size:9.5px;
+}
+
+/* ---------- RESPONSIVE ---------- */
+
+@media(max-width:1000px){
+    .bom-compact-page .bom-info-grid{
+        grid-template-columns:1fr;
+    }
+
+    .bom-compact-page #upload-area{
+        min-height:210px!important;
+    }
+}
+
+@media(max-width:700px){
+    .bom-compact-page{
+        padding:4px 4px 20px;
+    }
+
+    .bom-compact-page .bom-topbar,
+    .bom-compact-page .bom-main-head{
+        align-items:flex-start;
+        flex-direction:column;
+    }
+
+    .bom-compact-page .bom-actions,
+    .bom-compact-page .bom-main-actions{
+        width:100%;
+        justify-content:flex-start;
+    }
+
+    .bom-compact-page .bom-actions .btn{
+        flex:0 0 auto;
+    }
+
+    .bom-compact-page .bom-product-table th{
+        width:105px;
+    }
+
+    .bom-compact-page .dimension-grid,
+    .bom-compact-page .loadability-grid,
+    .bom-compact-page .bom-totals{
+        grid-template-columns:1fr;
+    }
+
+    .bom-compact-page .bom-total-hpp{
+        justify-content:space-between;
+    }
+}
+</style>
+
+<div class="bom-compact-page">
+
+    {{-- =====================================================
+         HEADER BOM
+         Semua ID tombol dipertahankan untuk JavaScript lama.
+         ===================================================== --}}
+  @section('btn')
+    <div class="bom-topbar">
+
+        <div class="bom-title">
+            <h6>
+                @if (isset($bom))
+                    Edit BOM
+                @else
+                    Create BOM
+                @endif
+            </h6>
+{{-- 
+            <p>
+                Kelola informasi produk, ukuran, material, labour, dan HPP.
+            </p> --}}
+        </div>
+
+        <div class="bom-actions">
 
             @if (isset($bom))
-                <h5 class="mb-0">EDIT BOM</h5>
+
+                <button
+                    type="button"
+                    class="btn btn-warning btn-sm"
+                    id="btn-update-bom"
+                >
+                    <i class="fa fa-save"></i>
+                    Update BOM
+                </button>
+
+                <button
+                    type="button"
+                    class="btn btn-primary btn-sm"
+                    id="btn-copy-bom"
+                >
+                    <i class="fa fa-copy"></i>
+                    Copy BOM
+                </button>
+
             @else
-                <h5 class="mb-0">CREATE BOM</h5>
 
-                <button type="button" id="btn-clear-draft" class="btn btn-warning btn-sm">
-
+                <button
+                    type="button"
+                    id="btn-clear-draft"
+                    class="btn btn-warning btn-sm"
+                >
                     <i class="fa fa-refresh"></i>
                     Refresh Draft
-
                 </button>
+
+                <button
+                    type="button"
+                    class="btn btn-primary btn-sm"
+                    id="btn-save-bom"
+                >
+                    <i class="fa fa-save"></i>
+                    Save BOM
+                </button>
+
             @endif
 
         </div>
+
     </div>
-    <div class="card-body">
-        <div class="row">
-            <div class="col-md-8">
-                <table class="table table-bordered">
-                    <tr>
-                        <th width="200">ITEM</th>
-                        <td>
-                            <input type="text" class="form-control" name="item">
-                        </td>
-                    </tr>
-                    <tr>
-                        <th>ARTICLE CODE</th>
-                        <td>
-                            <input type="text" class="form-control" name="article_code">
-                        </td>
-                    </tr>
-                    <tr>
-                        <th>DIMENSION</th>
-                        <td>
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <input type="number" class="form-control" name="panjang" placeholder="Panjang">
-                                </div>
-                                <div class="col-md-4">
-                                    <input type="number" class="form-control" name="lebar" placeholder="Lebar">
-                                </div>
-                                <div class="col-md-4">
-                                    <input type="number" class="form-control" name="tinggi" placeholder="Tinggi">
-                                </div>
-                            </div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th>CARTON SIZE</th>
-                        <td>
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <input type="number" class="form-control" placeholder="Panjang"
-                                        name="carton_panjang">
-                                </div>
-                                <div class="col-md-4">
-                                    <input type="number" class="form-control" placeholder="Lebar" name="carton_lebar">
-                                </div>
-                                <div class="col-md-4">
-                                    <input type="number" class="form-control" placeholder="Tinggi"
-                                        name="carton_tinggi">
-                                </div>
-                            </div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th>LOADABILITY</th>
-                        <td>
-                            <div class="row">
+  
+  @endsection
 
-                                <div class="col-md-6">
 
-                                    <input type="number" name="loadability_pcs" class="form-control" placeholder="PCS">
+    {{-- =====================================================
+         INFORMASI PRODUK + FOTO
+         ===================================================== --}}
+    <div class="bom-info-grid">
 
-                                </div>
+        <div class="bom-card">
 
-                                <div class="col-md-6">
+            <div class="bom-card-head">
+                <div>
+                    <div class="bom-card-title">
+                        Informasi Produk
+                    </div>
 
-                                    <input type="number" step="0.001" name="loadability_cbm" class="form-control"
-                                        placeholder="CBM">
-
-                                </div>
-
-                            </div>
-                        </td>
-                    </tr>
-                </table>
+                    <div class="bom-card-subtitle">
+                        Data utama item dan ukuran produk.
+                    </div>
+                </div>
             </div>
-            <div class="col-md-4">
 
-                <div id="upload-area" class="border p-3 text-center"
+            <table class="table bom-product-table">
+
+                <tr>
+                    <th>ITEM</th>
+                    <td>
+                        <input
+                            type="text"
+                            class="form-control"
+                            name="item"
+                        >
+                    </td>
+                </tr>
+
+                <tr>
+                    <th>ARTICLE CODE</th>
+                    <td>
+                        <input
+                            type="text"
+                            class="form-control"
+                            name="article_code"
+                        >
+                    </td>
+                </tr>
+
+                <tr>
+                    <th>DIMENSION</th>
+                    <td>
+
+                        <div class="dimension-grid">
+
+                            <input
+                                type="number"
+                                class="form-control"
+                                name="panjang"
+                                placeholder="Panjang"
+                            >
+
+                            <input
+                                type="number"
+                                class="form-control"
+                                name="lebar"
+                                placeholder="Lebar"
+                            >
+
+                            <input
+                                type="number"
+                                class="form-control"
+                                name="tinggi"
+                                placeholder="Tinggi"
+                            >
+
+                        </div>
+
+                    </td>
+                </tr>
+
+                <tr>
+                    <th>CARTON SIZE</th>
+                    <td>
+
+                        <div class="dimension-grid">
+
+                            <input
+                                type="number"
+                                class="form-control"
+                                placeholder="Panjang"
+                                name="carton_panjang"
+                            >
+
+                            <input
+                                type="number"
+                                class="form-control"
+                                placeholder="Lebar"
+                                name="carton_lebar"
+                            >
+
+                            <input
+                                type="number"
+                                class="form-control"
+                                placeholder="Tinggi"
+                                name="carton_tinggi"
+                            >
+
+                        </div>
+
+                    </td>
+                </tr>
+
+                <tr>
+                    <th>LOADABILITY</th>
+                    <td>
+
+                        <div class="loadability-grid">
+
+                            <input
+                                type="number"
+                                name="loadability_pcs"
+                                class="form-control"
+                                placeholder="PCS"
+                            >
+
+                            <input
+                                type="number"
+                                step="0.001"
+                                name="loadability_cbm"
+                                class="form-control"
+                                placeholder="CBM"
+                            >
+
+                        </div>
+
+                    </td>
+                </tr>
+
+            </table>
+
+        </div>
+
+
+        {{-- FOTO --}}
+        <div class="bom-card">
+
+            <div class="bom-card-head">
+                <div>
+                    <div class="bom-card-title">
+                        Foto Produk
+                    </div>
+
+                    <div class="bom-card-subtitle">
+                        Opsional · JPG, PNG, WEBP
+                    </div>
+                </div>
+            </div>
+
+            <div class="bom-photo">
+
+                <div
+                    id="upload-area"
+                    class="text-center"
                     style="
                         cursor:pointer;
-                        border:2px dashed #cfd8dc !important;
-                        border-radius:12px;
-                        min-height:260px;
                         display:flex;
                         flex-direction:column;
                         justify-content:center;
                         align-items:center;
-                    ">
+                    "
+                >
 
-                    <input type="file" id="bom_image" name="image" accept="image/*" hidden>
+                    <input
+                        type="file"
+                        id="bom_image"
+                        name="image"
+                        accept="image/*"
+                        hidden
+                    >
 
-                    <img id="preview" src="https://placehold.co/300x200" class="img-fluid"
-                        style="
-                            width:180px;
-                            height:180px;
-                            object-fit:contain;
-                        ">
+                    <img
+                        id="preview"
+                        src="https://placehold.co/300x200"
+                        class="img-fluid"
+                    >
 
-                    <small class="text-muted mt-2">
+                    <div class="upload-caption">
                         Klik, Drag & Drop atau Ctrl + V
-                    </small>
+                    </div>
+
+                    <div class="upload-hint">
+                        Maksimalkan kualitas gambar agar preview tetap jelas.
+                    </div>
 
                 </div>
 
             </div>
+
         </div>
+
     </div>
-    </div>
-    {{-- LABOUR & MATERIAL --}}
-    @if (isset($bom))
-        <button type="button" class="btn btn-warning btn-sm" id="btn-update-bom">
 
-            Update BOM
 
-        </button>
-        <button type="button" class="btn btn-primary btn-sm" id="btn-copy-bom">
+    {{-- =====================================================
+         LABOUR & MATERIAL
+         ===================================================== --}}
+    <div class="bom-main-card">
 
-            Copy BOM ?
+        <div class="bom-main-head">
 
-        </button>
-    @else
-        <button type="button" class="btn btn-primary btn-sm" id="btn-save-bom">
+            <div class="bom-main-title">
 
-            Save BOM
+                <div class="bom-main-title-icon">
+                    <i class="fa fa-cubes"></i>
+                </div>
 
-        </button>
-    @endif
-    <div class="card">
-        <div class="card-header bg-success text-white">
-            <div class="d-flex justify-content-between">
-                <strong>LABOUR & MATERIAL</strong>
-                <button type="button" class="btn btn-light btn-sm" id="btn-add-header">
-                    + Add Header
-                </button>
+                <div>
+                    <strong>Labour & Material</strong>
+
+                    <small>
+                        Susun header, material, sub harga, dan komponen BOM.
+                    </small>
+                </div>
+
             </div>
+
+            <div class="bom-main-actions">
+
+                <button
+                    type="button"
+                    class="btn btn-primary btn-sm"
+                    id="btn-add-header"
+                >
+                    <i class="fa fa-plus"></i>
+                    Add Header
+                </button>
+
+            </div>
+
         </div>
-        <div class="card-body">
+
+
+        <div class="p-0">
+
             <div id="bom-sections">
                 {{-- SECTION DINAMIS DISINI --}}
             </div>
-            <div class="card mt-3">
 
-                <div class="card-body">
 
-                    <table class="table table-bordered mb-0">
+            {{-- =================================================
+                 SUMMARY
+                 ID lama dipertahankan:
+                 #labour-total
+                 #material-total-all
+                 #btn-add-summary
+                 #summary-body
+                 #total-hpp
+                 ================================================= --}}
+            <div class="bom-summary">
 
-                        <tr>
+                <div class="bom-summary-head">
 
-                            <th width="250">
-                                LABOUR
-                            </th>
+                    <div>
+                        <div class="bom-summary-title">
+                            Cost Summary
+                        </div>
 
-                            <td class="text-right">
-                                <span id="labour-total">0</span>
-                            </td>
+                        <div class="bom-summary-sub">
+                            Ringkasan labour, material, dan biaya tambahan.
+                        </div>
+                    </div>
 
-                        </tr>
-
-                        <tr>
-
-                            <th>
-                                MATERIAL
-                            </th>
-
-                            <td class="text-right">
-                                <span id="material-total-all">0</span>
-                            </td>
-
-                        </tr>
-
-                    </table>
+                    <button
+                        type="button"
+                        class="btn btn-success btn-sm"
+                        id="btn-add-summary"
+                    >
+                        <i class="fa fa-plus"></i>
+                        Add Summary
+                    </button>
 
                 </div>
-                {{-- summary --}}
-                SUMMARY
-                <button type="button" class="btn btn-success btn-sm" id="btn-add-summary">
-                    Add Summary
-                </button>
-                <table class="table table-bordered">
+
+
+                <div class="bom-totals">
+
+                    <div class="bom-total">
+
+                        <div class="bom-total-label">
+                            LABOUR
+                        </div>
+
+                        <div
+                            class="bom-total-value"
+                            id="labour-total"
+                        >
+                            0
+                        </div>
+
+                    </div>
+
+
+                    <div class="bom-total">
+
+                        <div class="bom-total-label">
+                            MATERIAL
+                        </div>
+
+                        <div
+                            class="bom-total-value"
+                            id="material-total-all"
+                        >
+                            0
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <table class="table table-bordered bom-summary-table">
+
                     <thead>
                         <tr>
-                            <th width="20%">Nama</th>
-                            <th width="30%">Remark</th>
-                            <th width="10%">Qty</th>
-                            <th width="15%">Harga</th>
-                            <th width="15%">Total</th>
-                            <th width="10%">Action</th>
+
+                            <th width="20%">
+                                Nama
+                            </th>
+
+                            <th width="30%">
+                                Remark
+                            </th>
+
+                            <th width="10%">
+                                Qty
+                            </th>
+
+                            <th width="15%">
+                                Harga
+                            </th>
+
+                            <th width="15%">
+                                Total
+                            </th>
+
+                            <th width="10%">
+                                Action
+                            </th>
+
                         </tr>
                     </thead>
 
                     <tbody id="summary-body">
-
                     </tbody>
+
                 </table>
-            </div>
-            <table class="table table-bordered">
-                <tr class="table-success">
-                    <th colspan="4" class="text-right">
+
+
+                <div class="bom-total-hpp">
+
+                    <label>
                         TOTAL HPP
-                    </th>
-                    <th>
-                        <input type="text" id="total-hpp" class="form-control" readonly value="0">
-                    </th>
-                    <th></th>
-                </tr>
-            </table>
+                    </label>
+
+                    <input
+                        type="text"
+                        id="total-hpp"
+                        class="form-control"
+                        readonly
+                        value="0"
+                    >
+
+                </div>
+
+            </div>
+
         </div>
+
     </div>
-    </div>
-    
+
+</div>
+
     <div class="modal fade" id="materialPickerModal">
         <div class="modal-dialog modal-xl"      style="max-width:70vw;">>
             <div class="modal-content">
@@ -366,7 +1147,7 @@
         </div>
     </div>
 </div>
-    <script src="https://jquery.com"></script>
+<script src="https://jquery.com"></script>
     <!-- 2. Bootstrap Next -->
     {{-- <script src="https://jsdelivr.net"></script> --}}
 

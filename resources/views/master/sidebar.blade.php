@@ -264,7 +264,12 @@
                                  <li><a href="/upah"><span class="nav-text">Upah Borongan</span></a></li>
                                  <li><a href="/upah/transaksi"><span class="nav-text">Rekap Upah</span></a></li>
                                  <li><a href="/subkon/"><span class="nav-text">Subkon</span></a></li>
-
+  <li>
+                             <a href="/produksi/in_out_barang_jadi">
+                                 <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                 <span class="nav-text">monitoring (admin)</span>
+                             </a>
+                         </li>
                                 
                                 
                              </ul>
@@ -566,6 +571,23 @@
                                  <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
                                  <span class="nav-text">monitoring (admin)</span>
                              </a>
+                         </li>
+                             <li>
+                             <a>
+                                 <span class="nav-caret"><i class="fa fa-caret-down"></i></span>
+                                 <span class="nav-icon"><i class="material-icons">&#xe5c3;</i></span>
+                                 <span class="nav-text">admin produksi</span>
+                             </a>
+                             <ul class="nav-sub">
+                                 <li><a href="/upah"><span class="nav-text">Upah Borongan</span></a></li>
+                                 <li><a href="/upah/transaksi"><span class="nav-text">Rekap Upah</span></a></li>
+                                 <li><a href="/subkon/"><span class="nav-text">Subkon</span></a></li>
+  <li>
+                             <a href="/produksi/in_out_barang_jadi">
+                                 <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                 <span class="nav-text">monitoring (admin)</span>
+                             </a>
+                            </ul>
                          </li>
                      @endif
                      @if (Auth::user()->role === 'rnd')
