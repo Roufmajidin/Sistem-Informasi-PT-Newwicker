@@ -206,7 +206,7 @@ COLUMN WIDTH
 
 .pcs,
 .set{
-    width:60px;
+    width:6px;
     text-align:center;
 }
 

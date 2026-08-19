@@ -62,8 +62,8 @@
                                     <th> Kategori</th>
                                     <th> PO </th>
                                     <th> Tgl Terima </th>
-                                    <th> Indikator </th>
                                     <th style="width:20px"> Tenggat </th>
+                                    <th> Deadline </th>
                                     {{-- <th>Status</th> --}}
                                     @if (!$hideHarga)
                                         <th>Vivi </th>
@@ -343,7 +343,7 @@
                                 </div>
                                 <!-- bahan baku  -->
                                 @if (!$hideHarga)
-                                    <div class="card border-0 shadow-sm">
+                                    {{-- <div class="card border-0 shadow-sm">
                                         <div class="card-header bg-success text-white fw-bold">
                                             LIST BAHAN BAKU PENGAMBILAN
                                         </div>
@@ -368,7 +368,7 @@
                                                 </table>
                                             </div>
                                         </div>
-                                    </div>
+                                    </div> --}}
                                 @endif
                                 {{-- PAYMENT --}}
                                 @if (!$hideHarga)
@@ -385,10 +385,11 @@
                                                             <th>Tanggal</th>
                                                             <th>Type</th>
                                                             <th>Nilai</th>
-                                                            <th>
-                                                                Saldo
-                                                            </th>
+                                                            <th>Saldo</th>
                                                             <th>Keterangan</th>
+                                                            <th>Harga Invent.</th>
+                                                            <th>Harga Kontrak</th>
+                                                            <th>Total</th>
                                                             <th>stst request</th>
                                                             <th>Adjustment Finance</th>
                                                         </tr>
@@ -568,7 +569,11 @@
                     |--------------------------------------------------------------------------
                     */
                     let bahanHtml = '';
-
+                    const hasBahanPayment =
+                        Array.isArray(res.payments) &&
+                        res.payments.some(function(pay) {
+                            return pay.note === 'Bahan';
+                        });
                     if (Array.isArray(res.bahan_baku) && res.bahan_baku.length > 0) {
 
                         res.bahan_baku.forEach((row, i) => {
@@ -626,22 +631,22 @@
     ${
         !hideHarga
         ? `
-                                                                                    <td>
-                                                                                        ${
-                                                                                            hargaInventory
-                                                                                                ? 'Rp ' + hargaInventory.toLocaleString('id-ID')
-                                                                                                : '-'
-                                                                                        }
-                                                                                    </td>
+                                                                                                    <td>
+                                                                                                        ${
+                                                                                                            hargaInventory
+                                                                                                                ? 'Rp ' + hargaInventory.toLocaleString('id-ID')
+                                                                                                                : '-'
+                                                                                                        }
+                                                                                                    </td>
 
-                                                                                    <td>
-                                                                                        ${hargaViviCol}
-                                                                                    </td>
+                                                                                                    <td>
+                                                                                                        ${hargaViviCol}
+                                                                                                    </td>
 
-                                                                                    <td class="fw-bold text-success">
-                                                                                        Rp ${total.toLocaleString('id-ID')}
-                                                                                    </td>
-                                                                                `
+                                                                                                    <td class="fw-bold text-success">
+                                                                                                        Rp ${total.toLocaleString('id-ID')}
+                                                                                                    </td>
+                                                                                                `
         : ''
     }
 
@@ -701,9 +706,7 @@
                 <th width="80">
                     Passed
                 </th>
-                <th width="80">
-                    Rejected
-                </th>
+              
             </tr>
         </thead>
         <tbody>
@@ -728,13 +731,11 @@
                 ${
                     !isCushion
                     ? `
-                                                                                                                    <td class="text-center text-success fw-bold">
-                                                                                                                        ${item.passed}
-                                                                                                                    </td>
-                                                                                                                    <td class="text-center text-danger fw-bold">
-                                                                                                                        ${item.rejected}
-                                                                                                                    </td>
-                                                                                                                    `
+                                                                                                                                    <td class="text-center text-success fw-bold">
+                                                                                                                                        ${item.passed}
+                                                                                                                                    </td>
+                                                                                                                                  
+                                                                                                                                    `
                     : ''
                 }
             </tr>
@@ -804,23 +805,166 @@
                     |--------------------------------------------------------------------------
                     | PAYMENT
                     |--------------------------------------------------------------------------
+                    |
+                    | ATURAN:
+                    | - Payment normal       -> mengurangi saldo
+                    | - Return bahan         -> menambah saldo
+                    | - Potongan bahan       -> mengurangi saldo
+                    | - SPK dengan item.catatan.remark = "Upah"
+                    |   -> payment/upah TIDAK mengurangi saldo
+                    |   -> tidak masuk TOTAL PAYMENT
+                    |   -> ditampilkan setelah TOTAL PAYMENT
+                    |
+                    | Penanda UPAH berasal dari:
+                    | res.items[].catatan.remark
+                    | BUKAN dari pay.note.
+                    |
+                    | Modal tetap menggunakan Bootstrap/jQuery existing:
+                    | $('#inventorDetailModal').modal('show')
+                    |--------------------------------------------------------------------------
                     */
+
                     let paymentHtml = '';
                     let totalSpk = 0;
 
-                    res.items.forEach(item => {
+                    const items = Array.isArray(res.items) ?
+                        res.items :
+                        [];
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | DETEKSI SPK UPAH
+                    |--------------------------------------------------------------------------
+                    */
+                    /*
+                    |--------------------------------------------------------------------------
+                    | DETEKSI KETERANGAN UPAH DARI ITEM SPK
+                    |--------------------------------------------------------------------------
+                    | Sumber utama:
+                    | res.items[].catatan.remark
+                    |
+                    | Contoh:
+                    | {
+                    |     "catatan": {
+                    |         "images": [],
+                    |         "remark": "Upah"
+                    |     }
+                    | }
+                    |
+                    | Penting:
+                    | - BUKAN dari pay.note
+                    | - BUKAN dari payments
+                    | - Jika remark item = Upah, seluruh bahan/upah tidak
+                    |   mengurangi saldo Total SPK.
+                    |--------------------------------------------------------------------------
+                    */
+
+                    function getItemRemark(item) {
+
+                        if (!item) {
+                            return '';
+                        }
+
+                        let catatan = item.catatan ?? null;
+
+                        /*
+                        | Catatan kadang sudah object, kadang JSON string.
+                        */
+                        if (typeof catatan === 'string') {
+                            const rawCatatan = catatan.trim();
+
+                            if (rawCatatan !== '') {
+                                try {
+                                    catatan = JSON.parse(rawCatatan);
+                                } catch (e) {
+                                    /*
+                                    | Bukan JSON. Gunakan sebagai text remark.
+                                    */
+                                    catatan = rawCatatan;
+                                }
+                            }
+                        }
+
+                        let remark = '';
+
+                        if (
+                            catatan &&
+                            typeof catatan === 'object' &&
+                            !Array.isArray(catatan)
+                        ) {
+                            remark =
+                                catatan.remark ??
+                                catatan.Remark ??
+                                catatan.keterangan ??
+                                catatan.Keterangan ??
+                                '';
+                        } else if (typeof catatan === 'string') {
+                            remark = catatan;
+                        }
+
+                        /*
+                        | Fallback untuk format item lama.
+                        */
+                        if (!remark) {
+                            remark =
+                                item.remark ??
+                                item.keterangan ??
+                                item.catatan_remark ??
+                                '';
+                        }
+
+                        return String(remark).trim();
+                    }
+
+                    /*
+                    | Kumpulkan semua keterangan item.
+                    | Ini juga dipakai untuk menampilkan Keterangan pada
+                    | TOTAL SPK / TOTAL PAYMENT.
+                    */
+                    const keteranganItems = items
+                        .map(function(item) {
+                            return getItemRemark(item);
+                        })
+                        .filter(function(value) {
+                            return value !== '';
+                        });
+
+                    const keteranganSpk = [
+                        ...new Set(keteranganItems)
+                    ].join(', ');
+
+                    /*
+                    | UPAH dianggap aktif jika salah satu item mempunyai
+                    | keterangan yang mengandung kata "upah".
+                    */
+                    const isUpahSpk = keteranganItems.some(function(value) {
+
+                        const text = String(value)
+                            .trim()
+                            .toLowerCase();
+
+                        return (
+                            text === 'upah' ||
+                            text.includes('upah')
+                        );
+                    });
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | TOTAL SPK
+                    |--------------------------------------------------------------------------
+                    */
+                    items.forEach(function(item) {
 
                         totalSpk += parseFloat(
                             item.total || 0
                         );
 
                         if (
-                            Array.isArray(
-                                item.custom_columns
-                            )
+                            Array.isArray(item.custom_columns)
                         ) {
 
-                            item.custom_columns.forEach(c => {
+                            item.custom_columns.forEach(function(c) {
 
                                 totalSpk += parseFloat(
                                     c.total || 0
@@ -831,217 +975,765 @@
                         }
 
                     });
+
                     let saldo = totalSpk;
-                    // =========================
-                    // BARIS TOTAL SPK
-                    // =========================
-                    paymentHtml += `
-    <tr class="table-primary">
-        <td></td>
-        <td></td>
-        <td class="fw-bold">
-            TOTAL SPK
-        </td>
-        <td class="fw-bold">
-            Rp
-            ${totalSpk.toLocaleString()}
-        </td>
-        <td class="fw-bold text-success">
-            Rp
-            ${saldo.toLocaleString()}
-        </td>
-        <td></td>
-    </tr>
-    `;
-                    // =========================
-                    // PAYMENT LIST
-                    // =========================
+                    let totalPayment = 0;
+                    let totalReturnBahan = 0;
+                    let paymentNo = 0;
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | EVENT TERPISAH
+                    |--------------------------------------------------------------------------
+                    */
+                    let normalPaymentEvents = [];
+                    let bahanEvents = [];
+                    let upahEvents = [];
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | PEMOTONGAN BAHAN
+                    |--------------------------------------------------------------------------
+                    */
+                    if (
+                        Array.isArray(res.bahan_baku) &&
+                        res.bahan_baku.length > 0
+                    ) {
+
+                        res.bahan_baku.forEach(function(row) {
+
+                            const qty =
+                                parseFloat(row.qty || 0);
+
+                            const hargaInventory =
+                                parseFloat(row.harga || 0);
+
+                            const hargaVivi =
+                                parseFloat(row.harga_vivi || 0);
+
+                            const hargaKontrak =
+                                hargaVivi > 0 ?
+                                hargaVivi :
+                                hargaInventory;
+
+                            const total =
+                                hargaKontrak * qty;
+
+                            bahanEvents.push({
+                                type: 'bahan',
+                                date: row.tanggal || '',
+                                row: row,
+                                qty: qty,
+                                hargaInventory: hargaInventory,
+                                hargaVivi: hargaVivi,
+                                hargaKontrak: hargaKontrak,
+                                total: total
+                            });
+
+                            /*
+                            |------------------------------------------------------------------
+                            | JIKA SPK ADALAH UPAH
+                            |------------------------------------------------------------------
+                            | Bahan tetap ditampilkan sebagai detail, tetapi TIDAK
+                            | dianggap sebagai pengurang Total SPK / Saldo.
+                            |
+                            | Contoh:
+                            | Total SPK  : Rp 5.400.000
+                            | Bahan      : Rp 5.824.000
+                            | SPK UPAH   : Saldo tetap Rp 5.400.000
+                            |
+                            | Untuk SPK normal, potongan bahan tetap mengurangi saldo.
+                            |------------------------------------------------------------------
+                            */
+                            if (!isUpahSpk) {
+                                totalPayment += total;
+                                saldo -= total;
+                            }
+
+                        });
+
+                    }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | PAYMENT
+                    |--------------------------------------------------------------------------
+                    */
                     if (
                         Array.isArray(res.payments) &&
                         res.payments.length > 0
                     ) {
 
-                        let totalPayment = 0;
-                        let totalBahan = 0;
-                        let totalReturnBahan = 0;
-                        res.payments.forEach((pay, i) => {
+                        res.payments.forEach(function(pay) {
 
-                            let nilai = parseInt(pay.payment_request_amount || 0);
+                            const nilai =
+                                parseInt(
+                                    pay.payment_request_amount ||
+                                    pay.amount ||
+                                    0
+                                );
 
-                            if (pay.note == 'bahan') {
+                            /*
+                            |------------------------------------------------------------------
+                            | UPAH
+                            |------------------------------------------------------------------
+                            | Kalau SPK ditandai Upah dari:
+                            | items[].catatan.remark = "Upah"
+                            |
+                            | Payment hanya ditampilkan sebagai upah.
+                            | TIDAK mengurangi saldo.
+                            | TIDAK masuk TOTAL PAYMENT.
+                            |------------------------------------------------------------------
+                            */
+                            if (isUpahSpk) {
 
-                                totalBahan += nilai;
+                                upahEvents.push({
+                                    type: 'upah',
+                                    date: pay.date || '',
+                                    pay: pay,
+                                    nilai: nilai
+                                });
+
+                                return;
+                            }
+
+                            /*
+                            |------------------------------------------------------------------
+                            | PAYMENT BAHAN LAMA
+                            |------------------------------------------------------------------
+                            | Kalau detail bahan tersedia, jangan hitung lagi
+                            | payment.note = bahan karena sudah dihitung dari
+                            | res.bahan_baku.
+                            |------------------------------------------------------------------
+                            */
+                            if (
+                                String(pay.note || '').toLowerCase() ===
+                                'bahan'
+                            ) {
+
+                                if (
+                                    Array.isArray(res.bahan_baku) &&
+                                    res.bahan_baku.length > 0
+                                ) {
+                                    return;
+                                }
+
                                 totalPayment += nilai;
                                 saldo -= nilai;
 
-                            } else if (pay.note == 'return_bahan') {
+                                normalPaymentEvents.push({
+                                    type: 'payment',
+                                    date: pay.date || '',
+                                    pay: pay,
+                                    nilai: nilai
+                                });
+
+                                return;
+                            }
+
+                            /*
+                            |------------------------------------------------------------------
+                            | RETURN BAHAN
+                            |------------------------------------------------------------------
+                            */
+                            if (
+                                String(pay.note || '').toLowerCase() ===
+                                'return_bahan'
+                            ) {
 
                                 totalReturnBahan += nilai;
-
-                                // kembalikan saldo karena bahan direturn
                                 saldo += nilai;
 
-                                // jangan tambah total payment
-                            } else {
+                                normalPaymentEvents.push({
+                                    type: 'return_bahan',
+                                    date: pay.date || '',
+                                    pay: pay,
+                                    nilai: nilai
+                                });
 
-                                totalPayment += nilai;
-                                saldo -= nilai;
-
+                                return;
                             }
-                            let bahanBersih = totalBahan - totalReturnBahan;
 
-                            if (bahanBersih < 0) {
-                                bahanBersih = 0;
-                            }
-                            paymentHtml += `
-                        <tr>
+                            /*
+                            |------------------------------------------------------------------
+                            | PAYMENT NORMAL
+                            |------------------------------------------------------------------
+                            */
+                            totalPayment += nilai;
+                            saldo -= nilai;
 
+                            normalPaymentEvents.push({
+                                type: 'payment',
+                                date: pay.date || '',
+                                pay: pay,
+                                nilai: nilai
+                            });
+
+                        });
+
+                    }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | URUTKAN PAYMENT NORMAL
+                    |--------------------------------------------------------------------------
+                    */
+                    normalPaymentEvents.sort(function(a, b) {
+
+                        const dateA =
+                            new Date(a.date || '1900-01-01');
+
+                        const dateB =
+                            new Date(b.date || '1900-01-01');
+
+                        return dateA - dateB;
+                    });
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | URUTKAN BAHAN
+                    |--------------------------------------------------------------------------
+                    */
+                    bahanEvents.sort(function(a, b) {
+
+                        const dateA =
+                            new Date(a.date || '1900-01-01');
+
+                        const dateB =
+                            new Date(b.date || '1900-01-01');
+
+                        return dateA - dateB;
+                    });
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | URUTKAN UPAH
+                    |--------------------------------------------------------------------------
+                    */
+                    upahEvents.sort(function(a, b) {
+
+                        const dateA =
+                            new Date(a.date || '1900-01-01');
+
+                        const dateB =
+                            new Date(b.date || '1900-01-01');
+
+                        return dateA - dateB;
+                    });
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | BARIS TOTAL SPK
+                    |--------------------------------------------------------------------------
+                    */
+                    paymentHtml += `
+                        <tr class="table-primary">
+                            <td></td>
+                            <td></td>
+                            <td class="fw-bold">
+                                TOTAL SPK
+                            </td>
+                            <td class="fw-bold">
+                                Rp ${totalSpk.toLocaleString('id-ID')}
+                            </td>
+                            <td class="fw-bold text-success">
+                                Rp ${saldo.toLocaleString('id-ID')}
+                            </td>
                             <td>
-                                ${i + 1}
+                                ${
+                                    keteranganSpk
+                                        ? `
+                                            <span class="badge bg-warning text-dark">
+                                                ${keteranganSpk}
+                                            </span>
+                                          `
+                                        : '-'
+                                }
+                            </td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                    `;
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | RENDER PAYMENT NORMAL
+                    |--------------------------------------------------------------------------
+                    */
+                    normalPaymentEvents.forEach(function(event) {
+
+                        const pay = event.pay;
+                        const nilai = event.nilai;
+
+                        paymentNo++;
+
+                        const isReturn =
+                            event.type === 'return_bahan';
+
+                        paymentHtml += `
+                            <tr>
+
+                                <td>
+                                    ${paymentNo}
+                                </td>
+
+                                <td>
+                                    ${pay.date ?? '-'}
+                                </td>
+
+                                <td>
+                                    ${pay.note ?? '-'}
+                                </td>
+
+                                <td>
+                                    Rp ${Number(
+                                        pay.amount || nilai || 0
+                                    ).toLocaleString('id-ID')}
+                                </td>
+
+                                <td class="
+                                    fw-bold
+                                    ${
+                                        saldo <= 0
+                                            ? 'text-danger'
+                                            : 'text-success'
+                                    }
+                                ">
+                                    Rp ${saldo.toLocaleString('id-ID')}
+                                </td>
+
+                                <td>
+                                    ${pay.note_tambahan ?? '-'}
+                                </td>
+
+                                <td>-</td>
+                                <td>-</td>
+                                <td>-</td>
+
+                                <td>
+                                    ${
+                                        pay.is_request
+                                        ? `
+                                                    <span class="badge bg-success">
+                                                        ✓ Requested
+                                                    </span>
+                                                `
+                                        : `
+                                                    <span class="badge bg-warning">
+                                                        Belum Request
+                                                    </span>
+                                                `
+                                    }
+                                </td>
+
+                                <td>
+                                    ${
+                                        pay.adjustment > 0
+                                        ? `
+                                                    <div>
+                                                        Paid :
+                                                        <b>
+                                                            Rp ${Number(
+                                                                pay.payment_request_amount || 0
+                                                            ).toLocaleString('id-ID')}
+                                                        </b>
+                                                    </div>
+
+                                                    <small class="text-danger">
+                                                        Sisa :
+                                                        Rp ${Number(
+                                                            pay.remaining_amount || 0
+                                                        ).toLocaleString('id-ID')}
+                                                    </small>
+                                                `
+                                        : pay.finance_approved
+                                        ? `
+                                                    <span class="badge bg-success">
+                                                        Full Payment
+                                                    </span>
+                                                `
+                                        : pay.is_request
+                                        ? `
+                                                    <span class="badge bg-warning">
+                                                        Menunggu Finance
+                                                    </span>
+                                                `
+                                        : `
+                                                    <span class="badge bg-secondary">
+                                                        Belum Request
+                                                    </span>
+                                                `
+                                    }
+                                </td>
+
+                            </tr>
+                        `;
+
+                    });
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | TOTAL PAYMENT
+                    |--------------------------------------------------------------------------
+                    | Upah TIDAK termasuk di sini.
+                    |--------------------------------------------------------------------------
+                    */
+                    paymentHtml += `
+                        <tr class="table-success">
+
+                            <td colspan="3"
+                                class="text-end fw-bold">
+                                TOTAL PAYMENT
                             </td>
 
-                            <td>
-                                ${pay.date ?? '-'}
+                            <td class="fw-bold">
+                                Rp ${totalPayment.toLocaleString('id-ID')}
                             </td>
 
-                            <td>
-                                ${pay.note ?? '-'}
-                            </td>
-
-                            <td>
-                                Rp ${Number(
-                                    pay.amount || 0
-                                ).toLocaleString('id-ID')}
-                            </td>
-
-                            <td class="
-                                fw-bold
+                            <td class="fw-bold
                                 ${
                                     saldo <= 0
                                         ? 'text-danger'
                                         : 'text-success'
-                                }
-                            ">
+                                }">
                                 Rp ${saldo.toLocaleString('id-ID')}
                             </td>
 
                             <td>
-                                ${pay.note_tambahan ?? '-'}
+                                ${
+                                    keteranganSpk
+                                        ? `
+                                            <span class="badge bg-warning text-dark">
+                                                ${keteranganSpk}
+                                            </span>
+                                          `
+                                        : ''
+                                }
                             </td>
-                    <td>
-                    ${
-                        pay.is_request
-                        ? `
-                                                                                                    <span class="badge bg-success">
-                                                                                                        ✓ Requested
-                                                                                                    </span>
-                                                                                                `
-                        : `
-                                                                                                    <span class="badge bg-warning" >
-                                                                                                        Belum Request
-                                                                                                    </span>
-                                                                                                `
-                    }
-                    </td>
-            <td>
-
-            ${
-                pay.adjustment > 0
-                ? `
-                                                                                            <div>
-                                                                                                Paid :
-                                                                                                <b>
-                                                                                                    Rp ${Number(
-                                                                                                        pay.payment_request_amount
-                                                                                                    ).toLocaleString('id-ID')}
-                                                                                                </b>
-                                                                                            </div>
-
-                                                                                            <small class="text-danger">
-                                                                                                Sisa :
-                                                                                                Rp ${Number(
-                                                                                                    pay.remaining_amount
-                                                                                                ).toLocaleString('id-ID')}
-                                                                                            </small>
-                                                                                        `
-                : pay.finance_approved
-                ? `
-                                                                                            <span class="badge bg-success">
-                                                                                                Full Payment
-                                                                                            </span>
-                                                                                        `
-                : pay.is_request
-                ? `
-                                                                                            <span class="badge bg-warning">
-                                                                                                Menunggu Finance
-                                                                                            </span>
-                                                                                        `
-                : `
-                                                                                            <span class="badge bg-secondary">
-                                                                                                Belum Request
-                                                                                            </span>
-                                                                                        `
-            }
-
-            </td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
 
                         </tr>
-                        `;
+                    `;
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | POTONGAN BAHAN
+                    |--------------------------------------------------------------------------
+                    | Ditampilkan setelah TOTAL PAYMENT.
+                    |--------------------------------------------------------------------------
+                    */
+                    bahanEvents.forEach(function(event) {
+
+                        const row = event.row;
+                        const qty = event.qty;
+                        const hargaInventory = event.hargaInventory;
+                        const hargaVivi = event.hargaVivi;
+                        const hargaKontrak = event.hargaKontrak;
+                        const total = event.total;
+
+                        paymentNo++;
+
+                        let hargaKontrakHtml = '';
+
+                        if (res.can_edit_harga) {
+
+                            hargaKontrakHtml = `
+                                <input
+                                    type="number"
+                                    class="form-control form-control-sm border-0 shadow-none harga-vivi-input"
+                                    data-id="${row.id}"
+                                    value="${row.harga_vivi ?? ''}"
+                                    placeholder="${hargaInventory || 0}"
+                                    style="min-width:110px;"
+                                >
+                            `;
+
+                        } else {
+
+                            hargaKontrakHtml =
+                                hargaVivi > 0 ?
+                                'Rp ' + hargaVivi.toLocaleString('id-ID') :
+                                '-';
+                        }
+
+                        if (isUpahSpk) {
+
+                            paymentHtml += `
+        <tr class="payment-upah-row">
+
+            <td>
+                ${paymentNo}
+            </td>
+
+            <td>
+                ${row.tanggal ?? '-'}
+            </td>
+
+            <td>
+                <span class="badge bg-primary">
+                </span>
+
+                <div class="fw-bold mt-1">
+                    ${row.nama_barang ?? '-'}
+                </div>
+
+                <small class="text-muted">
+                    ${row.kode_barang ?? ''}
+                </small>
+            </td>
+
+            <td>
+                Rp ${total.toLocaleString('id-ID')}
+            </td>
+
+            <!-- SALDO TIDAK BERUBAH -->
+            <td class="fw-bold text-success">
+                Rp ${saldo.toLocaleString('id-ID')}
+            </td>
+
+            <td>
+                <span class="fw-bold">
+                    ${qty}
+                    ${row.satuan ?? ''}
+                </span>
+            </td>
+
+            <td>
+                -
+            </td>
+
+            <td>
+                -
+            </td>
+
+            <td class="fw-bold text-success">
+                Rp ${total.toLocaleString('id-ID')}
+            </td>
+
+            <td>
+                <span class="badge bg-info">
+                </span>
+            </td>
+
+        </tr>
+    `;
+
+                        } else {
+
+                            paymentHtml += `
+        <tr class="payment-bahan-row">
+
+            <td>
+                ${paymentNo}
+            </td>
+
+            <td>
+                ${row.tanggal ?? '-'}
+            </td>
+
+            <td>
+                <span class="badge bg-danger">
+                    potongan bahan
+                </span>
+
+                <div class="fw-bold mt-1">
+                    ${row.nama_barang ?? '-'}
+                </div>
+
+                <small class="text-muted">
+                    ${row.kode_barang ?? '-'}
+                </small>
+            </td>
+
+            <td>
+                Rp ${total.toLocaleString('id-ID')}
+            </td>
+            
+
+            <td class="fw-bold text-success">
+                Rp ${saldo.toLocaleString('id-ID')}
+            </td>
+
+            <td>
+                <span class="fw-bold">
+                    ${qty}
+                    ${row.satuan ?? 'KG'}
+                </span>
+            </td>
+
+            <td>
+                ${
+                    hargaInventory
+                        ? 'Rp ' +
+                            hargaInventory.toLocaleString('id-ID')
+                        : '-'
+                }
+            </td>
+
+            <td onclick="event.stopPropagation();">
+                ${hargaKontrakHtml}
+            </td>
+
+            <td class="fw-bold text-success">
+                Rp ${total.toLocaleString('id-ID')}
+            </td>
+
+            <td>
+                <span class="badge bg-info">
+                    -
+                </span>
+            </td>
+
+        </tr>
+    `;
+                        }
+                    });
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | UPAH KERJA
+                    |--------------------------------------------------------------------------
+                    |
+                    | Jika item SPK memiliki:
+                    | item.catatan.remark = "Upah"
+                    |
+                    | payment ditampilkan sebagai upah kerja,
+                    | tetapi SALDO TIDAK BERUBAH.
+                    |--------------------------------------------------------------------------
+                    */
+                    if (upahEvents.length > 0) {
+
+                        upahEvents.forEach(function(event) {
+
+                            const pay = event.pay;
+                            const nilai = event.nilai;
+
+                            paymentNo++;
+
+                            paymentHtml += `
+                                <tr class="payment-upah-row" title="Upah kerja - tidak mengurangi saldo Total SPK">
+
+                                    <td>
+                                        ${paymentNo}
+                                    </td>
+
+                                    <td>
+                                        ${pay.date ?? '-'}
+                                    </td>
+
+                                    <td>
+
+                                        <div class="fw-bold mt-1">
+                                            ${
+                                                pay.note_tambahan ??
+                                                'Upah'
+                                            }
+                                        </div>
+                                    </td>
+
+                                    <td>
+                                        Rp ${Number(
+                                            pay.amount || nilai || 0
+                                        ).toLocaleString('id-ID')}
+                                    </td>
+
+                                    <td class="fw-bold text-success">
+                                        Rp ${saldo.toLocaleString('id-ID')}
+                                    </td>
+
+                                    <td>
+                                        -
+                                    </td>
+
+                                    <td>
+                                        -
+                                    </td>
+
+                                    <td>
+                                        -
+                                    </td>
+
+                                    <td class="fw-bold">
+                                        Rp ${Number(
+                                            pay.amount || nilai || 0
+                                        ).toLocaleString('id-ID')}
+                                    </td>
+
+                                    <td>
+                                        ${
+                                            pay.is_request
+                                            ? `
+                                                        <span class="badge bg-success">
+                                                            ✓ Requested
+                                                        </span>
+                                                    `
+                                            : `
+                                                        
+                                                    `
+                                        }
+                                    </td>
+
+                                    <td>
+                                        ${
+                                            pay.adjustment > 0
+                                            ? `
+                                                        <div>
+                                                            Paid :
+                                                            <b>
+                                                                Rp ${Number(
+                                                                    pay.payment_request_amount || 0
+                                                                ).toLocaleString('id-ID')}
+                                                            </b>
+                                                        </div>
+
+                                                        <small class="text-danger">
+                                                            Sisa :
+                                                            Rp ${Number(
+                                                                pay.remaining_amount || 0
+                                                            ).toLocaleString('id-ID')}
+                                                        </small>
+                                                    `
+                                            : `
+                                                        <span class="badge bg-secondary">
+                                                            Tidak mengurangi saldo
+                                                        </span>
+                                                    `
+                                        }
+                                    </td>
+
+                                </tr>
+                            `;
+
                         });
 
-                        // =====================
-                        // TOTAL PAYMENT
-                        // =====================
-
-                        paymentHtml += `
-                    <tr class="table-success">
-
-                        <td colspan="3"
-                            class="text-end fw-bold">
-
-                            TOTAL PAYMENT
-
-                        </td>
-
-                        <td class="fw-bold">
-
-                            Rp ${totalPayment.toLocaleString('id-ID')}
-
-                        </td>
-
-                        <td class="fw-bold
-                            ${
-                                saldo <= 0
-                                    ? 'text-danger'
-                                    : 'text-success'
-                            }">
-
-                            Rp ${saldo.toLocaleString('id-ID')}
-
-                        </td>
-
-                        <td></td>
-
-                        <td></td>
-
-                    </tr>
-                    `;
-
-                    } else {
-
-                        paymentHtml += `
-                    <tr>
-
-                        <td colspan="7"
-                            class="text-center text-muted py-4">
-
-                            Tidak ada payment
-
-                        </td>
-
-                    </tr>
-                    `;
                     }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | TIDAK ADA PAYMENT
+                    |--------------------------------------------------------------------------
+                    */
+                    if (
+                        normalPaymentEvents.length === 0 &&
+                        bahanEvents.length === 0 &&
+                        upahEvents.length === 0
+                    ) {
+
+                        paymentHtml += `
+                            <tr>
+                                <td colspan="11"
+                                    class="text-center text-muted py-4">
+                                    Tidak ada payment
+                                </td>
+                            </tr>
+                        `;
+                    }
+
                     $('#paymentArea')
                         .html(paymentHtml);
                     $('#inventorDetailModal')
@@ -1261,10 +1953,10 @@
                     .toLocaleString('id-ID');
             }
             /*
-        |--------------------------------------------------------------------------
-        | CLICK ROW = DETAIL
-        |--------------------------------------------------------------------------
-        */
+                |--------------------------------------------------------------------------
+                | CLICK ROW = DETAIL
+                |--------------------------------------------------------------------------
+                */
             $(document).on('click', '.spk-row', function(e) {
 
                 // jangan jalan kalau klik tombol

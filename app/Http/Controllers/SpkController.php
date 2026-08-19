@@ -93,8 +93,9 @@ class SpkController extends Controller
 
     public function index(Request $request, $id)
     {
+
         $viewOnly = $request->is('spk/views/*');
-        // dd($viewOnly);
+
         $bahanBaku = collect(); // <-- default kosong
 
         $mode = (
@@ -103,21 +104,30 @@ class SpkController extends Controller
         )
             ? 'edit'
             : 'create';
-        $jenisSuppliers =
-            JenisSupplier::orderBy('name')->get();
+
+        $jenisSuppliers = JenisSupplier::orderBy('name')->get();
+
         // =====================================================
         // EDIT MODE
         // =====================================================
         if ($mode === 'edit') {
+
             $spkModel = Spk::findOrFail($id);
-            // bahan baku
+
+            // =================================================
+            // BAHAN BAKU
+            // =================================================
             $bahanBaku = TransaksiStok::with('stok')
                 ->where('spk_id', $spkModel->id)
                 ->where('tipe', 'out')
                 ->orderBy('tanggal')
                 ->get();
+
             $data = $spkModel->data ?? [];
-            // siganture approval spk
+
+            // =================================================
+            // SIGNATURE APPROVAL SPK
+            // =================================================
             $signature = SignatureSpk::with([
                 'madeBy.karyawan.divisi',
                 'checkedBy.karyawan.divisi',
@@ -127,130 +137,266 @@ class SpkController extends Controller
             ])
                 ->where('spk_id', $spkModel->id)
                 ->first();
-            // =========================
+
+            // =================================================
             // PAYMENT REQUEST
-            // =========================
-            $paymentRequest =
-                PaymentRequest::where(
-                    'spk_id',
-                    $spkModel->id
-                )->latest()->first();
-            // =========================
+            // =================================================
+            $paymentRequest = PaymentRequest::where(
+                'spk_id',
+                $spkModel->id
+            )
+                ->latest()
+                ->first();
+
+            // =================================================
             // ITEMS
-            // =========================
+            // =================================================
             $items = collect(
                 $data['items'] ?? []
             )->map(function ($item) {
+
                 return [
-                    'detail_id' => $item['detail_po_id'] ?? null,
-                    'kode' => $item['kode'] ?? '-',
-                    'nama' => $item['nama'] ?? '-',
-                    // 🔥 CUSTOM VALUE
-                    'custom_columns' => $item['custom_columns'] ?? [],
-                    'pcs' => ($item['satuan'] ?? '') === 'pcs'
-                        ? $item['qty']
+                    'detail_id' =>
+                        $item['detail_po_id'] ?? null,
+
+                    'kode' =>
+                        $item['kode'] ?? '-',
+
+                    'nama' =>
+                        $item['nama'] ?? '-',
+
+                    // CUSTOM VALUE
+                    'custom_columns' =>
+                        $item['custom_columns'] ?? [],
+
+                    'pcs' =>
+                        ($item['satuan'] ?? '') === 'pcs'
+                        ? ($item['qty'] ?? 0)
                         : 0,
-                    'set' => ($item['satuan'] ?? '') === 'set'
-                        ? $item['qty']
+
+                    'set' =>
+                        ($item['satuan'] ?? '') === 'set'
+                        ? ($item['qty'] ?? 0)
                         : 0,
-                    'harga' => $item['harga'] ?? 0,
-                    'total' => $item['total'] ?? 0,
-                    'satuan' => $item['satuan'] ?? 'pcs',
-                    'images' => $item['images'] ?? [],
-                    'catatan' => $item['catatan'] ?? [],
-                    'p' => $item['p'] ?? '-',
-                    'l' => $item['l'] ?? '-',
-                    't' => $item['t'] ?? '-',
-                    'material' => $item['material'] ?? '-',
+
+                    'harga' =>
+                        $item['harga'] ?? 0,
+
+                    'total' =>
+                        $item['total'] ?? 0,
+
+                    'satuan' =>
+                        $item['satuan'] ?? 'pcs',
+
+                    'images' =>
+                        $item['images'] ?? [],
+
+                    'catatan' =>
+                        $item['catatan'] ?? [],
+
+                    'p' =>
+                        $item['p'] ?? '-',
+
+                    'l' =>
+                        $item['l'] ?? '-',
+
+                    't' =>
+                        $item['t'] ?? '-',
+
+                    'material' =>
+                        $item['material'] ?? '-',
                 ];
             })->values();
-            // =========================
+
+            // =================================================
             // FINAL DATA
-            // =========================
+            // =================================================
             $spk = [
-                'signature' => $signature,
-                'id' => $spkModel->id,
-                'status' => $spkModel->status ?? 'draft',
-                'request_status' => $paymentRequest->status ?? null,
-                'no_spk' => $data['no_spk'] ?? '-',
-                'no_po' => $data['no_po'] ?? '-',
-                'nama' => $data['sup'] ?? '-',
-                'tgl_terima' => $data['tgl_terima'] ?? '-',
-                'tgl_selesai' => $data['tgl_selesai'] ?? '-',
-                'type' => $data['kategori'] ?? '-',
-                'items' => $items,
-                'mode' => 'edit',
-                'payments' => $data['payments'] ?? [],
-                'checked_types' => $data['checked_types'] ?? [],
-                // 🔥 HEADER DINAMIS
-                'custom_headers' => $data['custom_headers'] ?? [],
+                'signature' =>
+                    $signature,
+
+                'id' =>
+                    $spkModel->id,
+
+                'status' =>
+                    $spkModel->status ?? 'draft',
+
+                'request_status' =>
+                    $paymentRequest->status ?? null,
+
+                'no_spk' =>
+                    $data['no_spk'] ?? '-',
+
+                'no_po' =>
+                    $data['no_po'] ?? '-',
+
+                'nama' =>
+                    $data['sup'] ?? '-',
+
+                // Tanggal tetap dikirim dalam bentuk data tersimpan.
+                // Blade yang mengubah ke format date input.
+                'tgl_terima' =>
+                    $data['tgl_terima'] ?? null,
+
+                'tgl_selesai' =>
+                    $data['tgl_selesai'] ?? null,
+
+                'type' =>
+                    $data['kategori'] ?? '-',
+
+                'items' =>
+                    $items,
+
+                'mode' =>
+                    'edit',
+
+                'payments' =>
+                    $data['payments'] ?? [],
+
+                'checked_types' =>
+                    $data['checked_types'] ?? [],
+
+                // HEADER DINAMIS
+                'custom_headers' =>
+                    $data['custom_headers'] ?? [],
+
+                // =================================================
+                // PPN
+                // Disimpan sebagai konfigurasi SPK, bukan item.
+                // =================================================
+                'ppn_enabled' =>
+                    (bool) ($data['ppn_enabled'] ?? false),
+
+                'ppn_rate' =>
+                    (float) ($data['ppn_rate'] ?? 11),
             ];
         }
+
         // =====================================================
         // CREATE MODE
         // =====================================================
         else {
+
             $po = Po::with('details')
                 ->findOrFail($id);
+
             $noSpk =
                 $this->generateNoSpk(
                     $po->order_no
                 );
-            // =========================
+
+            // =================================================
             // ITEMS
-            // =========================
+            // =================================================
             $items = $po->details->map(function ($d) {
+
                 $detail = $d->detail;
+
                 $images = [];
+
                 if (!empty($detail['photo'])) {
-                    $images[] =
-                        $detail['photo'];
+                    $images[] = $detail['photo'];
                 }
 
                 return [
-                    'kode' => $detail['article_nr_'] ?? '-',
-                    'detail_id' => $d['id'] ?? '-',
-                    'nama' => $detail['description'] ?? '-',
-                    // 🔥 DEFAULT CUSTOM
-                    'custom_columns' => [],
-                    'p' => $detail['item_w'] ?? '-',
-                    'l' => $detail['item_d'] ?? '-',
-                    't' => $detail['item_h'] ?? '-',
-                    'material' => $detail['composition'] ?? '-',
-                    'pcs' => $detail['qty'] ?? 0,
-                    'set' => $detail['set'] ?? 0,
-                    'harga' => $detail['harga'] ?? 0,
-                    'catatan' => $d->remark_update ?? '',
-                    'images' => $images,
+                    'kode' =>
+                        $detail['article_nr_'] ?? '-',
+
+                    'detail_id' =>
+                        $d['id'] ?? '-',
+
+                    'nama' =>
+                        $detail['description'] ?? '-',
+
+                    // DEFAULT CUSTOM
+                    'custom_columns' =>
+                        [],
+
+                    'p' =>
+                        $detail['item_w'] ?? '-',
+
+                    'l' =>
+                        $detail['item_d'] ?? '-',
+
+                    't' =>
+                        $detail['item_h'] ?? '-',
+
+                    'material' =>
+                        $detail['composition'] ?? '-',
+
+                    'pcs' =>
+                        $detail['qty'] ?? 0,
+
+                    'set' =>
+                        $detail['set'] ?? 0,
+
+                    'harga' =>
+                        $detail['harga'] ?? 0,
+
+                    'catatan' =>
+                        $d->remark_update ?? '',
+
+                    'images' =>
+                        $images,
                 ];
             })->values();
-            // =========================
+
+            // =================================================
             // FINAL DATA
-            // =========================
+            // =================================================
             $spk = [
-                'id' => $po->id,
-                'status' => 'draft',
-                'request_status' => null,
-                'no_spk' => $noSpk,
-                'no_po' => $po->order_no,
-                'nama' => $po->supplier_name ?? '-',
-                'tgl_terima' => now()->format('d-M-Y'),
-                'tgl_selesai' => $request->tgl_selesai,
-                'type' => 'rangka',
-                'items' => $items,
-                'payments' => [],
-                'mode' => 'create',
-                'checked_types' => [],
-                // 🔥 HEADER KOSONG
-                'custom_headers' => [],
+                'id' =>
+                    $po->id,
+
+                'status' =>
+                    'draft',
+
+                'request_status' =>
+                    null,
+
+                'no_spk' =>
+                    $noSpk,
+
+                'no_po' =>
+                    $po->order_no,
+
+                'nama' =>
+                    $po->supplier_name ?? '-',
+
+                'tgl_terima' =>
+                    now()->format('Y-m-d'),
+
+                'tgl_selesai' =>
+                    $request->tgl_selesai,
+
+                'type' =>
+                    'rangka',
+
+                'items' =>
+                    $items,
+
+                'payments' =>
+                    [],
+
+                'mode' =>
+                    'create',
+
+                'checked_types' =>
+                    [],
+
+                // HEADER KOSONG
+                'custom_headers' =>
+                    [],
+
+                // PPN default nonaktif.
+                'ppn_enabled' =>
+                    false,
+
+                'ppn_rate' =>
+                    11,
             ];
         }
 
-        //         dd([
-        //     'id' => $id,
-        //     'spk' => $spkModel
-        // ]);
-        // dd([$spk,$jenis])
         return view(
             'pages.spk.index',
             compact(
@@ -258,7 +404,6 @@ class SpkController extends Controller
                 'jenisSuppliers',
                 'viewOnly',
                 'bahanBaku'
-
             )
         );
     }
@@ -290,194 +435,789 @@ class SpkController extends Controller
 
     public function save(Request $request, $poId)
     {
-        $kategori = $request->spk_type;
-        $items = $request->items ?? [];
-        $spkId = $request->spk_id; // edit mode jika ada
+        $kategori = $request->input('spk_type');
+        $items = $request->input('items', []);
+        $spkId = $request->input('spk_id');
+
+        // =====================================================
+        // VALIDASI DASAR
+        // =====================================================
         if (!$kategori || empty($items)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Data tidak lengkap',
             ], 422);
         }
-        // =========================
+
+        // =====================================================
         // MODE
-        // =========================
+        // =====================================================
         $mode = $spkId ? 'edit' : 'create';
-        $beforeData = null;
+
+        $beforeData = [];
         $spkModel = null;
+
+        // =====================================================
+        // EDIT MODE
+        // =====================================================
         if ($mode === 'edit') {
+
             $spkModel = Spk::findOrFail($spkId);
+
             $beforeData = $spkModel->data ?? [];
+
+            if (!is_array($beforeData)) {
+                $beforeData = [];
+            }
         }
-        // =========================
+
+        // =====================================================
+        // PPN
+        // =====================================================
+        $ppnEnabled = $request->boolean('ppn_enabled');
+
+        $ppnRate = $request->input('ppn_rate', 11);
+
+        if (!is_numeric($ppnRate)) {
+            $ppnRate = 11;
+        }
+
+        $ppnRate = (float) $ppnRate;
+
+        if ($ppnRate < 0) {
+            $ppnRate = 0;
+        }
+
+        if (!$ppnEnabled) {
+            $ppnRate = 0;
+        }
+
+        // =====================================================
+        // NORMALISASI KATEGORI
+        // =====================================================
+        $kategoriCheck = trim(
+            strtolower($kategori)
+        );
+
+        // =====================================================
         // OLAH ITEMS
-        // =========================
+        // =====================================================
         $finalItems = [];
+
         foreach ($items as $item) {
+
+            // =================================================
+            // DETAIL PO
+            // =================================================
             if (empty($item['detail_id'])) {
                 continue;
             }
-            // ===== HITUNG QTY
+
+            // =================================================
+            // HITUNG QTY
+            // =================================================
             $qty = 0;
+
             if (($item['satuan'] ?? '') === 'pcs') {
-                $qty = (int) ($item['pcs'] ?? 0);
+
+                $qty = (int) (
+                    $item['pcs'] ?? 0
+                );
+
             } elseif (($item['satuan'] ?? '') === 'set') {
-                $qty = (int) ($item['set'] ?? 0);
+
+                $qty = (int) (
+                    $item['set'] ?? 0
+                );
             }
+
             if ($qty <= 0) {
                 continue;
             }
-            // ===== DETAIL PO
-            $detailPo = DetailPo::find($item['detail_id']);
+
+            // =================================================
+            // DETAIL PO
+            // =================================================
+            $detailPo = DetailPo::find(
+                $item['detail_id']
+            );
+
             if (!$detailPo) {
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Detail PO tidak ditemukan',
                 ], 422);
             }
-            // ===== VALIDASI QTY (CREATE SAJA)
-            if ($mode === 'create' || $mode === 'edit') {
-                $qtyPo = (int) ($detailPo->detail['qty'] ?? 0);
-                $qtySpkExist = $this->getTotalSpkQtyByDetailPoAndKategori(
-                    $detailPo->id,
-                    $kategori,
-                    $mode === 'edit' ? $spkId : null
+
+            // =================================================
+            // QTY PO
+            // =================================================
+            $qtyPo = (int) (
+                $detailPo->detail['qty'] ?? 0
+            );
+
+            // =================================================
+            // HITUNG QTY SPK LAIN
+            // =================================================
+            //
+            // SPK yang sedang diedit TIDAK dihitung.
+            //
+            // Yang dihitung hanya:
+            // - SPK lain
+            // - kategori sama
+            // - detail_po_id sama
+            //
+            // =================================================
+            $qtySpkLain = 0;
+
+            $spkLain = Spk::query()
+                ->where(
+                    'id',
+                    '!=',
+                    $spkId ?: 0
+                )
+                ->get();
+
+            foreach ($spkLain as $otherSpk) {
+
+                $otherData = $otherSpk->data ?? [];
+
+                if (!is_array($otherData)) {
+                    continue;
+                }
+
+                // ---------------------------------------------
+                // KATEGORI
+                // ---------------------------------------------
+                $otherKategori = trim(
+                    strtolower(
+                        $otherData['kategori'] ?? ''
+                    )
                 );
 
-                // if (($qtySpkExist + $qty) > $qtyPo) {
-                //     return response()->json([
-                //         'success' => false,
-                //         'message' => "Qty SPK melebihi Qty PO (Sisa: " . ($qtyPo - $qtySpkExist) . ")",
-                //     ], 422);
-                // }
+                if (
+                    $otherKategori !==
+                    $kategoriCheck
+                ) {
+                    continue;
+                }
+
+                // ---------------------------------------------
+                // ITEMS
+                // ---------------------------------------------
+                foreach (
+                    $otherData['items'] ?? []
+                    as $otherItem
+                ) {
+
+                    if (
+                        (string) (
+                            $otherItem['detail_po_id']
+                            ?? ''
+                        )
+                        !==
+                        (string) $detailPo->id
+                    ) {
+                        continue;
+                    }
+
+                    $otherQty = (int) (
+                        $otherItem['qty'] ?? 0
+                    );
+
+                    $qtySpkLain += $otherQty;
+                }
             }
-            // ===== IMAGE ITEM
+
+            // =================================================
+            // QTY LAMA SPK YANG SEDANG DIEDIT
+            // =================================================
+            $qtyLama = 0;
+
+            if ($mode === 'edit') {
+
+                foreach (
+                    $beforeData['items'] ?? []
+                    as $oldItem
+                ) {
+
+                    if (
+                        (string) (
+                            $oldItem['detail_po_id']
+                            ?? ''
+                        )
+                        !==
+                        (string) $detailPo->id
+                    ) {
+                        continue;
+                    }
+
+                    $qtyLama += (int) (
+                        $oldItem['qty'] ?? 0
+                    );
+                }
+            }
+
+            // =================================================
+            // VALIDASI QTY
+            // =================================================
+
+            if ($mode === 'create') {
+
+                // =================================================
+                // CREATE
+                // =================================================
+
+                $sisaQty =
+                    $qtyPo -
+                    $qtySpkLain;
+
+                if ($qty > $sisaQty) {
+
+                    return response()->json([
+                        'success' => false,
+
+                        'message' =>
+                            'Qty SPK melebihi Qty PO ' .
+                            '(Sisa: ' .
+                            max(0, $sisaQty) .
+                            ')',
+
+                        'debug' => [
+                            'mode' =>
+                                $mode,
+
+                            'spk_id' =>
+                                $spkId,
+
+                            'kategori' =>
+                                $kategori,
+
+                            'detail_po_id' =>
+                                $detailPo->id,
+
+                            'qty_po' =>
+                                $qtyPo,
+
+                            'qty_spk_lain' =>
+                                $qtySpkLain,
+
+                            'qty_request' =>
+                                $qty,
+
+                            'sisa_qty' =>
+                                $sisaQty,
+                        ],
+                    ], 422);
+                }
+
+            } else {
+
+                // =================================================
+                // EDIT
+                // =================================================
+                //
+                // Hanya penambahan dari qty lama yang divalidasi.
+                //
+                // Contoh:
+                //
+                // Qty PO    = 30
+                // Qty lama  = 50
+                // Qty baru  = 50
+                //
+                // Tambahan = 0
+                // => BOLEH
+                //
+                // Qty lama  = 50
+                // Qty baru  = 51
+                //
+                // Tambahan = 1
+                // => DICEK
+                //
+                // =================================================
+
+                $qtyTambahan =
+                    $qty -
+                    $qtyLama;
+
+                // Jika qty dikurangi,
+                // tidak dianggap penambahan.
+                if ($qtyTambahan < 0) {
+                    $qtyTambahan = 0;
+                }
+
+                // =================================================
+                // SISA QTY UNTUK PENAMBAHAN
+                // =================================================
+                $sisaTambahan =
+                    $qtyPo
+                    -
+                    $qtySpkLain
+                    -
+                    $qtyLama;
+
+                /*
+                |--------------------------------------------------------------------------
+                | Kalau qty lama sudah melebihi Qty PO,
+                | tetap boleh menyimpan qty lama.
+                |
+                | Tetapi tidak boleh menambah qty lagi.
+                |--------------------------------------------------------------------------
+                */
+
+                if ($qtyTambahan > 0) {
+
+                    $sisaTambahanAman =
+                        max(
+                            0,
+                            $sisaTambahan
+                        );
+
+                    if (
+                        $qtyTambahan >
+                        $sisaTambahanAman
+                    ) {
+
+                        return response()->json([
+                            'success' => false,
+
+                            'message' =>
+                                'Qty tambahan SPK melebihi sisa Qty PO ' .
+                                '(Sisa tambahan: ' .
+                                $sisaTambahanAman .
+                                ')',
+
+                            'debug' => [
+                                'mode' =>
+                                    $mode,
+
+                                'spk_id' =>
+                                    $spkId,
+
+                                'kategori' =>
+                                    $kategori,
+
+                                'detail_po_id' =>
+                                    $detailPo->id,
+
+                                'qty_po' =>
+                                    $qtyPo,
+
+                                'qty_spk_lain' =>
+                                    $qtySpkLain,
+
+                                'qty_lama' =>
+                                    $qtyLama,
+
+                                'qty_request' =>
+                                    $qty,
+
+                                'qty_tambahan' =>
+                                    $qtyTambahan,
+
+                                'sisa_tambahan' =>
+                                    $sisaTambahanAman,
+                            ],
+                        ], 422);
+                    }
+                }
+            }
+
+            // =================================================
+            // IMAGE ITEM
+            // =================================================
             $itemImages = [];
-            foreach ($item['images'] ?? [] as $img) {
-                $itemImages[] = is_string($img) && str_starts_with($img, 'data:image')
-                    ? $this->saveBase64Image($img, 'spk/items')
-                    : $img;
+
+            foreach (
+                $item['images'] ?? []
+                as $img
+            ) {
+
+                if (
+                    is_string($img) &&
+                    str_starts_with(
+                        $img,
+                        'data:image'
+                    )
+                ) {
+
+                    $itemImages[] =
+                        $this->saveBase64Image(
+                            $img,
+                            'spk/items'
+                        );
+
+                } else {
+
+                    $itemImages[] = $img;
+                }
             }
-            // ===== IMAGE CATATAN
+
+            // =================================================
+            // IMAGE CATATAN
+            // =================================================
             $noteImages = [];
-            foreach ($item['catatan']['images'] ?? [] as $img) {
-                $noteImages[] = is_string($img) && str_starts_with($img, 'data:image')
-                    ? $this->saveBase64Image($img, 'spk/notes')
-                    : $img;
+
+            foreach (
+                $item['catatan']['images'] ?? []
+                as $img
+            ) {
+
+                if (
+                    is_string($img) &&
+                    str_starts_with(
+                        $img,
+                        'data:image'
+                    )
+                ) {
+
+                    $noteImages[] =
+                        $this->saveBase64Image(
+                            $img,
+                            'spk/notes'
+                        );
+
+                } else {
+
+                    $noteImages[] = $img;
+                }
             }
+
+            // =================================================
+            // ITEM FINAL
+            // =================================================
             $finalItems[] = [
-                'detail_po_id' => $detailPo->id,
-                'kode' => (string) ($item['kode'] ?? ''),
-                'nama' => (string) ($item['nama'] ?? ''),
-                'qty' => $qty,
-                'satuan' => $item['satuan'] ?? '',
-                'material' => (string) ($item['material'] ?? ''),
-                'p' => (string) ($item['p'] ?? ''),
-                'l' => (string) ($item['l'] ?? ''),
-                't' => (string) ($item['t'] ?? ''),
-                'harga' => (float) ($item['harga'] ?? 0),
-                'total' => (float) ($item['total'] ?? 0),
-                'images' => $itemImages,
+
+                'detail_po_id' =>
+                    $detailPo->id,
+
+                'kode' =>
+                    (string) (
+                        $item['kode'] ?? ''
+                    ),
+
+                'nama' =>
+                    (string) (
+                        $item['nama'] ?? ''
+                    ),
+
+                'qty' =>
+                    $qty,
+
+                'satuan' =>
+                    $item['satuan'] ?? '',
+
+                'material' =>
+                    (string) (
+                        $item['material'] ?? ''
+                    ),
+
+                'p' =>
+                    (string) (
+                        $item['p'] ?? ''
+                    ),
+
+                'l' =>
+                    (string) (
+                        $item['l'] ?? ''
+                    ),
+
+                't' =>
+                    (string) (
+                        $item['t'] ?? ''
+                    ),
+
+                // =================================================
+                // HARGA DASAR TANPA PPN
+                // =================================================
+                'harga' =>
+                    (float) (
+                        $item['harga'] ?? 0
+                    ),
+
+                // =================================================
+                // TOTAL DASAR TANPA PPN
+                // =================================================
+                'total' =>
+                    (float) (
+                        $item['total'] ?? 0
+                    ),
+
+                // =================================================
+                // IMAGES
+                // =================================================
+                'images' =>
+                    $itemImages,
+
+                // =================================================
+                // CATATAN
+                // =================================================
                 'catatan' => [
-                    'remark' => (string) ($item['catatan']['remark'] ?? ''),
-                    'images' => $noteImages,
+
+                    'remark' =>
+                        (string) (
+                            $item['catatan']['remark']
+                            ?? ''
+                        ),
+
+                    'images' =>
+                        $noteImages,
                 ],
-                'custom_columns' => $item['custom_columns'] ?? [],
+
+                // =================================================
+                // CUSTOM COLUMNS
+                // =================================================
+                'custom_columns' =>
+                    $item['custom_columns']
+                    ?? [],
             ];
         }
+
+        // =====================================================
+        // VALIDASI FINAL
+        // =====================================================
         if (empty($finalItems)) {
+
             return response()->json([
                 'success' => false,
                 'message' => 'Tidak ada item valid',
             ], 422);
         }
-        // =========================
+
+        // =====================================================
         // DATA FINAL
-        // =========================
+        // =====================================================
         $afterData = [
-            'status' => $request->status ?? 'draft',
-            'kategori' => $kategori,
-            'no_spk' => $request->no_spk,
-            'no_po' => $request->no_po,
-            'sup' => $request->nama,
-            'tgl_terima' => $request->tgl_terima,
-            'tgl_selesai' => $request->tgl_selesai,
-            'items' => $finalItems,
-            'payments' => $request->payments ?? [],
-            'checked_types' => $request->checked_types ?? [],
-            // 🔥 HEADER DYNAMIC
-            'custom_headers' => $request->custom_headers ?? [],
+
+            'status' =>
+                $request->input(
+                    'status',
+                    'draft'
+                ),
+
+            'kategori' =>
+                $kategori,
+
+            'no_spk' =>
+                $request->input(
+                    'no_spk'
+                ),
+
+            'no_po' =>
+                $request->input(
+                    'no_po'
+                ),
+
+            'sup' =>
+                $request->input(
+                    'nama'
+                ),
+
+            'tgl_terima' =>
+                $request->input(
+                    'tgl_terima'
+                ),
+
+            'tgl_selesai' =>
+                $request->input(
+                    'tgl_selesai'
+                ),
+
+            // =================================================
+            // PPN
+            // =================================================
+            'ppn_enabled' =>
+                $ppnEnabled,
+
+            'ppn_rate' =>
+                $ppnRate,
+
+            // =================================================
+            // ITEMS
+            // =================================================
+            'items' =>
+                $finalItems,
+
+            // =================================================
+            // PAYMENTS
+            // =================================================
+            'payments' =>
+                $request->input(
+                    'payments',
+                    []
+                ),
+
+            // =================================================
+            // CHECKED TYPES
+            // =================================================
+            'checked_types' =>
+                $request->input(
+                    'checked_types',
+                    []
+                ),
+
+            // =================================================
+            // CUSTOM HEADERS
+            // =================================================
+            'custom_headers' =>
+                $request->input(
+                    'custom_headers',
+                    []
+                ),
         ];
-        //         dd([
-        //     'before' => $beforeData,
-        //     'after' => $afterData,
-        // ]);
-        // =========================
-        // CREATE / UPDATE
-        // =========================
+
+        // =====================================================
+        // CREATE
+        // =====================================================
         if ($mode === 'create') {
+
             $spk = Spk::create([
-                'po_id' => $poId,
-                'status' => $request->status ?? 'draft',
-                'data' => $afterData,
-                'created_by' => auth()->id(),
+                'po_id' =>
+                    $poId,
+
+                'data' =>
+                    $afterData,
+
+                'created_by' =>
+                    auth()->id(),
             ]);
+
+            // =================================================
+            // TIMELINE CREATE
+            // =================================================
             SpkTimeline::create([
-                'spk_id' => $spk->id,
+                'spk_id' =>
+                    $spk->id,
+
                 'data' => [
-                    'type' => 'create',
-                    'user' => auth()->user()->name,
-                    'time' => now(),
-                    'after' => $afterData,
+
+                    'type' =>
+                        'create',
+
+                    'user' =>
+                        auth()->user()->name,
+
+                    'time' =>
+                        now(),
+
+                    'after' =>
+                        $afterData,
                 ],
             ]);
+
         } else {
-            // $changes = $this->diffRecursive($beforeData, $afterData);
-            try {
 
-                $changes = $this->diffRecursive($beforeData, $afterData);
+            // =================================================
+            // UPDATE
+            // =================================================
 
-                // dd([
-                //     'changes' => $changes
-                // ]);
+            $changes =
+                $this->diffRecursive(
+                    $beforeData,
+                    $afterData
+                );
 
-            } catch (\Throwable $e) {
+            /*
+            |--------------------------------------------------------------------------
+            | JANGAN menggunakan updated_by
+            |
+            | Karena tabel spk Anda tidak mempunyai kolom updated_by.
+            |--------------------------------------------------------------------------
+            */
 
-                dd([
-                    'error' => $e->getMessage(),
-                    'line' => $e->getLine(),
-                    'file' => $e->getFile(),
-                ]);
-
-            }
             $spkModel->update([
-                'data' => $afterData,
-                'updated_by' => auth()->id(),
+                'data' =>
+                    $afterData,
             ]);
+
+            // =================================================
+            // TIMELINE UPDATE
+            // =================================================
             SpkTimeline::create([
-                'spk_id' => $spkModel->id,
+                'spk_id' =>
+                    $spkModel->id,
+
                 'data' => [
-                    'type' => 'update',
-                    'user' => auth()->user()->name,
-                    'time' => now(),
-                    'before' => $beforeData,
-                    'after' => $afterData,
-                    'changes' => $changes,
+
+                    'type' =>
+                        'update',
+
+                    'user' =>
+                        auth()->user()->name,
+
+                    'time' =>
+                        now(),
+
+                    'before' =>
+                        $beforeData,
+
+                    'after' =>
+                        $afterData,
+
+                    'changes' =>
+                        $changes,
                 ],
             ]);
+
             $spk = $spkModel;
         }
 
+        // =====================================================
+        // DATA TERSIMPAN
+        // =====================================================
+        $savedData =
+            $spk->data ?? [];
+
+        // =====================================================
+        // RESPONSE
+        // =====================================================
         return response()->json([
-            'success' => true,
-            'message' => $mode === 'edit'
+
+            'success' =>
+                true,
+
+            'message' =>
+                $mode === 'edit'
                 ? 'SPK berhasil diperbarui'
                 : 'SPK berhasil dibuat',
-            'spk_id' => $spk->id,
-            'no_spk' => $mode === 'edit' ? $spkModel->data['no_spk'] : $spk->no_spk,
+
+            'spk_id' =>
+                $spk->id,
+
+            'no_spk' =>
+                $savedData['no_spk']
+                ?? $request->input(
+                    'no_spk'
+                ),
+
+            // =================================================
+            // PPN DEBUG
+            // =================================================
+            'ppn_debug' => [
+
+                'request_enabled' =>
+                    $request->input(
+                        'ppn_enabled'
+                    ),
+
+                'request_rate' =>
+                    $request->input(
+                        'ppn_rate'
+                    ),
+
+                'saved_enabled' =>
+                    $savedData[
+                        'ppn_enabled'
+                    ] ?? null,
+
+                'saved_rate' =>
+                    $savedData[
+                        'ppn_rate'
+                    ] ?? null,
+            ],
         ]);
     }
-
     public function timeline($id)
     {
         $timelines = SpkTimeline::where('spk_id', $id)
@@ -958,8 +1698,8 @@ class SpkController extends Controller
                      */
                     $summary = [];
                     foreach ($spkList as $spk) {
-                        $spkId = $spk['id'];         // ✅ AMAN
-                        $data = $spk['data'] ?? []; // 🔥 KUNCI UTAMA
+                        $spkId = $spk['id'];
+                        $data = $spk['data'] ?? [];
                         $supplier = $data['sup'] ?? '-';
                         $kategori = $data['kategori'] ?? '-';
                         $noSpk = $data['no_spk'] ?? '-';
@@ -969,18 +1709,18 @@ class SpkController extends Controller
                                 $spkItem['detail_po_id'] == $item->id
                             ) {
                                 $qty = (int) ($spkItem['qty'] ?? 0);
-                                // init kategori
+
                                 if (!isset($summary[$kategori])) {
                                     $summary[$kategori] = [];
                                 }
-                                // init supplier
+
                                 if (!isset($summary[$kategori][$supplier])) {
                                     $summary[$kategori][$supplier] = [
                                         'total_qty' => 0,
                                         'spks' => [],
                                     ];
                                 }
-                                // total qty supplier
+
                                 $summary[$kategori][$supplier]['total_qty'] += $qty;
                                 // detail per SPK
                                 $summary[$kategori][$supplier]['spks'][] = [
@@ -1235,138 +1975,6 @@ class SpkController extends Controller
     }
 
     // arsip udah bener
-    public function saveProcess(Request $request)
-    {
-        // =========================
-        // VALIDASI BASIC
-        // =========================
-        $datetime = Carbon::parse($request->date . ' ' . $request->time);
-        $request->validate([
-            'po_id' => 'required',
-            'detail_po_id' => 'required',
-            'qty' => 'required',
-            'type' => 'required',
-            'process' => 'required',
-        ]);
-        // =========================
-        // CLEAN QTY
-        // =========================
-        $qty = (int) str_replace(',', '', $request->qty);
-        if ($qty <= 0) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Qty tidak valid',
-            ], 422);
-        }
-        $detail_po_id = $request->detail_po_id;
-        $process = $request->process;
-        $type = $request->type;
-        $spk_id = $request->spk_id;
-        // =========================
-        // 🔥 VALIDASI MAX SPK (MASUK SUPPLIER + RETURN SERVICE)
-        // =========================
-        if ($type === 'masuk' && $spk_id) {
-            // total masuk
-            $totalMasuk = DB::table('production_timeline')
-                ->where('detail_po_id', $detail_po_id)
-                ->where('spk_id', $spk_id)
-                ->where('type', 'masuk')
-                ->sum('qty');
-            // 🔥 total service (lock sementara)
-            $totalService = DB::table('production_timeline')
-                ->where('detail_po_id', $detail_po_id)
-                ->where('spk_id', $spk_id)
-                ->where('type', 'service')
-                ->sum('qty');
-            // 🔥 effective masuk
-            $effectiveMasuk = $totalMasuk - $totalService;
-            // ambil data SPK
-            $spk = Spk::find($spk_id);
-            if (!$spk) {
-                return response()->json([
-                    'status' => false,
-                    'message' => 'SPK tidak ditemukan',
-                ], 422);
-            }
-            $data = $spk->data;
-            $maxQty = collect($data['items'])
-                ->where('detail_po_id', $detail_po_id)
-                ->first()['qty'] ?? 0;
-            if (($effectiveMasuk + $qty) > $maxQty) {
-                $sisa = $maxQty - $effectiveMasuk;
-
-                return response()->json([
-                    'status' => false,
-                    'message' => "Qty melebihi SPK. Sisa hanya {$sisa}",
-                ], 422);
-            }
-        }
-        // =========================
-        // 🔥 VALIDASI STOK (KELUAR & SERVICE)
-        // =========================
-        if (in_array($type, ['keluar', 'service'])) {
-            // total masuk
-            // $totalIn = DB::table('production_timeline')
-            //     ->where('detail_po_id', $detail_po_id)
-            //     ->where('process', $process)
-            //     ->where('type', 'masuk')
-            //     ->sum('qty');
-            $totalIn = DB::table('production_timeline')
-                ->where('detail_po_id', $detail_po_id)
-                ->where(function ($q) use ($process) {
-                    // masuk langsung
-                    $q->where(function ($q2) use ($process) {
-                        $q2->where('process', $process)
-                            ->where('type', 'masuk');
-                    });
-                    // 🔥 dari process lain (next_process)
-                    $q->orWhere(function ($q2) use ($process) {
-                        $q2->where('next_process', $process)
-                            ->where('type', 'keluar');
-                    });
-                })
-                ->sum('qty');
-            // total keluar
-            $totalOut = DB::table('production_timeline')
-                ->where('detail_po_id', $detail_po_id)
-                ->where('process', $process)
-                ->where('type', 'keluar')
-                ->sum('qty');
-            // 🔥 total service (lock)
-            $totalService = DB::table('production_timeline')
-                ->where('detail_po_id', $detail_po_id)
-                ->where('process', $process)
-                ->where('type', 'service')
-                ->sum('qty');
-            $available = $totalIn - $totalOut - $totalService;
-            if ($qty > $available) {
-                return response()->json([
-                    'status' => false,
-                    'message' => "Qty melebihi stok tersedia ({$available})",
-                ], 422);
-            }
-        }
-        DB::table('production_timeline')->insert([
-            'po_id' => $request->po_id,
-            'spk_id' => $request->spk_id,
-            'detail_po_id' => $detail_po_id,
-            'qty' => $qty,
-            'sup_id' => $request->supplier_id,
-            'date' => $request->date,
-            'type' => $type,
-            'process' => $request->process,
-            'next_process' => $request->next_process,
-            'source_type' => $request->source_type,
-            'remark' => $request->remark,
-            'created_at' => $datetime,
-            'updated_at' => $datetime,
-        ]);
-
-        return response()->json([
-            'status' => true,
-            'message' => 'Berhasil disimpan',
-        ]);
-    }
 
     public function getTimeline(Request $request)
     {
@@ -3598,635 +4206,907 @@ class SpkController extends Controller
         }
     }
     // hutang
-   public function hutang()
-{
-    /*
-    |--------------------------------------------------------------------------
-    | 1. AMBIL SEMUA SPK
-    |--------------------------------------------------------------------------
-    */
+    public function hutang()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | 1. AMBIL SEMUA SPK
+        |--------------------------------------------------------------------------
+        */
 
-    $spks = Spk::query()
-        ->orderBy('id')
-        ->get();
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | 2. AMBIL SEMUA KREDIT
-    |--------------------------------------------------------------------------
-    |
-    | Tabel kredit adalah sumber pembayaran Kreditor.
-    |
-    | Termasuk:
-    | - Sebelum ERP
-    | - Payment Request
-    | - Recon
-    |
-    */
-
-    $kredits = Kredit::query()
-        ->orderBy('id')
-        ->get()
-        ->groupBy('spk_id');
+        $spks = Spk::query()
+            ->orderBy('id')
+            ->get();
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | 3. PAYMENT REQUEST YANG TERKAIT KREDIT
-    |--------------------------------------------------------------------------
-    */
+        /*
+        |--------------------------------------------------------------------------
+        | 2. AMBIL SEMUA KREDIT
+        |--------------------------------------------------------------------------
+        |
+        | Tabel kredit adalah sumber pembayaran Kreditor.
+        |
+        | Termasuk:
+        | - Sebelum ERP
+        | - Payment Request
+        | - Recon
+        |
+        */
 
-    $paymentRequestIds = $kredits
-        ->flatten()
-        ->pluck('payment_requests_id')
-        ->filter()
-        ->unique()
-        ->values();
-
-
-    $paymentRequests = collect();
-
-
-    if ($paymentRequestIds->isNotEmpty()) {
-
-        $paymentRequests = PaymentRequest::query()
-            ->whereIn(
-                'id',
-                $paymentRequestIds
-            )
+        $kredits = Kredit::query()
+            ->orderBy('id')
             ->get()
-            ->keyBy('id');
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | 4. PAYMENT REQUEST SAVED
-    |--------------------------------------------------------------------------
-    */
-
-    $savedIds = $kredits
-        ->flatten()
-        ->pluck('payment_request_saved_id')
-        ->filter()
-        ->unique()
-        ->values();
-
-
-    $savedRequests = collect();
-
-
-    if ($savedIds->isNotEmpty()) {
-
-        $savedRequests = PaymentRequestSaved::query()
-            ->whereIn(
-                'id',
-                $savedIds
-            )
-            ->get()
-            ->keyBy('id');
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | 5. ROW KREDITOR
-    |--------------------------------------------------------------------------
-    */
-
-    $rows = collect();
-
-
-    foreach ($spks as $spk) {
-
-        /*
-        |--------------------------------------------------------------------------
-        | DATA SPK
-        |--------------------------------------------------------------------------
-        */
-
-        $data = $spk->data;
-
-
-        if (is_string($data)) {
-
-            $data = json_decode(
-                $data,
-                true
-            );
-        }
-
-
-        if (!is_array($data)) {
-
-            $data = [];
-        }
+            ->groupBy('spk_id');
 
 
         /*
         |--------------------------------------------------------------------------
-        | IDENTITAS SPK
+        | 3. PAYMENT REQUEST YANG TERKAIT KREDIT
         |--------------------------------------------------------------------------
         */
 
-        $noSpk = $data['no_spk']
-            ?? $spk->no_spk
-            ?? '-';
-
-
-        $noPo = $data['no_po']
-            ?? $spk->no_po
-            ?? '-';
-
-
-        $supplier = $data['sup']
-            ?? $spk->supplier
-            ?? '-';
-
-
-        $kategori = $data['kategori']
-            ?? $spk->kategori
-            ?? 'SPK';
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | TIMELINE SPK
-        |--------------------------------------------------------------------------
-        */
-
-        $tglTerima =
-            $data['tgl_terima']
-            ?? null;
-
-
-        $tglSelesai =
-            $data['tgl_selesai']
-            ?? null;
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | ITEMS
-        |--------------------------------------------------------------------------
-        */
-
-        $items =
-            $data['items']
-            ?? [];
-
-
-        if (!is_array($items)) {
-
-            $items = [];
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | TOTAL PEMBELIAN
-        |--------------------------------------------------------------------------
-        */
-
-        $pembelian = 0;
-
-
-        foreach ($items as $item) {
-
-            $qty = (float) (
-                $item['qty']
-                ?? 0
-            );
-
-
-            $harga = (float) (
-                $item['harga']
-                ?? 0
-            );
-
-
-            $totalItem = isset(
-                $item['total']
-            )
-                ? (float) $item['total']
-                : (
-                    $qty * $harga
-                );
-
-
-            $pembelian +=
-                $totalItem;
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | PAYMENTS SPK
-        |--------------------------------------------------------------------------
-        */
-
-        $payments =
-            $data['payments']
-            ?? [];
-
-
-        if (!is_array($payments)) {
-
-            $payments = [];
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | POTONGAN BAHAN
-        |--------------------------------------------------------------------------
-        */
-
-        $potonganBahan = 0;
-
-        $timelineBahan = [];
-
-
-        foreach ($payments as $payment) {
-
-            $note = strtolower(
-                trim(
-                    $payment['note']
-                    ?? ''
-                )
-            );
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | PAYMENT BAHAN
-            |--------------------------------------------------------------------------
-            */
-
-            if (
-                $note === 'bahan'
-                ||
-                str_contains(
-                    $note,
-                    'bahan'
-                )
-            ) {
-
-                $amount = (float) (
-                    $payment['amount']
-                    ?? 0
-                );
-
-
-                $adjustment = (float) (
-                    $payment['adjustment']
-                    ?? 0
-                );
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | JIKA ADA ADJUSTMENT
-                |--------------------------------------------------------------------------
-                */
-
-                $nominalBahan =
-                    $adjustment > 0
-                        ? $adjustment
-                        : $amount;
-
-
-                $potonganBahan +=
-                    $nominalBahan;
-
-
-                $timelineBahan[] = [
-
-                    'date' =>
-                        $payment['date']
-                        ?? null,
-
-                    'amount' =>
-                        $amount,
-
-                    'adjustment' =>
-                        $adjustment,
-
-                    'nominal' =>
-                        $nominalBahan,
-
-                    'payment_id' =>
-                        $payment['payment_id']
-                        ?? null,
-
-                    'note' =>
-                        $payment['note']
-                        ?? 'Bahan',
-
-                    'note_tambahan' =>
-                        $payment['note_tambahan']
-                        ?? null,
-                ];
-            }
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | KREDIT SPK
-        |--------------------------------------------------------------------------
-        */
-
-        $spkKredits = $kredits->get(
-            $spk->id,
-            collect()
-        );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | DETAIL SEBELUM ERP
-        |--------------------------------------------------------------------------
-        */
-
-        $sebelumErpDetails = $spkKredits
-            ->filter(function ($kredit) {
-
-                return strtolower(
-                    trim(
-                        $kredit->ket_extra
-                        ?? ''
-                    )
-                ) === 'sebelum erp';
-
-            })
+        $paymentRequestIds = $kredits
+            ->flatten()
+            ->pluck('payment_requests_id')
+            ->filter()
+            ->unique()
             ->values();
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | TOTAL SEBELUM ERP
-        |--------------------------------------------------------------------------
-        */
+        $paymentRequests = collect();
 
-        $totalSebelumErp =
-            $sebelumErpDetails->sum(
-                function ($kredit) {
 
-                    return (float) (
-                        $kredit->nominal
-                        ?? 0
-                    );
-                }
-            );
+        if ($paymentRequestIds->isNotEmpty()) {
+
+            $paymentRequests = PaymentRequest::query()
+                ->whereIn(
+                    'id',
+                    $paymentRequestIds
+                )
+                ->get()
+                ->keyBy('id');
+        }
 
 
         /*
         |--------------------------------------------------------------------------
-        | DETAIL PEMBAYARAN PENGAJUAN
+        | 4. PAYMENT REQUEST SAVED
         |--------------------------------------------------------------------------
-        |
-        | Semua kredit selain Sebelum ERP.
-        |
         */
 
-        $pengajuanDetails = $spkKredits
-            ->filter(function ($kredit) {
-
-                return strtolower(
-                    trim(
-                        $kredit->ket_extra
-                        ?? ''
-                    )
-                ) !== 'sebelum erp';
-
-            })
+        $savedIds = $kredits
+            ->flatten()
+            ->pluck('payment_request_saved_id')
+            ->filter()
+            ->unique()
             ->values();
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | TOTAL PEMBAYARAN
-        |--------------------------------------------------------------------------
-        |
-        | SEMUA yang ada di tabel kredit.
-        |
-        */
+        $savedRequests = collect();
 
-        $pembayaran =
-            $spkKredits->sum(
-                function ($kredit) {
 
-                    return (float) (
-                        $kredit->nominal
-                        ?? 0
-                    );
-                }
-            );
+        if ($savedIds->isNotEmpty()) {
+
+            $savedRequests = PaymentRequestSaved::query()
+                ->whereIn(
+                    'id',
+                    $savedIds
+                )
+                ->get()
+                ->keyBy('id');
+        }
 
 
         /*
         |--------------------------------------------------------------------------
-        | DETAIL PEMBAYARAN UNTUK HOVER
+        | 5. ROW KREDITOR
         |--------------------------------------------------------------------------
         */
 
-        $paymentDetails = [];
+        $rows = collect();
 
 
-        foreach ($spkKredits as $kredit) {
-
-            $isSebelumErp =
-                strtolower(
-                    trim(
-                        $kredit->ket_extra
-                        ?? ''
-                    )
-                ) === 'sebelum erp';
-
+        foreach ($spks as $spk) {
 
             /*
             |--------------------------------------------------------------------------
-            | PAYMENT REQUEST
+            | DATA SPK
             |--------------------------------------------------------------------------
             */
 
-            $paymentRequest = null;
+            $data = $spk->data;
 
 
-            if ($kredit->payment_requests_id) {
+            if (is_string($data)) {
 
-                $paymentRequest =
-                    $paymentRequests->get(
-                        $kredit->payment_requests_id
-                    );
+                $data = json_decode(
+                    $data,
+                    true
+                );
+            }
+
+
+            if (!is_array($data)) {
+
+                $data = [];
             }
 
 
             /*
             |--------------------------------------------------------------------------
-            | SAVED
+            | IDENTITAS SPK
             |--------------------------------------------------------------------------
             */
 
-            $saved = null;
+            $noSpk = $data['no_spk']
+                ?? $spk->no_spk
+                ?? '-';
 
 
-            if ($kredit->payment_request_saved_id) {
+            $noPo = $data['no_po']
+                ?? $spk->no_po
+                ?? '-';
 
-                $saved =
-                    $savedRequests->get(
-                        $kredit->payment_request_saved_id
-                    );
-            }
+
+            $supplier = $data['sup']
+                ?? $spk->supplier
+                ?? '-';
+
+
+            $kategori = $data['kategori']
+                ?? $spk->kategori
+                ?? 'SPK';
 
 
             /*
             |--------------------------------------------------------------------------
-            | RECON
+            | TIMELINE SPK
             |--------------------------------------------------------------------------
             */
 
-            $isRecon =
-                strtoupper(
-                    trim(
-                        $kredit->ket_extra
-                        ?? ''
-                    )
-                ) === 'RECON';
+            $tglTerima =
+                $data['tgl_terima']
+                ?? null;
 
 
-            /*
-            |--------------------------------------------------------------------------
-            | REQUEST NO
-            |--------------------------------------------------------------------------
-            */
-
-            $requestNo =
-                $paymentRequest->request_no
-                ?? $saved->request_no
+            $tglSelesai =
+                $data['tgl_selesai']
                 ?? null;
 
 
             /*
             |--------------------------------------------------------------------------
-            | REQUEST DATE
+            | ITEMS
             |--------------------------------------------------------------------------
             */
 
-            $requestDate = null;
+            $items =
+                $data['items']
+                ?? [];
 
 
-            if (
-                $paymentRequest
-                &&
-                $paymentRequest->request_date
-            ) {
+            if (!is_array($items)) {
 
-                $requestDate =
-                    $paymentRequest
-                        ->request_date
-                        ->format('d/m/Y');
-
-            } elseif (
-                $saved
-                &&
-                $saved->request_date
-            ) {
-
-                $requestDate =
-                    $saved
-                        ->request_date
-                        ->format('d/m/Y');
+                $items = [];
             }
 
 
             /*
             |--------------------------------------------------------------------------
-            | PAYMENT DETAIL
+            | TOTAL PEMBELIAN
             |--------------------------------------------------------------------------
             */
 
-            $paymentDetails[] = [
+            $pembelian = 0;
 
-                'kredit_id' =>
-                    $kredit->id,
 
-                'payment_request_id' =>
-                    $kredit->payment_requests_id,
+            foreach ($items as $item) {
 
-                'saved_id' =>
-                    $kredit->payment_request_saved_id,
+                $qty = (float) (
+                    $item['qty']
+                    ?? 0
+                );
 
-                'request_no' =>
-                    $requestNo,
 
-                'request_date' =>
-                    $requestDate,
+                $harga = (float) (
+                    $item['harga']
+                    ?? 0
+                );
 
-                'nominal' =>
-                    (float) (
-                        $kredit->nominal
-                        ?? 0
-                    ),
 
-                'ket' =>
-                    $kredit->ket
-                    ?? '-',
+                $totalItem = isset(
+                    $item['total']
+                )
+                    ? (float) $item['total']
+                    : (
+                        $qty * $harga
+                    );
 
-                'ket_extra' =>
-                    $kredit->ket_extra
-                    ?? null,
 
-                'is_sebelum_erp' =>
-                    $isSebelumErp,
+                $pembelian +=
+                    $totalItem;
+            }
 
-                'is_recon' =>
-                    $isRecon,
 
-                'saved_recon' =>
-                    $saved
-                    ? (
-                        (int)
-                        $saved->ainun_saved_recon === 1
+            /*
+            |--------------------------------------------------------------------------
+            | PAYMENTS SPK
+            |--------------------------------------------------------------------------
+            */
+
+            $payments =
+                $data['payments']
+                ?? [];
+
+
+            if (!is_array($payments)) {
+
+                $payments = [];
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | POTONGAN BAHAN
+            |--------------------------------------------------------------------------
+            */
+
+            $potonganBahan = 0;
+
+            $timelineBahan = [];
+
+
+            foreach ($payments as $payment) {
+
+                $note = strtolower(
+                    trim(
+                        $payment['note']
+                        ?? ''
                     )
-                    : false,
-            ];
+                );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | PAYMENT BAHAN
+                |--------------------------------------------------------------------------
+                */
+
+                if (
+                    $note === 'bahan'
+                    ||
+                    str_contains(
+                        $note,
+                        'bahan'
+                    )
+                ) {
+
+                    $amount = (float) (
+                        $payment['amount']
+                        ?? 0
+                    );
+
+
+                    $adjustment = (float) (
+                        $payment['adjustment']
+                        ?? 0
+                    );
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | JIKA ADA ADJUSTMENT
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $nominalBahan =
+                        $adjustment > 0
+                        ? $adjustment
+                        : $amount;
+
+
+                    $potonganBahan +=
+                        $nominalBahan;
+
+
+                    $timelineBahan[] = [
+
+                        'date' =>
+                            $payment['date']
+                            ?? null,
+
+                        'amount' =>
+                            $amount,
+
+                        'adjustment' =>
+                            $adjustment,
+
+                        'nominal' =>
+                            $nominalBahan,
+
+                        'payment_id' =>
+                            $payment['payment_id']
+                            ?? null,
+
+                        'note' =>
+                            $payment['note']
+                            ?? 'Bahan',
+
+                        'note_tambahan' =>
+                            $payment['note_tambahan']
+                            ?? null,
+                    ];
+                }
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | KREDIT SPK
+            |--------------------------------------------------------------------------
+            */
+
+            $spkKredits = $kredits->get(
+                $spk->id,
+                collect()
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | DETAIL SEBELUM ERP
+            |--------------------------------------------------------------------------
+            */
+
+            $sebelumErpDetails = $spkKredits
+                ->filter(function ($kredit) {
+
+                    return strtolower(
+                        trim(
+                            $kredit->ket_extra
+                            ?? ''
+                        )
+                    ) === 'sebelum erp';
+
+                })
+                ->values();
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | TOTAL SEBELUM ERP
+            |--------------------------------------------------------------------------
+            */
+
+            $totalSebelumErp =
+                $sebelumErpDetails->sum(
+                    function ($kredit) {
+
+                        return (float) (
+                            $kredit->nominal
+                            ?? 0
+                        );
+                    }
+                );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | DETAIL PEMBAYARAN PENGAJUAN
+            |--------------------------------------------------------------------------
+            |
+            | Semua kredit selain Sebelum ERP.
+            |
+            */
+
+            $pengajuanDetails = $spkKredits
+                ->filter(function ($kredit) {
+
+                    return strtolower(
+                        trim(
+                            $kredit->ket_extra
+                            ?? ''
+                        )
+                    ) !== 'sebelum erp';
+
+                })
+                ->values();
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | TOTAL PEMBAYARAN
+            |--------------------------------------------------------------------------
+            |
+            | SEMUA yang ada di tabel kredit.
+            |
+            */
+
+            $pembayaran =
+                $spkKredits->sum(
+                    function ($kredit) {
+
+                        return (float) (
+                            $kredit->nominal
+                            ?? 0
+                        );
+                    }
+                );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | DETAIL PEMBAYARAN UNTUK HOVER
+            |--------------------------------------------------------------------------
+            */
+
+            $paymentDetails = [];
+
+
+            foreach ($spkKredits as $kredit) {
+
+                $isSebelumErp =
+                    strtolower(
+                        trim(
+                            $kredit->ket_extra
+                            ?? ''
+                        )
+                    ) === 'sebelum erp';
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | PAYMENT REQUEST
+                |--------------------------------------------------------------------------
+                */
+
+                $paymentRequest = null;
+
+
+                if ($kredit->payment_requests_id) {
+
+                    $paymentRequest =
+                        $paymentRequests->get(
+                            $kredit->payment_requests_id
+                        );
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | SAVED
+                |--------------------------------------------------------------------------
+                */
+
+                $saved = null;
+
+
+                if ($kredit->payment_request_saved_id) {
+
+                    $saved =
+                        $savedRequests->get(
+                            $kredit->payment_request_saved_id
+                        );
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | RECON
+                |--------------------------------------------------------------------------
+                */
+
+                $isRecon =
+                    strtoupper(
+                        trim(
+                            $kredit->ket_extra
+                            ?? ''
+                        )
+                    ) === 'RECON';
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | REQUEST NO
+                |--------------------------------------------------------------------------
+                */
+
+                $requestNo =
+                    $paymentRequest->request_no
+                    ?? $saved->request_no
+                    ?? null;
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | REQUEST DATE
+                |--------------------------------------------------------------------------
+                */
+
+                $requestDate = null;
+
+
+                if (
+                    $paymentRequest
+                    &&
+                    $paymentRequest->request_date
+                ) {
+
+                    $requestDate =
+                        $paymentRequest
+                            ->request_date
+                            ->format('d/m/Y');
+
+                } elseif (
+                    $saved
+                    &&
+                    $saved->request_date
+                ) {
+
+                    $requestDate =
+                        $saved
+                            ->request_date
+                            ->format('d/m/Y');
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | PAYMENT DETAIL
+                |--------------------------------------------------------------------------
+                */
+
+                $paymentDetails[] = [
+
+                    'kredit_id' =>
+                        $kredit->id,
+
+                    'payment_request_id' =>
+                        $kredit->payment_requests_id,
+
+                    'saved_id' =>
+                        $kredit->payment_request_saved_id,
+
+                    'request_no' =>
+                        $requestNo,
+
+                    'request_date' =>
+                        $requestDate,
+
+                    'nominal' =>
+                        (float) (
+                            $kredit->nominal
+                            ?? 0
+                        ),
+
+                    'ket' =>
+                        $kredit->ket
+                        ?? '-',
+
+                    'ket_extra' =>
+                        $kredit->ket_extra
+                        ?? null,
+
+                    'is_sebelum_erp' =>
+                        $isSebelumErp,
+
+                    'is_recon' =>
+                        $isRecon,
+
+                    'saved_recon' =>
+                        $saved
+                        ? (
+                            (int) 
+                            $saved->ainun_saved_recon === 1
+                        )
+                        : false,
+                ];
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | DETAIL RECON
+            |--------------------------------------------------------------------------
+            */
+
+            $reconDetails =
+                collect(
+                    $paymentDetails
+                )
+                    ->filter(function ($payment) {
+
+                        return $payment['is_recon'] === true;
+                    })
+                    ->values()
+                    ->toArray();
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | TOTAL RECON
+            |--------------------------------------------------------------------------
+            */
+
+            $totalRecon =
+                collect(
+                    $reconDetails
+                )->sum(function ($item) {
+
+                    return (float) (
+                        $item['nominal']
+                        ?? 0
+                    );
+                });
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | SALDO AKHIR
+            |--------------------------------------------------------------------------
+            |
+            | Pembelian
+            | - Potongan Bahan
+            | - Semua Kredit
+            |
+            */
+
+            $saldoAkhir =
+                $pembelian
+                -
+                $potonganBahan
+                -
+                $pembayaran;
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | STATUS
+            |--------------------------------------------------------------------------
+            */
+
+            $term =
+                $saldoAkhir <= 0
+                ? 'Lunas'
+                : 'Belum Lunas';
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | SORT TIMELINE BAHAN
+            |--------------------------------------------------------------------------
+            */
+
+            usort(
+                $timelineBahan,
+                function ($a, $b) {
+
+                    return strcmp(
+                        (string) (
+                            $a['date']
+                            ?? ''
+                        ),
+                        (string) (
+                            $b['date']
+                            ?? ''
+                        )
+                    );
+                }
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | PUSH ROW
+            |--------------------------------------------------------------------------
+            */
+
+            $rows->push([
+
+                'no' =>
+                    $rows->count() + 1,
+
+                'spk_id' =>
+                    $spk->id,
+
+                'kategori' =>
+                    $kategori,
+
+                'tgl_invoice' =>
+                    $tglTerima,
+
+                'no_spk' =>
+                    $noSpk,
+
+                'no_invoice_spk' =>
+                    $noSpk,
+
+                'no_po' =>
+                    $noPo,
+
+                'tanggal_jt' =>
+                    $tglSelesai,
+
+                'supplier' =>
+                    $supplier,
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | KEUANGAN
+                |--------------------------------------------------------------------------
+                */
+
+                'pembelian' =>
+                    $pembelian,
+
+                'potongan_bahan' =>
+                    $potonganBahan,
+
+                'pembayaran' =>
+                    $pembayaran,
+
+                'saldo_akhir' =>
+                    $saldoAkhir,
+
+                'term' =>
+                    $term,
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | SEBELUM ERP
+                |--------------------------------------------------------------------------
+                */
+
+                'sebelum_erp' =>
+                    $totalSebelumErp,
+
+                'sebelum_erp_details' =>
+                    $sebelumErpDetails
+                        ->map(function ($kredit) {
+
+                            return [
+
+                                'id' =>
+                                    $kredit->id,
+
+                                'nominal' =>
+                                    (float) $kredit->nominal,
+
+                                'ket' =>
+                                    $kredit->ket,
+
+                                'ket_extra' =>
+                                    $kredit->ket_extra,
+
+                            ];
+
+                        })
+                        ->values()
+                        ->toArray(),
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | PAYMENT DETAIL
+                |--------------------------------------------------------------------------
+                */
+
+                'payment_details' =>
+                    $paymentDetails,
+
+                'pengajuan_details' =>
+                    $pengajuanDetails
+                        ->map(function ($kredit) {
+
+                            return [
+
+                                'id' =>
+                                    $kredit->id,
+
+                                'payment_request_id' =>
+                                    $kredit->payment_requests_id,
+
+                                'saved_id' =>
+                                    $kredit->payment_request_saved_id,
+
+                                'nominal' =>
+                                    (float) $kredit->nominal,
+
+                                'ket' =>
+                                    $kredit->ket,
+
+                                'ket_extra' =>
+                                    $kredit->ket_extra,
+
+                            ];
+
+                        })
+                        ->values()
+                        ->toArray(),
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | RECON
+                |--------------------------------------------------------------------------
+                */
+
+                'recon_details' =>
+                    $reconDetails,
+
+                'total_recon' =>
+                    $totalRecon,
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | BAHAN
+                |--------------------------------------------------------------------------
+                */
+
+                'timeline_bahan' =>
+                    $timelineBahan,
+
+                'total_timeline_bahan' =>
+                    count($timelineBahan),
+
+            ]);
         }
 
 
         /*
         |--------------------------------------------------------------------------
-        | DETAIL RECON
+        | TOTAL
         |--------------------------------------------------------------------------
         */
 
-        $reconDetails =
-            collect(
-                $paymentDetails
-            )
-            ->filter(function ($payment) {
-
-                return $payment['is_recon'] === true;
-            })
-            ->values()
-            ->toArray();
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | TOTAL RECON
-        |--------------------------------------------------------------------------
-        */
-
-        $totalRecon =
-            collect(
-                $reconDetails
-            )->sum(function ($item) {
+        $totalSpk =
+            $rows->sum(function ($row) {
 
                 return (float) (
-                    $item['nominal']
+                    $row['pembelian']
+                    ?? 0
+                );
+            });
+
+
+        $totalPotonganBahan =
+            $rows->sum(function ($row) {
+
+                return (float) (
+                    $row['potongan_bahan']
+                    ?? 0
+                );
+            });
+
+
+        $totalPembayaran =
+            $rows->sum(function ($row) {
+
+                return (float) (
+                    $row['pembayaran']
+                    ?? 0
+                );
+            });
+
+
+        $totalSebelumErp =
+            $rows->sum(function ($row) {
+
+                return (float) (
+                    $row['sebelum_erp']
+                    ?? 0
+                );
+            });
+
+
+        $totalHutang =
+            $rows->sum(function ($row) {
+
+                return (float) (
+                    $row['saldo_akhir']
                     ?? 0
                 );
             });
@@ -4234,294 +5114,22 @@ class SpkController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | SALDO AKHIR
-        |--------------------------------------------------------------------------
-        |
-        | Pembelian
-        | - Potongan Bahan
-        | - Semua Kredit
-        |
-        */
-
-        $saldoAkhir =
-            $pembelian
-            -
-            $potonganBahan
-            -
-            $pembayaran;
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | STATUS
+        | RETURN
         |--------------------------------------------------------------------------
         */
 
-        $term =
-            $saldoAkhir <= 0
-                ? 'Lunas'
-                : 'Belum Lunas';
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | SORT TIMELINE BAHAN
-        |--------------------------------------------------------------------------
-        */
-
-        usort(
-            $timelineBahan,
-            function ($a, $b) {
-
-                return strcmp(
-                    (string) (
-                        $a['date']
-                        ?? ''
-                    ),
-                    (string) (
-                        $b['date']
-                        ?? ''
-                    )
-                );
-            }
+        return view(
+            'pages.kreditor.index',
+            compact(
+                'rows',
+                'totalSpk',
+                'totalPotonganBahan',
+                'totalPembayaran',
+                'totalSebelumErp',
+                'totalHutang'
+            )
         );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | PUSH ROW
-        |--------------------------------------------------------------------------
-        */
-
-        $rows->push([
-
-            'no' =>
-                $rows->count() + 1,
-
-            'spk_id' =>
-                $spk->id,
-
-            'kategori' =>
-                $kategori,
-
-            'tgl_invoice' =>
-                $tglTerima,
-
-            'no_spk' =>
-                $noSpk,
-
-            'no_invoice_spk' =>
-                $noSpk,
-
-            'no_po' =>
-                $noPo,
-
-            'tanggal_jt' =>
-                $tglSelesai,
-
-            'supplier' =>
-                $supplier,
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | KEUANGAN
-            |--------------------------------------------------------------------------
-            */
-
-            'pembelian' =>
-                $pembelian,
-
-            'potongan_bahan' =>
-                $potonganBahan,
-
-            'pembayaran' =>
-                $pembayaran,
-
-            'saldo_akhir' =>
-                $saldoAkhir,
-
-            'term' =>
-                $term,
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | SEBELUM ERP
-            |--------------------------------------------------------------------------
-            */
-
-            'sebelum_erp' =>
-                $totalSebelumErp,
-
-            'sebelum_erp_details' =>
-                $sebelumErpDetails
-                    ->map(function ($kredit) {
-
-                        return [
-
-                            'id' =>
-                                $kredit->id,
-
-                            'nominal' =>
-                                (float) $kredit->nominal,
-
-                            'ket' =>
-                                $kredit->ket,
-
-                            'ket_extra' =>
-                                $kredit->ket_extra,
-
-                        ];
-
-                    })
-                    ->values()
-                    ->toArray(),
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | PAYMENT DETAIL
-            |--------------------------------------------------------------------------
-            */
-
-            'payment_details' =>
-                $paymentDetails,
-
-            'pengajuan_details' =>
-                $pengajuanDetails
-                    ->map(function ($kredit) {
-
-                        return [
-
-                            'id' =>
-                                $kredit->id,
-
-                            'payment_request_id' =>
-                                $kredit->payment_requests_id,
-
-                            'saved_id' =>
-                                $kredit->payment_request_saved_id,
-
-                            'nominal' =>
-                                (float) $kredit->nominal,
-
-                            'ket' =>
-                                $kredit->ket,
-
-                            'ket_extra' =>
-                                $kredit->ket_extra,
-
-                        ];
-
-                    })
-                    ->values()
-                    ->toArray(),
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | RECON
-            |--------------------------------------------------------------------------
-            */
-
-            'recon_details' =>
-                $reconDetails,
-
-            'total_recon' =>
-                $totalRecon,
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | BAHAN
-            |--------------------------------------------------------------------------
-            */
-
-            'timeline_bahan' =>
-                $timelineBahan,
-
-            'total_timeline_bahan' =>
-                count($timelineBahan),
-
-        ]);
     }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | TOTAL
-    |--------------------------------------------------------------------------
-    */
-
-    $totalSpk =
-        $rows->sum(function ($row) {
-
-            return (float) (
-                $row['pembelian']
-                ?? 0
-            );
-        });
-
-
-    $totalPotonganBahan =
-        $rows->sum(function ($row) {
-
-            return (float) (
-                $row['potongan_bahan']
-                ?? 0
-            );
-        });
-
-
-    $totalPembayaran =
-        $rows->sum(function ($row) {
-
-            return (float) (
-                $row['pembayaran']
-                ?? 0
-            );
-        });
-
-
-    $totalSebelumErp =
-        $rows->sum(function ($row) {
-
-            return (float) (
-                $row['sebelum_erp']
-                ?? 0
-            );
-        });
-
-
-    $totalHutang =
-        $rows->sum(function ($row) {
-
-            return (float) (
-                $row['saldo_akhir']
-                ?? 0
-            );
-        });
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | RETURN
-    |--------------------------------------------------------------------------
-    */
-
-    return view(
-        'pages.kreditor.index',
-        compact(
-            'rows',
-            'totalSpk',
-            'totalPotonganBahan',
-            'totalPembayaran',
-            'totalSebelumErp',
-            'totalHutang'
-        )
-    );
-}
     private function findOriginalPaymentAmount(
         $payments,
         $paymentId

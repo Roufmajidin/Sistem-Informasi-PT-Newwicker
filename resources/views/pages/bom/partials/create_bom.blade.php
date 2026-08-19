@@ -563,72 +563,65 @@
          HEADER BOM
          Semua ID tombol dipertahankan untuk JavaScript lama.
          ===================================================== --}}
-  @section('btn')
-    <div class="bom-topbar">
+ <div class="bom-topbar">
 
-        <div class="bom-title">
-            <h6>
-                @if (isset($bom))
-                    Edit BOM
-                @else
-                    Create BOM
-                @endif
-            </h6>
-{{-- 
-            <p>
-                Kelola informasi produk, ukuran, material, labour, dan HPP.
-            </p> --}}
-        </div>
-
-        <div class="bom-actions">
-
+    <div class="bom-title">
+        <h6>
             @if (isset($bom))
-
-                <button
-                    type="button"
-                    class="btn btn-warning btn-sm"
-                    id="btn-update-bom"
-                >
-                    <i class="fa fa-save"></i>
-                    Update BOM
-                </button>
-
-                <button
-                    type="button"
-                    class="btn btn-primary btn-sm"
-                    id="btn-copy-bom"
-                >
-                    <i class="fa fa-copy"></i>
-                    Copy BOM
-                </button>
-
+                Edit BOM
             @else
-
-                <button
-                    type="button"
-                    id="btn-clear-draft"
-                    class="btn btn-warning btn-sm"
-                >
-                    <i class="fa fa-refresh"></i>
-                    Refresh Draft
-                </button>
-
-                <button
-                    type="button"
-                    class="btn btn-primary btn-sm"
-                    id="btn-save-bom"
-                >
-                    <i class="fa fa-save"></i>
-                    Save BOM
-                </button>
-
+                Create BOM
             @endif
+        </h6>
+    </div>
 
-        </div>
+    <div class="bom-actions">
+
+        @if (!empty($bom) && isset($bom->id))
+
+            <button
+                type="button"
+                class="btn btn-warning btn-sm"
+                id="btn-update-bom"
+            >
+                <i class="fa fa-save"></i>
+                Update BOM
+            </button>
+
+            <button
+                type="button"
+                class="btn btn-primary btn-sm"
+                id="btn-copy-bom"
+            >
+                <i class="fa fa-copy"></i>
+                Copy BOM
+            </button>
+
+        @else
+
+            <button
+                type="button"
+                id="btn-clear-draft"
+                class="btn btn-warning btn-sm"
+            >
+                <i class="fa fa-refresh"></i>
+                Refresh Draft
+            </button>
+
+            <button
+                type="button"
+                class="btn btn-primary btn-sm"
+                id="btn-save-bom"
+            >
+                <i class="fa fa-save"></i>
+                Save BOM
+            </button>
+
+        @endif
 
     </div>
-  
-  @endsection
+
+</div>
 
 
     {{-- =====================================================

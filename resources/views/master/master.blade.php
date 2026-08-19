@@ -297,13 +297,13 @@
                     <script>
                         var $ = jQuery.noConflict();
                     </script>
-                    <!-- <script src="{{asset('assets/libs/jquery/jquery/dist/jquery.js')}}"></script> -->
+                    <script src="{{asset('assets/libs/jquery/jquery/dist/jquery.js')}}"></script> -->
                     <!-- Bootstrap -->
                     <script src="{{asset('assets/libs/jquery/tether/dist/js/tether.min.js')}}"></script>
                     <script src="{{asset('assets/libs/jquery/bootstrap/dist/js/bootstrap.js')}}"></script>
                     <!-- core -->
                     <script src="{{asset('assets/libs/jquery/underscore/underscore-min.js')}}"></script>
-                    <script src="{{asset('assets/libs/jquery/jQuery-Storage-API/jquery.storageapi.min.js')}}"></script>
+                    {{-- <script src="{{asset('assets/libs/jquery/jQuery-Storage-API/jquery.storageapi.min.js')}}"></script> --}}
                     <script src="{{asset('assets/libs/jquery/PACE/pace.min.js')}}"></script>
 
                     <script src="{{asset('assets/scripts/config.lazyload.js')}}"></script>

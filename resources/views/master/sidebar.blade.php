@@ -261,7 +261,7 @@
                                  <span class="nav-text">admin produksi</span>
                              </a>
                              <ul class="nav-sub">
-                                 <li><a href="/upah"><span class="nav-text">Upah Borongan</span></a></li>
+                                 <li><a href="/upah"><span class="nav-text">DB Upah</span></a></li>
                                  <li><a href="/upah/transaksi"><span class="nav-text">Rekap Upah</span></a></li>
                                  <li><a href="/subkon/"><span class="nav-text">Subkon</span></a></li>
   <li>
@@ -579,7 +579,7 @@
                                  <span class="nav-text">admin produksi</span>
                              </a>
                              <ul class="nav-sub">
-                                 <li><a href="/upah"><span class="nav-text">Upah Borongan</span></a></li>
+                                 <li><a href="/upah"><span class="nav-text">DB Upah</span></a></li>
                                  <li><a href="/upah/transaksi"><span class="nav-text">Rekap Upah</span></a></li>
                                  <li><a href="/subkon/"><span class="nav-text">Subkon</span></a></li>
   <li>

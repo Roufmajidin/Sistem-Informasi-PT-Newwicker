@@ -1,177 +1,192 @@
 <script>
-
-$(document).ready(function () {
-
-
-    let articleTimer = null;
-    let pekerjaanTimer = null;
+    $(document).ready(function() {
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | OPEN MODAL
-    |--------------------------------------------------------------------------
-    */
+        let articleTimer = null;
+        let pekerjaanTimer = null;
 
-    $('#btnAddUpahTransaksi').on(
-        'click',
-        function () {
-
-            $('#formInsertUpah')[0].reset();
-
-            showNormalUpah();
+        // Mencegah satu transaksi terkirim lebih dari sekali
+        let isSubmittingUpah = false;
 
 
-            $('#insert_tanggal')
-                .val(
-                    '{{ date("Y-m-d") }}'
-                );
+        /*
+        |--------------------------------------------------------------------------
+        | OPEN MODAL
+        |--------------------------------------------------------------------------
+        */
+
+        $('#btnAddUpahTransaksi').on(
+            'click',
+            function() {
+
+                $('#formInsertUpah')[0].reset();
+
+                showNormalUpah();
 
 
-            $('#insert_qty')
-                .val(1);
+                $('#insert_tanggal')
+                    .val(
+                        '{{ date('Y-m-d') }}'
+                    );
 
 
-            $('#insert_harga')
-                .val(0);
+                $('#insert_qty')
+                    .val(1);
 
 
-            $('#insert_total')
-                .val(0);
+                $('#insert_harga')
+                    .val(0);
+
+                $('#insert_pekerjaan')
+                    .removeClass('d-none')
+                    .val('');
+
+                $('#insert_pekerjaan_new')
+                    .addClass('d-none')
+                    .val('');
 
 
-            $('#articleSearchResult')
-                .empty()
-                .removeClass('show');
+                $('#insert_total')
+                    .val(0);
 
 
-            $('#articleNotFound')
-                .removeClass('show');
+                $('#articleSearchResult')
+                    .empty()
+                    .removeClass('show');
 
 
-            $('#formUpahError')
-                .addClass('d-none')
-                .empty();
+                $('#articleNotFound')
+                    .removeClass('show');
 
 
-            $('#modalInsertUpah')
-                .modal('show');
+                $('#formUpahError')
+                    .addClass('d-none')
+                    .empty();
 
 
-            setTimeout(function () {
-
-                $('#insert_article')
-                    .focus();
-
-            }, 300);
-
-        }
-    );
+                $('#modalInsertUpah')
+                    .modal('show');
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | ARTICLE SEARCH
-    |--------------------------------------------------------------------------
-    */
+                setTimeout(function() {
 
-    $('#insert_article').on(
-        'input',
-        function () {
+                    $('#insert_article')
+                        .focus();
 
-            const input =
-                $(this);
-
-            const keyword =
-                input.val().trim();
-
-
-            clearTimeout(articleTimer);
-
-
-            $('#articleSearchResult')
-                .empty()
-                .removeClass('show');
-
-
-            $('#articleNotFound')
-                .removeClass('show');
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | USER GANTI ARTICLE
-            |--------------------------------------------------------------------------
-            */
-
-            $('#insert_description')
-                .val('');
-
-            $('#insert_pekerjaan')
-                .val('');
-
-            $('#pekerjaanSearchResult')
-                .empty()
-                .removeClass('show');
-
-            $('#insert_harga')
-                .val(0);
-
-            calculateTotal();
-
-
-            if (keyword.length < 2) {
-
-                return;
+                }, 300);
 
             }
+        );
 
 
-            articleTimer =
-                setTimeout(function () {
+        /*
+        |--------------------------------------------------------------------------
+        | ARTICLE SEARCH
+        |--------------------------------------------------------------------------
+        */
 
-                    $.ajax({
+        $('#insert_article').on(
+            'input',
+            function() {
 
-                        url:
-                            "{{ route('upah.transaksi.search.article') }}",
+                const input =
+                    $(this);
 
-                        type: 'GET',
-
-                        data: {
-                            q: keyword
-                        },
-
-
-                        success: function (response) {
-
-                            if (
-                                !Array.isArray(response)
-                            ) {
-
-                                response = [];
-
-                            }
+                const keyword =
+                    input.val().trim();
 
 
-                            if (
-                                response.length === 0
-                            ) {
-
-                                $('#articleNotFound')
-                                    .addClass('show');
-
-                                return;
-
-                            }
+                clearTimeout(articleTimer);
 
 
-                            let html = '';
+                $('#articleSearchResult')
+                    .empty()
+                    .removeClass('show');
 
 
-                            response.forEach(
-                                function (item) {
+                $('#articleNotFound')
+                    .removeClass('show');
 
-                                    html += `
+
+                /*
+                |--------------------------------------------------------------------------
+                | USER GANTI ARTICLE
+                |--------------------------------------------------------------------------
+                */
+
+                $('#insert_description')
+                    .val('');
+
+                $('#insert_pekerjaan')
+                    .removeClass('d-none')
+                    .val('');
+
+                $('#insert_pekerjaan_new')
+                    .addClass('d-none')
+                    .val('');
+
+                $('#insert_harga').val(0);
+
+                $('#articleSearchResult')
+                    .empty()
+                    .removeClass('show');
+
+                $('#articleNotFound')
+                    .removeClass('show');
+
+                calculateTotal();
+
+                if (keyword.length < 2) {
+
+                    return;
+
+                }
+
+
+                articleTimer =
+                    setTimeout(function() {
+
+                        $.ajax({
+
+                            url: "{{ route('upah.transaksi.search.article') }}",
+
+                            type: 'GET',
+
+                            data: {
+                                q: keyword
+                            },
+
+
+                            success: function(response) {
+
+                                if (
+                                    !Array.isArray(response)
+                                ) {
+
+                                    response = [];
+
+                                }
+
+
+                                if (
+                                    response.length === 0
+                                ) {
+
+                                    $('#articleNotFound')
+                                        .addClass('show');
+
+                                    return;
+
+                                }
+
+
+                                let html = '';
+
+
+                                response.forEach(
+                                    function(item) {
+
+                                        html += `
 
                                         <div
                                             class="article-result-item"
@@ -179,6 +194,15 @@ $(document).ready(function () {
                                             data-description="${escapeHtml(item.description || '')}"
                                             data-harga="${item.harga || 0}"
                                             data-jenis="${escapeHtml(item.jenis || '')}"
+                                            data-exists="${
+                                                (item.exists_in_upah === true ||
+                                                 item.exists_in_upah === 1 ||
+                                                 item.exists_in_upah === '1' ||
+                                                 (item.jenis !== null && item.jenis !== undefined && String(item.jenis).trim() !== '') ||
+                                                 (item.harga !== null && item.harga !== undefined))
+                                                    ? '1'
+                                                    : '0'
+                                            }"
                                         >
 
                                             <div class="article-result-code">
@@ -203,191 +227,368 @@ $(document).ready(function () {
 
                                     `;
 
-                                }
-                            );
+                                    }
+                                );
 
 
-                            $('#articleSearchResult')
-                                .html(html)
-                                .addClass('show');
+                                $('#articleSearchResult')
+                                    .html(html)
+                                    .addClass('show');
 
-                        },
+                            },
 
 
-                        error: function (xhr) {
+                            error: function(xhr) {
 
-                            console.error(
-                                'Search article error:',
-                                xhr
-                            );
+                                console.error(
+                                    'Search article error:',
+                                    xhr
+                                );
 
-                        }
+                            }
+
+                        });
+
+                    }, 300);
+
+            }
+        );
+
+        function setManualPekerjaanMode(article) {
+
+            $('#modalInsertUpah .modal-title').html(`
+                <i class="fas fa-plus-circle mr-1"></i>
+                Anda sedang menambahkan upah <strong>${escapeHtml(article || '')}</strong>
+                <small class="d-block text-danger mt-1">
+                    Pekerjaan belum tersedia untuk article ini — silakan isi jenis pekerjaan dan harga baru.
+                </small>
+            `);
+
+            $('#insert_pekerjaan')
+                .addClass('d-none')
+                .val('');
+
+            $('#insert_pekerjaan_new')
+                .removeClass('d-none')
+                .val('')
+                .focus();
+
+            $('#insert_harga')
+                .val(0)
+                .prop('readonly', false);
+
+            if (article) {
+                loadPoByArticle(
+                    article,
+                    $('#insert_description').val().trim()
+                );
+            }
+
+            calculateTotal();
+        }
+
+
+        function loadPekerjaanByArticle(article) {
+
+            const select = $('#insert_pekerjaan');
+
+            select.empty().append(
+                '<option value="">Memuat pekerjaan...</option>'
+            );
+
+            $('#insert_harga').val(0);
+            calculateTotal();
+
+            if (!article) {
+                select.empty().append(
+                    '<option value="">Pilih pekerjaan...</option>'
+                );
+                return;
+            }
+
+            $.ajax({
+                url: "{{ route('upah.transaksi.search.pekerjaan') }}",
+                type: 'GET',
+
+                data: {
+                    article: article,
+                    q: ''
+                },
+
+                success: function(response) {
+
+                    if (!Array.isArray(response)) {
+                        response = [];
+                    }
+
+                    select.empty();
+
+                    if (!response.length) {
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | ARTICLE ADA, TETAPI BELUM MEMILIKI MASTER UPAH
+                        |--------------------------------------------------------------------------
+                        */
+                        setManualPekerjaanMode(article);
+
+                        return;
+                    }
+
+                    select.append(
+                        '<option value="">Pilih pekerjaan...</option>'
+                    );
+
+                    response.forEach(function(item) {
+
+                        const jenis = item.jenis || '';
+                        const harga = parseFloat(item.harga) || 0;
+
+                        select.append(
+                            $('<option>', {
+                                value: jenis,
+                                text: jenis + ' — Rp ' + formatRupiah(harga)
+                            }).attr(
+                                'data-harga',
+                                harga
+                            )
+                        );
 
                     });
 
-                }, 300);
+                    $('#insert_harga').val(0);
+                    calculateTotal();
+                },
 
+                error: function(xhr) {
+
+                    console.error(
+                        'Load pekerjaan error:',
+                        xhr
+                    );
+
+                    select.empty().append(
+                        '<option value="">Gagal memuat pekerjaan</option>'
+                    );
+
+                    $('#insert_harga').val(0);
+                    calculateTotal();
+                }
+            });
         }
-    );
+        $(document).on(
+            'change',
+            '#insert_pekerjaan',
+            function() {
 
+                const selected =
+                    $(this).find('option:selected');
 
-    /*
-    |--------------------------------------------------------------------------
-    | SELECT ARTICLE
-    |--------------------------------------------------------------------------
-    */
+                const harga =
+                    parseFloat(
+                        selected.attr('data-harga')
+                    ) || 0;
 
-    $(document).on(
-        'click',
-        '#articleSearchResult .article-result-item',
-        function () {
+                $('#insert_harga')
+                    .val(harga);
 
-            const item =
-                $(this);
+                calculateTotal();
+            }
+        );
+        /*
+                |--------------------------------------------------------------------------
+                | SELECT ARTICLE
+                |--------------------------------------------------------------------------
+                */
 
+        $(document).on(
+            'click',
+            '#articleSearchResult .article-result-item',
+            function() {
 
-            const article =
-                item.attr('data-article') || '';
+                const item = $(this);
 
+                const article =
+                    item.attr('data-article') || '';
 
-            const description =
-                item.attr('data-description') || '';
+                const description =
+                    item.attr('data-description') || '';
 
+                const exists =
+                    item.attr('data-exists') === '1';
 
-            const harga =
-                item.attr('data-harga') || 0;
+                /*
+                |--------------------------------------------------------------------------
+                | SIMPAN STATUS ARTICLE
+                |--------------------------------------------------------------------------
+                */
 
-
-            $('#insert_article')
-                .val(article);
-
-
-            $('#insert_description')
-                .val(description);
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | HARGA DIAMBIL SETELAH MEMILIH JENIS PEKERJAAN
-            |--------------------------------------------------------------------------
-            */
-
-            $('#insert_harga')
-                .val(0);
-
-
-            $('#insert_pekerjaan')
-                .val('');
-
-            $('#pekerjaanSearchResult')
-                .empty()
-                .removeClass('show');
-
-
-            $('#articleSearchResult')
-                .empty()
-                .removeClass('show');
-
-
-            $('#articleNotFound')
-                .removeClass('show');
-
-
-            calculateTotal();
-
-        }
-    );
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | PEKERJAAN SEARCH
-    |--------------------------------------------------------------------------
-    | Mencari jenis pekerjaan berdasarkan ARTICLE yang sudah dipilih.
-    */
-
-    $('#insert_pekerjaan').on(
-        'input',
-        function () {
-
-            const input = $(this);
-
-            const keyword =
-                input.val().trim();
-
-            const article =
                 $('#insert_article')
+                    .data('exists-in-upah', exists);
+
+                /*
+                |--------------------------------------------------------------------------
+                | ISI ARTICLE
+                |--------------------------------------------------------------------------
+                */
+
+                $('#insert_article')
+                    .val(article);
+
+                $('#insert_description')
+                    .val(description);
+
+                /*
+                |--------------------------------------------------------------------------
+                | TUTUP SEARCH
+                |--------------------------------------------------------------------------
+                */
+
+                $('#articleSearchResult')
+                    .empty()
+                    .removeClass('show');
+
+                /*
+                |--------------------------------------------------------------------------
+                | ARTICLE BELUM ADA
+                |--------------------------------------------------------------------------
+                */
+
+                if (!exists) {
+                    setManualPekerjaanMode(article);
+                    return;
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | ARTICLE SUDAH ADA
+                |--------------------------------------------------------------------------
+                */
+
+                $('#modalInsertUpah .modal-title')
+                    .html(`
+                <i class="fas fa-money-bill-wave mr-1"></i>
+                Tambah Transaksi Upah
+            `);
+
+                /*
+                | Article SUDAH ADA
+                | Kembalikan pekerjaan ke dropdown master.
+                */
+                $('#insert_pekerjaan_new')
+                    .addClass('d-none')
+                    .val('');
+
+                $('#insert_pekerjaan')
+                    .removeClass('d-none');
+
+                /*
+                | Load pekerjaan existing
+                */
+                loadPekerjaanByArticle(article);
+
+                /*
+                | Load No PO untuk article yang dipilih.
+                */
+                loadPoByArticle(
+                    article,
+                    $('#insert_description').val().trim()
+                );
+
+                $('#insert_harga')
+                    .val(0);
+
+                calculateTotal();
+            }
+        );
+        /*
+        |--------------------------------------------------------------------------
+        | PEKERJAAN SEARCH
+        |--------------------------------------------------------------------------
+        | Mencari jenis pekerjaan berdasarkan ARTICLE yang sudah dipilih.
+        */
+
+        $('#insert_pekerjaan').on(
+            'input',
+            function() {
+
+                const input = $(this);
+
+                const keyword =
+                    input.val().trim();
+
+                const article =
+                    $('#insert_article')
                     .val()
                     .trim();
 
 
-            clearTimeout(pekerjaanTimer);
+                clearTimeout(pekerjaanTimer);
 
 
-            $('#pekerjaanSearchResult')
-                .empty()
-                .removeClass('show');
+                $('#pekerjaanSearchResult')
+                    .empty()
+                    .removeClass('show');
 
 
-            /*
-            |--------------------------------------------------------------------------
-            | ARTICLE WAJIB SUDAH DIPILIH
-            |--------------------------------------------------------------------------
-            */
+                /*
+                |--------------------------------------------------------------------------
+                | ARTICLE WAJIB SUDAH DIPILIH
+                |--------------------------------------------------------------------------
+                */
 
-            if (!article) {
+                if (!article) {
 
-                return;
+                    return;
 
-            }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | SEARCH MINIMAL 1 KARAKTER
-            |--------------------------------------------------------------------------
-            */
-
-            if (keyword.length < 1) {
-
-                return;
-
-            }
+                }
 
 
-            pekerjaanTimer = setTimeout(
-                function () {
+                /*
+                |--------------------------------------------------------------------------
+                | SEARCH MINIMAL 1 KARAKTER
+                |--------------------------------------------------------------------------
+                */
 
-                    $.ajax({
+                if (keyword.length < 1) {
 
-                        url:
-                            "{{ route('upah.transaksi.search.pekerjaan') }}",
+                    return;
 
-                        type: 'GET',
-
-                        data: {
-                            article: article,
-                            q: keyword
-                        },
+                }
 
 
-                        success: function (response) {
+                pekerjaanTimer = setTimeout(
+                    function() {
 
-                            if (
-                                !Array.isArray(response)
-                            ) {
+                        $.ajax({
 
-                                response = [];
+                            url: "{{ route('upah.transaksi.search.pekerjaan') }}",
 
-                            }
+                            type: 'GET',
+
+                            data: {
+                                article: article,
+                                q: keyword
+                            },
 
 
-                            if (
-                                response.length === 0
-                            ) {
+                            success: function(response) {
 
-                                $('#pekerjaanSearchResult')
-                                    .html(`
+                                if (
+                                    !Array.isArray(response)
+                                ) {
+
+                                    response = [];
+
+                                }
+
+
+                                if (
+                                    response.length === 0
+                                ) {
+
+                                    $('#pekerjaanSearchResult')
+                                        .html(`
                                         <div class="article-result-item">
 
                                             <div class="article-result-description">
@@ -400,20 +601,20 @@ $(document).ready(function () {
 
                                         </div>
                                     `)
-                                    .addClass('show');
+                                        .addClass('show');
 
-                                return;
+                                    return;
 
-                            }
-
-
-                            let html = '';
+                                }
 
 
-                            response.forEach(
-                                function (item) {
+                                let html = '';
 
-                                    html += `
+
+                                response.forEach(
+                                    function(item) {
+
+                                        html += `
 
                                         <div
                                             class="article-result-item pekerjaan-result-item"
@@ -437,167 +638,103 @@ $(document).ready(function () {
 
                                     `;
 
-                                }
-                            );
+                                    }
+                                );
 
 
-                            $('#pekerjaanSearchResult')
-                                .html(html)
-                                .addClass('show');
+                                $('#pekerjaanSearchResult')
+                                    .html(html)
+                                    .addClass('show');
 
-                        },
-
-
-                        error: function (xhr) {
-
-                            console.error(
-                                'Search pekerjaan error:',
-                                xhr
-                            );
-
-                        }
-
-                    });
-
-                },
-                300
-            );
-
-        }
-    );
+                            },
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | SELECT PEKERJAAN
-    |--------------------------------------------------------------------------
-    */
+                            error: function(xhr) {
 
-    $(document).on(
-        'click',
-        '.pekerjaan-result-item',
-        function () {
+                                console.error(
+                                    'Search pekerjaan error:',
+                                    xhr
+                                );
 
-            const item = $(this);
+                            }
 
+                        });
 
-            const jenis =
-                item.attr('data-jenis') || '';
-
-
-            const harga =
-                parseFloat(
-                    item.attr('data-harga')
-                ) || 0;
-
-
-            $('#insert_pekerjaan')
-                .val(jenis);
-
-
-            $('#insert_harga')
-                .val(harga);
-
-
-            $('#pekerjaanSearchResult')
-                .empty()
-                .removeClass('show');
-
-
-            calculateTotal();
-
-        }
-    );
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | FORMAT RUPIAH
-    |--------------------------------------------------------------------------
-    */
-
-    function formatRupiah(value) {
-
-        return new Intl.NumberFormat(
-            'id-ID'
-        ).format(
-            parseFloat(value) || 0
-        );
-
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | TOTAL
-    |--------------------------------------------------------------------------
-    */
-
-    function calculateTotal() {
-
-        const qty =
-            parseFloat(
-                $('#insert_qty').val()
-            ) || 0;
-
-
-        const harga =
-            parseFloat(
-                $('#insert_harga').val()
-            ) || 0;
-
-
-        const total =
-            qty * harga;
-
-
-        $('#insert_total')
-            .val(
-                new Intl.NumberFormat(
-                    'id-ID'
-                ).format(total)
-            );
-
-    }
-
-
-    $('#insert_qty, #insert_harga')
-        .on(
-            'input',
-            calculateTotal
-        );
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | SUBMIT
-    |--------------------------------------------------------------------------
-    */
-
-    $('#formInsertUpah').on(
-        'submit',
-        function (e) {
-
-            e.preventDefault();
-
-
-            const button =
-                $('#btnSaveUpahTransaksi');
-
-
-            button
-                .prop('disabled', true)
-                .html(
-                    '<i class="fas fa-spinner fa-spin mr-1"></i>' +
-                    ' Menyimpan...'
+                    },
+                    300
                 );
 
+            }
+        );
 
-            /*
-            |--------------------------------------------------------------------------
-            | TOTAL RAW
-            |--------------------------------------------------------------------------
-            */
+
+        /*
+        |--------------------------------------------------------------------------
+        | SELECT PEKERJAAN
+        |--------------------------------------------------------------------------
+        */
+
+        $(document).on(
+            'click',
+            '.pekerjaan-result-item',
+            function() {
+
+                const item = $(this);
+
+
+                const jenis =
+                    item.attr('data-jenis') || '';
+
+
+                const harga =
+                    parseFloat(
+                        item.attr('data-harga')
+                    ) || 0;
+
+
+                $('#insert_pekerjaan')
+                    .val(jenis);
+
+
+                $('#insert_harga')
+                    .val(harga);
+
+
+                $('#pekerjaanSearchResult')
+                    .empty()
+                    .removeClass('show');
+
+
+                calculateTotal();
+
+            }
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | FORMAT RUPIAH
+        |--------------------------------------------------------------------------
+        */
+
+        function formatRupiah(value) {
+
+            return new Intl.NumberFormat(
+                'id-ID'
+            ).format(
+                parseFloat(value) || 0
+            );
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | TOTAL
+        |--------------------------------------------------------------------------
+        */
+
+        function calculateTotal() {
 
             const qty =
                 parseFloat(
@@ -615,154 +752,233 @@ $(document).ready(function () {
                 qty * harga;
 
 
-            const formData = {
-
-                _token:
-                    "{{ csrf_token() }}",
-
-                article:
-                    $('#insert_article').val(),
-
-                description:
-                    $('#insert_description').val(),
-
-                tanggal:
-                    $('#insert_tanggal').val(),
-
-                pekerjaan:
-                    $('#insert_pekerjaan').val(),
-
-                person:
-                    $('#insert_person').val(),
-
-                qty:
-                    qty,
-
-                harga:
-                    harga,
-
-                total:
-                    total,
-
-                no_po:
-                    $('#insert_no_po').val(),
-
-                no_spk:
-                    $('#insert_no_spk').val()
-
-            };
-
-
-            $.ajax({
-
-                url:
-                    "{{ route('upah.transaksi.store') }}",
-
-                type: 'POST',
-
-                data: formData,
-
-
-                success: function (response) {
-
-                    if (
-                        response.success
-                    ) {
-
-                        $('#modalInsertUpah')
-                            .modal('hide');
-
-
-                        location.reload();
-
-                        return;
-
-                    }
-
-
-                    $('#formUpahError')
-                        .removeClass('d-none')
-                        .text(
-                            response.message ||
-                            'Gagal menyimpan data.'
-                        );
-
-                },
-
-
-                error: function (xhr) {
-
-                    let message =
-                        'Gagal menyimpan data.';
-
-
-                    if (
-                        xhr.responseJSON &&
-                        xhr.responseJSON.errors
-                    ) {
-
-                        message =
-                            Object.values(
-                                xhr.responseJSON.errors
-                            )
-                            .flat()
-                            .join('\n');
-
-                    } else if (
-                        xhr.responseJSON &&
-                        xhr.responseJSON.message
-                    ) {
-
-                        message =
-                            xhr.responseJSON.message;
-
-                    }
-
-
-                    $('#formUpahError')
-                        .removeClass('d-none')
-                        .text(message);
-
-                },
-
-
-                complete: function () {
-
-                    button
-                        .prop('disabled', false)
-                        .html(
-                            '<i class="fas fa-save mr-1"></i>' +
-                            ' Simpan'
-                        );
-
-                }
-
-            });
+            $('#insert_total')
+                .val(
+                    new Intl.NumberFormat(
+                        'id-ID'
+                    ).format(total)
+                );
 
         }
-    );
+
+
+        $('#insert_qty, #insert_harga')
+            .on(
+                'input',
+                calculateTotal
+            );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SUBMIT
+        |--------------------------------------------------------------------------
+        */
+
+        $('#formInsertUpah')
+            .off('submit.upahTransaction')
+            .on(
+                'submit.upahTransaction',
+                function(e) {
+
+                e.preventDefault();
+
+                // Guard kedua: walaupun tombol diklik berkali-kali,
+                // hanya request pertama yang boleh berjalan.
+                if (isSubmittingUpah) {
+                    return;
+                }
+
+                isSubmittingUpah = true;
+
+                const button =
+                    $('#btnSaveUpahTransaksi');
+
+
+                button
+                    .prop('disabled', true)
+                    .html(
+                        '<i class="fas fa-spinner fa-spin mr-1"></i>' +
+                        ' Menyimpan...'
+                    );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | TOTAL RAW
+                |--------------------------------------------------------------------------
+                */
+
+                const qty =
+                    parseFloat(
+                        $('#insert_qty').val()
+                    ) || 0;
+
+
+                const harga =
+                    parseFloat(
+                        $('#insert_harga').val()
+                    ) || 0;
+
+
+                const total =
+                    qty * harga;
+
+                /*
+                | Pekerjaan berasal dari dropdown jika article existing,
+                | atau dari input manual jika article NOT YET.
+                */
+                const pekerjaan =
+                    $('#insert_pekerjaan_new').hasClass('d-none')
+                        ? $('#insert_pekerjaan').val()
+                        : $('#insert_pekerjaan_new').val().trim();
+
+
+                const formData = {
+
+                    _token: "{{ csrf_token() }}",
+
+                    article: $('#insert_article').val(),
+
+                    description: $('#insert_description').val(),
+
+                    tanggal: $('#insert_tanggal').val(),
+
+                    pekerjaan: pekerjaan,
+                    create_master_upah: !$('#insert_pekerjaan_new').hasClass('d-none') ? 1 : 0,
+
+                    person: $('#insert_person').val(),
+
+                    qty: qty,
+
+                    harga: harga,
+
+                    total: total,
+
+                    no_po: $('#insert_no_po').val(),
+
+                    no_spk: $('#insert_no_spk').val()
+
+                };
+
+
+                $.ajax({
+
+                    url: "{{ route('upah.transaksi.store') }}",
+
+                    type: 'POST',
+
+                    data: formData,
+
+
+                    success: function(response) {
+
+                        if (
+                            response.success
+                        ) {
+
+                            $('#modalInsertUpah')
+                                .modal('hide');
+
+
+                            location.reload();
+
+                            return;
+
+                        }
+
+
+                        $('#formUpahError')
+                            .removeClass('d-none')
+                            .text(
+                                response.message ||
+                                'Gagal menyimpan data.'
+                            );
+
+                        isSubmittingUpah = false;
+
+                    },
+
+
+                    error: function(xhr) {
+
+                        let message =
+                            'Gagal menyimpan data.';
+
+
+                        if (
+                            xhr.responseJSON &&
+                            xhr.responseJSON.errors
+                        ) {
+
+                            message =
+                                Object.values(
+                                    xhr.responseJSON.errors
+                                )
+                                .flat()
+                                .join('\n');
+
+                        } else if (
+                            xhr.responseJSON &&
+                            xhr.responseJSON.message
+                        ) {
+
+                            message =
+                                xhr.responseJSON.message;
+
+                        }
+
+
+                        $('#formUpahError')
+                            .removeClass('d-none')
+                            .text(message);
+
+                        isSubmittingUpah = false;
+
+                    },
+
+
+                    complete: function() {
+
+                        // Jika berhasil, halaman akan reload sehingga lock
+                        // sengaja tidak dibuka kembali.
+                        if (!isSubmittingUpah) {
+                            button
+                                .prop('disabled', false)
+                                .html(
+                                    '<i class="fas fa-save mr-1"></i>' +
+                                    ' Simpan'
+                                );
+                        }
+
+                    }
+
+                });
+
+            }
+        );
 
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | MASS INPUT
-    |--------------------------------------------------------------------------
-    */
+        /*
+        |--------------------------------------------------------------------------
+        | MASS INPUT
+        |--------------------------------------------------------------------------
+        */
 
-    let massRowCounter = 0;
-    let massArticleTimers = {};
-    let massPekerjaanTimers = {};
+        let massRowCounter = 0;
+        let massArticleTimers = {};
+        let massPekerjaanTimers = {};
 
 
-    function createMassRow() {
+        function createMassRow() {
 
-        massRowCounter++;
+            massRowCounter++;
 
-        const rowId = massRowCounter;
-        const today = '{{ date("Y-m-d") }}';
+            const rowId = massRowCounter;
+            const today = '{{ date('Y-m-d') }}';
 
-        $('#massUpahBodyRows').append(`
+            $('#massUpahBodyRows').append(`
             <tr class="mass-upah-row" data-row="${rowId}">
 
                 <td class="text-center mass-row-number">${rowId}</td>
@@ -852,251 +1068,293 @@ $(document).ready(function () {
 
             </tr>
         `);
-    }
+        }
 
 
-    function calculateMassRow(row) {
+        function calculateMassRow(row) {
 
-        const qty = parseFloat(row.find('.mass-qty').val()) || 0;
-        const harga = parseFloat(row.find('.mass-harga').val()) || 0;
+            const qty = parseFloat(row.find('.mass-qty').val()) || 0;
+            const harga = parseFloat(row.find('.mass-harga').val()) || 0;
 
-        row.find('.mass-total').val(
-            new Intl.NumberFormat('id-ID').format(qty * harga)
-        );
-    }
+            row.find('.mass-total').val(
+                new Intl.NumberFormat('id-ID').format(qty * harga)
+            );
+        }
 
 
-    function renumberMassRows() {
+        function renumberMassRows() {
 
-        $('#massUpahBodyRows .mass-upah-row').each(function(index) {
-            $(this).find('.mass-row-number').text(index + 1);
+            $('#massUpahBodyRows .mass-upah-row').each(function(index) {
+                $(this).find('.mass-row-number').text(index + 1);
+            });
+        }
+
+
+        function resetMassUpah() {
+
+            massRowCounter = 0;
+            massArticleTimers = {};
+            massPekerjaanTimers = {};
+
+            $('#massUpahBodyRows').empty();
+
+            $('#massUpahError')
+                .addClass('d-none')
+                .empty();
+
+            createMassRow();
+        }
+
+
+        function showMassUpah() {
+
+            resetMassUpah();
+
+            $('#modalInsertUpah').addClass('mass-mode');
+            $('#normalUpahBody').addClass('d-none');
+            $('#massUpahBody').removeClass('d-none');
+
+            $('#btnSaveUpahTransaksi').addClass('d-none');
+            $('#btnSaveMassUpah').removeClass('d-none');
+            $('#btnToggleMassUpah').addClass('d-none');
+        }
+
+
+        function showNormalUpah() {
+
+            $('#modalInsertUpah').removeClass('mass-mode');
+            $('#massUpahBody').addClass('d-none');
+            $('#normalUpahBody').removeClass('d-none');
+
+            $('#btnSaveMassUpah').addClass('d-none');
+            $('#btnSaveUpahTransaksi').removeClass('d-none');
+            $('#btnToggleMassUpah').removeClass('d-none');
+        }
+
+
+        $('#btnToggleMassUpah').on('click', function() {
+            showMassUpah();
         });
-    }
 
 
-    function resetMassUpah() {
-
-        massRowCounter = 0;
-        massArticleTimers = {};
-        massPekerjaanTimers = {};
-
-        $('#massUpahBodyRows').empty();
-
-        $('#massUpahError')
-            .addClass('d-none')
-            .empty();
-
-        createMassRow();
-    }
+        $('#btnBackNormalUpah').on('click', function() {
+            showNormalUpah();
+        });
 
 
-    function showMassUpah() {
-
-        resetMassUpah();
-
-        $('#modalInsertUpah').addClass('mass-mode');
-        $('#normalUpahBody').addClass('d-none');
-        $('#massUpahBody').removeClass('d-none');
-
-        $('#btnSaveUpahTransaksi').addClass('d-none');
-        $('#btnSaveMassUpah').removeClass('d-none');
-        $('#btnToggleMassUpah').addClass('d-none');
-    }
+        $(document).on('click', '#btnAddMassRow', function() {
+            createMassRow();
+        });
 
 
-    function showNormalUpah() {
+        /*
+        |--------------------------------------------------------------------------
+        | MASS ARTICLE SEARCH
+        |--------------------------------------------------------------------------
+        */
 
-        $('#modalInsertUpah').removeClass('mass-mode');
-        $('#massUpahBody').addClass('d-none');
-        $('#normalUpahBody').removeClass('d-none');
+        $(document).on('input', '.mass-article', function() {
 
-        $('#btnSaveMassUpah').addClass('d-none');
-        $('#btnSaveUpahTransaksi').removeClass('d-none');
-        $('#btnToggleMassUpah').removeClass('d-none');
-    }
+            const input = $(this);
+            const row = input.closest('.mass-upah-row');
+            const rowId = row.data('row');
+            const keyword = input.val().trim();
 
+            clearTimeout(massArticleTimers[rowId]);
 
-    $('#btnToggleMassUpah').on('click', function() {
-        showMassUpah();
-    });
+            row.find('.mass-article-result').empty().removeClass('show');
+            row.find('.mass-description').val('');
+            row.find('.mass-pekerjaan').val('');
+            row.find('.mass-pekerjaan-result').empty().removeClass('show');
+            row.find('.mass-harga').val(0);
 
+            calculateMassRow(row);
 
-    $('#btnBackNormalUpah').on('click', function() {
-        showNormalUpah();
-    });
+            if (keyword.length < 2) return;
 
+            massArticleTimers[rowId] = setTimeout(function() {
 
-    $(document).on('click', '#btnAddMassRow', function() {
-        createMassRow();
-    });
+                $.ajax({
+                    url: "{{ route('upah.transaksi.search.article') }}",
+                    type: 'GET',
+                    data: {
+                        q: keyword
+                    },
 
+                    success: function(response) {
 
-    /*
-    |--------------------------------------------------------------------------
-    | MASS ARTICLE SEARCH
-    |--------------------------------------------------------------------------
-    */
+                        if (!Array.isArray(response)) response = [];
 
-    $(document).on('input', '.mass-article', function() {
-
-        const input = $(this);
-        const row = input.closest('.mass-upah-row');
-        const rowId = row.data('row');
-        const keyword = input.val().trim();
-
-        clearTimeout(massArticleTimers[rowId]);
-
-        row.find('.mass-article-result').empty().removeClass('show');
-        row.find('.mass-description').val('');
-        row.find('.mass-pekerjaan').val('');
-        row.find('.mass-pekerjaan-result').empty().removeClass('show');
-        row.find('.mass-harga').val(0);
-
-        calculateMassRow(row);
-
-        if (keyword.length < 2) return;
-
-        massArticleTimers[rowId] = setTimeout(function() {
-
-            $.ajax({
-                url: "{{ route('upah.transaksi.search.article') }}",
-                type: 'GET',
-                data: { q: keyword },
-
-                success: function(response) {
-
-                    if (!Array.isArray(response)) response = [];
-
-                    if (!response.length) {
-                        row.find('.mass-article-result')
-                            .html(`
+                        if (!response.length) {
+                            row.find('.mass-article-result')
+                                .html(`
                                 <div class="mass-search-item">
                                     <div class="mass-search-desc">
                                         Article tidak ditemukan.
                                     </div>
                                 </div>
                             `)
+                                .addClass('show');
+                            return;
+                        }
+
+                        let html = '';
+
+                        response.forEach(function(item) {
+
+                            const isExisting =
+                                item.exists_in_upah === true;
+
+                            html += `
+        <div
+            class="article-result-item
+                ${isExisting ? '' : 'article-not-in-db'}"
+
+            data-article="${escapeHtml(item.article)}"
+
+            data-description="${escapeHtml(
+                item.description || ''
+            )}"
+
+            data-harga="${item.harga || 0}"
+
+            data-jenis="${escapeHtml(
+                item.jenis || ''
+            )}"
+
+            data-exists="${isExisting ? '1' : '0'}"
+        >
+
+            <div class="article-result-code">
+                ${escapeHtml(item.article)}
+            </div>
+
+            <div class="article-result-description">
+                ${escapeHtml(
+                    item.description || '-'
+                )}
+            </div>
+
+            ${
+                isExisting
+                    ? `
+                        <div class="article-result-type">
+                            ${escapeHtml(
+                                item.jenis || '-'
+                            )}
+                        </div>
+                    `
+                    : `
+                        <div class="article-result-type text-warning">
+                            <i class="fas fa-exclamation-circle mr-1"></i>
+                            NOT YET IN DATABASE
+                        </div>
+                    `
+            }
+
+        </div>
+    `;
+                        });
+                        row.find('.mass-article-result')
+                            .html(html)
                             .addClass('show');
-                        return;
+                    },
+
+                    error: function(xhr) {
+                        console.error('Mass article search error:', xhr);
                     }
+                });
 
-                    let html = '';
-
-                    response.forEach(function(item) {
-                        html += `
-                            <div class="mass-search-item mass-article-result-item"
-                                 data-article="${escapeHtml(item.article)}"
-                                 data-description="${escapeHtml(item.description || '')}">
-                                <div class="mass-search-code">
-                                    ${escapeHtml(item.article)}
-                                </div>
-                                <div class="mass-search-desc">
-                                    ${escapeHtml(item.description || '-')}
-                                </div>
-                            </div>
-                        `;
-                    });
-
-                    row.find('.mass-article-result')
-                        .html(html)
-                        .addClass('show');
-                },
-
-                error: function(xhr) {
-                    console.error('Mass article search error:', xhr);
-                }
-            });
-
-        }, 300);
-    });
+            }, 300);
+        });
 
 
-    $(document).on('click', '.mass-article-result-item', function(e) {
+        $(document).on('click', '.mass-article-result-item', function(e) {
 
-        e.stopPropagation();
+            e.stopPropagation();
 
-        const item = $(this);
-        const row = item.closest('.mass-upah-row');
+            const item = $(this);
+            const row = item.closest('.mass-upah-row');
 
-        row.find('.mass-article')
-            .val(item.attr('data-article') || '');
+            row.find('.mass-article')
+                .val(item.attr('data-article') || '');
 
-        row.find('.mass-description')
-            .val(item.attr('data-description') || '');
+            row.find('.mass-description')
+                .val(item.attr('data-description') || '');
 
-        row.find('.mass-pekerjaan')
-            .val('');
+            row.find('.mass-pekerjaan')
+                .val('');
 
-        row.find('.mass-pekerjaan-result')
-            .empty()
-            .removeClass('show');
+            row.find('.mass-pekerjaan-result')
+                .empty()
+                .removeClass('show');
 
-        row.find('.mass-harga')
-            .val(0);
+            row.find('.mass-harga')
+                .val(0);
 
-        row.find('.mass-article-result')
-            .empty()
-            .removeClass('show');
+            row.find('.mass-article-result')
+                .empty()
+                .removeClass('show');
 
-        calculateMassRow(row);
-    });
+            calculateMassRow(row);
+        });
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | MASS PEKERJAAN SEARCH
-    |--------------------------------------------------------------------------
-    */
+        /*
+        |--------------------------------------------------------------------------
+        | MASS PEKERJAAN SEARCH
+        |--------------------------------------------------------------------------
+        */
 
-    $(document).on('input', '.mass-pekerjaan', function() {
+        $(document).on('input', '.mass-pekerjaan', function() {
 
-        const input = $(this);
-        const row = input.closest('.mass-upah-row');
-        const rowId = row.data('row');
-        const keyword = input.val().trim();
+            const input = $(this);
+            const row = input.closest('.mass-upah-row');
+            const rowId = row.data('row');
+            const keyword = input.val().trim();
 
-        const article =
-            row.find('.mass-article').val().trim();
+            const article =
+                row.find('.mass-article').val().trim();
 
-        clearTimeout(massPekerjaanTimers[rowId]);
+            clearTimeout(massPekerjaanTimers[rowId]);
 
-        row.find('.mass-pekerjaan-result')
-            .empty()
-            .removeClass('show');
+            row.find('.mass-pekerjaan-result')
+                .empty()
+                .removeClass('show');
 
-        if (!article || !keyword) return;
+            if (!article || !keyword) return;
 
-        massPekerjaanTimers[rowId] = setTimeout(function() {
+            massPekerjaanTimers[rowId] = setTimeout(function() {
 
-            $.ajax({
-                url: "{{ route('upah.transaksi.search.pekerjaan') }}",
-                type: 'GET',
-                data: {
-                    article: article,
-                    q: keyword
-                },
+                $.ajax({
+                    url: "{{ route('upah.transaksi.search.pekerjaan') }}",
+                    type: 'GET',
+                    data: {
+                        article: article,
+                        q: keyword
+                    },
 
-                success: function(response) {
+                    success: function(response) {
 
-                    if (!Array.isArray(response)) response = [];
+                        if (!Array.isArray(response)) response = [];
 
-                    if (!response.length) {
-                        row.find('.mass-pekerjaan-result')
-                            .html(`
+                        if (!response.length) {
+                            row.find('.mass-pekerjaan-result')
+                                .html(`
                                 <div class="mass-search-item">
                                     <div class="mass-search-desc">
                                         Jenis pekerjaan tidak ditemukan.
                                     </div>
                                 </div>
                             `)
-                            .addClass('show');
-                        return;
-                    }
+                                .addClass('show');
+                            return;
+                        }
 
-                    let html = '';
+                        let html = '';
 
-                    response.forEach(function(item) {
-                        html += `
+                        response.forEach(function(item) {
+                            html += `
                             <div class="mass-search-item mass-pekerjaan-result-item"
                                  data-jenis="${escapeHtml(item.jenis || '')}"
                                  data-harga="${item.harga || 0}">
@@ -1108,286 +1366,286 @@ $(document).ready(function () {
                                 </div>
                             </div>
                         `;
-                    });
+                        });
 
-                    row.find('.mass-pekerjaan-result')
-                        .html(html)
-                        .addClass('show');
-                },
+                        row.find('.mass-pekerjaan-result')
+                            .html(html)
+                            .addClass('show');
+                    },
 
-                error: function(xhr) {
-                    console.error('Mass pekerjaan search error:', xhr);
-                }
-            });
+                    error: function(xhr) {
+                        console.error('Mass pekerjaan search error:', xhr);
+                    }
+                });
 
-        }, 300);
-    });
-
-
-    $(document).on('click', '.mass-pekerjaan-result-item', function(e) {
-
-        e.stopPropagation();
-
-        const item = $(this);
-        const row = item.closest('.mass-upah-row');
-
-        row.find('.mass-pekerjaan')
-            .val(item.attr('data-jenis') || '');
-
-        row.find('.mass-harga')
-            .val(parseFloat(item.attr('data-harga')) || 0);
-
-        row.find('.mass-pekerjaan-result')
-            .empty()
-            .removeClass('show');
-
-        calculateMassRow(row);
-    });
-
-
-    $(document).on('input', '.mass-qty, .mass-harga', function() {
-        calculateMassRow($(this).closest('.mass-upah-row'));
-    });
-
-
-    $(document).on('click', '.btn-remove-mass-row', function() {
-
-        const rows = $('#massUpahBodyRows .mass-upah-row');
-
-        if (rows.length <= 1) {
-            rows.first().find('input, textarea').val('');
-            rows.first().find('.mass-tanggal').val('{{ date("Y-m-d") }}');
-            rows.first().find('.mass-qty').val(1);
-            rows.first().find('.mass-harga').val(0);
-            calculateMassRow(rows.first());
-            return;
-        }
-
-        $(this).closest('.mass-upah-row').remove();
-        renumberMassRows();
-    });
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | MASS SAVE
-    |--------------------------------------------------------------------------
-    */
-
-    $('#btnSaveMassUpah').on('click', function() {
-
-        const button = $(this);
-        const rows = [];
-        let invalid = false;
-
-        $('#massUpahBodyRows .mass-upah-row').each(function() {
-
-            const row = $(this);
-
-            const qty =
-                parseFloat(row.find('.mass-qty').val()) || 0;
-
-            const harga =
-                parseFloat(row.find('.mass-harga').val()) || 0;
-
-            const item = {
-                article: row.find('.mass-article').val().trim(),
-                description: row.find('.mass-description').val().trim(),
-                tanggal: row.find('.mass-tanggal').val(),
-                pekerjaan: row.find('.mass-pekerjaan').val().trim(),
-                person: row.find('.mass-person').val().trim(),
-                qty: qty,
-                harga: harga,
-                total: qty * harga,
-                no_po: row.find('.mass-no-po').val().trim(),
-                no_spk: row.find('.mass-no-spk').val().trim()
-            };
-
-            if (
-                !item.article ||
-                !item.tanggal ||
-                !item.pekerjaan ||
-                qty <= 0 ||
-                harga < 0
-            ) {
-                invalid = true;
-            }
-
-            rows.push(item);
+            }, 300);
         });
 
-        if (invalid) {
-            $('#massUpahError')
-                .removeClass('d-none')
-                .text(
-                    'Mohon lengkapi Article, Tanggal, Pekerjaan, Qty, dan Harga pada semua baris.'
-                );
-            return;
-        }
 
-        if (!rows.length) return;
+        $(document).on('click', '.mass-pekerjaan-result-item', function(e) {
 
-        $('#massUpahError')
-            .addClass('d-none')
-            .empty();
+            e.stopPropagation();
 
-        button
-            .prop('disabled', true)
-            .html(
-                '<i class="fas fa-spinner fa-spin mr-1"></i> Menyimpan...'
-            );
+            const item = $(this);
+            const row = item.closest('.mass-upah-row');
 
-        $.ajax({
+            row.find('.mass-pekerjaan')
+                .val(item.attr('data-jenis') || '');
 
-            url: "{{ route('upah.transaksi.mass.store') }}",
-            type: 'POST',
+            row.find('.mass-harga')
+                .val(parseFloat(item.attr('data-harga')) || 0);
 
-            data: {
-                _token: "{{ csrf_token() }}",
-                rows: rows
-            },
+            row.find('.mass-pekerjaan-result')
+                .empty()
+                .removeClass('show');
 
-            success: function(response) {
+            calculateMassRow(row);
+        });
 
-                if (response.success) {
-                    $('#modalInsertUpah').modal('hide');
-                    location.reload();
-                    return;
+
+        $(document).on('input', '.mass-qty, .mass-harga', function() {
+            calculateMassRow($(this).closest('.mass-upah-row'));
+        });
+
+
+        $(document).on('click', '.btn-remove-mass-row', function() {
+
+            const rows = $('#massUpahBodyRows .mass-upah-row');
+
+            if (rows.length <= 1) {
+                rows.first().find('input, textarea').val('');
+                rows.first().find('.mass-tanggal').val('{{ date('Y-m-d') }}');
+                rows.first().find('.mass-qty').val(1);
+                rows.first().find('.mass-harga').val(0);
+                calculateMassRow(rows.first());
+                return;
+            }
+
+            $(this).closest('.mass-upah-row').remove();
+            renumberMassRows();
+        });
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | MASS SAVE
+        |--------------------------------------------------------------------------
+        */
+
+        $('#btnSaveMassUpah').on('click', function() {
+
+            const button = $(this);
+            const rows = [];
+            let invalid = false;
+
+            $('#massUpahBodyRows .mass-upah-row').each(function() {
+
+                const row = $(this);
+
+                const qty =
+                    parseFloat(row.find('.mass-qty').val()) || 0;
+
+                const harga =
+                    parseFloat(row.find('.mass-harga').val()) || 0;
+
+                const item = {
+                    article: row.find('.mass-article').val().trim(),
+                    description: row.find('.mass-description').val().trim(),
+                    tanggal: row.find('.mass-tanggal').val(),
+                    pekerjaan: row.find('.mass-pekerjaan').val().trim(),
+                    person: row.find('.mass-person').val().trim(),
+                    qty: qty,
+                    harga: harga,
+                    total: qty * harga,
+                    no_po: row.find('.mass-no-po').val().trim(),
+                    no_spk: row.find('.mass-no-spk').val().trim()
+                };
+
+                if (
+                    !item.article ||
+                    !item.tanggal ||
+                    !item.pekerjaan ||
+                    qty <= 0 ||
+                    harga < 0
+                ) {
+                    invalid = true;
                 }
 
+                rows.push(item);
+            });
+
+            if (invalid) {
                 $('#massUpahError')
                     .removeClass('d-none')
                     .text(
-                        response.message ||
-                        'Gagal menyimpan data.'
+                        'Mohon lengkapi Article, Tanggal, Pekerjaan, Qty, dan Harga pada semua baris.'
                     );
-            },
+                return;
+            }
 
-            error: function(xhr) {
+            if (!rows.length) return;
 
-                let message = 'Gagal menyimpan data mass.';
+            $('#massUpahError')
+                .addClass('d-none')
+                .empty();
 
-                if (
-                    xhr.responseJSON &&
-                    xhr.responseJSON.errors
-                ) {
-                    message =
-                        Object.values(xhr.responseJSON.errors)
+            button
+                .prop('disabled', true)
+                .html(
+                    '<i class="fas fa-spinner fa-spin mr-1"></i> Menyimpan...'
+                );
+
+            $.ajax({
+
+                url: "{{ route('upah.transaksi.mass.store') }}",
+                type: 'POST',
+
+                data: {
+                    _token: "{{ csrf_token() }}",
+                    rows: rows
+                },
+
+                success: function(response) {
+
+                    if (response.success) {
+                        $('#modalInsertUpah').modal('hide');
+                        location.reload();
+                        return;
+                    }
+
+                    $('#massUpahError')
+                        .removeClass('d-none')
+                        .text(
+                            response.message ||
+                            'Gagal menyimpan data.'
+                        );
+                },
+
+                error: function(xhr) {
+
+                    let message = 'Gagal menyimpan data mass.';
+
+                    if (
+                        xhr.responseJSON &&
+                        xhr.responseJSON.errors
+                    ) {
+                        message =
+                            Object.values(xhr.responseJSON.errors)
                             .flat()
                             .join('\n');
-                } else if (
-                    xhr.responseJSON &&
-                    xhr.responseJSON.message
-                ) {
-                    message = xhr.responseJSON.message;
+                    } else if (
+                        xhr.responseJSON &&
+                        xhr.responseJSON.message
+                    ) {
+                        message = xhr.responseJSON.message;
+                    }
+
+                    $('#massUpahError')
+                        .removeClass('d-none')
+                        .text(message);
+                },
+
+                complete: function() {
+                    button
+                        .prop('disabled', false)
+                        .html(
+                            '<i class="fas fa-save mr-1"></i> Simpan Semua'
+                        );
                 }
-
-                $('#massUpahError')
-                    .removeClass('d-none')
-                    .text(message);
-            },
-
-            complete: function() {
-                button
-                    .prop('disabled', false)
-                    .html(
-                        '<i class="fas fa-save mr-1"></i> Simpan Semua'
-                    );
-            }
+            });
         });
-    });
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | RESET MASS WHEN MODAL CLOSES
-    |--------------------------------------------------------------------------
-    */
+        /*
+        |--------------------------------------------------------------------------
+        | RESET MASS WHEN MODAL CLOSES
+        |--------------------------------------------------------------------------
+        */
 
-    $('#modalInsertUpah').on('hidden.bs.modal', function() {
-        showNormalUpah();
-    });
+        $('#modalInsertUpah').on('hidden.bs.modal', function() {
+            showNormalUpah();
+        });
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | CLOSE SEARCH
-    |--------------------------------------------------------------------------
-    */
+        /*
+        |--------------------------------------------------------------------------
+        | CLOSE SEARCH
+        |--------------------------------------------------------------------------
+        */
 
-    $(document).on(
-        'click',
-        function (e) {
+        $(document).on(
+            'click',
+            function(e) {
 
-            if (
-                !$(e.target)
+                if (
+                    !$(e.target)
                     .closest('.article-search-wrapper')
                     .length
+                ) {
+
+                    $('#articleSearchResult')
+                        .empty()
+                        .removeClass('show');
+
+                    $('#pekerjaanSearchResult')
+                        .empty()
+                        .removeClass('show');
+
+                }
+
+            }
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | ESCAPE HTML
+        |--------------------------------------------------------------------------
+        */
+
+        function escapeHtml(value) {
+
+            if (
+                value === null ||
+                value === undefined
             ) {
 
-                $('#articleSearchResult')
-                    .empty()
-                    .removeClass('show');
-
-                $('#pekerjaanSearchResult')
-                    .empty()
-                    .removeClass('show');
+                return '';
 
             }
 
+
+            return String(value)
+
+                .replace(
+                    /&/g,
+                    '&amp;'
+                )
+
+                .replace(
+                    /</g,
+                    '&lt;'
+                )
+
+                .replace(
+                    />/g,
+                    '&gt;'
+                )
+
+                .replace(
+                    /"/g,
+                    '&quot;'
+                )
+
+                .replace(
+                    /'/g,
+                    '&#039;'
+                );
+
         }
-    );
 
-
+    });
     /*
-    |--------------------------------------------------------------------------
-    | ESCAPE HTML
-    |--------------------------------------------------------------------------
-    */
-
-    function escapeHtml(value) {
-
-        if (
-            value === null ||
-            value === undefined
-        ) {
-
-            return '';
-
-        }
-
-
-        return String(value)
-
-            .replace(
-                /&/g,
-                '&amp;'
-            )
-
-            .replace(
-                /</g,
-                '&lt;'
-            )
-
-            .replace(
-                />/g,
-                '&gt;'
-            )
-
-            .replace(
-                /"/g,
-                '&quot;'
-            )
-
-            .replace(
-                /'/g,
-                '&#039;'
-            );
-
-    }
-
-});
- /*
 |--------------------------------------------------------------------------
 | FILTER + GROUP TABLE
 |--------------------------------------------------------------------------
@@ -1399,128 +1657,133 @@ $(document).ready(function () {
 |--------------------------------------------------------------------------
 */
 
-function filterUpahTable() {
+    function filterUpahTable() {
 
-    const dateFrom = $('#filterDateFrom').val();
-    const dateTo   = $('#filterDateTo').val();
+        const dateFrom = $('#filterDateFrom').val();
+        const dateTo = $('#filterDateTo').val();
 
-    const keyword = $('#searchUpahTable')
-        .val()
-        .trim()
-        .toLowerCase();
-
-    const rows = $('#upahTable tbody tr.upah-data-row');
-
-    // Reset dahulu
-    rows.show();
-
-    /*
-    |--------------------------------------------------------------------------
-    | Simpan nilai asli setiap row
-    |--------------------------------------------------------------------------
-    */
-
-    rows.each(function () {
-
-        const tr = $(this);
-
-        if (!tr.data('original-qty')) {
-
-            tr.data(
-                'original-qty',
-                tr.find('td').eq(6).text().trim()
-            );
-
-        }
-
-        if (!tr.data('original-total')) {
-
-            tr.data(
-                'original-total',
-                tr.find('td').eq(8).text().trim()
-            );
-
-        }
-
-        if (!tr.data('original-no')) {
-
-            tr.data(
-                'original-no',
-                tr.find('td').eq(0).text().trim()
-            );
-
-        }
-
-    });
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | FILTER ROW
-    |--------------------------------------------------------------------------
-    */
-
-    const filteredRows = [];
-
-    rows.each(function () {
-
-        const tr = $(this);
-
-        const rowText = tr.text()
-            .replace(/\s+/g, ' ')
+        const keyword = $('#searchUpahTable')
+            .val()
             .trim()
             .toLowerCase();
 
-        /*
-        |--------------------------------------------------------------------------
-        | SEARCH BY TR
-        |--------------------------------------------------------------------------
-        */
+        const rows = $('#upahTable tbody tr.upah-data-row');
 
-        const matchSearch =
-            !keyword ||
-            rowText.includes(keyword);
-
+        // Reset dahulu
+        rows.show();
 
         /*
         |--------------------------------------------------------------------------
-        | FILTER TANGGAL
+        | Simpan nilai asli setiap row
         |--------------------------------------------------------------------------
         */
 
-        let matchDate = true;
+        rows.each(function() {
 
-        const tanggalText = tr
-            .find('td')
-            .eq(3)
-            .text()
-            .trim();
+            const tr = $(this);
 
-        if (dateFrom || dateTo) {
+            if (!tr.data('original-qty')) {
 
-            if (tanggalText) {
+                tr.data(
+                    'original-qty',
+                    tr.find('td').eq(6).text().trim()
+                );
 
-                const parts = tanggalText.split('/');
+            }
 
-                if (parts.length === 3) {
+            if (!tr.data('original-total')) {
 
-                    const rowDate =
-                        parts[2] + '-' +
-                        parts[1].padStart(2, '0') + '-' +
-                        parts[0].padStart(2, '0');
+                tr.data(
+                    'original-total',
+                    tr.find('td').eq(8).text().trim()
+                );
 
-                    if (
-                        dateFrom &&
-                        rowDate < dateFrom
-                    ) {
+            }
+
+            if (!tr.data('original-no')) {
+
+                tr.data(
+                    'original-no',
+                    tr.find('td').eq(0).text().trim()
+                );
+
+            }
+
+        });
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | FILTER ROW
+        |--------------------------------------------------------------------------
+        */
+
+        const filteredRows = [];
+
+        rows.each(function() {
+
+            const tr = $(this);
+
+            const rowText = tr.text()
+                .replace(/\s+/g, ' ')
+                .trim()
+                .toLowerCase();
+
+            /*
+            |--------------------------------------------------------------------------
+            | SEARCH BY TR
+            |--------------------------------------------------------------------------
+            */
+
+            const matchSearch = !keyword ||
+                rowText.includes(keyword);
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | FILTER TANGGAL
+            |--------------------------------------------------------------------------
+            */
+
+            let matchDate = true;
+
+            const tanggalText = tr
+                .find('td')
+                .eq(3)
+                .text()
+                .trim();
+
+            if (dateFrom || dateTo) {
+
+                if (tanggalText) {
+
+                    const parts = tanggalText.split('/');
+
+                    if (parts.length === 3) {
+
+                        const rowDate =
+                            parts[2] + '-' +
+                            parts[1].padStart(2, '0') + '-' +
+                            parts[0].padStart(2, '0');
+
+                        if (
+                            dateFrom &&
+                            rowDate < dateFrom
+                        ) {
+                            matchDate = false;
+                        }
+
+                        if (
+                            dateTo &&
+                            rowDate > dateTo
+                        ) {
+                            matchDate = false;
+                        }
+
+                    } else {
+
                         matchDate = false;
-                    }
 
-                    if (
-                        dateTo &&
-                        rowDate > dateTo
-                    ) {
-                        matchDate = false;
                     }
 
                 } else {
@@ -1529,128 +1792,338 @@ function filterUpahTable() {
 
                 }
 
+            }
+
+
+            if (matchSearch && matchDate) {
+
+                filteredRows.push(tr);
+
             } else {
 
-                matchDate = false;
+                tr.hide();
 
             }
 
-        }
-
-
-        if (matchSearch && matchDate) {
-
-            filteredRows.push(tr);
-
-        } else {
-
-            tr.hide();
-
-        }
-
-    });
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | GROUP DATA
-    |--------------------------------------------------------------------------
-    */
-
-    const groups = {};
-
-    filteredRows.forEach(function (tr) {
-
-        const article =
-            tr.find('td').eq(1).text().trim();
-
-        const pekerjaan =
-            tr.find('td').eq(4).text().trim();
-
-        /*
-        |--------------------------------------------------------------------------
-        | KEY
-        |--------------------------------------------------------------------------
-        */
-
-        const key =
-            article.toLowerCase() +
-            '||' +
-            pekerjaan.toLowerCase();
-
-
-        if (!groups[key]) {
-
-            groups[key] = {
-                rows: [],
-                qty: 0,
-                total: 0
-            };
-
-        }
-
-
-        groups[key].rows.push(tr);
+        });
 
 
         /*
         |--------------------------------------------------------------------------
-        | QTY
+        | GROUP DATA
         |--------------------------------------------------------------------------
         */
 
-        const originalQty =
-            parseFloat(
-                String(
-                    tr.data('original-qty')
-                ).replace(/,/g, '.')
-            ) || 0;
+        const groups = {};
 
-        groups[key].qty += originalQty;
+        filteredRows.forEach(function(tr) {
+
+            const article =
+                tr.find('td').eq(1).text().trim();
+
+            const pekerjaan =
+                tr.find('td').eq(4).text().trim();
+
+            /*
+            |--------------------------------------------------------------------------
+            | KEY
+            |--------------------------------------------------------------------------
+            */
+
+            const key =
+                article.toLowerCase() +
+                '||' +
+                pekerjaan.toLowerCase();
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | TOTAL
-        |--------------------------------------------------------------------------
-        */
+            if (!groups[key]) {
 
-        const originalTotal =
-            tr.data('original-total') || '';
+                groups[key] = {
+                    rows: [],
+                    qty: 0,
+                    total: 0
+                };
 
-        const totalNumber =
-            String(originalTotal)
+            }
+
+
+            groups[key].rows.push(tr);
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | QTY
+            |--------------------------------------------------------------------------
+            */
+
+            const originalQty =
+                parseFloat(
+                    String(
+                        tr.data('original-qty')
+                    ).replace(/,/g, '.')
+                ) || 0;
+
+            groups[key].qty += originalQty;
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | TOTAL
+            |--------------------------------------------------------------------------
+            */
+
+            const originalTotal =
+                tr.data('original-total') || '';
+
+            const totalNumber =
+                String(originalTotal)
                 .replace(/[^\d,-]/g, '')
                 .replace(/\./g, '')
                 .replace(',', '.');
 
-        groups[key].total +=
-            parseFloat(totalNumber) || 0;
+            groups[key].total +=
+                parseFloat(totalNumber) || 0;
 
-    });
+        });
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | TAMPILKAN HASIL GROUP
+        |--------------------------------------------------------------------------
+        */
+
+        Object.keys(groups).forEach(function(key) {
+
+            const group = groups[key];
+
+            const firstRow = group.rows[0];
+
+            /*
+            |--------------------------------------------------------------------------
+            | Jika hanya 1 row
+            |--------------------------------------------------------------------------
+            */
+
+            if (group.rows.length === 1) {
+
+                firstRow.show();
+
+                return;
+
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | ROW PERTAMA MENJADI REPRESENTASI GROUP
+            |--------------------------------------------------------------------------
+            */
+
+            firstRow.show();
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | QTY
+            |--------------------------------------------------------------------------
+            */
+
+            firstRow
+                .find('td')
+                .eq(6)
+                .text(
+                    formatQty(group.qty)
+                );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | TOTAL
+            |--------------------------------------------------------------------------
+            */
+
+            firstRow
+                .find('td')
+                .eq(8)
+                .text(
+                    'Rp ' +
+                    formatNumber(group.total)
+                );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | HILANGKAN ROW DUPLIKAT
+            |--------------------------------------------------------------------------
+            */
+
+            for (
+                let i = 1; i < group.rows.length; i++
+            ) {
+
+                group.rows[i].hide();
+
+            }
+
+        });
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | UPDATE NOMOR
+        |--------------------------------------------------------------------------
+        */
+
+        let number = 1;
+
+        rows.each(function() {
+
+            const tr = $(this);
+
+            if (tr.is(':visible')) {
+
+                tr.find('td').eq(0).text(number);
+
+                number++;
+
+            }
+
+        });
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | INFO GROUP
+        |--------------------------------------------------------------------------
+        */
+
+        updateUpahGroupInfo(
+            filteredRows,
+            groups
+        );
+
+    }
 
 
     /*
     |--------------------------------------------------------------------------
-    | TAMPILKAN HASIL GROUP
+    | FORMAT QTY
     |--------------------------------------------------------------------------
     */
 
-    Object.keys(groups).forEach(function (key) {
+    function formatQty(value) {
 
-        const group = groups[key];
+        if (
+            Number.isInteger(value)
+        ) {
 
-        const firstRow = group.rows[0];
+            return value.toString();
+
+        }
+
+        return value.toLocaleString(
+            'id-ID', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2
+            }
+        );
+
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | FORMAT NUMBER
+    |--------------------------------------------------------------------------
+    */
+
+    function formatNumber(value) {
+
+        return new Intl.NumberFormat(
+            'id-ID', {
+                maximumFractionDigits: 0
+            }
+        ).format(value);
+
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | INFO DI BAWAH TABLE
+    |--------------------------------------------------------------------------
+    */
+
+    function updateUpahGroupInfo(
+        filteredRows,
+        groups
+    ) {
+
+        let totalRows = filteredRows.length;
+
+        let duplicateRows = 0;
+
+        let groupCount = 0;
+
+        Object.keys(groups).forEach(function(key) {
+
+            const count =
+                groups[key].rows.length;
+
+            if (count > 1) {
+
+                duplicateRows += count;
+
+            }
+
+            groupCount++;
+
+        });
+
 
         /*
         |--------------------------------------------------------------------------
-        | Jika hanya 1 row
+        | Buat info di bawah table
         |--------------------------------------------------------------------------
         */
 
-        if (group.rows.length === 1) {
+        let info = $('#upahGroupInfo');
 
-            firstRow.show();
+        if (!info.length) {
+
+            $('#upahTable')
+                .closest('.upah-table-wrapper')
+                .after(`
+                <div
+                    id="upahGroupInfo"
+                    class="mt-2 px-2"
+                    style="font-size:12px;"
+                ></div>
+            `);
+
+            info = $('#upahGroupInfo');
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Tidak ada filter
+        |--------------------------------------------------------------------------
+        */
+
+        const hasFilter =
+            $('#filterDateFrom').val() ||
+            $('#filterDateTo').val() ||
+            $('#searchUpahTable').val().trim();
+
+
+        if (!hasFilter) {
+
+            info
+                .html('')
+                .hide();
 
             return;
 
@@ -1659,250 +2132,30 @@ function filterUpahTable() {
 
         /*
         |--------------------------------------------------------------------------
-        | ROW PERTAMA MENJADI REPRESENTASI GROUP
+        | DATA DUPLIKAT
         |--------------------------------------------------------------------------
         */
 
-        firstRow.show();
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | QTY
-        |--------------------------------------------------------------------------
-        */
-
-        firstRow
-            .find('td')
-            .eq(6)
-            .text(
-                formatQty(group.qty)
-            );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | TOTAL
-        |--------------------------------------------------------------------------
-        */
-
-        firstRow
-            .find('td')
-            .eq(8)
-            .text(
-                'Rp ' +
-                formatNumber(group.total)
-            );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | HILANGKAN ROW DUPLIKAT
-        |--------------------------------------------------------------------------
-        */
-
-        for (
-            let i = 1;
-            i < group.rows.length;
-            i++
-        ) {
-
-            group.rows[i].hide();
-
-        }
-
-    });
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | UPDATE NOMOR
-    |--------------------------------------------------------------------------
-    */
-
-    let number = 1;
-
-    rows.each(function () {
-
-        const tr = $(this);
-
-        if (tr.is(':visible')) {
-
-            tr.find('td').eq(0).text(number);
-
-            number++;
-
-        }
-
-    });
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | INFO GROUP
-    |--------------------------------------------------------------------------
-    */
-
-    updateUpahGroupInfo(
-        filteredRows,
-        groups
-    );
-
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| FORMAT QTY
-|--------------------------------------------------------------------------
-*/
-
-function formatQty(value) {
-
-    if (
-        Number.isInteger(value)
-    ) {
-
-        return value.toString();
-
-    }
-
-    return value.toLocaleString(
-        'id-ID',
-        {
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 2
-        }
-    );
-
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| FORMAT NUMBER
-|--------------------------------------------------------------------------
-*/
-
-function formatNumber(value) {
-
-    return new Intl.NumberFormat(
-        'id-ID',
-        {
-            maximumFractionDigits: 0
-        }
-    ).format(value);
-
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| INFO DI BAWAH TABLE
-|--------------------------------------------------------------------------
-*/
-
-function updateUpahGroupInfo(
-    filteredRows,
-    groups
-) {
-
-    let totalRows = filteredRows.length;
-
-    let duplicateRows = 0;
-
-    let groupCount = 0;
-
-    Object.keys(groups).forEach(function (key) {
-
-        const count =
-            groups[key].rows.length;
-
-        if (count > 1) {
-
-            duplicateRows += count;
-
-        }
-
-        groupCount++;
-
-    });
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Buat info di bawah table
-    |--------------------------------------------------------------------------
-    */
-
-    let info = $('#upahGroupInfo');
-
-    if (!info.length) {
-
-        $('#upahTable')
-            .closest('.upah-table-wrapper')
-            .after(`
-                <div
-                    id="upahGroupInfo"
-                    class="mt-2 px-2"
-                    style="font-size:12px;"
-                ></div>
-            `);
-
-        info = $('#upahGroupInfo');
-
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Tidak ada filter
-    |--------------------------------------------------------------------------
-    */
-
-    const hasFilter =
-        $('#filterDateFrom').val() ||
-        $('#filterDateTo').val() ||
-        $('#searchUpahTable').val().trim();
-
-
-    if (!hasFilter) {
-
-        info
-            .html('')
-            .hide();
-
-        return;
-
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | DATA DUPLIKAT
-    |--------------------------------------------------------------------------
-    */
-
-    if (duplicateRows > 1) {
-
-        info
-            .html(
-                `<span class="text-muted">
+        if (duplicateRows > 1) {
+
+            info
+                .html(
+                    `<span class="text-muted">
                     <i class="fas fa-layer-group mr-1"></i>
                     ${duplicateRows} baris data yang sama
                 </span>`
-            )
-            .show();
+                )
+                .show();
 
-    } else {
+        } else {
 
-        info
-            .html('')
-            .hide();
+            info
+                .html('')
+                .hide();
+
+        }
 
     }
-
-}
     /*
     |--------------------------------------------------------------------------
     | DATE FILTER
@@ -1911,7 +2164,7 @@ function updateUpahGroupInfo(
 
     $('#filterDateFrom, #filterDateTo').on(
         'change',
-        function () {
+        function() {
 
             filterUpahTable();
 
@@ -1927,7 +2180,7 @@ function updateUpahGroupInfo(
 
     $('#searchUpahTable').on(
         'input',
-        function () {
+        function() {
 
             const value =
                 $(this).val().trim();
@@ -1950,7 +2203,7 @@ function updateUpahGroupInfo(
 
     $('#clearSearchUpah').on(
         'click',
-        function () {
+        function() {
 
             $('#searchUpahTable')
                 .val('')
@@ -1972,7 +2225,7 @@ function updateUpahGroupInfo(
 
     $('#btnResetDate').on(
         'click',
-        function () {
+        function() {
 
             $('#filterDateFrom').val('');
             $('#filterDateTo').val('');
@@ -1991,7 +2244,7 @@ function updateUpahGroupInfo(
 
     $('#filterDateFrom, #filterDateTo').on(
         'change',
-        function () {
+        function() {
 
             const dateFrom =
                 $('#filterDateFrom').val();
@@ -2072,333 +2325,432 @@ function updateUpahGroupInfo(
 
     }
 
-$('#btnExportUpah').off('click').on('click', async function (e) {
+    $('#btnExportUpah').off('click').on('click', async function(e) {
 
-    e.preventDefault();
+        e.preventDefault();
 
-    const button = $(this);
+        const button = $(this);
 
-    /*
-    |--------------------------------------------------------------------------
-    | AMBIL FILTER
-    |--------------------------------------------------------------------------
-    */
+        /*
+        |--------------------------------------------------------------------------
+        | AMBIL FILTER
+        |--------------------------------------------------------------------------
+        */
 
-    const dateFrom =
-        $('#filterDateFrom').val() || '';
+        const dateFrom =
+            $('#filterDateFrom').val() || '';
 
-    const dateTo =
-        $('#filterDateTo').val() || '';
+        const dateTo =
+            $('#filterDateTo').val() || '';
 
-    const search =
-        $('#searchUpahTable').val().trim() || '';
+        const search =
+            $('#searchUpahTable').val().trim() || '';
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | VALIDASI TANGGAL
-    |--------------------------------------------------------------------------
-    */
+        /*
+        |--------------------------------------------------------------------------
+        | VALIDASI TANGGAL
+        |--------------------------------------------------------------------------
+        */
 
-    if (
-        dateFrom &&
-        dateTo &&
-        dateFrom > dateTo
-    ) {
+        if (
+            dateFrom &&
+            dateTo &&
+            dateFrom > dateTo
+        ) {
 
-        alert(
-            'Tanggal Dari tidak boleh lebih besar dari Tanggal Sampai.'
+            alert(
+                'Tanggal Dari tidak boleh lebih besar dari Tanggal Sampai.'
+            );
+
+            return;
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | LOADING
+        |--------------------------------------------------------------------------
+        */
+
+        const originalHtml =
+            button.html();
+
+        button
+            .prop('disabled', true)
+            .html(
+                '<i class="fas fa-spinner fa-spin mr-1"></i> Exporting...'
+            );
+
+
+        try {
+
+            /*
+            |--------------------------------------------------------------------------
+            | URL
+            |--------------------------------------------------------------------------
+            */
+
+            const url =
+                new URL(
+                    "{{ route('upah.upah.transaksi.export') }}",
+                    window.location.origin
+                );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | PARAMETER
+            |--------------------------------------------------------------------------
+            */
+
+            if (dateFrom) {
+
+                url.searchParams.set(
+                    'date_from',
+                    dateFrom
+                );
+
+            }
+
+            if (dateTo) {
+
+                url.searchParams.set(
+                    'date_to',
+                    dateTo
+                );
+
+            }
+
+            if (search) {
+
+                url.searchParams.set(
+                    'search',
+                    search
+                );
+
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | FETCH
+            |--------------------------------------------------------------------------
+            */
+
+            const response =
+                await fetch(
+                    url.toString(), {
+                        method: 'GET',
+
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+
+                            'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                        },
+
+                        credentials: 'same-origin'
+                    }
+                );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | JIKA ERROR
+            |--------------------------------------------------------------------------
+            */
+
+            if (!response.ok) {
+
+                let message =
+                    'Gagal melakukan export Excel.';
+
+
+                const contentType =
+                    response.headers.get(
+                        'content-type'
+                    ) || '';
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | ERROR JSON
+                |--------------------------------------------------------------------------
+                */
+
+                if (
+                    contentType.includes(
+                        'application/json'
+                    )
+                ) {
+
+                    try {
+
+                        const json =
+                            await response.json();
+
+                        message =
+                            json.message ||
+                            message;
+
+                    } catch (e) {
+                        // ignore
+                    }
+
+                } else {
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | ERROR TEXT
+                    |--------------------------------------------------------------------------
+                    */
+
+                    try {
+
+                        const text =
+                            await response.text();
+
+                        if (text) {
+
+                            console.error(
+                                'Export server response:',
+                                text
+                            );
+
+                        }
+
+                    } catch (e) {
+                        // ignore
+                    }
+
+                }
+
+
+                throw new Error(message);
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | AMBIL BLOB
+            |--------------------------------------------------------------------------
+            */
+
+            const blob =
+                await response.blob();
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | FILE NAME
+            |--------------------------------------------------------------------------
+            */
+
+            let filename =
+                'Rekap_Upah.xlsx';
+
+
+            const disposition =
+                response.headers.get(
+                    'Content-Disposition'
+                );
+
+
+            if (disposition) {
+
+                const match =
+                    disposition.match(
+                        /filename\*=UTF-8''([^;]+)|filename="?([^"]+)"?/i
+                    );
+
+
+                if (match) {
+
+                    filename =
+                        decodeURIComponent(
+                            match[1] ||
+                            match[2]
+                        );
+
+                }
+
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | DOWNLOAD
+            |--------------------------------------------------------------------------
+            */
+
+            const blobUrl =
+                window.URL.createObjectURL(
+                    blob
+                );
+
+
+            const link =
+                document.createElement('a');
+
+
+            link.href =
+                blobUrl;
+
+            link.download =
+                filename;
+
+
+            document.body.appendChild(
+                link
+            );
+
+
+            link.click();
+
+
+            link.remove();
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | CLEAN
+            |--------------------------------------------------------------------------
+            */
+
+            setTimeout(function() {
+
+                window.URL.revokeObjectURL(
+                    blobUrl
+                );
+
+            }, 1000);
+
+
+        } catch (error) {
+
+            console.error(
+                'EXPORT UPAH ERROR:',
+                error
+            );
+
+
+            alert(
+                error.message ||
+                'Gagal melakukan export Excel.'
+            );
+
+
+        } finally {
+
+            button
+                .prop('disabled', false)
+                .html(
+                    originalHtml
+                );
+
+        }
+
+    });
+    function loadPoByArticle(article, description = '') {
+
+    const select = $('#insert_no_po');
+
+    select.empty();
+
+    select.append(
+        '<option value="">Memuat No PO...</option>'
+    );
+
+    if (!article) {
+
+        select.empty().append(
+            '<option value="">Pilih No PO...</option>'
         );
 
         return;
     }
 
+    $.ajax({
 
-    /*
-    |--------------------------------------------------------------------------
-    | LOADING
-    |--------------------------------------------------------------------------
-    */
+        url: "{{ route('upah.transaksi.search.po') }}",
 
-    const originalHtml =
-        button.html();
+        type: 'GET',
 
-    button
-        .prop('disabled', true)
-        .html(
-            '<i class="fas fa-spinner fa-spin mr-1"></i> Exporting...'
-        );
+        data: {
+            article: article,
+            description: description
+        },
 
+        success: function(response) {
 
-    try {
+            if (!Array.isArray(response)) {
+                response = [];
+            }
 
-        /*
-        |--------------------------------------------------------------------------
-        | URL
-        |--------------------------------------------------------------------------
-        */
-
-        const url =
-            new URL(
-                "{{ route('upah.upah.transaksi.export') }}",
-                window.location.origin
-            );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | PARAMETER
-        |--------------------------------------------------------------------------
-        */
-
-        if (dateFrom) {
-
-            url.searchParams.set(
-                'date_from',
-                dateFrom
-            );
-
-        }
-
-        if (dateTo) {
-
-            url.searchParams.set(
-                'date_to',
-                dateTo
-            );
-
-        }
-
-        if (search) {
-
-            url.searchParams.set(
-                'search',
-                search
-            );
-
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | FETCH
-        |--------------------------------------------------------------------------
-        */
-
-        const response =
-            await fetch(
-                url.toString(),
-                {
-                    method: 'GET',
-
-                    headers: {
-                        'X-Requested-With':
-                            'XMLHttpRequest',
-
-                        'Accept':
-                            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-                    },
-
-                    credentials: 'same-origin'
-                }
-            );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | JIKA ERROR
-        |--------------------------------------------------------------------------
-        */
-
-        if (!response.ok) {
-
-            let message =
-                'Gagal melakukan export Excel.';
-
-
-            const contentType =
-                response.headers.get(
-                    'content-type'
-                ) || '';
-
+            select.empty();
 
             /*
             |--------------------------------------------------------------------------
-            | ERROR JSON
+            | TIDAK ADA PO
             |--------------------------------------------------------------------------
             */
 
-            if (
-                contentType.includes(
-                    'application/json'
-                )
-            ) {
+            if (!response.length) {
 
-                try {
-
-                    const json =
-                        await response.json();
-
-                    message =
-                        json.message ||
-                        message;
-
-                } catch (e) {
-                    // ignore
-                }
-
-            } else {
-
-                /*
-                |--------------------------------------------------------------------------
-                | ERROR TEXT
-                |--------------------------------------------------------------------------
-                */
-
-                try {
-
-                    const text =
-                        await response.text();
-
-                    if (text) {
-
-                        console.error(
-                            'Export server response:',
-                            text
-                        );
-
-                    }
-
-                } catch (e) {
-                    // ignore
-                }
-
-            }
-
-
-            throw new Error(message);
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | AMBIL BLOB
-        |--------------------------------------------------------------------------
-        */
-
-        const blob =
-            await response.blob();
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | FILE NAME
-        |--------------------------------------------------------------------------
-        */
-
-        let filename =
-            'Rekap_Upah.xlsx';
-
-
-        const disposition =
-            response.headers.get(
-                'Content-Disposition'
-            );
-
-
-        if (disposition) {
-
-            const match =
-                disposition.match(
-                    /filename\*=UTF-8''([^;]+)|filename="?([^"]+)"?/i
+                select.append(
+                    '<option value="">Tidak ada PO terkait</option>'
                 );
 
-
-            if (match) {
-
-                filename =
-                    decodeURIComponent(
-                        match[1] ||
-                        match[2]
-                    );
-
+                return;
             }
 
+            /*
+            |--------------------------------------------------------------------------
+            | DEFAULT
+            |--------------------------------------------------------------------------
+            */
+
+            select.append(
+                '<option value="">Pilih No PO...</option>'
+            );
+
+            /*
+            |--------------------------------------------------------------------------
+            | LIST PO
+            |--------------------------------------------------------------------------
+            */
+
+            response.forEach(function(item) {
+
+                if (!item.no_po) {
+                    return;
+                }
+
+                select.append(
+                    $('<option>', {
+                        value: item.no_po,
+                        text: item.no_po
+                    })
+                );
+
+            });
+
+        },
+
+        error: function(xhr) {
+
+            console.error(
+                'Load PO error:',
+                xhr
+            );
+
+            select.empty().append(
+                '<option value="">Gagal memuat No PO</option>'
+            );
         }
 
+    });
+}
 
-        /*
-        |--------------------------------------------------------------------------
-        | DOWNLOAD
-        |--------------------------------------------------------------------------
-        */
-
-        const blobUrl =
-            window.URL.createObjectURL(
-                blob
-            );
-
-
-        const link =
-            document.createElement('a');
-
-
-        link.href =
-            blobUrl;
-
-        link.download =
-            filename;
-
-
-        document.body.appendChild(
-            link
-        );
-
-
-        link.click();
-
-
-        link.remove();
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | CLEAN
-        |--------------------------------------------------------------------------
-        */
-
-        setTimeout(function () {
-
-            window.URL.revokeObjectURL(
-                blobUrl
-            );
-
-        }, 1000);
-
-
-    } catch (error) {
-
-        console.error(
-            'EXPORT UPAH ERROR:',
-            error
-        );
-
-
-        alert(
-            error.message ||
-            'Gagal melakukan export Excel.'
-        );
-
-
-    } finally {
-
-        button
-            .prop('disabled', false)
-            .html(
-                originalHtml
-            );
-
-    }
-
-});
-</script>
+    
+    </script>

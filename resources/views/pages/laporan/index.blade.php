@@ -618,5 +618,209 @@
 
         );
     </script>
+
+<style>
+/* =========================================================
+   LAPORAN STOK - TABLE UI mengikuti index SPEK
+   UI ONLY. Tidak mengubah ID, class, endpoint, AJAX, atau JS.
+   ========================================================= */
+
+.table-stok-wrapper{
+    width:100%;
+    overflow:auto;
+    background:#fff;
+    border:1px solid #e5e7eb;
+    border-radius:8px;
+    box-shadow:0 1px 2px rgba(16,24,40,.025);
+}
+
+.table-stok-wrapper table{
+    width:100%;
+    min-width:1180px;
+    margin:0;
+    border-collapse:collapse;
+    border-spacing:0;
+    background:#fff;
+}
+
+.table-stok-wrapper table thead th{
+    height:38px;
+    padding:0 10px;
+    background:#fcfcfd;
+    border:0;
+    border-bottom:1px solid #e9edf2;
+    color:#475467;
+    text-align:left;
+    vertical-align:middle;
+    font-size:10px;
+    font-weight:700;
+    white-space:nowrap;
+}
+
+.table-stok-wrapper table tbody td{
+    height:48px;
+    padding:7px 10px;
+    border:0;
+    border-bottom:1px solid #f0f2f5;
+    color:#475467;
+    background:#fff;
+    font-size:11.5px;
+    vertical-align:middle;
+    white-space:nowrap;
+}
+
+.table-stok-wrapper table tbody tr{
+    transition:.12s ease;
+}
+
+.table-stok-wrapper table tbody tr:hover td{
+    background:#fafcff;
+}
+
+.table-stok-wrapper table tbody tr:last-child td{
+    border-bottom:0;
+}
+
+/* Nomor */
+.table-stok-wrapper table th:first-child,
+.table-stok-wrapper table td:first-child{
+    text-align:center;
+    color:#667085;
+    font-weight:600;
+}
+
+/* Input pada tabel tetap editable, tetapi visual dibuat seperti
+   field ringan pada index spek */
+.table-stok-wrapper .form-control{
+    width:100%;
+    min-width:0;
+    height:32px;
+    min-height:32px;
+    padding:0 9px;
+    border:1px solid #dfe3e8;
+    border-radius:6px;
+    background:#fff;
+    color:#344054;
+    font-size:10.5px;
+    box-shadow:none;
+    outline:none;
+    transition:.15s ease;
+}
+
+.table-stok-wrapper .form-control:focus{
+    border-color:#93c5fd;
+    box-shadow:0 0 0 3px rgba(37,99,235,.07);
+}
+
+.table-stok-wrapper select.form-control{
+    cursor:pointer;
+    padding-right:25px;
+}
+
+.table-stok-wrapper input[type="date"].form-control{
+    min-width:130px;
+}
+
+.table-stok-wrapper .btn{
+    min-width:32px;
+    height:31px;
+    min-height:31px;
+    padding:0 8px;
+    border-radius:6px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:5px;
+    font-size:11px;
+    line-height:1;
+    border-width:1px;
+}
+
+.table-stok-wrapper .btn-info{
+    color:#2563eb;
+    background:#eff6ff;
+    border-color:#bfdbfe;
+}
+
+.table-stok-wrapper .btn-info:hover{
+    color:#1d4ed8;
+    background:#dbeafe;
+}
+
+.table-stok-wrapper .btn-success{
+    color:#15803d;
+    background:#f0fdf4;
+    border-color:#bbf7d0;
+}
+
+.table-stok-wrapper .btn-success:hover{
+    color:#166534;
+    background:#dcfce7;
+}
+
+.table-stok-wrapper .btn-danger{
+    color:#dc2626;
+    background:#fff;
+    border-color:#fecaca;
+}
+
+.table-stok-wrapper .btn-danger:hover{
+    color:#dc2626;
+    background:#fff5f5;
+}
+
+/* Kolom angka lebih rapi */
+.table-stok-wrapper td:nth-child(7),
+.table-stok-wrapper td:nth-child(8),
+.table-stok-wrapper td:nth-child(9){
+    text-align:right;
+    font-variant-numeric:tabular-nums;
+}
+
+/* Header kolom angka */
+.table-stok-wrapper th:nth-child(7),
+.table-stok-wrapper th:nth-child(8),
+.table-stok-wrapper th:nth-child(9){
+    text-align:right;
+}
+
+/* Harga */
+.table-stok-wrapper .harga{
+    text-align:right;
+    font-variant-numeric:tabular-nums;
+}
+
+/* Tampilan tombol aksi seperti icon-btn pada spek */
+.table-stok-wrapper td:nth-last-child(2),
+.table-stok-wrapper td:last-child{
+    text-align:center;
+}
+
+.table-stok-wrapper td:nth-last-child(2){
+    min-width:95px;
+}
+
+.table-stok-wrapper td:last-child{
+    min-width:90px;
+}
+
+/* Sedikit pemisah visual untuk data utama */
+.table-stok-wrapper tbody td:first-child{
+    color:#98a2b3;
+    font-size:10px;
+}
+
+/* Responsive */
+@media(max-width:900px){
+    .table-stok-wrapper{
+        border-radius:7px;
+    }
+
+    .table-stok-wrapper table{
+        min-width:1180px;
+    }
+}
+</style>
+
     @include('pages.laporan.style')
 @endsection

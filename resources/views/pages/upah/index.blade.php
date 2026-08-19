@@ -531,13 +531,7 @@
                     Tambah Upah Borongan
                 </h5>
 
-                <button type="button"
-                        class="close"
-                        data-dismiss="modal">
-
-                    <span>&times;</span>
-
-                </button>
+               
 
             </div>
 

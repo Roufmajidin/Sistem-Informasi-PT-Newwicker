@@ -2143,7 +2143,7 @@ $('#btnSaveMass').on('click', function () {
 
     $.ajax({
 
-        url: "/upah/store/upah/mass",
+        url: "/upah/mass",
 
         type: "POST",
 

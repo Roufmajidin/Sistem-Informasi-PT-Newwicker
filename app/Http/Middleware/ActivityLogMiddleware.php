@@ -6,7 +6,7 @@ use Closure;
 use Illuminate\Http\Request;
 use App\Models\ActivityLog;
 use App\Models\ModuleRoute;
-use App\Events\ActivityLogged;
+// use App\Events\ActivityLogged;
 
 class ActivityLogMiddleware
 {
@@ -96,10 +96,10 @@ class ActivityLogMiddleware
 
             /*
             |--------------------------------------------------------------------------
-            | Broadcast realtime
+            | Broadcast realtime - MATI SEMENTARA
             |--------------------------------------------------------------------------
             */
-            event(new ActivityLogged($activity));
+            // event(new ActivityLogged($activity));
         }
 
         /*

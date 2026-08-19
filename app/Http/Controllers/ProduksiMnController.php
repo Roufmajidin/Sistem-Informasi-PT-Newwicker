@@ -265,7 +265,22 @@ class ProduksiMnController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | FILTER PO
+        | SORT RELEASE DATE
+        |--------------------------------------------------------------------------
+        */
+
+        $sort = strtolower($request->input('sort', 'desc'));
+
+        if (!in_array($sort, ['asc', 'desc'])) {
+            $sort = 'desc';
+        }
+
+        $poQuery->orderBy('release_date', $sort);
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | FILTER SEARCH
         |--------------------------------------------------------------------------
         */
 
@@ -273,12 +288,56 @@ class ProduksiMnController extends Controller
 
             $poQuery->where(function ($q) use ($searchPo) {
 
-                $q->where('order_no', 'like', '%' . $searchPo . '%')
-                    ->orWhere('company_name', 'like', '%' . $searchPo . '%');
+                $q->where(
+                    'order_no',
+                    'like',
+                    '%' . $searchPo . '%'
+                )
+
+                    ->orWhere(
+                        'company_name',
+                        'like',
+                        '%' . $searchPo . '%'
+                    );
 
             });
+
         }
 
+
+        /*
+        |--------------------------------------------------------------------------
+        | FILTER COMPANY
+        |--------------------------------------------------------------------------
+        | NW  = hanya PO NW
+        | NWS = hanya PO NWS
+        | all = semua
+        |--------------------------------------------------------------------------
+        */
+
+        $brand = strtolower(
+            trim($request->input('brand', 'all'))
+        );
+
+        if ($brand === 'nw') {
+
+            $poQuery
+                ->where('order_no', 'like', 'NW%')
+                ->where('order_no', 'not like', 'NWS%');
+
+        } elseif ($brand === 'nws') {
+
+            $poQuery
+                ->where('order_no', 'like', 'NWS%');
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | GET DATA
+        |--------------------------------------------------------------------------
+        */
 
         $pos = $poQuery->get();
 

@@ -343,6 +343,219 @@
         let cacheData = [];
 
         // ===============================
+        // SEARCH TAMBAHAN SPK
+        // Cari: PO / Buyer / Supplier / Barang / Article / No SPK
+        // ===============================
+        function matchSpkKeyword(po, keyword) {
+
+            if (!keyword) {
+                return true;
+            }
+
+            keyword = String(keyword)
+                .trim()
+                .toLowerCase();
+
+            if (!keyword) {
+                return true;
+            }
+
+            // ===============================
+            // PO / BUYER
+            // ===============================
+            const noPo = String(
+                po.data_po?.no_po ?? ''
+            ).toLowerCase();
+
+            const buyer = String(
+                po.data_po?.company ?? ''
+            ).toLowerCase();
+
+            if (
+                noPo.includes(keyword) ||
+                buyer.includes(keyword)
+            ) {
+                return true;
+            }
+
+            // ===============================
+            // ITEMS PO
+            // ===============================
+            const items = po.data_po?.items || [];
+
+            for (const item of items) {
+
+                const detail = item.detail || {};
+
+                const namaBarang = String(
+                    detail.nama ??
+                    detail.name ??
+                    detail.nama_barang ??
+                    item.nama ??
+                    item.name ??
+                    ''
+                ).toLowerCase();
+
+                const kodeBarang = String(
+                    detail.kode ??
+                    detail.kode_barang ??
+                    detail.article_nr_ ??
+                    item.kode ??
+                    item.kode_barang ??
+                    ''
+                ).toLowerCase();
+
+                const description = String(
+                    detail.description ??
+                    item.description ??
+                    ''
+                ).toLowerCase();
+
+                if (
+                    namaBarang.includes(keyword) ||
+                    kodeBarang.includes(keyword) ||
+                    description.includes(keyword)
+                ) {
+                    return true;
+                }
+
+                // ===============================
+                // SUMMARY
+                // kategori -> supplier -> SPK
+                // ===============================
+                const summary = item.summary || {};
+
+                for (const kategori of Object.keys(summary)) {
+
+                    const suppliers =
+                        summary[kategori] || {};
+
+                    for (const supplierName of Object.keys(suppliers)) {
+
+                        // Nama supplier
+                        if (
+                            String(supplierName)
+                                .toLowerCase()
+                                .includes(keyword)
+                        ) {
+                            return true;
+                        }
+
+                        const supplierData =
+                            suppliers[supplierName] || {};
+
+                        const spks =
+                            supplierData.spks || [];
+
+                        for (const spk of spks) {
+
+                            // No SPK
+                            const noSpk = String(
+                                spk.no_spk ?? ''
+                            ).toLowerCase();
+
+                            if (
+                                noSpk.includes(keyword)
+                            ) {
+                                return true;
+                            }
+
+                            // Supplier dari object SPK
+                            const supplier = String(
+                                spk.sup ??
+                                spk.supplier ??
+                                spk.supplier_name ??
+                                supplierName ??
+                                ''
+                            ).toLowerCase();
+
+                            if (
+                                supplier.includes(keyword)
+                            ) {
+                                return true;
+                            }
+
+                            // Nama barang di object SPK
+                            const spkNama = String(
+                                spk.nama ??
+                                spk.name ??
+                                spk.nama_barang ??
+                                ''
+                            ).toLowerCase();
+
+                            if (
+                                spkNama.includes(keyword)
+                            ) {
+                                return true;
+                            }
+
+                            // Article / kode di object SPK
+                            const spkKode = String(
+                                spk.kode ??
+                                spk.kode_barang ??
+                                spk.article_code ??
+                                ''
+                            ).toLowerCase();
+
+                            if (
+                                spkKode.includes(keyword)
+                            ) {
+                                return true;
+                            }
+
+                            // ===============================
+                            // Jika SPK punya data object
+                            // ===============================
+                            const spkData =
+                                spk.data || {};
+
+                            const dataSupplier =
+                                String(
+                                    spkData.sup ?? ''
+                                ).toLowerCase();
+
+                            if (
+                                dataSupplier.includes(keyword)
+                            ) {
+                                return true;
+                            }
+
+                            const spkItems =
+                                spkData.items || [];
+
+                            for (const spkItem of spkItems) {
+
+                                const nama = String(
+                                    spkItem.nama ??
+                                    spkItem.name ??
+                                    spkItem.nama_barang ??
+                                    ''
+                                ).toLowerCase();
+
+                                const kode = String(
+                                    spkItem.kode ??
+                                    spkItem.kode_barang ??
+                                    spkItem.article_code ??
+                                    ''
+                                ).toLowerCase();
+
+                                if (
+                                    nama.includes(keyword) ||
+                                    kode.includes(keyword)
+                                ) {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+
+
+        // ===============================
         // DOWNLOAD SPK
         // ===============================
         $('#searchPo').on('input', function() {
@@ -379,9 +592,10 @@
                         prefix === currentType;
 
                     let matchKeyword =
-                        currentKeyword === '' ||
-                        noPo.toLowerCase().includes(currentKeyword) ||
-                        buyer.toLowerCase().includes(currentKeyword);
+                        matchSpkKeyword(
+                            po,
+                            currentKeyword
+                        );
 
                     return matchType && matchKeyword;
 

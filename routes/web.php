@@ -303,12 +303,13 @@ Route::delete('/karyawan/{id}/delete', [KaryawanController::class, 'destroy'])
     ->name('karyawan.destroy');
 // bom
 // BOM
+Route::post('/bom-material-price/store', [BomController::class, 'bulkStored']);
 Route::get(
     '/bom',
     [BomController::class, 'index']
 )->name('bom.index');
 Route::get('/ajaxBom', [BomController::class, 'ajaxMaterialPrice'])->name('ajax');
-Route::post('/bom-material-price/store', [BomController::class, 'bulkStored']);
+Route::get('/ajaxBoms', [CogController::class, 'ajaxMaterialPrice'])->name('ajaxs');
 
 Route::post(
     '/bom/store',
@@ -391,8 +392,7 @@ Route::post('/save-process', [SpkController::class, 'saveProcess']);
 Route::get('/get-timeline', [SpkController::class, 'getTimeline']);
 Route::get('/timeline/data', [PoController::class, 'getTimeline'])->name('timeline.data');
 Route::get('/spk/{id}', [SpkController::class, 'index'])->name('spk.index');
-Route::post('/spk/create/{po}', [SpkController::class, 'save'])->name('laporan');
-Route::post('/spk/update/{spk}', [SpkController::class, 'save'])->name('spk.update');
+
 // Route::post('/spk/create/{po}', [SpkController::class, 'save'])->name('spk.create');
 Route::post('/spk/purchase', [SpkController::class, 'purchase'])->name('spk.purchase');
 
@@ -873,7 +873,10 @@ Route::prefix('upah')
             UpahController::class,
             'searchArticle'
         ])->name('ajax.articles');
-
+    Route::get('/transaksi/search-po', [
+    UpahController::class,
+    'searchPoByArticle'
+])->name('transaksi.search.po');
         Route::get('/{upah}/data', [
             UpahController::class,
             'editData'
@@ -963,7 +966,7 @@ Route::prefix('upah')
         Route::get('/export', [UpahController::class, 'export'])
             ->name('upah.transaksi.export');
     });
-    
+
     // finance export 
     Route::get(
     '/payment-request-saved/{id}/export',

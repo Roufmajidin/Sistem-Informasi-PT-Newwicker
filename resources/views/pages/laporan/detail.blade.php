@@ -284,7 +284,7 @@
                                         {{-- IN --}}
                                         <td>
                                             @if ($item->tipe == 'in')
-                                                <a href="#" class="editable" data-type="number" data-name="qty"
+                                                <a href="#" class="editable" data-type="text" data-name="qty"
                                                     data-pk="{{ $item->id }}"
                                                     data-url="{{ route('history.updateField', $item->id) }}">
 
@@ -297,7 +297,7 @@
                                         {{-- OUT --}}
                                         <td>
                                             @if ($item->tipe == 'out')
-                                                <a href="#" class="editable" data-type="number" data-name="qty"
+                                                <a href="#" class="editable" data-type="text" data-name="qty"
                                                     data-pk="{{ $item->id }}"
                                                     data-url="{{ route('history.updateField', $item->id) }}">
 

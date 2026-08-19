@@ -1,5 +1,5 @@
   <tr class="no-border">
-      <td colspan="10" style="vertical-align: top; border:none">
+      <td colspan="8" style="vertical-align: top; border:none">
   <div class="card border-0 shadow-sm" style="left:-12px">
                                     <div class="card-header bg-success text-white fw-bold">
                                         LIST BAHAN BAKU PENGAMBILAN (by warehoue)
