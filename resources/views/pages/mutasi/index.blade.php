@@ -43,7 +43,7 @@
             {{-- Search --}}
 
 
-            <div class="table-responsive">
+            <div class="table-responsive spk-table-wrap">
 
                 <table class="table table-bordered table-hover align-middle">
 
@@ -88,7 +88,9 @@
 
                                 <td>{{ $index + 1 }}</td>
 
-                                <td>{{ $spk->data['no_spk'] ?? '-' }}</td>
+                                <td>
+                                    {{ $spk->data['no_spk'] ?? '-' }}
+                                </td>
 
                                 <td>{{ $spk->po->order_no ?? '-' }}</td>
 
@@ -323,8 +325,7 @@
 
                     const customColumns =
                         Array.isArray(item.custom_columns) ?
-                        item.custom_columns :
-                        [];
+                        item.custom_columns : [];
 
                     const rows = [];
 
@@ -939,6 +940,38 @@
             </script>
 
             <style>
+                /* =========================================================
+                       STICKY HEADER
+                       ========================================================= */
+
+                .spk-table-wrap {
+                    max-height: calc(100vh - 220px);
+                    overflow: auto;
+                    position: relative;
+                }
+
+                .spk-table-wrap table {
+                    margin-bottom: 0;
+                    min-width: 850px;
+                }
+
+                .spk-table-wrap thead th {
+                    position: sticky;
+                    top: 0;
+                    z-index: 30;
+                    /* background: #f8f9fa !important; */
+                    box-shadow: 0 1px 0 rgba(0, 0, 0, .12);
+                    white-space: nowrap;
+                }
+
+                .spk-table-wrap tbody td {
+                    background: #fff;
+                }
+
+                .spk-table-wrap tbody tr:hover td {
+                    background: #f8fbff;
+                }
+
                 .modal-custom {
                     max-width: 95%;
                 }
@@ -948,8 +981,8 @@
                 }
 
                 /* =========================================================
-                       ITEM DETAIL + COMPONENTS
-                       ========================================================= */
+                           ITEM DETAIL + COMPONENTS
+                           ========================================================= */
 
                 .item-detail-grid {
                     display: grid;

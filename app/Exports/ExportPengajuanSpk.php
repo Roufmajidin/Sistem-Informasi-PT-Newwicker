@@ -488,34 +488,34 @@ class ExportPengajuanSpk
                 'Date',
 
             'C7' =>
-                'Nama Sub',
-
-            'D7' =>
                 'NO PO',
 
-            'E7' =>
+            'D7' =>
                 'NO. INV / NO. SPK',
 
-            'F7' =>
+            'E7' =>
                 'TYPE BIAYA',
 
-            'G7' =>
+            'F7' =>
                 'Nama Barang/Item/Jasa',
 
-            'H7' =>
+            'G7' =>
                 'QTY',
 
+            'H7' =>
+                'Estimasi Harga Satuan',
+
             'I7' =>
-                'Diajukan',
+                'Total Harga',
 
             'J7' =>
-                'Adjustment Finance',
+                'Nama Sub',
 
             'K7' =>
-                'Adjustment By Finance',
+                'Adjustment Finance',
 
             'L7' =>
-                'Total Harga',
+                'Adjustment By Finance',
         ];
 
 
@@ -916,24 +916,12 @@ class ExportPengajuanSpk
 
             /*
             |--------------------------------------------------------------------------
-            | C - NAMA SUB
+            | C - NO PO
             |--------------------------------------------------------------------------
             */
 
             $sheet->setCellValue(
                 "C{$row}",
-                $namaSub
-            );
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | D - NO PO
-            |--------------------------------------------------------------------------
-            */
-
-            $sheet->setCellValue(
-                "D{$row}",
                 $spkData['no_po']
                     ?? $request->no_po
                     ?? ''
@@ -942,12 +930,12 @@ class ExportPengajuanSpk
 
             /*
             |--------------------------------------------------------------------------
-            | E - NO SPK
+            | D - NO. INV / NO. SPK
             |--------------------------------------------------------------------------
             */
 
             $sheet->setCellValue(
-                "E{$row}",
+                "D{$row}",
                 $spkData['no_spk']
                     ?? $request->no_spk
                     ?? ''
@@ -956,89 +944,174 @@ class ExportPengajuanSpk
 
             /*
             |--------------------------------------------------------------------------
-            | F - TYPE BIAYA
+            | JENIS / KATEGORI SPK
             |--------------------------------------------------------------------------
+            |
+            | Ambil kategori dari snapshot terlebih dahulu, lalu fallback ke data
+            | SPK terbaru dan terakhir langsung dari model SPK.
+            |
             */
 
-            $sheet->setCellValue(
-                "F{$row}",
-                $payment['note']
-                    ?? ''
+            $kategoriSpk = self::resolveKategoriSpk(
+                $snapshot,
+                $currentSpkData,
+                $request->spk
             );
 
 
             /*
             |--------------------------------------------------------------------------
-            | G - NAMA BARANG / ITEM / JASA
+            | PEMETAAN BIAYA
+            |--------------------------------------------------------------------------
+            |
+            | Contoh yang diminta:
+            |
+            | kategori = Un Finished
+            | type     = Pembelian Un Finished
+            | person   = LINDA
+            | note     = pelunasan
+            | hasil    = LINDA PELUNASAN
+            |
+            | Kategori lain tinggal ditambahkan pada method
+            | resolveBiayaByKategori().
+            |
+            */
+
+            $biaya = self::resolveBiayaByKategori(
+                $kategoriSpk,
+                $namaSub
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | E - TYPE BIAYA
+            |--------------------------------------------------------------------------
+            */
+
+            $sheet->setCellValue(
+                "E{$row}",
+                // $biaya['type']
+                "PEMBELIAN UN FINISH"
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | F - NAMA BARANG / ITEM / JASA
+            |--------------------------------------------------------------------------
+            |
+            | Yang dipakai sebagai jenis transaksi adalah NOTE payment:
+            | pelunasan, kasbon, DP, dll.
+            |
+            | Hasil:
+            | LINDA PELUNASAN
+            | LINDA KASBON
+            | LINDA DP
+            |
+            */
+
+            $jenisPembayaran = trim(
+                (string) (
+                    $payment['note']
+                    ?? $payment['note_tambahan']
+                    ?? ''
+                )
+            );
+
+            $jenisPembayaran = strtoupper(
+                preg_replace(
+                    '/\s+/',
+                    ' ',
+                    $jenisPembayaran
+                )
+            );
+
+            $namaItem = trim(
+                $biaya['person']
+                . ' '
+                . $jenisPembayaran
+            );
+
+            $sheet->setCellValue(
+                "F{$row}",
+                $namaItem
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | G - QTY
             |--------------------------------------------------------------------------
             */
 
             $sheet->setCellValue(
                 "G{$row}",
-                $payment['note_tambahan']
-                    ?? $payment['note']
-                    ?? ''
-            );
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | H - QTY
-            |--------------------------------------------------------------------------
-            */
-
-            $sheet->setCellValue(
-                "H{$row}",
                 1
             );
 
 
             /*
             |--------------------------------------------------------------------------
-            | I - DIAJUKAN / HARGA ASLI
+            | H - ESTIMASI HARGA SATUAN
             |--------------------------------------------------------------------------
             */
 
             $sheet->setCellValue(
-                "I{$row}",
+                "H{$row}",
                 $hargaAsli
             );
 
 
             /*
             |--------------------------------------------------------------------------
-            | J - ADJUSTMENT FINANCE
+            | I - TOTAL HARGA
+            |--------------------------------------------------------------------------
+            |
+            | Jika ada adjustment finance, adjustment menjadi harga yang dipakai.
+            | Karena QTY untuk transaksi payment adalah 1.
+            |
+            */
+
+            $sheet->setCellValue(
+                "I{$row}",
+                "=G{$row}*IF(K{$row}>0,K{$row},H{$row})"
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | J - NAMA SUB
             |--------------------------------------------------------------------------
             */
 
             $sheet->setCellValue(
                 "J{$row}",
+                $namaSub
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | K - ADJUSTMENT FINANCE
+            |--------------------------------------------------------------------------
+            */
+
+            $sheet->setCellValue(
+                "K{$row}",
                 $adjustmentAmount
             );
 
 
             /*
             |--------------------------------------------------------------------------
-            | K - ADJUSTMENT BY FINANCE
-            |--------------------------------------------------------------------------
-            */
-
-            $sheet->setCellValue(
-                "K{$row}",
-                $adjustmentByName
-            );
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | L - TOTAL HARGA
+            | L - ADJUSTMENT BY FINANCE
             |--------------------------------------------------------------------------
             */
 
             $sheet->setCellValue(
                 "L{$row}",
-                "=H{$row}*"
-                . "IF(J{$row}>0,J{$row},I{$row})"
+                $adjustmentByName
             );
 
 
@@ -1071,7 +1144,7 @@ class ExportPengajuanSpk
 
 
         $sheet->mergeCells(
-            "A{$totalRow}:K{$totalRow}"
+            "A{$totalRow}:H{$totalRow}"
         );
 
 
@@ -1084,14 +1157,14 @@ class ExportPengajuanSpk
 
 
             $sheet->setCellValue(
-                "L{$totalRow}",
-                "=SUM(L{$startRow}:L{$lastDataRow})"
+                "I{$totalRow}",
+                "=SUM(I{$startRow}:I{$lastDataRow})"
             );
 
         } else {
 
             $sheet->setCellValue(
-                "L{$totalRow}",
+                "I{$totalRow}",
                 0
             );
         }
@@ -1148,13 +1221,13 @@ class ExportPengajuanSpk
 
             /*
             |--------------------------------------------------------------------------
-            | NAMA SUB
+            | TEXT COLUMNS
             |--------------------------------------------------------------------------
             */
 
             $sheet
                 ->getStyle(
-                    "C{$startRow}:C"
+                    "C{$startRow}:F"
                     . ($row - 1)
                 )
                 ->getAlignment()
@@ -1171,7 +1244,7 @@ class ExportPengajuanSpk
 
             $sheet
                 ->getStyle(
-                    "H{$startRow}:H"
+                    "G{$startRow}:G"
                     . ($row - 1)
                 )
                 ->getAlignment()
@@ -1188,7 +1261,7 @@ class ExportPengajuanSpk
 
             $sheet
                 ->getStyle(
-                    "I{$startRow}:J"
+                    "H{$startRow}:I"
                     . ($row - 1)
                 )
                 ->getAlignment()
@@ -1199,7 +1272,7 @@ class ExportPengajuanSpk
 
             $sheet
                 ->getStyle(
-                    "L{$startRow}:L"
+                    "K{$startRow}:K"
                     . ($row - 1)
                 )
                 ->getAlignment()
@@ -1216,7 +1289,7 @@ class ExportPengajuanSpk
 
             $sheet
                 ->getStyle(
-                    "C{$startRow}:G"
+                    "C{$startRow}:F"
                     . ($row - 1)
                 )
                 ->getAlignment()
@@ -1225,7 +1298,7 @@ class ExportPengajuanSpk
 
             $sheet
                 ->getStyle(
-                    "K{$startRow}:K"
+                    "J{$startRow}:L"
                     . ($row - 1)
                 )
                 ->getAlignment()
@@ -1241,7 +1314,17 @@ class ExportPengajuanSpk
 
         $sheet
             ->getStyle(
-                "H{$startRow}:J{$totalRow}"
+                "G{$startRow}:G{$totalRow}"
+            )
+            ->getNumberFormat()
+            ->setFormatCode(
+                '0'
+            );
+
+
+        $sheet
+            ->getStyle(
+                "H{$startRow}:I{$totalRow}"
             )
             ->getNumberFormat()
             ->setFormatCode(
@@ -1251,7 +1334,7 @@ class ExportPengajuanSpk
 
         $sheet
             ->getStyle(
-                "L{$startRow}:L{$totalRow}"
+                "K{$startRow}:K{$totalRow}"
             )
             ->getNumberFormat()
             ->setFormatCode(
@@ -1297,6 +1380,13 @@ class ExportPengajuanSpk
                 Alignment::HORIZONTAL_RIGHT
             );
 
+        $sheet
+            ->getStyle("I{$totalRow}")
+            ->getAlignment()
+            ->setHorizontal(
+                Alignment::HORIZONTAL_RIGHT
+            );
+
 
         /*
         |--------------------------------------------------------------------------
@@ -1316,32 +1406,32 @@ class ExportPengajuanSpk
 
         $sheet
             ->getColumnDimension('C')
-            ->setWidth(20);
-
-
-        $sheet
-            ->getColumnDimension('D')
             ->setWidth(16);
 
 
         $sheet
-            ->getColumnDimension('E')
+            ->getColumnDimension('D')
             ->setWidth(24);
 
 
         $sheet
-            ->getColumnDimension('F')
+            ->getColumnDimension('E')
             ->setWidth(20);
 
 
         $sheet
-            ->getColumnDimension('G')
+            ->getColumnDimension('F')
             ->setWidth(32);
 
 
         $sheet
-            ->getColumnDimension('H')
+            ->getColumnDimension('G')
             ->setWidth(8);
+
+
+        $sheet
+            ->getColumnDimension('H')
+            ->setWidth(18);
 
 
         $sheet
@@ -1356,12 +1446,12 @@ class ExportPengajuanSpk
 
         $sheet
             ->getColumnDimension('K')
-            ->setWidth(24);
+            ->setWidth(20);
 
 
         $sheet
             ->getColumnDimension('L')
-            ->setWidth(18);
+            ->setWidth(24);
 
 
         /*
@@ -1495,6 +1585,295 @@ class ExportPengajuanSpk
             ]
         );
     }
+
+
+    /**
+     * =========================================================================
+     * RESOLVE KATEGORI SPK
+     * =========================================================================
+     */
+    private static function resolveKategoriSpk(
+        array $snapshot,
+        array $currentSpkData,
+        $spk = null
+    ): string {
+
+        $candidates = [
+            $snapshot['kategori'] ?? null,
+            $snapshot['data']['kategori'] ?? null,
+            $snapshot['spk']['kategori'] ?? null,
+
+            $currentSpkData['kategori'] ?? null,
+            $currentSpkData['data']['kategori'] ?? null,
+            $currentSpkData['spk']['kategori'] ?? null,
+        ];
+
+        if ($spk) {
+            $spkData = $spk->data ?? [];
+
+            if (is_string($spkData)) {
+                $spkData = json_decode($spkData, true) ?? [];
+            }
+
+            if (is_array($spkData)) {
+                $candidates[] = $spkData['kategori'] ?? null;
+                $candidates[] = $spkData['data']['kategori'] ?? null;
+            }
+
+            $candidates[] = $spk->kategori ?? null;
+            $candidates[] = $spk->jenis ?? null;
+        }
+
+        foreach ($candidates as $value) {
+            if ($value !== null && trim((string) $value) !== '') {
+                return trim((string) $value);
+            }
+        }
+
+        return '';
+    }
+
+
+    /**
+     * =========================================================================
+     * RESOLVE TYPE BIAYA + NAMA ORANG BERDASARKAN KATEGORI
+     * =========================================================================
+     *
+     * Mapping nama orang sengaja diletakkan di satu tempat supaya mudah
+     * ditambah sesuai kategori perusahaan.
+     */
+    private static function resolveBiayaByKategori(
+        string $kategori,
+        string $namaSub = ''
+    ): array {
+
+        $key = strtolower(
+            trim(
+                preg_replace(
+                    '/\s+/',
+                    ' ',
+                    $kategori
+                )
+            )
+        );
+
+        /*
+         * -------------------------------------------------------------------------
+         * NAMA ORANG / SUB
+         * -------------------------------------------------------------------------
+         *
+         * Contoh:
+         *
+         * TOMO FINISHING       -> TOMO
+         * ANJELI UN FINISHED   -> ANJELI
+         * TOMO                 -> TOMO
+         *
+         * Nama orang diambil dari NAMA SUB.
+         * Yang dibuang hanya penanda kategori/pekerjaan di belakangnya.
+         */
+        $person = self::extractNamaOrang(
+            $namaSub,
+            $kategori
+        );
+
+        /*
+         * -------------------------------------------------------------------------
+         * TYPE BIAYA BERDASARKAN KATEGORI
+         * -------------------------------------------------------------------------
+         */
+
+        if (
+            str_contains($key, 'un finish')
+            || str_contains($key, 'unfinish')
+            || str_contains($key, 'unfinished')
+        ) {
+
+            return [
+                'type' => 'Pembelian Un Finished',
+                'person' => $person,
+            ];
+        }
+
+        if (str_contains($key, 'finishing')) {
+
+            return [
+                'type' => 'Pembelian Finishing',
+                'person' => $person,
+            ];
+        }
+
+        if (str_contains($key, 'packing')) {
+
+            return [
+                'type' => 'Pembelian Packing',
+                'person' => $person,
+            ];
+        }
+
+        if (str_contains($key, 'amplas')) {
+
+            return [
+                'type' => 'Pembelian Amplas',
+                'person' => $person,
+            ];
+        }
+
+        /*
+         * -------------------------------------------------------------------------
+         * FALLBACK
+         * -------------------------------------------------------------------------
+         */
+
+        return [
+            'type' => $kategori !== ''
+                ? 'Pembelian ' . ucwords(strtolower($kategori))
+                : 'Pembelian Un Finished',
+
+            'person' => $person !== ''
+                ? $person
+                : 'TANPA SUB',
+        ];
+    }
+
+
+    /**
+     * =========================================================================
+     * EXTRACT NAMA ORANG DARI NAMA SUB
+     * =========================================================================
+     *
+     * Contoh:
+     *
+     * TOMO FINISHING
+     *      -> TOMO
+     *
+     * ANJELI UN FINISHED
+     *      -> ANJELI
+     *
+     * ANJELI UNFINISHED
+     *      -> ANJELI
+     *
+     * PAK DARTO FINISHING
+     *      -> PAK DARTO
+     */
+    private static function extractNamaOrang(
+        string $namaSub,
+        string $kategori = ''
+    ): string {
+
+        $namaSub = trim(
+            preg_replace(
+                '/\s+/',
+                ' ',
+                $namaSub
+            )
+        );
+
+        if ($namaSub === '') {
+            return '';
+        }
+
+        /*
+         * Normalisasi uppercase agar hasil konsisten
+         * seperti contoh:
+         *
+         * TOMO PELUNASAN
+         * ANJELI KASBON
+         * ANJELI DP
+         */
+        $person = strtoupper($namaSub);
+
+        /*
+         * Buang penanda pekerjaan/kategori di belakang nama.
+         *
+         * Hanya suffix yang kita kenal yang dibuang.
+         * Jadi nama orang tidak ikut rusak.
+         */
+        $suffixes = [
+            'UN FINISHED',
+            'UNFINISHED',
+            'UNFINISH',
+            'FINISHING',
+            'PACKING',
+            'AMPLAS',
+            'JAHIT',
+            'BORONGAN',
+        ];
+
+        /*
+         * Kategori aktual juga ikut dipakai sebagai suffix.
+         */
+        $kategoriUpper = strtoupper(
+            trim(
+                preg_replace(
+                    '/\s+/',
+                    ' ',
+                    $kategori
+                )
+            )
+        );
+
+        if ($kategoriUpper !== '') {
+
+            $suffixes[] =
+                $kategoriUpper;
+        }
+
+        /*
+         * Buang suffix berulang sampai tidak berubah.
+         *
+         * Contoh:
+         * TOMO FINISHING BORONGAN
+         * -> TOMO FINISHING
+         * -> TOMO
+         */
+        $changed = true;
+
+        while ($changed) {
+
+            $changed = false;
+
+            foreach ($suffixes as $suffix) {
+
+                $suffix = trim(
+                    strtoupper($suffix)
+                );
+
+                if ($suffix === '') {
+                    continue;
+                }
+
+                $pattern =
+                    '/\s+' .
+                    preg_quote($suffix, '/') .
+                    '$/i';
+
+                $newPerson = preg_replace(
+                    $pattern,
+                    '',
+                    $person
+                );
+
+                if (
+                    $newPerson !== null
+                    && $newPerson !== $person
+                ) {
+
+                    $person = trim(
+                        preg_replace(
+                            '/\s+/',
+                            ' ',
+                            $newPerson
+                        )
+                    );
+
+                    $changed = true;
+                }
+            }
+        }
+
+        return trim($person);
+    }
+
 
 
     /**

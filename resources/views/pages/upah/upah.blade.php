@@ -767,7 +767,9 @@
                                 <th width="50">
                                     NO
                                 </th>
-
+<th style="width:55px;text-align:center;">
+    AKSI
+</th>
                                 <th>
                                     ARTICLE
                                 </th>
@@ -821,7 +823,27 @@
                                     <td>
                                         {{ $data->firstItem() + $index }}
                                     </td>
+<td style="text-align:center;">
 
+    <button
+        type="button"
+        class="btn btn-sm btn-danger btn-delete-upah"
+        data-id="{{ $item->id }}"
+        data-article="{{ $item->article }}"
+        data-description="{{ $item->description }}"
+        title="Hapus transaksi"
+        style="
+            width:28px;
+            height:28px;
+            min-height:28px;
+            padding:0;
+            line-height:28px;
+        "
+    >
+        <i class="fa fa-remove"></i>
+    </button>
+
+</td>
                                     <td>
                                         {{ $item->article }}
                                     </td>

@@ -1679,6 +1679,62 @@ public function searchArticle(Request $request)
 
         );
     }
+   public function destroyT($id)
+{
+    try {
+
+        $upah = Upah::find($id);
+
+        if (!$upah) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data upah dengan ID ' . $id . ' tidak ditemukan.'
+            ], 404);
+        }
+
+        $deleted = $upah->delete();
+
+        if (!$deleted) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data gagal dihapus dari database.'
+            ], 500);
+        }
+
+        /*
+         * Pastikan benar-benar sudah tidak ditemukan.
+         */
+        $stillExists = Upah::find($id);
+
+        if ($stillExists) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Delete dijalankan tetapi data masih ditemukan.'
+            ], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Transaksi upah berhasil dihapus.',
+            'id'      => $id
+        ]);
+
+    } catch (\Throwable $e) {
+
+        \Log::error('DELETE UPAH ERROR', [
+            'id'    => $id,
+            'error' => $e->getMessage(),
+            'line'  => $e->getLine(),
+            'file'  => $e->getFile(),
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Gagal menghapus transaksi upah.',
+            'error'   => $e->getMessage()
+        ], 500);
+    }
+}
 
 }
 

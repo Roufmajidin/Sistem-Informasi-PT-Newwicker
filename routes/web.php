@@ -37,7 +37,46 @@ use App\Http\Controllers\MasterController;
 use App\Http\Controllers\SubkonController;
 use App\Http\Controllers\UpahController;
 use App\Http\Controllers\SpekController;
+use Illuminate\Http\Request;
+use Pusher\Pusher;
+// pusher
+Route::post('/pusher/auth', function (Request $request) {
 
+    $user = auth()->user();
+
+    abort_unless($user, 401);
+
+    $pusher = new Pusher(
+        config('broadcasting.connections.pusher.key'),
+        config('broadcasting.connections.pusher.secret'),
+        config('broadcasting.connections.pusher.app_id'),
+        [
+            'cluster' => config(
+                'broadcasting.connections.pusher.options.cluster'
+            ),
+            'useTLS' => true,
+        ]
+    );
+
+    return response(
+        $pusher->presence_auth(
+            $request->channel_name,
+            $request->socket_id,
+            (string) $user->id,
+            [
+                'name' =>
+                    $user->name ??
+                    'User',
+            ]
+        )
+    );
+
+})->middleware('auth')
+  ->name('pusher.auth');
+Route::get(
+    '/spk/assign',
+    [SpkController::class, 'assign']
+)->name('spk.assign');
 Route::middleware('auth')->group(function () {
 
     Route::post('/profile/change-password', [KaryawanController::class, 'changePassword'])->name('profile.change-password');
@@ -863,7 +902,7 @@ Route::prefix('upah')
             UpahController::class,
             'index'
         ])->name('index');
-
+    Route::delete('/transaksi/{id}', [UpahController::class, 'destroyT'])->name('upah.transaksi.destroyss');
         Route::post('/', [
             UpahController::class,
             'store'
@@ -1019,3 +1058,6 @@ Route::prefix('spek')->name('spek.')->group(function () {
     ->where('path', '.*')
     ->name('image');
 });
+
+
+Route::get('monitoring-barang-masukp', [ProduksiMnController::class, 'test'])->name('produksi.test');

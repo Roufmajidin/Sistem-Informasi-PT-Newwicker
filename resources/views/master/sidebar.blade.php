@@ -34,7 +34,7 @@
 
                          $user = Auth::user();
                          $a = $user ? Karyawan::find($user->karyawan_id) : null;
-                         $isSuperUser = in_array($user->email, ['info@newwicker.com', 'factory@newwicker.com']);
+                         $isSuperUser = in_array($user?->email, ['info@newwicker.com', 'factory@newwicker.com']);
 
                      @endphp
                      <li>
@@ -241,7 +241,7 @@
                              </ul>
                          </li>
                          {{-- ppic --}}
-                            <li>
+                         <li>
                              <a>
                                  <span class="nav-caret"><i class="fa fa-caret-down"></i></span>
                                  <span class="nav-icon"><i class="material-icons">&#xe5c3;</i></span>
@@ -250,11 +250,11 @@
                              <ul class="nav-sub">
                                  <li><a href="/spek"><span class="nav-text">Spek Database</span></a></li>
 
-                            
+
                              </ul>
                          </li>
                          {{-- admin --}}
-                            <li>
+                         <li>
                              <a>
                                  <span class="nav-caret"><i class="fa fa-caret-down"></i></span>
                                  <span class="nav-icon"><i class="material-icons">&#xe5c3;</i></span>
@@ -264,14 +264,14 @@
                                  <li><a href="/upah"><span class="nav-text">DB Upah</span></a></li>
                                  <li><a href="/upah/transaksi"><span class="nav-text">Rekap Upah</span></a></li>
                                  <li><a href="/subkon/"><span class="nav-text">Subkon</span></a></li>
-  <li>
-                             <a href="/produksi/in_out_barang_jadi">
-                                 <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
-                                 <span class="nav-text">monitoring (admin)</span>
-                             </a>
-                         </li>
-                                
-                                
+                                 <li>
+                                     <a href="/produksi/in_out_barang_jadi">
+                                         <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                         <span class="nav-text">monitoring (admin)</span>
+                                     </a>
+                                 </li>
+
+
                              </ul>
                          </li>
                          <li>
@@ -437,6 +437,12 @@
                                          <span class="nav-text">Mutasi Barang jadi</span>
                                      </a>
                                  </li>
+                                 <li>
+                                     <a href="/monitoring-barang-masuk">
+                                         <!-- <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span> -->
+                                         <span class="nav-text">Monitoring in/o</span>
+                                     </a>
+                                 </li>
                              </ul>
 
 
@@ -555,7 +561,7 @@
 
                      @endif
                      @if (Auth::user()->role == 'admin produksi')
-                       <li>
+                         <li>
                              <a>
                                  <span class="nav-caret"><i class="fa fa-caret-down"></i></span>
                                  <span class="nav-icon"><i class="material-icons">&#xe5c3;</i></span>
@@ -565,14 +571,14 @@
                                  <li><a href="/it-dashboard"><span class="nav-text">Dashboard</span></a></li>
 
                              </ul>
-                         
+
                          <li>
                              <a href="/produksi/in_out_barang_jadi">
                                  <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
                                  <span class="nav-text">monitoring (admin)</span>
                              </a>
                          </li>
-                             <li>
+                         <li>
                              <a>
                                  <span class="nav-caret"><i class="fa fa-caret-down"></i></span>
                                  <span class="nav-icon"><i class="material-icons">&#xe5c3;</i></span>
@@ -582,12 +588,12 @@
                                  <li><a href="/upah"><span class="nav-text">DB Upah</span></a></li>
                                  <li><a href="/upah/transaksi"><span class="nav-text">Rekap Upah</span></a></li>
                                  <li><a href="/subkon/"><span class="nav-text">Subkon</span></a></li>
-  <li>
-                             <a href="/produksi/in_out_barang_jadi">
-                                 <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
-                                 <span class="nav-text">monitoring (admin)</span>
-                             </a>
-                            </ul>
+                                 <li>
+                                     <a href="/produksi/in_out_barang_jadi">
+                                         <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                         <span class="nav-text">monitoring (admin)</span>
+                                     </a>
+                             </ul>
                          </li>
                      @endif
                      @if (Auth::user()->role === 'rnd')
@@ -705,65 +711,65 @@
      </div>
  </div>
  <!-- / -->
-<script>
-$(window).on('load', function () {
+ <script>
+     $(window).on('load', function() {
 
-    setTimeout(function () {
+         setTimeout(function() {
 
-        const currentPath =
-            window.location.pathname.replace(/\/+$/, '') || '/';
+             const currentPath =
+                 window.location.pathname.replace(/\/+$/, '') || '/';
 
-        $('#aside ul.nav-sub a[href]').each(function () {
+             $('#aside ul.nav-sub a[href]').each(function() {
 
-            const href = $(this).attr('href');
+                 const href = $(this).attr('href');
 
-            if (!href || href === '#') {
-                return;
-            }
+                 if (!href || href === '#') {
+                     return;
+                 }
 
-            let linkPath;
+                 let linkPath;
 
-            try {
-                linkPath = new URL(
-                    href,
-                    window.location.origin
-                ).pathname.replace(/\/+$/, '') || '/';
-            } catch (e) {
-                return;
-            }
+                 try {
+                     linkPath = new URL(
+                         href,
+                         window.location.origin
+                     ).pathname.replace(/\/+$/, '') || '/';
+                 } catch (e) {
+                     return;
+                 }
 
-            if (linkPath === currentPath) {
+                 if (linkPath === currentPath) {
 
-                const $link = $(this);
-                const $sub = $link.closest('ul.nav-sub');
-                const $parent = $sub.closest('li');
+                     const $link = $(this);
+                     const $sub = $link.closest('ul.nav-sub');
+                     const $parent = $sub.closest('li');
 
-                $link.addClass('active');
+                     $link.addClass('active');
 
-                $parent.addClass('active open');
+                     $parent.addClass('active open');
 
-                // Paksa dropdown tetap terbuka
-                $sub.css('display', 'block');
+                     // Paksa dropdown tetap terbuka
+                     $sub.css('display', 'block');
 
-                // Kalau ada parent dropdown lagi
-                $parent.parents('li').each(function () {
+                     // Kalau ada parent dropdown lagi
+                     $parent.parents('li').each(function() {
 
-                    $(this).addClass('active open');
+                         $(this).addClass('active open');
 
-                    $(this)
-                        .children('ul.nav-sub')
-                        .css('display', 'block');
-                });
-            }
+                         $(this)
+                             .children('ul.nav-sub')
+                             .css('display', 'block');
+                     });
+                 }
 
-        });
+             });
 
-    }, 100);
+         }, 100);
 
-});
-</script>
-<style>
-/* ============================================================
+     });
+ </script>
+ <style>
+     /* ============================================================
    SPK CREATE / EDIT SIDEBAR
    HANYA AKTIF:
       /spk/create
@@ -772,394 +778,380 @@ $(window).on('load', function () {
    HALAMAN SPK LAIN TETAP NORMAL
    ============================================================ */
 
-@media (min-width: 992px) {
+     @media (min-width: 992px) {
 
-    /* ========================================================
+         /* ========================================================
        COLLAPSED
        ======================================================== */
 
-    body.spk-form-sidebar #aside {
-        width: 54px !important;
-        min-width: 54px !important;
-        max-width: 54px !important;
+         body.spk-form-sidebar #aside {
+             width: 54px !important;
+             min-width: 54px !important;
+             max-width: 54px !important;
 
-        transition:
-            width .22s ease,
-            min-width .22s ease,
-            max-width .22s ease;
+             transition:
+                 width .22s ease,
+                 min-width .22s ease,
+                 max-width .22s ease;
 
-        overflow: visible !important;
-    }
-
-
-    body.spk-form-sidebar #aside .left.navside {
-        width: 54px !important;
-        min-width: 54px !important;
-        max-width: 54px !important;
-
-        overflow: hidden !important;
-
-        transition:
-            width .22s ease,
-            min-width .22s ease,
-            max-width .22s ease;
-    }
+             overflow: visible !important;
+         }
 
 
-    /* CONTENT IKUT MELEBAR */
+         body.spk-form-sidebar #aside .left.navside {
+             width: 54px !important;
+             min-width: 54px !important;
+             max-width: 54px !important;
 
-    body.spk-form-sidebar #content {
-        margin-left: 54px !important;
+             overflow: hidden !important;
 
-        width: calc(100% - 54px) !important;
-
-        transition:
-            margin-left .22s ease,
-            width .22s ease;
-    }
+             transition:
+                 width .22s ease,
+                 min-width .22s ease,
+                 max-width .22s ease;
+         }
 
 
-    /* ========================================================
+         /* CONTENT IKUT MELEBAR */
+
+         body.spk-form-sidebar #content {
+             margin-left: 54px !important;
+
+             width: calc(100% - 54px) !important;
+
+             transition:
+                 margin-left .22s ease,
+                 width .22s ease;
+         }
+
+
+         /* ========================================================
        LOGO
        ======================================================== */
 
-    body.spk-form-sidebar #aside .navbar {
-        width: 54px !important;
-        min-width: 54px !important;
+         body.spk-form-sidebar #aside .navbar {
+             width: 54px !important;
+             min-width: 54px !important;
 
-        padding: 0 !important;
+             padding: 0 !important;
 
-        display: flex !important;
+             display: flex !important;
 
-        align-items: center !important;
-        justify-content: center !important;
-    }
-
-
-    body.spk-form-sidebar #aside .navbar-brand {
-        width: 54px !important;
-        min-width: 54px !important;
-
-        padding: 0 !important;
-
-        display: flex !important;
-
-        align-items: center !important;
-        justify-content: center !important;
-    }
+             align-items: center !important;
+             justify-content: center !important;
+         }
 
 
-    body.spk-form-sidebar #aside .navbar-brand img {
-        width: 36px !important;
+         body.spk-form-sidebar #aside .navbar-brand {
+             width: 54px !important;
+             min-width: 54px !important;
 
-        height: auto !important;
+             padding: 0 !important;
 
-        max-height: 38px !important;
+             display: flex !important;
 
-        object-fit: contain;
-    }
+             align-items: center !important;
+             justify-content: center !important;
+         }
 
 
-    /* ========================================================
+         body.spk-form-sidebar #aside .navbar-brand img {
+             width: 36px !important;
+
+             height: auto !important;
+
+             max-height: 38px !important;
+
+             object-fit: contain;
+         }
+
+
+         /* ========================================================
        HEADER MENU
        ======================================================== */
 
-    body.spk-form-sidebar #aside .nav-header {
-        display: none !important;
-    }
+         body.spk-form-sidebar #aside .nav-header {
+             display: none !important;
+         }
 
 
-    /* ========================================================
+         /* ========================================================
        TEXT MENU HILANG
        ======================================================== */
 
-    body.spk-form-sidebar #aside .nav-text {
-        display: none !important;
-    }
+         body.spk-form-sidebar #aside .nav-text {
+             display: none !important;
+         }
 
 
-    /* caret submenu hilang */
-    body.spk-form-sidebar #aside .nav-caret {
-        display: none !important;
-    }
+         /* caret submenu hilang */
+         body.spk-form-sidebar #aside .nav-caret {
+             display: none !important;
+         }
 
 
-    /* ========================================================
+         /* ========================================================
        MENU ITEM
        ======================================================== */
 
-    body.spk-form-sidebar #aside .nav > li > a {
+         body.spk-form-sidebar #aside .nav>li>a {
 
-        width: 54px !important;
-        min-width: 54px !important;
+             width: 54px !important;
+             min-width: 54px !important;
 
-        height: 45px !important;
+             height: 45px !important;
 
-        padding: 0 !important;
-        margin: 0 !important;
+             padding: 0 !important;
+             margin: 0 !important;
 
-        display: flex !important;
+             display: flex !important;
 
-        align-items: center !important;
-        justify-content: center !important;
+             align-items: center !important;
+             justify-content: center !important;
 
-        position: relative;
+             position: relative;
 
-        white-space: nowrap;
-    }
-
-
-    /* ICON */
-
-    body.spk-form-sidebar #aside .nav-icon {
-
-        width: 54px !important;
-        min-width: 54px !important;
-
-        margin: 0 !important;
-        padding: 0 !important;
-
-        display: flex !important;
-
-        align-items: center !important;
-        justify-content: center !important;
-    }
+             white-space: nowrap;
+         }
 
 
-    body.spk-form-sidebar #aside .nav-icon i {
+         /* ICON */
 
-        margin: 0 !important;
+         body.spk-form-sidebar #aside .nav-icon {
 
-        font-size: 19px !important;
-    }
+             width: 54px !important;
+             min-width: 54px !important;
+
+             margin: 0 !important;
+             padding: 0 !important;
+
+             display: flex !important;
+
+             align-items: center !important;
+             justify-content: center !important;
+         }
 
 
-    /* SUBMENU TIDAK DIBUKA SAAT COMPACT */
+         body.spk-form-sidebar #aside .nav-icon i {
 
-    body.spk-form-sidebar #aside .nav-sub {
+             margin: 0 !important;
 
-        display: none !important;
-    }
+             font-size: 19px !important;
+         }
 
 
-    /* ========================================================
+         /* SUBMENU TIDAK DIBUKA SAAT COMPACT */
+
+         body.spk-form-sidebar #aside .nav-sub {
+
+             display: none !important;
+         }
+
+
+         /* ========================================================
        TOGGLE BUTTON
        ======================================================== */
 
-    #spkSidebarToggle {
+         #spkSidebarToggle {
 
-        position: fixed;
+             position: fixed;
 
-        left: 54px;
-        top: 72px;
+             left: 54px;
+             top: 72px;
 
-        width: 27px;
-        height: 30px;
+             width: 27px;
+             height: 30px;
 
-        padding: 0;
+             padding: 0;
 
-        border: 0;
+             border: 0;
 
-        border-radius: 0 6px 6px 0;
+             border-radius: 0 6px 6px 0;
 
-        background: #304783;
+             background: #304783;
 
-        color: #fff;
+             color: #fff;
 
-        cursor: pointer;
+             cursor: pointer;
 
-        display: flex;
+             display: flex;
 
-        align-items: center;
-        justify-content: center;
+             align-items: center;
+             justify-content: center;
 
-        z-index: 99999;
+             z-index: 99999;
 
-        box-shadow:
-            2px 2px 8px rgba(0,0,0,.12);
+             box-shadow:
+                 2px 2px 8px rgba(0, 0, 0, .12);
 
-        transition:
-            left .22s ease,
-            background .15s ease;
-    }
-
-
-    #spkSidebarToggle:hover {
-
-        background: #3d5ba0;
-    }
+             transition:
+                 left .22s ease,
+                 background .15s ease;
+         }
 
 
-    #spkSidebarToggle::before {
+         #spkSidebarToggle:hover {
 
-        content: '›';
-
-        font-size: 23px;
-
-        line-height: 1;
-    }
+             background: #3d5ba0;
+         }
 
 
-    /* ========================================================
+         #spkSidebarToggle::before {
+
+             content: '›';
+
+             font-size: 23px;
+
+             line-height: 1;
+         }
+
+
+         /* ========================================================
        EXPANDED
        ======================================================== */
 
-    body.spk-form-sidebar.sidebar-expanded #aside {
+         body.spk-form-sidebar.sidebar-expanded #aside {
 
-        width: 230px !important;
-        min-width: 230px !important;
-        max-width: 230px !important;
-    }
-
-
-    body.spk-form-sidebar.sidebar-expanded #aside .left.navside {
-
-        width: 230px !important;
-        min-width: 230px !important;
-        max-width: 230px !important;
-
-        overflow: hidden !important;
-    }
+             width: 230px !important;
+             min-width: 230px !important;
+             max-width: 230px !important;
+         }
 
 
-    body.spk-form-sidebar.sidebar-expanded #content {
+         body.spk-form-sidebar.sidebar-expanded #aside .left.navside {
 
-        margin-left: 230px !important;
+             width: 230px !important;
+             min-width: 230px !important;
+             max-width: 230px !important;
 
-        width: calc(100% - 230px) !important;
-    }
+             overflow: hidden !important;
+         }
 
 
-    /* ========================================================
+         body.spk-form-sidebar.sidebar-expanded #content {
+
+             margin-left: 230px !important;
+
+             width: calc(100% - 230px) !important;
+         }
+
+
+         /* ========================================================
        LOGO EXPANDED
        ======================================================== */
 
-    body.spk-form-sidebar.sidebar-expanded
-    #aside .navbar {
+         body.spk-form-sidebar.sidebar-expanded #aside .navbar {
 
-        width: 230px !important;
-    }
-
-
-    body.spk-form-sidebar.sidebar-expanded
-    #aside .navbar-brand {
-
-        width: 230px !important;
-
-        justify-content: center !important;
-    }
+             width: 230px !important;
+         }
 
 
-    body.spk-form-sidebar.sidebar-expanded
-    #aside .navbar-brand img {
+         body.spk-form-sidebar.sidebar-expanded #aside .navbar-brand {
 
-        width: auto !important;
+             width: 230px !important;
 
-        height: 48px !important;
-
-        max-height: 52px !important;
-    }
+             justify-content: center !important;
+         }
 
 
-    /* ========================================================
+         body.spk-form-sidebar.sidebar-expanded #aside .navbar-brand img {
+
+             width: auto !important;
+
+             height: 48px !important;
+
+             max-height: 52px !important;
+         }
+
+
+         /* ========================================================
        MENU TEXT KEMBALI
        ======================================================== */
 
-    body.spk-form-sidebar.sidebar-expanded
-    #aside .nav-header {
+         body.spk-form-sidebar.sidebar-expanded #aside .nav-header {
 
-        display: block !important;
-    }
-
-
-    body.spk-form-sidebar.sidebar-expanded
-    #aside .nav-text {
-
-        display: inline-block !important;
-    }
+             display: block !important;
+         }
 
 
-    body.spk-form-sidebar.sidebar-expanded
-    #aside .nav-caret {
+         body.spk-form-sidebar.sidebar-expanded #aside .nav-text {
 
-        display: inline-block !important;
-    }
+             display: inline-block !important;
+         }
 
 
-    /* ========================================================
+         body.spk-form-sidebar.sidebar-expanded #aside .nav-caret {
+
+             display: inline-block !important;
+         }
+
+
+         /* ========================================================
        MENU EXPANDED
        ======================================================== */
 
-    body.spk-form-sidebar.sidebar-expanded
-    #aside .nav > li > a {
+         body.spk-form-sidebar.sidebar-expanded #aside .nav>li>a {
 
-        width: 230px !important;
-        min-width: 230px !important;
+             width: 230px !important;
+             min-width: 230px !important;
 
-        height: 45px !important;
+             height: 45px !important;
 
-        padding: 0 14px !important;
+             padding: 0 14px !important;
 
-        display: flex !important;
+             display: flex !important;
 
-        align-items: center !important;
+             align-items: center !important;
 
-        justify-content: flex-start !important;
-    }
-
-
-    body.spk-form-sidebar.sidebar-expanded
-    #aside .nav-icon {
-
-        width: 34px !important;
-        min-width: 34px !important;
-
-        margin-right: 8px !important;
-    }
+             justify-content: flex-start !important;
+         }
 
 
-    body.spk-form-sidebar.sidebar-expanded
-    #aside .nav-icon i {
+         body.spk-form-sidebar.sidebar-expanded #aside .nav-icon {
 
-        font-size: 19px !important;
-    }
+             width: 34px !important;
+             min-width: 34px !important;
+
+             margin-right: 8px !important;
+         }
 
 
-    /* ========================================================
+         body.spk-form-sidebar.sidebar-expanded #aside .nav-icon i {
+
+             font-size: 19px !important;
+         }
+
+
+         /* ========================================================
        SUBMENU KEMBALI
        ======================================================== */
 
-    body.spk-form-sidebar.sidebar-expanded
-    #aside .nav-sub {
+         body.spk-form-sidebar.sidebar-expanded #aside .nav-sub {
 
-        display: block !important;
-    }
+             display: block !important;
+         }
 
 
-    /* ========================================================
+         /* ========================================================
        TOGGLE SAAT EXPAND
        ======================================================== */
 
-    body.spk-form-sidebar.sidebar-expanded
-    #spkSidebarToggle {
+         body.spk-form-sidebar.sidebar-expanded #spkSidebarToggle {
 
-        left: 230px;
-    }
-
-
-    body.spk-form-sidebar.sidebar-expanded
-    #spkSidebarToggle::before {
-
-        content: '‹';
-    }
-
-}
+             left: 230px;
+         }
 
 
-/* ============================================================
+         body.spk-form-sidebar.sidebar-expanded #spkSidebarToggle::before {
+
+             content: '‹';
+         }
+
+     }
+
+
+     /* ============================================================
    MOBILE
    Jangan ganggu sidebar Bootstrap existing
    ============================================================ */
-
-
-</style>
+ </style>

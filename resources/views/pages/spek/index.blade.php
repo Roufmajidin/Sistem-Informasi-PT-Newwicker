@@ -155,6 +155,7 @@
         align-items:center;
         justify-content:space-between;
         gap:12px;
+        /* background: red */
     }
 
     .card-title{

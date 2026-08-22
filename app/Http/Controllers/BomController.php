@@ -53,7 +53,7 @@ class BomController extends Controller
             MaterialPrice::select(
                 'id',
                 'nama_material as nama',
-                      'harga'
+                'harga'
             )
                 ->get()
                 ->map(function ($row) {
@@ -79,10 +79,10 @@ class BomController extends Controller
                 });
 
         $masterMaterials =
-        collect()
-            ->concat($materials)
-            ->concat($finishings)
-            ->values();
+            collect()
+                ->concat($materials)
+                ->concat($finishings)
+                ->values();
 
         // dd(
         //      count($masterMaterials),
@@ -150,35 +150,35 @@ class BomController extends Controller
             'success' => true,
         ]);
     }
- public function bulkStored(Request $request)
-{
-    $rows = explode("\n", trim($request->materials));
+    public function bulkStored(Request $request)
+    {
+        $rows = explode("\n", trim($request->materials));
 
-    $lastMaterial = null;
+        $lastMaterial = null;
 
-    foreach ($rows as $row) {
+        foreach ($rows as $row) {
 
-        $row = trim($row);
+            $row = trim($row);
 
-        if (empty($row)) {
-            continue;
+            if (empty($row)) {
+                continue;
+            }
+
+            $cols = array_map('trim', explode(',', $row));
+
+            $lastMaterial = MaterialPrice::create([
+                'nama_material' => $cols[0] ?? '',
+                'harga' => $cols[1] ?? 0,
+                'satuan' => $cols[2] ?? null,
+            ]);
         }
 
-        $cols = array_map('trim', explode(',', $row));
-
-        $lastMaterial = MaterialPrice::create([
-            'nama_material' => $cols[0] ?? '',
-            'harga'         => $cols[1] ?? 0,
-            'satuan'        => $cols[2] ?? null,
+        return response()->json([
+            'success' => true,
+            'message' => 'Material berhasil disimpan',
+            'material' => $lastMaterial
         ]);
     }
-
-    return response()->json([
-        'success'  => true,
-        'message'  => 'Material berhasil disimpan',
-        'material' => $lastMaterial
-    ]);
-}
     // finishsing
     public function bulkStoreFinishing(Request $request)
     {
@@ -225,7 +225,7 @@ class BomController extends Controller
             'jenis_legenda',
         ];
 
-        if (! in_array($column, $allowed)) {
+        if (!in_array($column, $allowed)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Column tidak valid',
@@ -431,7 +431,7 @@ class BomController extends Controller
         //         ];
         //     })
         // );
-        Log::info('1. Load BOM : '.round((microtime(true) - $timer) * 1000, 2).' ms');
+        Log::info('1. Load BOM : ' . round((microtime(true) - $timer) * 1000, 2) . ' ms');
 
         // ======================================================
         // Material Price
@@ -440,7 +440,7 @@ class BomController extends Controller
 
         $materialPrices = MaterialPrice::all();
 
-        Log::info('2. MaterialPrice::all() : '.round((microtime(true) - $timer) * 1000, 2).' ms');
+        Log::info('2. MaterialPrice::all() : ' . round((microtime(true) - $timer) * 1000, 2) . ' ms');
 
         // ======================================================
         // Material List
@@ -460,7 +460,7 @@ class BomController extends Controller
                 return $row;
             });
 
-        Log::info('3. Load Materials : '.round((microtime(true) - $timer) * 1000, 2).' ms');
+        Log::info('3. Load Materials : ' . round((microtime(true) - $timer) * 1000, 2) . ' ms');
 
         // ======================================================
         // Finishing
@@ -480,7 +480,7 @@ class BomController extends Controller
                 return $row;
             });
 
-        Log::info('4. Load Finishings : '.round((microtime(true) - $timer) * 1000, 2).' ms');
+        Log::info('4. Load Finishings : ' . round((microtime(true) - $timer) * 1000, 2) . ' ms');
 
         // ======================================================
         // Merge Material
@@ -491,7 +491,7 @@ class BomController extends Controller
             ->concat($finishings)
             ->values();
 
-        Log::info('5. Merge Materials : '.round((microtime(true) - $timer) * 1000, 2).' ms');
+        Log::info('5. Merge Materials : ' . round((microtime(true) - $timer) * 1000, 2) . ' ms');
 
         // ======================================================
         // Build BOM Data
@@ -601,7 +601,7 @@ class BomController extends Controller
             ];
         }
 
-        Log::info('6. Build BOM Data : '.round((microtime(true) - $timer) * 1000, 2).' ms');
+        Log::info('6. Build BOM Data : ' . round((microtime(true) - $timer) * 1000, 2) . ' ms');
 
         // ======================================================
         // Render View
@@ -621,9 +621,9 @@ class BomController extends Controller
             )
         );
 
-        Log::info('7. Build View : '.round((microtime(true) - $timer) * 1000, 2).' ms');
+        Log::info('7. Build View : ' . round((microtime(true) - $timer) * 1000, 2) . ' ms');
 
-        Log::info('========== TOTAL SHOW : '.round((microtime(true) - $start) * 1000, 2).' ms ==========');
+        Log::info('========== TOTAL SHOW : ' . round((microtime(true) - $start) * 1000, 2) . ' ms ==========');
 
         return $view;
     }
@@ -656,7 +656,7 @@ class BomController extends Controller
             // );
 
             $data =
-            json_decode($request->bom, true);
+                json_decode($request->bom, true);
 
             // UPDATE HEADER BOM
 
@@ -839,11 +839,11 @@ class BomController extends Controller
         // $filename = $bom->article_number
         //     ? 'BOM_'.$bom->article_number.'.xlsx'
         //     : 'BOM_'.Str::slug($bom->name, '_').'.xlsx';
-       $filename = 'BOM_'
-    . Str::slug($bom->name, ' ')
-    . ' - '
-    . $bom->article_number
-    . '.xlsx';
+        $filename = 'BOM_'
+            . Str::slug($bom->name, ' ')
+            . ' - '
+            . $bom->article_number
+            . '.xlsx';
 
         return Excel::download(new BomExport($bomData), $filename);
     }
@@ -906,7 +906,7 @@ class BomController extends Controller
                     'notes' => $item->notes,
 
                     'total' => (float) str_replace('.', '', $item->qty ?? 0)
-         * (float) str_replace('.', '', $item->harga ?? 0),
+                        * (float) str_replace('.', '', $item->harga ?? 0),
 
                 ];
 
@@ -1010,7 +1010,7 @@ class BomController extends Controller
 
             $detail = $detailPo->detail;
 
-            if (! is_array($detail)) {
+            if (!is_array($detail)) {
                 continue;
             }
 
@@ -1036,13 +1036,13 @@ class BomController extends Controller
         // ===========================
         $articleNumbers = $matchedDetailPos
             ->pluck('detail')
-            ->map(fn ($d) => $d['article_nr_'] ?? null)
+            ->map(fn($d) => $d['article_nr_'] ?? null)
             ->filter()
             ->unique();
 
         $nwCodes = $matchedDetailPos
             ->pluck('detail')
-            ->map(fn ($d) => $d['nw_code'] ?? null)
+            ->map(fn($d) => $d['nw_code'] ?? null)
             ->filter()
             ->unique();
 
@@ -1053,7 +1053,7 @@ class BomController extends Controller
 
             $detail = $detailPo->detail;
 
-            if (! is_array($detail)) {
+            if (!is_array($detail)) {
                 return false;
             }
 
@@ -1092,7 +1092,7 @@ class BomController extends Controller
 
                 $data = $spk->data;
 
-                if (! is_array($data)) {
+                if (!is_array($data)) {
                     return false;
                 }
 
@@ -1416,58 +1416,58 @@ class BomController extends Controller
             compact('boms_released')
         );
     }
-public function ajaxMaterialPrice(Request $request)
-{
-    $keyword = $request->keyword;
+    public function ajaxMaterialPrice(Request $request)
+    {
+        $keyword = $request->keyword;
 
-    // Material
-    $materials = MaterialPrice::query()
-        ->when($keyword, function ($q) use ($keyword) {
-            $q->where('nama_material', 'like', "%{$keyword}%");
-        })
-        ->latest() // sama dengan orderByDesc('created_at')
-        // atau ->orderByDesc('id')
-        ->get([
-            'id',
-            'nama_material',
-            'harga',
-            'satuan'
-        ])
-        ->map(function ($item) {
+        // Material
+        $materials = MaterialPrice::query()
+            ->when($keyword, function ($q) use ($keyword) {
+                $q->where('nama_material', 'like', "%{$keyword}%");
+            })
+            ->latest() // sama dengan orderByDesc('created_at')
+            // atau ->orderByDesc('id')
+            ->get([
+                'id',
+                'nama_material',
+                'harga',
+                'satuan'
+            ])
+            ->map(function ($item) {
 
-            return [
-                'id'    => $item->id,
-                'name'  => $item->nama_material,
-                'type'  => 'material_price',
-                'jenis' => 'Material',
-                'price' => $item->harga,
-                'unit'  => $item->satuan,
-            ];
+                return [
+                    'id' => $item->id,
+                    'name' => $item->nama_material,
+                    'type' => 'material_price',
+                    'jenis' => 'Material',
+                    'price' => $item->harga,
+                    'unit' => $item->satuan,
+                ];
 
-        });
+            });
 
-    // Finishing
-    $finishings = MaterialFinishing::query()
-        ->when($keyword, function ($q) use ($keyword) {
-            $q->where('nama', 'like', "%{$keyword}%");
-        })
-        ->latest() // atau ->orderByDesc('id')
-        ->get()
-        ->map(function ($item) {
+        // Finishing
+        $finishings = MaterialFinishing::query()
+            ->when($keyword, function ($q) use ($keyword) {
+                $q->where('nama', 'like', "%{$keyword}%");
+            })
+            ->latest() // atau ->orderByDesc('id')
+            ->get()
+            ->map(function ($item) {
 
-            return [
-                'id'    => $item->id,
-                'name'  => $item->nama,
-                'type'  => 'material_finishing',
-                'jenis' => 'Finishing',
-                'price' => $item->jenis_propan,
-                'unit'  => '',
-            ];
+                return [
+                    'id' => $item->id,
+                    'name' => $item->nama,
+                    'type' => 'material_finishing',
+                    'jenis' => 'Finishing',
+                    'price' => $item->jenis_propan,
+                    'unit' => '',
+                ];
 
-        });
+            });
 
-    return response()->json(
-        $materials->concat($finishings)->values()
-    );
-}
+        return response()->json(
+            $materials->concat($finishings)->values()
+        );
+    }
 }

@@ -12,50 +12,7 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\PageSetup;
-
-/*
-|--------------------------------------------------------------------------
-| ReportExport
-|--------------------------------------------------------------------------
-|
-| Perilaku:
-|
-| 1. User memilih range tanggal.
-| 2. User menulis keyword pekerjaan, misalnya:
-|       packing
-|       finishing
-|       rangka
-|       anyam
-|       dll.
-| 3. Sheet pertama berisi semua data yang match keyword tersebut.
-| 4. Sheet berikutnya otomatis berisi kategori PEKERJAAN lain
-|    yang juga ada pada range tanggal tersebut.
-|
-| Contoh:
-|
-| Search = packing
-|
-| Sheet 1 : PACKING
-| Sheet 2 : FINISHING CAT
-| Sheet 3 : RANGKA
-| Sheet 4 : ANYAM
-| Sheet 5 : ...
-|
-| Contoh:
-|
-| Search = finishing
-|
-| Sheet 1 : FINISHING
-| Sheet 2 : PACKING
-| Sheet 3 : RANGKA
-| Sheet 4 : ANYAM
-| Sheet 5 : ...
-|
-| Packing tetap memakai format matrix:
-| Foam / Medium / Single Face / Box.
-|
-|--------------------------------------------------------------------------
-*/
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class ReportExport implements WithMultipleSheets
 {
@@ -82,24 +39,11 @@ class ReportExport implements WithMultipleSheets
 
     public function sheets(): array
     {
-        /*
-        |--------------------------------------------------------------------------
-        | FILTER RANGE TANGGAL
-        |--------------------------------------------------------------------------
-        */
-
         $filteredData = $this->filterDateRange(
             $this->data
         );
 
-        /*
-        |--------------------------------------------------------------------------
-        | PISAHKAN PRIMARY CATEGORY DAN PEKERJAAN LAIN
-        |--------------------------------------------------------------------------
-        */
-
         $primaryItems = collect();
-
         $otherJobs = [];
 
         foreach ($filteredData as $item) {
@@ -111,128 +55,119 @@ class ReportExport implements WithMultipleSheets
             $jobLower = strtolower($job);
 
             /*
-            |--------------------------------------------------------------------------
-            | PRIMARY MATCH
-            |--------------------------------------------------------------------------
-            */
-
-            $isPrimary = $this->matchesPrimary(
-                $jobLower
-            );
-
-            if ($isPrimary) {
-
+             * Primary category tetap menjadi satu SHEET DIVISI.
+             *
+             * Contoh:
+             * search = packing
+             * => semua Packing Foam / Medium / Box / Single Face
+             *    masuk satu sheet PACKING.
+             */
+            if ($this->matchesPrimary($jobLower)) {
                 $primaryItems->push($item);
-
                 continue;
             }
 
             /*
-            |--------------------------------------------------------------------------
-            | PEKERJAAN LAIN
-            |--------------------------------------------------------------------------
-            |
-            | Setiap nilai PEKERJAAN menjadi satu sheet.
-            |
-            */
-
+             * Pekerjaan/divisi lain tetap dibuat menjadi sheet sendiri.
+             */
             if ($job === '') {
                 $job = 'PEKERJAAN LAIN';
             }
 
-            $jobKey = strtolower(
-                trim($job)
-            );
+            $jobKey = strtolower(trim($job));
 
             if (!isset($otherJobs[$jobKey])) {
-
                 $otherJobs[$jobKey] = [
                     'title' => $job,
-                    'data' => collect()
+                    'data' => collect(),
                 ];
             }
 
-            $otherJobs[$jobKey]['data']->push(
-                $item
-            );
+            $otherJobs[$jobKey]['data']->push($item);
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | SHEETS
-        |--------------------------------------------------------------------------
-        */
 
         $sheets = [];
 
         /*
-        |--------------------------------------------------------------------------
-        | SHEET 1 = PRIMARY
-        |--------------------------------------------------------------------------
-        */
+         * Jika keyword/divisi dipilih, tampilkan divisi tersebut sebagai
+         * sheet pertama.
+         */
+        if ($this->primaryCategory !== '') {
 
-        $primaryTitle =
-            $this->primaryTitle();
+            if ($primaryItems->isNotEmpty()) {
 
-        $primaryMode =
-            $this->isPacking()
-                ? 'packing'
-                : 'normal';
+                $sheets[] = new ReportSheet(
+                    data: $primaryItems->values(),
+                    reportType: $this->isPacking()
+                        ? 'packing'
+                        : 'normal',
+                    sheetTitle: $this->primaryTitle(),
+                    dateFrom: $this->dateFrom,
+                    dateTo: $this->dateTo
+                );
+            }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Jika keyword kosong:
-        |
-        | seluruh data menjadi sheet utama.
-        |--------------------------------------------------------------------------
-        */
+        } else {
 
-        if ($this->primaryCategory === '') {
+            /*
+             * Jika search kosong, jangan buat sheet GENERAL.
+             * Langsung pecah berdasarkan PEKERJAAN/DIVISI.
+             */
+            $jobs = [];
 
-            $primaryItems =
-                $filteredData;
+            foreach ($filteredData as $item) {
 
-            $primaryTitle =
-                'BORONGAN';
+                $job = trim(
+                    (string) ($item->pekerjaan ?? '')
+                );
+
+                if ($job === '') {
+                    $job = 'PEKERJAAN LAIN';
+                }
+
+                $key = strtolower($job);
+
+                if (!isset($jobs[$key])) {
+                    $jobs[$key] = [
+                        'title' => $job,
+                        'data' => collect(),
+                    ];
+                }
+
+                $jobs[$key]['data']->push($item);
+            }
+
+            uasort($jobs, function ($a, $b) {
+                return strcasecmp(
+                    $a['title'],
+                    $b['title']
+                );
+            });
+
+            foreach ($jobs as $job) {
+
+                $isPacking = $this->collectionIsPacking(
+                    $job['data']
+                );
+
+                $sheets[] = new ReportSheet(
+                    data: $job['data']->values(),
+                    reportType: $isPacking
+                        ? 'packing'
+                        : 'normal',
+                    sheetTitle: strtoupper(
+                        trim($job['title'])
+                    ),
+                    dateFrom: $this->dateFrom,
+                    dateTo: $this->dateTo
+                );
+            }
+
         }
 
         /*
-        |--------------------------------------------------------------------------
-        | SHEET 1 = RESUME / RANGKUMAN
-        |--------------------------------------------------------------------------
-        | Resume selalu menjadi sheet pertama dan menggunakan seluruh data
-        | pada range tanggal, bukan hanya kategori yang sedang dicari.
-        */
-        $sheets[] =
-            new ResumeSheet(
-                data: $filteredData->values(),
-                dateFrom: $this->dateFrom,
-                dateTo: $this->dateTo
-            );
-
-        /*
-        |--------------------------------------------------------------------------
-        | SHEET 2 = PRIMARY
-        |--------------------------------------------------------------------------
-        */
-        $sheets[] =
-            new ReportSheet(
-                data: $primaryItems->values(),
-                reportType: $primaryMode,
-                sheetTitle: $primaryTitle,
-                dateFrom: $this->dateFrom,
-                dateTo: $this->dateTo
-            );
-
-        /*
-        |--------------------------------------------------------------------------
-        | SHEET 2+ = PEKERJAAN LAIN
-        |--------------------------------------------------------------------------
-        */
-
-        /*
-        | Urutkan berdasarkan nama pekerjaan.
-        */
+         * Divisi lain tetap dibuat sebagai sheet terpisah.
+         */
         uasort(
             $otherJobs,
             function ($a, $b) {
@@ -245,116 +180,103 @@ class ReportExport implements WithMultipleSheets
 
         foreach ($otherJobs as $job) {
 
-            $sheetTitle =
-                $this->safeSheetTitle(
-                    strtoupper(
-                        trim($job['title'])
-                    )
-                );
+            $sheetTitle = $this->safeSheetTitle(
+                strtoupper(
+                    trim($job['title'])
+                )
+            );
 
             /*
-            |--------------------------------------------------------------------------
-            | Hindari nama sheet sama dengan primary
-            |--------------------------------------------------------------------------
-            */
-
+             * Jangan sampai nama sheet sama dengan primary.
+             */
             if (
+                strtoupper($sheetTitle) ===
                 strtoupper(
-                    $sheetTitle
-                ) === strtoupper(
                     $this->safeSheetTitle(
-                        $primaryTitle
+                        $this->primaryTitle()
                     )
                 )
             ) {
-                $sheetTitle =
-                    $sheetTitle . ' 2';
-
-                $sheetTitle =
-                    mb_substr(
-                        $sheetTitle,
-                        0,
-                        31
-                    );
+                $sheetTitle = mb_substr(
+                    $sheetTitle . ' 2',
+                    0,
+                    31
+                );
             }
 
-            $sheets[] =
-                new ReportSheet(
-                    data: $job['data']->values(),
-                    reportType: 'normal',
-                    sheetTitle: $sheetTitle,
-                    dateFrom: $this->dateFrom,
-                    dateTo: $this->dateTo
-                );
+            $sheets[] = new ReportSheet(
+                data: $job['data']->values(),
+                reportType: $this->collectionIsPacking(
+                    $job['data']
+                )
+                    ? 'packing'
+                    : 'normal',
+                sheetTitle: $sheetTitle,
+                dateFrom: $this->dateFrom,
+                dateTo: $this->dateTo
+            );
         }
 
-        return $sheets;
-    }
+        /*
+         * TO PRINT harus selalu menjadi sheet pertama.
+         * Isinya memakai collection dari sheet-sheet yang sama persis,
+         * bukan copy worksheet/cell, sehingga layout blok tetap konsisten.
+         */
+        $printSheet = new ToPrintSheet($sheets);
 
-    /*
-    |--------------------------------------------------------------------------
-    | DATE FILTER
-    |--------------------------------------------------------------------------
-    */
+        return array_merge(
+            [$printSheet],
+            $sheets
+        );
+    }
 
     protected function filterDateRange(
         Collection $data
     ): Collection {
-        return $data->filter(
-            function ($item) {
+        return $data->filter(function ($item) {
 
-                $dateValue =
-                    $item->tanggal
-                    ?? $item->date
-                    ?? $item->tanggal_transaksi
-                    ?? $item->created_at
-                    ?? null;
+            $dateValue =
+                $item->tanggal
+                ?? $item->date
+                ?? $item->tanggal_transaksi
+                ?? $item->created_at
+                ?? null;
 
-                /*
-                |--------------------------------------------------------------------------
-                | Jika data tidak memiliki tanggal,
-                | jangan dibuang.
-                |--------------------------------------------------------------------------
-                */
-
-                if (!$dateValue) {
-                    return true;
-                }
-
-                $itemDate =
-                    date(
-                        'Y-m-d',
-                        strtotime(
-                            $dateValue
-                        )
-                    );
-
-                if (
-                    $this->dateFrom &&
-                    $itemDate <
-                    $this->dateFrom
-                ) {
-                    return false;
-                }
-
-                if (
-                    $this->dateTo &&
-                    $itemDate >
-                    $this->dateTo
-                ) {
-                    return false;
-                }
-
+            if (!$dateValue) {
                 return true;
             }
-        )->values();
-    }
 
-    /*
-    |--------------------------------------------------------------------------
-    | MATCH PRIMARY
-    |--------------------------------------------------------------------------
-    */
+            $timestamp = strtotime(
+                (string) $dateValue
+            );
+
+            if ($timestamp === false) {
+                return true;
+            }
+
+            $itemDate = date(
+                'Y-m-d',
+                $timestamp
+            );
+
+            if (
+                $this->dateFrom &&
+                $itemDate < $this->dateFrom
+            ) {
+                return false;
+            }
+
+            if (
+                $this->dateTo &&
+                $itemDate > $this->dateTo
+            ) {
+                return false;
+            }
+
+            return true;
+
+        })->values();
+    }
 
     protected function matchesPrimary(
         string $job
@@ -364,64 +286,15 @@ class ReportExport implements WithMultipleSheets
             return false;
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | PACKING
-        |--------------------------------------------------------------------------
-        |
-        | Packing mencakup:
-        | Packing Foam
-        | Packing Medium
-        | Packing Box
-        | Packing Single Face
-        | Foam / Medium / Box / Single Face
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            $this->primaryCategory === 'packing'
-        ) {
+        if ($this->primaryCategory === 'packing') {
 
             return
-                str_contains(
-                    $job,
-                    'packing'
-                )
-                ||
-                str_contains(
-                    $job,
-                    'foam'
-                )
-                ||
-                str_contains(
-                    $job,
-                    'medium'
-                )
-                ||
-                str_contains(
-                    $job,
-                    'single face'
-                )
-                ||
-                str_contains(
-                    $job,
-                    'box'
-                );
+                str_contains($job, 'packing')
+                || str_contains($job, 'foam')
+                || str_contains($job, 'medium')
+                || str_contains($job, 'single face')
+                || str_contains($job, 'box');
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | KATEGORI LAIN
-        |--------------------------------------------------------------------------
-        |
-        | Contoh:
-        | finishing
-        | rangka
-        | anyam
-        | unfinish
-        | dll.
-        |--------------------------------------------------------------------------
-        */
 
         return str_contains(
             $job,
@@ -429,30 +302,32 @@ class ReportExport implements WithMultipleSheets
         );
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | CHECK PACKING
-    |--------------------------------------------------------------------------
-    */
-
     protected function isPacking(): bool
     {
-        return
-            $this->primaryCategory ===
-            'packing';
+        return $this->primaryCategory === 'packing';
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | PRIMARY TITLE
-    |--------------------------------------------------------------------------
-    */
+    protected function collectionIsPacking(
+        Collection $data
+    ): bool {
+        return $data->contains(function ($item) {
+
+            $job = strtolower(
+                trim((string) ($item->pekerjaan ?? ''))
+            );
+
+            return
+                str_contains($job, 'packing')
+                || str_contains($job, 'foam')
+                || str_contains($job, 'medium')
+                || str_contains($job, 'single face')
+                || str_contains($job, 'box');
+        });
+    }
 
     protected function primaryTitle(): string
     {
-        if (
-            $this->primaryCategory === ''
-        ) {
+        if ($this->primaryCategory === '') {
             return 'BORONGAN';
         }
 
@@ -460,12 +335,6 @@ class ReportExport implements WithMultipleSheets
             $this->primaryCategory
         );
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | SAFE SHEET NAME
-    |--------------------------------------------------------------------------
-    */
 
     protected function safeSheetTitle(
         string $title
@@ -477,9 +346,7 @@ class ReportExport implements WithMultipleSheets
             $title
         );
 
-        $title = trim(
-            $title
-        );
+        $title = trim($title);
 
         if ($title === '') {
             $title = 'SHEET';
@@ -496,931 +363,321 @@ class ReportExport implements WithMultipleSheets
 
 /*
 |--------------------------------------------------------------------------
-| ResumeSheet
+| ReportSheet
 |--------------------------------------------------------------------------
 |
-| Sheet pertama = rangkuman seluruh pekerjaan dalam range tanggal.
+| SATU SHEET = SATU DIVISI / PEKERJAAN.
 |
-| Kolom:
-| NO, NAMA BARANG, TANGGAL, PO NO, KODE,
-| PEKERJAAN LAINNYA SESUAI YANG ADA DI RANGE,
-| FE FOAM, Medium, Single Face, Box, JUMLAH, PERSON.
+| Di dalam sheet tersebut:
+| - setiap PENGERJA/person tetap dibuat sebagai form
+| - tidak ada PENERIMA : xxx
+| - tidak ada GENERAL
+| - tidak ada tabel resume
+| - TOTAL selalu hanya "TOTAL"
+| - setiap form memiliki PERIODE PENARIKAN
 |
-| Packing dipisahkan ke kolom matrix. Pekerjaan lain dirangkum
-| pada kolom "PEKERJAAN LAINNYA SESUAI YANG ADA DI RANGE".
-|--------------------------------------------------------------------------
 */
-
-class ResumeSheet implements
+/**
+ * --------------------------------------------------------------------------
+ * TO PRINT SHEET
+ * --------------------------------------------------------------------------
+ *
+ * Sheet pertama yang berisi seluruh form dari semua sheet/divisi.
+ * Tidak menyalin worksheet Excel; kita membangun ulang row dari collection
+ * sheet sumber sehingga merge, border, width, dan pagination dapat diatur
+ * khusus untuk halaman print.
+ */
+class ToPrintSheet implements
     FromCollection,
     WithEvents,
     WithTitle
 {
-    protected Collection $data;
-    protected ?string $dateFrom;
-    protected ?string $dateTo;
+    protected array $sourceSheets;
 
-    public function __construct(
-        Collection $data,
-        ?string $dateFrom = null,
-        ?string $dateTo = null
-    ) {
-        $this->data = $data->values();
-        $this->dateFrom = $dateFrom;
-        $this->dateTo = $dateTo;
+    public function __construct(array $sourceSheets)
+    {
+        $this->sourceSheets = $sourceSheets;
     }
 
     public function title(): string
     {
-        return 'RESUME';
+        return 'TO PRINT';
     }
 
     public function collection()
     {
         $rows = collect();
 
-        /*
-        |--------------------------------------------------------------------------
-        | JUDUL
-        |--------------------------------------------------------------------------
-        */
+        foreach ($this->sourceSheets as $sourceSheet) {
+            $sourceRows = $sourceSheet->collection();
 
-        $rows->push([
-            'REKAPITULASI PEMBAYARAN BORONGAN'
-        ]);
+            if ($sourceRows->isEmpty()) {
+                continue;
+            }
 
-        $rows->push([
-            $this->periodText()
-        ]);
+            if ($rows->isNotEmpty()) {
+                // Satu baris pemisah antar divisi/sheet.
+                $rows->push(array_fill(0, 10, ''));
+            }
 
-        $rows->push(array_fill(0, 10, ''));
+            foreach ($sourceRows as $sourceRow) {
+                $row = array_values((array) $sourceRow);
 
-        /*
-        |--------------------------------------------------------------------------
-        | HEADER RESUME
-        |--------------------------------------------------------------------------
-        |
-        | Resume dibuat vertikal agar tidak terlalu lebar.
-        |
-        | NO
-        | NAMA BARANG
-        | TANGGAL
-        | PO NO
-        | KODE
-        | JENIS PEKERJAAN
-        | QTY
-        | HARGA
-        | JUMLAH
-        | PENGERJA
-        |
-        */
+                // TO PRINT memakai maksimum 10 kolom agar packing dan normal
+                // dapat hidup dalam satu sheet tanpa menggeser blok berikutnya.
+                $row = array_pad($row, 10, '');
 
-        $rows->push([
-            'NO',
-            'NAMA BARANG',
-            'TANGGAL',
-            'PO NO',
-            'KODE',
-            'JENIS PEKERJAAN',
-            'QTY',
-            'HARGA',
-            'JUMLAH',
-            'PENGERJA'
-        ]);
-
-        /*
-        |--------------------------------------------------------------------------
-        | GROUP DATA
-        |--------------------------------------------------------------------------
-        |
-        | Satu baris = satu kombinasi:
-        |
-        | Article + Description + Tanggal + PO + Pekerjaan + Harga + Person
-        |
-        | Jadi apabila orang yang sama mengerjakan barang dan pekerjaan yang
-        | sama dengan harga yang sama beberapa kali, Qty dan Total dijumlahkan.
-        |
-        */
-
-        $groups = [];
-
-        foreach ($this->data as $item) {
-
-            $description = trim(
-                (string) (
-                    $item->description
-                    ?? $item->nama_barang
-                    ?? ''
-                )
-            );
-
-            $article = trim(
-                (string) (
-                    $item->article
-                    ?? $item->kode
-                    ?? ''
-                )
-            );
-
-            $tanggalValue =
-                $item->tanggal
-                ?? $item->date
-                ?? $item->tanggal_transaksi
-                ?? $item->created_at
-                ?? null;
-
-            $tanggalKey = '';
-
-            if ($tanggalValue) {
-                $timestamp = strtotime(
-                    (string) $tanggalValue
-                );
-
-                if ($timestamp !== false) {
-                    $tanggalKey = date(
-                        'Y-m-d',
-                        $timestamp
-                    );
+                if (count($row) > 10) {
+                    $row = array_slice($row, 0, 10);
                 }
+
+                $rows->push($row);
             }
-
-            $tanggalDisplay = $tanggalKey
-                ? date(
-                    'd/m/Y',
-                    strtotime($tanggalKey)
-                )
-                : '';
-
-            $po = trim(
-                (string) (
-                    $item->no_po
-                    ?? $item->po
-                    ?? ''
-                )
-            );
-
-            $job = trim(
-                (string) (
-                    $item->pekerjaan
-                    ?? ''
-                )
-            );
-
-            $person = trim(
-                (string) (
-                    $item->person
-                    ?? ''
-                )
-            );
-
-            /*
-            |--------------------------------------------------------------------------
-            | Jika kosong
-            |--------------------------------------------------------------------------
-            */
-
-            if ($job === '') {
-                $job = 'PEKERJAAN LAIN';
-            }
-
-            if ($person === '') {
-                $person = 'BELUM ADA PENGERJA';
-            }
-
-            $qty = (float) (
-                $item->qty ?? 0
-            );
-
-            $harga = (float) (
-                $item->harga ?? 0
-            );
-
-            $total = (float) (
-                $item->total ?? 0
-            );
-
-            if (
-                $total == 0
-                && $qty != 0
-                && $harga != 0
-            ) {
-                $total =
-                    $qty * $harga;
-            }
-
-            /*
-            |--------------------------------------------------------------------------
-            | KEY GROUP
-            |--------------------------------------------------------------------------
-            */
-
-            $key =
-                strtolower($article) . '||' .
-                strtolower($description) . '||' .
-                $tanggalKey . '||' .
-                strtolower($po) . '||' .
-                strtolower($job) . '||' .
-                number_format(
-                    $harga,
-                    4,
-                    '.',
-                    ''
-                ) . '||' .
-                strtolower($person);
-
-            if (!isset($groups[$key])) {
-
-                $groups[$key] = [
-                    'description' =>
-                        $description,
-
-                    'tanggal' =>
-                        $tanggalDisplay,
-
-                    'po' =>
-                        $po,
-
-                    'article' =>
-                        $article,
-
-                    'pekerjaan' =>
-                        $job,
-
-                    'qty' =>
-                        0,
-
-                    'harga' =>
-                        $harga,
-
-                    'total' =>
-                        0,
-
-                    'person' =>
-                        $person
-                ];
-            }
-
-            $groups[$key]['qty'] += $qty;
-            $groups[$key]['total'] += $total;
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | SORT
-        |--------------------------------------------------------------------------
-        |
-        | Urutan:
-        | tanggal -> pekerjaan -> person -> article
-        |
-        */
-
-        uasort(
-            $groups,
-            function ($a, $b) {
-
-                $dateCompare =
-                    strcmp(
-                        $a['tanggal'],
-                        $b['tanggal']
-                    );
-
-                if ($dateCompare !== 0) {
-                    return $dateCompare;
-                }
-
-                $jobCompare =
-                    strcasecmp(
-                        $a['pekerjaan'],
-                        $b['pekerjaan']
-                    );
-
-                if ($jobCompare !== 0) {
-                    return $jobCompare;
-                }
-
-                $personCompare =
-                    strcasecmp(
-                        $a['person'],
-                        $b['person']
-                    );
-
-                if ($personCompare !== 0) {
-                    return $personCompare;
-                }
-
-                return strcasecmp(
-                    $a['description'],
-                    $b['description']
-                );
-            }
-        );
-
-        /*
-        |--------------------------------------------------------------------------
-        | ISI BARIS RESUME
-        |--------------------------------------------------------------------------
-        */
-
-        $number = 1;
-        $grandTotal = 0;
-
-        /*
-        | Rekap per orang
-        */
-        $personSummary = [];
-
-        foreach ($groups as $group) {
-
-            $grandTotal +=
-                $group['total'];
-
-            $rows->push([
-                $number++,
-                $group['description'],
-                $group['tanggal'],
-                $group['po'],
-                $group['article'],
-                $group['pekerjaan'],
-                $group['qty'],
-                $group['harga'],
-                $group['total'],
-                $group['person']
-            ]);
-
-            $personKey =
-                strtolower(
-                    trim($group['person'])
-                );
-
-            if (!isset(
-                $personSummary[$personKey]
-            )) {
-
-                $personSummary[$personKey] = [
-                    'person' =>
-                        $group['person'],
-
-                    'jobs' =>
-                        0,
-
-                    'total' =>
-                        0
-                ];
-            }
-
-            $personSummary[$personKey]['jobs']++;
-            $personSummary[$personKey]['total'] +=
-                $group['total'];
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | TOTAL RESUME
-        |--------------------------------------------------------------------------
-        */
-
-        $rows->push([
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            'TOTAL',
-            $grandTotal,
-            ''
-        ]);
-
-        /*
-        |--------------------------------------------------------------------------
-        | JARAK
-        |--------------------------------------------------------------------------
-        */
-
-        $rows->push(
-            array_fill(0, 10, '')
-        );
-
-        $rows->push(
-            array_fill(0, 10, '')
-        );
-
-        /*
-        |--------------------------------------------------------------------------
-        | REKAP PEMBAYARAN PER ORANG
-        |--------------------------------------------------------------------------
-        */
-
-        $rows->push([
-            'REKAP PEMBAYARAN PER ORANG'
-        ]);
-
-        $rows->push([
-            'PENGERJA',
-            'JUMLAH PEKERJAAN',
-            'TOTAL'
-        ]);
-
-        uasort(
-            $personSummary,
-            function ($a, $b) {
-                return strcasecmp(
-                    $a['person'],
-                    $b['person']
-                );
-            }
-        );
-
-        $personGrandTotal = 0;
-
-        foreach ($personSummary as $summary) {
-
-            $personGrandTotal +=
-                $summary['total'];
-
-            $rows->push([
-                $summary['person'],
-                $summary['jobs'],
-                $summary['total']
-            ]);
-        }
-
-        $rows->push([
-            'TOTAL',
-            '',
-            $personGrandTotal
-        ]);
 
         return $rows;
-    }
-
-    protected function periodText(): string
-    {
-        if (
-            $this->dateFrom
-            && $this->dateTo
-        ) {
-
-            return 'PERIODE '
-                . date(
-                    'd F Y',
-                    strtotime($this->dateFrom)
-                )
-                . ' - '
-                . date(
-                    'd F Y',
-                    strtotime($this->dateTo)
-                );
-        }
-
-        if ($this->dateFrom) {
-
-            return 'PERIODE MULAI '
-                . date(
-                    'd F Y',
-                    strtotime($this->dateFrom)
-                );
-        }
-
-        if ($this->dateTo) {
-
-            return 'PERIODE SAMPAI '
-                . date(
-                    'd F Y',
-                    strtotime($this->dateTo)
-                );
-        }
-
-        return 'PERIODE '
-            . date('d F Y');
     }
 
     public function registerEvents(): array
     {
         return [
-            AfterSheet::class =>
-                function (AfterSheet $event) {
+            AfterSheet::class => function (AfterSheet $event) {
+                $sheet = $event->sheet->getDelegate();
+                $highestRow = $sheet->getHighestRow();
+                $lastColumn = 'J';
 
-                    $sheet =
-                        $event->sheet
-                            ->getDelegate();
+                if ($highestRow < 1) {
+                    return;
+                }
 
-                    $highestRow =
-                        $sheet->getHighestRow();
+                // ---------------------------------------------------------
+                // Deteksi header masing-masing form
+                // ---------------------------------------------------------
+                $headerRows = [];
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | TITLE
-                    |--------------------------------------------------------------------------
-                    */
+                for ($row = 1; $row <= $highestRow; $row++) {
+                    $value = trim((string) $sheet
+                        ->getCell('A' . $row)
+                        ->getValue());
 
-                    $sheet->mergeCells(
-                        'A1:J1'
-                    );
+                    if (strtoupper($value) === 'NO') {
+                        $headerRows[] = $row;
+                    }
+                }
 
-                    $sheet->mergeCells(
-                        'A2:J2'
-                    );
+                // ---------------------------------------------------------
+                // Style header + tabel
+                // ---------------------------------------------------------
+                foreach ($headerRows as $headerRow) {
+                    $isPacking = false;
+
+                    $headerValues = [];
+                    for ($col = 1; $col <= 10; $col++) {
+                        $headerValues[] = strtoupper(trim((string) $sheet
+                            ->getCellByColumnAndRow($col, $headerRow)
+                            ->getValue()));
+                    }
+
+                    if (
+                        in_array('FE FOAM', $headerValues, true) ||
+                        in_array('SINGLE FACE', $headerValues, true) ||
+                        in_array('BOX', $headerValues, true)
+                    ) {
+                        $isPacking = true;
+                    }
+
+                    $lastTableColumn = $isPacking ? 'J' : 'G';
 
                     $sheet->getStyle(
-                        'A1:J1'
+                        'A' . $headerRow . ':' . $lastTableColumn . $headerRow
                     )->applyFromArray([
                         'font' => [
                             'bold' => true,
-                            'size' => 14
                         ],
-                        'alignment' => [
-                            'horizontal' =>
-                                Alignment::HORIZONTAL_CENTER,
-
-                            'vertical' =>
-                                Alignment::VERTICAL_CENTER
-                        ]
-                    ]);
-
-                    $sheet->getStyle(
-                        'A2:J2'
-                    )->applyFromArray([
-                        'font' => [
-                            'bold' => true,
-                            'size' => 12
-                        ],
-                        'alignment' => [
-                            'horizontal' =>
-                                Alignment::HORIZONTAL_CENTER,
-
-                            'vertical' =>
-                                Alignment::VERTICAL_CENTER
-                        ]
-                    ]);
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | HEADER TABEL UTAMA
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $sheet->getStyle(
-                        'A4:J4'
-                    )->applyFromArray([
-
-                        'font' => [
-                            'bold' => true
-                        ],
-
                         'fill' => [
-                            'fillType' =>
-                                Fill::FILL_SOLID,
-
+                            'fillType' => Fill::FILL_SOLID,
                             'startColor' => [
-                                'rgb' =>
-                                    'D9E1F2'
-                            ]
+                                'rgb' => 'D9E1F2',
+                            ],
                         ],
-
                         'alignment' => [
-                            'horizontal' =>
-                                Alignment::HORIZONTAL_CENTER,
-
-                            'vertical' =>
-                                Alignment::VERTICAL_CENTER,
-
-                            'wrapText' =>
-                                true
+                            'horizontal' => Alignment::HORIZONTAL_CENTER,
+                            'vertical' => Alignment::VERTICAL_CENTER,
+                            'wrapText' => true,
                         ],
-
                         'borders' => [
                             'allBorders' => [
-                                'borderStyle' =>
-                                    Border::BORDER_THIN
-                            ]
-                        ]
+                                'borderStyle' => Border::BORDER_THIN,
+                            ],
+                        ],
                     ]);
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | CARI BARIS TOTAL UTAMA
-                    |--------------------------------------------------------------------------
-                    */
+                    // Cari TOTAL sampai sebelum header berikutnya.
+                    $totalRow = null;
 
-                    $mainTotalRow = null;
-
-                    for (
-                        $row = 5;
-                        $row <= $highestRow;
-                        $row++
-                    ) {
-
-                        $value =
-                            trim(
-                                (string)
-                                $sheet
-                                    ->getCell(
-                                        'H' . $row
-                                    )
-                                    ->getValue()
-                            );
+                    for ($row = $headerRow + 1; $row <= $highestRow; $row++) {
+                        $first = trim((string) $sheet
+                            ->getCell('A' . $row)
+                            ->getValue());
 
                         if (
-                            strtoupper(
-                                $value
-                            ) === 'TOTAL'
+                            $row !== $headerRow + 1 &&
+                            strtoupper($first) === 'NO'
                         ) {
-
-                            $mainTotalRow =
-                                $row;
-
                             break;
                         }
-                    }
 
-                    if ($mainTotalRow) {
+                        for ($col = 1; $col <= ($isPacking ? 10 : 7); $col++) {
+                            $value = trim((string) $sheet
+                                ->getCellByColumnAndRow($col, $row)
+                                ->getValue());
 
-                        $sheet->getStyle(
-                            'A4:J' .
-                            $mainTotalRow
-                        )->getBorders()
-                            ->getAllBorders()
-                            ->setBorderStyle(
-                                Border::BORDER_THIN
-                            );
-
-                        $sheet->getStyle(
-                            'A' .
-                            $mainTotalRow .
-                            ':J' .
-                            $mainTotalRow
-                        )->applyFromArray([
-                            'font' => [
-                                'bold' => true
-                            ]
-                        ]);
-                    }
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | CARI HEADER REKAP ORANG
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $personHeaderRow = null;
-
-                    for (
-                        $row = 1;
-                        $row <= $highestRow;
-                        $row++
-                    ) {
-
-                        $value =
-                            trim(
-                                (string)
-                                $sheet
-                                    ->getCell(
-                                        'A' . $row
-                                    )
-                                    ->getValue()
-                            );
-
-                        if (
-                            strtoupper($value) ===
-                            'PENGERJA'
-                        ) {
-
-                            $personHeaderRow =
-                                $row;
-
-                            break;
-                        }
-                    }
-
-                    if ($personHeaderRow) {
-
-                        $sheet->getStyle(
-                            'A' .
-                            $personHeaderRow .
-                            ':C' .
-                            $personHeaderRow
-                        )->applyFromArray([
-
-                            'font' => [
-                                'bold' => true
-                            ],
-
-                            'fill' => [
-                                'fillType' =>
-                                    Fill::FILL_SOLID,
-
-                                'startColor' => [
-                                    'rgb' =>
-                                        'D9E1F2'
-                                ]
-                            ],
-
-                            'alignment' => [
-                                'horizontal' =>
-                                    Alignment::HORIZONTAL_CENTER,
-
-                                'vertical' =>
-                                    Alignment::VERTICAL_CENTER
-                            ],
-
-                            'borders' => [
-                                'allBorders' => [
-                                    'borderStyle' =>
-                                        Border::BORDER_THIN
-                                ]
-                            ]
-                        ]);
-
-                        $personTotalRow = null;
-
-                        for (
-                            $row =
-                                $personHeaderRow + 1;
-                            $row <= $highestRow;
-                            $row++
-                        ) {
-
-                            $value =
-                                trim(
-                                    (string)
-                                    $sheet
-                                        ->getCell(
-                                            'A' . $row
-                                        )
-                                        ->getValue()
-                                );
-
-                            if (
-                                strtoupper($value) ===
-                                'TOTAL'
-                            ) {
-
-                                $personTotalRow =
-                                    $row;
-
-                                break;
+                            if (strtoupper($value) === 'TOTAL') {
+                                $totalRow = $row;
+                                break 2;
                             }
                         }
-
-                        if ($personTotalRow) {
-
-                            $sheet->getStyle(
-                                'A' .
-                                $personHeaderRow .
-                                ':C' .
-                                $personTotalRow
-                            )->getBorders()
-                                ->getAllBorders()
-                                ->setBorderStyle(
-                                    Border::BORDER_THIN
-                                );
-
-                            $sheet->getStyle(
-                                'A' .
-                                $personTotalRow .
-                                ':C' .
-                                $personTotalRow
-                            )->applyFromArray([
-                                'font' => [
-                                    'bold' => true
-                                ]
-                            ]);
-                        }
                     }
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | NUMBER FORMAT
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $sheet->getStyle(
-                        'G5:I' .
-                        $highestRow
-                    )->getNumberFormat()
-                        ->setFormatCode(
-                            '#,##0.##'
+                    if ($totalRow) {
+                        $sheet->getStyle(
+                            'A' . $headerRow . ':' . $lastTableColumn . $totalRow
+                        )->getBorders()->getAllBorders()->setBorderStyle(
+                            Border::BORDER_THIN
                         );
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | ALIGNMENT
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $sheet->getStyle(
-                        'A4:J' .
-                        $highestRow
-                    )->getAlignment()
-                        ->setVertical(
-                            Alignment::VERTICAL_CENTER
-                        );
-
-                    $sheet->getStyle(
-                        'A4:J' .
-                        $highestRow
-                    )->getAlignment()
-                        ->setWrapText(true);
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | WIDTH
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $widths = [
-
-                        'A' => 6,
-
-                        'B' => 38,
-
-                        'C' => 13,
-
-                        'D' => 14,
-
-                        'E' => 16,
-
-                        'F' => 25,
-
-                        'G' => 12,
-
-                        'H' => 14,
-
-                        'I' => 16,
-
-                        'J' => 24
-                    ];
-
-                    foreach (
-                        $widths
-                        as $column => $width
-                    ) {
-
-                        $sheet
-                            ->getColumnDimension(
-                                $column
-                            )
-                            ->setWidth(
-                                $width
-                            );
+                        $sheet->getStyle(
+                            'A' . $totalRow . ':' . $lastTableColumn . $totalRow
+                        )->getFont()->setBold(true);
                     }
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | ROW HEIGHT
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $sheet
-                        ->getRowDimension(1)
-                        ->setRowHeight(25);
-
-                    $sheet
-                        ->getRowDimension(2)
-                        ->setRowHeight(22);
-
-                    $sheet
-                        ->getRowDimension(4)
-                        ->setRowHeight(32);
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | FREEZE
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $sheet->freezePane(
-                        'A5'
-                    );
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | PRINT
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $sheet->getPageSetup()
-                        ->setOrientation(
-                            PageSetup::ORIENTATION_LANDSCAPE
-                        )
-                        ->setPaperSize(
-                            PageSetup::PAPERSIZE_A4
-                        )
-                        ->setFitToWidth(1)
-                        ->setFitToHeight(0);
-
-                    $sheet->getPageMargins()
-                        ->setTop(0.25)
-                        ->setRight(0.25)
-                        ->setBottom(0.25)
-                        ->setLeft(0.25);
                 }
+
+                // ---------------------------------------------------------
+                // Judul + periode
+                // ---------------------------------------------------------
+                for ($row = 1; $row <= $highestRow; $row++) {
+                    $value = trim((string) $sheet
+                        ->getCell('A' . $row)
+                        ->getValue());
+
+                    $upper = strtoupper($value);
+
+                    if (str_starts_with($upper, 'PEMBAYARAN BORONGAN')) {
+                        $sheet->mergeCells(
+                            'A' . $row . ':J' . $row
+                        );
+
+                        $sheet->getStyle(
+                            'A' . $row . ':J' . $row
+                        )->applyFromArray([
+                            'font' => [
+                                'bold' => true,
+                                'size' => 12,
+                            ],
+                            'alignment' => [
+                                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                                'vertical' => Alignment::VERTICAL_CENTER,
+                            ],
+                        ]);
+
+                        $sheet->getRowDimension($row)->setRowHeight(24);
+                    }
+
+                    if (str_starts_with($upper, 'PERIODE PENARIKAN:')) {
+                        $sheet->mergeCells(
+                            'A' . $row . ':J' . $row
+                        );
+
+                        $sheet->getStyle(
+                            'A' . $row . ':J' . $row
+                        )->applyFromArray([
+                            'font' => [
+                                'bold' => true,
+                                'size' => 10,
+                            ],
+                            'alignment' => [
+                                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                                'vertical' => Alignment::VERTICAL_CENTER,
+                            ],
+                        ]);
+
+                        $sheet->getRowDimension($row)->setRowHeight(20);
+                    }
+                }
+
+                // ---------------------------------------------------------
+                // Number format
+                // ---------------------------------------------------------
+                $sheet->getStyle('E1:E' . $highestRow)
+                    ->getNumberFormat()
+                    ->setFormatCode('0');
+
+                $sheet->getStyle('F1:J' . $highestRow)
+                    ->getNumberFormat()
+                    ->setFormatCode('[$Rp-421] #,##0');
+
+                // ---------------------------------------------------------
+                // Alignment + wrapping
+                // ---------------------------------------------------------
+                $sheet->getStyle(
+                    'A1:J' . $highestRow
+                )->getAlignment()->setVertical(
+                    Alignment::VERTICAL_CENTER
+                );
+
+                $sheet->getStyle(
+                    'B1:B' . $highestRow
+                )->getAlignment()->setWrapText(true);
+
+                // ---------------------------------------------------------
+                // Column widths khusus TO PRINT
+                // ---------------------------------------------------------
+                $widths = [
+                    'A' => 6,
+                    'B' => 34,
+                    'C' => 13,
+                    'D' => 14,
+                    'E' => 8,
+                    'F' => 12,
+                    'G' => 13,
+                    'H' => 13,
+                    'I' => 11,
+                    'J' => 14,
+                ];
+
+                foreach ($widths as $column => $width) {
+                    $sheet->getColumnDimension($column)->setWidth($width);
+                }
+
+                $sheet->freezePane('A1');
+
+                // ---------------------------------------------------------
+                // PRINT A4 PORTRAIT
+                // ---------------------------------------------------------
+                $pageSetup = $sheet->getPageSetup();
+
+                $pageSetup
+                    ->setOrientation(PageSetup::ORIENTATION_PORTRAIT)
+                    ->setPaperSize(PageSetup::PAPERSIZE_A4)
+                    ->setFitToWidth(1)
+                    ->setFitToHeight(0)
+                    ->setFitToPage(false);
+
+                $sheet->getPageMargins()
+                    ->setTop(0.20)
+                    ->setRight(0.15)
+                    ->setBottom(0.20)
+                    ->setLeft(0.15);
+
+                $sheet->getPageSetup()->setPrintArea(
+                    'A1:J' . $highestRow
+                );
+
+                $sheet->setShowGridLines(false);
+            },
         ];
     }
 }
-
 
 class ReportSheet implements
     FromCollection,
@@ -1440,22 +697,16 @@ class ReportSheet implements
         ?string $dateFrom = null,
         ?string $dateTo = null
     ) {
-        $this->data =
-            $data->values();
+        $this->data = $data->values();
 
-        $this->reportType =
-            $reportType;
+        $this->reportType = $reportType;
 
-        $this->sheetTitle =
-            $this->safeTitle(
-                $sheetTitle
-            );
+        $this->sheetTitle = $this->safeTitle(
+            $sheetTitle
+        );
 
-        $this->dateFrom =
-            $dateFrom;
-
-        $this->dateTo =
-            $dateTo;
+        $this->dateFrom = $dateFrom;
+        $this->dateTo = $dateTo;
     }
 
     public function title(): string
@@ -1465,14 +716,9 @@ class ReportSheet implements
 
     public function collection()
     {
-        if (
-            $this->reportType ===
-            'packing'
-        ) {
-            return $this->packingRows();
-        }
-
-        return $this->normalRows();
+        return $this->reportType === 'packing'
+            ? $this->packingRows()
+            : $this->normalRows();
     }
 
     /*
@@ -1485,96 +731,131 @@ class ReportSheet implements
     {
         $rows = collect();
 
-        $rows->push([
-            'REKAPITULASI PEMBAYARAN BORONGAN ' .
-            strtoupper($this->sheetTitle)
-        ]);
-
-        $rows->push([
-            $this->periodText()
-        ]);
-
-        $rows->push(array_fill(0, 7, ''));
-
-        $rows->push([
-            strtoupper($this->sheetTitle)
-        ]);
-
-        $rows->push([
-            'NO',
-            'NAMA BARANG',
-            'PO NO',
-            'KODE',
-            'QTY',
-            'HARGA',
-            'JUMLAH'
-        ]);
-
-        $groups = $this->groupNormalData($this->data);
-
-        $number = 1;
-        $grandTotal = 0;
-
-        foreach ($groups as $group) {
-            $grandTotal += $group['total'];
-
-            $rows->push([
-                $number++,
-                $group['description'],
-                $group['no_po'],
-                $group['article'],
-                $group['qty'],
-                $group['harga'],
-                $group['total']
-            ]);
-        }
-
-        $rows->push([
-            '',
-            '',
-            '',
-            '',
-            '',
-            'TOTAL',
-            $grandTotal
-        ]);
-
-        $rows->push(array_fill(0, 7, ''));
-        $rows->push(array_fill(0, 7, ''));
-
-        $rows->push([
-            'Made by',
-            '',
-            'Finance',
-            '',
-            'Checked by',
-            '',
-            'Approve by'
-        ]);
-
-        $rows->push(array_fill(0, 7, ''));
-        $rows->push(array_fill(0, 7, ''));
-
-        $rows->push([
-            'Siti',
-            '',
-            'Ainun',
-            '',
-            'Didin W',
-            '',
-            'Mr Ley'
-        ]);
-
         /*
-        |--------------------------------------------------------------------------
-        | FORM PER ORANG
-        |--------------------------------------------------------------------------
-        */
-
-        $rows = $this->appendNormalPersonForms(
-            $rows,
+         * Tidak ada general table.
+         * Langsung form per orang.
+         */
+        $persons = $this->uniquePersonsFrom(
             $this->data
         );
+
+        foreach ($persons as $person) {
+
+            $personData = $this->dataForPerson(
+                $this->data,
+                $person
+            );
+
+            if ($personData->isEmpty()) {
+                continue;
+            }
+
+            /*
+             * Jarak antar form.
+             */
+            if ($rows->isNotEmpty()) {
+                $rows->push(
+                    array_fill(0, 7, '')
+                );
+            }
+
+            /*
+             * JUDUL ORANG
+             */
+            $rows->push([
+                'PEMBAYARAN BORONGAN ' .
+                strtoupper($this->sheetTitle)
+            ]);
+
+            /*
+             * PERIODE SETIAP FORM
+             */
+            $rows->push([
+                $this->periodText()
+            ]);
+
+            /*
+             * HEADER
+             */
+            $rows->push([
+                'NO',
+                'NAMA BARANG',
+                'PO NO',
+                'KODE',
+                'QTY',
+                'HARGA',
+                'JUMLAH'
+            ]);
+
+            $groups = $this->groupNormalData(
+                $personData
+            );
+
+            $number = 1;
+            $personTotal = 0;
+
+            foreach ($groups as $group) {
+
+                $personTotal += $group['total'];
+
+                $rows->push([
+                    $number++,
+                    $group['description'],
+                    $group['no_po'],
+                    $group['article'],
+                    $group['qty'],
+                    $group['harga'],
+                    $group['total']
+                ]);
+            }
+
+            /*
+             * TOTAL SELALU TOTAL.
+             */
+            $rows->push([
+                '',
+                '',
+                '',
+                '',
+                '',
+                'TOTAL',
+                $personTotal
+            ]);
+
+            $rows->push(
+                array_fill(0, 7, '')
+            );
+            $rows->push(
+                array_fill(0, 7, '')
+            );
+
+            $rows->push([
+                'Made by',
+                '',
+                'Finance',
+                '',
+                'Checked by',
+                '',
+                'Penerima'
+            ]);
+
+            $rows->push(
+                array_fill(0, 7, '')
+            );
+            $rows->push(
+                array_fill(0, 7, '')
+            );
+
+            $rows->push([
+                'Siti',
+                '',
+                'Ainun',
+                '',
+                'Didin W',
+                '',
+                $person
+            ]);
+        }
 
         return $rows;
     }
@@ -1582,9 +863,11 @@ class ReportSheet implements
     protected function groupNormalData(
         Collection $data
     ): array {
+
         $groups = [];
 
         foreach ($data as $item) {
+
             $description = trim(
                 (string) (
                     $item->description
@@ -1634,24 +917,27 @@ class ReportSheet implements
                 strtolower($pekerjaan) . '||' .
                 number_format(
                     $harga,
-                    2,
+                    4,
                     '.',
                     ''
                 );
 
             if (!isset($groups[$key])) {
+
                 $groups[$key] = [
                     'description' => $description,
                     'article' => $article,
                     'no_po' => trim(
                         (string) (
-                            $item->no_po ?? ''
+                            $item->no_po
+                            ?? $item->po
+                            ?? ''
                         )
                     ),
                     'pekerjaan' => $pekerjaan,
                     'qty' => 0,
                     'harga' => $harga,
-                    'total' => 0
+                    'total' => 0,
                 ];
             }
 
@@ -1670,15 +956,24 @@ class ReportSheet implements
         return $groups;
     }
 
-    protected function appendNormalPersonForms(
-        Collection $rows,
-        Collection $data
-    ): Collection {
-        $persons = $this->uniquePersonsFrom($data);
+    /*
+    |--------------------------------------------------------------------------
+    | PACKING
+    |--------------------------------------------------------------------------
+    */
+
+    protected function packingRows(): Collection
+    {
+        $rows = collect();
+
+        $persons = $this->uniquePersonsFrom(
+            $this->data
+        );
 
         foreach ($persons as $person) {
+
             $personData = $this->dataForPerson(
-                $data,
+                $this->data,
                 $person
             );
 
@@ -1686,35 +981,43 @@ class ReportSheet implements
                 continue;
             }
 
+            if ($rows->isNotEmpty()) {
+                $rows->push(
+                    array_fill(0, 10, '')
+                );
+            }
+
             /*
-            |--------------------------------------------------------------------------
-            | JARAK ANTAR FORM
-            |--------------------------------------------------------------------------
-            */
-
-            $rows->push(array_fill(0, 7, ''));
-            $rows->push(array_fill(0, 7, ''));
-
+             * JUDUL FORM ORANG.
+             */
             $rows->push([
-                'PEMBAYARAN BORONGAN - ' .
-                strtoupper($person)
+                'PEMBAYARAN BORONGAN PACKING'
             ]);
 
+            /*
+             * PERIODE SETIAP FORM.
+             */
             $rows->push([
-                'PENERIMA : ' . $person
+                $this->periodText()
             ]);
 
+            /*
+             * HEADER.
+             */
             $rows->push([
                 'NO',
                 'NAMA BARANG',
                 'PO NO',
                 'KODE',
                 'QTY',
-                'HARGA',
+                'FE FOAM',
+                'Medium',
+                'Single Face',
+                'Box',
                 'JUMLAH'
             ]);
 
-            $groups = $this->groupNormalData(
+            $groups = $this->groupPackingData(
                 $personData
             );
 
@@ -1722,6 +1025,31 @@ class ReportSheet implements
             $personTotal = 0;
 
             foreach ($groups as $group) {
+
+                $foam = '';
+                $medium = '';
+                $singleFace = '';
+                $box = '';
+
+                switch ($group['pekerjaan']) {
+
+                    case 'foam':
+                        $foam = $group['harga'];
+                        break;
+
+                    case 'medium':
+                        $medium = $group['harga'];
+                        break;
+
+                    case 'single_face':
+                        $singleFace = $group['harga'];
+                        break;
+
+                    case 'box':
+                        $box = $group['harga'];
+                        break;
+                }
+
                 $personTotal += $group['total'];
 
                 $rows->push([
@@ -1730,23 +1058,36 @@ class ReportSheet implements
                     $group['no_po'],
                     $group['article'],
                     $group['qty'],
-                    $group['harga'],
+                    $foam,
+                    $medium,
+                    $singleFace,
+                    $box,
                     $group['total']
                 ]);
             }
 
+            /*
+             * TOTAL SAJA.
+             */
             $rows->push([
                 '',
                 '',
                 '',
                 '',
                 '',
-                'TOTAL ' . strtoupper($person),
+                '',
+                '',
+                '',
+                'TOTAL',
                 $personTotal
             ]);
 
-            $rows->push(array_fill(0, 7, ''));
-            $rows->push(array_fill(0, 7, ''));
+            $rows->push(
+                array_fill(0, 10, '')
+            );
+            $rows->push(
+                array_fill(0, 10, '')
+            );
 
             $rows->push([
                 'Made by',
@@ -1755,11 +1096,18 @@ class ReportSheet implements
                 '',
                 'Checked by',
                 '',
+                '',
+                'Approve by',
+                '',
                 'Penerima'
             ]);
 
-            $rows->push(array_fill(0, 7, ''));
-            $rows->push(array_fill(0, 7, ''));
+            $rows->push(
+                array_fill(0, 10, '')
+            );
+            $rows->push(
+                array_fill(0, 10, '')
+            );
 
             $rows->push([
                 'Siti',
@@ -1768,6 +1116,9 @@ class ReportSheet implements
                 '',
                 'Didin W',
                 '',
+                '',
+                'Mr Ley',
+                '',
                 $person
             ]);
         }
@@ -1775,150 +1126,14 @@ class ReportSheet implements
         return $rows;
     }
 
-
-    protected function packingRows(): Collection
-    {
-        $rows = collect();
-
-        $rows->push([
-            'REKAPITULASI PEMBAYARAN BORONGAN PACKING'
-        ]);
-
-        $rows->push([
-            $this->periodText()
-        ]);
-
-        $rows->push(array_fill(0, 10, ''));
-
-        $rows->push([
-            'PACKING'
-        ]);
-
-        $rows->push([
-            'NO',
-            'NAMA BARANG',
-            'PO NO',
-            'KODE',
-            'QTY',
-            'FE FOAM',
-            'Medium',
-            'Single Face',
-            'Box',
-            'JUMLAH'
-        ]);
-
-        $groups = $this->groupPackingData(
-            $this->data
-        );
-
-        $number = 1;
-        $grandTotal = 0;
-
-        foreach ($groups as $group) {
-            $foam = '';
-            $medium = '';
-            $singleFace = '';
-            $box = '';
-
-            switch ($group['pekerjaan']) {
-                case 'foam':
-                    $foam = $group['harga'];
-                    break;
-
-                case 'medium':
-                    $medium = $group['harga'];
-                    break;
-
-                case 'single_face':
-                    $singleFace = $group['harga'];
-                    break;
-
-                case 'box':
-                    $box = $group['harga'];
-                    break;
-            }
-
-            $grandTotal += $group['total'];
-
-            $rows->push([
-                $number++,
-                $group['description'],
-                $group['no_po'],
-                $group['article'],
-                $group['qty'],
-                $foam,
-                $medium,
-                $singleFace,
-                $box,
-                $group['total']
-            ]);
-        }
-
-        $rows->push([
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            'TOTAL',
-            $grandTotal
-        ]);
-
-        $rows->push(array_fill(0, 10, ''));
-        $rows->push(array_fill(0, 10, ''));
-
-        $rows->push([
-            'Made by',
-            '',
-            'Finance',
-            '',
-            'Checked by',
-            '',
-            '',
-            'Approve by',
-            '',
-            ''
-        ]);
-
-        $rows->push(array_fill(0, 10, ''));
-        $rows->push(array_fill(0, 10, ''));
-
-        $rows->push([
-            'Siti',
-            '',
-            'Ainun',
-            '',
-            'Didin W',
-            '',
-            '',
-            'Mr Ley',
-            '',
-            ''
-        ]);
-
-        /*
-        |--------------------------------------------------------------------------
-        | FORM PER ORANG
-        |--------------------------------------------------------------------------
-        */
-
-        $rows = $this->appendPackingPersonForms(
-            $rows,
-            $this->data
-        );
-
-        return $rows;
-    }
-
     protected function groupPackingData(
         Collection $data
     ): array {
+
         $groups = [];
 
         foreach ($data as $item) {
+
             $description = trim(
                 (string) (
                     $item->description
@@ -1971,6 +1186,7 @@ class ReportSheet implements
                 )
             ) {
                 $jenis = 'single_face';
+
             } elseif (
                 str_contains(
                     $pekerjaan,
@@ -1978,6 +1194,7 @@ class ReportSheet implements
                 )
             ) {
                 $jenis = 'foam';
+
             } elseif (
                 str_contains(
                     $pekerjaan,
@@ -1985,6 +1202,7 @@ class ReportSheet implements
                 )
             ) {
                 $jenis = 'medium';
+
             } elseif (
                 str_contains(
                     $pekerjaan,
@@ -1992,6 +1210,7 @@ class ReportSheet implements
                 )
             ) {
                 $jenis = 'box';
+
             } else {
                 $jenis = 'medium';
             }
@@ -2002,24 +1221,27 @@ class ReportSheet implements
                 $jenis . '||' .
                 number_format(
                     $harga,
-                    2,
+                    4,
                     '.',
                     ''
                 );
 
             if (!isset($groups[$key])) {
+
                 $groups[$key] = [
                     'description' => $description,
                     'article' => $article,
                     'no_po' => trim(
                         (string) (
-                            $item->no_po ?? ''
+                            $item->no_po
+                            ?? $item->po
+                            ?? ''
                         )
                     ),
                     'pekerjaan' => $jenis,
                     'qty' => 0,
                     'harga' => $harga,
-                    'total' => 0
+                    'total' => 0,
                 ];
             }
 
@@ -2038,161 +1260,20 @@ class ReportSheet implements
         return $groups;
     }
 
-    protected function appendPackingPersonForms(
-        Collection $rows,
-        Collection $data
-    ): Collection {
-        $persons = $this->uniquePersonsFrom($data);
-
-        foreach ($persons as $person) {
-            $personData = $this->dataForPerson(
-                $data,
-                $person
-            );
-
-            if ($personData->isEmpty()) {
-                continue;
-            }
-
-            /*
-            |--------------------------------------------------------------------------
-            | JARAK
-            |--------------------------------------------------------------------------
-            */
-
-            $rows->push(array_fill(0, 10, ''));
-            $rows->push(array_fill(0, 10, ''));
-
-            /*
-            |--------------------------------------------------------------------------
-            | JUDUL FORM
-            |--------------------------------------------------------------------------
-            */
-
-            $rows->push([
-                'PEMBAYARAN BORONGAN PACKING - ' .
-                strtoupper($person)
-            ]);
-
-            $rows->push([
-                'PENERIMA : ' . $person
-            ]);
-
-            $rows->push([
-                'NO',
-                'NAMA BARANG',
-                'PO NO',
-                'KODE',
-                'QTY',
-                'FE FOAM',
-                'Medium',
-                'Single Face',
-                'Box',
-                'JUMLAH'
-            ]);
-
-            $groups = $this->groupPackingData(
-                $personData
-            );
-
-            $number = 1;
-            $personTotal = 0;
-
-            foreach ($groups as $group) {
-                $foam = '';
-                $medium = '';
-                $singleFace = '';
-                $box = '';
-
-                switch ($group['pekerjaan']) {
-                    case 'foam':
-                        $foam = $group['harga'];
-                        break;
-
-                    case 'medium':
-                        $medium = $group['harga'];
-                        break;
-
-                    case 'single_face':
-                        $singleFace = $group['harga'];
-                        break;
-
-                    case 'box':
-                        $box = $group['harga'];
-                        break;
-                }
-
-                $personTotal += $group['total'];
-
-                $rows->push([
-                    $number++,
-                    $group['description'],
-                    $group['no_po'],
-                    $group['article'],
-                    $group['qty'],
-                    $foam,
-                    $medium,
-                    $singleFace,
-                    $box,
-                    $group['total']
-                ]);
-            }
-
-            $rows->push([
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                '',
-                'TOTAL ' . strtoupper($person),
-                $personTotal
-            ]);
-
-            $rows->push(array_fill(0, 10, ''));
-            $rows->push(array_fill(0, 10, ''));
-
-            $rows->push([
-                'Made by',
-                '',
-                'Finance',
-                '',
-                'Checked by',
-                '',
-                '',
-                'Approve by',
-                '',
-                'Penerima'
-            ]);
-
-            $rows->push(array_fill(0, 10, ''));
-            $rows->push(array_fill(0, 10, ''));
-
-            $rows->push([
-                'Siti',
-                '',
-                'Ainun',
-                '',
-                'Didin W',
-                '',
-                '',
-                'Mr Ley',
-                '',
-                $person
-            ]);
-        }
-
-        return $rows;
-    }
+    /*
+    |--------------------------------------------------------------------------
+    | PERSON
+    |--------------------------------------------------------------------------
+    */
 
     protected function uniquePersonsFrom(
         Collection $data
     ): array {
+
         $persons = [];
 
         foreach ($data as $item) {
+
             $person = trim(
                 (string) (
                     $item->person ?? ''
@@ -2200,7 +1281,7 @@ class ReportSheet implements
             );
 
             if ($person === '') {
-                continue;
+                $person = 'BELUM ADA PENGERJA';
             }
 
             $key = strtolower($person);
@@ -2217,12 +1298,27 @@ class ReportSheet implements
         Collection $data,
         string $person
     ): Collection {
+
         $personKey = strtolower(
             trim($person)
         );
 
+        if ($personKey === 'belum ada pengerja') {
+
+            return $data->filter(function ($item) {
+
+                return trim(
+                    (string) (
+                        $item->person ?? ''
+                    )
+                ) === '';
+
+            })->values();
+        }
+
         return $data->filter(
             function ($item) use ($personKey) {
+
                 return strtolower(
                     trim(
                         (string) (
@@ -2234,13 +1330,11 @@ class ReportSheet implements
         )->values();
     }
 
-
-    protected function uniquePersons(): array
-    {
-        return $this->uniquePersonsFrom(
-            $this->data
-        );
-    }
+    /*
+    |--------------------------------------------------------------------------
+    | PERIOD
+    |--------------------------------------------------------------------------
+    */
 
     protected function periodText(): string
     {
@@ -2248,47 +1342,36 @@ class ReportSheet implements
             $this->dateFrom &&
             $this->dateTo
         ) {
-
-            return 'PERIODE '
+            return 'PERIODE PENARIKAN: '
                 . date(
                     'd F Y',
-                    strtotime(
-                        $this->dateFrom
-                    )
+                    strtotime($this->dateFrom)
                 )
                 . ' - '
                 . date(
                     'd F Y',
-                    strtotime(
-                        $this->dateTo
-                    )
+                    strtotime($this->dateTo)
                 );
         }
 
         if ($this->dateFrom) {
-
-            return 'PERIODE MULAI '
+            return 'PERIODE PENARIKAN: MULAI '
                 . date(
                     'd F Y',
-                    strtotime(
-                        $this->dateFrom
-                    )
+                    strtotime($this->dateFrom)
                 );
         }
 
         if ($this->dateTo) {
-
-            return 'PERIODE SAMPAI '
+            return 'PERIODE PENARIKAN: SAMPAI '
                 . date(
                     'd F Y',
-                    strtotime(
-                        $this->dateTo
-                    )
+                    strtotime($this->dateTo)
                 );
         }
 
-        return 'PERIODE ' .
-            date('d F Y');
+        return 'PERIODE PENARIKAN: '
+            . date('d F Y');
     }
 
     /*
@@ -2304,12 +1387,10 @@ class ReportSheet implements
                 function (AfterSheet $event) {
 
                     $sheet =
-                        $event->sheet
-                            ->getDelegate();
+                        $event->sheet->getDelegate();
 
                     $isPacking =
-                        $this->reportType ===
-                        'packing';
+                        $this->reportType === 'packing';
 
                     $lastColumn =
                         $isPacking
@@ -2320,65 +1401,8 @@ class ReportSheet implements
                         $sheet->getHighestRow();
 
                     /*
-                    |--------------------------------------------------------------------------
-                    | TITLE UTAMA
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $sheet->mergeCells(
-                        'A1:' .
-                        $lastColumn .
-                        '1'
-                    );
-
-                    $sheet->mergeCells(
-                        'A2:' .
-                        $lastColumn .
-                        '2'
-                    );
-
-                    $sheet->mergeCells(
-                        'A4:' .
-                        $lastColumn .
-                        '4'
-                    );
-
-                    $sheet->getStyle(
-                        'A1:' . $lastColumn . '1'
-                    )->applyFromArray([
-                        'font' => [
-                            'bold' => true,
-                            'size' => 14
-                        ],
-                        'alignment' => [
-                            'horizontal' =>
-                                Alignment::HORIZONTAL_CENTER,
-                            'vertical' =>
-                                Alignment::VERTICAL_CENTER
-                        ]
-                    ]);
-
-                    $sheet->getStyle(
-                        'A2:' . $lastColumn . '2'
-                    )->applyFromArray([
-                        'font' => [
-                            'bold' => true,
-                            'size' => 12
-                        ],
-                        'alignment' => [
-                            'horizontal' =>
-                                Alignment::HORIZONTAL_CENTER,
-                            'vertical' =>
-                                Alignment::VERTICAL_CENTER
-                        ]
-                    ]);
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | SEMUA HEADER TABEL
-                    |--------------------------------------------------------------------------
-                    */
-
+                     * Cari seluruh header NO.
+                     */
                     $headerRows = [];
 
                     for (
@@ -2386,6 +1410,7 @@ class ReportSheet implements
                         $row <= $highestRow;
                         $row++
                     ) {
+
                         $value = trim(
                             (string) $sheet
                                 ->getCell(
@@ -2395,13 +1420,15 @@ class ReportSheet implements
                         );
 
                         if (
-                            strtoupper($value) ===
-                            'NO'
+                            strtoupper($value) === 'NO'
                         ) {
                             $headerRows[] = $row;
                         }
                     }
 
+                    /*
+                     * Style semua form.
+                     */
                     foreach ($headerRows as $headerRow) {
 
                         $sheet->getStyle(
@@ -2413,7 +1440,7 @@ class ReportSheet implements
                         )->applyFromArray([
 
                             'font' => [
-                                'bold' => true
+                                'bold' => true,
                             ],
 
                             'fill' => [
@@ -2422,8 +1449,8 @@ class ReportSheet implements
 
                                 'startColor' => [
                                     'rgb' =>
-                                        'D9E1F2'
-                                ]
+                                        'D9E1F2',
+                                ],
                             ],
 
                             'alignment' => [
@@ -2433,23 +1460,20 @@ class ReportSheet implements
                                 'vertical' =>
                                     Alignment::VERTICAL_CENTER,
 
-                                'wrapText' => true
+                                'wrapText' => true,
                             ],
 
                             'borders' => [
                                 'allBorders' => [
                                     'borderStyle' =>
-                                        Border::BORDER_THIN
-                                ]
-                            ]
+                                        Border::BORDER_THIN,
+                                ],
+                            ],
                         ]);
 
                         /*
-                        |--------------------------------------------------------------------------
-                        | CARI TOTAL UNTUK FORM INI
-                        |--------------------------------------------------------------------------
-                        */
-
+                         * Cari TOTAL setelah header tersebut.
+                         */
                         $totalRow = null;
 
                         for (
@@ -2457,6 +1481,7 @@ class ReportSheet implements
                             $row <= $highestRow;
                             $row++
                         ) {
+
                             $found = false;
 
                             for (
@@ -2468,6 +1493,7 @@ class ReportSheet implements
                                 );
                                 $col++
                             ) {
+
                                 $value = trim(
                                     (string) $sheet
                                         ->getCellByColumnAndRow(
@@ -2480,11 +1506,6 @@ class ReportSheet implements
                                 if (
                                     strtoupper($value) ===
                                     'TOTAL'
-                                    ||
-                                    str_starts_with(
-                                        strtoupper($value),
-                                        'TOTAL '
-                                    )
                                 ) {
                                     $found = true;
                                     break;
@@ -2497,9 +1518,8 @@ class ReportSheet implements
                             }
 
                             /*
-                            | Jika bertemu header berikutnya,
-                            | berarti form sebelumnya tidak punya total.
-                            */
+                             * Header berikutnya berarti form selesai.
+                             */
                             if (
                                 trim(
                                     (string) $sheet
@@ -2535,23 +1555,21 @@ class ReportSheet implements
                                 $totalRow
                             )->applyFromArray([
                                 'font' => [
-                                    'bold' => true
-                                ]
+                                    'bold' => true,
+                                ],
                             ]);
                         }
                     }
 
                     /*
-                    |--------------------------------------------------------------------------
-                    | STYLE JUDUL FORM ORANG
-                    |--------------------------------------------------------------------------
-                    */
-
+                     * Style judul form dan periode.
+                     */
                     for (
                         $row = 1;
                         $row <= $highestRow;
                         $row++
                     ) {
+
                         $value = trim(
                             (string) $sheet
                                 ->getCell(
@@ -2560,17 +1578,18 @@ class ReportSheet implements
                                 ->getValue()
                         );
 
+                        $upper = strtoupper($value);
+
+                        /*
+                         * Judul orang.
+                         */
                         if (
                             str_starts_with(
-                                strtoupper($value),
-                                'PEMBAYARAN BORONGAN -'
-                            )
-                            ||
-                            str_starts_with(
-                                strtoupper($value),
-                                'PEMBAYARAN BORONGAN PACKING -'
+                                $upper,
+                                'PEMBAYARAN BORONGAN'
                             )
                         ) {
+
                             $sheet->mergeCells(
                                 'A' .
                                 $row .
@@ -2580,22 +1599,32 @@ class ReportSheet implements
                             );
 
                             $sheet->getStyle(
+                                'A' . $row . ':' . $lastColumn . $row
+                            )->getAlignment()
+                                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                                ->setVertical(Alignment::VERTICAL_CENTER)
+                                ->setWrapText(false);
+
+                            $sheet->getStyle(
                                 'A' .
                                 $row .
                                 ':' .
                                 $lastColumn .
                                 $row
                             )->applyFromArray([
+
                                 'font' => [
                                     'bold' => true,
-                                    'size' => 12
+                                    'size' => 12,
                                 ],
+
                                 'alignment' => [
                                     'horizontal' =>
                                         Alignment::HORIZONTAL_CENTER,
+
                                     'vertical' =>
-                                        Alignment::VERTICAL_CENTER
-                                ]
+                                        Alignment::VERTICAL_CENTER,
+                                ],
                             ]);
 
                             $sheet
@@ -2603,12 +1632,16 @@ class ReportSheet implements
                                 ->setRowHeight(24);
                         }
 
+                        /*
+                         * Periode setiap form.
+                         */
                         if (
                             str_starts_with(
-                                strtoupper($value),
-                                'PENERIMA :'
+                                $upper,
+                                'PERIODE PENARIKAN:'
                             )
                         ) {
+
                             $sheet->mergeCells(
                                 'A' .
                                 $row .
@@ -2624,25 +1657,40 @@ class ReportSheet implements
                                 $lastColumn .
                                 $row
                             )->applyFromArray([
+
                                 'font' => [
-                                    'bold' => true
+                                    'bold' => true,
+                                    'size' => 10,
                                 ],
+
                                 'alignment' => [
                                     'horizontal' =>
-                                        Alignment::HORIZONTAL_LEFT,
+                                        Alignment::HORIZONTAL_CENTER,
+
                                     'vertical' =>
-                                        Alignment::VERTICAL_CENTER
-                                ]
+                                        Alignment::VERTICAL_CENTER,
+                                ],
                             ]);
+
+                            $sheet
+                                ->getRowDimension($row)
+                                ->setRowHeight(20);
                         }
                     }
 
                     /*
-                    |--------------------------------------------------------------------------
-                    | NUMBER FORMAT SEMUA FORM
-                    |--------------------------------------------------------------------------
-                    */
-
+                     * NUMBER FORMAT.
+                     *
+                     * PENTING:
+                     * "0.##" tidak menggunakan separator ribuan.
+                     *
+                     * 20      => 20
+                     * 20.5    => 20.5
+                     * 1500    => 1500
+                     * 1500.25 => 1500.25
+                     *
+                     * Jadi tidak menjadi 20.000 / 1,500.
+                     */
                     if ($isPacking) {
 
                         $sheet->getStyle(
@@ -2650,7 +1698,7 @@ class ReportSheet implements
                             $highestRow
                         )->getNumberFormat()
                             ->setFormatCode(
-                                '#,##0.##'
+                                '0'
                             );
 
                         $sheet->getStyle(
@@ -2658,7 +1706,7 @@ class ReportSheet implements
                             $highestRow
                         )->getNumberFormat()
                             ->setFormatCode(
-                                '#,##0'
+                                '[$Rp-421] #,##0'
                             );
 
                     } else {
@@ -2668,7 +1716,7 @@ class ReportSheet implements
                             $highestRow
                         )->getNumberFormat()
                             ->setFormatCode(
-                                '#,##0.##'
+                                '0'
                             );
 
                         $sheet->getStyle(
@@ -2676,16 +1724,13 @@ class ReportSheet implements
                             $highestRow
                         )->getNumberFormat()
                             ->setFormatCode(
-                                '#,##0'
+                                '[$Rp-421] #,##0'
                             );
                     }
 
                     /*
-                    |--------------------------------------------------------------------------
-                    | ALIGNMENT
-                    |--------------------------------------------------------------------------
-                    */
-
+                     * Alignment.
+                     */
                     $sheet->getStyle(
                         'A1:' .
                         $lastColumn .
@@ -2696,11 +1741,8 @@ class ReportSheet implements
                         );
 
                     /*
-                    |--------------------------------------------------------------------------
-                    | WIDTH
-                    |--------------------------------------------------------------------------
-                    */
-
+                     * Width.
+                     */
                     if ($isPacking) {
 
                         $widths = [
@@ -2713,7 +1755,7 @@ class ReportSheet implements
                             'G' => 12,
                             'H' => 14,
                             'I' => 12,
-                            'J' => 16
+                            'J' => 16,
                         ];
 
                     } else {
@@ -2725,13 +1767,14 @@ class ReportSheet implements
                             'D' => 16,
                             'E' => 10,
                             'F' => 16,
-                            'G' => 18
+                            'G' => 18,
                         ];
                     }
 
                     foreach (
                         $widths as $column => $width
                     ) {
+
                         $sheet
                             ->getColumnDimension(
                                 $column
@@ -2740,109 +1783,118 @@ class ReportSheet implements
                     }
 
                     /*
-                    |--------------------------------------------------------------------------
-                    | HEIGHT
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $sheet
-                        ->getRowDimension(1)
-                        ->setRowHeight(25);
-
-                    $sheet
-                        ->getRowDimension(2)
-                        ->setRowHeight(22);
-
-                    $sheet
-                        ->getRowDimension(4)
-                        ->setRowHeight(25);
+                     * Freeze.
+                     */
+                    $sheet->freezePane('A4');
 
                     /*
-                    |--------------------------------------------------------------------------
-                    | FREEZE
-                    |--------------------------------------------------------------------------
-                    */
+                     * PRINT A4 PORTRAIT.
+                     *
+                     * Width is fitted to one page, while height is allowed
+                     * to flow naturally. We also add SMART page breaks below
+                     * so the next person's form only moves when the current
+                     * page has insufficient room.
+                     */
+                    $pageSetup = $sheet->getPageSetup();
 
-                    $sheet->freezePane('A6');
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | PRINT
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $sheet->getPageSetup()
+                    $pageSetup
                         ->setOrientation(
-                            PageSetup::ORIENTATION_LANDSCAPE
-                        );
-
-                    $sheet->getPageSetup()
+                            PageSetup::ORIENTATION_PORTRAIT
+                        )
                         ->setPaperSize(
                             PageSetup::PAPERSIZE_A4
-                        );
-
-                    $sheet->getPageSetup()
+                        )
                         ->setFitToWidth(1)
-                        ->setFitToHeight(0);
+                        ->setFitToHeight(0)
+                        ->setFitToPage(false);
 
                     $sheet->getPageMargins()
-                        ->setTop(0.25)
-                        ->setRight(0.25)
-                        ->setBottom(0.25)
-                        ->setLeft(0.25);
-                }
+                        ->setTop(0.20)
+                        ->setRight(0.20)
+                        ->setBottom(0.20)
+                        ->setLeft(0.20);
+
+                    /*
+                     * SMART PAGE BREAK PER FORM
+                     *
+                     * There is no longer a forced "one form = one page" rule.
+                     * A page can contain several forms. A break is inserted
+                     * only when the estimated remaining space is not enough
+                     * for the next complete form.
+                     */
+                    $formTitleRows = [];
+
+                    for ($r = 1; $r <= $highestRow; $r++) {
+
+                        $cell = trim((string) $sheet
+                            ->getCell('A' . $r)
+                            ->getValue());
+
+                        if (str_starts_with(
+                            strtoupper($cell),
+                            'PEMBAYARAN BORONGAN'
+                        )) {
+                            $formTitleRows[] = $r;
+                        }
+                    }
+
+                    /*
+                     * Approximate printable vertical capacity in rows.
+                     * Portrait A4 with the compact margins above normally
+                     * accommodates roughly this amount at the default Excel
+                     * row height. The algorithm below uses actual row heights
+                     * when they have been explicitly set.
+                     */
+                    $pageCapacityPoints = 760;
+                    $usedPoints = 0;
+                    $previousRow = 1;
+
+                    foreach ($formTitleRows as $index => $titleRow) {
+
+                        $nextTitleRow = $formTitleRows[$index + 1] ?? ($highestRow + 1);
+
+                        /* Gap before the next form. */
+                        $formStart = $titleRow;
+                        $formEnd = $nextTitleRow - 1;
+
+                        $formHeight = 0;
+
+                        for ($r = $formStart; $r <= $formEnd; $r++) {
+
+                            $height = $sheet
+                                ->getRowDimension($r)
+                                ->getRowHeight();
+
+                            if ($height === -1 || $height === null || $height <= 0) {
+                                $height = 15;
+                            }
+
+                            $formHeight += $height;
+                        }
+
+                        /*
+                         * First form always starts on page 1. For later forms,
+                         * if it cannot fit, create a break immediately before
+                         * it. This keeps each person's form intact.
+                         */
+                        if (
+                            $index > 0 &&
+                            ($usedPoints + $formHeight) > $pageCapacityPoints
+                        ) {
+                            $sheet->setBreakByColumnAndRow(
+                                1,
+                                $titleRow,
+                                Worksheet::BREAK_ROW
+                            );
+
+                            $usedPoints = $formHeight;
+                        } else {
+                            $usedPoints += $formHeight;
+                        }
+                    }
+                },
         ];
     }
-
-    protected function findTotalRow(
-        $sheet,
-        int $highestRow,
-        string $lastColumn
-    ): ?int {
-
-        for (
-            $row = 1;
-            $row <= $highestRow;
-            $row++
-        ) {
-
-            $values =
-                $sheet->rangeToArray(
-                    'A' .
-                    $row .
-                    ':' .
-                    $lastColumn .
-                    $row,
-                    null,
-                    true,
-                    false
-                )[0];
-
-            foreach (
-                $values
-                as $value
-            ) {
-
-                if (
-                    strtoupper(
-                        trim(
-                            (string) $value
-                        )
-                    ) === 'TOTAL'
-                ) {
-                    return $row;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | SAFE TITLE
-    |--------------------------------------------------------------------------
-    */
 
     protected function safeTitle(
         string $title
@@ -2854,9 +1906,7 @@ class ReportSheet implements
             $title
         );
 
-        $title = trim(
-            $title
-        );
+        $title = trim($title);
 
         if ($title === '') {
             $title = 'BORONGAN';

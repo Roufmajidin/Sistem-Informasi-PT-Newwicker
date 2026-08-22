@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\DetailPo;
 use App\Models\InspectSchedule;
 use App\Models\Kategori;
 use App\Models\PaymentRequest;
@@ -3393,4 +3394,720 @@ class ProduksiMnController extends Controller
 
         return response()->json($rows);
     }
+ public function test()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | 1. PERIODE
+        |--------------------------------------------------------------------------
+        |
+        | Hari ini sampai 7 hari ke belakang.
+        |
+        */
+
+        $now = now();
+
+        $startDate = $now->copy()
+            ->subDays(7)
+            ->startOfDay();
+
+        $endDate = $now->copy()
+            ->endOfDay();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 2. PRODUCTION TIMELINE
+        |--------------------------------------------------------------------------
+        |
+        | ProductionTimeline menjadi sumber utama.
+        |
+        | Hanya:
+        | - type = in
+        | - tanggal 7 hari terakhir
+        |
+        */
+
+        $timelines = ProductionTimeline::query()
+            ->whereRaw(
+                'LOWER(TRIM(type)) = ?',
+                ['in']
+            )
+            ->whereBetween(
+                DB::raw('DATE(date)'),
+                [
+                    $startDate->format('Y-m-d'),
+                    $endDate->format('Y-m-d'),
+                ]
+            )
+            ->orderBy('date', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 3. JIKA TIDAK ADA DATA
+        |--------------------------------------------------------------------------
+        */
+
+        if ($timelines->isEmpty()) {
+            return view('pages.spk.test', [
+                'rows' => collect(),
+                'startDate' => $startDate,
+                'endDate' => $endDate,
+            ]);
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 4. AMBIL SPK
+        |--------------------------------------------------------------------------
+        */
+
+        $spkIds = $timelines
+            ->pluck('spk_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $spks = Spk::query()
+            ->with('po')
+            ->whereIn('id', $spkIds)
+            ->get()
+            ->keyBy('id');
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 5. DETAIL PO
+        |--------------------------------------------------------------------------
+        */
+
+        $detailPoIds = $timelines
+            ->pluck('detail_po_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $detailPos = DetailPo::query()
+            ->whereIn('id', $detailPoIds)
+            ->get()
+            ->keyBy('id');
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 6. ALL IN
+        |--------------------------------------------------------------------------
+        |
+        | Total seluruh pemasukan item di ProductionTimeline
+        | sepanjang waktu.
+        |
+        | TIDAK dibatasi periode 7 hari.
+        |
+        | Kunci:
+        | spk_id + detail_po_id
+        |
+        */
+
+        $allIn = ProductionTimeline::query()
+            ->whereRaw(
+                'LOWER(TRIM(type)) = ?',
+                ['in']
+            )
+            ->whereIn('spk_id', $spkIds)
+            ->whereIn('detail_po_id', $detailPoIds)
+            ->select(
+                'spk_id',
+                'detail_po_id',
+                DB::raw(
+                    'SUM(COALESCE(qty, 0)) AS total_in'
+                )
+            )
+            ->groupBy(
+                'spk_id',
+                'detail_po_id'
+            )
+            ->get()
+            ->keyBy(function ($item) {
+                return $item->spk_id
+                    . '-'
+                    . $item->detail_po_id;
+            });
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 7. INSPECTION SCHEDULE
+        |--------------------------------------------------------------------------
+        |
+        | PASS dan REJECT dicocokkan dengan:
+        | spk_id + detail_po_id
+        |
+        */
+
+        $inspections = InspectSchedule::query()
+            ->whereIn('spk_id', $spkIds)
+            ->whereIn('detail_po_id', $detailPoIds)
+            ->select(
+                'spk_id',
+                'detail_po_id',
+                DB::raw(
+                    'SUM(COALESCE(passed, 0)) AS total_passed'
+                ),
+                DB::raw(
+                    'SUM(COALESCE(rejected, 0)) AS total_rejected'
+                )
+            )
+            ->groupBy(
+                'spk_id',
+                'detail_po_id'
+            )
+            ->get()
+            ->keyBy(function ($item) {
+                return $item->spk_id
+                    . '-' .
+                    $item->detail_po_id;
+            });
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 8. BENTUK ROW
+        |--------------------------------------------------------------------------
+        */
+
+        $rows = collect();
+
+        foreach ($timelines as $timeline) {
+
+            $spk = $spks->get($timeline->spk_id);
+
+            if (!$spk) {
+                continue;
+            }
+
+            $detail = $detailPos->get($timeline->detail_po_id);
+
+            if (!$detail) {
+                continue;
+            }
+
+            $detailData = $detail->detail;
+
+            if (!is_array($detailData)) {
+                continue;
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | DETAIL ITEM
+            |--------------------------------------------------------------------------
+            */
+
+            $articleNr = trim(
+                (string) (
+                    $detailData['article_nr_']
+                    ?? ''
+                )
+            );
+
+            if ($articleNr === '') {
+                continue;
+            }
+
+            $description = trim(
+                (string) (
+                    $detailData['description']
+                    ?? '-'
+                )
+            );
+
+            $sub = trim(
+                (string) (
+                    $detailData['sub_category']
+                    ?? '-'
+                )
+            );
+
+            $qty = (float) (
+                $detailData['qty']
+                ?? 0
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | DATA SPK
+            |--------------------------------------------------------------------------
+            */
+
+            $spkData = $spk->data ?? [];
+
+            if (!is_array($spkData)) {
+                $spkData = [];
+            }
+
+            $noSpk = trim(
+                (string) (
+                    $spkData['no_spk']
+                    ?? '-'
+                )
+            );
+
+            $supplier = trim(
+                (string) (
+                    $spkData['sup']
+                    ?? '-'
+                )
+            );
+
+            $kategori = trim(
+                (string) (
+                    $spkData['kategori']
+                    ?? '-'
+                )
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | NO PFI
+            |--------------------------------------------------------------------------
+            */
+
+            $noPfi = optional(
+                $spk->po
+            )->order_no ?? '-';
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | TANGGAL TIMELINE
+            |--------------------------------------------------------------------------
+            */
+
+            try {
+                $timelineDate = Carbon::parse(
+                    $timeline->date
+                );
+            } catch (\Throwable $e) {
+                continue;
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | QTY IN
+            |--------------------------------------------------------------------------
+            */
+
+            $inQty = (float) (
+                $timeline->qty
+                ?? 0
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | INSPECTION
+            |--------------------------------------------------------------------------
+            */
+
+            $inspectionKey =
+                $timeline->spk_id
+                . '-'
+                . $timeline->detail_po_id;
+
+            $inspection = $inspections->get(
+                $inspectionKey
+            );
+
+            $passQty = $inspection
+                ? (float) (
+                    $inspection->total_passed
+                    ?? 0
+                )
+                : 0;
+
+            $rejectQty = $inspection
+                ? (float) (
+                    $inspection->total_rejected
+                    ?? 0
+                )
+                : 0;
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | ALL IN
+            |--------------------------------------------------------------------------
+            |
+            | Total pemasukan item tersebut di seluruh
+            | ProductionTimeline, tanpa batas tanggal.
+            |
+            */
+
+            $allInKey =
+                $timeline->spk_id
+                . '-'
+                . $timeline->detail_po_id;
+
+            $allInRecord = $allIn->get(
+                $allInKey
+            );
+
+            $allInQty = $allInRecord
+                ? (float) (
+                    $allInRecord->total_in
+                    ?? 0
+                )
+                : 0;
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | SALDO ITEM
+            |--------------------------------------------------------------------------
+            */
+
+            $saldoItem = max(
+                0,
+                $qty - $passQty
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | SALDO PAYMENT SPK
+            |--------------------------------------------------------------------------
+            |
+            | Untuk setiap SPK:
+            |
+            | TOTAL SPK
+            | - seluruh payment yang benar-benar mengurangi saldo
+            |
+            | Data lama bisa memiliki:
+            | amount > 0
+            | adjustment = 0
+            | payment_request_amount = 0
+            |
+            | Jadi sumber nilai payment:
+            |
+            | adjustment jika > 0
+            | ELSE amount
+            |
+            */
+
+            $totalSpk = 0;
+
+            $items = $spkData['items'] ?? [];
+
+            if (is_array($items)) {
+                foreach ($items as $spkItem) {
+                    $totalSpk += (float) (
+                        $spkItem['total']
+                        ?? 0
+                    );
+                }
+            }
+
+
+            $totalPayment = 0;
+
+            $payments = $spkData['payments'] ?? [];
+
+            if (is_array($payments)) {
+
+                foreach ($payments as $payment) {
+
+                    $amount = (float) (
+                        $payment['amount']
+                        ?? 0
+                    );
+
+                    $adjustment = (float) (
+                        $payment['adjustment']
+                        ?? 0
+                    );
+
+                    $paymentValue =
+                        $adjustment > 0
+                            ? $adjustment
+                            : $amount;
+
+                    if ($paymentValue <= 0) {
+                        continue;
+                    }
+
+                    $note = strtolower(
+                        trim(
+                            (string) (
+                                $payment['note']
+                                ?? ''
+                            )
+                        )
+                    );
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | RETURN BAHAN
+                    |--------------------------------------------------------------------------
+                    |
+                    | Return bahan mengembalikan saldo.
+                    |
+                    */
+
+                    if ($note === 'return_bahan') {
+                        $totalPayment -= $paymentValue;
+                        continue;
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | UPAH
+                    |--------------------------------------------------------------------------
+                    |
+                    | Payment upah tidak mengurangi saldo SPK.
+                    |
+                    */
+
+                    if (
+                        $note === 'upah'
+                        ||
+                        str_contains($note, 'upah')
+                    ) {
+                        continue;
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | PAYMENT NORMAL
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $totalPayment += $paymentValue;
+                }
+            }
+
+
+            $saldoPayment = max(
+                0,
+                $totalSpk - $totalPayment
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | PUSH ROW
+            |--------------------------------------------------------------------------
+            */
+
+            $rows->push([
+
+                'tanggal' =>
+                    $timelineDate,
+
+                'article_nr' =>
+                    $articleNr,
+
+                'description' =>
+                    $description,
+
+                'no_pfi' =>
+                    $noPfi,
+
+                'no_spk' =>
+                    $noSpk,
+
+                'supplier' =>
+                    $supplier,
+
+                'kategori' =>
+                    $kategori,
+
+                'sub' =>
+                    $sub,
+
+                'qty' =>
+                    $qty,
+
+                'in' =>
+                    $inQty,
+
+                'all_in' =>
+                    $allInQty,
+
+                'pass' =>
+                    $passQty,
+
+                'rejected' =>
+                    $rejectQty,
+
+                'saldo' =>
+                    $saldoItem,
+
+                'saldo_payment' =>
+                    $saldoPayment,
+
+                'spk_id' =>
+                    $timeline->spk_id,
+
+                'detail_po_id' =>
+                    $timeline->detail_po_id,
+            ]);
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 9. GROUP
+        |--------------------------------------------------------------------------
+        |
+        | Satu item dapat memiliki beberapa production timeline.
+        |
+        | Group:
+        | article + spk + detail_po
+        |
+        */
+
+        $rows = $rows
+            ->groupBy(function ($row) {
+
+                return implode('|', [
+                    $row['article_nr'],
+                    $row['spk_id'],
+                    $row['detail_po_id'],
+                ]);
+            })
+            ->map(function ($group) {
+
+                $first = $group
+                    ->sortBy('tanggal')
+                    ->first();
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | TOTAL IN
+                |--------------------------------------------------------------------------
+                */
+
+                $first['in'] =
+                    $group->sum('in');
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | ALL IN
+                |--------------------------------------------------------------------------
+                |
+                | Jangan dijumlahkan lagi karena setiap row timeline
+                | sudah membawa total lifetime.
+                |
+                */
+
+                $first['all_in'] =
+                    $group->max('all_in');
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | PASS
+                |--------------------------------------------------------------------------
+                */
+
+                $first['pass'] =
+                    $group->max('pass');
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | REJECT
+                |--------------------------------------------------------------------------
+                */
+
+                $first['rejected'] =
+                    $group->max('rejected');
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | SALDO ITEM
+                |--------------------------------------------------------------------------
+                */
+
+                $first['saldo'] = max(
+                    0,
+                    $first['qty']
+                    - $first['pass']
+                );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | SALDO PAYMENT
+                |--------------------------------------------------------------------------
+                |
+                | Sama untuk seluruh item dalam SPK.
+                |
+                */
+
+                $first['saldo_payment'] =
+                    $group->sortByDesc('tanggal')
+                        ->first()['saldo_payment']
+                    ?? 0;
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | TANGGAL
+                |--------------------------------------------------------------------------
+                */
+
+                $first['tanggal'] =
+                    $group
+                        ->pluck('tanggal')
+                        ->sort()
+                        ->first();
+
+                return $first;
+            })
+            ->values();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 10. SORT
+        |--------------------------------------------------------------------------
+        */
+
+        $rows = $rows
+            ->sortBy([
+                ['tanggal', 'asc'],
+                ['article_nr', 'asc'],
+            ])
+            ->values();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 11. RETURN VIEW
+        |--------------------------------------------------------------------------
+        */
+
+        return view('pages.spk.test', [
+            'rows' => $rows,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+        ]);
+    }
+
+
 }

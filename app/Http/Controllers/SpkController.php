@@ -408,6 +408,782 @@ class SpkController extends Controller
         );
     }
 
+    /**
+ * =========================================================
+ * ASSIGN SPK
+ * =========================================================
+ *
+ * Menampilkan seluruh SPK yang masih memiliki
+ * approval/signature yang belum lengkap.
+ *
+ * URL:
+ *
+ * /spk/assign
+ *
+ * Blade:
+ *
+ * pages.spk.assign
+ */
+public function assign(Request $request)
+{
+    // =====================================================
+    // MASTER SUPPLIER TYPE
+    // =====================================================
+
+    $jenisSuppliers = JenisSupplier::orderBy('name')
+        ->get();
+
+
+    // =====================================================
+    // AMBIL SIGNATURE YANG BELUM LENGKAP
+    // =====================================================
+
+    $signatures = SignatureSpk::with([
+        'madeBy.karyawan.divisi',
+        'checkedBy.karyawan.divisi',
+        'checkedBy2.karyawan.divisi',
+        'approvedBy.karyawan.divisi',
+        'supplier',
+    ])
+        ->where(function ($query) {
+
+            $query
+                ->whereNull('made_at')
+                ->orWhereNull('checked_at')
+                ->orWhereNull('checked_at_2')
+                ->orWhereNull('approved_at');
+
+        })
+        ->orderBy('id')
+        ->get();
+
+
+    // =====================================================
+    // KALAU TIDAK ADA SPK
+    // =====================================================
+
+    if ($signatures->isEmpty()) {
+
+        return view(
+            'pages.spk.assign',
+            [
+                'spks' => collect(),
+                'jenisSuppliers' => $jenisSuppliers,
+            ]
+        );
+    }
+
+
+    // =====================================================
+    // AMBIL SEMUA SPK SEKALIGUS
+    //
+    // Hindari:
+    //
+    // foreach
+    //     Spk::find(...)
+    //
+    // karena menyebabkan N+1 query.
+    // =====================================================
+
+    $spkIds = $signatures
+        ->pluck('spk_id')
+        ->filter()
+        ->unique()
+        ->values();
+
+
+    $spkModels = Spk::whereIn(
+        'id',
+        $spkIds
+    )
+        ->get()
+        ->keyBy('id');
+
+
+    // =====================================================
+    // PAYMENT REQUEST SEKALIGUS
+    // =====================================================
+
+    $paymentRequests = PaymentRequest::whereIn(
+        'spk_id',
+        $spkIds
+    )
+        ->latest('id')
+        ->get()
+        ->groupBy('spk_id');
+
+
+    // =====================================================
+    // BAHAN BAKU SEKALIGUS
+    //
+    // Dipertahankan supaya struktur data assign
+    // tetap bisa dikembangkan seperti index SPK.
+    // =====================================================
+
+    $bahanBaku = TransaksiStok::with('stok')
+        ->whereIn(
+            'spk_id',
+            $spkIds
+        )
+        ->where('tipe', 'out')
+        ->orderBy('tanggal')
+        ->get()
+        ->groupBy('spk_id');
+
+
+    // =====================================================
+    // BUILD DATA SPK
+    // =====================================================
+
+    $spks = collect();
+
+
+    foreach ($signatures as $signature) {
+
+        $spkModel =
+            $spkModels->get(
+                $signature->spk_id
+            );
+
+
+        // SPK tidak ditemukan
+        if (!$spkModel) {
+            continue;
+        }
+
+
+        // =================================================
+        // DATA JSON SPK
+        // =================================================
+
+        $data = $spkModel->data ?? [];
+
+        if (!is_array($data)) {
+            $data = [];
+        }
+
+
+        // =================================================
+        // PAYMENT TERBARU
+        // =================================================
+
+        $paymentRequest =
+            $paymentRequests
+                ->get($spkModel->id)
+                ?->first();
+
+
+        // =================================================
+        // ITEMS
+        // =================================================
+
+        $items = collect(
+            $data['items'] ?? []
+        )
+            ->map(function ($item) {
+
+                if (!is_array($item)) {
+                    $item = [];
+                }
+
+                $satuan =
+                    $item['satuan']
+                    ?? 'pcs';
+
+
+                return [
+
+                    'detail_id' =>
+                        $item['detail_po_id']
+                        ?? null,
+
+
+                    'kode' =>
+                        $item['kode']
+                        ?? '-',
+
+
+                    'nama' =>
+                        $item['nama']
+                        ?? '-',
+
+
+                    // CUSTOM COLUMN
+                    'custom_columns' =>
+                        $item['custom_columns']
+                        ?? [],
+
+
+                    // QTY PCS
+                    'pcs' =>
+                        $satuan === 'pcs'
+                            ? ($item['qty'] ?? 0)
+                            : 0,
+
+
+                    // QTY SET
+                    'set' =>
+                        $satuan === 'set'
+                            ? ($item['qty'] ?? 0)
+                            : 0,
+
+
+                    'qty' =>
+                        $item['qty']
+                        ?? 0,
+
+
+                    'harga' =>
+                        $item['harga']
+                        ?? 0,
+
+
+                    'total' =>
+                        $item['total']
+                        ?? 0,
+
+
+                    'satuan' =>
+                        $satuan,
+
+
+                    'images' =>
+                        $item['images']
+                        ?? [],
+
+
+                    'catatan' =>
+                        $item['catatan']
+                        ?? [],
+
+
+                    'p' =>
+                        $item['p']
+                        ?? '-',
+
+
+                    'l' =>
+                        $item['l']
+                        ?? '-',
+
+
+                    't' =>
+                        $item['t']
+                        ?? '-',
+
+
+                    'material' =>
+                        $item['material']
+                        ?? '-',
+
+                ];
+
+            })
+            ->values();
+
+
+        // =================================================
+        // TANGGAL
+        //
+        // NORMALISASI DI CONTROLLER
+        // =================================================
+
+        $tglTerima =
+            $this->parseTanggalIndonesia(
+                $data['tgl_terima']
+                    ?? null
+            );
+
+
+        $tglSelesai =
+            $this->parseTanggalIndonesia(
+                $data['tgl_selesai']
+                    ?? null
+            );
+
+
+        // =================================================
+        // STATUS SIGNATURE
+        // =================================================
+
+        $signatureStatus = [
+
+            'made' => [
+                'done' =>
+                    !empty($signature->made_at),
+
+                'date' =>
+                    $signature->made_at,
+            ],
+
+
+            'checked' => [
+                'done' =>
+                    !empty($signature->checked_at),
+
+                'date' =>
+                    $signature->checked_at,
+            ],
+
+
+            'checked_2' => [
+                'done' =>
+                    !empty($signature->checked_at_2),
+
+                'date' =>
+                    $signature->checked_at_2,
+            ],
+
+
+            'approved' => [
+                'done' =>
+                    !empty($signature->approved_at),
+
+                'date' =>
+                    $signature->approved_at,
+            ],
+
+        ];
+
+
+        // =================================================
+        // HITUNG JUMLAH SIGNATURE
+        // =================================================
+
+        $totalSignature = 4;
+
+        $signedSignature =
+            collect($signatureStatus)
+                ->filter(
+                    fn ($item) =>
+                        $item['done'] === true
+                )
+                ->count();
+
+
+        $pendingSignature =
+            $totalSignature -
+            $signedSignature;
+
+
+        // =================================================
+        // TENTUKAN NEXT APPROVAL
+        // =================================================
+
+        $nextApproval = null;
+
+
+        if (!$signature->made_at) {
+
+            $nextApproval = 'made';
+
+        } elseif (!$signature->checked_at) {
+
+            $nextApproval = 'checked';
+
+        } elseif (!$signature->checked_at_2) {
+
+            $nextApproval = 'checked_2';
+
+        } elseif (!$signature->approved_at) {
+
+            $nextApproval = 'approved';
+
+        }
+
+
+        // =================================================
+        // DATA FINAL
+        // =================================================
+
+        $spks->push([
+
+            // ---------------------------------------------
+            // BASIC
+            // ---------------------------------------------
+
+            'id' =>
+                $spkModel->id,
+
+
+            'spk_id' =>
+                $spkModel->id,
+
+
+            'signature_id' =>
+                $signature->id,
+
+
+            'signature' =>
+                $signature,
+
+
+            // ---------------------------------------------
+            // STATUS
+            // ---------------------------------------------
+
+            'status' =>
+                $spkModel->status
+                ?? 'draft',
+
+
+            'request_status' =>
+                $paymentRequest->status
+                ?? null,
+
+
+            // ---------------------------------------------
+            // HEADER
+            // ---------------------------------------------
+
+            'no_spk' =>
+                $data['no_spk']
+                ?? '-',
+
+
+            'no_po' =>
+                $data['no_po']
+                ?? '-',
+
+
+            'nama' =>
+                $data['sup']
+                ?? '-',
+
+
+            'type' =>
+                $data['kategori']
+                ?? '-',
+
+
+            // ---------------------------------------------
+            // DATE
+            // ---------------------------------------------
+
+            'tgl_terima' =>
+                $tglTerima,
+
+
+            'tgl_selesai' =>
+                $tglSelesai,
+
+
+            // ---------------------------------------------
+            // ITEMS
+            // ---------------------------------------------
+
+            'items' =>
+                $items,
+
+
+            // ---------------------------------------------
+            // PAYMENT
+            // ---------------------------------------------
+
+            'payments' =>
+                $data['payments']
+                ?? [],
+
+
+            // ---------------------------------------------
+            // CUSTOM
+            // ---------------------------------------------
+
+            'checked_types' =>
+                $data['checked_types']
+                ?? [],
+
+
+            'custom_headers' =>
+                $data['custom_headers']
+                ?? [],
+
+
+            // ---------------------------------------------
+            // PPN
+            // ---------------------------------------------
+
+            'ppn_enabled' =>
+                (bool) (
+                    $data['ppn_enabled']
+                    ?? false
+                ),
+
+
+            'ppn_rate' =>
+                (float) (
+                    $data['ppn_rate']
+                    ?? 11
+                ),
+
+
+            // ---------------------------------------------
+            // SIGNATURE STATUS
+            // ---------------------------------------------
+
+            'signature_status' =>
+                $signatureStatus,
+
+
+            'signed_count' =>
+                $signedSignature,
+
+
+            'pending_count' =>
+                $pendingSignature,
+
+
+            'next_approval' =>
+                $nextApproval,
+
+
+            // ---------------------------------------------
+            // BAHAN BAKU
+            // ---------------------------------------------
+
+            'bahan_baku' =>
+                $bahanBaku
+                    ->get($spkModel->id)
+                    ?? collect(),
+
+
+            // ---------------------------------------------
+            // MODE
+            // ---------------------------------------------
+
+            'mode' =>
+                'assign',
+
+        ]);
+    }
+
+
+    // =====================================================
+    // SORT
+    //
+    // Yang paling membutuhkan tanda tangan
+    // diletakkan lebih dahulu.
+    // =====================================================
+
+    $spks = $spks
+        ->sortBy(function ($spk) {
+
+            return [
+                $spk['pending_count'] * -1,
+                $spk['id'],
+            ];
+
+        })
+        ->values();
+
+
+    // =====================================================
+    // RETURN ASSIGN VIEW
+    // =====================================================
+
+    return view(
+        'pages.spk.assign',
+        [
+            'spks' =>
+                $spks,
+
+            'jenisSuppliers' =>
+                $jenisSuppliers,
+        ]
+    );
+}
+private function parseTanggalIndonesia($value, $default = null)
+{
+    if ($value === null || $value === '') {
+        return $default;
+    }
+
+    // Kalau sudah Carbon
+    if ($value instanceof Carbon) {
+        return $value->format('Y-m-d');
+    }
+
+    // Kalau DateTime / DateTimeInterface
+    if ($value instanceof \DateTimeInterface) {
+        return Carbon::instance($value)->format('Y-m-d');
+    }
+
+    $value = trim((string) $value);
+
+    if ($value === '') {
+        return $default;
+    }
+
+    // Normalisasi whitespace
+    $value = preg_replace('/\s+/', ' ', $value);
+
+    // Hilangkan spasi di sekitar tanda -
+    $value = preg_replace('/\s*-\s*/', '-', $value);
+
+    // Hilangkan spasi di sekitar /
+    $value = preg_replace('/\s*\/\s*/', '/', $value);
+
+    // Hilangkan spasi di sekitar .
+    $value = preg_replace('/\s*\.\s*/', '.', $value);
+
+    // =====================================================
+    // BULAN INDONESIA
+    // =====================================================
+
+    $bulanIndonesia = [
+        'januari'   => '01',
+        'februari'  => '02',
+        'maret'     => '03',
+        'april'     => '04',
+        'mei'       => '05',
+        'juni'      => '06',
+        'juli'      => '07',
+        'agustus'   => '08',
+        'september' => '09',
+        'oktober'   => '10',
+        'november'  => '11',
+        'desember'  => '12',
+    ];
+
+    // Singkatan Indonesia
+    $bulanSingkat = [
+        'jan' => '01',
+        'feb' => '02',
+        'mar' => '03',
+        'apr' => '04',
+        'mei' => '05',
+        'jun' => '06',
+        'jul' => '07',
+        'agu' => '08',
+        'ags' => '08',
+        'sep' => '09',
+        'okt' => '10',
+        'nov' => '11',
+        'des' => '12',
+    ];
+
+    // =====================================================
+    // GANTI BULAN INDONESIA DENGAN ANGKA
+    // =====================================================
+
+    $lower = strtolower($value);
+
+    foreach ($bulanIndonesia as $nama => $bulan) {
+        $lower = preg_replace(
+            '/\b' . preg_quote($nama, '/') . '\b/i',
+            $bulan,
+            $lower
+        );
+    }
+
+    foreach ($bulanSingkat as $nama => $bulan) {
+        $lower = preg_replace(
+            '/\b' . preg_quote($nama, '/') . '\b/i',
+            $bulan,
+            $lower
+        );
+    }
+
+    $value = trim($lower);
+
+    // =====================================================
+    // FORMAT:
+    // 7-07-2026
+    // 7/07/2026
+    // 7.07.2026
+    // =====================================================
+
+    $formats = [
+        'd-m-Y',
+        'j-m-Y',
+        'd/m/Y',
+        'j/n/Y',
+        'd.m.Y',
+        'j.n.Y',
+
+        'd-m-y',
+        'j-m-y',
+        'd/m/y',
+        'j/n/y',
+        'd.m.y',
+        'j.n.y',
+
+        'Y-m-d',
+        'Y/m/d',
+        'Y.m.d',
+
+        'd-M-Y',
+        'j-M-Y',
+        'd-M-y',
+        'j-M-y',
+
+        'd-F-Y',
+        'j-F-Y',
+        'd-F-y',
+        'j-F-y',
+    ];
+
+    foreach ($formats as $format) {
+
+        try {
+
+            $date = Carbon::createFromFormat(
+                $format,
+                $value
+            );
+
+            if ($date !== false) {
+                return $date->format('Y-m-d');
+            }
+
+        } catch (\Throwable $e) {
+            // lanjut ke format berikutnya
+        }
+    }
+
+    // =====================================================
+    // FORMAT SPECIAL:
+    // 7-07- 2026
+    // =====================================================
+
+    $normalized = preg_replace(
+        '/\s+/',
+        '',
+        $value
+    );
+
+    foreach ($formats as $format) {
+
+        try {
+
+            $date = Carbon::createFromFormat(
+                $format,
+                $normalized
+            );
+
+            if ($date !== false) {
+                return $date->format('Y-m-d');
+            }
+
+        } catch (\Throwable $e) {
+            // lanjut
+        }
+    }
+
+    // =====================================================
+    // FALLBACK CARBON
+    // =====================================================
+
+    try {
+
+        return Carbon::parse($value)
+            ->format('Y-m-d');
+
+    } catch (\Throwable $e) {
+
+        return $default;
+    }
+}
     // helper
     private function generateNoSpk($noPo)
     {
@@ -660,169 +1436,21 @@ class SpkController extends Controller
             }
 
             // =================================================
-            // VALIDASI QTY
+            // VALIDASI QTY SEMENTARA DIMATIKAN
             // =================================================
-
-            if ($mode === 'create') {
-
-                // =================================================
-                // CREATE
-                // =================================================
-
-                $sisaQty =
-                    $qtyPo -
-                    $qtySpkLain;
-
-                if ($qty > $sisaQty) {
-
-                    return response()->json([
-                        'success' => false,
-
-                        'message' =>
-                            'Qty SPK melebihi Qty PO ' .
-                            '(Sisa: ' .
-                            max(0, $sisaQty) .
-                            ')',
-
-                        'debug' => [
-                            'mode' =>
-                                $mode,
-
-                            'spk_id' =>
-                                $spkId,
-
-                            'kategori' =>
-                                $kategori,
-
-                            'detail_po_id' =>
-                                $detailPo->id,
-
-                            'qty_po' =>
-                                $qtyPo,
-
-                            'qty_spk_lain' =>
-                                $qtySpkLain,
-
-                            'qty_request' =>
-                                $qty,
-
-                            'sisa_qty' =>
-                                $sisaQty,
-                        ],
-                    ], 422);
-                }
-
-            } else {
-
-                // =================================================
-                // EDIT
-                // =================================================
-                //
-                // Hanya penambahan dari qty lama yang divalidasi.
-                //
-                // Contoh:
-                //
-                // Qty PO    = 30
-                // Qty lama  = 50
-                // Qty baru  = 50
-                //
-                // Tambahan = 0
-                // => BOLEH
-                //
-                // Qty lama  = 50
-                // Qty baru  = 51
-                //
-                // Tambahan = 1
-                // => DICEK
-                //
-                // =================================================
-
-                $qtyTambahan =
-                    $qty -
-                    $qtyLama;
-
-                // Jika qty dikurangi,
-                // tidak dianggap penambahan.
-                if ($qtyTambahan < 0) {
-                    $qtyTambahan = 0;
-                }
-
-                // =================================================
-                // SISA QTY UNTUK PENAMBAHAN
-                // =================================================
-                $sisaTambahan =
-                    $qtyPo
-                    -
-                    $qtySpkLain
-                    -
-                    $qtyLama;
-
-                /*
-                |--------------------------------------------------------------------------
-                | Kalau qty lama sudah melebihi Qty PO,
-                | tetap boleh menyimpan qty lama.
-                |
-                | Tetapi tidak boleh menambah qty lagi.
-                |--------------------------------------------------------------------------
-                */
-
-                if ($qtyTambahan > 0) {
-
-                    $sisaTambahanAman =
-                        max(
-                            0,
-                            $sisaTambahan
-                        );
-
-                    if (
-                        $qtyTambahan >
-                        $sisaTambahanAman
-                    ) {
-
-                        return response()->json([
-                            'success' => false,
-
-                            'message' =>
-                                'Qty tambahan SPK melebihi sisa Qty PO ' .
-                                '(Sisa tambahan: ' .
-                                $sisaTambahanAman .
-                                ')',
-
-                            'debug' => [
-                                'mode' =>
-                                    $mode,
-
-                                'spk_id' =>
-                                    $spkId,
-
-                                'kategori' =>
-                                    $kategori,
-
-                                'detail_po_id' =>
-                                    $detailPo->id,
-
-                                'qty_po' =>
-                                    $qtyPo,
-
-                                'qty_spk_lain' =>
-                                    $qtySpkLain,
-
-                                'qty_lama' =>
-                                    $qtyLama,
-
-                                'qty_request' =>
-                                    $qty,
-
-                                'qty_tambahan' =>
-                                    $qtyTambahan,
-
-                                'sisa_tambahan' =>
-                                    $sisaTambahanAman,
-                            ],
-                        ], 422);
-                    }
-                }
-            }
+            //
+            // Untuk sementara qty SPK BOLEH melebihi Qty PO.
+            //
+            // Perhitungan berikut tetap dipertahankan:
+            // - $qtyPo
+            // - $qtySpkLain
+            // - $qtyLama
+            //
+            // Tidak ada fungsi lain yang diubah.
+            //
+            // Validasi Qty dapat diaktifkan kembali nanti
+            // dengan mengembalikan blok VALIDASI QTY lama.
+            // =================================================
 
             // =================================================
             // IMAGE ITEM
@@ -1218,6 +1846,7 @@ class SpkController extends Controller
             ],
         ]);
     }
+
     public function timeline($id)
     {
         $timelines = SpkTimeline::where('spk_id', $id)

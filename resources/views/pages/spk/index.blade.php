@@ -5,11 +5,73 @@
 
     <style>
         /* =========================================================
-       SPK PRODUKSI - CLEAN MODERN LAYOUT (Matching preview.html)
-       ========================================================= */
+   PUSHER REALTIME MOUSE CURSOR
+   ========================================================= */
+
+#spkRemoteCursors {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999999;
+}
+
+.spk-remote-cursor {
+    position: fixed;
+    pointer-events: none;
+    transform: translate(-1px, -1px);
+    transition:
+        left 90ms linear,
+        top 90ms linear;
+    will-change: left, top;
+}
+
+.spk-remote-cursor-arrow {
+    width: 0;
+    height: 0;
+
+    border-top: 0 solid transparent;
+    border-bottom: 15px solid transparent;
+    border-left: 11px solid #2563eb;
+
+    transform: rotate(-42deg);
+
+    filter:
+        drop-shadow(0 1px 1px rgba(0,0,0,.25));
+}
+
+.spk-remote-cursor-name {
+    position: absolute;
+
+    left: 9px;
+    top: 12px;
+
+    padding: 3px 7px;
+
+    border-radius: 4px;
+
+    background: #2563eb;
+    color: #fff;
+
+    font-size: 10px;
+    font-weight: 700;
+
+    line-height: 1.2;
+
+    white-space: nowrap;
+
+    box-shadow:
+        0 2px 5px rgba(0,0,0,.18);
+}
+
+.spk-remote-cursor.is-idle {
+    opacity: .45;
+}
+        /* =========================================================
+                   SPK PRODUKSI - CLEAN MODERN LAYOUT (Matching preview.html)
+                   ========================================================= */
         :root {
-            --spk-navy: #263f7f;
-            --spk-blue: #087bd9;
+            --spk-navy: #50b95a;
+            --spk-blue: #6f7174;
             --spk-green: #50b95a;
             --spk-pink: #f16b89;
             --spk-border: #d8dee8;
@@ -32,7 +94,363 @@
             color: var(--spk-text);
             font-size: 12px;
         }
+/* =========================================================
+   FLOATING SPK ACTION
+   ========================================================= */
 
+.spk-floating-actions {
+    position: fixed;
+
+    right: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+
+    width: 120px;
+
+    z-index: 9999;
+
+    background: rgba(255,255,255,.97);
+
+    border: 1px solid #dce3ec;
+
+    border-radius: 12px;
+
+    box-shadow:
+        0 14px 35px rgba(15,23,42,.14),
+        0 3px 8px rgba(15,23,42,.06);
+
+    overflow: hidden;
+
+    user-select: none;
+
+    transition:
+        box-shadow .15s ease,
+        opacity .15s ease;
+}
+
+
+/* =========================================================
+   HEADER / DRAG HANDLE
+   ========================================================= */
+
+.spk-floating-header {
+
+    height: 38px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    padding: 0 11px;
+
+    background: #f8fafc;
+
+    border-bottom: 1px solid #e8edf3;
+
+    cursor: move;
+
+}
+
+.spk-floating-title {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 7px;
+
+    color: #1e293b;
+
+    font-size: 11px;
+
+    font-weight: 750;
+
+}
+
+.spk-floating-title i {
+
+    width: 23px;
+    height: 23px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 6px;
+
+    background: #eef3ff;
+
+    color: #3158c9;
+
+    font-size: 10px;
+
+}
+
+.spk-drag-hint {
+
+    color: #94a3b8;
+
+    font-size: 11px;
+
+}
+
+
+/* =========================================================
+   BODY
+   ========================================================= */
+
+.spk-floating-body {
+
+    padding: 7px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 4px;
+
+}
+
+
+/* =========================================================
+   BUTTON
+   ========================================================= */
+
+.spk-floating-btn {
+
+    width: 100%;
+
+    min-height: 42px;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 9px;
+
+    padding: 6px 8px;
+
+    border: 1px solid transparent;
+
+    border-radius: 8px;
+
+    background: #fff;
+
+    text-align: left;
+
+    cursor: pointer;
+
+    transition:
+        background .15s ease,
+        border-color .15s ease,
+        transform .12s ease;
+
+}
+
+.spk-floating-btn:hover {
+
+    transform: translateX(-1px);
+
+}
+
+
+/* ICON */
+
+.spk-btn-icon {
+
+    width: 28px;
+    height: 28px;
+
+    min-width: 28px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 7px;
+
+    font-size: 11px;
+
+}
+
+
+/* TEXT */
+
+.spk-floating-btn strong {
+
+    display: block;
+
+    font-size: 10px;
+
+    line-height: 1.2;
+
+    font-weight: 750;
+
+}
+
+.spk-floating-btn small {
+
+    display: block;
+
+    margin-top: 2px;
+
+    font-size: 8px;
+
+    color: #8a96a6;
+
+    line-height: 1.2;
+
+}
+
+
+/* =========================================================
+   SIGNATURE
+   ========================================================= */
+
+.spk-btn-signature {
+
+    border-color: #dbe5fb;
+
+}
+
+.spk-btn-signature .spk-btn-icon {
+
+    background: #eef3ff;
+
+    color: #3158c9;
+
+}
+
+.spk-btn-signature strong {
+
+    color: #3158c9;
+
+}
+
+.spk-btn-signature:hover {
+
+    background: #f7f9ff;
+
+    border-color: #b9c9f3;
+
+}
+
+
+/* =========================================================
+   SAVE
+   ========================================================= */
+
+.spk-btn-save {
+
+    border-color: #d9efe1;
+
+}
+
+.spk-btn-save .spk-btn-icon {
+
+    background: #edf9f1;
+
+    color: #159957;
+
+}
+
+.spk-btn-save strong {
+
+    color: #16834d;
+
+}
+
+.spk-btn-save:hover {
+
+    background: #f7fcf8;
+
+    border-color: #b8dfc7;
+
+}
+
+
+/* =========================================================
+   CLOSE
+   ========================================================= */
+
+.spk-btn-close {
+
+    border-color: #f1dada;
+
+}
+
+.spk-btn-close .spk-btn-icon {
+
+    background: #fff2f2;
+
+    color: #d64545;
+
+}
+
+.spk-btn-close strong {
+
+    color: #c63d3d;
+
+}
+
+.spk-btn-close:hover {
+
+    background: #fffafa;
+
+    border-color: #e7bebe;
+
+}
+
+
+/* =========================================================
+   DRAGGING
+   ========================================================= */
+
+.spk-floating-actions.is-dragging {
+
+    transition: none;
+
+    transform: none;
+
+    box-shadow:
+        0 20px 45px rgba(15,23,42,.20),
+        0 5px 12px rgba(15,23,42,.08);
+
+}
+
+.spk-floating-actions.is-dragging
+.spk-floating-header {
+
+    cursor: grabbing;
+
+}
+
+.spk-floating-actions:not(.is-dragging) {
+    will-change: transform;
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 767px) {
+
+    .spk-floating-actions {
+
+        width: 185px;
+
+        right: 0px;
+        top: 50%;
+        transform: translateY(-50%);
+
+    }
+
+}
         /* CONTAINER BOX */
         .box {
             width: 100% !important;
@@ -41,6 +459,12 @@
             background: transparent !important;
             border: none !important;
             box-shadow: none !important;
+        }
+
+        .spk-cell-selected {
+            background: #dbeafe !important;
+            outline: 2px solid #3b82f6 !important;
+            outline-offset: -2px;
         }
 
         /* TOP STICKY TOOLBAR */
@@ -799,6 +1223,25 @@
             line-height: 1.6;
         }
 
+        /* =========================================================
+           JUMP TO SIGNATURE HIGHLIGHT
+           ========================================================= */
+        .spk-signature-card.spk-jump-highlight {
+            animation: spkSignatureFlash 1.4s ease;
+        }
+
+        @keyframes spkSignatureFlash {
+            0% {
+                box-shadow: 0 0 0 0 rgba(49, 88, 201, 0);
+            }
+            25% {
+                box-shadow: 0 0 0 5px rgba(49, 88, 201, .16);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(49, 88, 201, 0);
+            }
+        }
+
         /* SIGNATURE AREA */
         .spk-signature-card {
             margin-top: 12px;
@@ -883,6 +1326,7 @@
     <input type="hidden" id="spk_mode" value="{{ $spk['mode'] }}">
     <input type="hidden" id="spk_id" value="{{ $spk['id'] }}">
 
+<div id="spkRemoteCursors"></div>
     <div class="box">
         <!-- TOP TOOLBAR -->
     @section('btn')
@@ -922,9 +1366,9 @@
 
     <!-- MAIN WORKSPACE -->
     <div class="box-body spk-wrapper" id="printArea">
-        <div class="spk-main-card">
+        <div class="spk-main-card mt-4">
             <!-- LOGO & SEARCH AREA -->
-            <div class="spk-card-head">
+            {{-- <div class="spk-card-head">
                 <div class="spk-logo-area">
                     <img src="{{ asset('/assets/images/NEWWICKER WHITE.png') }}" alt="NewWicker"
                         onerror="this.outerHTML='<div style=\'font-family:Georgia,serif; font-size:28px; color:#858b95; font-weight:bold;\'>NewWicker</div>'">
@@ -938,10 +1382,10 @@
                         <div id="itemSuggest" class="suggest-box"></div>
                     </div>
                 </div>
-            </div>
+            </div> --}}
 
             <!-- META INFO GRID (NO SPK, NO PO, ACTIONS, NAMA SUPPLIER) -->
-            <div class="spk-meta-grid">
+            <div class="spk-meta-grid mt-2">
                 <div class="spk-meta-col">
                     <span class="spk-meta-label">NO SPK</span>
                     <div class="editable spk-meta-value no-spk" contenteditable="true">{{ $spk['no_spk'] }}</div>
@@ -1215,11 +1659,100 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr>
-                                <td colspan="9" class="empty-text">
-                                    Waiting Warehouse to Out Bahan Baku's
-                                </td>
-                            </tr>
+                            @forelse (($bahanBaku ?? collect()) as $bahan)
+                                @php
+                                    $tanggalBahan = $bahan->tanggal ?? null;
+                                    $hargaInv = (float) ($bahan->stok->harga ?? 0);
+                                    $qtyBahan = (float) ($bahan->qty ?? 0);
+
+                                    /*
+                                     * TransaksiStok yang dikirim controller saat ini
+                                     * belum memiliki field harga adjustment khusus.
+                                     * Karena itu tampilkan harga adjustment dari field
+                                     * yang tersedia jika ada, jika tidak gunakan harga inventory.
+                                     */
+                                    $hargaAdj = $bahan->harga_adj
+                                        ?? $bahan->harga_adjustment
+                                        ?? $hargaInv;
+
+                                    $hargaAdj = (float) $hargaAdj;
+                                    $totalBahan = $qtyBahan * $hargaAdj;
+                                @endphp
+
+                                <tr class="bahan-baku-row">
+                                    <td class="text-center">
+                                        {{ $loop->iteration }}
+                                    </td>
+
+                                    <td class="text-center">
+                                        @if ($tanggalBahan)
+                                            {{ \Carbon\Carbon::parse($tanggalBahan)->format('d/m/Y') }}
+                                        @else
+                                            -
+                                        @endif
+                                    </td>
+
+                                    <td class="text-center">
+                                        <span style="
+                                            display:inline-flex;
+                                            align-items:center;
+                                            justify-content:center;
+                                            padding:2px 7px;
+                                            border-radius:999px;
+                                            font-size:9px;
+                                            font-weight:700;
+                                            text-transform:uppercase;
+                                            background:{{ strtolower($bahan->tipe ?? '') === 'out' ? '#fff1f2' : '#ecfdf5' }};
+                                            color:{{ strtolower($bahan->tipe ?? '') === 'out' ? '#be123c' : '#047857' }};
+                                        ">
+                                            {{ $bahan->tipe ?? '-' }}
+                                        </span>
+                                    </td>
+
+                                    <td>
+                                        <div style="font-weight:600;">
+                                            {{ $bahan->stok->nama_barang ?? '-' }}
+                                        </div>
+
+                                        @if (!empty($bahan->stok->kode_barang))
+                                            <small style="color:#94a3b8;">
+                                                {{ $bahan->stok->kode_barang }}
+                                            </small>
+                                        @endif
+                                    </td>
+
+                                    <td class="text-right">
+                                        {{ rtrim(rtrim(number_format($qtyBahan, 2, ',', '.'), '0'), ',') }}
+                                        @if (!empty($bahan->stok->satuan))
+                                            <span style="color:#64748b;">
+                                                {{ $bahan->stok->satuan }}
+                                            </span>
+                                        @endif
+                                    </td>
+
+                                    <td class="text-right">
+                                        Rp {{ number_format($hargaInv, 0, ',', '.') }}
+                                    </td>
+
+                                    <td class="text-right">
+                                        Rp {{ number_format($hargaAdj, 0, ',', '.') }}
+                                    </td>
+
+                                    <td class="text-right" style="font-weight:700;">
+                                        Rp {{ number_format($totalBahan, 0, ',', '.') }}
+                                    </td>
+
+                                    <td>
+                                        {{ $bahan->keterangan ?? '-' }}
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="9" class="empty-text">
+                                        Belum ada pengambilan bahan baku dari warehouse.
+                                    </td>
+                                </tr>
+                            @endforelse
                         </tbody>
                     </table>
                 </div>
@@ -1461,12 +1994,61 @@
         </div>
     </div>
 </div>
+<!-- =========================================================
+     FLOATING ACTION PANEL
+     ========================================================= -->
+<div id="spkFloatingActions" class="spk-floating-actions">
 
+    <div class="spk-floating-header" id="spkFloatingDrag">
+
+        <div class="spk-floating-title">
+            <i class="fa fa-bolt"></i>
+            <span>Action</span>
+        </div>
+
+        <span class="spk-drag-hint">
+            <i class="fa fa-grip-lines"></i>
+        </span>
+
+    </div>
+
+
+    <div class="spk-floating-body">
+
+        <!-- Jump Signature -->
+        <button type="button"
+                class="spk-floating-btn spk-btn-signature"
+                id="btnJumpSignature">
+
+            <span class="spk-btn-icon">
+                <i class="fa fa-angle-double-down"></i>
+            </span>
+
+            <span>
+                <strong>Signature</strong>
+                <small>Jump to signature</small>
+            </span>
+
+        </button>
+
+
+
+
+
+    </div>
+
+</div>
 <!-- SCRIPTS -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-
+<script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
 <script>
+      const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 1500
+    });
     /* =========================================
            ADD DYNAMIC HEADER BUTTON
            ========================================= */
@@ -1777,7 +2359,9 @@
         }
 
         // Harga yang tampil tetap harga dasar.
-        hargaCell.innerText = format(baseHarga);
+        if (document.activeElement !== hargaCell) {
+            hargaCell.innerText = format(baseHarga);
+        }
 
         hitungGrandTotal();
     }
@@ -1790,7 +2374,690 @@
         updatePaymentSummary();
     }
 
+    /* =========================================================
+       EXCEL STYLE NAVIGATION
+       Arrow Left / Right / Up / Down
+       Enter / Shift + Enter
+       ========================================================= */
+   
+       (function() {
 
+        function editableCellsInRow(row) {
+            return Array.from(
+                row.querySelectorAll('td.editable[contenteditable="true"]')
+            ).filter(el => !el.classList.contains('image-box'));
+        }
+
+        function allEditableRows() {
+            return Array.from(
+                document.querySelectorAll('#spkItemsBody tr')
+            );
+        }
+
+        function placeCaret(cell, position = 'end') {
+
+            if (!cell) return;
+
+            cell.focus();
+
+            const selection = window.getSelection();
+            const range = document.createRange();
+
+            range.selectNodeContents(cell);
+
+            if (position === 'start') {
+                range.collapse(true);
+            } else {
+                range.collapse(false);
+            }
+
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+
+
+        document.addEventListener('keydown', function(e) {
+
+            const cell = e.target.closest(
+                '#spkItemsBody td.editable[contenteditable="true"]'
+            );
+
+            if (!cell) return;
+
+            /*
+            |--------------------------------------------------------------------------
+            | Jangan navigasi kalau sedang memilih text.
+            |--------------------------------------------------------------------------
+            */
+            const selection = window.getSelection();
+
+            const hasTextSelection =
+                selection &&
+                selection.rangeCount &&
+                !selection.isCollapsed;
+
+            /*
+            |--------------------------------------------------------------------------
+            | ENTER
+            |--------------------------------------------------------------------------
+            */
+
+            if (e.key === 'Enter') {
+
+                e.preventDefault();
+
+                const rows = allEditableRows();
+                const row = cell.closest('tr');
+
+                const rowIndex = rows.indexOf(row);
+
+                if (rowIndex === -1) return;
+
+                const currentCells = editableCellsInRow(row);
+                const colIndex = currentCells.indexOf(cell);
+
+                if (colIndex === -1) return;
+
+                const nextIndex = e.shiftKey ?
+                    rowIndex - 1 :
+                    rowIndex + 1;
+
+                if (
+                    nextIndex >= 0 &&
+                    nextIndex < rows.length
+                ) {
+
+                    const targetCells =
+                        editableCellsInRow(rows[nextIndex]);
+
+                    const target =
+                        targetCells[colIndex];
+
+                    if (target) {
+                        placeCaret(target, 'end');
+                    }
+                }
+
+                return;
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | ARROW LEFT
+            |--------------------------------------------------------------------------
+            */
+
+            if (e.key === 'ArrowLeft') {
+
+                /*
+                 * Kalau sedang blok text di dalam cell,
+                 * biarkan browser menggeser selection.
+                 */
+                if (hasTextSelection) return;
+
+                const selection = window.getSelection();
+
+                if (
+                    selection &&
+                    selection.rangeCount
+                ) {
+
+                    const range = selection.getRangeAt(0);
+
+                    /*
+                     * Kalau cursor masih di tengah text,
+                     * biarkan bergerak normal.
+                     */
+                    if (range.startOffset > 0) {
+                        return;
+                    }
+                }
+
+                e.preventDefault();
+
+                const row = cell.closest('tr');
+                const cells = editableCellsInRow(row);
+                const index = cells.indexOf(cell);
+
+                if (index > 0) {
+
+                    const target = cells[index - 1];
+
+                    placeCaret(target, 'end');
+                }
+
+                return;
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | ARROW RIGHT
+            |--------------------------------------------------------------------------
+            */
+
+            if (e.key === 'ArrowRight') {
+
+                if (hasTextSelection) return;
+
+                const selection = window.getSelection();
+
+                if (
+                    selection &&
+                    selection.rangeCount
+                ) {
+
+                    const range = selection.getRangeAt(0);
+
+                    const node = range.startContainer;
+
+                    let length = 0;
+
+                    if (node.nodeType === Node.TEXT_NODE) {
+                        length = node.textContent.length;
+                    } else {
+                        length = node.textContent?.length || 0;
+                    }
+
+                    /*
+                     * Kalau cursor belum sampai akhir text,
+                     * biarkan browser bergerak normal.
+                     */
+                    if (range.startOffset < length) {
+                        return;
+                    }
+                }
+
+                e.preventDefault();
+
+                const row = cell.closest('tr');
+                const cells = editableCellsInRow(row);
+                const index = cells.indexOf(cell);
+
+                if (
+                    index >= 0 &&
+                    index < cells.length - 1
+                ) {
+
+                    const target = cells[index + 1];
+
+                    placeCaret(target, 'start');
+                }
+
+                return;
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | ARROW UP
+            |--------------------------------------------------------------------------
+            */
+
+            if (e.key === 'ArrowUp') {
+
+                if (hasTextSelection) return;
+
+                e.preventDefault();
+
+                const rows = allEditableRows();
+                const row = cell.closest('tr');
+
+                const rowIndex = rows.indexOf(row);
+
+                if (rowIndex <= 0) return;
+
+                const currentCells = editableCellsInRow(row);
+                const colIndex = currentCells.indexOf(cell);
+
+                if (colIndex === -1) return;
+
+
+                /*
+                 * Cari row sebelumnya yang memiliki
+                 * kolom editable tersebut.
+                 */
+                for (
+                    let i = rowIndex - 1; i >= 0; i--
+                ) {
+
+                    const targetCells =
+                        editableCellsInRow(rows[i]);
+
+                    const target =
+                        targetCells[colIndex];
+
+                    if (target) {
+
+                        placeCaret(target, 'end');
+
+                        return;
+                    }
+                }
+
+                return;
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | ARROW DOWN
+            |--------------------------------------------------------------------------
+            */
+
+            if (e.key === 'ArrowDown') {
+
+                if (hasTextSelection) return;
+
+                e.preventDefault();
+
+                const rows = allEditableRows();
+                const row = cell.closest('tr');
+
+                const rowIndex = rows.indexOf(row);
+
+                if (rowIndex === -1) return;
+
+                const currentCells = editableCellsInRow(row);
+                const colIndex = currentCells.indexOf(cell);
+
+                if (colIndex === -1) return;
+
+
+                for (
+                    let i = rowIndex + 1; i < rows.length; i++
+                ) {
+
+                    const targetCells =
+                        editableCellsInRow(rows[i]);
+
+                    const target =
+                        targetCells[colIndex];
+
+                    if (target) {
+
+                        placeCaret(target, 'end');
+
+                        return;
+                    }
+                }
+
+                return;
+            }
+
+        });
+
+    })();
+// grabb
+/* =========================================================
+   FLOATING SPK ACTION
+   ========================================================= */
+(function () {
+
+    const panel =
+        document.getElementById('spkFloatingActions');
+
+    const handle =
+        document.getElementById('spkFloatingDrag');
+
+    if (!panel || !handle) return;
+
+
+    /* =====================================================
+       DRAG PANEL
+       ===================================================== */
+
+    let dragging = false;
+
+    let offsetX = 0;
+    let offsetY = 0;
+
+
+    handle.addEventListener('mousedown', function (e) {
+
+        dragging = true;
+
+        const rect =
+            panel.getBoundingClientRect();
+
+        offsetX =
+            e.clientX - rect.left;
+
+        offsetY =
+            e.clientY - rect.top;
+
+        panel.classList.add('is-dragging');
+
+        /*
+         * Hilangkan right/bottom agar
+         * posisi bisa dikontrol dengan left/top.
+         */
+
+        panel.style.left =
+            rect.left + 'px';
+
+        panel.style.top =
+            rect.top + 'px';
+
+        panel.style.right =
+            'auto';
+
+        panel.style.bottom =
+            'auto';
+
+        e.preventDefault();
+
+    });
+
+
+    document.addEventListener('mousemove', function (e) {
+
+        if (!dragging) return;
+
+        let x =
+            e.clientX - offsetX;
+
+        let y =
+            e.clientY - offsetY;
+
+
+        /*
+         * Jangan sampai keluar layar.
+         */
+
+        const maxX =
+            window.innerWidth -
+            panel.offsetWidth;
+
+        const maxY =
+            window.innerHeight -
+            panel.offsetHeight;
+
+
+        x =
+            Math.max(
+                0,
+                Math.min(x, maxX)
+            );
+
+        y =
+            Math.max(
+                0,
+                Math.min(y, maxY)
+            );
+
+
+        panel.style.left =
+            x + 'px';
+
+        panel.style.top =
+            y + 'px';
+
+    });
+
+
+    document.addEventListener('mouseup', function () {
+
+        if (!dragging) return;
+
+        dragging = false;
+
+        panel.classList.remove(
+            'is-dragging'
+        );
+
+    });
+
+
+    /* =====================================================
+       TOUCH DRAG
+       ===================================================== */
+
+    let touchOffsetX = 0;
+    let touchOffsetY = 0;
+
+
+    handle.addEventListener(
+        'touchstart',
+        function (e) {
+
+            const touch =
+                e.touches[0];
+
+            const rect =
+                panel.getBoundingClientRect();
+
+            touchOffsetX =
+                touch.clientX - rect.left;
+
+            touchOffsetY =
+                touch.clientY - rect.top;
+
+            panel.style.left =
+                rect.left + 'px';
+
+            panel.style.top =
+                rect.top + 'px';
+
+            panel.style.right =
+                'auto';
+
+            panel.style.bottom =
+                'auto';
+
+            panel.classList.add(
+                'is-dragging'
+            );
+
+        },
+        { passive: true }
+    );
+
+
+    handle.addEventListener(
+        'touchmove',
+        function (e) {
+
+            const touch =
+                e.touches[0];
+
+            let x =
+                touch.clientX -
+                touchOffsetX;
+
+            let y =
+                touch.clientY -
+                touchOffsetY;
+
+
+            const maxX =
+                window.innerWidth -
+                panel.offsetWidth;
+
+            const maxY =
+                window.innerHeight -
+                panel.offsetHeight;
+
+
+            x =
+                Math.max(
+                    0,
+                    Math.min(x, maxX)
+                );
+
+            y =
+                Math.max(
+                    0,
+                    Math.min(y, maxY)
+                );
+
+
+            panel.style.left =
+                x + 'px';
+
+            panel.style.top =
+                y + 'px';
+
+        },
+        { passive: true }
+    );
+
+
+    handle.addEventListener(
+        'touchend',
+        function () {
+
+            panel.classList.remove(
+                'is-dragging'
+            );
+
+        }
+    );
+
+
+    /* =====================================================
+       JUMP TO SIGNATURE
+       ===================================================== */
+
+    document
+        .getElementById('btnJumpSignature')
+        ?.addEventListener(
+            'click',
+            function () {
+
+                /*
+                 * Cari beberapa kemungkinan
+                 * ID section signature.
+                 */
+
+                /*
+                 * Target sebenarnya pada Blade ini adalah
+                 * .spk-signature-card.
+                 */
+                const target =
+                    document.querySelector('.spk-signature-card') ||
+                    document.getElementById('signatureSection') ||
+                    document.getElementById('approvalSection') ||
+                    document.getElementById('signature') ||
+                    document.querySelector('.signature-section') ||
+                    document.querySelector('.approval-section');
+
+
+                if (!target) {
+
+                    console.warn(
+                        'Signature section tidak ditemukan.'
+                    );
+
+                    return;
+
+                }
+
+
+                /*
+                 * Smooth scroll
+                 */
+
+                /*
+                 * Sticky .box-header = header atas.
+                 * Hitung posisi target agar Approval SPK
+                 * muncul tepat di bawah header.
+                 */
+                const header =
+                    document.querySelector('.box-header');
+
+                const headerHeight =
+                    header ? header.getBoundingClientRect().height : 0;
+
+                const targetTop =
+                    target.getBoundingClientRect().top +
+                    window.pageYOffset -
+                    headerHeight -
+                    14;
+
+                window.scrollTo({
+                    top: Math.max(0, targetTop),
+                    behavior: 'smooth'
+                });
+
+                /*
+                 * Flash singkat agar posisi Signature terlihat.
+                 */
+                target.classList.add('spk-jump-highlight');
+
+                setTimeout(function () {
+                    target.classList.remove('spk-jump-highlight');
+                }, 1400);
+
+            }
+        );
+
+
+    /* =====================================================
+       SAVE SPK
+       ===================================================== */
+
+    document
+        .getElementById('floatingSaveSpk')
+        ?.addEventListener(
+            'click',
+            function () {
+
+                /*
+                 * Gunakan tombol Save existing.
+                 * Tidak membuat proses save baru.
+                 */
+
+                const originalSave =
+                    document.getElementById(
+                        'btnSaveSpk'
+                    );
+
+                if (originalSave) {
+
+                    originalSave.click();
+
+                }
+
+            }
+        );
+
+
+    /* =====================================================
+       CLOSE SPK
+       ===================================================== */
+
+    document
+        .getElementById('floatingCloseSpk')
+        ?.addEventListener(
+            'click',
+            function () {
+
+                /*
+                 * Gunakan tombol Close existing
+                 * jika tersedia.
+                 */
+
+                const originalClose =
+                    document.getElementById(
+                        'btnCloseSpk'
+                    ) ||
+                    document.querySelector(
+                        '.btn-close-spk'
+                    );
+
+
+                if (originalClose) {
+
+                    originalClose.click();
+
+                }
+
+            }
+        );
+
+})();
     function initializePpnBaseTotals() {
         document.querySelectorAll(
             '#spkItemsBody tr.spk-rowa, #spkItemsBody tr.extra-row'
@@ -1991,7 +3258,7 @@
                         const div = document.createElement('div');
                         div.className = 'suggest-item';
                         div.innerHTML =
-                        `<b>${item.kode}</b><br><small>${item.nama}</small>`;
+                            `<b>${item.kode}</b><br><small>${item.nama}</small>`;
                         div.onclick = () => {
                             addItemRow(item);
                             itemInput.innerText = '';
@@ -2151,6 +3418,343 @@
             valid: totalPayment <= grandTotal
         };
     }
+    /* =========================================================
+       PAYMENT REQUEST - DIRECT SAVE
+       ========================================================= */
+
+    async function savePaymentRequestRow(row) {
+
+        try {
+
+            if (!row) {
+                return;
+            }
+
+            /* =========================
+               AMBIL DATA ROW
+               ========================= */
+
+            const checkbox =
+                row.querySelector('.payment-request-check');
+
+            const amount =
+                (
+                    row.querySelector('.total-amount')
+                    ?.innerText || ''
+                )
+                .replace(/\./g, '')
+                .trim();
+
+            const date =
+                row.querySelector('.date-isian')
+                ?.innerText
+                .trim() || '';
+
+            const note =
+                row.querySelector('.payment-type')
+                ?.value || '';
+
+            const noteTambahan =
+                row.querySelector('.note-tambahan')
+                ?.innerText
+                .trim() || '';
+
+            const isRequest =
+                checkbox?.checked || false;
+
+
+            /* =========================
+               VALIDASI PAYMENT LIMIT
+               ========================= */
+
+            const validation = validatePaymentLimit();
+
+            if (!validation.valid) {
+
+                if (checkbox) {
+                    checkbox.checked = false;
+                }
+
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Total Payment Melebihi SPK',
+                    text: 'Total payment Rp ' +
+                        formatRupiah(validation.totalPayment) +
+                        ' melebihi total SPK Rp ' +
+                        formatRupiah(validation.grandTotal)
+                });
+
+                return;
+            }
+
+
+            /* =========================
+               VALIDASI JENIS PAYMENT
+               ========================= */
+
+            if (!note) {
+
+                if (checkbox) {
+                    checkbox.checked = false;
+                }
+
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Jenis payment kosong',
+                    text: 'Pilih jenis payment terlebih dahulu'
+                });
+
+                return;
+            }
+
+
+            /* =========================
+               VALIDASI NOMINAL
+               ========================= */
+
+            if (!amount || parseInt(amount) <= 0) {
+
+                if (checkbox) {
+                    checkbox.checked = false;
+                }
+
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Nominal kosong',
+                    text: 'Isi nominal payment terlebih dahulu'
+                });
+
+                return;
+            }
+
+
+            /* =========================
+               FORMAT TANGGAL
+               12/05/26 -> 12/05/2026
+               ========================= */
+
+            let finalDate = date;
+
+            if (date) {
+
+                const split = date.split('/');
+
+                if (
+                    split.length === 3 &&
+                    split[2].length === 2
+                ) {
+
+                    finalDate =
+                        split[0] + '/' +
+                        split[1] + '/20' +
+                        split[2];
+                }
+            }
+
+
+            /* =========================
+               PAYLOAD
+               ========================= */
+
+            const payload = {
+
+                spk_id: document.getElementById('spk_id')
+                    ?.value,
+
+                no_spk: document.querySelector('.no-spk')
+                    ?.innerText
+                    .trim(),
+
+                payment: {
+
+                    payment_id: row.dataset.paymentId || null,
+
+                    amount: amount,
+
+                    date: finalDate,
+
+                    note: note,
+
+                    note_tambahan: noteTambahan,
+
+                    is_request: isRequest
+                }
+            };
+
+
+            console.log(
+                'PAYMENT REQUEST PAYLOAD:',
+                payload
+            );
+
+
+            /* =========================
+               LOADING ROW
+               ========================= */
+
+            row.style.opacity = '0.6';
+            row.style.pointerEvents = 'none';
+
+
+            /* =========================
+               SAVE KE PAYMENT REQUEST
+               ========================= */
+
+            const response = await fetch(
+                '/payment-request/store', {
+                    method: 'POST',
+
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+
+                    body: JSON.stringify(payload)
+                }
+            );
+
+
+            /* =========================
+               RESPONSE
+               ========================= */
+
+            let result = {};
+
+            try {
+
+                result =
+                    await response.json();
+
+            } catch (e) {
+
+                throw new Error(
+                    'Response server tidak valid'
+                );
+            }
+
+
+            console.log(
+                'PAYMENT REQUEST RESULT:',
+                result
+            );
+
+
+            /* =========================
+               HTTP ERROR
+               ========================= */
+
+            if (!response.ok) {
+
+                throw new Error(
+                    result.message ||
+                    'Terjadi kesalahan server'
+                );
+            }
+
+
+            /* =========================
+               APPLICATION ERROR
+               ========================= */
+
+            if (!result.success) {
+
+                throw new Error(
+                    result.message ||
+                    'Gagal membuat payment request'
+                );
+            }
+
+
+            /* =========================
+               SUCCESS
+               ========================= */
+
+            Toast.fire({
+                icon: 'success',
+
+                title: isRequest ?
+                    'Payment request dibuat' :
+                    'Payment request dibatalkan'
+            });
+
+
+            /* =========================
+               SYNC SPK JSON
+               ========================= */
+
+            const saveBtn =
+                document.getElementById('btnSaveSpk');
+
+            if (saveBtn) {
+                saveBtn.click();
+            }
+
+
+        } catch (err) {
+
+            console.error(
+                'PAYMENT REQUEST ERROR:',
+                err
+            );
+
+
+            /* =========================
+               ROLLBACK CHECKBOX
+               ========================= */
+
+            const checkbox =
+                row.querySelector(
+                    '.payment-request-check'
+                );
+
+            if (checkbox) {
+                checkbox.checked = !checkbox.checked;
+            }
+
+
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal',
+                text: err.message ||
+                    'Terjadi kesalahan'
+            });
+
+
+        } finally {
+
+            /* =========================
+               ENABLE ROW
+               ========================= */
+
+            row.style.opacity = '1';
+            row.style.pointerEvents = 'auto';
+
+        }
+    }
+    /* =========================================================
+       PAYMENT REQUEST CHECKBOX EVENT
+       ========================================================= */
+
+    document.addEventListener('change', function(e) {
+
+        if (
+            !e.target.classList.contains(
+                'payment-request-check'
+            )
+        ) {
+            return;
+        }
+
+        const row =
+            e.target.closest('.payment-row');
+
+        if (!row) {
+            return;
+        }
+
+        savePaymentRequestRow(row);
+
+    });
 
     function updatePaymentSummary() {
         let grandTotal = 0;
@@ -2228,7 +3832,7 @@
 
     document.addEventListener('change', function(e) {
         if (e.target.classList.contains('payment-type') || e.target.classList.contains(
-            'payment-request-check')) {
+                'payment-request-check')) {
             updatePaymentSummary();
         }
     });
@@ -2644,7 +4248,22 @@
             .header div{
                 margin-bottom:4px;
             }
-        </style>
+        
+        /* BAHAN BAKU TABLE */
+        .bahan-baku-row td {
+            white-space: nowrap;
+        }
+
+        .bahan-baku-row td:nth-child(4),
+        .bahan-baku-row td:nth-child(9) {
+            white-space: normal;
+        }
+
+        .bahan-baku-row:hover td {
+            background: #f8fafc !important;
+        }
+
+</style>
     </head>
     <body>
        ${getKopHtml(data)}
@@ -2754,7 +4373,7 @@
         return `
     <div style="
         width:100%;
-    ">
+    " id="signatureSection">
         <table style="
             width:100%;
             border-collapse:collapse;
@@ -3405,6 +5024,7 @@
     /* =========================================
        EXCEL-STYLE KEYBOARD & NAVIGATION
        ========================================= */
+
     (function() {
         function isEditableCell(el) {
             return el && el.isContentEditable && !el.classList.contains('image-box') && !!el.closest('.spk-table');
@@ -3433,6 +5053,451 @@
         });
     })();
 
+    /* =========================================================
+   MULTI CELL SELECT + DELETE
+   ========================================================= */
+    (function() {
+
+        let selectionStartCell = null;
+        let selectionEndCell = null;
+
+
+        function getCellFromPoint(node) {
+
+            if (!node) return null;
+
+            let element = node.nodeType === Node.TEXT_NODE ?
+                node.parentElement :
+                node;
+
+            return element?.closest(
+                '#spkItemsBody td.editable[contenteditable="true"]'
+            ) || null;
+        }
+
+
+        function getRows() {
+
+            return Array.from(
+                document.querySelectorAll('#spkItemsBody tr')
+            );
+
+        }
+
+
+        function getEditableCells(row) {
+
+            return Array.from(
+                row.querySelectorAll(
+                    'td.editable[contenteditable="true"]'
+                )
+            ).filter(cell =>
+                !cell.classList.contains('image-box')
+            );
+
+        }
+
+
+        function clearCellSelection() {
+
+            document
+                .querySelectorAll('.spk-cell-selected')
+                .forEach(cell => {
+
+                    cell.classList.remove(
+                        'spk-cell-selected'
+                    );
+
+                });
+
+        }
+
+
+        function getCellPosition(cell) {
+
+            const row = cell?.closest('tr');
+
+            if (!row) return null;
+
+            const rows = getRows();
+
+            const rowIndex = rows.indexOf(row);
+
+            if (rowIndex < 0) return null;
+
+            const cells = getEditableCells(row);
+
+            const colIndex = cells.indexOf(cell);
+
+            if (colIndex < 0) return null;
+
+            return {
+                rowIndex,
+                colIndex
+            };
+
+        }
+
+
+        function selectCellRange(startCell, endCell) {
+
+            if (!startCell || !endCell) return;
+
+            const start = getCellPosition(startCell);
+            const end = getCellPosition(endCell);
+
+            if (!start || !end) return;
+
+            clearCellSelection();
+
+            const rows = getRows();
+
+            const minRow = Math.min(
+                start.rowIndex,
+                end.rowIndex
+            );
+
+            const maxRow = Math.max(
+                start.rowIndex,
+                end.rowIndex
+            );
+
+            const minCol = Math.min(
+                start.colIndex,
+                end.colIndex
+            );
+
+            const maxCol = Math.max(
+                start.colIndex,
+                end.colIndex
+            );
+
+
+            for (
+                let r = minRow; r <= maxRow; r++
+            ) {
+
+                const cells = getEditableCells(
+                    rows[r]
+                );
+
+                for (
+                    let c = minCol; c <= maxCol; c++
+                ) {
+
+                    if (cells[c]) {
+
+                        cells[c].classList.add(
+                            'spk-cell-selected'
+                        );
+
+                    }
+
+                }
+
+            }
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SHIFT + CLICK
+        |--------------------------------------------------------------------------
+        |
+        | Klik cell pertama
+        | SHIFT + klik cell terakhir
+        |
+        | contoh:
+        |
+        | HARGA → CATATAN
+        |
+        */
+
+        document.addEventListener(
+            'click',
+            function(e) {
+
+                const cell = e.target.closest(
+                    '#spkItemsBody td.editable[contenteditable="true"]'
+                );
+
+                if (!cell) return;
+
+
+                if (e.shiftKey && selectionStartCell) {
+
+                    selectionEndCell = cell;
+
+                    selectCellRange(
+                        selectionStartCell,
+                        selectionEndCell
+                    );
+
+                    return;
+                }
+
+
+                /*
+                 * klik biasa:
+                 * mulai selection baru
+                 */
+
+                clearCellSelection();
+
+                selectionStartCell = cell;
+                selectionEndCell = null;
+
+            }
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | DRAG SELECTION
+        |--------------------------------------------------------------------------
+        |
+        | Klik + tahan lalu geser ke cell lain.
+        |
+        */
+
+        let isDragging = false;
+
+        document.addEventListener(
+            'mousedown',
+            function(e) {
+
+                const cell = e.target.closest(
+                    '#spkItemsBody td.editable[contenteditable="true"]'
+                );
+
+                if (!cell) return;
+
+                /*
+                 * Jangan ganggu drag text biasa
+                 * kalau tidak pakai Ctrl.
+                 */
+                if (e.detail === 1) {
+
+                    selectionStartCell = cell;
+                    selectionEndCell = cell;
+
+                    isDragging = true;
+
+                    clearCellSelection();
+
+                    cell.classList.add(
+                        'spk-cell-selected'
+                    );
+                }
+
+            }
+        );
+
+
+        document.addEventListener(
+            'mouseover',
+            function(e) {
+
+                if (!isDragging) return;
+
+                const cell = e.target.closest(
+                    '#spkItemsBody td.editable[contenteditable="true"]'
+                );
+
+                if (!cell) return;
+
+                selectionEndCell = cell;
+
+                selectCellRange(
+                    selectionStartCell,
+                    selectionEndCell
+                );
+
+            }
+        );
+
+
+        document.addEventListener(
+            'mouseup',
+            function() {
+
+                isDragging = false;
+
+            }
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | DELETE / BACKSPACE
+        |--------------------------------------------------------------------------
+        */
+
+        document.addEventListener(
+            'keydown',
+            function(e) {
+
+                if (
+                    e.key !== 'Delete' &&
+                    e.key !== 'Backspace'
+                ) {
+                    return;
+                }
+
+
+                const selectedCells =
+                    Array.from(
+                        document.querySelectorAll(
+                            '#spkItemsBody .spk-cell-selected'
+                        )
+                    );
+
+
+                /*
+                 * Tidak ada multi-selection.
+                 * Biarkan Backspace/Delete normal.
+                 */
+
+                if (selectedCells.length <= 1) {
+                    return;
+                }
+
+
+                /*
+                 * PENTING:
+                 * cegah browser menghapus text saja.
+                 */
+
+                e.preventDefault();
+                e.stopPropagation();
+
+
+                selectedCells.forEach(
+                    function(cell) {
+
+                        /*
+                         * Kosongkan isi cell.
+                         */
+
+                        cell.innerHTML = '';
+
+
+                        const row =
+                            cell.closest('tr');
+
+                        if (!row) return;
+
+
+                        /*
+                         * HARGA
+                         */
+
+                        if (
+                            cell.classList.contains(
+                                'harga'
+                            )
+                        ) {
+
+                            row.dataset.baseHarga = '0';
+                            row.dataset.baseTotal = '0';
+
+                            const total =
+                                row.querySelector(
+                                    '.total'
+                                );
+
+                            if (total) {
+                                total.innerText = '0';
+                            }
+
+                        }
+
+                    }
+                );
+
+
+                /*
+                 * Hitung ulang semua row.
+                 */
+
+                document
+                    .querySelectorAll(
+                        '#spkItemsBody tr.spk-rowa, #spkItemsBody tr.extra-row'
+                    )
+                    .forEach(function(row) {
+
+                        if (
+                            typeof hitungTotal ===
+                            'function'
+                        ) {
+
+                            hitungTotal(row);
+
+                        }
+
+                    });
+
+
+                if (
+                    typeof hitungGrandTotal ===
+                    'function'
+                ) {
+
+                    hitungGrandTotal();
+
+                }
+
+
+                /*
+                 * Hilangkan selection.
+                 */
+
+                clearCellSelection();
+
+                selectionStartCell = null;
+                selectionEndCell = null;
+
+
+                /*
+                 * Jangan sampai browser
+                 * melakukan Backspace kedua.
+                 */
+
+                return false;
+
+            },
+            true
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | KLIK DI LUAR TABLE
+        |--------------------------------------------------------------------------
+        */
+
+        document.addEventListener(
+            'mousedown',
+            function(e) {
+
+                if (
+                    !e.target.closest(
+                        '#spkItemsBody'
+                    )
+                ) {
+
+                    clearCellSelection();
+
+                    selectionStartCell = null;
+                    selectionEndCell = null;
+
+                }
+
+            }
+        );
+
+    })();
     /* =========================================
        DATE PICKER HELPER
        ========================================= */
@@ -3487,6 +5552,157 @@
         };
     })();
 
+    /* =========================================================
+       PAYMENT AMOUNT FORMATTER
+       Format Indonesia: 120000 -> 120.000
+       - Berlaku saat mengetik
+       - Berlaku saat row pertama kali tampil
+       - Berlaku juga untuk row baru dari Add Row
+       - Nilai yang dikirim tetap angka tanpa titik
+       - Tidak mengubah fungsi Payment Request / Summary
+       ========================================================= */
+    (function() {
+        function digitsOnly(value) {
+            return String(value ?? '').replace(/[^0-9]/g, '');
+        }
+
+        function formatPaymentAmount(value) {
+            const digits = digitsOnly(value);
+            if (!digits) return '';
+            return new Intl.NumberFormat('id-ID').format(Number(digits));
+        }
+
+        function setCaretByDigitPosition(el, digitPosition) {
+            const walker = document.createTreeWalker(
+                el,
+                NodeFilter.SHOW_TEXT,
+                null
+            );
+
+            let node;
+            let counted = 0;
+            let lastTextNode = null;
+
+            while (node = walker.nextNode()) {
+                lastTextNode = node;
+                const text = node.textContent || '';
+
+                for (let i = 0; i < text.length; i++) {
+                    if (/\d/.test(text[i])) {
+                        counted++;
+                    }
+
+                    if (counted >= digitPosition) {
+                        const range = document.createRange();
+                        range.setStart(node, i + 1);
+                        range.collapse(true);
+
+                        const sel = window.getSelection();
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                        return;
+                    }
+                }
+            }
+
+            const range = document.createRange();
+            if (lastTextNode) {
+                range.selectNodeContents(lastTextNode);
+                range.collapse(false);
+            } else {
+                range.selectNodeContents(el);
+                range.collapse(false);
+            }
+
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+        }
+
+        function formatPaymentCell(cell, keepCaret = true) {
+            if (!cell) return;
+
+            const currentText = cell.innerText || '';
+            const rawDigits = digitsOnly(currentText);
+
+            let digitPosition = rawDigits.length;
+
+            if (keepCaret) {
+                const selection = window.getSelection();
+                if (selection && selection.rangeCount) {
+                    const range = selection.getRangeAt(0);
+
+                    if (cell.contains(range.startContainer)) {
+                        const beforeRange = range.cloneRange();
+                        beforeRange.selectNodeContents(cell);
+                        beforeRange.setEnd(
+                            range.startContainer,
+                            range.startOffset
+                        );
+
+                        const beforeText = beforeRange.toString();
+                        digitPosition = digitsOnly(beforeText).length;
+                    }
+                }
+            }
+
+            const formatted = formatPaymentAmount(currentText);
+
+            if (cell.innerText !== formatted) {
+                cell.innerText = formatted;
+            }
+
+            if (keepCaret && document.activeElement === cell) {
+                setCaretByDigitPosition(cell, digitPosition);
+            }
+        }
+
+        function formatAllPaymentAmounts() {
+            document.querySelectorAll('.payment-row .total-amount').forEach(cell => {
+                formatPaymentCell(cell, false);
+            });
+        }
+
+        // Saat mengetik: langsung tampil 1.000 / 10.000 / 120.000 / dst.
+        document.addEventListener('input', function(e) {
+            const cell = e.target.closest('.payment-row .total-amount');
+            if (!cell) return;
+
+            formatPaymentCell(cell, true);
+        }, true);
+
+        // Saat paste angka mentah.
+        document.addEventListener('paste', function(e) {
+            const cell = e.target.closest('.payment-row .total-amount');
+            if (!cell) return;
+
+            setTimeout(function() {
+                formatPaymentCell(cell, true);
+                updatePaymentSummary();
+            }, 0);
+        }, true);
+
+        // Saat keluar dari cell, pastikan tampilannya rapi.
+        document.addEventListener('blur', function(e) {
+            const cell = e.target.closest('.payment-row .total-amount');
+            if (!cell) return;
+
+            formatPaymentCell(cell, false);
+            updatePaymentSummary();
+        }, true);
+
+        // Format data payment yang sudah ada saat halaman pertama kali dibuka.
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', formatAllPaymentAmounts);
+        } else {
+            formatAllPaymentAmounts();
+        }
+
+        // Bisa dipanggil setelah row Payment Request baru dibuat.
+        window.formatPaymentAmountCell = formatPaymentCell;
+        window.formatAllPaymentAmounts = formatAllPaymentAmounts;
+    })();
+
     // Initial Calculations on load
     setTimeout(() => {
         document.querySelectorAll('.spk-table tr.spk-rowa, .spk-table tr.extra-row').forEach(r => hitungTotal(
@@ -3494,5 +5710,598 @@
         if (window.refreshPpnState) window.refreshPpnState();
         updatePaymentSummary();
     }, 200);
+    // pusher 
+    /* =========================================================
+   REALTIME MOUSE CURSOR - PUSHER
+   ========================================================= */
+
+(function () {
+
+    'use strict';
+
+    const spkId =
+        document.getElementById('spk_id')?.value;
+
+    if (!spkId) {
+        return;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | USER
+    |--------------------------------------------------------------------------
+    */
+
+    const currentUserId =
+        @json(auth()->id());
+
+    const currentUserName =
+        @json(auth()->user()->name ?? 'User');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | PUSHER
+    |--------------------------------------------------------------------------
+    */
+
+    const pusherKey =
+        @json(config('broadcasting.connections.pusher.key'));
+
+    const pusherCluster =
+        @json(config('broadcasting.connections.pusher.options.cluster'));
+
+
+    if (!pusherKey) {
+
+        console.warn(
+            '[SPK Cursor] Pusher key belum tersedia.'
+        );
+
+        return;
+    }
+
+
+    const pusher =
+        new Pusher(
+            pusherKey,
+            {
+                cluster: pusherCluster || 'ap1',
+
+                forceTLS: true,
+
+                authEndpoint:
+                    @json(route('pusher.auth')),
+
+                auth: {
+                    headers: {
+                        'X-CSRF-TOKEN':
+                            document
+                                .querySelector(
+                                    'meta[name="csrf-token"]'
+                                )
+                                ?.getAttribute('content') || ''
+                    }
+                }
+            }
+        );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | CHANNEL PER SPK
+    |--------------------------------------------------------------------------
+    */
+
+    const channelName =
+        'presence-spk-' + spkId;
+
+
+    const channel =
+        pusher.subscribe(channelName);
+
+pusher.connection.bind('connected', function () {
+    console.log(
+        '[PUSHER] Connected:',
+        pusher.connection.socket_id
+    );
+});
+
+pusher.connection.bind('error', function (err) {
+    console.error(
+        '[PUSHER] Connection error:',
+        err
+    );
+});
+
+channel.bind('pusher:subscription_succeeded', function (members) {
+
+    console.log(
+        '[PUSHER] Presence connected'
+    );
+
+    console.log(
+        '[PUSHER] Members:',
+        members.count
+    );
+
+    members.each(function (member) {
+
+        console.log(
+            '[PUSHER] Member:',
+            member.id,
+            member.info
+        );
+
+    });
+
+});
+    /*
+    |--------------------------------------------------------------------------
+    | CONTAINER
+    |--------------------------------------------------------------------------
+    */
+
+    const container =
+        document.getElementById(
+            'spkRemoteCursors'
+        );
+
+
+    if (!container) {
+        return;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | CURSOR STORAGE
+    |--------------------------------------------------------------------------
+    */
+
+    const remoteCursors =
+        {};
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | CREATE CURSOR
+    |--------------------------------------------------------------------------
+    */
+
+    function createCursor(
+        userId,
+        name
+    ) {
+
+        const id =
+            'spk-remote-cursor-' + userId;
+
+
+        let cursor =
+            document.getElementById(id);
+
+
+        if (cursor) {
+            return cursor;
+        }
+
+
+        cursor =
+            document.createElement('div');
+
+
+        cursor.id = id;
+
+        cursor.className =
+            'spk-remote-cursor';
+
+
+        const arrow =
+            document.createElement('div');
+
+        arrow.className =
+            'spk-remote-cursor-arrow';
+
+
+        const label =
+            document.createElement('div');
+
+        label.className =
+            'spk-remote-cursor-name';
+
+        label.textContent =
+            name || 'User';
+
+
+        cursor.appendChild(arrow);
+
+        cursor.appendChild(label);
+
+
+        container.appendChild(cursor);
+
+
+        remoteCursors[userId] = {
+            element: cursor,
+            lastMove: Date.now(),
+            x: 0,
+            y: 0
+        };
+
+
+        return cursor;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | REMOVE CURSOR
+    |--------------------------------------------------------------------------
+    */
+
+    function removeCursor(userId) {
+
+        const data =
+            remoteCursors[userId];
+
+
+        if (!data) {
+            return;
+        }
+
+
+        data.element.remove();
+
+
+        delete remoteCursors[userId];
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | UPDATE CURSOR
+    |--------------------------------------------------------------------------
+    */
+
+    function updateCursor(data) {
+
+        if (!data) {
+            return;
+        }
+
+
+        const userId =
+            String(data.user_id);
+
+
+        /*
+        | Jangan tampilkan cursor sendiri
+        */
+
+        if (
+            userId ===
+            String(currentUserId)
+        ) {
+            return;
+        }
+
+
+        const cursor =
+            createCursor(
+                userId,
+                data.name
+            );
+
+
+        const state =
+            remoteCursors[userId];
+
+
+        if (!state) {
+            return;
+        }
+
+
+        const x =
+            Number(data.x);
+
+
+        const y =
+            Number(data.y);
+
+
+        if (
+            !Number.isFinite(x) ||
+            !Number.isFinite(y)
+        ) {
+            return;
+        }
+
+
+        state.x = x;
+
+        state.y = y;
+
+        state.lastMove =
+            Date.now();
+
+
+        cursor.style.left =
+            x + 'px';
+
+        cursor.style.top =
+            y + 'px';
+
+
+        cursor.classList.remove(
+            'is-idle'
+        );
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | SEND CURSOR
+    |--------------------------------------------------------------------------
+    |
+    | 150ms = sekitar 6-7 event/detik.
+    |
+    | Tidak dikirim kalau mouse hanya bergerak
+    | sedikit.
+    */
+
+    let lastSend = 0;
+
+    let lastX = null;
+
+    let lastY = null;
+
+
+    const SEND_INTERVAL = 150;
+
+    const MIN_DISTANCE = 5;
+
+
+    document.addEventListener(
+        'mousemove',
+        function (event) {
+
+            const now =
+                Date.now();
+
+
+            if (
+                now - lastSend <
+                SEND_INTERVAL
+            ) {
+                return;
+            }
+
+
+            const x =
+                event.clientX;
+
+
+            const y =
+                event.clientY;
+
+
+            if (
+                lastX !== null &&
+                lastY !== null
+            ) {
+
+                const dx =
+                    x - lastX;
+
+                const dy =
+                    y - lastY;
+
+
+                const distance =
+                    Math.sqrt(
+                        dx * dx +
+                        dy * dy
+                    );
+
+
+                if (
+                    distance <
+                    MIN_DISTANCE
+                ) {
+                    return;
+                }
+            }
+
+
+            lastX = x;
+
+            lastY = y;
+
+            lastSend = now;
+
+
+            /*
+            | Client event.
+            | Tidak melewati Laravel.
+            */
+
+            try {
+console.log('[PUSHER DEBUG]', {
+    connection: pusher.connection.state,
+    channel: channelName,
+    user: currentUserId,
+    x: x,
+    y: y
+});
+                channel.trigger(
+                    'client-spk-cursor',
+                    {
+                        user_id:
+                            currentUserId,
+
+                        name:
+                            currentUserName,
+
+                        x: x,
+
+                        y: y
+                    }
+                );
+
+            } catch (error) {
+
+                console.warn(
+                    '[SPK Cursor]',
+                    error
+                );
+
+            }
+
+        },
+        {
+            passive: true
+        }
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | RECEIVE CURSOR
+    |--------------------------------------------------------------------------
+    */
+
+   channel.bind(
+    'client-spk-cursor',
+    function (data) {
+
+        console.log(
+            '[PUSHER] Cursor received:',
+            data
+        );
+
+        updateCursor(data);
+
+    }
+);
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | MEMBER ADDED
+    |--------------------------------------------------------------------------
+    */
+
+    channel.bind(
+        'pusher:member_added',
+        function (member) {
+
+            /*
+            | Tidak perlu membuat cursor.
+            | Cursor dibuat ketika user mulai bergerak.
+            */
+
+            console.log(
+                '[SPK Cursor] User masuk:',
+                member.info?.name ||
+                member.id
+            );
+
+        }
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | MEMBER REMOVED
+    |--------------------------------------------------------------------------
+    */
+
+    channel.bind(
+        'pusher:member_removed',
+        function (member) {
+
+            removeCursor(
+                String(member.id)
+            );
+
+        }
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | IDLE CURSOR
+    |--------------------------------------------------------------------------
+    |
+    | Kalau tidak bergerak 5 detik,
+    | cursor dibuat sedikit transparan.
+    */
+
+    setInterval(
+        function () {
+
+            const now =
+                Date.now();
+
+
+            Object.keys(
+                remoteCursors
+            ).forEach(
+                function (userId) {
+
+                    const state =
+                        remoteCursors[
+                            userId
+                        ];
+
+
+                    if (!state) {
+                        return;
+                    }
+
+
+                    if (
+                        now -
+                        state.lastMove >
+                        5000
+                    ) {
+
+                        state.element.classList.add(
+                            'is-idle'
+                        );
+
+                    }
+
+                }
+            );
+
+        },
+        1000
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | CLEANUP
+    |--------------------------------------------------------------------------
+    */
+
+    window.addEventListener(
+        'beforeunload',
+        function () {
+
+            try {
+                pusher.unsubscribe(
+                    channelName
+                );
+            } catch (e) {}
+
+        }
+    );
+
+
+})();
 </script>
 @endsection
