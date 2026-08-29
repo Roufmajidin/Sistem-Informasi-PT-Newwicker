@@ -2230,39 +2230,87 @@ private function parseTanggalIndonesia($value, $default = null)
 
     // ItemController.php
     public function search(Request $request)
-    {
-        $q = trim($request->q);
-        if (!$q) {
-            return [];
-        }
+{
+    $q = trim((string) $request->q);
 
-        return DetailPo::where(function ($query) use ($q) {
-            $query->where('detail->article_nr_', 'like', "%{$q}%")
-                ->orWhere('detail->description', 'like', "%{$q}%");
-        })
-            ->limit(10)
-            ->get()
-            ->map(function ($row) {
-                $detail = $row->detail ?? [];
-                $images = [];
-                if (!empty($detail['photo'])) {
-                    $images[] = $detail['photo'];
-                }
-
-                return [
-                    'detail_id' => $row->id,
-                    'kode' => data_get($detail, 'article_nr_'),
-                    'nama' => data_get($detail, 'description'),
-                    'p' => (float) data_get($detail, 'item_w'),
-                    'l' => (float) data_get($detail, 'item_d'),
-                    't' => (float) data_get($detail, 'item_h'),
-                    'material' => data_get($detail, 'composition'),
-                    'qty' => (int) data_get($detail, 'qty'),
-                    'photo' => data_get($detail, 'photo'),
-                    'images' => $images, // multi image ready
-                ];
-            });
+    if ($q === '') {
+        return [];
     }
+
+    $search = mb_strtolower($q, 'UTF-8');
+
+    return DetailPo::where(function ($query) use ($search) {
+
+        $query->whereRaw(
+            'LOWER(JSON_UNQUOTE(JSON_EXTRACT(detail, "$.article_nr_"))) LIKE ?',
+            ["%{$search}%"]
+        )
+
+        ->orWhereRaw(
+            'LOWER(JSON_UNQUOTE(JSON_EXTRACT(detail, "$.description"))) LIKE ?',
+            ["%{$search}%"]
+        );
+
+    })
+        ->limit(10)
+        ->get()
+        ->map(function ($row) {
+
+            $detail = $row->detail ?? [];
+
+            $images = [];
+
+            if (!empty($detail['photo'])) {
+                $images[] = $detail['photo'];
+            }
+
+            return [
+                'detail_id' => $row->id,
+
+                'kode' => data_get(
+                    $detail,
+                    'article_nr_'
+                ),
+
+                'nama' => data_get(
+                    $detail,
+                    'description'
+                ),
+
+                'p' => (float) data_get(
+                    $detail,
+                    'item_w'
+                ),
+
+                'l' => (float) data_get(
+                    $detail,
+                    'item_d'
+                ),
+
+                't' => (float) data_get(
+                    $detail,
+                    'item_h'
+                ),
+
+                'material' => data_get(
+                    $detail,
+                    'composition'
+                ),
+
+                'qty' => (int) data_get(
+                    $detail,
+                    'qty'
+                ),
+
+                'photo' => data_get(
+                    $detail,
+                    'photo'
+                ),
+
+                'images' => $images,
+            ];
+        });
+}
 
     // timeline spk
     public function tima()

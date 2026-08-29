@@ -883,6 +883,42 @@ class LaporanController extends Controller
         ]);
     }
 
+    public function deleteTransaksi($id)
+    {
+        try {
 
+            // Hanya user Sumanti yang boleh delete
+            if (strtolower(auth()->user()->name ?? '') !== 'sumanti') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Anda tidak memiliki akses untuk menghapus transaksi.'
+                ], 403);
+            }
+
+            $transaksi = TransaksiStok::find($id);
+
+            if (!$transaksi) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Transaksi tidak ditemukan.'
+                ], 404);
+            }
+
+            $transaksi->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Transaksi berhasil dihapus.'
+            ]);
+
+        } catch (\Throwable $e) {
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menghapus transaksi.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 
 }

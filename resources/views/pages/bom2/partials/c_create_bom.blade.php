@@ -3,10 +3,73 @@
 
 <style>
     /* =========================================================
+   ADD MATERIAL MODAL
+   SCROLL INTERNAL
+   ========================================================= */
+
+    #addMaterialModal .modal-dialog {
+        max-height: calc(100vh - 30px);
+        margin: 15px auto;
+    }
+
+    #addMaterialModal .modal-content {
+        max-height: calc(100vh - 30px);
+        display: flex;
+        flex-direction: column;
+    }
+
+    #addMaterialModal .modal-header {
+        flex-shrink: 0;
+    }
+
+    #addMaterialModal .modal-body {
+        overflow-y: auto;
+        overflow-x: hidden;
+        max-height: calc(100vh - 180px);
+    }
+
+    #addMaterialModal .modal-footer {
+        flex-shrink: 0;
+    }
+
+    /* =========================================================
    BOM CREATE / EDIT - COMPACT ERP UI
    UI ONLY. Existing IDs/classes used by JS are preserved.
    Designed for Chrome zoom 100%.
    ========================================================= */
+    #materialPickerModal .material-master-edit {
+        border: 1px solid transparent;
+        background: transparent;
+        height: 28px;
+        padding: 3px 6px;
+        font-size: 9px;
+        box-shadow: none;
+    }
+
+    #materialPickerModal .material-master-edit:hover {
+        border-color: #d0d5dd;
+        background: #fff;
+    }
+
+    #materialPickerModal .material-master-edit:focus {
+        border-color: #2563eb;
+        background: #fff;
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, .08);
+    }
+
+    #materialPickerModal .material-price-edit {
+        text-align: right;
+    }
+
+    #materialPickerModal .btn-delete-master-material {
+        width: 27px;
+        height: 27px;
+        padding: 0;
+    }
+
+    #materialPickerModal .btn-delete-master-material i {
+        font-size: 9px;
+    }
 
     .bom-compact-page {
         --bc-primary: #2563eb;
@@ -563,51 +626,50 @@
          Semua ID tombol dipertahankan untuk JavaScript lama.
          ===================================================== --}}
     @section('btn')
-      
     @endsection
-  <div class="bom-topbar">
+    <div class="bom-topbar">
 
-            <div class="bom-title">
-                <h6>
-                    @if (isset($bom))
-                        Edit BOM
-                    @else
-                        Create BOM
-                    @endif
-                </h6>
-                {{-- 
+        <div class="bom-title">
+            <h6>
+                @if (isset($bom))
+                    Edit BOM
+                @else
+                    Create BOM
+                @endif
+            </h6>
+            {{-- 
             <p>
                 Kelola informasi produk, ukuran, material, labour, dan HPP.
             </p> --}}
-            </div>
+        </div>
 
-            <div class="bom-actions">
+        <div class="bom-actions">
 
-                @if (!empty($bom) && isset($bom->id))
-                    <button type="button" class="btn btn-warning btn-sm" id="btn-update-bom">
-                        <i class="fa fa-save"></i>
-                        Update BOM
-                    </button>
+            @if (!empty($bom) && isset($bom->id))
+                <button type="button" class="btn btn-warning btn-sm" id="btn-update-bom">
+                    <i class="fa fa-save"></i>
+                    Update BOM
+                </button>
 
-                    <button type="button" class="btn btn-primary btn-sm" id="btn-copy-bom">
-                        <i class="fa fa-copy"></i>
-                        Copy BOM
-                    </button>
-                @else
-                    <button type="button" id="btn-clear-draft" class="btn btn-warning btn-sm">
-                        <i class="fa fa-refresh"></i>
-                        Refresh Draft
-                    </button>
+                <button type="button" class="btn btn-primary btn-sm" id="btn-copy-bom">
+                    <i class="fa fa-copy"></i>
+                    Copy BOM
+                </button>
+            @else
+                <button type="button" id="btn-clear-draft" class="btn btn-warning btn-sm">
+                    <i class="fa fa-refresh"></i>
+                    Refresh Draft
+                </button>
 
-                    <button type="button" class="btn btn-primary btn-sm" id="btn-save-bom">
-                        <i class="fa fa-save"></i>
-                        Save BOM
-                    </button>
-                @endif
-
-            </div>
+                <button type="button" class="btn btn-primary btn-sm" id="btn-save-bom">
+                    <i class="fa fa-save"></i>
+                    Save BOM
+                </button>
+            @endif
 
         </div>
+
+    </div>
 
     {{-- =====================================================
          INFORMASI PRODUK + FOTO
@@ -966,7 +1028,7 @@
     </div>
 </div>
 <div class="modal fade" id="addMaterialModal" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
 
             <form id="formAddMaterial">
@@ -1169,30 +1231,306 @@
 <script>
     let activeMaterialInput = null;
     let sectionIndex = 0;
+
+    /* =========================================================
+       MATERIAL MASTER AJAX - GLOBAL
+       ========================================================= */
+    window.loadMaterialMaster = function(keyword = '') {
+
+        console.log('loadMaterialMaster:', keyword);
+
+        $.ajax({
+
+            url: '/cog-material-price/ajax',
+
+            type: 'GET',
+
+            data: {
+                keyword: keyword
+            },
+
+            beforeSend: function() {
+
+                $('#materialMasterBody').html(`
+                <tr>
+                    <td colspan="6"
+                        class="text-center"
+                        style="padding:20px;color:#64748b;">
+
+                        <i class="fa fa-spinner fa-spin"></i>
+                        Mencari material...
+
+                    </td>
+                </tr>
+            `);
+
+            },
+
+            success: function(datas) {
+
+                let html = '';
+
+                if (!Array.isArray(datas)) {
+                    datas = [];
+                }
+
+                if (datas.length === 0) {
+
+                    $('#materialMasterBody').html(`
+                    <tr>
+                        <td colspan="6"
+                            class="text-center"
+                            style="padding:20px;color:#94a3b8;">
+
+                            Material tidak ditemukan.
+
+                        </td>
+                    </tr>
+                `);
+
+                    return;
+                }
+
+                datas.forEach(function(item) {
+
+                    const id =
+                        item.id || '';
+
+                    const type =
+                        item.type || '';
+
+                    const name =
+                        item.name || '';
+
+                    const jenis =
+                        item.jenis || '';
+
+                    const price =
+                        Number(item.price || 0);
+
+                    const unit =
+                        item.unit || '';
+
+                    const isMaterial =
+                        type === 'material_price';
+
+
+                    html += `
+
+                    <tr
+                        data-id="${id}"
+                        data-type="${escapeHtml(type)}"
+                    >
+
+                        <!-- PILIH -->
+                        <td>
+
+                            <button
+                                type="button"
+
+                                class="
+                                    btn
+                                    btn-primary
+                                    btn-sm
+                                    btn-select-material
+                                "
+
+                                data-id="${id}"
+
+                                data-name="${escapeHtml(name)}"
+
+                                data-type="${escapeHtml(type)}"
+
+                                data-price="${price}"
+
+                                data-unit="${escapeHtml(unit)}"
+                            >
+
+                                Pilih
+
+                            </button>
+
+                        </td>
+
+
+                        <!-- ID -->
+                        <td>
+                            ${id}
+                        </td>
+
+
+                        <!-- NAMA -->
+                        <td>
+
+                            ${
+                                isMaterial
+
+                                ?
+
+                                `
+                                    <input
+                                        type="text"
+
+                                        class="
+                                            form-control
+                                            material-master-edit
+                                            material-name-edit
+                                        "
+
+                                        value="${escapeHtml(name)}"
+
+                                        data-id="${id}"
+
+                                        data-field="nama_material"
+
+                                        data-original="${escapeHtml(name)}"
+                                    >
+
+                                    <div
+                                        class="
+                                            material-save-message-container
+                                        "
+                                    ></div>
+                                `
+
+                                :
+
+                                escapeHtml(name)
+                            }
+
+                        </td>
+
+
+                        <!-- JENIS -->
+                        <td>
+                            ${escapeHtml(jenis)}
+                        </td>
+
+
+                        <!-- HARGA -->
+                        <td>
+
+                            ${
+                                isMaterial
+
+                                ?
+
+                                `
+                                    <input
+                                        type="text"
+
+                                        class="
+                                            form-control
+                                            material-master-edit
+                                            material-price-edit
+                                        "
+
+                                        value="${formatNumber(price)}"
+
+                                        data-id="${id}"
+
+                                        data-field="harga"
+
+                                        data-original="${price}"
+                                    >
+
+                                    <div
+                                        class="
+                                            material-save-message-container
+                                        "
+                                    ></div>
+                                `
+
+                                :
+
+                                formatNumber(price)
+                            }
+
+                        </td>
+
+
+                        <!-- DELETE -->
+                        <td class="text-center">
+
+                            ${
+                                isMaterial
+
+                                ?
+
+                                `
+                                    <button
+                                        type="button"
+
+                                        class="
+                                            btn
+                                            btn-danger
+                                            btn-sm
+                                            btn-delete-master-material
+                                        "
+
+                                        data-id="${id}"
+
+                                        title="Hapus material"
+                                    >
+
+                                        <i
+                                            class="fa fa-trash"
+                                        ></i>
+
+                                    </button>
+                                `
+
+                                :
+
+                                ''
+                            }
+
+                        </td>
+
+                    </tr>
+
+                `;
+
+                });
+
+
+                $('#materialMasterBody')
+                    .html(html);
+
+            },
+
+
+            error: function(xhr) {
+
+                console.error(
+                    'LOAD MATERIAL ERROR:',
+                    xhr.responseText
+                );
+
+                $('#materialMasterBody').html(`
+                <tr>
+                    <td
+                        colspan="6"
+                        class="text-center text-danger"
+                        style="padding:20px;"
+                    >
+
+                        <i class="fa fa-exclamation-circle"></i>
+
+                        Gagal mengambil data material.
+
+                    </td>
+                </tr>
+            `);
+
+            }
+
+        });
+
+    };
+
     {{-- let activeMaterialInput = null; --}}
 
-    $(document).on('click', '.material-picker', function() {
-
-    activeMaterialInput = $(this);
-
-    $('#searchMasterMaterial').val('');
-
-    // Panggil setelah partial Create selesai dimuat
-    if (typeof loadMaterialMaster === 'function') {
-        loadMaterialMaster();
-    } else {
-        console.error('loadMaterialMaster belum tersedia');
-    }
-
-    $('#materialPickerModal').modal('show');
-
-    $('#materialPickerModal').one('shown.bs.modal', function() {
-        $('#searchMasterMaterial')
-            .trigger('focus')
-            .select();
-    });
-
-});
     // pili material dari modal
     $(document).on('click', '.btn-select-material', function() {
 
@@ -1254,26 +1592,35 @@
 
     }
     // search material di modal
-    $('#searchMasterMaterial').on(
-        'keyup',
+    /* =========================================================
+     SEARCH MATERIAL MASTER
+     AJAX
+     ========================================================= */
+
+
+    $(document).on(
+        'input',
+        '#searchMasterMaterial',
         function() {
-            let keyword =
-                $(this)
-                .val()
-                .toLowerCase();
-            $('#materialMasterTable tbody tr')
-                .each(function() {
-                    let text =
-                        $(this)
-                        .text()
-                        .toLowerCase();
-                    $(this)
-                        .toggle(
-                            text.indexOf(keyword) > -1
-                        );
-                });
-        });
-    // ADD HEADER
+
+            const keyword =
+                $(this).val().trim();
+
+            clearTimeout(
+                materialSearchTimer
+            );
+
+            materialSearchTimer =
+                setTimeout(function() {
+
+                    window.loadMaterialMaster(
+                        keyword
+                    );
+
+                }, 250);
+
+        }
+    ); // ADD HEADER
     $('#btn-add-header').click(function() {
         sectionIndex++;
         let html = `
@@ -2764,66 +3111,420 @@
         });
 
     });
+    /* =========================================================
+       MATERIAL MASTER AJAX
+       ========================================================= */
 
-    function loadMaterialMaster(keyword = '') {
+    /* =========================================================
+       MATERIAL MASTER AJAX
+       GLOBAL
+       ========================================================= */
+
+
+
+    /* =========================================================
+       ESCAPE HTML
+       ========================================================= */
+
+    function escapeHtml(value) {
+
+        if (value === null || value === undefined) {
+            return '';
+        }
+
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+
+    /* =========================================================
+       ALERT INLINE DI BAWAH INPUT
+       ========================================================= */
+
+    function showMaterialSaveMessage(input, message, type = 'success') {
+
+        const td = input.closest('td');
+        const container = td.find('.material-save-message-container');
+
+        container.empty();
+
+        let icon = 'fa-check-circle';
+
+        if (type === 'error') {
+            icon = 'fa-exclamation-circle';
+        }
+
+        if (type === 'loading') {
+            icon = 'fa-spinner fa-spin';
+        }
+
+        container.html(`
+        <div class="material-save-message ${type}">
+            <i class="fa ${icon}"></i>
+            <span>${escapeHtml(message)}</span>
+        </div>
+    `);
+
+        if (type === 'success' || type === 'error') {
+            setTimeout(function() {
+                container.find('.material-save-message').fadeOut(200, function() {
+                    $(this).remove();
+                });
+            }, 1800);
+        }
+    }
+
+
+    /* =========================================================
+       OPEN MATERIAL PICKER
+       ========================================================= */
+
+    $(document).on('click', '.material-picker', function() {
+
+        activeMaterialInput = $(this);
+
+        $('#searchMasterMaterial').val('');
+
+        window.loadMaterialMaster('');
+
+        $('#materialPickerModal').modal('show');
+
+        $('#materialPickerModal').one('shown.bs.modal', function() {
+            $('#searchMasterMaterial')
+                .trigger('focus')
+                .select();
+        });
+    });
+
+
+    /* =========================================================
+       SEARCH MATERIAL MASTER
+       ========================================================= */
+
+    let materialSearchTimer = null;
+
+    $(document).on('input', '#searchMasterMaterial', function() {
+
+        const keyword = $(this).val().trim();
+
+        clearTimeout(materialSearchTimer);
+
+        materialSearchTimer = setTimeout(function() {
+            window.loadMaterialMaster(keyword);
+        }, 250);
+    });
+
+
+    /* =========================================================
+       PILIH MATERIAL
+       ========================================================= */
+
+    $(document).on('click', '.btn-select-material', function() {
+
+        if (!activeMaterialInput) {
+            console.error('activeMaterialInput null');
+            return;
+        }
+
+        const btn = $(this);
+
+        const id = btn.data('id');
+        const nama = btn.data('name');
+        const type = btn.data('type');
+        const price = btn.data('price') || 0;
+        const unit = btn.data('unit') || '';
+
+        const row = activeMaterialInput.closest('tr');
+
+        activeMaterialInput.val(nama);
+
+        row.find('.material-id').val(id);
+        row.find('.material-type').val(type);
+        row.find('.material-price').val(formatNumber(price));
+        row.find('.unit').val(unit);
+
+        calculateRow(row);
+        updateTotalHpp();
+
+        activeMaterialInput.trigger('focus');
+
+        $('#materialPickerModal').modal('hide');
+    });
+
+
+    /* =========================================================
+       EDIT MATERIAL MASTER
+       ENTER = SAVE
+       ========================================================= */
+
+    $(document).on('keydown', '.material-master-edit', function(e) {
+
+        if (e.key !== 'Enter') {
+            return;
+        }
+
+        e.preventDefault();
+
+        const input = $(this);
+        const row = input.closest('tr');
+        const id = input.data('id');
+        const field = input.data('field');
+
+        let value = input.val().trim();
+        const original = input.attr('data-original');
+
+        if (String(value) === String(original)) {
+            input.blur();
+            return;
+        }
+
+        let nama = row.find('[data-field="nama_material"]').val() || '';
+        let harga = row.find('[data-field="harga"]').val() || '0';
+
+        if (field === 'nama_material') {
+            nama = value;
+        }
+
+        if (field === 'harga') {
+            harga = unFormat(value);
+        }
+
+        harga = unFormat(harga);
+
+        const satuan = row.find('.material-unit-edit').val() || '';
+
+        input.prop('disabled', true);
+
+        showMaterialSaveMessage(input, 'Menyimpan...', 'loading');
 
         $.ajax({
 
-            url: '/cog-material-price/ajax',
+            url: '/cog-material-price/update/' + id,
 
-            type: 'GET',
+            type: 'POST',
 
             data: {
-                keyword: keyword
+                _token: '{{ csrf_token() }}',
+                nama_material: nama,
+                harga: harga,
+                satuan: satuan
             },
 
-            success: function(datas) {
+            success: function(res) {
 
-                let html = '';
+                if (!res || !res.success) {
 
-                datas.forEach(function(item) {
+                    showMaterialSaveMessage(
+                        input,
+                        res?.message || 'Gagal menyimpan material.',
+                        'error'
+                    );
 
-                    html += `
-        <tr>
+                    input.prop('disabled', false);
+                    return;
+                }
 
-            <td>
-                <button
-                    class="btn btn-primary btn-sm btn-select-material"
+                const material = res.material || {};
 
-                    data-id="${item.id}"
-                    data-name="${item.name}"
-                    data-type="${item.type}"
-                    data-price="${item.price}"
-                    data-unit="${item.unit}">
+                const savedName = material.nama_material ?? nama;
+                const savedPrice = material.harga ?? harga;
 
-                    Pilih
+                /* Update input yang diedit */
+                if (field === 'nama_material') {
 
-                </button>
-            </td>
+                    input.val(savedName);
 
-            <td>${item.id}</td>
+                    input.attr(
+                        'data-original',
+                        savedName
+                    );
+                }
 
-            <td>${item.name}</td>
+                if (field === 'harga') {
 
-            <td>${item.jenis}</td>
+                    input.val(
+                        formatNumber(savedPrice)
+                    );
 
-            <td>${formatNumber(item.price)}</td>
+                    input.attr(
+                        'data-original',
+                        savedPrice
+                    );
+                }
 
-        </tr>
-    `;
+                /* Update button Pilih */
+                const selectButton =
+                    row.find('.btn-select-material');
 
+                if (selectButton.length) {
+
+                    selectButton.attr(
+                        'data-name',
+                        savedName
+                    );
+
+                    selectButton.attr(
+                        'data-price',
+                        savedPrice
+                    );
+
+                    selectButton.data(
+                        'name',
+                        savedName
+                    );
+
+                    selectButton.data(
+                        'price',
+                        savedPrice
+                    );
+                }
+
+                /* Update row BOM yang memakai material ini */
+                $('.child-body tr').each(function() {
+
+                    const bomRow = $(this);
+
+                    const materialId =
+                        bomRow.find('.material-id').val();
+
+                    if (String(materialId) !== String(id)) {
+                        return;
+                    }
+
+                    if (field === 'nama_material') {
+                        bomRow
+                            .find('.material-picker')
+                            .val(savedName);
+                    }
+
+                    if (field === 'harga') {
+
+                        bomRow
+                            .find('.material-price')
+                            .val(formatNumber(savedPrice));
+
+                        calculateRow(bomRow);
+                    }
                 });
 
-                $('#materialMasterBody').html(html);
+                updateSummary();
+                updateTotalHpp();
 
+                input.prop('disabled', false);
+
+                showMaterialSaveMessage(
+                    input,
+                    'Berhasil disimpan',
+                    'success'
+                );
+            },
+
+            error: function(xhr) {
+
+                console.error(
+                    'UPDATE MATERIAL ERROR:',
+                    xhr.responseText
+                );
+
+                showMaterialSaveMessage(
+                    input,
+                    xhr.responseJSON?.message ||
+                    'Gagal menyimpan material.',
+                    'error'
+                );
+
+                input.prop('disabled', false);
+            }
+        });
+    });
+
+
+    /* =========================================================
+       DELETE MATERIAL MASTER
+       ========================================================= */
+
+    $(document).on('click', '.btn-delete-master-material', function() {
+
+        const btn = $(this);
+        const id = btn.data('id');
+        const row = btn.closest('tr');
+
+        const nama =
+            row.find('.material-name-edit').val() ||
+            'material';
+
+        Swal.fire({
+
+            title: 'Hapus material?',
+
+            text: `"${nama}" akan dihapus dari master material.`,
+
+            icon: 'warning',
+
+            showCancelButton: true,
+
+            confirmButtonText: 'Ya, Hapus',
+
+            cancelButtonText: 'Batal',
+
+            confirmButtonColor: '#dc2626'
+
+        }).then(function(result) {
+
+            if (!result.isConfirmed) {
+                return;
             }
 
+            $.ajax({
+
+                url: '/cog-material-price/delete/' + id,
+
+                type: 'DELETE',
+
+                data: {
+                    _token: '{{ csrf_token() }}'
+                },
+
+                success: function(res) {
+
+                    if (!res || !res.success) {
+
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal',
+                            text: res?.message ||
+                                'Material gagal dihapus.'
+                        });
+
+                        return;
+                    }
+
+                    row.fadeOut(180, function() {
+                        $(this).remove();
+                    });
+                },
+
+                error: function(xhr) {
+
+                    console.error(
+                        'DELETE MATERIAL ERROR:',
+                        xhr.responseText
+                    );
+
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal',
+                        text: xhr.responseJSON?.message ||
+                            'Material gagal dihapus.'
+                    });
+                }
+            });
         });
-
-
-    }
-</script>
-<script>
+    });
     //add material 
     $('#btnAddMaterial').click(function() {
 
@@ -2850,7 +3551,7 @@
                 $('#formAddMaterial')[0].reset();
 
                 // refresh list material
-                loadMaterialMaster($('#searchMasterMaterial').val());
+                window.loadMaterialMaster($('#searchMasterMaterial').val());
 
             }
 

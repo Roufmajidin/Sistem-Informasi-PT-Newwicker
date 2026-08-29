@@ -721,6 +721,15 @@ Route::get('/produksi/inventor/arsip', [ProduksiMnController::class, 'inventorAr
 | BOM PRODUKSI
 |--------------------------------------------------------------------------
 */
+Route::post(
+    '/cog-material-price/update/{id}',
+    [CogController::class, 'update']
+)->name('cog-material-price.update');
+
+Route::delete(
+    '/cog-material-price/delete/{id}',
+    [CogController::class, 'destroy']
+)->name('cog-material-price.destroy');
 Route::get('/bom-produksi/edit/{id}', [CogController::class, 'show'])->name('bom_p.c_edit');
 
 Route::prefix('bom-produksi')->name('cog.')->group(function () {
@@ -886,7 +895,10 @@ Route::prefix('subkon')
             'timeline'
         ])->name('timeline');
     });
-
+Route::get(
+    '/produksi/mn/data',
+    [ProduksiMnController::class, 'data']
+)->name('produksi.mn.data');
   // UPAH
 Route::prefix('upah')
     ->name('upah.')
@@ -902,7 +914,12 @@ Route::prefix('upah')
             UpahController::class,
             'index'
         ])->name('index');
-    Route::delete('/transaksi/{id}', [UpahController::class, 'destroyT'])->name('upah.transaksi.destroyss');
+
+        Route::delete('/transaksi/{id}', [
+            UpahController::class,
+            'destroyT'
+        ])->name('upah.transaksi.destroyss');
+
         Route::post('/', [
             UpahController::class,
             'store'
@@ -912,10 +929,12 @@ Route::prefix('upah')
             UpahController::class,
             'searchArticle'
         ])->name('ajax.articles');
-    Route::get('/transaksi/search-po', [
-    UpahController::class,
-    'searchPoByArticle'
-])->name('transaksi.search.po');
+
+        Route::get('/transaksi/search-po', [
+            UpahController::class,
+            'searchPoByArticle'
+        ])->name('transaksi.search.po');
+
         Route::get('/{upah}/data', [
             UpahController::class,
             'editData'
@@ -994,6 +1013,18 @@ Route::prefix('upah')
 
         /*
         |--------------------------------------------------------------------------
+        | UPDATE TRANSAKSI NORMAL
+        |--------------------------------------------------------------------------
+        */
+
+        Route::put('/transaksi/{id}', [
+            UpahController::class,
+            'updateUpah'
+        ])->name('transaksi.update');
+
+
+        /*
+        |--------------------------------------------------------------------------
         | STORE TRANSAKSI MASS
         |--------------------------------------------------------------------------
         */
@@ -1002,10 +1033,13 @@ Route::prefix('upah')
             UpahController::class,
             'storeMassUpah'
         ])->name('transaksi.mass.store');
-        Route::get('/export', [UpahController::class, 'export'])
-            ->name('upah.transaksi.export');
-    });
 
+
+        Route::get('/export', [
+            UpahController::class,
+            'export'
+        ])->name('upah.transaksi.export');
+    });
     // finance export 
     Route::get(
     '/payment-request-saved/{id}/export',
@@ -1061,3 +1095,8 @@ Route::prefix('spek')->name('spek.')->group(function () {
 
 
 Route::get('monitoring-barang-masukp', [ProduksiMnController::class, 'test'])->name('produksi.test');
+
+Route::delete(
+    '/laporan/transaksi/{id}',
+    [LaporanController::class, 'deleteTransaksi']
+)->name('laporan.transaksi.delete');

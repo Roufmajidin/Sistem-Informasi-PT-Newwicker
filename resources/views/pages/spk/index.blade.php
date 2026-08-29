@@ -7,7 +7,15 @@
         /* =========================================================
    PUSHER REALTIME MOUSE CURSOR
    ========================================================= */
+.spk-search-input:empty::before {
+    content: attr(data-placeholder);
+    color: #94a3b8;
+    pointer-events: none;
+}
 
+.spk-search-input {
+    cursor: text;
+}
 #spkRemoteCursors {
     position: fixed;
     inset: 0;
@@ -1373,17 +1381,18 @@
                     <img src="{{ asset('/assets/images/NEWWICKER WHITE.png') }}" alt="NewWicker"
                         onerror="this.outerHTML='<div style=\'font-family:Georgia,serif; font-size:28px; color:#858b95; font-weight:bold;\'>NewWicker</div>'">
                 </div>
-                <div class="spk-search-area">
+            
+            </div> --}}
+    <div class="spk-search-area">
                     <div class="spk-searchbox">
                         <label>Ketik article / nama item</label>
-                        <div class="editable spk-search-input" id="itemSearch" contenteditable="true">
-                            Ketik article / nama item
-                        </div>
+                       <div class="editable spk-search-input"
+     id="itemSearch"
+     contenteditable="true"
+     data-placeholder="Ketik article / nama item"></div>
                         <div id="itemSuggest" class="suggest-box"></div>
                     </div>
                 </div>
-            </div> --}}
-
             <!-- META INFO GRID (NO SPK, NO PO, ACTIONS, NAMA SUPPLIER) -->
             <div class="spk-meta-grid mt-2">
                 <div class="spk-meta-col">
@@ -1645,115 +1654,118 @@
                 </div>
                 <div style="overflow-x:auto;">
                     <table class="spk-simple-table">
-                        <thead>
-                            <tr>
-                                <th>No</th>
-                                <th>Tanggal</th>
-                                <th>Tipe</th>
-                                <th>Bahan</th>
-                                <th>Potong Bahan</th>
-                                <th>Harga Inv</th>
-                                <th>Harga Adj</th>
-                                <th>Total</th>
-                                <th>Keterangan</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse (($bahanBaku ?? collect()) as $bahan)
-                                @php
-                                    $tanggalBahan = $bahan->tanggal ?? null;
-                                    $hargaInv = (float) ($bahan->stok->harga ?? 0);
-                                    $qtyBahan = (float) ($bahan->qty ?? 0);
+                      <thead>
+    <tr>
+        <th>No</th>
+        <th>Tanggal</th>
+        <th>Tipe</th>
+        <th>Bahan</th>
+        <th>Potong Bahan</th>
+        <th>Harga</th>
+        <th>Total</th>
+        <th>Keterangan</th>
+    </tr>
+</thead>
 
-                                    /*
-                                     * TransaksiStok yang dikirim controller saat ini
-                                     * belum memiliki field harga adjustment khusus.
-                                     * Karena itu tampilkan harga adjustment dari field
-                                     * yang tersedia jika ada, jika tidak gunakan harga inventory.
-                                     */
-                                    $hargaAdj = $bahan->harga_adj
-                                        ?? $bahan->harga_adjustment
-                                        ?? $hargaInv;
+<tbody>
+    @forelse (($bahanBaku ?? collect()) as $bahan)
+        @php
+            $tanggalBahan = $bahan->tanggal ?? null;
 
-                                    $hargaAdj = (float) $hargaAdj;
-                                    $totalBahan = $qtyBahan * $hargaAdj;
-                                @endphp
+            $hargaInv = (float) ($bahan->stok->harga ?? 0);
+            $qtyBahan = (float) ($bahan->qty ?? 0);
 
-                                <tr class="bahan-baku-row">
-                                    <td class="text-center">
-                                        {{ $loop->iteration }}
-                                    </td>
+            /*
+             * Jika harga_vivi memiliki nilai:
+             * gunakan harga_vivi.
+             *
+             * Jika null / kosong:
+             * gunakan harga inventory.
+             */
+            $hargaViviRaw = $bahan->harga_vivi ?? null;
 
-                                    <td class="text-center">
-                                        @if ($tanggalBahan)
-                                            {{ \Carbon\Carbon::parse($tanggalBahan)->format('d/m/Y') }}
-                                        @else
-                                            -
-                                        @endif
-                                    </td>
+            $harga = (
+                $hargaViviRaw !== null &&
+                trim((string) $hargaViviRaw) !== ''
+            )
+                ? (float) $hargaViviRaw
+                : $hargaInv;
 
-                                    <td class="text-center">
-                                        <span style="
-                                            display:inline-flex;
-                                            align-items:center;
-                                            justify-content:center;
-                                            padding:2px 7px;
-                                            border-radius:999px;
-                                            font-size:9px;
-                                            font-weight:700;
-                                            text-transform:uppercase;
-                                            background:{{ strtolower($bahan->tipe ?? '') === 'out' ? '#fff1f2' : '#ecfdf5' }};
-                                            color:{{ strtolower($bahan->tipe ?? '') === 'out' ? '#be123c' : '#047857' }};
-                                        ">
-                                            {{ $bahan->tipe ?? '-' }}
-                                        </span>
-                                    </td>
+            $totalBahan = $qtyBahan * $harga;
+        @endphp
 
-                                    <td>
-                                        <div style="font-weight:600;">
-                                            {{ $bahan->stok->nama_barang ?? '-' }}
-                                        </div>
+        <tr class="bahan-baku-row">
+            <td class="text-center">
+                {{ $loop->iteration }}
+            </td>
 
-                                        @if (!empty($bahan->stok->kode_barang))
-                                            <small style="color:#94a3b8;">
-                                                {{ $bahan->stok->kode_barang }}
-                                            </small>
-                                        @endif
-                                    </td>
+            <td class="text-center">
+                @if ($tanggalBahan)
+                    {{ \Carbon\Carbon::parse($tanggalBahan)->format('d/m/Y') }}
+                @else
+                    -
+                @endif
+            </td>
 
-                                    <td class="text-right">
-                                        {{ rtrim(rtrim(number_format($qtyBahan, 2, ',', '.'), '0'), ',') }}
-                                        @if (!empty($bahan->stok->satuan))
-                                            <span style="color:#64748b;">
-                                                {{ $bahan->stok->satuan }}
-                                            </span>
-                                        @endif
-                                    </td>
+            <td class="text-center">
+                <span style="
+                    display:inline-flex;
+                    align-items:center;
+                    justify-content:center;
+                    padding:2px 7px;
+                    border-radius:999px;
+                    font-size:9px;
+                    font-weight:700;
+                    text-transform:uppercase;
+                    background:{{ strtolower($bahan->tipe ?? '') === 'out' ? '#fff1f2' : '#ecfdf5' }};
+                    color:{{ strtolower($bahan->tipe ?? '') === 'out' ? '#be123c' : '#047857' }};
+                ">
+                    {{ $bahan->tipe ?? '-' }}
+                </span>
+            </td>
 
-                                    <td class="text-right">
-                                        Rp {{ number_format($hargaInv, 0, ',', '.') }}
-                                    </td>
+            <td>
+                <div style="font-weight:600;">
+                    {{ $bahan->stok->nama_barang ?? '-' }}
+                </div>
 
-                                    <td class="text-right">
-                                        Rp {{ number_format($hargaAdj, 0, ',', '.') }}
-                                    </td>
+                @if (!empty($bahan->stok->kode_barang))
+                    <small style="color:#94a3b8;">
+                        {{ $bahan->stok->kode_barang }}
+                    </small>
+                @endif
+            </td>
 
-                                    <td class="text-right" style="font-weight:700;">
-                                        Rp {{ number_format($totalBahan, 0, ',', '.') }}
-                                    </td>
+            <td class="text-right">
+                {{ rtrim(rtrim(number_format($qtyBahan, 2, ',', '.'), '0'), ',') }}
 
-                                    <td>
-                                        {{ $bahan->keterangan ?? '-' }}
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="9" class="empty-text">
-                                        Belum ada pengambilan bahan baku dari warehouse.
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
+                @if (!empty($bahan->stok->satuan))
+                    <span style="color:#64748b;">
+                        {{ $bahan->stok->satuan }}
+                    </span>
+                @endif
+            </td>
+
+            <td class="text-right">
+                Rp {{ number_format($harga, 0, ',', '.') }}
+            </td>
+
+            <td class="text-right" style="font-weight:700;">
+                Rp {{ number_format($totalBahan, 0, ',', '.') }}
+            </td>
+
+            <td>
+                {{ $bahan->keterangan ?? '-' }}
+            </td>
+        </tr>
+    @empty
+        <tr>
+            <td colspan="8" class="empty-text">
+                Belum ada pengambilan bahan baku dari warehouse.
+            </td>
+        </tr>
+    @endforelse
+</tbody>
                     </table>
                 </div>
             </section>
@@ -3232,91 +3244,680 @@
         }
     });
 
-    /* =========================================
-       ITEM SEARCH & ADD ROW
-       ========================================= */
+ /* =========================================
+   ITEM SEARCH & ADD ROW
+   ========================================= */
+(function () {
+
     const itemInput = document.getElementById('itemSearch');
     const itemSuggest = document.getElementById('itemSuggest');
-    let itemTimer;
-    itemInput?.addEventListener('input', function() {
-        const keyword = itemInput.innerText.trim();
+
+    if (!itemInput || !itemSuggest) return;
+
+    let itemTimer = null;
+    let itemRequest = null;
+
+    /*
+    |--------------------------------------------------------------------------
+    | AMBIL TEXT SEARCH
+    |--------------------------------------------------------------------------
+    */
+    function getSearchKeyword() {
+        return (itemInput.innerText || '')
+            .replace(/\u00a0/g, ' ')
+            .trim();
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | CLEAR SEARCH
+    |--------------------------------------------------------------------------
+    */
+    function clearItemSearch() {
+        itemInput.innerHTML = '';
+        itemSuggest.innerHTML = '';
+        itemSuggest.style.display = 'none';
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | ESCAPE HTML
+    |--------------------------------------------------------------------------
+    */
+    function escapeHtml(value) {
+        if (value === null || value === undefined) return '';
+
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | SEARCH
+    |--------------------------------------------------------------------------
+    */
+    itemInput.addEventListener('input', function () {
+
+        const keyword = getSearchKeyword();
+
         clearTimeout(itemTimer);
-        if (keyword.length < 2) {
+
+        /*
+         * Kalau kosong
+         */
+        if (!keyword) {
+            itemSuggest.innerHTML = '';
             itemSuggest.style.display = 'none';
             return;
         }
-        itemTimer = setTimeout(() => {
-            fetch("{{ route('detailpo.search') }}?q=" + encodeURIComponent(keyword))
-                .then(res => res.json())
-                .then(data => {
-                    itemSuggest.innerHTML = '';
-                    if (!data || !data.length) {
-                        itemSuggest.style.display = 'none';
-                        return;
-                    }
-                    data.forEach(item => {
-                        const div = document.createElement('div');
-                        div.className = 'suggest-item';
-                        div.innerHTML =
-                            `<b>${item.kode}</b><br><small>${item.nama}</small>`;
-                        div.onclick = () => {
-                            addItemRow(item);
-                            itemInput.innerText = '';
-                            itemSuggest.style.display = 'none';
-                        };
-                        itemSuggest.appendChild(div);
-                    });
-                    itemSuggest.style.display = 'block';
+
+        /*
+         * Minimal 2 karakter
+         */
+        if (keyword.length < 2) {
+            itemSuggest.innerHTML = '';
+            itemSuggest.style.display = 'none';
+            return;
+        }
+
+        itemTimer = setTimeout(async function () {
+
+            /*
+             * Batalkan request sebelumnya kalau masih berjalan
+             */
+            if (itemRequest) {
+                itemRequest.abort();
+            }
+
+            itemRequest = new AbortController();
+
+            try {
+
+                itemSuggest.innerHTML = `
+                    <div class="suggest-item"
+                         style="color:#94a3b8;cursor:default;">
+                        <i class="fa fa-spinner fa-spin"></i>
+                        Mencari "${escapeHtml(keyword)}"...
+                    </div>
+                `;
+
+                itemSuggest.style.display = 'block';
+
+                const url =
+                    "{{ route('detailpo.search') }}" +
+                    "?q=" +
+                    encodeURIComponent(keyword);
+
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    signal: itemRequest.signal
                 });
-        }, 300);
+
+                if (!response.ok) {
+                    throw new Error(
+                        'HTTP ' + response.status
+                    );
+                }
+
+                const data = await response.json();
+
+                /*
+                 * Pastikan keyword masih sama.
+                 * Kalau user sudah mengetik keyword baru,
+                 * hasil lama jangan ditampilkan.
+                 */
+                if (getSearchKeyword() !== keyword) {
+                    return;
+                }
+
+                itemSuggest.innerHTML = '';
+
+                /*
+                 * Tidak ditemukan
+                 */
+                if (!Array.isArray(data) || data.length === 0) {
+
+                    itemSuggest.innerHTML = `
+                        <div class="suggest-item"
+                             style="color:#94a3b8;cursor:default;">
+                            <i class="fa fa-search"></i>
+                            Item tidak ditemukan
+                        </div>
+                    `;
+
+                    itemSuggest.style.display = 'block';
+
+                    return;
+                }
+
+                /*
+                 * Tampilkan hasil
+                 */
+                data.forEach(function (item) {
+
+                    const div = document.createElement('div');
+
+                    div.className = 'suggest-item';
+
+                    div.innerHTML = `
+                        <div style="
+                            display:flex;
+                            flex-direction:column;
+                            gap:2px;
+                        ">
+                            <strong style="
+                                font-size:11px;
+                                color:#172033;
+                            ">
+                                ${escapeHtml(item.nama || '-')}
+                            </strong>
+
+                            <small style="
+                                color:#64748b;
+                                font-size:9px;
+                            ">
+                                Article:
+                                <b>${escapeHtml(item.kode || '-')}</b>
+                            </small>
+                        </div>
+                    `;
+
+                    /*
+                     * PENTING:
+                     * Klik hasil -> langsung masuk ke tabel
+                     */
+                    div.addEventListener('mousedown', function (e) {
+                        e.preventDefault();
+                    });
+
+                    div.addEventListener('click', function (e) {
+
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        /*
+                         * Tambahkan item ke tabel
+                         */
+                        addItemRow(item);
+
+                        /*
+                         * Bersihkan search
+                         */
+                        clearItemSearch();
+
+                    });
+
+                    itemSuggest.appendChild(div);
+
+                });
+
+                itemSuggest.style.display = 'block';
+
+            } catch (error) {
+
+                /*
+                 * Abort bukan error yang perlu ditampilkan
+                 */
+                if (error.name === 'AbortError') {
+                    return;
+                }
+
+                console.error(
+                    'ITEM SEARCH ERROR:',
+                    error
+                );
+
+                itemSuggest.innerHTML = `
+                    <div class="suggest-item"
+                         style="color:#dc2626;cursor:default;">
+                        <i class="fa fa-exclamation-triangle"></i>
+                        Gagal mencari item
+                    </div>
+                `;
+
+                itemSuggest.style.display = 'block';
+            }
+
+        }, 250);
+
     });
 
-    function addItemRow(item) {
-        const tr = document.createElement('tr');
-        tr.classList.add('spk-rowa');
-        tr.dataset.detailId = item.detail_id || Date.now();
 
-        let dynamicCols = '';
-        document.querySelectorAll('.spk-dynamic-header').forEach(th => {
-            dynamicCols +=
-                `<td class="editable custom-column" contenteditable="true" data-custom="${th.dataset.custom}"></td>`;
+    /*
+    |--------------------------------------------------------------------------
+    | ENTER = PILIH HASIL PERTAMA
+    |--------------------------------------------------------------------------
+    */
+    itemInput.addEventListener('keydown', function (e) {
+
+        if (e.key !== 'Enter') return;
+
+        const firstResult =
+            itemSuggest.querySelector('.suggest-item[data-item-index="0"]');
+
+        /*
+         * Kalau ada hasil, pilih hasil pertama
+         */
+        if (firstResult) {
+
+            e.preventDefault();
+
+            firstResult.click();
+
+            return;
+        }
+
+        /*
+         * Jangan membuat newline di contenteditable
+         */
+        e.preventDefault();
+
+    });
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | UPDATE SUGGESTION INDEX
+    |--------------------------------------------------------------------------
+    */
+    const observer = new MutationObserver(function () {
+
+        const results =
+            itemSuggest.querySelectorAll('.suggest-item');
+
+        results.forEach(function (el, index) {
+            el.dataset.itemIndex = index;
         });
 
-        tr.innerHTML = `
-                <td class="text-center select-item-cell">
-                    <input type="checkbox" class="spk-item-check">
-                </td>
-                <td class="editable text-center kode-item delete-row" contenteditable="true">
-                    ${item.kode ?? ''}
-                </td>
-                <td class="gambar-cell">
-                    <div class="image-box gambar-cell" contenteditable="true"></div>
-                </td>
-                <td class="editable nama" contenteditable="true">
-                    ${item.nama ?? ''}
-                </td>
-                ${dynamicCols}
-                <td class="editable text-center p" contenteditable="true">${item.p ?? ''}</td>
-                <td class="editable text-center l" contenteditable="true">${item.l ?? ''}</td>
-                <td class="editable text-center t" contenteditable="true">${item.t ?? ''}</td>
-                <td class="editable material" contenteditable="true">${item.material ?? ''}</td>
-                <td class="editable text-center pcs" contenteditable="true">${item.qty ?? 0}</td>
-                <td class="editable text-center set" contenteditable="true">0</td>
-                <td class="editable text-right harga" contenteditable="true">0</td>
-                <td class="text-right total">0</td>
-                <td class="catatan-cell">
-                    <div class="editable note-box" contenteditable="true"></div>
-                </td>
-                <td class="text-center action-cell">
-                    <button type="button" class="btn-add-extra" title="Tambah Sub Baris">➕</button>
-                </td>
-            `;
+    });
 
-        document.getElementById('spkItemAnchor').before(tr);
-        hitungTotal(tr);
-        updateItemCount();
+    observer.observe(itemSuggest, {
+        childList: true
+    });
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | KLIK DI LUAR
+    |--------------------------------------------------------------------------
+    */
+    document.addEventListener('mousedown', function (e) {
+
+        if (
+            !itemInput.contains(e.target) &&
+            !itemSuggest.contains(e.target)
+        ) {
+            itemSuggest.style.display = 'none';
+        }
+
+    });
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | ADD ITEM ROW
+    |--------------------------------------------------------------------------
+    */
+    function addItemRow(item) {
+
+        const tbody =
+            document.getElementById('spkItemsBody');
+
+        const anchor =
+            document.getElementById('spkItemAnchor');
+
+        if (!tbody || !anchor) {
+            console.error(
+                'spkItemsBody / spkItemAnchor tidak ditemukan'
+            );
+            return;
+        }
+
+        const tr =
+            document.createElement('tr');
+
+        tr.classList.add('spk-rowa');
+
+        /*
+         * Simpan detail ID
+         */
+        tr.dataset.detailId =
+            item.detail_id ||
+            item.id ||
+            ('new_' + Date.now());
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | DYNAMIC COLUMNS
+        |--------------------------------------------------------------------------
+        */
+        let dynamicCols = '';
+
+        document
+            .querySelectorAll('.spk-dynamic-header')
+            .forEach(function (th) {
+
+                dynamicCols += `
+                    <td
+                        class="editable custom-column"
+                        contenteditable="true"
+                        data-custom="${escapeHtml(th.dataset.custom || '')}">
+                    </td>
+                `;
+
+            });
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | DATA ITEM
+        |--------------------------------------------------------------------------
+        */
+        const kode =
+            item.kode ??
+            item.article ??
+            item.code ??
+            '';
+
+        const nama =
+            item.nama ??
+            item.name ??
+            item.nama_barang ??
+            '';
+
+        const p =
+            item.p ??
+            item.panjang ??
+            '';
+
+        const l =
+            item.l ??
+            item.lebar ??
+            '';
+
+        const t =
+            item.t ??
+            item.tinggi ??
+            '';
+
+        const material =
+            item.material ??
+            '';
+
+        const qty =
+            item.qty ??
+            item.quantity ??
+            0;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | HTML ROW
+        |--------------------------------------------------------------------------
+        */
+        tr.innerHTML = `
+
+            <!-- CHECK -->
+            <td class="text-center select-item-cell">
+                <input
+                    type="checkbox"
+                    class="spk-item-check">
+            </td>
+
+
+            <!-- ARTICLE -->
+            <td
+                class="editable text-center kode-item delete-row"
+                contenteditable="true">
+                ${escapeHtml(kode)}
+            </td>
+
+
+            <!-- GAMBAR -->
+          <td class="gambar-cell">
+
+    <div
+        class="image-box gambar-cell"
+        contenteditable="true"
+        onpaste="handlePaste(event,this)">
+
+        ${
+            (item.images && item.images.length)
+                ? item.images.map(function (img) {
+                    return `
+                        <img
+                            src="${escapeHtml(img)}"
+                            class="preview-img"
+                            onerror="this.style.display='none'">
+                    `;
+                }).join('')
+                : (
+                    item.photo
+                        ? `
+                            <img
+                                src="${escapeHtml(item.photo)}"
+                                class="preview-img"
+                                onerror="this.style.display='none'">
+                          `
+                        : ''
+                )
+        }
+
+    </div>
+
+</td>
+
+
+            <!-- NAMA -->
+            <td
+                class="editable nama"
+                contenteditable="true">
+                ${escapeHtml(nama)}
+            </td>
+
+
+            ${dynamicCols}
+
+
+            <!-- P -->
+            <td
+                class="editable text-center p"
+                contenteditable="true">
+                ${escapeHtml(p)}
+            </td>
+
+
+            <!-- L -->
+            <td
+                class="editable text-center l"
+                contenteditable="true">
+                ${escapeHtml(l)}
+            </td>
+
+
+            <!-- T -->
+            <td
+                class="editable text-center t"
+                contenteditable="true">
+                ${escapeHtml(t)}
+            </td>
+
+
+            <!-- MATERIAL -->
+            <td
+                class="editable material"
+                contenteditable="true">
+                ${escapeHtml(material)}
+            </td>
+
+
+            <!-- PCS -->
+            <td
+                class="editable text-center pcs"
+                contenteditable="true">
+                ${escapeHtml(qty)}
+            </td>
+
+
+            <!-- SET -->
+            <td
+                class="editable text-center set"
+                contenteditable="true">
+                0
+            </td>
+
+
+            <!-- HARGA -->
+            <td
+                class="editable text-right harga"
+                contenteditable="true">
+                0
+            </td>
+
+
+            <!-- PPN -->
+            <td
+                class="ppn-cell ppn-hidden"
+                data-ppn-rate="11">
+                11%
+            </td>
+
+
+            <!-- TOTAL -->
+            <td class="text-right total">
+                0
+            </td>
+
+
+            <!-- CATATAN -->
+            <td class="catatan-cell">
+
+                <div
+                    class="editable note-box"
+                    contenteditable="true"
+                    onpaste="handlePaste(event,this)">
+                </div>
+
+            </td>
+
+
+            <!-- ACTION -->
+            <td class="text-center action-cell">
+
+                <button
+                    type="button"
+                    class="btn-add-extra"
+                    title="Tambah Sub Baris">
+                    ➕
+                </button>
+
+            </td>
+
+        `;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | MASUKKAN SEBELUM ANCHOR
+        |--------------------------------------------------------------------------
+        */
+        anchor.before(tr);
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | HITUNG TOTAL
+        |--------------------------------------------------------------------------
+        */
+        if (typeof hitungTotal === 'function') {
+            hitungTotal(tr);
+        }
+
+        if (typeof hitungGrandTotal === 'function') {
+            hitungGrandTotal();
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | UPDATE COUNT
+        |--------------------------------------------------------------------------
+        */
+        if (typeof updateItemCount === 'function') {
+            updateItemCount();
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | UPDATE PPN
+        |--------------------------------------------------------------------------
+        */
+        if (typeof window.refreshPpnState === 'function') {
+            window.refreshPpnState();
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | FOCUS NAMA ITEM
+        |--------------------------------------------------------------------------
+        */
+        const namaCell =
+            tr.querySelector('.nama');
+
+        if (namaCell) {
+
+            requestAnimationFrame(function () {
+
+                namaCell.focus();
+
+                /*
+                 * Cursor di akhir nama
+                 */
+                const range =
+                    document.createRange();
+
+                range.selectNodeContents(namaCell);
+                range.collapse(false);
+
+                const selection =
+                    window.getSelection();
+
+                selection.removeAllRanges();
+                selection.addRange(range);
+
+            });
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SCROLL KE ROW BARU
+        |--------------------------------------------------------------------------
+        */
+        requestAnimationFrame(function () {
+
+            tr.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
+
+        });
+
     }
 
+})();
     /* =========================================
        IMAGE PASTE & UPLOAD
        ========================================= */

@@ -19,10 +19,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Exports\BarangJadiExport;
 use App\Exports\AdminReportExport;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\SpkLama;
 use App\Models\InvLama;
 use Carbon\Carbon;
+// 
+
+use App\Helpers\ProductionMonitoringHelper;
 class ProduksiMnController extends Controller
 {
     /**
@@ -175,316 +179,106 @@ class ProduksiMnController extends Controller
     }
 
     // monitoring
-    // monitoring
-    // pew
-    // monitoring
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | INDEX
+    |--------------------------------------------------------------------------
+    |
+    | Menampilkan halaman Production Monitoring.
+    |
+    */
     public function index(Request $request)
     {
-        /*
-        |--------------------------------------------------------------------------
-        | FILTER
-        |--------------------------------------------------------------------------
-        */
+        $datas = $this->buildMonitoringData($request);
 
-        $searchPo = $request->search_po;
-        $selectedDate = $request->tanggal;
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | CATEGORY MAP
-        |--------------------------------------------------------------------------
-        */
-
-        $categories = [
-            'rangka' => 'rangka',
-            'anyam' => 'anyam',
-            'unfinish' => 'unfinish',
-            'final' => 'final',
-            'decor' => 'decor',
-
-            'packaging' => 'box',
-            'box' => 'box',
-        ];
+        return view(
+            'pages.management.index',
+            compact('datas')
+        );
+    }
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | INSPECTION CATEGORY ID
-        |--------------------------------------------------------------------------
-        |
-        | 4 = Rangka
-        | 5 = Anyam
-        | 6 = Unfinish
-        | 7 = Final
-        |
-        */
+    /*
+    |--------------------------------------------------------------------------
+    | DATA / JSON ENDPOINT
+    |--------------------------------------------------------------------------
+    |
+    | Endpoint:
+    |
+    | GET /produksi/mn/data
+    |
+    */
+    public function data(Request $request)
+    {
+        $datas = $this->buildMonitoringData($request);
 
-        $inspectionCategoryMap = [
-            4 => 'rangka',
-            5 => 'anyam',
-            6 => 'unfinish',
-            7 => 'final',
-        ];
+        return response()->json(
+            $datas,
+            200,
+            [],
+            JSON_PRETTY_PRINT |
+            JSON_UNESCAPED_UNICODE
+        );
+    }
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | GET AVAILABLE DATES
-        |--------------------------------------------------------------------------
-        */
-
-        $dates = InspectSchedule::query()
-            ->when($searchPo, function ($q) use ($searchPo) {
-
-                $q->whereHas('po', function ($qq) use ($searchPo) {
-
-                    $qq->where(
-                        'order_no',
-                        'like',
-                        '%' . $searchPo . '%'
-                    );
-                });
-            })
-            ->select('tanggal_inspect')
-            ->distinct()
-            ->orderBy('tanggal_inspect')
-            ->pluck('tanggal_inspect');
-
+    /*
+    |--------------------------------------------------------------------------
+    | BUILD MONITORING DATA
+    |--------------------------------------------------------------------------
+    |
+    | Struktur:
+    |
+    | PO
+    | └── Items
+    |     ├── SPK
+    |     │   ├── kategori asli
+    |     │   ├── kategori monitoring
+    |     │   ├── classification
+    |     │   ├── exception
+    |     │   ├── qty
+    |     │   ├── qty_in
+    |     │   ├── passed
+    |     │   └── rejected
+    |     │
+    |     ├── Unfinish
+    |     │   ├── passed
+    |     │   └── rejected
+    |     │
+    |     └── Final
+    |         ├── passed
+    |         └── rejected
+    |
+    */
+    private function buildMonitoringData(Request $request)
+    {
+        $start = microtime(true);
 
         /*
         |--------------------------------------------------------------------------
-        | GET PO
+        | LOAD PO
         |--------------------------------------------------------------------------
         */
-
-        $poQuery = Po::with([
+        $pos = Po::with([
             'detailPos',
             'spks',
-        ]);
+        ])->get();
 
 
         /*
         |--------------------------------------------------------------------------
-        | SORT RELEASE DATE
-        |--------------------------------------------------------------------------
-        */
-
-        $sort = strtolower($request->input('sort', 'desc'));
-
-        if (!in_array($sort, ['asc', 'desc'])) {
-            $sort = 'desc';
-        }
-
-        $poQuery->orderBy('release_date', $sort);
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | FILTER SEARCH
-        |--------------------------------------------------------------------------
-        */
-
-        if ($searchPo) {
-
-            $poQuery->where(function ($q) use ($searchPo) {
-
-                $q->where(
-                    'order_no',
-                    'like',
-                    '%' . $searchPo . '%'
-                )
-
-                    ->orWhere(
-                        'company_name',
-                        'like',
-                        '%' . $searchPo . '%'
-                    );
-
-            });
-
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | FILTER COMPANY
-        |--------------------------------------------------------------------------
-        | NW  = hanya PO NW
-        | NWS = hanya PO NWS
-        | all = semua
-        |--------------------------------------------------------------------------
-        */
-
-        $brand = strtolower(
-            trim($request->input('brand', 'all'))
-        );
-
-        if ($brand === 'nw') {
-
-            $poQuery
-                ->where('order_no', 'like', 'NW%')
-                ->where('order_no', 'not like', 'NWS%');
-
-        } elseif ($brand === 'nws') {
-
-            $poQuery
-                ->where('order_no', 'like', 'NWS%');
-
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | GET DATA
-        |--------------------------------------------------------------------------
-        */
-
-        $pos = $poQuery->get();
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | GET ALL DETAIL PO IDS
-        |--------------------------------------------------------------------------
-        */
-
-        $detailPoIds = [];
-
-        foreach ($pos as $po) {
-
-            foreach ($po->detailPos as $detailPo) {
-
-                $detailPoIds[] = $detailPo->id;
-            }
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | PRELOAD INSPECTION
+        | INSPECTION PER SPK
         |--------------------------------------------------------------------------
         |
-        | PENTING:
+        | Inspection yang mempunyai spk_id.
         |
-        | Untuk HEADER MONITORING:
-        |
-        |     detail_po_id
-        |          +
-        |     kategori_id
-        |
-        | yang menentukan kolom.
-        |
-        | Tidak bergantung kepada kategori SPK.
-        |
-        | Contoh:
-        |
-        | detail_po_id = 459
-        | kategori_id  = 5
-        | passed       = 13
-        |
-        | hasil:
-        |
-        | anyam_pass = 13
-        |
-        |--------------------------------------------------------------------------
-        */
-
-        $inspectQuery = InspectSchedule::query();
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | HANYA INSPECTION DARI ITEM YANG ADA DI PO YANG DITAMPILKAN
-        |--------------------------------------------------------------------------
-        */
-
-        if (!empty($detailPoIds)) {
-
-            $inspectQuery->whereIn(
-                'detail_po_id',
-                $detailPoIds
-            );
-
-        } else {
-
-            /*
-            |--------------------------------------------------------------------------
-            | Kalau tidak ada detail PO
-            |--------------------------------------------------------------------------
-            */
-
-            $inspectQuery->whereRaw('1 = 0');
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | FILTER TANGGAL
-        |--------------------------------------------------------------------------
-        */
-
-        if ($selectedDate) {
-
-            $inspectQuery->whereDate(
-                'tanggal_inspect',
-                $selectedDate
-            );
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | GROUP BY DETAIL PO
-        |--------------------------------------------------------------------------
-        */
-
-        $allInspects = $inspectQuery
-            ->get()
-            ->groupBy(function ($item) {
-
-                return (string) $item->detail_po_id;
-            });
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | PRELOAD INVENTORY
-        |--------------------------------------------------------------------------
-        */
-
-        $allInventories = ProductionTimeline::query()
-            ->whereIn(
-                'detail_po_id',
-                $detailPoIds
-            )
-            ->get()
-            ->groupBy('detail_po_id');
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | PRELOAD SPK
-        |--------------------------------------------------------------------------
-        */
-
-        $allSpks = Spk::query()
-            ->get()
-            ->keyBy('id');
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | PRELOAD QC TOTAL PER SPK
-        |--------------------------------------------------------------------------
-        |
-        | Ini khusus untuk QC RESULT pada modal SPK.
-        |
-        | Bukan untuk menentukan header Rangka / Anyam.
+        | Key:
+        | spk_id_detail_po_id
         |
         */
-
-        $inspectTotals = InspectSchedule::query()
+        $inspectionTotals = InspectSchedule::query()
             ->selectRaw('
             spk_id,
             detail_po_id,
@@ -497,12 +291,72 @@ class ProduksiMnController extends Controller
                 'detail_po_id'
             )
             ->get()
-            ->keyBy(function ($item) {
-
-                return
-                    $item->spk_id
+            ->keyBy(function ($row) {
+                return $row->spk_id
                     . '_'
-                    . $item->detail_po_id;
+                    . $row->detail_po_id;
+            });
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | INSPECTION TANPA SPK
+        |--------------------------------------------------------------------------
+        |
+        | Unfinish dan Final dilakukan QC tanpa SPK.
+        |
+        | kategori_id:
+        | 6 = Unfinish
+        | 7 = Final
+        |
+        */
+        $inspectionWithoutSpk = InspectSchedule::query()
+            ->selectRaw('
+            detail_po_id,
+            kategori_id,
+            SUM(passed) as total_passed,
+            SUM(rejected) as total_rejected
+        ')
+            ->whereNull('spk_id')
+            ->whereIn('kategori_id', [6, 7])
+            ->groupBy(
+                'detail_po_id',
+                'kategori_id'
+            )
+            ->get()
+            ->groupBy('detail_po_id');
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | PRODUCTION TIMELINE
+        |--------------------------------------------------------------------------
+        |
+        | Total IN per SPK.
+        |
+        */
+        $inventoryTotals = ProductionTimeline::query()
+            ->selectRaw('
+            spk_id,
+            detail_po_id,
+            SUM(
+                CASE
+                    WHEN LOWER(type) = "in"
+                    THEN qty
+                    ELSE 0
+                END
+            ) as total_in
+        ')
+            ->whereNotNull('spk_id')
+            ->groupBy(
+                'spk_id',
+                'detail_po_id'
+            )
+            ->get()
+            ->keyBy(function ($row) {
+                return $row->spk_id
+                    . '_'
+                    . $row->detail_po_id;
             });
 
 
@@ -511,8 +365,37 @@ class ProduksiMnController extends Controller
         | RESULT
         |--------------------------------------------------------------------------
         */
+        $result = [];
 
-        $datas = [];
+
+        /*
+        |--------------------------------------------------------------------------
+        | HELPER LOCAL
+        |--------------------------------------------------------------------------
+        */
+        $normalizeArray = function ($value) {
+
+            if (is_string($value)) {
+
+                $decoded = json_decode(
+                    $value,
+                    true
+                );
+
+                if (
+                    json_last_error() === JSON_ERROR_NONE
+                    && is_array($decoded)
+                ) {
+                    return $decoded;
+                }
+
+                return [];
+            }
+
+            return is_array($value)
+                ? $value
+                : [];
+        };
 
 
         /*
@@ -520,66 +403,49 @@ class ProduksiMnController extends Controller
         | LOOP PO
         |--------------------------------------------------------------------------
         */
-
         foreach ($pos as $po) {
 
-            $poId = $po->id;
-
-
-            $datas[$poId] = [
+            $poData = [
+                'po_id' =>
+                    $po->id,
 
                 'po_number' =>
                     $po->order_no,
 
-                'buyer_name' =>
-                    $po->company_name
-                    ?? $po->company_name
-                    ?? $po->buyer
-                    ?? '',
+                'buyer' =>
+                    $po->company_name,
 
-                'items' => [],
+                'items' =>
+                    [],
             ];
 
 
             /*
             |--------------------------------------------------------------------------
-            | LOOP DETAIL PO / ITEM
+            | LOOP DETAIL PO
             |--------------------------------------------------------------------------
             */
-
-            foreach ($po->detailPos as $detailPo) {
-
+            foreach (
+                $po->detailPos
+                as $detailPo
+            ) {
 
                 /*
                 |--------------------------------------------------------------------------
-                | DETAIL
+                | DETAIL PO
                 |--------------------------------------------------------------------------
                 */
-
                 $detail =
-                    $detailPo->detail ?? [];
-
-
-                if (is_string($detail)) {
-
-                    $detail = json_decode(
-                        $detail,
-                        true
+                    $normalizeArray(
+                        $detailPo->detail
                     );
-                }
 
 
                 /*
                 |--------------------------------------------------------------------------
-                | ITEM INFO
+                | ITEM NAME
                 |--------------------------------------------------------------------------
                 */
-
-                $qty =
-                    $detail['qty']
-                    ?? 0;
-
-
                 $itemName =
                     $detail['description']
                     ?? $detail['nama']
@@ -587,242 +453,211 @@ class ProduksiMnController extends Controller
                     ?? '-';
 
 
-                $image =
-                    $detail['photo']
+                /*
+                |--------------------------------------------------------------------------
+                | ITEM IMAGE
+                |--------------------------------------------------------------------------
+                */
+                $itemImage =
+                    $detail['item_image']
+                    ?? $detail['image']
+                    ?? $detail['gambar']
+                    ?? $detail['photo']
                     ?? null;
 
 
                 /*
                 |--------------------------------------------------------------------------
-                | DEFAULT ITEM
+                | UNFINISH
                 |--------------------------------------------------------------------------
                 */
-
-                $itemData = [
-
-                    'item_name' =>
-                        $itemName,
-
-                    'item_image' =>
-                        $image,
-
-                    'qty' =>
-                        $qty,
-
-                    'spks' =>
-                        [],
-                ];
+                $unfinishPassed = 0;
+                $unfinishRejected = 0;
 
 
                 /*
                 |--------------------------------------------------------------------------
-                | INIT ALL CATEGORY STATUS
+                | FINAL
                 |--------------------------------------------------------------------------
                 */
-
-                foreach ($categories as $category) {
-
-                    $itemData[
-                        $category . '_pass'
-                    ] = 0;
-
-                    $itemData[
-                        $category . '_reject'
-                    ] = 0;
-
-                    $itemData[
-                        $category . '_in'
-                    ] = 0;
-
-                    $itemData[
-                        $category . '_out'
-                    ] = 0;
-                }
+                $finalPassed = 0;
+                $finalRejected = 0;
 
 
                 /*
                 |--------------------------------------------------------------------------
-                | GET INSPECTION MILIK DETAIL PO INI
-                |--------------------------------------------------------------------------
-                |
-                | CONTOH ALINA:
-                |
-                | detail_po_id = 459
-                |
-                | inspection:
-                |
-                | kategori_id = 5
-                | passed      = 13
-                |
-                | Maka:
-                |
-                | anyam_pass = 13
-                |
+                | INSPECTION TANPA SPK
                 |--------------------------------------------------------------------------
                 */
-
-                $inspects =
-                    $allInspects[
-                        (string) $detailPo->id
-                    ] ?? collect();
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | LOOP INSPECTION
-                |--------------------------------------------------------------------------
-                */
-
-                foreach ($inspects as $inspect) {
+                $itemInspections =
+                    $inspectionWithoutSpk[
+                        $detailPo->id
+                    ]
+                    ?? collect();
 
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | CATEGORY ID INSPECTION
-                    |--------------------------------------------------------------------------
-                    */
+                foreach (
+                    $itemInspections
+                    as $inspection
+                ) {
 
                     $kategoriId =
-                        (int) $inspect->kategori_id;
+                        (int) $inspection->kategori_id;
 
 
                     /*
                     |--------------------------------------------------------------------------
-                    | TENTUKAN HEADER
+                    | UNFINISH
                     |--------------------------------------------------------------------------
                     */
+                    if (
+                        $kategoriId === 6
+                    ) {
 
-                    $prefix =
-                        $inspectionCategoryMap[
-                            $kategoriId
-                        ] ?? null;
+                        $unfinishPassed +=
+                            (float) (
+                                $inspection->total_passed
+                                ?? 0
+                            );
 
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | CATEGORY TIDAK TERDAFTAR
-                    |--------------------------------------------------------------------------
-                    */
-
-                    if (!$prefix) {
-
-                        continue;
+                        $unfinishRejected +=
+                            (float) (
+                                $inspection->total_rejected
+                                ?? 0
+                            );
                     }
 
 
                     /*
                     |--------------------------------------------------------------------------
-                    | PASSED
+                    | FINAL
                     |--------------------------------------------------------------------------
-                    */
+                    */ elseif (
+                        $kategoriId === 7
+                    ) {
 
-                    $passed =
-                        (int) (
-                            $inspect->passed
-                            ?? 0
-                        );
+                        $finalPassed +=
+                            (float) (
+                                $inspection->total_passed
+                                ?? 0
+                            );
 
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | REJECTED
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $rejected =
-                        (int) (
-                            $inspect->rejected
-                            ?? 0
-                        );
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | MASUKKAN KE HEADER
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $itemData[
-                        $prefix . '_pass'
-                    ] += $passed;
-
-
-                    $itemData[
-                        $prefix . '_reject'
-                    ] += $rejected;
+                        $finalRejected +=
+                            (float) (
+                                $inspection->total_rejected
+                                ?? 0
+                            );
+                    }
                 }
 
 
                 /*
                 |--------------------------------------------------------------------------
-                | GET SPK
+                | ITEM DATA
                 |--------------------------------------------------------------------------
                 */
+                $itemData = [
 
-                foreach ($po->spks as $spk) {
+                    'detail_po_id' =>
+                        $detailPo->id,
 
+                    'item_name' =>
+                        $itemName,
+
+                    'item_image' =>
+                        $itemImage,
+
+                    'qty' =>
+                        (float) (
+                            $detail['qty']
+                            ?? 0
+                        ),
+
+                    'spks' =>
+                        [],
+
+                    'unfinish' => [
+
+                        'passed' =>
+                            $unfinishPassed,
+
+                        'rejected' =>
+                            $unfinishRejected,
+                    ],
+
+                    'final' => [
+
+                        'passed' =>
+                            $finalPassed,
+
+                        'rejected' =>
+                            $finalRejected,
+                    ],
+                ];
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | LOOP SPK
+                |--------------------------------------------------------------------------
+                */
+                foreach (
+                    $po->spks
+                    as $spk
+                ) {
 
                     /*
                     |--------------------------------------------------------------------------
                     | SPK DATA
                     |--------------------------------------------------------------------------
                     */
-
                     $spkData =
-                        $spk->data;
-
-
-                    if (is_string($spkData)) {
-
-                        $spkData = json_decode(
-                            $spkData,
-                            true
+                        $normalizeArray(
+                            $spk->data
                         );
-                    }
 
 
                     /*
                     |--------------------------------------------------------------------------
-                    | SPK ITEMS
+                    | LOOP ITEM SPK
                     |--------------------------------------------------------------------------
                     */
-
-                    $spkItems =
-                        $spkData['items']
-                        ?? [];
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | LOOP SPK ITEMS
-                    |--------------------------------------------------------------------------
-                    */
-
-                    foreach ($spkItems as $spkItem) {
-
+                    foreach (
+                        ($spkData['items'] ?? [])
+                        as $spkItem
+                    ) {
 
                         /*
                         |--------------------------------------------------------------------------
-                        | DETAIL PO HARUS SAMA
+                        | FILTER DETAIL PO
                         |--------------------------------------------------------------------------
                         */
-
                         if (
                             ($spkItem['detail_po_id'] ?? null)
                             != $detailPo->id
                         ) {
-
                             continue;
                         }
 
 
                         /*
                         |--------------------------------------------------------------------------
-                        | QC TOTAL KEY
+                        | CLASSIFICATION
                         |--------------------------------------------------------------------------
                         */
+                        $classification =
+                            ProductionMonitoringHelper::classifySpkCategory(
+                                $spkData['kategori']
+                                ?? ''
+                            );
 
-                        $inspectTotalKey =
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | KEY MONITORING
+                        |--------------------------------------------------------------------------
+                        */
+                        $key =
                             $spk->id
                             . '_'
                             . $detailPo->id;
@@ -830,14 +665,305 @@ class ProduksiMnController extends Controller
 
                         /*
                         |--------------------------------------------------------------------------
-                        | GET QC TOTAL
+                        | INSPECTION
                         |--------------------------------------------------------------------------
                         */
+                        $inspection =
+                            $inspectionTotals[$key]
+                            ?? null;
 
-                        $inspectTotal =
-                            $inspectTotals[
-                                $inspectTotalKey
-                            ] ?? null;
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | INVENTORY
+                        |--------------------------------------------------------------------------
+                        */
+                        $inventory =
+                            $inventoryTotals[$key]
+                            ?? null;
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | TOTAL IN ASLI
+                        |--------------------------------------------------------------------------
+                        */
+                        $totalIn =
+                            (float) (
+                                $inventory->total_in
+                                ?? 0
+                            );
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | PASSED
+                        |--------------------------------------------------------------------------
+                        */
+                        $totalPassed =
+                            (float) (
+                                $inspection->total_passed
+                                ?? 0
+                            );
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | REJECTED
+                        |--------------------------------------------------------------------------
+                        */
+                        $totalRejected =
+                            (float) (
+                                $inspection->total_rejected
+                                ?? 0
+                            );
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | COMPONENT
+                        |--------------------------------------------------------------------------
+                        |
+                        | PENTING:
+                        |
+                        | Sumber component BUKAN custom_headers.
+                        |
+                        | Sumber yang benar:
+                        |
+                        | $spkItem['custom_columns'][*]['proses']
+                        |
+                        | Contoh:
+                        |
+                        | ANYAM RANGKA
+                        | ANYAM DUDUKAN
+                        | ANYAM SANDARAN
+                        |
+                        */
+                        $components = [];
+
+                        $customColumns =
+                            $normalizeArray(
+                                $spkItem['custom_columns']
+                                ?? []
+                            );
+
+
+                        foreach (
+                            $customColumns
+                            as $customColumn
+                        ) {
+
+                            if (
+                                !is_array($customColumn)
+                            ) {
+                                continue;
+                            }
+
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | NAMA PROSES / COMPONENT
+                            |--------------------------------------------------------------------------
+                            */
+                            $processName =
+                                trim(
+                                    (string) (
+                                        $customColumn['proses']
+                                        ?? ''
+                                    )
+                                );
+
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | SKIP KOSONG
+                            |--------------------------------------------------------------------------
+                            */
+                            if (
+                                $processName === ''
+                            ) {
+                                continue;
+                            }
+
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | QTY COMPONENT
+                            |--------------------------------------------------------------------------
+                            */
+                            $componentQty =
+                                $customColumn['pcs']
+                                ?? $customColumn['qty']
+                                ?? $customColumn['quantity']
+                                ?? $spkItem['qty']
+                                ?? 0;
+
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | COMPONENT
+                            |--------------------------------------------------------------------------
+                            */
+                            $components[] = [
+
+                                'name' =>
+                                    $processName,
+
+                                'qty_spk' =>
+                                    (float) 
+                                    $componentQty,
+
+                                'qty_in' =>
+                                    0,
+
+                                'passed' =>
+                                    0,
+
+                                'rejected' =>
+                                    0,
+                            ];
+                        }
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | REMOVE DUPLICATE COMPONENT
+                        |--------------------------------------------------------------------------
+                        */
+                        $uniqueComponents = [];
+
+                        foreach (
+                            $components
+                            as $component
+                        ) {
+
+                            $componentKey =
+                                strtoupper(
+                                    preg_replace(
+                                        '/\s+/',
+                                        ' ',
+                                        trim(
+                                            $component['name']
+                                        )
+                                    )
+                                );
+
+
+                            if (
+                                isset(
+                                $uniqueComponents[
+                                    $componentKey
+                                ]
+                            )
+                            ) {
+                                continue;
+                            }
+
+
+                            $uniqueComponents[
+                                $componentKey
+                            ] =
+                                $component;
+                        }
+
+
+                        $components =
+                            array_values(
+                                $uniqueComponents
+                            );
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | JUMLAH COMPONENT
+                        |--------------------------------------------------------------------------
+                        */
+                        $componentCount =
+                            count($components);
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | QTY IN MONITORING
+                        |--------------------------------------------------------------------------
+                        |
+                        | Contoh:
+                        |
+                        | 214 IN
+                        | 3 component
+                        |
+                        | 214 / 3 = 71.33
+                        |
+                        | floor = 71
+                        |
+                        */
+                        if (
+                            $componentCount > 1
+                        ) {
+
+                            $componentQtyIn =
+                                floor(
+                                    $totalIn
+                                    /
+                                    $componentCount
+                                );
+
+                        } else {
+
+                            $componentQtyIn =
+                                $totalIn;
+                        }
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | ISI HASIL MONITORING COMPONENT
+                        |--------------------------------------------------------------------------
+                        */
+                        foreach (
+                            $components
+                            as &$component
+                        ) {
+
+                            $component['qty_in'] =
+                                $componentQtyIn;
+
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | PASSED
+                            |--------------------------------------------------------------------------
+                            |
+                            | Jangan dibagi.
+                            |
+                            | Inspection sekarang masih berada
+                            | pada level SPK.
+                            |
+                            */
+                            $component['passed'] =
+                                $totalPassed;
+
+
+                            $component['rejected'] =
+                                $totalRejected;
+                        }
+
+                        unset($component);
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | SUB NAME
+                        |--------------------------------------------------------------------------
+                        |
+                        | Sesuai kebutuhan:
+                        |
+                        | SUB NAME = supplier SPK.
+                        |
+                        */
+                        $subName =
+                            $spkData['sup']
+                            ?? '-';
 
 
                         /*
@@ -845,268 +971,145 @@ class ProduksiMnController extends Controller
                         | PUSH SPK
                         |--------------------------------------------------------------------------
                         */
-
                         $itemData['spks'][] = [
 
-                            'id' =>
+                            /*
+                            |--------------------------------------------------------------------------
+                            | IDENTITAS SPK
+                            |--------------------------------------------------------------------------
+                            */
+                            'spk_id' =>
                                 $spk->id,
-
-                            'supplier' =>
-                                $spkData['sup']
-                                ?? '-',
-
-                            'kategori' =>
-                                $spkData['kategori']
-                                ?? '-',
-
-                            'jenis_asli' =>
-                                $spkData['kategori']
-                                ?? '-',
 
                             'no_spk' =>
                                 $spkData['no_spk']
                                 ?? '-',
 
-                            'status' =>
-                                $spk->status
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | SUB NAME / SUPPLIER
+                            |--------------------------------------------------------------------------
+                            */
+                            'sub_name' =>
+                                $subName,
+
+                            'supplier' =>
+                                $spkData['sup']
                                 ?? '-',
 
-                            'harga' =>
-                                $spkItem['harga']
-                                ?? 0,
 
+                            /*
+                            |--------------------------------------------------------------------------
+                            | KATEGORI ASLI
+                            |--------------------------------------------------------------------------
+                            */
+                            'kategori' =>
+                                $spkData['kategori']
+                                ?? '-',
+
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | CLASSIFICATION
+                            |--------------------------------------------------------------------------
+                            */
+                            'kategori_monitoring' =>
+                                $classification['category']
+                                ?? null,
+
+                            'classification' =>
+                                $classification['classification']
+                                ?? null,
+
+                            'is_exception' =>
+                                $classification['is_exception']
+                                ?? false,
+
+                            'exception_rule' =>
+                                $classification['exception_rule']
+                                ?? null,
+
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | QTY SPK
+                            |--------------------------------------------------------------------------
+                            */
                             'qty' =>
-                                $spkItem['qty']
-                                ?? 0,
+                                (float) (
+                                    $spkItem['qty']
+                                    ?? 0
+                                ),
 
-                            'detail_po_id' =>
-                                $detailPo->id,
 
-                            'inspect_schedule_id' =>
-                                $inspectTotal
-                                ? true
-                                : false,
+                            /*
+                            |--------------------------------------------------------------------------
+                            | HARGA
+                            |--------------------------------------------------------------------------
+                            */
+                            'harga' =>
+                                (float) (
+                                    $spkItem['harga']
+                                    ?? 0
+                                ),
 
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | TOTAL IN ASLI
+                            |--------------------------------------------------------------------------
+                            |
+                            | Untuk debug / kebutuhan lain.
+                            |
+                            */
+                            'total_in' =>
+                                $totalIn,
+
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | QTY IN MONITORING
+                            |--------------------------------------------------------------------------
+                            |
+                            | Multi component:
+                            |
+                            | 214 / 3 = 71
+                            |
+                            */
+                            'qty_in' =>
+                                $componentQtyIn,
+
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | PASSED
+                            |--------------------------------------------------------------------------
+                            */
                             'passed' =>
-                                $inspectTotal
-                                    ->total_passed
-                                ?? 0,
+                                $totalPassed,
 
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | REJECTED
+                            |--------------------------------------------------------------------------
+                            */
                             'rejected' =>
-                                $inspectTotal
-                                    ->total_rejected
-                                ?? 0,
+                                $totalRejected,
+
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | COMPONENT
+                            |--------------------------------------------------------------------------
+                            */
+                            'component_count' =>
+                                $componentCount,
+
+                            'components' =>
+                                $components,
                         ];
-                    }
-                }
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | INVENTORY
-                |--------------------------------------------------------------------------
-                */
-
-                $inventories =
-                    $allInventories[
-                        $detailPo->id
-                    ] ?? collect();
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | LOOP INVENTORY
-                |--------------------------------------------------------------------------
-                */
-
-                foreach ($inventories as $inventory) {
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | GET SPK INVENTORY
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $spkInv =
-                        $allSpks[
-                            $inventory->spk_id
-                        ] ?? null;
-
-
-                    if (!$spkInv) {
-
-                        continue;
-                    }
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | SPK DATA
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $spkInvData =
-                        $spkInv->data;
-
-
-                    if (is_string($spkInvData)) {
-
-                        $spkInvData =
-                            json_decode(
-                                $spkInvData,
-                                true
-                            );
-                    }
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | CATEGORY INVENTORY
-                    |--------------------------------------------------------------------------
-                    |
-                    | INVENTORY tetap berdasarkan kategori SPK.
-                    |
-                    | Jangan menggunakan kategori inspection di sini.
-                    |
-                    */
-
-                    $kategoriInv =
-                        strtolower(
-                            trim(
-                                $spkInvData['kategori']
-                                ?? ''
-                            )
-                        );
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | NORMALIZE CATEGORY
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $prefix = null;
-
-
-                    if (
-                        str_contains(
-                            $kategoriInv,
-                            'rangka'
-                        )
-                    ) {
-
-                        $prefix = 'rangka';
-
-                    } elseif (
-                        str_contains(
-                            $kategoriInv,
-                            'anyam'
-                        )
-                    ) {
-
-                        $prefix = 'anyam';
-
-                    } elseif (
-                        str_contains(
-                            $kategoriInv,
-                            'unfinish'
-                        )
-                    ) {
-
-                        $prefix = 'unfinish';
-
-                    } elseif (
-                        str_contains(
-                            $kategoriInv,
-                            'final'
-                        )
-                    ) {
-
-                        $prefix = 'final';
-
-                    } elseif (
-                        str_contains(
-                            $kategoriInv,
-                            'box'
-                        )
-                        ||
-                        str_contains(
-                            $kategoriInv,
-                            'packaging'
-                        )
-                    ) {
-
-                        $prefix = 'box';
-                    }
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | UNKNOWN CATEGORY
-                    |--------------------------------------------------------------------------
-                    */
-
-                    if (!$prefix) {
-
-                        continue;
-                    }
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | INVENTORY TYPE
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $type =
-                        strtolower(
-                            trim(
-                                $inventory->type
-                                ?? ''
-                            )
-                        );
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | QTY
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $qtyInventory =
-                        (float) (
-                            $inventory->qty
-                            ?? 0
-                        );
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | IN
-                    |--------------------------------------------------------------------------
-                    */
-
-                    if ($type === 'in') {
-
-                        $itemData[
-                            $prefix . '_in'
-                        ] +=
-                            $qtyInventory;
-
-                    }
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | OUT
-                    |--------------------------------------------------------------------------
-                    */ else {
-
-                        $itemData[
-                            $prefix . '_out'
-                        ] +=
-                            $qtyInventory;
                     }
                 }
 
@@ -1116,38 +1119,234 @@ class ProduksiMnController extends Controller
                 | PUSH ITEM
                 |--------------------------------------------------------------------------
                 */
-
-                $datas[
-                    $poId
-                ]['items'][] =
+                $poData['items'][] =
                     $itemData;
             }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | PUSH PO
+            |--------------------------------------------------------------------------
+            */
+            $result[] = $poData;
         }
 
 
         /*
         |--------------------------------------------------------------------------
-        | RETURN
+        | FILTER REQUEST
         |--------------------------------------------------------------------------
         */
 
-        return view(
-            'pages.management.index',
-            [
-                'datas' =>
-                    $datas,
-
-                'searchPo' =>
-                    $searchPo,
-
-                'selectedDate' =>
-                    $selectedDate,
-
-                'dates' =>
-                    $dates,
-            ]
+        $search = trim(
+            (string) $request->input('search_po', '')
         );
+
+        $brand = strtolower(
+            trim(
+                (string) $request->input('brand', 'all')
+            )
+        );
+
+        $sort = strtolower(
+            trim(
+                (string) $request->input('sort', 'desc')
+            )
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | VALIDATE BRAND
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            !in_array(
+                $brand,
+                ['all', 'nw', 'nws', 'nwr', 'nwd'],
+                true
+            )
+        ) {
+            $brand = 'all';
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | VALIDATE SORT
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            !in_array(
+                $sort,
+                ['asc', 'desc'],
+                true
+            )
+        ) {
+            $sort = 'desc';
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | COLLECTION
+        |--------------------------------------------------------------------------
+        */
+
+        $result = collect($result);
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SEARCH NO PO / BUYER
+        |--------------------------------------------------------------------------
+        */
+
+        if ($search !== '') {
+
+            $searchLower = strtolower($search);
+
+            $result = $result->filter(
+                function ($po) use ($searchLower) {
+
+                    $poNumber = strtolower(
+                        (string) (
+                            $po['po_number'] ?? ''
+                        )
+                    );
+
+                    $buyer = strtolower(
+                        (string) (
+                            $po['buyer'] ?? ''
+                        )
+                    );
+
+                    return
+                        str_contains(
+                            $poNumber,
+                            $searchLower
+                        )
+                        ||
+                        str_contains(
+                            $buyer,
+                            $searchLower
+                        );
+                }
+            );
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | FILTER COMPANY
+        |--------------------------------------------------------------------------
+        |
+        | NW  -> hanya NW
+        | NWS -> hanya NWS
+        | NWR -> hanya NWR
+        | NWD -> hanya NWD
+        |
+        */
+
+        if ($brand !== 'all') {
+
+            $result = $result->filter(
+                function ($po) use ($brand) {
+
+                    $poNumber = strtoupper(
+                        trim(
+                            (string) (
+                                $po['po_number'] ?? ''
+                            )
+                        )
+                    );
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Ambil prefix sebelum spasi
+                    |--------------------------------------------------------------------------
+                    |
+                    | NW 26 - 36  => NW
+                    | NWS 26 - 01 => NWS
+                    | NWR 26 - 01 => NWR
+                    | NWD 26 - 01 => NWD
+                    |
+                    */
+
+                    $prefix = strtoupper(
+                        trim(
+                            explode(' ', $poNumber)[0]
+                        )
+                    );
+
+                    return $prefix === strtoupper($brand);
+                }
+            );
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SORT PO
+        |--------------------------------------------------------------------------
+        */
+
+        $result = $result->sortBy(
+            function ($po) {
+
+                $poNumber =
+                    (string) (
+                        $po['po_number'] ?? ''
+                    );
+
+                preg_match(
+                    '/(\d+)\s*$/',
+                    $poNumber,
+                    $matches
+                );
+
+                return isset($matches[1])
+                    ? (int) $matches[1]
+                    : PHP_INT_MAX;
+            },
+            SORT_NUMERIC,
+            $sort === 'desc'
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | RESET INDEX
+        |--------------------------------------------------------------------------
+        */
+
+        $result = $result
+            ->values()
+            ->toArray();
+        Log::info('PRODUCTION MONITORING TIME', [
+            'time' => round(
+                microtime(true) - $start,
+                3
+            ),
+
+            'search' =>
+                $request->input('search_po'),
+
+            'brand' =>
+                $request->input('brand'),
+
+            'sort' =>
+                $request->input('sort'),
+
+            'total_po' =>
+                count($result),
+        ]);
+        return $result;
     }
+
 
     // pew
     private function getMonitoringCategory($jenis)
@@ -1977,47 +2176,149 @@ class ProduksiMnController extends Controller
 
             $rows = [];
 
+            /*
+  |--------------------------------------------------------------------------
+  | TO SUB INVOICE
+  |--------------------------------------------------------------------------
+  |
+  | Invoice sekarang mempunyai tujuan SUB:
+  |
+  | TOMO
+  | DARTO
+  |
+  | Ini harus menjadi sumber kategori utama invoice.
+  | Dengan begitu invoice tetap masuk tab masing-masing
+  | walaupun belum mempunyai pemotongan SPK.
+  |
+  */
+
+            $invoiceToSub = trim(
+                (string) (
+                    $invoice->to_sub
+                    ?? ''
+                )
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | NORMALISASI TO SUB
+            |--------------------------------------------------------------------------
+            */
+
+            $invoiceSubNormalized =
+                $this->normalizeSupplier(
+                    $invoiceToSub
+                );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | KATEGORI INVOICE
+            |--------------------------------------------------------------------------
+            |
+            | Jika to_sub tersedia:
+            |
+            | TOMO  -> finishing
+            | DARTO -> darto
+            |
+            | Jika kosong, nanti fallback ke kategori lama.
+            |
+            */
+
+            $invoiceKategori =
+                $invoiceSubNormalized
+                ?: strtolower(
+                    trim(
+                        (string) (
+                            $invoice->kategori
+                            ?? $invoice->kategori_invoice
+                            ?? ''
+                        )
+                    )
+                );
+
+
             $rows[] = [
 
-                'id' => 'INV-' . $invoiceSource . '-' . $invoice->id,
+                'id' =>
+                    'INV-' .
+                    $invoiceSource .
+                    '-' .
+                    $invoice->id,
 
-                'source_id' => $invoice->id,
+                'source_id' =>
+                    $invoice->id,
 
-                'source' => $invoiceSource,
+                'source' =>
+                    $invoiceSource,
 
-                'type' => 'invoice',
+                'type' =>
+                    'invoice',
 
-                'tanggal' => $invoiceDate,
+                'tanggal' =>
+                    $invoiceDate,
 
-                'description' => 'Invoice',
+                'description' =>
+                    'Invoice',
 
-                'sub' => $invoiceNumber,
-
-                'supplier' => '',
-
-                'debet' => $invoiceTotal,
-
-                'kredit' => 0,
+                'sub' =>
+                    $invoiceNumber,
 
                 /*
-                 * Untuk sementara saldo akan diisi ulang
-                 * setelah semua pemotongan selesai diproses.
-                 */
-                'saldo' => 0,
+                |--------------------------------------------------------------------------
+                | TO SUB
+                |--------------------------------------------------------------------------
+                */
+                'to_sub' =>
+                    $invoiceToSub,
 
-                'invoice' => $invoiceNumber,
+                /*
+                |--------------------------------------------------------------------------
+                | SUPPLIER
+                |--------------------------------------------------------------------------
+                */
+                'supplier' =>
+                    $invoiceSubNormalized
+                    ?: '',
 
-                'no_inv' => $invoiceNumber,
+                /*
+                |--------------------------------------------------------------------------
+                | KATEGORI
+                |--------------------------------------------------------------------------
+                */
+                'kategori' =>
+                    $invoiceKategori,
 
-                'po' => null,
+                'debet' =>
+                    $invoiceTotal,
 
-                'no_spk' => null,
+                'kredit' =>
+                    0,
 
-                'note_tambahan' => null,
+                'saldo' =>
+                    0,
 
-                'detail_bahan' => $detailBahan,
+                'invoice' =>
+                    $invoiceNumber,
 
-                'sort_date' => $invoiceDate,
+                'no_inv' =>
+                    $invoiceNumber,
+
+                'po' =>
+                    null,
+
+                'no_spk' =>
+                    null,
+
+                'note_tambahan' =>
+                    null,
+
+                'detail_bahan' =>
+                    $detailBahan,
+
+                'sort_date' =>
+                    $invoiceDate,
             ];
 
 
@@ -2285,36 +2586,61 @@ class ProduksiMnController extends Controller
                     |
                     */
 
-                    preg_match(
-                        '/([A-Z]{2,10}\d{4,})/i',
-                        $noteTambahan,
-                        $matches
-                    );
-
-
-                    if (empty($matches[1])) {
-                        continue;
-                    }
-
-
-                    $paymentInvoice =
-                        $this->normalizeInvoice(
-                            $matches[1]
-                        );
-
-
                     /*
-                    |--------------------------------------------------------------------------
-                    | PAYMENT HARUS TERKAIT INVOICE INI
-                    |--------------------------------------------------------------------------
-                    */
+|--------------------------------------------------------------------------
+| COCOKKAN PAYMENT DENGAN INVOICE
+|--------------------------------------------------------------------------
+|
+| Jangan menggunakan regex karena format invoice bisa bermacam-macam:
+|
+| KAJ0450826
+| DUCATY 003230.08.26
+| DUCATY-003230.08.26
+| INVC LEGENDA KAJ180526
+|
+| Kita normalisasi keduanya:
+|
+| DUCATY 003230.08.26
+|        ↓
+| DUCATY0032300826
+|
+*/
 
-                    if (
-                        $paymentInvoice === '' ||
-                        $paymentInvoice !== $invoiceKey
-                    ) {
-                        continue;
-                    }
+$noteInvoiceNormalized =
+    $this->normalizeInvoice(
+        $noteTambahan
+    );
+
+
+/*
+|--------------------------------------------------------------------------
+| PAYMENT HARUS MENGANDUNG NOMOR INVOICE
+|--------------------------------------------------------------------------
+*/
+
+if (
+    $invoiceKey === '' ||
+    $noteInvoiceNormalized === '' ||
+    !str_contains(
+        $noteInvoiceNormalized,
+        $invoiceKey
+    )
+) {
+    continue;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| NOMOR INVOICE PAYMENT
+|--------------------------------------------------------------------------
+|
+| Untuk kebutuhan data row, gunakan invoice
+| yang sedang diproses.
+|
+*/
+
+$paymentInvoice = $invoiceKey;
 
 
                     /*
@@ -2587,26 +2913,99 @@ class ProduksiMnController extends Controller
 |
 */
 
+            /*
+|--------------------------------------------------------------------------
+| KATEGORI INVOICE
+|--------------------------------------------------------------------------
+|
+| PRIORITAS:
+|
+| 1. to_sub
+| 2. kategori
+| 3. kategori_invoice
+| 4. field kategori lama lainnya
+|
+| Karena to_sub sengaja dibuat untuk menentukan
+| invoice tersebut masuk ke tab TOMO / DARTO.
+|
+*/
+
             $kategoriInvoice = '';
 
-            foreach ([
-                'kategori',
-                'kategori_invoice',
-                'jenis_invoice',
-                'tipe_invoice',
-                'category',
-                'type_invoice',
-            ] as $field) {
+            $invoiceToSub =
+                trim(
+                    (string) (
+                        $invoice->to_sub
+                        ?? ''
+                    )
+                );
 
-                if (
-                    isset($invoice->{$field}) &&
-                    trim((string) $invoice->{$field}) !== ''
-                ) {
-                    $kategoriInvoice = trim(
-                        (string) $invoice->{$field}
+
+            /*
+            |--------------------------------------------------------------------------
+            | TO SUB ADALAH PRIORITAS UTAMA
+            |--------------------------------------------------------------------------
+            */
+
+            if ($invoiceToSub !== '') {
+
+                $normalizedToSub =
+                    $this->normalizeSupplier(
+                        $invoiceToSub
                     );
 
-                    break;
+                if ($normalizedToSub) {
+
+                    $kategoriInvoice =
+                        strtolower(
+                            $normalizedToSub
+                        );
+
+                } else {
+
+                    $kategoriInvoice =
+                        strtolower(
+                            trim(
+                                $invoiceToSub
+                            )
+                        );
+                }
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | FALLBACK KATEGORI LAMA
+            |--------------------------------------------------------------------------
+            */
+
+            if ($kategoriInvoice === '') {
+
+                foreach ([
+                    'kategori',
+                    'kategori_invoice',
+                    'jenis_invoice',
+                    'tipe_invoice',
+                    'category',
+                    'type_invoice',
+                ] as $field) {
+
+                    if (
+                        isset($invoice->{$field}) &&
+                        trim(
+                            (string) $invoice->{$field}
+                        ) !== ''
+                    ) {
+
+                        $kategoriInvoice =
+                            strtolower(
+                                trim(
+                                    (string) $invoice->{$field}
+                                )
+                            );
+
+                        break;
+                    }
                 }
             }
 
@@ -2618,18 +3017,35 @@ class ProduksiMnController extends Controller
             */
 
             $ledger[] = [
-
                 'group' => $groupNumber,
 
-                'invoice' => $invoiceNumber,
+                'invoice' =>
+                    $invoiceNumber,
 
-                'tanggal' => $invoiceDate,
+                'tanggal' =>
+                    $invoiceDate,
 
-                'source' => $invoiceSource,
+                'source' =>
+                    $invoiceSource,
 
-                'kategori' => $kategoriInvoice,
+                /*
+                |--------------------------------------------------------------------------
+                | TO SUB
+                |--------------------------------------------------------------------------
+                */
+                'to_sub' =>
+                    $invoiceToSub,
 
-                'rows' => $finalRows,
+                /*
+                |--------------------------------------------------------------------------
+                | KATEGORI
+                |--------------------------------------------------------------------------
+                */
+                'kategori' =>
+                    $kategoriInvoice,
+
+                'rows' =>
+                    $finalRows,
             ];
         }
 
@@ -3394,7 +3810,7 @@ class ProduksiMnController extends Controller
 
         return response()->json($rows);
     }
- public function test()
+    public function test()
     {
         /*
         |--------------------------------------------------------------------------
@@ -3836,8 +4252,8 @@ class ProduksiMnController extends Controller
 
                     $paymentValue =
                         $adjustment > 0
-                            ? $adjustment
-                            : $amount;
+                        ? $adjustment
+                        : $amount;
 
                     if ($paymentValue <= 0) {
                         continue;

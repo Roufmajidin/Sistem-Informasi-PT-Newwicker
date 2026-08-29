@@ -12,6 +12,7 @@ class MonitoringInvoice extends Model
         'nomor_invoice',
         'tanggal_invoice',
         'detail_bahan',
+        'to_sub'
     ];
 
     protected $casts = [

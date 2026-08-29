@@ -857,6 +857,137 @@ public function searchArticle(Request $request)
             ], 500);
         }
     }
+      public function updateUpah(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'article' => [
+                'required',
+                'string',
+                'max:100',
+            ],
+
+            'description' => [
+                'nullable',
+                'string',
+            ],
+
+            'tanggal' => [
+                'required',
+                'date',
+            ],
+
+            'pekerjaan' => [
+                'required',
+                'string',
+                'max:100',
+            ],
+
+            'person' => [
+                'nullable',
+                'string',
+                'max:150',
+            ],
+
+            'qty' => [
+                'required',
+                'numeric',
+                'min:0',
+            ],
+
+            'harga' => [
+                'required',
+                'numeric',
+                'min:0',
+            ],
+
+            'no_po' => [
+                'nullable',
+                'string',
+                'max:100',
+            ],
+
+            'no_spk' => [
+                'nullable',
+                'string',
+                'max:100',
+            ],
+        ]);
+
+        try {
+            $result = DB::transaction(function () use ($validated, $id) {
+
+                $upah = Upah::find($id);
+
+                if (!$upah) {
+                    abort(404, 'Data transaksi upah tidak ditemukan.');
+                }
+
+                $qty = (float) $validated['qty'];
+                $harga = (float) $validated['harga'];
+                $total = $qty * $harga;
+
+                /*
+                |--------------------------------------------------------------------------
+                | UPDATED BY / HISTORY
+                |--------------------------------------------------------------------------
+                | Jangan menghilangkan history yang sudah ada.
+                */
+                $history = $upah->updated_by ?? [];
+
+                if (!is_array($history)) {
+                    $history = [];
+                }
+
+                $history[] = [
+                    'action' => 'updated',
+                    'timestamp' => now()->format('Y-m-d H:i:s'),
+                    'user_id' => auth()->id(),
+                    'user_name' => auth()->user()?->name,
+                ];
+
+                $upah->update([
+                    'article' => trim($validated['article']),
+                    'description' => $validated['description'] ?? null,
+                    'tanggal' => $validated['tanggal'],
+                    'pekerjaan' => trim($validated['pekerjaan']),
+                    'person' => $validated['person'] ?? null,
+                    'qty' => $qty,
+                    'harga' => $harga,
+                    'total' => $total,
+                    'no_po' => $validated['no_po'] ?? null,
+                    'no_spk' => $validated['no_spk'] ?? null,
+                    'updated_by' => $history,
+                ]);
+
+                return $upah->fresh();
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Transaksi upah berhasil diperbarui.',
+                'data' => $result,
+            ]);
+
+        } catch (\Illuminate\Http\Exceptions\HttpResponseException $e) {
+            throw $e;
+
+        } catch (\Throwable $e) {
+
+            \Log::error('UPDATE TRANSAKSI UPAH ERROR', [
+                'id' => $id,
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal memperbarui transaksi upah.',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
     public function upah()
     {
         $data = Upah::orderByDesc('tanggal')

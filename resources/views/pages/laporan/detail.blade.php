@@ -5,8 +5,8 @@
 @section('content')
 
     <div class="padding">
+        <div id="stokRemoteCursors"></div>
 
-        ```
         <div class="box">
 
             <div class="box-header d-flex justify-content-between">
@@ -259,6 +259,7 @@
                                     <th>No Invoice</th>
                                     <th>SPK</th>
                                     <th>Keterangan</th>
+                                    <th>Act</th>
                                 </tr>
 
                             </thead>
@@ -351,6 +352,17 @@
 
                                             </a>
                                         </td>
+                                        {{-- ACT --}}
+                                        <td class="text-center">
+
+                                            @if (strtolower(auth()->user()->name ?? '') === 'sumanti')
+                                                <button type="button" class="btn btn-danger btn-sm btn-delete-transaksi"
+                                                    data-id="{{ $item->id }}" title="Hapus transaksi">
+                                                    <i class="fa fa-trash"></i>
+                                                </button>
+                                            @endif
+
+                                        </td>
 
                                     </tr>
                                 @endforeach
@@ -408,8 +420,83 @@
 
     </div>
     {{-- <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> --}}
+    <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
+<script>
+$(document).on('click', '.btn-delete-transaksi', function () {
+
+    const button = $(this);
+    const id = button.data('id');
+
+    Swal.fire({
+        title: 'Are you sure?',
+        text: 'Transaksi ini akan dihapus.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, delete it!',
+        cancelButtonText: 'Cancel'
+    }).then(function(result) {
+
+        if (!result.isConfirmed) {
+            return;
+        }
+
+        $.ajax({
+            url: "{{ url('/laporan/transaksi') }}/" + id,
+            type: 'DELETE',
+
+            data: {
+                _token: "{{ csrf_token() }}"
+            },
+
+            beforeSend: function() {
+                button.prop('disabled', true);
+            },
+
+            success: function(response) {
+
+                if (response.success) {
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Deleted!',
+                        text: response.message,
+                        timer: 1200,
+                        showConfirmButton: false
+                    }).then(function() {
+
+                        // refresh supaya total IN, OUT dan stok
+                        // langsung dihitung ulang
+                        location.reload();
+
+                    });
+
+                }
+            },
+
+            error: function(xhr) {
+
+                button.prop('disabled', false);
+
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal',
+                    text: xhr.responseJSON?.message ||
+                          'Terjadi kesalahan saat menghapus transaksi.'
+                });
+
+            }
+        });
+
+    });
+
+});
+</script>
     <script>
+        
         // ajax
         $(document).on('keyup', '#searchSpk', function() {
 
@@ -880,6 +967,69 @@
         // save
     </script>
     <style>
+        /* =========================================================
+           REALTIME REMOTE CURSOR - PUSHER
+           ========================================================= */
+
+        #stokRemoteCursors {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 9999999;
+        }
+
+        .stok-remote-cursor {
+            position: fixed;
+            pointer-events: none;
+            transform: translate(-1px, -1px);
+            transition:
+                left 90ms linear,
+                top 90ms linear;
+            will-change: left, top;
+        }
+
+        .stok-remote-cursor-arrow {
+            width: 0;
+            height: 0;
+
+            border-top: 0 solid transparent;
+            border-bottom: 15px solid transparent;
+            border-left: 11px solid #2563eb;
+
+            transform: rotate(-42deg);
+
+            filter:
+                drop-shadow(0 1px 1px rgba(0, 0, 0, .25));
+        }
+
+        .stok-remote-cursor-name {
+            position: absolute;
+
+            left: 9px;
+            top: 12px;
+
+            padding: 3px 7px;
+
+            border-radius: 4px;
+
+            background: #2563eb;
+            color: #fff;
+
+            font-size: 10px;
+            font-weight: 700;
+
+            line-height: 1.2;
+
+            white-space: nowrap;
+
+            box-shadow:
+                0 2px 5px rgba(0, 0, 0, .18);
+        }
+
+        .stok-remote-cursor.is-idle {
+            opacity: .45;
+        }
+
         .editable-text,
         .editable-number,
         .editable-date,
@@ -958,5 +1108,669 @@
             });
 
         });
+    </script>
+    <script>
+        (function() {
+
+            'use strict';
+
+            /*
+            |--------------------------------------------------------------------------
+            | STOK ID
+            |--------------------------------------------------------------------------
+            */
+
+            const stokId =
+                @json($stok->id);
+
+            if (!stokId) {
+                console.warn('[STOK Cursor] stok_id tidak tersedia.');
+                return;
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | USER
+            |--------------------------------------------------------------------------
+            */
+
+            const currentUserId =
+                @json(auth()->id());
+
+            const currentUserName =
+                @json(auth()->user()->name ?? 'User');
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | PUSHER CONFIG
+            |--------------------------------------------------------------------------
+            */
+
+            const pusherKey =
+                @json(config('broadcasting.connections.pusher.key'));
+
+            const pusherCluster =
+                @json(config('broadcasting.connections.pusher.options.cluster'));
+
+
+            if (!pusherKey) {
+
+                console.warn(
+                    '[STOK Cursor] Pusher key belum tersedia.'
+                );
+
+                return;
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | PUSHER
+            |--------------------------------------------------------------------------
+            */
+
+            const pusher =
+                new Pusher(
+                    pusherKey, {
+                        cluster: pusherCluster || 'ap1',
+
+                        forceTLS: true,
+
+                        authEndpoint: @json(route('pusher.auth')),
+
+                        auth: {
+                            headers: {
+
+                                'X-CSRF-TOKEN': document
+                                    .querySelector(
+                                        'meta[name="csrf-token"]'
+                                    )
+                                    ?.getAttribute(
+                                        'content'
+                                    ) || ''
+
+                            }
+                        }
+                    }
+                );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | CHANNEL
+            |--------------------------------------------------------------------------
+            */
+
+            const channelName =
+                'presence-stok-' + stokId;
+
+
+            const channel =
+                pusher.subscribe(channelName);
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | CONNECTION
+            |--------------------------------------------------------------------------
+            */
+
+            pusher.connection.bind(
+                'connected',
+                function() {
+
+                    console.log(
+                        '[PUSHER STOK] Connected:',
+                        pusher.connection.socket_id
+                    );
+
+                }
+            );
+
+
+            pusher.connection.bind(
+                'error',
+                function(err) {
+
+                    console.error(
+                        '[PUSHER STOK] Connection error:',
+                        err
+                    );
+
+                }
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | SUBSCRIPTION
+            |--------------------------------------------------------------------------
+            */
+
+            channel.bind(
+                'pusher:subscription_succeeded',
+                function(members) {
+
+                    console.log(
+                        '[PUSHER STOK] Presence connected'
+                    );
+
+                    console.log(
+                        '[PUSHER STOK] Channel:',
+                        channelName
+                    );
+
+                    console.log(
+                        '[PUSHER STOK] Members:',
+                        members.count
+                    );
+
+                    members.each(
+                        function(member) {
+
+                            console.log(
+                                '[PUSHER STOK] Member:',
+                                member.id,
+                                member.info
+                            );
+
+                        }
+                    );
+
+                }
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | CONTAINER
+            |--------------------------------------------------------------------------
+            */
+
+            const container =
+                document.getElementById(
+                    'stokRemoteCursors'
+                );
+
+
+            if (!container) {
+
+                console.warn(
+                    '[STOK Cursor] Container tidak ditemukan.'
+                );
+
+                return;
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | CURSOR STORAGE
+            |--------------------------------------------------------------------------
+            */
+
+            const remoteCursors = {};
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | CREATE CURSOR
+            |--------------------------------------------------------------------------
+            */
+
+            function createCursor(
+                userId,
+                name
+            ) {
+
+                const id =
+                    'stok-remote-cursor-' + userId;
+
+
+                let cursor =
+                    document.getElementById(id);
+
+
+                if (cursor) {
+                    return cursor;
+                }
+
+
+                cursor =
+                    document.createElement('div');
+
+
+                cursor.id = id;
+
+                cursor.className =
+                    'stok-remote-cursor';
+
+
+                /*
+                | Arrow
+                */
+
+                const arrow =
+                    document.createElement('div');
+
+                arrow.className =
+                    'stok-remote-cursor-arrow';
+
+
+                /*
+                | Name
+                */
+
+                const label =
+                    document.createElement('div');
+
+                label.className =
+                    'stok-remote-cursor-name';
+
+                label.textContent =
+                    name || 'User';
+
+
+                cursor.appendChild(arrow);
+
+                cursor.appendChild(label);
+
+
+                container.appendChild(cursor);
+
+
+                remoteCursors[userId] = {
+
+                    element: cursor,
+
+                    lastMove: Date.now(),
+
+                    x: 0,
+
+                    y: 0
+
+                };
+
+
+                return cursor;
+
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | REMOVE CURSOR
+            |--------------------------------------------------------------------------
+            */
+
+            function removeCursor(userId) {
+
+                const data =
+                    remoteCursors[userId];
+
+
+                if (!data) {
+                    return;
+                }
+
+
+                data.element.remove();
+
+
+                delete remoteCursors[userId];
+
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | UPDATE CURSOR
+            |--------------------------------------------------------------------------
+            */
+
+            function updateCursor(data) {
+
+                if (!data) {
+                    return;
+                }
+
+
+                const userId =
+                    String(data.user_id);
+
+
+                /*
+                | Jangan tampilkan cursor sendiri
+                */
+
+                if (
+                    userId ===
+                    String(currentUserId)
+                ) {
+
+                    return;
+
+                }
+
+
+                const cursor =
+                    createCursor(
+                        userId,
+                        data.name
+                    );
+
+
+                const state =
+                    remoteCursors[userId];
+
+
+                if (!state) {
+                    return;
+                }
+
+
+                const x =
+                    Number(data.x);
+
+
+                const y =
+                    Number(data.y);
+
+
+                if (
+                    !Number.isFinite(x) ||
+                    !Number.isFinite(y)
+                ) {
+
+                    return;
+
+                }
+
+
+                state.x = x;
+
+                state.y = y;
+
+                state.lastMove =
+                    Date.now();
+
+
+                cursor.style.left =
+                    x + 'px';
+
+
+                cursor.style.top =
+                    y + 'px';
+
+
+                cursor.classList.remove(
+                    'is-idle'
+                );
+
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | SEND CURSOR
+            |--------------------------------------------------------------------------
+            */
+
+            let lastSend = 0;
+
+            let lastX = null;
+
+            let lastY = null;
+
+
+            const SEND_INTERVAL = 150;
+
+            const MIN_DISTANCE = 5;
+
+
+            document.addEventListener(
+                'mousemove',
+                function(event) {
+
+                    const now =
+                        Date.now();
+
+
+                    /*
+                    | Throttle
+                    */
+
+                    if (
+                        now - lastSend <
+                        SEND_INTERVAL
+                    ) {
+
+                        return;
+
+                    }
+
+
+                    const x =
+                        event.clientX;
+
+
+                    const y =
+                        event.clientY;
+
+
+                    /*
+                    | Jangan kirim jika gerak
+                    | terlalu sedikit
+                    */
+
+                    if (
+                        lastX !== null &&
+                        lastY !== null
+                    ) {
+
+                        const dx =
+                            x - lastX;
+
+                        const dy =
+                            y - lastY;
+
+
+                        const distance =
+                            Math.sqrt(
+                                dx * dx +
+                                dy * dy
+                            );
+
+
+                        if (
+                            distance <
+                            MIN_DISTANCE
+                        ) {
+
+                            return;
+
+                        }
+
+                    }
+
+
+                    lastX = x;
+
+                    lastY = y;
+
+                    lastSend = now;
+
+
+                    /*
+                    | CLIENT EVENT
+                    */
+
+                    try {
+
+                        channel.trigger(
+                            'client-stok-cursor', {
+
+                                user_id: currentUserId,
+
+                                name: currentUserName,
+
+                                x: x,
+
+                                y: y
+
+                            }
+                        );
+
+
+                    } catch (error) {
+
+                        console.warn(
+                            '[STOK Cursor]',
+                            error
+                        );
+
+                    }
+
+                }, {
+                    passive: true
+                }
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | RECEIVE CURSOR
+            |--------------------------------------------------------------------------
+            */
+
+            channel.bind(
+                'client-stok-cursor',
+                function(data) {
+
+                    console.log(
+                        '[PUSHER STOK] Cursor received:',
+                        data
+                    );
+
+                    updateCursor(data);
+
+                }
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | MEMBER ADDED
+            |--------------------------------------------------------------------------
+            */
+
+            channel.bind(
+                'pusher:member_added',
+                function(member) {
+
+                    console.log(
+                        '[STOK Cursor] User masuk:',
+                        member.info?.name ||
+                        member.id
+                    );
+
+                }
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | MEMBER REMOVED
+            |--------------------------------------------------------------------------
+            */
+
+            channel.bind(
+                'pusher:member_removed',
+                function(member) {
+
+                    removeCursor(
+                        String(member.id)
+                    );
+
+                }
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | IDLE
+            |--------------------------------------------------------------------------
+            */
+
+            setInterval(
+                function() {
+
+                    const now =
+                        Date.now();
+
+
+                    Object.keys(
+                        remoteCursors
+                    ).forEach(
+                        function(userId) {
+
+                            const state =
+                                remoteCursors[
+                                    userId
+                                ];
+
+
+                            if (!state) {
+                                return;
+                            }
+
+
+                            if (
+                                now -
+                                state.lastMove >
+                                5000
+                            ) {
+
+                                state.element
+                                    .classList
+                                    .add(
+                                        'is-idle'
+                                    );
+
+                            }
+
+                        }
+                    );
+
+                },
+                1000
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | CLEANUP
+            |--------------------------------------------------------------------------
+            */
+
+            window.addEventListener(
+                'beforeunload',
+                function() {
+
+                    try {
+
+                        pusher.unsubscribe(
+                            channelName
+                        );
+
+                    } catch (e) {}
+
+                }
+            );
+
+
+        })();
     </script>
 @endsection

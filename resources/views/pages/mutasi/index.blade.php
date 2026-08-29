@@ -71,7 +71,10 @@
 
                             @endphp
 
-                            <tr class="pilih-spk" data-id="{{ $spk->id }}" style="cursor:pointer"
+                            <tr class="pilih-spk"
+                                data-id="{{ $spk->id }}"
+                                data-items-b64="{{ base64_encode(json_encode($spk->data['items'] ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) }}"
+                                style="cursor:pointer"
                                 data-search="{{ strtolower(
                                     ($spk->po->order_no ?? '') .
                                         ' ' .
@@ -118,6 +121,36 @@
             </div>
 
         </div>
+        {{-- =========================================================
+             HOVER PREVIEW ITEM SPK
+             ========================================================= --}}
+        <div id="spkHoverPreview" aria-hidden="true">
+            <div class="spk-hover-title">
+                <span>LIST ITEM ON SPK</span>
+                <span id="spkHoverCount"></span>
+            </div>
+
+            <div class="spk-hover-body">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Name</th>
+                            <th>Qty</th>
+                            <th>In</th>
+                        </tr>
+                    </thead>
+                    <tbody id="spkHoverItems">
+                        <tr>
+                            <td colspan="4" class="spk-hover-loading">
+                                Arahkan mouse ke SPK
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <div class="modal fade" id="modalSpk" tabindex="-1">
             <div class="modal-dialog modal-custom">
                 <div class="modal-content">
@@ -263,7 +296,11 @@
                 }
 
 
-                function getComponentQtyInFromTimeline(timeline, componentName) {
+                function getComponentQtyInFromTimeline(
+                    timeline,
+                    componentName,
+                    componentIndex = 0
+                ) {
 
                     const target = normalizeComponentText(componentName);
 
@@ -278,10 +315,10 @@
                         const type = String(row.type || '').toLowerCase();
 
                         /*
-                        | Hanya mutasi masuk yang dihitung sebagai Qty In.
-                        | Service Keluar / Kirim Rangka tidak menambah Qty In.
+                        |--------------------------------------------------------------------------
+                        | HANYA MUTASI MASUK
+                        |--------------------------------------------------------------------------
                         */
-
                         if (
                             type !== 'in' &&
                             type !== 'service_masuk'
@@ -289,37 +326,63 @@
                             return;
                         }
 
+                        const qty = Number(row.qty || 0);
+
+                        if (!qty) {
+                            return;
+                        }
+
                         const remark = normalizeComponentText(row.remark);
 
+                        /*
+                        |--------------------------------------------------------------------------
+                        | REMARK KOSONG
+                        |--------------------------------------------------------------------------
+                        |
+                        | Tetap pertahankan behaviour lama:
+                        | kalau remark kosong, qty masuk ke komponen pertama.
+                        |
+                        |--------------------------------------------------------------------------
+                        */
+
                         if (!remark) {
+
+                            if (componentIndex === 0) {
+                                qtyIn += qty;
+                            }
+
                             return;
                         }
 
                         /*
-                        | Remark menjadi penghubung antara timeline
-                        | dengan komponen TOP / BOTTOM.
+                        |--------------------------------------------------------------------------
+                        | MATCHING KOMPONEN
+                        |--------------------------------------------------------------------------
+                        |
+                        | HARUS EXACT MATCH.
                         |
                         | Contoh:
-                        | component = "BOTTOM TRIPLEK 12MM"
-                        | remark    = "BOTTOM TRIPLEK 12"
                         |
-                        | Tetap dianggap cocok.
+                        | HANGER U -> HANGER U  = MATCH
+                        | HANGER   -> HANGER    = MATCH
+                        |
+                        | HANGER U -> HANGER    = TIDAK MATCH
+                        | HANGER   -> HANGER U  = TIDAK MATCH
+                        |
+                        | Ini mencegah komponen dengan nama mirip
+                        | saling mengambil Qty.
+                        |
+                        |--------------------------------------------------------------------------
                         */
 
-                        const matched =
-                            remark === target ||
-                            remark.includes(target) ||
-                            target.includes(remark);
-
-                        if (matched) {
-                            qtyIn += Number(row.qty || 0);
+                        if (remark === target) {
+                            qtyIn += qty;
                         }
 
                     });
 
                     return qtyIn;
                 }
-
 
                 function getComponentRows(item, timeline = []) {
 
@@ -344,35 +407,120 @@
 
                         let componentName = '';
 
-                        $.each(component, function(key, value) {
+                        /*
+                        |--------------------------------------------------------------------------
+                        | CARI NAMA KOMPONEN
+                        |--------------------------------------------------------------------------
+                        | Struktur SPK bisa berbeda-beda.
+                        | Contoh:
+                        |
+                        | triplek : "TOP TEBAL 6MM"
+                        | triplek : "BOTTOM TRIPLEK 12MM"
+                        | material: "plywood,"
+                        |
+                        | Jadi yang kita cari adalah field yang berisi nama pekerjaan/
+                        | komponen, BUKAN field material.
+                        |--------------------------------------------------------------------------
+                        */
+
+                        const preferredNameKeys = [
+                            'nama',
+                            'name',
+                            'nama_material',
+                            'nama_bahan',
+                            'bahan',
+                            'triplek',
+                            'finishing',
+                            'komponen',
+                            'component',
+                            'description'
+                        ];
+
+                        for (const key of preferredNameKeys) {
+
+                            const value = component[key];
 
                             if (
-                                !componentName &&
                                 typeof value === 'string' &&
                                 value.trim() &&
-                                ![
-                                    'harga',
-                                    'material',
-                                    'pcs',
-                                    'set',
-                                    'total',
-                                    'p',
-                                    'l',
-                                    't'
-                                ].includes(String(key).toLowerCase())
+                                !['-', 'null', 'undefined', 'n/a', 'na'].includes(
+                                    value.trim().toLowerCase()
+                                )
                             ) {
-                                componentName = value;
+                                componentName = value.trim();
+                                break;
                             }
+                        }
 
-                        });
+                        /*
+                        |--------------------------------------------------------------------------
+                        | FALLBACK
+                        |--------------------------------------------------------------------------
+                        | Kalau struktur SPK berbeda, cari string yang masuk akal.
+                        |--------------------------------------------------------------------------
+                        */
 
                         if (!componentName) {
 
-                            componentName =
-                                component.material ||
-                                component.nama ||
-                                `Komponen ${index + 1}`;
+                            $.each(component, function(key, value) {
 
+                                const keyLower = String(key).toLowerCase();
+
+                                if (
+                                    typeof value !== 'string' ||
+                                    !value.trim()
+                                ) {
+                                    return;
+                                }
+
+                                const cleanValue = value.trim().toLowerCase();
+
+                                /*
+                                | Jangan mengambil field teknis / angka / material.
+                                */
+
+                                if (
+                                    [
+                                        'harga',
+                                        'material',
+                                        'pcs',
+                                        'set',
+                                        'total',
+                                        'p',
+                                        'l',
+                                        't',
+                                        'qty',
+                                        'kode',
+                                        'id'
+                                    ].includes(keyLower)
+                                ) {
+                                    return;
+                                }
+
+                                /*
+                                | Jangan gunakan placeholder.
+                                */
+
+                                if (
+                                    ['-', 'null', 'undefined', 'n/a', 'na'].includes(cleanValue)
+                                ) {
+                                    return;
+                                }
+
+                                componentName = value.trim();
+
+                                return false;
+                            });
+                        }
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | LAST FALLBACK
+                        |--------------------------------------------------------------------------
+                        */
+
+                        if (!componentName) {
+                            componentName = `Komponen ${index + 1}`;
                         }
 
                         const qtySpk =
@@ -394,7 +542,8 @@
                         const qtyIn =
                             getComponentQtyInFromTimeline(
                                 timeline,
-                                componentName
+                                componentName,
+                                index
                             );
 
                         rows.push({
@@ -939,10 +1088,986 @@
                 });
             </script>
 
+            <script>
+                /*
+                |--------------------------------------------------------------------------
+                | SPK HOVER PREVIEW + IN
+                |--------------------------------------------------------------------------
+                | - Items + Qty dibaca langsung dari data SPK.
+                | - IN diambil dari endpoint timeline yang SUDAH WORK.
+                | - Menggunakan fetch native, bukan $.ajax().
+                | - Tidak menggunakan $.ajax().then().catch().
+                | - Tidak mengubah click/modal existing.
+                |--------------------------------------------------------------------------
+                */
+
+                (function () {
+
+                    const preview =
+                        document.getElementById('spkHoverPreview');
+
+                    const tbody =
+                        document.getElementById('spkHoverItems');
+
+                    const count =
+                        document.getElementById('spkHoverCount');
+
+                    if (!preview || !tbody) {
+                        return;
+                    }
+
+
+                    const cache = {};
+
+                    let activeRow = null;
+
+                    let hoverTimer = null;
+
+                    let requestNo = 0;
+
+
+                    function escapeHtml(value) {
+
+                        const div =
+                            document.createElement('div');
+
+                        div.textContent =
+                            value == null
+                                ? ''
+                                : String(value);
+
+                        return div.innerHTML;
+
+                    }
+
+
+                    function formatNumber(value) {
+
+                        const n =
+                            Number(value);
+
+                        if (!Number.isFinite(n)) {
+                            return '-';
+                        }
+
+                        return n.toLocaleString('id-ID');
+
+                    }
+
+
+                    function getItemName(item) {
+
+                        return (
+                            item.nama ||
+                            item.name ||
+                            item.nama_item ||
+                            item.item ||
+                            item.description ||
+                            '-'
+                        );
+
+                    }
+
+
+                    function getItemQty(item) {
+
+                        return Number(
+                            item.qty ||
+                            item.quantity ||
+                            0
+                        ) || 0;
+
+                    }
+
+
+                    function decodeItems(row) {
+
+                        const encoded =
+                            row.getAttribute(
+                                'data-items-b64'
+                            ) || '';
+
+
+                        if (!encoded) {
+                            return [];
+                        }
+
+
+                        const binary =
+                            atob(encoded);
+
+
+                        const bytes =
+                            new Uint8Array(
+                                binary.length
+                            );
+
+
+                        for (
+                            let i = 0;
+                            i < binary.length;
+                            i++
+                        ) {
+
+                            bytes[i] =
+                                binary.charCodeAt(i);
+
+                        }
+
+
+                        let json;
+
+
+                        if (
+                            typeof TextDecoder !==
+                            'undefined'
+                        ) {
+
+                            json =
+                                new TextDecoder(
+                                    'utf-8'
+                                ).decode(bytes);
+
+                        } else {
+
+                            let encodedText =
+                                '';
+
+                            for (
+                                let i = 0;
+                                i < binary.length;
+                                i++
+                            ) {
+
+                                encodedText +=
+                                    '%' +
+                                    ('00' +
+                                        binary
+                                            .charCodeAt(i)
+                                            .toString(16)
+                                    ).slice(-2);
+
+                            }
+
+
+                            json =
+                                decodeURIComponent(
+                                    encodedText
+                                );
+
+                        }
+
+
+                        const items =
+                            JSON.parse(json);
+
+
+                        return Array.isArray(items)
+                            ? items
+                            : [];
+
+                    }
+
+
+                    function render(items) {
+
+                        if (!items.length) {
+
+                            tbody.innerHTML = `
+                                <tr>
+                                    <td
+                                        colspan="4"
+                                        class="spk-hover-empty"
+                                    >
+                                        Tidak ada item
+                                    </td>
+                                </tr>
+                            `;
+
+                            count.textContent =
+                                '0 item';
+
+                            return;
+
+                        }
+
+
+                        let html =
+                            '';
+
+
+                        items.forEach(
+                            function (item, index) {
+
+                                const name =
+                                    getItemName(item);
+
+                                const qty =
+                                    getItemQty(item);
+
+                                const qtyIn =
+                                    Number(
+                                        item.qty_in || 0
+                                    ) || 0;
+
+
+                                let inClass =
+                                    'zero';
+
+
+                                if (
+                                    qty > 0 &&
+                                    qtyIn >= qty
+                                ) {
+
+                                    inClass =
+                                        'full';
+
+                                } else if (
+                                    qtyIn > 0
+                                ) {
+
+                                    inClass =
+                                        'partial';
+
+                                }
+
+
+                                html += `
+                                    <tr>
+
+                                        <td>
+                                            ${index + 1}
+                                        </td>
+
+                                        <td
+                                            class="spk-hover-name"
+                                            title="${escapeHtml(name)}"
+                                        >
+                                            ${escapeHtml(name)}
+                                        </td>
+
+                                        <td>
+                                            ${formatNumber(qty)}
+                                        </td>
+
+                                        <td
+                                            class="spk-hover-in ${inClass}"
+                                        >
+                                            ${formatNumber(qtyIn)}
+                                        </td>
+
+                                    </tr>
+                                `;
+
+                            }
+                        );
+
+
+                        tbody.innerHTML =
+                            html;
+
+
+                        count.textContent =
+                            items.length +
+                            ' item';
+
+                    }
+
+
+                    function movePreview(event) {
+
+                        const gap =
+                            16;
+
+                        const padding =
+                            10;
+
+                        const rect =
+                            preview.getBoundingClientRect();
+
+
+                        let left =
+                            event.clientX + gap;
+
+                        let top =
+                            event.clientY + gap;
+
+
+                        if (
+                            left + rect.width >
+                            window.innerWidth - padding
+                        ) {
+
+                            left =
+                                event.clientX -
+                                rect.width -
+                                gap;
+
+                        }
+
+
+                        if (
+                            top + rect.height >
+                            window.innerHeight - padding
+                        ) {
+
+                            top =
+                                event.clientY -
+                                rect.height -
+                                gap;
+
+                        }
+
+
+                        if (left < padding) {
+                            left = padding;
+                        }
+
+
+                        if (top < padding) {
+                            top = padding;
+                        }
+
+
+                        preview.style.left =
+                            left + 'px';
+
+                        preview.style.top =
+                            top + 'px';
+
+                    }
+
+
+                    function showPreview(row, event) {
+
+                        activeRow =
+                            row;
+
+
+                        clearTimeout(
+                            hoverTimer
+                        );
+
+
+                        hoverTimer =
+                            setTimeout(
+                                function () {
+
+                                    if (
+                                        activeRow !==
+                                        row
+                                    ) {
+                                        return;
+                                    }
+
+
+                                    const spkId =
+                                        row.getAttribute(
+                                            'data-id'
+                                        );
+
+
+                                    if (!spkId) {
+                                        return;
+                                    }
+
+
+                                    let items;
+
+
+                                    /*
+                                    |--------------------------------------------------------------------------
+                                    | CACHE
+                                    |--------------------------------------------------------------------------
+                                    */
+
+                                    if (
+                                        cache[spkId]
+                                    ) {
+
+                                        render(
+                                            cache[spkId]
+                                        );
+
+                                    } else {
+
+                                        /*
+                                        | Ambil items langsung
+                                        | dari Blade.
+                                        */
+
+                                        items =
+                                            decodeItems(
+                                                row
+                                            );
+
+
+                                        /*
+                                        | Tambahkan qty_in = 0
+                                        | supaya tabel langsung tampil.
+                                        */
+
+                                        items =
+                                            items.map(
+                                                function (item) {
+
+                                                    const copy =
+                                                        Object.assign(
+                                                            {},
+                                                            item
+                                                        );
+
+                                                    copy.qty_in =
+                                                        0;
+
+                                                    return copy;
+
+                                                }
+                                            );
+
+
+                                        render(
+                                            items
+                                        );
+
+
+                                        /*
+                                        |--------------------------------------------------------------------------
+                                        | FETCH TIMELINE
+                                        |--------------------------------------------------------------------------
+                                        */
+
+                                        const thisRequest =
+                                            ++requestNo;
+
+
+                                        let pending =
+                                            items.length;
+
+
+                                        if (!pending) {
+                                            return;
+                                        }
+
+
+                                        items.forEach(
+                                            function (item, index) {
+
+                                                const detailPoId =
+                                                    item.detail_po_id;
+
+
+                                                if (!detailPoId) {
+
+                                                    pending--;
+
+                                                    return;
+
+                                                }
+
+
+                                                /*
+                                                | Native fetch.
+                                                |
+                                                | TIDAK ADA:
+                                                | $.ajax
+                                                | .catch
+                                                */
+
+                                                fetch(
+                                                    '/mutasi/timeline/detail?spk_id=' +
+                                                    encodeURIComponent(spkId) +
+                                                    '&detail_po_id=' +
+                                                    encodeURIComponent(detailPoId),
+                                                    {
+                                                        method: 'GET',
+                                                        credentials: 'same-origin',
+                                                        headers: {
+                                                            'Accept':
+                                                                'application/json',
+                                                            'X-Requested-With':
+                                                                'XMLHttpRequest'
+                                                        }
+                                                    }
+                                                )
+                                                .then(
+                                                    function (response) {
+
+                                                        return response.json();
+
+                                                    }
+                                                )
+                                                .then(
+                                                    function (res) {
+
+                                                        let qtyIn =
+                                                            0;
+
+
+                                                        /*
+                                                        | Response Anda:
+                                                        |
+                                                        | timeline:
+                                                        | 39 in
+                                                        | 21 in
+                                                        |
+                                                        | hasil = 60
+                                                        */
+
+                                                        (res.timeline || [])
+                                                            .forEach(
+                                                                function (timelineRow) {
+
+                                                                    const type =
+                                                                        String(
+                                                                            timelineRow.type ||
+                                                                            ''
+                                                                        )
+                                                                        .trim()
+                                                                        .toLowerCase();
+
+
+                                                                    if (
+                                                                        type ===
+                                                                        'in'
+                                                                    ) {
+
+                                                                        qtyIn +=
+                                                                            Number(
+                                                                                timelineRow.qty ||
+                                                                                0
+                                                                            );
+
+                                                                    }
+
+
+                                                                    /*
+                                                                    | Service masuk
+                                                                    | juga dihitung sebagai IN,
+                                                                    | mengikuti logic existing.
+                                                                    */
+
+                                                                    if (
+                                                                        type ===
+                                                                        'service_masuk'
+                                                                    ) {
+
+                                                                        qtyIn +=
+                                                                            Number(
+                                                                                timelineRow.qty ||
+                                                                                0
+                                                                            );
+
+                                                                    }
+
+                                                                }
+                                                            );
+
+
+                                                        items[index]
+                                                            .qty_in =
+                                                                qtyIn;
+
+
+                                                        /*
+                                                        | Jangan render jika
+                                                        | mouse sudah pindah.
+                                                        */
+
+                                                        if (
+                                                            thisRequest ===
+                                                            requestNo
+                                                        ) {
+
+                                                            render(
+                                                                items
+                                                            );
+
+                                                            movePreviewFromRow();
+
+                                                        }
+
+
+                                                        pending--;
+
+                                                        if (
+                                                            pending <= 0 &&
+                                                            thisRequest ===
+                                                            requestNo
+                                                        ) {
+
+                                                            cache[spkId] =
+                                                                items;
+
+                                                        }
+
+                                                    }
+                                                );
+
+                                            }
+                                        );
+
+                                    }
+
+
+                                    preview.style.display =
+                                        'block';
+
+
+                                    preview.setAttribute(
+                                        'aria-hidden',
+                                        'false'
+                                    );
+
+
+                                    movePreview(
+                                        event
+                                    );
+
+
+                                },
+                                120
+                            );
+
+                    }
+
+
+                    function movePreviewFromRow() {
+
+                        if (!activeRow) {
+                            return;
+                        }
+
+
+                        const rect =
+                            activeRow.getBoundingClientRect();
+
+
+                        const event =
+                            {
+                                clientX:
+                                    rect.right,
+
+                                clientY:
+                                    rect.top
+                            };
+
+
+                        movePreview(
+                            event
+                        );
+
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | MOUSEOVER
+                    |--------------------------------------------------------------------------
+                    */
+
+                    document.addEventListener(
+                        'mouseover',
+                        function (event) {
+
+                            const row =
+                                event.target.closest(
+                                    'tr.pilih-spk'
+                                );
+
+
+                            if (!row) {
+                                return;
+                            }
+
+
+                            if (
+                                activeRow ===
+                                row
+                            ) {
+                                return;
+                            }
+
+
+                            showPreview(
+                                row,
+                                event
+                            );
+
+                        }
+                    );
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | MOUSEMOVE
+                    |--------------------------------------------------------------------------
+                    */
+
+                    document.addEventListener(
+                        'mousemove',
+                        function (event) {
+
+                            if (!activeRow) {
+                                return;
+                            }
+
+
+                            const row =
+                                event.target.closest(
+                                    'tr.pilih-spk'
+                                );
+
+
+                            if (
+                                row !==
+                                activeRow
+                            ) {
+
+                                if (row) {
+
+                                    showPreview(
+                                        row,
+                                        event
+                                    );
+
+                                }
+
+                                return;
+
+                            }
+
+
+                            movePreview(
+                                event
+                            );
+
+                        }
+                    );
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | MOUSEOUT
+                    |--------------------------------------------------------------------------
+                    */
+
+                    document.addEventListener(
+                        'mouseout',
+                        function (event) {
+
+                            if (!activeRow) {
+                                return;
+                            }
+
+
+                            const fromRow =
+                                event.target.closest
+                                    ?
+                                    event.target.closest(
+                                        'tr.pilih-spk'
+                                    )
+                                    :
+                                    null;
+
+
+                            const toRow =
+                                event.relatedTarget &&
+                                event.relatedTarget.closest
+                                    ?
+                                    event.relatedTarget.closest(
+                                        'tr.pilih-spk'
+                                    )
+                                    :
+                                    null;
+
+
+                            if (
+                                fromRow ===
+                                activeRow &&
+                                toRow !==
+                                activeRow
+                            ) {
+
+                                activeRow =
+                                    null;
+
+
+                                clearTimeout(
+                                    hoverTimer
+                                );
+
+
+                                requestNo++;
+
+
+                                preview.style.display =
+                                    'none';
+
+
+                                preview.setAttribute(
+                                    'aria-hidden',
+                                    'true'
+                                );
+
+                            }
+
+                        }
+                    );
+
+
+                    window.addEventListener(
+                        'scroll',
+                        function () {
+
+                            activeRow =
+                                null;
+
+                            requestNo++;
+
+                            preview.style.display =
+                                'none';
+
+                        },
+                        true
+                    );
+
+                })();
+            </script>
+
             <style>
                 /* =========================================================
-                       STICKY HEADER
-                       ========================================================= */
+                   SPK HOVER PREVIEW
+                   ========================================================= */
+
+                #spkHoverPreview {
+                    position: fixed;
+                    display: none;
+                    width: 430px;
+                    max-width: calc(100vw - 24px);
+                    background: #fff;
+                    border: 1px solid #d9dee5;
+                    border-radius: 9px;
+                    box-shadow:
+                        0 12px 30px rgba(15, 23, 42, .18),
+                        0 3px 8px rgba(15, 23, 42, .08);
+                    overflow: hidden;
+                    z-index: 999999;
+                    pointer-events: none;
+                    font-size: 11px;
+                }
+
+                #spkHoverPreview .spk-hover-title {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 10px;
+                    padding: 8px 11px;
+                    background: #ffff00;
+                    border-bottom: 1px solid #333;
+                    color: #111;
+                    font-size: 12px;
+                    font-weight: 700;
+                    line-height: 1.2;
+                }
+
+                #spkHoverPreview .spk-hover-title span:last-child {
+                    font-size: 9px;
+                    font-weight: 600;
+                }
+
+                #spkHoverPreview .spk-hover-body {
+                    max-height: 330px;
+                    overflow-y: auto;
+                }
+
+                #spkHoverPreview table {
+                    width: 100%;
+                    margin: 0;
+                    border-collapse: collapse;
+                    table-layout: fixed;
+                }
+
+                #spkHoverPreview th {
+                    padding: 6px 8px;
+                    background: #ffff00;
+                    border-right: 1px solid #555;
+                    border-bottom: 1px solid #333;
+                    color: #111;
+                    font-size: 10px;
+                    font-weight: 700;
+                    white-space: nowrap;
+                }
+
+                #spkHoverPreview td {
+                    padding: 6px 8px;
+                    background: #fff;
+                    border-right: 1px solid #777;
+                    border-bottom: 1px solid #777;
+                    color: #333;
+                    vertical-align: middle;
+                }
+
+                #spkHoverPreview th:first-child,
+                #spkHoverPreview td:first-child {
+                    width: 38px;
+                    text-align: center;
+                }
+
+                #spkHoverPreview th:nth-child(3),
+                #spkHoverPreview th:nth-child(4),
+                #spkHoverPreview td:nth-child(3),
+                #spkHoverPreview td:nth-child(4) {
+                    width: 65px;
+                    text-align: right;
+                }
+
+                #spkHoverPreview .spk-hover-name {
+                    max-width: 0;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                    font-weight: 600;
+                }
+
+                #spkHoverPreview .spk-hover-in {
+                    font-weight: 700;
+                }
+
+                #spkHoverPreview .spk-hover-in.zero {
+                    color: #dc3545;
+                }
+
+                #spkHoverPreview .spk-hover-in.partial {
+                    color: #d97706;
+                }
+
+                #spkHoverPreview .spk-hover-in.full {
+                    color: #198754;
+                }
+
+                #spkHoverPreview .spk-hover-loading,
+                #spkHoverPreview .spk-hover-empty {
+                    padding: 14px;
+                    border: 0;
+                    text-align: center;
+                    color: #94a3b8;
+                    font-size: 10px;
+                }
+
+                .spk-table-wrap tbody tr.pilih-spk {
+                    transition: background-color .12s ease;
+                }
+
+                .spk-table-wrap tbody tr.pilih-spk:hover td {
+                    background: #f0f7ff;
+                }
+
+
+                /* =========================================================
+                               STICKY HEADER
+                               ========================================================= */
 
                 .spk-table-wrap {
                     max-height: calc(100vh - 220px);
@@ -981,8 +2106,8 @@
                 }
 
                 /* =========================================================
-                           ITEM DETAIL + COMPONENTS
-                           ========================================================= */
+                                   ITEM DETAIL + COMPONENTS
+                                   ========================================================= */
 
                 .item-detail-grid {
                     display: grid;

@@ -7,6 +7,7 @@ $(document).ready(function() {
 
     // Mencegah satu transaksi terkirim lebih dari sekali
     let isSubmittingUpah = false;
+    let editingUpahId = null;
 
 
     /*
@@ -18,6 +19,14 @@ $(document).ready(function() {
     $('#btnAddUpahTransaksi').on(
         'click',
         function() {
+
+            editingUpahId = null;
+            $('#modalInsertUpah .modal-title').html(`
+                <i class="fas fa-money-bill-wave mr-1"></i>
+                Tambah Transaksi Upah
+            `);
+            $('#btnSaveUpahTransaksi')
+                .html('<i class="fas fa-save mr-1"></i> Simpan');
 
             $('#formInsertUpah')[0].reset();
 
@@ -256,13 +265,23 @@ $(document).ready(function() {
 
     function setManualPekerjaanMode(article) {
 
-        $('#modalInsertUpah .modal-title').html(`
-            <i class="fas fa-plus-circle mr-1"></i>
-            Anda sedang menambahkan upah <strong>${escapeHtml(article || '')}</strong>
-            <small class="d-block text-danger mt-1">
-                Pekerjaan belum tersedia untuk article ini — silakan isi jenis pekerjaan dan harga baru.
-            </small>
-        `);
+        if (editingUpahId) {
+            $('#modalInsertUpah .modal-title').html(`
+                <i class="fas fa-edit mr-1"></i>
+                Edit Transaksi Upah
+                <small class="d-block text-warning mt-1">
+                    Pekerjaan belum tersedia untuk article ini — silakan isi jenis pekerjaan dan harga baru.
+                </small>
+            `);
+        } else {
+            $('#modalInsertUpah .modal-title').html(`
+                <i class="fas fa-plus-circle mr-1"></i>
+                Anda sedang menambahkan upah <strong>${escapeHtml(article || '')}</strong>
+                <small class="d-block text-danger mt-1">
+                    Pekerjaan belum tersedia untuk article ini — silakan isi jenis pekerjaan dan harga baru.
+                </small>
+            `);
+        }
 
         $('#insert_pekerjaan')
             .addClass('d-none')
@@ -288,7 +307,7 @@ $(document).ready(function() {
     }
 
 
-    function loadPekerjaanByArticle(article) {
+    function loadPekerjaanByArticle(article, selectedPekerjaan = '', selectedHarga = null) {
 
         const select = $('#insert_pekerjaan');
 
@@ -332,6 +351,14 @@ $(document).ready(function() {
                     */
                     setManualPekerjaanMode(article);
 
+                    if (selectedPekerjaan) {
+                        $('#insert_pekerjaan_new').val(selectedPekerjaan);
+                    }
+                    if (selectedHarga !== null) {
+                        $('#insert_harga').val(selectedHarga);
+                        calculateTotal();
+                    }
+
                     return;
                 }
 
@@ -356,7 +383,25 @@ $(document).ready(function() {
 
                 });
 
-                $('#insert_harga').val(0);
+                if (selectedPekerjaan) {
+                    const option = select.find('option').filter(function() {
+                        return $(this).val() === selectedPekerjaan;
+                    }).first();
+
+                    if (option.length) {
+                        select.val(selectedPekerjaan);
+                        $('#insert_harga').val(
+                            selectedHarga !== null ? selectedHarga : (parseFloat(option.attr('data-harga')) || 0)
+                        );
+                    } else {
+                        setManualPekerjaanMode(article);
+                        $('#insert_pekerjaan_new').val(selectedPekerjaan);
+                        $('#insert_harga').val(selectedHarga !== null ? selectedHarga : 0);
+                    }
+                } else {
+                    $('#insert_harga').val(0);
+                }
+
                 calculateTotal();
             },
 
@@ -465,11 +510,17 @@ $(document).ready(function() {
             |--------------------------------------------------------------------------
             */
 
-            $('#modalInsertUpah .modal-title')
-                .html(`
-            <i class="fas fa-money-bill-wave mr-1"></i>
-            Tambah Transaksi Upah
-        `);
+            if (editingUpahId) {
+                $('#modalInsertUpah .modal-title').html(`
+                    <i class="fas fa-edit mr-1"></i>
+                    Edit Transaksi Upah
+                `);
+            } else {
+                $('#modalInsertUpah .modal-title').html(`
+                    <i class="fas fa-money-bill-wave mr-1"></i>
+                    Tambah Transaksi Upah
+                `);
+            }
 
             /*
             | Article SUDAH ADA
@@ -864,9 +915,11 @@ $(document).ready(function() {
 
             $.ajax({
 
-                url: "{{ route('upah.transaksi.store') }}",
+                url: editingUpahId
+                    ? "{{ url('/upah/transaksi') }}/" + editingUpahId
+                    : "{{ route('upah.transaksi.store') }}",
 
-                type: 'POST',
+                type: editingUpahId ? 'PUT' : 'POST',
 
                 data: formData,
 
@@ -880,6 +933,7 @@ $(document).ready(function() {
                         $('#modalInsertUpah')
                             .modal('hide');
 
+                        editingUpahId = null;
 
                         location.reload();
 
@@ -947,7 +1001,7 @@ $(document).ready(function() {
                             .prop('disabled', false)
                             .html(
                                 '<i class="fas fa-save mr-1"></i>' +
-                                ' Simpan'
+                                (editingUpahId ? ' Update' : ' Simpan')
                             );
                     }
 
@@ -1564,6 +1618,15 @@ $(document).ready(function() {
 
     $('#modalInsertUpah').on('hidden.bs.modal', function() {
         showNormalUpah();
+        editingUpahId = null;
+        $('#modalInsertUpah .modal-title').html(`
+            <i class="fas fa-money-bill-wave mr-1"></i>
+            Tambah Transaksi Upah
+        `);
+        $('#btnToggleMassUpah').removeClass('d-none');
+        $('#btnSaveUpahTransaksi')
+            .prop('disabled', false)
+            .html('<i class="fas fa-save mr-1"></i> Simpan');
     });
 
 
@@ -1643,6 +1706,83 @@ $(document).ready(function() {
             );
 
     }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | EDIT TRANSAKSI UPAH
+    |--------------------------------------------------------------------------
+    */
+    $(document).on('click', '.btn-edit-upah', function () {
+
+    const button = $(this);
+
+    editingUpahId = button.data('id');
+
+    showNormalUpah();
+
+    $('#modalInsertUpah .modal-title').html(`
+        <i class="fas fa-edit mr-1"></i>
+        Edit Transaksi Upah
+    `);
+
+    $('#btnSaveUpahTransaksi')
+        .removeClass('d-none')
+        .prop('disabled', false)
+        .html('<i class="fas fa-save mr-1"></i> Update');
+
+    $('#btnToggleMassUpah').addClass('d-none');
+
+    $('#formUpahError')
+        .addClass('d-none')
+        .empty();
+
+    $('#articleNotFound')
+        .removeClass('show');
+
+    $('#articleSearchResult')
+        .empty()
+        .removeClass('show');
+
+    $('#pekerjaanSearchResult')
+        .empty()
+        .removeClass('show');
+
+    $('#insert_article').val(button.data('article') || '');
+    $('#insert_description').val(button.data('description') || '');
+    $('#insert_tanggal').val(button.data('tanggal') || '');
+    $('#insert_person').val(button.data('person') || '');
+    $('#insert_qty').val(button.data('qty') ?? 0);
+    $('#insert_harga').val(button.data('harga') ?? 0);
+    $('#insert_no_spk').val(button.attr('data-no-spk') || '');
+
+    const article = $('#insert_article').val().trim();
+    const pekerjaan = button.data('pekerjaan') || '';
+    const harga = parseFloat(button.data('harga')) || 0;
+    const noPo = button.attr('data-no-po') || '';
+
+    $('#insert_pekerjaan_new')
+        .addClass('d-none')
+        .val('');
+
+    $('#insert_pekerjaan')
+        .removeClass('d-none')
+        .empty()
+        .append('<option value="">Memuat pekerjaan...</option>');
+
+    $('#insert_no_po')
+        .empty()
+        .append('<option value="">Memuat No PO...</option>');
+
+    loadPekerjaanByArticle(article, pekerjaan, harga);
+    loadPoByArticle(article, $('#insert_description').val().trim(), noPo);
+
+    calculateTotal();
+
+    $('#modalInsertUpah').modal('show');
+
+});
+
 
 });
 /*
@@ -2451,7 +2591,7 @@ $('#btnExportUpah').off('click').on('click', async function(e) {
     }
 
 });
-function loadPoByArticle(article, description = '') {
+function loadPoByArticle(article, description = '', selectedNoPo = '') {
 
 const select = $('#insert_no_po');
 
@@ -2534,6 +2674,10 @@ $.ajax({
             );
 
         });
+
+        if (selectedNoPo) {
+            select.val(selectedNoPo);
+        }
 
     },
 

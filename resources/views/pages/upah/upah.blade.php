@@ -827,6 +827,32 @@
 
     <button
         type="button"
+        class="btn btn-sm btn-primary btn-edit-upah mr-1"
+        data-id="{{ $item->id }}"
+        data-article="{{ e($item->article) }}"
+        data-description="{{ e($item->description) }}"
+        data-tanggal="{{ optional($item->tanggal)->format('Y-m-d') }}"
+        data-pekerjaan="{{ e($item->pekerjaan) }}"
+        data-person="{{ e($item->person) }}"
+        data-qty="{{ $item->qty }}"
+        data-harga="{{ $item->harga }}"
+        data-total="{{ $item->total }}"
+        data-no-po="{{ e($item->no_po) }}"
+        data-no-spk="{{ e($item->no_spk) }}"
+        title="Edit transaksi"
+        style="
+            width:28px;
+            height:28px;
+            min-height:28px;
+            padding:0;
+            line-height:28px;
+        "
+    >
+        <i class="fa fa-edit"></i>
+    </button>
+
+    <button
+        type="button"
         class="btn btn-sm btn-danger btn-delete-upah"
         data-id="{{ $item->id }}"
         data-article="{{ $item->article }}"
@@ -892,7 +918,7 @@
 
                                 <tr>
 
-                                    <td colspan="11" class="text-center text-muted py-4">
+                                    <td colspan="12" class="text-center text-muted py-4">
 
                                         Belum ada transaksi upah.
 

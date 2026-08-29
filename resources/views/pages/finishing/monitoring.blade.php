@@ -67,6 +67,8 @@
 
         $getRowCategory = function ($row, $fallback = null) use ($detectCategory) {
             $fields = [
+                $row['to_sub'] ?? null,
+
                 $row['kategori'] ?? null,
                 $row['kategori_invoice'] ?? null,
                 $row['bagian'] ?? null,
@@ -115,13 +117,27 @@
                 | supplier/kategori sendiri (biasanya supplier = "-").
                 */
             $groupCategory = $getRowCategory([
+                /*
+    |--------------------------------------------------------------------------
+    | TO SUB ADALAH PRIORITAS
+    |--------------------------------------------------------------------------
+    */
+                'to_sub' => $ledgerGroup['to_sub'] ?? null,
+
                 'kategori' => $ledgerGroup['kategori'] ?? null,
+
                 'kategori_invoice' => $ledgerGroup['kategori_invoice'] ?? null,
+
                 'bagian' => $ledgerGroup['bagian'] ?? null,
+
                 'category' => $ledgerGroup['category'] ?? null,
+
                 'supplier' => $ledgerGroup['supplier'] ?? null,
+
                 'name_sub' => $ledgerGroup['name_sub'] ?? null,
+
                 'sub' => $ledgerGroup['sub'] ?? null,
+
                 'source' => $ledgerGroup['source'] ?? null,
             ]);
 
@@ -355,8 +371,7 @@
                                         {{-- =================================================
                                             LOOP INVOICE
                                         ================================================= --}}
-@foreach ($invoiceGroups[$tabKey] as $invoice => $invoiceRows)
-
+                                        @foreach ($invoiceGroups[$tabKey] as $invoice => $invoiceRows)
                                             @php
                                                 $invoiceFirst = $invoiceRows[0] ?? [];
 
@@ -375,7 +390,6 @@
                                             LOOP DATA DALAM INVOICE
                                             ============================================== --}}
                                             @foreach ($invoiceRows as $rowIndex => $row)
-
                                                 @php
                                                     // Running saldo dalam TAB yang sedang aktif.
                                                     // Tidak di-reset ketika berganti invoice.
@@ -384,368 +398,368 @@
 
                                                     $row['saldo'] = $tabSaldo;
                                                 @endphp
-                                                    @php
+                                                @php
 
-                                                        /*
+                                                    /*
                                                     |--------------------------------------------------------------------------
                                                     | Detail bahan
                                                     |--------------------------------------------------------------------------
                                                     */
 
-                                                        $detailBahan = $row['detail_bahan'] ?? [];
+                                                    $detailBahan = $row['detail_bahan'] ?? [];
 
-                                                        if (is_string($detailBahan)) {
-                                                            $decoded = json_decode($detailBahan, true);
+                                                    if (is_string($detailBahan)) {
+                                                        $decoded = json_decode($detailBahan, true);
 
-                                                            if (json_last_error() === JSON_ERROR_NONE) {
-                                                                $detailBahan = $decoded;
-                                                            } else {
-                                                                $detailBahan = [];
-                                                            }
-                                                        }
-
-                                                        if (!is_array($detailBahan)) {
+                                                        if (json_last_error() === JSON_ERROR_NONE) {
+                                                            $detailBahan = $decoded;
+                                                        } else {
                                                             $detailBahan = [];
                                                         }
+                                                    }
 
-                                                        /*
+                                                    if (!is_array($detailBahan)) {
+                                                        $detailBahan = [];
+                                                    }
+
+                                                    /*
                                                     |--------------------------------------------------------------------------
                                                     | Modal data
                                                     |--------------------------------------------------------------------------
                                                     */
 
-                                                        $modalData = [
-                                                            'invoice' => $row['invoice'] ?? '',
+                                                    $modalData = [
+                                                        'invoice' => $row['invoice'] ?? '',
 
-                                                            'tanggal' => $row['tanggal'] ?? '',
+                                                        'tanggal' => $row['tanggal'] ?? '',
 
-                                                            'source' => $row['source'] ?? '',
+                                                        'source' => $row['source'] ?? '',
 
-                                                            'sub' => $row['sub'] ?? '',
+                                                        'sub' => $row['sub'] ?? '',
 
-                                                            'supplier' => $row['supplier'] ?? '',
+                                                        'supplier' => $row['supplier'] ?? '',
 
-                                                            'detail_bahan' => $detailBahan,
-                                                        ];
+                                                        'detail_bahan' => $detailBahan,
+                                                    ];
 
-                                                    @endphp
+                                                @endphp
 
 
-                                                    {{-- =========================================
+                                                {{-- =========================================
                                                     BARIS LEDGER
                                                 ========================================== --}}
-                                                    <tr class="ledger-row" data-tab="{{ $tabKey }}"
-                                                        data-invoice="{{ $row['invoice'] ?? '' }}"
-                                                        data-tanggal="{{ $row['tanggal'] ?? '' }}"
-                                                        data-source="{{ $row['source'] ?? '' }}"
-                                                        data-sub="{{ $row['sub'] ?? '' }}"
-                                                        data-supplier="{{ $row['supplier'] ?? '' }}">
+                                                <tr class="ledger-row" data-tab="{{ $tabKey }}"
+                                                    data-invoice="{{ $row['invoice'] ?? '' }}"
+                                                    data-tanggal="{{ $row['tanggal'] ?? '' }}"
+                                                    data-source="{{ $row['source'] ?? '' }}"
+                                                    data-sub="{{ $row['sub'] ?? '' }}"
+                                                    data-supplier="{{ $row['supplier'] ?? '' }}">
 
 
-                                                        {{-- NO --}}
-                                                        <td class="text-center">
+                                                    {{-- NO --}}
+                                                    <td class="text-center">
 
-                                                            @if ($rowIndex === 0)
-                                                                {{ $loop->parent->iteration }}
-                                                            @endif
+                                                        @if ($rowIndex === 0)
+                                                            {{ $loop->parent->iteration }}
+                                                        @endif
 
-                                                        </td>
-
-
-                                                        {{-- TANGGAL --}}
-                                                        <td>
-
-                                                            @if (!empty($row['tanggal']))
-                                                                {{ \Carbon\Carbon::parse($row['tanggal'])->format('d/m/Y') }}
-                                                            @else
-                                                                -
-                                                            @endif
-
-                                                        </td>
+                                                    </td>
 
 
-                                                        {{-- DESCRIPTION --}}
-                                                        <td>
+                                                    {{-- TANGGAL --}}
+                                                    <td>
 
-                                                            @if (($row['type'] ?? '') === 'invoice')
-                                                                <div class="invoice-click-wrapper">
+                                                        @if (!empty($row['tanggal']))
+                                                            {{ \Carbon\Carbon::parse($row['tanggal'])->format('d/m/Y') }}
+                                                        @else
+                                                            -
+                                                        @endif
 
-                                                                    <span class="badge bg-primary invoice-click-trigger"
-                                                                        role="button">
+                                                    </td>
 
-                                                                        INVOICE
 
-                                                                        @if (($row['source'] ?? '') === 'inv_lama')
-                                                                            <span class="ms-1">
-                                                                                LAMA
-                                                                            </span>
-                                                                        @endif
+                                                    {{-- DESCRIPTION --}}
+                                                    <td>
 
-                                                                    </span>
+                                                        @if (($row['type'] ?? '') === 'invoice')
+                                                            <div class="invoice-click-wrapper">
 
-                                                                </div>
-                                                            @else
-                                                                <span class="text-muted">
+                                                                <span class="badge bg-primary invoice-click-trigger"
+                                                                    role="button">
 
-                                                                    Pemotongan bahan
+                                                                    INVOICE
+
+                                                                    @if (($row['source'] ?? '') === 'inv_lama')
+                                                                        <span class="ms-1">
+                                                                            LAMA
+                                                                        </span>
+                                                                    @endif
 
                                                                 </span>
+
+                                                            </div>
+                                                        @else
+                                                            <span class="text-muted">
+
+                                                                Pemotongan bahan
+
+                                                            </span>
+                                                        @endif
+
+                                                    </td>
+
+
+                                                    {{-- SUB --}}
+                                                    {{-- SUB --}}
+                                                    <td
+                                                        class="{{ ($row['type'] ?? '') !== 'invoice' ? 'spk-sub-cell' : 'invoice-sub-cell' }}">
+
+                                                        <div
+                                                            class="{{ ($row['type'] ?? '') !== 'invoice' ? 'spk-sub-content' : 'invoice-sub-content' }}">
+
+                                                            <strong class="sub-name"
+                                                                style="color:#212529 !important; opacity:1 !important;">
+                                                                {{ $row['sub'] ?? '-' }}
+                                                            </strong>
+
+                                                            @if (!empty($row['note_tambahan']))
+                                                                <div class="small text-muted mt-1 sub-note">
+                                                                    {{ $row['note_tambahan'] }}
+                                                                </div>
                                                             @endif
 
-                                                        </td>
+                                                            @if (($row['source'] ?? '') === 'spk_lama' && !empty($row['po']))
+                                                                <div class="small text-muted mt-1 sub-note">
+                                                                    PO: {{ $row['po'] }}
+                                                                </div>
+                                                            @endif
+
+                                                        </div>
+
+                                                    </td>
 
 
-                                                        {{-- SUB --}}
-                                                        {{-- SUB --}}
-                                                        <td
-                                                            class="{{ ($row['type'] ?? '') !== 'invoice' ? 'spk-sub-cell' : 'invoice-sub-cell' }}">
+                                                    {{-- SUPPLIER --}}
+                                                    <td>
+                                                        @if (!empty($row['supplier']))
+                                                            <span class="supplier-name">
+                                                                {{ $row['supplier'] }}
+                                                            </span>
+                                                        @else
+                                                            -
+                                                        @endif
+                                                    </td>
 
-                                                            <div
-                                                                class="{{ ($row['type'] ?? '') !== 'invoice' ? 'spk-sub-content' : 'invoice-sub-content' }}">
 
-                                                                <strong class="sub-name"
-                                                                    style="color:#212529 !important; opacity:1 !important;">
-                                                                    {{ $row['sub'] ?? '-' }}
-                                                                </strong>
+                                                    {{-- PEMBELIAN --}}
+                                                    <td class="text-end">
 
-                                                                @if (!empty($row['note_tambahan']))
-                                                                    <div class="small text-muted mt-1 sub-note">
-                                                                        {{ $row['note_tambahan'] }}
-                                                                    </div>
-                                                                @endif
+                                                        @if (($row['debet'] ?? 0) > 0)
+                                                            <strong>
 
-                                                                @if (($row['source'] ?? '') === 'spk_lama' && !empty($row['po']))
-                                                                    <div class="small text-muted mt-1 sub-note">
-                                                                        PO: {{ $row['po'] }}
-                                                                    </div>
-                                                                @endif
+                                                                Rp
+                                                                {{ number_format($row['debet'], 0, ',', '.') }}
+
+                                                            </strong>
+                                                        @else
+                                                            <span class="text-muted">
+
+                                                                -
+
+                                                            </span>
+                                                        @endif
+
+                                                    </td>
+
+
+                                                    {{-- POTONGAN SPK --}}
+                                                    <td class="text-end">
+
+                                                        @if (($row['kredit'] ?? 0) > 0)
+                                                            <span class="text-danger">
+
+                                                                Rp
+                                                                {{ number_format($row['kredit'], 0, ',', '.') }}
+
+                                                            </span>
+                                                        @else
+                                                            <span class="text-muted">
+
+                                                                -
+
+                                                            </span>
+                                                        @endif
+
+                                                    </td>
+
+
+                                                    {{-- SALDO --}}
+                                                    <td class="text-end">
+
+                                                        <strong>
+
+                                                            Rp
+                                                            {{ number_format($row['saldo'] ?? 0, 0, ',', '.') }}
+
+                                                        </strong>
+
+                                                    </td>
+
+                                                </tr>
+
+
+                                                {{-- =================================================
+                                                    DETAIL BAHAN
+                                                ================================================== --}}
+                                                @if (($row['type'] ?? '') === 'invoice' && !empty($detailBahan))
+                                                    <tr class="material-detail-row" data-tab="{{ $tabKey }}">
+
+                                                        <td colspan="8" class="p-0">
+
+                                                            <div class="material-detail-box">
+
+                                                                <table class="table table-sm table-bordered mb-0">
+
+                                                                    <thead>
+
+                                                                        <tr>
+
+                                                                            <th style="width:50px">
+                                                                                #
+                                                                            </th>
+
+                                                                            <th>
+                                                                                Jenis Bahan
+                                                                            </th>
+
+                                                                            <th class="text-end">
+                                                                                Qty
+                                                                            </th>
+
+                                                                            <th>
+                                                                                Satuan
+                                                                            </th>
+
+                                                                            <th class="text-end">
+                                                                                Harga
+                                                                            </th>
+
+                                                                            <th class="text-end">
+                                                                                Total
+                                                                            </th>
+
+                                                                        </tr>
+
+                                                                    </thead>
+
+
+                                                                    <tbody>
+
+                                                                        @php
+
+                                                                            $grandTotalBahan = 0;
+
+                                                                        @endphp
+
+
+                                                                        @foreach ($detailBahan as $index => $bahan)
+                                                                            @php
+
+                                                                                $totalBahan =
+                                                                                    (float) ($bahan['total'] ?? 0);
+
+                                                                                $grandTotalBahan += $totalBahan;
+                                                                            @endphp
+
+
+                                                                            <tr>
+
+                                                                                <td>
+
+                                                                                    {{ $index + 1 }}
+
+                                                                                </td>
+
+                                                                                <td>
+
+                                                                                    {{ $bahan['jenis'] ?? '-' }}
+
+                                                                                </td>
+
+                                                                                <td class="text-end">
+
+                                                                                    {{ $bahan['qty'] ?? '-' }}
+
+                                                                                </td>
+
+                                                                                <td>
+
+                                                                                    {{ $bahan['satuan'] ?? '-' }}
+
+                                                                                </td>
+
+                                                                                <td class="text-end">
+
+                                                                                    Rp
+                                                                                    {{ number_format($bahan['harga'] ?? 0, 0, ',', '.') }}
+
+                                                                                </td>
+
+                                                                                <td class="text-end">
+
+                                                                                    Rp
+                                                                                    {{ number_format($totalBahan, 0, ',', '.') }}
+
+                                                                                </td>
+
+                                                                            </tr>
+                                                                        @endforeach
+
+                                                                    </tbody>
+
+
+                                                                    <tfoot>
+
+                                                                        <tr>
+
+                                                                            <th colspan="5" class="text-end">
+
+                                                                                GRAND TOTAL
+
+                                                                            </th>
+
+                                                                            <th class="text-end">
+
+                                                                                Rp
+                                                                                {{ number_format($grandTotalBahan, 0, ',', '.') }}
+
+                                                                            </th>
+
+                                                                        </tr>
+
+                                                                    </tfoot>
+
+                                                                </table>
 
                                                             </div>
 
                                                         </td>
 
-
-                                                        {{-- SUPPLIER --}}
-                                                        <td>
-                                                            @if (!empty($row['supplier']))
-                                                                <span class="supplier-name">
-                                                                    {{ $row['supplier'] }}
-                                                                </span>
-                                                            @else
-                                                                -
-                                                            @endif
-                                                        </td>
-
-
-                                                        {{-- PEMBELIAN --}}
-                                                        <td class="text-end">
-
-                                                            @if (($row['debet'] ?? 0) > 0)
-                                                                <strong>
-
-                                                                    Rp
-                                                                    {{ number_format($row['debet'], 0, ',', '.') }}
-
-                                                                </strong>
-                                                            @else
-                                                                <span class="text-muted">
-
-                                                                    -
-
-                                                                </span>
-                                                            @endif
-
-                                                        </td>
-
-
-                                                        {{-- POTONGAN SPK --}}
-                                                        <td class="text-end">
-
-                                                            @if (($row['kredit'] ?? 0) > 0)
-                                                                <span class="text-danger">
-
-                                                                    Rp
-                                                                    {{ number_format($row['kredit'], 0, ',', '.') }}
-
-                                                                </span>
-                                                            @else
-                                                                <span class="text-muted">
-
-                                                                    -
-
-                                                                </span>
-                                                            @endif
-
-                                                        </td>
-
-
-                                                        {{-- SALDO --}}
-                                                        <td class="text-end">
-
-                                                            <strong>
-
-                                                                Rp
-                                                                {{ number_format($row['saldo'] ?? 0, 0, ',', '.') }}
-
-                                                            </strong>
-
-                                                        </td>
-
                                                     </tr>
+                                                @endif
+                                            @endforeach
 
 
-                                                    {{-- =================================================
-                                                    DETAIL BAHAN
-                                                ================================================== --}}
-                                                    @if (($row['type'] ?? '') === 'invoice' && !empty($detailBahan))
-                                                        <tr class="material-detail-row" data-tab="{{ $tabKey }}">
-
-                                                            <td colspan="8" class="p-0">
-
-                                                                <div class="material-detail-box">
-
-                                                                    <table class="table table-sm table-bordered mb-0">
-
-                                                                        <thead>
-
-                                                                            <tr>
-
-                                                                                <th style="width:50px">
-                                                                                    #
-                                                                                </th>
-
-                                                                                <th>
-                                                                                    Jenis Bahan
-                                                                                </th>
-
-                                                                                <th class="text-end">
-                                                                                    Qty
-                                                                                </th>
-
-                                                                                <th>
-                                                                                    Satuan
-                                                                                </th>
-
-                                                                                <th class="text-end">
-                                                                                    Harga
-                                                                                </th>
-
-                                                                                <th class="text-end">
-                                                                                    Total
-                                                                                </th>
-
-                                                                            </tr>
-
-                                                                        </thead>
-
-
-                                                                        <tbody>
-
-                                                                            @php
-
-                                                                                $grandTotalBahan = 0;
-
-                                                                            @endphp
-
-
-                                                                            @foreach ($detailBahan as $index => $bahan)
-                                                                                @php
-
-                                                                                    $totalBahan =
-                                                                                        (float) ($bahan['total'] ?? 0);
-
-                                                                                    $grandTotalBahan += $totalBahan;
-                                                                                @endphp
-
-
-                                                                                <tr>
-
-                                                                                    <td>
-
-                                                                                        {{ $index + 1 }}
-
-                                                                                    </td>
-
-                                                                                    <td>
-
-                                                                                        {{ $bahan['jenis'] ?? '-' }}
-
-                                                                                    </td>
-
-                                                                                    <td class="text-end">
-
-                                                                                        {{ $bahan['qty'] ?? '-' }}
-
-                                                                                    </td>
-
-                                                                                    <td>
-
-                                                                                        {{ $bahan['satuan'] ?? '-' }}
-
-                                                                                    </td>
-
-                                                                                    <td class="text-end">
-
-                                                                                        Rp
-                                                                                        {{ number_format($bahan['harga'] ?? 0, 0, ',', '.') }}
-
-                                                                                    </td>
-
-                                                                                    <td class="text-end">
-
-                                                                                        Rp
-                                                                                        {{ number_format($totalBahan, 0, ',', '.') }}
-
-                                                                                    </td>
-
-                                                                                </tr>
-                                                                            @endforeach
-
-                                                                        </tbody>
-
-
-                                                                        <tfoot>
-
-                                                                            <tr>
-
-                                                                                <th colspan="5" class="text-end">
-
-                                                                                    GRAND TOTAL
-
-                                                                                </th>
-
-                                                                                <th class="text-end">
-
-                                                                                    Rp
-                                                                                    {{ number_format($grandTotalBahan, 0, ',', '.') }}
-
-                                                                                </th>
-
-                                                                            </tr>
-
-                                                                        </tfoot>
-
-                                                                    </table>
-
-                                                                </div>
-
-                                                            </td>
-
-                                                        </tr>
-                                                    @endif
-                                                @endforeach
-
-
-                                                {{-- =================================================
+                                            {{-- =================================================
                                                 GARIS AKHIR SETIAP INVOICE
                                             ================================================== --}}
-                                                <tr class="invoice-separator">
+                                            <tr class="invoice-separator">
 
-                                                    <td colspan="8">
-                                                    </td>
+                                                <td colspan="8">
+                                                </td>
 
-                                                </tr>
-                                            @endforeach
+                                            </tr>
+                                        @endforeach
 
 
                                     </tbody>
