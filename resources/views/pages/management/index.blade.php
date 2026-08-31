@@ -1990,29 +1990,109 @@
                                                 }
 
                                                 foreach (($item['spks'] ?? []) as $spk) {
-                                                    $categoryKey = strtolower(
-                                                        trim($spk['kategori_monitoring'] ?? '')
-                                                    );
 
-                                                    if ($categoryKey === 'box') {
-                                                        $categoryKey = 'packaging';
-                                                    }
+    $categoryKey = strtolower(
+        trim($spk['kategori_monitoring'] ?? '')
+    );
 
-                                                    if (!isset($monitoring[$categoryKey])) {
-                                                        continue;
-                                                    }
+    if ($categoryKey === 'box') {
+        $categoryKey = 'packaging';
+    }
 
-                                                    $monitoring[$categoryKey]['in'] +=
-                                                        (float) ($spk['qty_in'] ?? 0);
+    if (!isset($monitoring[$categoryKey])) {
+        continue;
+    }
 
-                                                    $monitoring[$categoryKey]['pass'] +=
-                                                        (float) ($spk['passed'] ?? 0);
+    /*
+    |--------------------------------------------------------------------------
+    | EXCEPTION RANGKA KAKI KAYU
+    |--------------------------------------------------------------------------
+    | Kaki Kayu tetap dimasukkan ke $monitoring[$categoryKey]['spks']
+    | supaya tetap muncul di tooltip.
+    |
+    | Tetapi TIDAK ikut angka utama Rangka:
+    | - IN
+    | - PASS
+    | - REJECT
+    |
+    | Jadi:
+    |
+    | Rangka Rotan      30
+    | Rangka Rotan      30
+    | Rangka Kaki Kayu  60
+    |
+    | Angka utama:
+    | Rangka IN = 60
+    |
+    | Tooltip:
+    | tetap 30 / 30 / 60
+    |--------------------------------------------------------------------------
+    */
 
-                                                    $monitoring[$categoryKey]['reject'] +=
-                                                        (float) ($spk['rejected'] ?? 0);
+    $kategoriSpk = strtoupper(
+        trim($spk['kategori'] ?? '')
+    );
 
-                                                    $monitoring[$categoryKey]['spks'][] = $spk;
-                                                }
+    $exceptionRule = strtoupper(
+        trim($spk['exception_rule'] ?? '')
+    );
+
+    $isKakiKayu =
+        str_contains($kategoriSpk, 'KAKI KAYU')
+        ||
+        str_contains($kategoriSpk, 'KAYU KAKI')
+        ||
+        str_contains($exceptionRule, 'KAKI KAYU')
+        ||
+        str_contains($exceptionRule, 'KAYU KAKI');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | SIMPAN SPK TERLEBIH DAHULU
+    |--------------------------------------------------------------------------
+    | PENTING:
+    | jangan letakkan ini setelah continue.
+    |
+    | Karena tooltip harus tetap melihat SPK Kaki Kayu.
+    |--------------------------------------------------------------------------
+    */
+
+    $monitoring[$categoryKey]['spks'][] = $spk;
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | KALAU KAKI KAYU
+    |--------------------------------------------------------------------------
+    | Hanya dikeluarkan dari angka utama.
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        $isKakiKayu
+        &&
+        $categoryKey === 'rangka'
+    ) {
+        continue;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | NORMAL MONITORING
+    |--------------------------------------------------------------------------
+    */
+
+    $monitoring[$categoryKey]['in'] +=
+        (float) ($spk['qty_in'] ?? 0);
+
+    $monitoring[$categoryKey]['pass'] +=
+        (float) ($spk['passed'] ?? 0);
+
+    $monitoring[$categoryKey]['reject'] +=
+        (float) ($spk['rejected'] ?? 0);
+}
 
                                                 if (isset($monitoring['unfinish'])) {
                                                     $monitoring['unfinish']['pass'] =
@@ -2046,7 +2126,7 @@
                                                 @endphp
 
                                                 {{-- IN --}}
-                                                @if (!in_array($categoryKey, ['final', 'packaging']))
+                                               @if ($categoryKey !== 'final')
                                                     <td class="text-center status-col text-primary fw-bold">
 
                                                         @if (!empty($categorySpks))

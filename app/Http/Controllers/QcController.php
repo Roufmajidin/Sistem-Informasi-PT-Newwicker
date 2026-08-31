@@ -1400,312 +1400,799 @@ class QcController extends Controller
         return view('pages.qc.detail', compact('data', 'detailP', 'jenis'));
     }
 
-    public function getPo()
-    {
-        $userId = auth()->id();
-        $user = auth()->user();
+    // public function getPo()
+    // {
+    //     $userId = auth()->id();
+    //     $user = auth()->user();
 
-        $user->load('karyawan.divisi');
+    //     $user->load('karyawan.divisi');
 
-        // divisi dari request (khusus Sobana)
-        $requestDivisi = request('divisi');
+    //     // divisi dari request (khusus Sobana)
+    //     $requestDivisi = request('divisi');
 
-        // kalau tidak ada, pakai divisi user login
-        $divisiQc = strtoupper(
-            $requestDivisi
-            ?: ($user->karyawan?->divisi?->nama ?? '')
-        );
-        Log::info('hallo', [
-            'schedule_id' => $divisiQc,
-        ]);
-        /*
+    //     // kalau tidak ada, pakai divisi user login
+    //     $divisiQc = strtoupper(
+    //         $requestDivisi
+    //         ?: ($user->karyawan?->divisi?->nama ?? '')
+    //     );
+    //     Log::info('hallo', [
+    //         'schedule_id' => $divisiQc,
+    //     ]);
+    //     /*
+    // |--------------------------------------------------------------------------
+    // | GET PO
+    // |--------------------------------------------------------------------------
+    // */
+
+    //     $pos = Po::with([
+    //         'details',
+    //         'spks',
+    //     ])->get();
+
+    //     $detailPoIds = $pos
+    //         ->pluck('details')
+    //         ->flatten()
+    //         ->pluck('id');
+
+    //     /*
+    // |--------------------------------------------------------------------------
+    // | ARTICLE
+    // |--------------------------------------------------------------------------
+    // */
+
+    //     $articleNumbers = $pos
+    //         ->pluck('details')
+    //         ->flatten()
+    //         ->map(function ($detail) {
+    //             $articleNr = $detail->detail['article_nr_'] ?? null;
+    //             $nwCode = $detail->detail['nw_code'] ?? null;
+
+    //             return $nwCode === null
+    //                 ? $articleNr
+    //                 : ($articleNr ?? $nwCode);
+    //         })
+    //         ->filter()
+    //         ->unique()
+    //         ->values();
+
+    //     /*
+    // |--------------------------------------------------------------------------
+    // | BOM
+    // |--------------------------------------------------------------------------
+    // */
+
+    //     $boms = Bom::with([
+    //         'groups.items',
+    //     ])
+    //         ->whereIn(
+    //             'article_number',
+    //             $articleNumbers
+    //         )
+    //         ->get();
+
+    //     $bomMap = $boms->keyBy(
+    //         'article_number'
+    //     );
+
+    //     /*
+    // |--------------------------------------------------------------------------
+    // | CAD
+    // |--------------------------------------------------------------------------
+    // */
+
+    //     $cads = CadModel::whereIn(
+    //         'article_code',
+    //         $articleNumbers
+    //     )
+    //         ->orderByDesc('version')
+    //         ->get()
+    //         ->groupBy(function ($item) {
+
+    //             return (string) 
+    //                 $item->article_code;
+
+    //         });
+
+    //     /*
+    // |--------------------------------------------------------------------------
+    // | INSPECTION
+    // |--------------------------------------------------------------------------
+    // */
+
+    //     $inspectionSchedules =
+    //         InspectSchedule::with([
+    //             'kategori',
+    //             'user',
+    //         ])
+    //             ->whereIn(
+    //                 'detail_po_id',
+    //                 $detailPoIds
+    //             )
+    //             ->get();
+
+    //     /*
+    // |--------------------------------------------------------------------------
+    // | MAPPING
+    // |--------------------------------------------------------------------------
+    // */
+
+    //     $pos->each(function ($po) use ($bomMap, $cads, $inspectionSchedules, $divisiQc) {
+
+    //         $po->details->each(function ($detail) use ($po, $bomMap, $cads, $inspectionSchedules, $divisiQc) {
+
+    //             /*
+    //         |--------------------------------------------------------------------------
+    //         | ARTICLE
+    //         |--------------------------------------------------------------------------
+    //         */
+
+    //             $article = (string) (
+
+    //                 $detail->detail['article_nr_'] ?? ''
+
+    //             );
+
+    //             /*
+    //         |--------------------------------------------------------------------------
+    //         | BOM
+    //         |--------------------------------------------------------------------------
+    //         */
+
+    //             $detail->bom = (
+
+    //                 $article &&
+    //                 isset($bomMap[$article])
+
+    //             )
+    //                 ? $bomMap[$article]
+    //                 : null;
+
+    //             /*
+    //         |--------------------------------------------------------------------------
+    //         | CAD
+    //         |--------------------------------------------------------------------------
+    //         */
+
+    //             $detail->cad = (
+
+    //                 $article &&
+    //                 isset($cads[$article])
+
+    //             )
+    //                 ? $cads[$article]->first()
+    //                 : null;
+
+    //             /*
+    //         |--------------------------------------------------------------------------
+    //         | INSPECTION
+    //         |--------------------------------------------------------------------------
+    //         */
+
+    //             $detail->inspection_schedules =
+    //                 $inspectionSchedules
+    //                     ->where(
+    //                         'detail_po_id',
+    //                         $detail->id
+    //                     )
+    //                     ->values();
+
+    //             /*
+    //         |--------------------------------------------------------------------------
+    //         | SPK TERKAIT
+    //         |--------------------------------------------------------------------------
+    //         */
+
+    //             $relatedSpks = [];
+
+    //             foreach ($po->spks as $spk) {
+
+    //                 $spkData = $spk->data;
+    //                 // each baru
+    //                 $kategoriSpk = strtoupper(
+    //                     $spkData['kategori'] ?? ''
+    //                 );
+
+    //                 if (
+    //                     !$this->matchDivisi(
+    //                         $divisiQc,
+    //                         $kategoriSpk
+    //                     )
+    //                 ) {
+    //                     continue;
+    //                 }
+    //                 if (
+    //                     is_string($spkData)
+    //                 ) {
+
+    //                     $spkData = json_decode(
+    //                         $spkData,
+    //                         true
+    //                     );
+
+    //                 }
+
+    //                 $items =
+    //                     $spkData['items'] ?? [];
+
+    //                 foreach ($items as $item) {
+
+    //                     if (
+
+    //                         ($item['detail_po_id'] ?? null)
+
+    //                         ==
+
+    //                         $detail->id
+
+    //                     ) {
+    //                         $inspect = $inspectionSchedules
+    //                             ->where('detail_po_id', $detail->id)
+    //                             ->where('spk_id', $spk->id);
+
+    //                         $passed = $inspect->sum('passed');
+
+    //                         $rejected = $inspect->sum('rejected');
+
+    //                         $relatedSpks[] = [
+    //                             // TAMBAHAN
+
+
+
+
+
+    //                             'passed' => $passed,
+
+    //                             'rejected' => $rejected,
+    //                             'id' =>
+    //                                 $spk->id,
+
+    //                             'supplier' =>
+    //                                 $spkData['sup'] ?? null,
+
+    //                             'kategori' =>
+    //                                 $spkData['kategori'] ?? null,
+
+    //                             'status' =>
+    //                                 $spkData['status'] ?? null,
+
+    //                             'no_spk' =>
+    //                                 $spkData['no_spk'] ?? null,
+
+    //                             'tgl_terima' =>
+    //                                 $spkData['tgl_terima'] ?? null,
+
+    //                             'tgl_selesai' =>
+    //                                 $spkData['tgl_selesai'] ?? null,
+
+    //                             'material' =>
+    //                                 $item['material'] ?? '',
+
+    //                             'qty' =>
+    //                                 $item['qty'] ?? 0,
+
+    //                             'harga' =>
+    //                                 $item['harga'] ?? 0,
+
+    //                             'total' =>
+    //                                 $item['total'] ?? 0,
+
+    //                         ];
+
+    //                     }
+
+    //                 }
+
+    //             }
+
+    //             $detail->spks =
+    //                 $relatedSpks;
+
+    //         });
+
+    //     });
+
+    //     /*
+    // |--------------------------------------------------------------------------
+    // | RETURN
+    // |--------------------------------------------------------------------------
+    // */
+
+    //     return response()->json([
+
+    //         'status' => 'success',
+
+    //         'data' => $pos,
+
+    //     ]);
+    // }
+public function getPo()
+{
+    $userId = auth()->id();
+    $user = auth()->user();
+
+    $user->load('karyawan.divisi');
+
+    // divisi dari request (khusus Sobana)
+    $requestDivisi = request('divisi');
+
+    // kalau tidak ada, pakai divisi user login
+    $divisiQc = strtoupper(
+        $requestDivisi
+        ?: ($user->karyawan?->divisi?->nama ?? '')
+    );
+
+    Log::info('hallo', [
+        'schedule_id' => $divisiQc,
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | NORMALISASI ANGKA UNTUK RESPONSE MOBILE
+    |--------------------------------------------------------------------------
+    | Tidak mengubah data database.
+    |
+    | Contoh:
+    | 56      -> 56.0
+    | 56.5    -> 56.5
+    | "56.5"  -> 56.5
+    | "56,5"  -> 56.5
+    |--------------------------------------------------------------------------
+    */
+    $toDouble = function ($value) {
+
+        if ($value === null || $value === '') {
+            return 0.0;
+        }
+
+        if (is_string($value)) {
+
+            $value = trim($value);
+
+            /*
+            |--------------------------------------------------------------------------
+            | FORMAT 56,5
+            |--------------------------------------------------------------------------
+            */
+            if (
+                str_contains($value, ',') &&
+                !str_contains($value, '.')
+            ) {
+                $value = str_replace(
+                    ',',
+                    '.',
+                    $value
+                );
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | FORMAT 1.250,5
+            |--------------------------------------------------------------------------
+            | Hanya untuk kasus angka yang memang memakai
+            | titik sebagai pemisah ribuan dan koma sebagai decimal.
+            |--------------------------------------------------------------------------
+            */
+            elseif (
+                str_contains($value, ',') &&
+                str_contains($value, '.')
+            ) {
+
+                $lastComma =
+                    strrpos($value, ',');
+
+                $lastDot =
+                    strrpos($value, '.');
+
+                if ($lastComma > $lastDot) {
+
+                    // 1.250,5 -> 1250.5
+                    $value = str_replace(
+                        '.',
+                        '',
+                        $value
+                    );
+
+                    $value = str_replace(
+                        ',',
+                        '.',
+                        $value
+                    );
+
+                } else {
+
+                    // 1,250.5 -> 1250.5
+                    $value = str_replace(
+                        ',',
+                        '',
+                        $value
+                    );
+                }
+            }
+        }
+
+        return is_numeric($value)
+            ? (float) $value
+            : 0.0;
+    };
+
+    /*
     |--------------------------------------------------------------------------
     | GET PO
     |--------------------------------------------------------------------------
     */
 
-        $pos = Po::with([
-            'details',
-            'spks',
-        ])->get();
+    $pos = Po::with([
+        'details',
+        'spks',
+    ])->get();
 
-        $detailPoIds = $pos
-            ->pluck('details')
-            ->flatten()
-            ->pluck('id');
+    $detailPoIds = $pos
+        ->pluck('details')
+        ->flatten()
+        ->pluck('id');
 
-        /*
+    /*
     |--------------------------------------------------------------------------
     | ARTICLE
     |--------------------------------------------------------------------------
     */
 
-        $articleNumbers = $pos
-            ->pluck('details')
-            ->flatten()
-            ->map(function ($detail) {
-                $articleNr = $detail->detail['article_nr_'] ?? null;
-                $nwCode = $detail->detail['nw_code'] ?? null;
+    $articleNumbers = $pos
+        ->pluck('details')
+        ->flatten()
+        ->map(function ($detail) {
 
-                return $nwCode === null
-                    ? $articleNr
-                    : ($articleNr ?? $nwCode);
-            })
-            ->filter()
-            ->unique()
-            ->values();
+            $articleNr =
+                $detail->detail['article_nr_']
+                ?? null;
 
-        /*
+            $nwCode =
+                $detail->detail['nw_code']
+                ?? null;
+
+            return $nwCode === null
+                ? $articleNr
+                : ($articleNr ?? $nwCode);
+        })
+        ->filter()
+        ->unique()
+        ->values();
+
+    /*
     |--------------------------------------------------------------------------
     | BOM
     |--------------------------------------------------------------------------
     */
 
-        $boms = Bom::with([
-            'groups.items',
-        ])
-            ->whereIn(
-                'article_number',
-                $articleNumbers
-            )
-            ->get();
+    $boms = Bom::with([
+        'groups.items',
+    ])
+        ->whereIn(
+            'article_number',
+            $articleNumbers
+        )
+        ->get();
 
-        $bomMap = $boms->keyBy(
-            'article_number'
-        );
+    $bomMap = $boms->keyBy(
+        'article_number'
+    );
 
-        /*
+    /*
     |--------------------------------------------------------------------------
     | CAD
     |--------------------------------------------------------------------------
     */
 
-        $cads = CadModel::whereIn(
-            'article_code',
-            $articleNumbers
-        )
-            ->orderByDesc('version')
-            ->get()
-            ->groupBy(function ($item) {
+    $cads = CadModel::whereIn(
+        'article_code',
+        $articleNumbers
+    )
+        ->orderByDesc('version')
+        ->get()
+        ->groupBy(function ($item) {
 
-                return (string) 
-                    $item->article_code;
+            return (string)
+                $item->article_code;
+        });
 
-            });
-
-        /*
+    /*
     |--------------------------------------------------------------------------
     | INSPECTION
     |--------------------------------------------------------------------------
     */
 
-        $inspectionSchedules =
-            InspectSchedule::with([
-                'kategori',
-                'user',
-            ])
-                ->whereIn(
-                    'detail_po_id',
-                    $detailPoIds
-                )
-                ->get();
+    $inspectionSchedules =
+        InspectSchedule::with([
+            'kategori',
+            'user',
+        ])
+            ->whereIn(
+                'detail_po_id',
+                $detailPoIds
+            )
+            ->get();
 
-        /*
+    /*
     |--------------------------------------------------------------------------
     | MAPPING
     |--------------------------------------------------------------------------
     */
 
-        $pos->each(function ($po) use ($bomMap, $cads, $inspectionSchedules, $divisiQc) {
+    $pos->each(function ($po) use (
+        $bomMap,
+        $cads,
+        $inspectionSchedules,
+        $divisiQc,
+        $toDouble
+    ) {
 
-            $po->details->each(function ($detail) use ($po, $bomMap, $cads, $inspectionSchedules, $divisiQc) {
+        $po->details->each(function ($detail) use (
+            $po,
+            $bomMap,
+            $cads,
+            $inspectionSchedules,
+            $divisiQc,
+            $toDouble
+        ) {
 
-                /*
+            /*
             |--------------------------------------------------------------------------
             | ARTICLE
             |--------------------------------------------------------------------------
             */
 
-                $article = (string) (
+            $article = (string) (
+                $detail->detail['article_nr_']
+                ?? ''
+            );
 
-                    $detail->detail['article_nr_'] ?? ''
-
-                );
-
-                /*
+            /*
             |--------------------------------------------------------------------------
             | BOM
             |--------------------------------------------------------------------------
             */
 
-                $detail->bom = (
+            $detail->bom = (
+                $article &&
+                isset($bomMap[$article])
+            )
+                ? $bomMap[$article]
+                : null;
 
-                    $article &&
-                    isset($bomMap[$article])
-
-                )
-                    ? $bomMap[$article]
-                    : null;
-
-                /*
+            /*
             |--------------------------------------------------------------------------
             | CAD
             |--------------------------------------------------------------------------
             */
 
-                $detail->cad = (
+            $detail->cad = (
+                $article &&
+                isset($cads[$article])
+            )
+                ? $cads[$article]->first()
+                : null;
 
-                    $article &&
-                    isset($cads[$article])
-
-                )
-                    ? $cads[$article]->first()
-                    : null;
-
-                /*
+            /*
             |--------------------------------------------------------------------------
             | INSPECTION
             |--------------------------------------------------------------------------
             */
 
-                $detail->inspection_schedules =
-                    $inspectionSchedules
-                        ->where(
-                            'detail_po_id',
-                            $detail->id
-                        )
-                        ->values();
+            $detail->inspection_schedules =
+                $inspectionSchedules
+                    ->where(
+                        'detail_po_id',
+                        $detail->id
+                    )
+                    ->values();
 
-                /*
+            /*
             |--------------------------------------------------------------------------
             | SPK TERKAIT
             |--------------------------------------------------------------------------
             */
 
-                $relatedSpks = [];
+            $relatedSpks = [];
 
-                foreach ($po->spks as $spk) {
+            foreach ($po->spks as $spk) {
 
-                    $spkData = $spk->data;
-                    // each baru
-                    $kategoriSpk = strtoupper(
-                        $spkData['kategori'] ?? ''
-                    );
+                $spkData = $spk->data;
 
-                    if (
-                        !$this->matchDivisi(
-                            $divisiQc,
-                            $kategoriSpk
-                        )
-                    ) {
-                        continue;
-                    }
-                    if (
-                        is_string($spkData)
-                    ) {
+                // each baru
+                $kategoriSpk = strtoupper(
+                    $spkData['kategori'] ?? ''
+                );
 
-                        $spkData = json_decode(
-                            $spkData,
-                            true
-                        );
-
-                    }
-
-                    $items =
-                        $spkData['items'] ?? [];
-
-                    foreach ($items as $item) {
-
-                        if (
-
-                            ($item['detail_po_id'] ?? null)
-
-                            ==
-
-                            $detail->id
-
-                        ) {
-                            $inspect = $inspectionSchedules
-                                ->where('detail_po_id', $detail->id)
-                                ->where('spk_id', $spk->id);
-
-                            $passed = $inspect->sum('passed');
-
-                            $rejected = $inspect->sum('rejected');
-
-                            $relatedSpks[] = [
-                                // TAMBAHAN
-
-
-
-
-
-                                'passed' => $passed,
-
-                                'rejected' => $rejected,
-                                'id' =>
-                                    $spk->id,
-
-                                'supplier' =>
-                                    $spkData['sup'] ?? null,
-
-                                'kategori' =>
-                                    $spkData['kategori'] ?? null,
-
-                                'status' =>
-                                    $spkData['status'] ?? null,
-
-                                'no_spk' =>
-                                    $spkData['no_spk'] ?? null,
-
-                                'tgl_terima' =>
-                                    $spkData['tgl_terima'] ?? null,
-
-                                'tgl_selesai' =>
-                                    $spkData['tgl_selesai'] ?? null,
-
-                                'material' =>
-                                    $item['material'] ?? '',
-
-                                'qty' =>
-                                    $item['qty'] ?? 0,
-
-                                'harga' =>
-                                    $item['harga'] ?? 0,
-
-                                'total' =>
-                                    $item['total'] ?? 0,
-
-                            ];
-
-                        }
-
-                    }
-
+                if (
+                    !$this->matchDivisi(
+                        $divisiQc,
+                        $kategoriSpk
+                    )
+                ) {
+                    continue;
                 }
 
-                $detail->spks =
-                    $relatedSpks;
+                if (
+                    is_string($spkData)
+                ) {
 
-            });
+                    $spkData = json_decode(
+                        $spkData,
+                        true
+                    );
+                }
 
+                $items =
+                    $spkData['items'] ?? [];
+
+                foreach ($items as $item) {
+
+                    if (
+                        ($item['detail_po_id'] ?? null)
+                        ==
+                        $detail->id
+                    ) {
+
+                        $inspect =
+                            $inspectionSchedules
+                                ->where(
+                                    'detail_po_id',
+                                    $detail->id
+                                )
+                                ->where(
+                                    'spk_id',
+                                    $spk->id
+                                );
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | PASSED
+                        |--------------------------------------------------------------------------
+                        | Dipaksa double agar Flutter tidak menerima
+                        | integer ketika nilainya 7, 0, 10, dst.
+                        |--------------------------------------------------------------------------
+                        */
+                        $passed = $toDouble(
+                            $inspect->sum('passed')
+                        );
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | REJECTED
+                        |--------------------------------------------------------------------------
+                        */
+                        $rejected = $toDouble(
+                            $inspect->sum('rejected')
+                        );
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | QTY
+                        |--------------------------------------------------------------------------
+                        | Support:
+                        |
+                        | 56
+                        | 56.5
+                        | "56"
+                        | "56.5"
+                        | "56,5"
+                        |--------------------------------------------------------------------------
+                        */
+                        $qty = $toDouble(
+                            $item['qty'] ?? 0
+                        );
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | HARGA
+                        |--------------------------------------------------------------------------
+                        */
+                        $harga = $toDouble(
+                            $item['harga'] ?? 0
+                        );
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | TOTAL
+                        |--------------------------------------------------------------------------
+                        */
+                        $total = $toDouble(
+                            $item['total'] ?? 0
+                        );
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | RELATED SPK
+                        |--------------------------------------------------------------------------
+                        */
+
+                        $relatedSpks[] = [
+
+                            // TAMBAHAN
+                            'passed' =>
+                                $passed,
+
+                            'rejected' =>
+                                $rejected,
+
+                            'id' =>
+                                $spk->id,
+
+                            'supplier' =>
+                                $spkData['sup']
+                                ?? null,
+
+                            'kategori' =>
+                                $spkData['kategori']
+                                ?? null,
+
+                            'status' =>
+                                $spkData['status']
+                                ?? null,
+
+                            'no_spk' =>
+                                $spkData['no_spk']
+                                ?? null,
+
+                            'tgl_terima' =>
+                                $spkData['tgl_terima']
+                                ?? null,
+
+                            'tgl_selesai' =>
+                                $spkData['tgl_selesai']
+                                ?? null,
+
+                            'material' =>
+                                $item['material']
+                                ?? '',
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | QTY SEKARANG SELALU DOUBLE
+                            |--------------------------------------------------------------------------
+                            */
+                            'qty' =>
+                                $qty,
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | HARGA SEKARANG SELALU DOUBLE
+                            |--------------------------------------------------------------------------
+                            */
+                            'harga' =>
+                                $harga,
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | TOTAL SEKARANG SELALU DOUBLE
+                            |--------------------------------------------------------------------------
+                            */
+                            'total' =>
+                                $total,
+                        ];
+                    }
+                }
+            }
+
+            $detail->spks =
+                $relatedSpks;
         });
+    });
 
-        /*
+    /*
     |--------------------------------------------------------------------------
     | RETURN
     |--------------------------------------------------------------------------
     */
 
-        return response()->json([
+    return response()->json([
 
-            'status' => 'success',
+        'status' => 'success',
 
-            'data' => $pos,
+        'data' => $pos,
 
-        ]);
-    }
-    public function detailPoReports($detailPoId)
+    ]);
+}    public function detailPoReports($detailPoId)
     {
         $inspectSchedules = InspectSchedule::with([
             'user',
