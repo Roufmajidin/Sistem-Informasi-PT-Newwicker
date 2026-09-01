@@ -4,10 +4,10 @@
 
     <style>
         /*
-        |--------------------------------------------------------------------------
-        | INVOICE MODAL
-        |--------------------------------------------------------------------------
-        */
+            |--------------------------------------------------------------------------
+            | INVOICE MODAL
+            |--------------------------------------------------------------------------
+            */
 
         .invoice-modal-wide {
             max-width: 95vw;
@@ -21,10 +21,10 @@
 
 
         /*
-        |--------------------------------------------------------------------------
-        | MATERIAL TABLE
-        |--------------------------------------------------------------------------
-        */
+            |--------------------------------------------------------------------------
+            | MATERIAL TABLE
+            |--------------------------------------------------------------------------
+            */
 
         .material-table th,
         .material-table td {
@@ -56,10 +56,10 @@
 
 
         /*
-        |--------------------------------------------------------------------------
-        | SORT BUTTON
-        |--------------------------------------------------------------------------
-        */
+            |--------------------------------------------------------------------------
+            | SORT BUTTON
+            |--------------------------------------------------------------------------
+            */
 
         .date-sort-btn {
 
@@ -105,10 +105,10 @@
 
 
         /*
-        |--------------------------------------------------------------------------
-        | TO SUB BADGE
-        |--------------------------------------------------------------------------
-        */
+            |--------------------------------------------------------------------------
+            | TO SUB BADGE
+            |--------------------------------------------------------------------------
+            */
 
         .to-sub-badge {
 
@@ -399,8 +399,7 @@
 
                                     <td>
 
-                                        <form
-                                            action="{{ route('monitoring-invoice.destroy', $invoice->id) }}"
+                                        <form action="{{ route('monitoring-invoice.destroy', $invoice->id) }}"
                                             method="POST"
                                             onsubmit="return confirm(
                                             'Yakin ingin menghapus invoice ini?'
@@ -573,6 +572,10 @@
                                     <option value="darto">
                                         Darto
                                     </option>
+                                    <option value="produksi">
+                                        Produksi
+                                    </option>
+                                     
 
                                 </select>
 
@@ -857,10 +860,10 @@
 
     <script>
         /*
-    |--------------------------------------------------------------------------
-    | GLOBAL
-    |--------------------------------------------------------------------------
-    */
+        |--------------------------------------------------------------------------
+        | GLOBAL
+        |--------------------------------------------------------------------------
+        */
 
         let materials = [];
 
@@ -1096,66 +1099,65 @@
         |--------------------------------------------------------------------------
         */
 
-       function openCreateModal()
-{
-    materials = [];
+        function openCreateModal() {
+            materials = [];
 
-    editingMaterialIndex = null;
+            editingMaterialIndex = null;
 
-    document.getElementById(
-        'invoiceModalTitle'
-    ).innerText =
-        'Create Invoice';
+            document.getElementById(
+                    'invoiceModalTitle'
+                ).innerText =
+                'Create Invoice';
 
-    document.getElementById(
-        'invoiceForm'
-    ).action =
-        "{{ route('monitoring-invoice.store') }}";
+            document.getElementById(
+                    'invoiceForm'
+                ).action =
+                "{{ route('monitoring-invoice.store') }}";
 
-    document.getElementById(
-        'invoiceMethod'
-    ).innerHTML = '';
+            document.getElementById(
+                'invoiceMethod'
+            ).innerHTML = '';
 
-    document.getElementById(
-        'nomor_invoice'
-    ).value = '';
+            document.getElementById(
+                'nomor_invoice'
+            ).value = '';
 
-    document.getElementById(
-        'tanggal_invoice'
-    ).value = '';
+            document.getElementById(
+                'tanggal_invoice'
+            ).value = '';
 
-    /*
-    |--------------------------------------------------------------------------
-    | RESET TO SUB
-    |--------------------------------------------------------------------------
-    */
+            /*
+            |--------------------------------------------------------------------------
+            | RESET TO SUB
+            |--------------------------------------------------------------------------
+            */
 
-    document.getElementById(
-        'to_sub'
-    ).value = '';
+            document.getElementById(
+                'to_sub'
+            ).value = '';
 
-    addMaterial();
+            addMaterial();
 
-    renderMaterials();
+            renderMaterials();
 
-    /*
-    |--------------------------------------------------------------------------
-    | SHOW MODAL
-    |--------------------------------------------------------------------------
-    */
+            /*
+            |--------------------------------------------------------------------------
+            | SHOW MODAL
+            |--------------------------------------------------------------------------
+            */
 
-    const modalElement =
-        document.getElementById(
-            'invoiceModal'
-        );
+            const modalElement =
+                document.getElementById(
+                    'invoiceModal'
+                );
 
-    invoiceModalInstance =
-        new bootstrap.Modal(
-            modalElement
-        );
+            invoiceModalInstance =
+                new bootstrap.Modal(
+                    modalElement
+                );
 
-    invoiceModalInstance.show();
-}
+            invoiceModalInstance.show();
+        }
 
 
         /*
@@ -1164,78 +1166,77 @@
         |--------------------------------------------------------------------------
         */
 
-    function openEditInvoice(invoice)
-{
-    materials = JSON.parse(
-        JSON.stringify(
-            invoice.detail_bahan ?? []
-        )
-    );
+        function openEditInvoice(invoice) {
+            materials = JSON.parse(
+                JSON.stringify(
+                    invoice.detail_bahan ?? []
+                )
+            );
 
-    editingMaterialIndex = null;
+            editingMaterialIndex = null;
 
-    document.getElementById(
-        'invoiceModalTitle'
-    ).innerText =
-        'Edit Invoice #' + invoice.id;
+            document.getElementById(
+                    'invoiceModalTitle'
+                ).innerText =
+                'Edit Invoice #' + invoice.id;
 
-    document.getElementById(
-        'invoiceForm'
-    ).action =
-        `/monitoring-invoice/${invoice.id}`;
+            document.getElementById(
+                    'invoiceForm'
+                ).action =
+                `/monitoring-invoice/${invoice.id}`;
 
-    document.getElementById(
-        'invoiceMethod'
-    ).innerHTML =
-        '@method("PUT")';
+            document.getElementById(
+                    'invoiceMethod'
+                ).innerHTML =
+                '@method('PUT')';
 
-    document.getElementById(
-        'nomor_invoice'
-    ).value =
-        invoice.nomor_invoice ?? '';
+            document.getElementById(
+                    'nomor_invoice'
+                ).value =
+                invoice.nomor_invoice ?? '';
 
-    document.getElementById(
-        'tanggal_invoice'
-    ).value =
-        invoice.tanggal_invoice
-            ? invoice.tanggal_invoice.substring(0, 10)
-            : '';
+            document.getElementById(
+                    'tanggal_invoice'
+                ).value =
+                invoice.tanggal_invoice ?
+                invoice.tanggal_invoice.substring(0, 10) :
+                '';
 
-    /*
-    |--------------------------------------------------------------------------
-    | TO SUB
-    |--------------------------------------------------------------------------
-    */
+            /*
+            |--------------------------------------------------------------------------
+            | TO SUB
+            |--------------------------------------------------------------------------
+            */
 
-    document.getElementById(
-        'to_sub'
-    ).value =
-        invoice.to_sub ?? '';
+            document.getElementById(
+                    'to_sub'
+                ).value =
+                invoice.to_sub ?? '';
 
-    if (materials.length === 0) {
-        addMaterial();
-    }
+            if (materials.length === 0) {
+                addMaterial();
+            }
 
-    renderMaterials();
+            renderMaterials();
 
-    /*
-    |--------------------------------------------------------------------------
-    | SHOW MODAL
-    |--------------------------------------------------------------------------
-    */
+            /*
+            |--------------------------------------------------------------------------
+            | SHOW MODAL
+            |--------------------------------------------------------------------------
+            */
 
-    const modalElement =
-        document.getElementById(
-            'invoiceModal'
-        );
+            const modalElement =
+                document.getElementById(
+                    'invoiceModal'
+                );
 
-    invoiceModalInstance =
-        new bootstrap.Modal(
-            modalElement
-        );
+            invoiceModalInstance =
+                new bootstrap.Modal(
+                    modalElement
+                );
 
-    invoiceModalInstance.show();
-}
+            invoiceModalInstance.show();
+        }
 
 
         /*

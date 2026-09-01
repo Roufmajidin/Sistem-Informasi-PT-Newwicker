@@ -77,9 +77,14 @@
                     </td>
 
                     <td>
-                        <input type="number" class="form-control update-field" data-id="{{ $item->id }}"
+                        <input
+                            type="text"
+                            inputmode="decimal"
+                            class="form-control update-field harga-field"
+                            data-id="{{ $item->id }}"
                             data-column="harga"
-                            value="{{ number_format($item->harga,0,',','.') }}">
+                            value="{{ rtrim(rtrim(number_format((float) $item->harga, 2, ',', '.'), '0'), ',') }}"
+                            autocomplete="off">
 
                         <small class="save-status text-muted" style="display:none;">
                             Press Enter to save
@@ -306,25 +311,150 @@ modal.show();
         });
 
     });
+    // =========================
     // UPDATE
+    // =========================
+
+  function normalizeHarga(value) {
+
+    value = String(value ?? '').trim();
+
+    if (value === '') {
+        return '';
+    }
+
+    // Hapus spasi
+    value = value.replace(/\s/g, '');
+
+
+    /*
+     * FORMAT INDONESIA
+     *
+     * 3.596.400
+     * 3.596.400,50
+     * 1.500
+     * 1.500,25
+     *
+     * menjadi:
+     *
+     * 3596400
+     * 3596400.50
+     * 1500
+     * 1500.25
+     */
+
+
+    // Ada koma = koma dianggap desimal
+    if (value.includes(',')) {
+
+        value = value
+            .replace(/\./g, '')
+            .replace(',', '.');
+
+        return value;
+    }
+
+
+    /*
+     * Tidak ada koma.
+     *
+     * Kalau titik lebih dari satu:
+     *
+     * 3.596.400
+     *
+     * pasti format ribuan.
+     */
+
+    const dotCount =
+        (value.match(/\./g) || []).length;
+
+
+    if (dotCount > 1) {
+
+        return value.replace(/\./g, '');
+
+    }
+
+
+    /*
+     * Satu titik.
+     *
+     * 3.596 -> 3596
+     *
+     * Tetapi:
+     *
+     * 3.5 -> 3.5
+     */
+
+    if (
+        dotCount === 1 &&
+        /^\d+\.\d{3}$/.test(value)
+    ) {
+
+        return value.replace('.', '');
+
+    }
+
+
+    /*
+     * Contoh:
+     *
+     * 3.5
+     * 12.25
+     *
+     * dianggap angka desimal.
+     */
+
+    return value;
+}
+    function showSaveStatus(status, text, color) {
+
+        status
+            .stop(true, true)
+            .show()
+            .text(text)
+            .css({
+                opacity: '1',
+                color: color || ''
+            });
+    }
+
     $(document).on('keypress', '.update-field', function (e) {
 
-        if (e.which != 13) {
+        if (e.which !== 13) {
             return;
         }
 
-        let row = $(this).closest('tr');
+        e.preventDefault();
 
-        let id = $(this).data('id');
+        const input = $(this);
+        const row = input.closest('tr');
+        const id = input.data('id');
 
-        let status = $(this)
+        const status = input
             .closest('td')
             .find('.save-status');
 
-        status
-            .show()
-            .text('Saving...')
-            .css('opacity', '1');
+        /*
+         * Cegah double request pada row yang sama.
+         * Ini penting agar dua request tidak saling menimpa.
+         */
+        if (row.data('saving')) {
+            return;
+        }
+
+        row.data('saving', true);
+
+        // Semua field dalam row dikunci selama proses save
+        row.find('.update-field').prop('disabled', true);
+
+        showSaveStatus(status, 'Saving...', '#667085');
+
+        let harga = row
+            .find('[data-column="harga"]')
+            .val();
+
+        harga = normalizeHarga(harga);
 
         $.ajax({
 
@@ -332,61 +462,98 @@ modal.show();
 
             type: 'POST',
 
+            timeout: 10000,
+
             data: {
 
                 _token: "{{ csrf_token() }}",
 
-                nama_material: row.find('[data-column="nama_material"]').val(),
+                nama_material: row
+                    .find('[data-column="nama_material"]')
+                    .val(),
 
-                harga: row.find('[data-column="harga"]').val(),
+                harga: harga,
 
-                satuan: row.find('[data-column="satuan"]').val()
+                satuan: row
+                    .find('[data-column="satuan"]')
+                    .val()
 
             },
 
-            success: function () {
+            success: function (res) {
 
-                status
-                    .text('Saved ✓');
+                /*
+                 * Jika controller mengembalikan success=false,
+                 * anggap sebagai gagal.
+                 */
+                if (res && res.success === false) {
+
+                    showSaveStatus(
+                        status,
+                        res.message || 'Gagal menyimpan ✕',
+                        '#dc2626'
+                    );
+
+                    return;
+                }
+
+                showSaveStatus(
+                    status,
+                    'Saved ✓',
+                    '#16a34a'
+                );
 
                 setTimeout(function () {
 
-                    status.fadeOut();
+                    status.fadeOut(300);
 
                 }, 1500);
 
-            }
+            },
 
-        });
+            error: function (xhr, textStatus) {
 
-    });
-    // cari
+                console.error(
+                    'Update material gagal:',
+                    xhr.status,
+                    xhr.responseText
+                );
 
-    $('#searchMaterial').on('keyup', function () {
+                let message = 'Gagal menyimpan ✕';
 
-        let keyword = $(this).val().toLowerCase();
+                if (textStatus === 'timeout') {
 
-        $('table tbody tr').each(function () {
+                    message = 'Server terlalu lama merespons ✕';
 
-            let material = $(this)
-              .find('[data-column="nama"]')
+                } else if (xhr.status === 419) {
 
-                .val()
-                .toLowerCase();
+                    message = 'Session expired, refresh halaman ✕';
 
-            let satuan = $(this)
-                .find('[data-column="satuan"]')
-                .val();
+                } else if (xhr.status === 422) {
 
-            satuan = satuan ? satuan.toLowerCase() : '';
+                    message = 'Data tidak valid ✕';
 
-            if (
-                material.includes(keyword) ||
-                satuan.includes(keyword)
-            ) {
-                $(this).show();
-            } else {
-                $(this).hide();
+                } else if (xhr.status >= 500) {
+
+                    message = 'Server error ✕';
+
+                }
+
+                showSaveStatus(
+                    status,
+                    message,
+                    '#dc2626'
+                );
+
+            },
+
+            complete: function () {
+
+                row.data('saving', false);
+
+                // Kembalikan field agar bisa diedit lagi
+                row.find('.update-field').prop('disabled', false);
+
             }
 
         });
@@ -396,12 +563,22 @@ modal.show();
     // helper
     $(document).on('input', '.update-field', function () {
 
+        const row = $(this).closest('tr');
+
+        // Jangan mengubah status saat request masih berjalan
+        if (row.data('saving')) {
+            return;
+        }
+
         $(this)
             .closest('td')
             .find('.save-status')
             .show()
             .text('Press Enter to save')
-            .css('opacity', '.6');
+            .css({
+                opacity: '.6',
+                color: ''
+            });
 
     });
 
@@ -415,6 +592,15 @@ modal.show();
 
     .update-field {
         transition: .2s;
+    }
+
+    .update-field:disabled {
+        opacity: .75;
+        cursor: wait;
+    }
+
+    .harga-field {
+        text-align: right;
     }
 
     .update-field:focus {

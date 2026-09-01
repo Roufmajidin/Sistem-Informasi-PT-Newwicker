@@ -893,23 +893,16 @@ Route::prefix('subkon')
         Route::get('/{subkon}/timeline', [
             SubkonController::class,
             'timeline'
-        ])->name('timeline');
-    });
-Route::get(
-    '/produksi/mn/data',
-    [ProduksiMnController::class, 'data']
-)->name('produksi.mn.data');
+            ])->name('timeline');
+        });
+        Route::get(
+            '/produksi/mn/data',
+            [ProduksiMnController::class, 'data']
+        )->name('produksi.mn.data');
   // UPAH
-Route::prefix('upah')
-    ->name('upah.')
-    ->group(function () {
-
-        /*
-        |--------------------------------------------------------------------------
-        | MASTER UPAH BORONGAN
-        |--------------------------------------------------------------------------
-        */
-
+        Route::prefix('upah')
+            ->name('upah.')
+            ->group(function () {
         Route::get('/', [
             UpahController::class,
             'index'

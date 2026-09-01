@@ -40,8 +40,11 @@ class CogController extends Controller
         return back()->with('success', 'Import berhasil!');
     }
 
-    public function index()
+    public function index(Request $request)
+
     {
+            $uri = $request->query('uri', 'draft');
+
         $materialPrices = MaterialPriceProd::latest()->get();
 
         $materialFinishings = MaterialFinishingProd::latest()->get();
@@ -95,16 +98,18 @@ class CogController extends Controller
         //      count($masterMaterials),
         //     //  count($masterMaterials)
         // );
-        return view(
-            'pages.bom2.c_index',
-            compact(
-                'materialPrices',
-                'materialFinishings',
-                'masterMaterials',
-                'boms',
-                'boms_released'
-            )
-        );
+      return view(
+        'pages.bom2.c_index',
+        compact(
+            'materialPrices',
+            'materialFinishings',
+            'masterMaterials',
+            'boms',
+            'boms_released',
+            'uri'
+        )
+    );
+
     }
 
     public function bulkStore(Request $request)

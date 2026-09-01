@@ -59,10 +59,9 @@ class MonitoringInvoiceController extends Controller
             |--------------------------------------------------------------------------
             */
 
-            'to_sub' => [
-                'required',
-                'in:tomo,darto',
-            ],
+           'to_sub' => [
+    'nullable',
+],
 
             /*
             |--------------------------------------------------------------------------
@@ -168,9 +167,8 @@ class MonitoringInvoiceController extends Controller
             */
 
             'to_sub' => [
-                'required',
-                'in:tomo,darto',
-            ],
+    'nullable',
+],
 
             /*
             |--------------------------------------------------------------------------

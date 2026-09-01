@@ -11,23 +11,25 @@
 .mn-erp-page {
     --primary: #2563eb;
     --primary-hover: #1d4ed8;
-    --success: #16a34a;
+
+    --success: #22a06b;
     --danger: #dc2626;
-    --text: #172033;
-    --muted: #667085;
+
+    --text: #334155;
+    --muted: #64748b;
+
     --border: #e2e8f0;
-    --soft: #f8fafc;
-    --header: #2c3e50;
+
+    /* utama */
+    --soft: #f3f4f6;
+    --card: #fafafa;
+
+    /* header */
+    --header: #334155;
 
     color: var(--text);
-    font-size: 13px;
-    line-height: 1.4;
-    padding: 10px 12px 30px;
-
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+    background: var(--soft);
 }
-
 .mn-erp-page *,
 .mn-erp-page *::before,
 .mn-erp-page *::after {
@@ -40,23 +42,12 @@
    ========================================================= */
 
 .mn-filter {
-    background: #fff;
-    border: 1px solid var(--border);
+    background: #fafafa;
+    border: 1px solid #e2e8f0;
     border-radius: 12px;
     padding: 15px;
     margin-bottom: 14px !important;
-    box-shadow: 0 2px 10px rgba(16,24,40,.04);
-
-    /*
-    |--------------------------------------------------------------------------
-    | STICKY FILTER / PENCARIAN
-    |--------------------------------------------------------------------------
-    | Filter tetap terlihat ketika halaman di-scroll jauh ke bawah.
-    | Tidak mengubah fungsi search, company, sort, AJAX, maupun reset.
-    */
-    position: sticky;
-    top: 50px;
-    z-index: 100;
+    box-shadow: 0 2px 10px rgba(16,24,40,.035);
 }
 
 .mn-toolbar {
@@ -86,8 +77,9 @@
     align-items: center;
     padding: 0 11px;
 
-    background: #fff;
-    border: 1px solid var(--border);
+    background: #fafafa;
+    border: 1px solid #e2e8f0;
+
     border-radius: 8px;
 
     transition: .18s ease;
@@ -508,15 +500,14 @@
 /* =========================================================
    HEADER TABLE
    ========================================================= */
-
 .mn-table thead tr:first-child {
-    background: #2c3e50;
-    color: #fff;
+    background: #334155;
+    color: #f8fafc;
 }
 
 .mn-table thead tr:nth-child(2) {
-    background: #f1f5f9;
-    color: #344054;
+    background: #e8edf2;
+    color: #475569;
 }
 
 .mn-table thead th {
@@ -544,25 +535,21 @@
 
 .mn-table tbody td {
     padding: 8px 6px;
-
-    border-color: #edf0f4;
-
-    color: #344054;
-
+    border-color: #e8edf2;
+    color: #334155;
+    background: #fafafa;
     font-size: 12px;
     line-height: 1.3;
-
     vertical-align: middle;
 }
 
-.mn-table tbody tr {
-    transition: background .15s ease;
-}
-
 .mn-table tbody tr:hover {
-    background: #fbfdff;
+    background: #f1f5f9;
 }
 
+.mn-table tbody tr:hover td {
+    background: #f1f5f9;
+}
 
 /* =========================================================
    COLUMN: IMAGE
@@ -761,7 +748,7 @@
 }
 
 .pass-box {
-    color: var(--success);
+    color: #22a06b;
 }
 
 .reject-box {
@@ -1689,6 +1676,35 @@
                                     );
 
                                     /*
+                                    |--------------------------------------------------------------
+                                    | FALLBACK CATEGORY -> ACCESSORIES
+                                    |--------------------------------------------------------------
+                                    | Jika kategori_monitoring kosong/null, gunakan kategori asli.
+                                    | Cushion, kaca/glass, cermin/mirror, dan kaki kayu
+                                    | ditampilkan pada kolom Accessories.
+                                    */
+                                    if ($categoryKey === '') {
+
+                                        $kategoriRaw = strtolower(
+                                            trim($headerSpk['kategori'] ?? '')
+                                        );
+
+                                        if (
+                                            str_contains($kategoriRaw, 'kaki kayu')
+                                            || str_contains($kategoriRaw, 'kayu kaki')
+                                            || str_contains($kategoriRaw, 'cushion')
+                                            || str_contains($kategoriRaw, 'kaca')
+                                            || str_contains($kategoriRaw, 'glass')
+                                            || str_contains($kategoriRaw, 'cermin')
+                                            || str_contains($kategoriRaw, 'mirror')
+                                            || str_contains($kategoriRaw, 'aksesor')
+                                            || str_contains($kategoriRaw, 'accessor')
+                                        ) {
+                                            $categoryKey = 'accessories';
+                                        }
+                                    }
+
+                                    /*
                                     | Compatibility jika controller lama
                                     | masih menghasilkan "box".
                                     */
@@ -1989,11 +2005,66 @@
                                                     ];
                                                 }
 
+                                                $monitoringSeen = [];
+
                                                 foreach (($item['spks'] ?? []) as $spk) {
+
+    /*
+    |--------------------------------------------------------------------------
+    | HINDARI DUPLIKASI SPK IDENTIK
+    |--------------------------------------------------------------------------
+    | Composite Rangka + Anyam tetap aman karena kategori/component berbeda.
+    | Hanya record yang benar-benar identik yang dilewati.
+    */
+    $monitoringFingerprint = implode('|', [
+        $spk['spk_id'] ?? '',
+        $spk['kategori_monitoring'] ?? '',
+        $spk['kategori'] ?? '',
+        $spk['qty'] ?? '',
+        $spk['qty_in'] ?? '',
+        $spk['passed'] ?? '',
+        $spk['rejected'] ?? '',
+        $spk['component_name'] ?? '',
+        $spk['material'] ?? ($item['material'] ?? ''),
+    ]);
+
+    if (isset($monitoringSeen[$monitoringFingerprint])) {
+        continue;
+    }
+
+    $monitoringSeen[$monitoringFingerprint] = true;
 
     $categoryKey = strtolower(
         trim($spk['kategori_monitoring'] ?? '')
     );
+
+    /*
+    |--------------------------------------------------------------------------
+    | FALLBACK CATEGORY -> ACCESSORIES
+    |--------------------------------------------------------------------------
+    | SPK seperti Cushion, Kaca/Glass, Cermin/Mirror, dan Kaki Kayu
+    | kadang tidak mempunyai kategori_monitoring.
+    */
+    if ($categoryKey === '') {
+
+        $kategoriRaw = strtolower(
+            trim($spk['kategori'] ?? '')
+        );
+
+        if (
+            str_contains($kategoriRaw, 'kaki kayu')
+            || str_contains($kategoriRaw, 'kayu kaki')
+            || str_contains($kategoriRaw, 'cushion')
+            || str_contains($kategoriRaw, 'kaca')
+            || str_contains($kategoriRaw, 'glass')
+            || str_contains($kategoriRaw, 'cermin')
+            || str_contains($kategoriRaw, 'mirror')
+            || str_contains($kategoriRaw, 'aksesor')
+            || str_contains($kategoriRaw, 'accessor')
+        ) {
+            $categoryKey = 'accessories';
+        }
+    }
 
     if ($categoryKey === 'box') {
         $categoryKey = 'packaging';
@@ -2005,30 +2076,20 @@
 
     /*
     |--------------------------------------------------------------------------
-    | EXCEPTION RANGKA KAKI KAYU
-    |--------------------------------------------------------------------------
-    | Kaki Kayu tetap dimasukkan ke $monitoring[$categoryKey]['spks']
-    | supaya tetap muncul di tooltip.
-    |
-    | Tetapi TIDAK ikut angka utama Rangka:
-    | - IN
-    | - PASS
-    | - REJECT
-    |
-    | Jadi:
-    |
-    | Rangka Rotan      30
-    | Rangka Rotan      30
-    | Rangka Kaki Kayu  60
-    |
-    | Angka utama:
-    | Rangka IN = 60
-    |
-    | Tooltip:
-    | tetap 30 / 30 / 60
+    | SIMPAN SEMUA SPK UNTUK TOOLTIP
     |--------------------------------------------------------------------------
     */
+    $monitoring[$categoryKey]['spks'][] = $spk;
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | DETEKSI RANGKA KAKI KAYU
+    |--------------------------------------------------------------------------
+    | Tetap tampil di tooltip,
+    | tetapi tidak ikut total Rangka.
+    |--------------------------------------------------------------------------
+    */
     $kategoriSpk = strtoupper(
         trim($spk['kategori'] ?? '')
     );
@@ -2049,30 +2110,13 @@
 
     /*
     |--------------------------------------------------------------------------
-    | SIMPAN SPK TERLEBIH DAHULU
-    |--------------------------------------------------------------------------
-    | PENTING:
-    | jangan letakkan ini setelah continue.
-    |
-    | Karena tooltip harus tetap melihat SPK Kaki Kayu.
+    | RANGKA KAKI KAYU
     |--------------------------------------------------------------------------
     */
-
-    $monitoring[$categoryKey]['spks'][] = $spk;
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | KALAU KAKI KAYU
-    |--------------------------------------------------------------------------
-    | Hanya dikeluarkan dari angka utama.
-    |--------------------------------------------------------------------------
-    */
-
     if (
-        $isKakiKayu
-        &&
         $categoryKey === 'rangka'
+        &&
+        $isKakiKayu
     ) {
         continue;
     }
@@ -2080,10 +2124,9 @@
 
     /*
     |--------------------------------------------------------------------------
-    | NORMAL MONITORING
+    | NORMAL TOTAL
     |--------------------------------------------------------------------------
     */
-
     $monitoring[$categoryKey]['in'] +=
         (float) ($spk['qty_in'] ?? 0);
 
@@ -2094,21 +2137,194 @@
         (float) ($spk['rejected'] ?? 0);
 }
 
-                                                if (isset($monitoring['unfinish'])) {
-                                                    $monitoring['unfinish']['pass'] =
-                                                        (float) ($item['unfinish']['passed'] ?? 0);
 
-                                                    $monitoring['unfinish']['reject'] =
-                                                        (float) ($item['unfinish']['rejected'] ?? 0);
-                                                }
+/*
+|--------------------------------------------------------------------------
+| ANYAM COMPONENT
+|--------------------------------------------------------------------------
+|
+| Contoh:
+|
+| ANYAM RANGKA     40
+| ANYAM DUDUKAN    40
+| ANYAM SANDARAN   40
+|
+| Hasil:
+|
+| MIN(40,40,40) = 40
+|--------------------------------------------------------------------------
+*/
+$anyamSpks = $monitoring['anyam']['spks'] ?? [];
 
-                                                if (isset($monitoring['final'])) {
-                                                    $monitoring['final']['pass'] =
-                                                        (float) ($item['final']['passed'] ?? 0);
+if (!empty($anyamSpks)) {
 
-                                                    $monitoring['final']['reject'] =
-                                                        (float) ($item['final']['rejected'] ?? 0);
-                                                }
+    $componentIn = [];
+    $componentPass = [];
+
+    foreach ($anyamSpks as $spk) {
+
+        foreach (($spk['components'] ?? []) as $component) {
+
+            $componentName = strtoupper(
+                trim(
+                    $component['name']
+                    ?? $component['proses']
+                    ?? $component['deskripsi']
+                    ?? ''
+                )
+            );
+
+            if ($componentName === '') {
+                continue;
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | NORMALISASI COMPONENT ANYAM
+            |--------------------------------------------------------------------------
+            */
+            if (str_contains($componentName, 'ANYAM RANGKA')) {
+
+                $componentName = 'ANYAM RANGKA';
+
+            } elseif (str_contains($componentName, 'ANYAM DUDUKAN')) {
+
+                $componentName = 'ANYAM DUDUKAN';
+
+            } elseif (str_contains($componentName, 'ANYAM SANDARAN')) {
+
+                $componentName = 'ANYAM SANDARAN';
+
+            } else {
+                continue;
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | TOTAL PER COMPONENT
+            |--------------------------------------------------------------------------
+            */
+            $componentIn[$componentName] =
+                ($componentIn[$componentName] ?? 0)
+                +
+                (float) ($component['qty_in'] ?? 0);
+
+            $componentPass[$componentName] =
+                ($componentPass[$componentName] ?? 0)
+                +
+                (float) ($component['passed'] ?? 0);
+        }
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | ANYAM IN
+    |--------------------------------------------------------------------------
+    */
+    if (!empty($componentIn)) {
+
+        $monitoring['anyam']['in'] =
+            min($componentIn);
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | ANYAM PASS
+    |--------------------------------------------------------------------------
+    */
+    if (!empty($componentPass)) {
+
+        $monitoring['anyam']['pass'] =
+            min($componentPass);
+    }
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| PACKAGING / BOX
+|--------------------------------------------------------------------------
+|
+| Contoh:
+|
+| BOX       30
+| EMPTY     30
+| LAYER     60
+|
+| Angka utama:
+|
+| Packaging IN = 30
+|
+| Tooltip:
+|
+| BOX       30
+| EMPTY     30
+| LAYER     60
+|--------------------------------------------------------------------------
+*/
+$packagingSpks =
+    $monitoring['packaging']['spks'] ?? [];
+
+if (!empty($packagingSpks)) {
+
+    $boxIn = 0;
+    $boxPass = 0;
+
+    foreach ($packagingSpks as $spk) {
+
+        foreach (($spk['components'] ?? []) as $component) {
+
+            $componentName = strtoupper(
+                trim(
+                    $component['name']
+                    ?? $component['proses']
+                    ?? $component['deskripsi']
+                    ?? ''
+                )
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | HANYA BOX MENJADI ACUAN ANGKA UTAMA
+            |--------------------------------------------------------------------------
+            */
+            if (
+                $componentName === 'BOX'
+                ||
+                str_contains(
+                    $componentName,
+                    'CARTON BOX'
+                )
+            ) {
+
+                $boxIn +=
+                    (float) ($component['qty_in'] ?? 0);
+
+                $boxPass +=
+                    (float) ($component['passed'] ?? 0);
+            }
+        }
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | SET TOTAL PACKAGING
+    |--------------------------------------------------------------------------
+    */
+    if ($boxIn > 0 || $boxPass > 0) {
+
+        $monitoring['packaging']['in'] =
+            $boxIn;
+
+        $monitoring['packaging']['pass'] =
+            $boxPass;
+    }
+}
 
                                                 $formatQty = function ($value) {
                                                     $value = (float) $value;
@@ -2123,6 +2339,36 @@
 
                                                 @php
                                                     $categorySpks = $monitoring[$categoryKey]['spks'] ?? [];
+
+                                                    /*
+                                                    | Tooltip-only dedupe.
+                                                    | Exact duplicate SPK rows are removed from the list,
+                                                    | but monitoring totals tetap menggunakan perhitungan asli.
+                                                    */
+                                                    $tooltipSeen = [];
+                                                    $categorySpks = collect($categorySpks)
+                                                        ->filter(function ($spkInfo) use (&$tooltipSeen) {
+                                                            $fingerprint = implode('|', [
+                                                                $spkInfo['spk_id'] ?? '',
+                                                                $spkInfo['kategori_monitoring'] ?? '',
+                                                                $spkInfo['kategori'] ?? '',
+                                                                $spkInfo['qty'] ?? '',
+                                                                $spkInfo['qty_in'] ?? '',
+                                                                $spkInfo['passed'] ?? '',
+                                                                $spkInfo['rejected'] ?? '',
+                                                                $spkInfo['component_name'] ?? '',
+                                                                $spkInfo['material'] ?? '',
+                                                            ]);
+
+                                                            if (isset($tooltipSeen[$fingerprint])) {
+                                                                return false;
+                                                            }
+
+                                                            $tooltipSeen[$fingerprint] = true;
+                                                            return true;
+                                                        })
+                                                        ->values()
+                                                        ->all();
                                                 @endphp
 
                                                 {{-- IN --}}
@@ -2210,11 +2456,16 @@
 
                                                                                         <td class="col-description">
 @php
+                                                                                                 /*
+                                                                                                 | KETERANGAN TOOLTIP
+                                                                                                 | Prioritas: component/process, lalu material SPK.
+                                                                                                 */
                                                                                                  $componentNames = collect($spkInfo['components'] ?? [])
                                                                                                      ->map(function ($component) {
                                                                                                          return trim((string) (
                                                                                                              $component['name']
                                                                                                              ?? $component['proses']
+                                                                                                             ?? $component['deskripsi']
                                                                                                              ?? ''
                                                                                                          ));
                                                                                                      })
@@ -2222,13 +2473,23 @@
                                                                                                      ->unique()
                                                                                                      ->values()
                                                                                                      ->all();
+
+                                                                                                 $materialName = trim((string) (
+                                                                                                     $spkInfo['material']
+                                                                                                     ?? $item['material']
+                                                                                                     ?? ''
+                                                                                                 ));
+
+                                                                                                 if (!empty($componentNames)) {
+                                                                                                     $description = implode(', ', $componentNames);
+                                                                                                 } elseif ($materialName !== '') {
+                                                                                                     $description = $materialName;
+                                                                                                 } else {
+                                                                                                     $description = '-';
+                                                                                                 }
                                                                                              @endphp
 
-                                                                                             @if (!empty($componentNames))
-                                                                                                 {{ implode(', ', $componentNames) }}
-                                                                                             @else
-                                                                                                 -
-                                                                                             @endif
+                                                                                             {{ $description }}
 
                                                                                         </td>
 
@@ -2324,11 +2585,16 @@
 
                                                                                         <td class="col-description">
 @php
+                                                                                                 /*
+                                                                                                 | KETERANGAN TOOLTIP
+                                                                                                 | Prioritas: component/process, lalu material SPK.
+                                                                                                 */
                                                                                                  $componentNames = collect($spkInfo['components'] ?? [])
                                                                                                      ->map(function ($component) {
                                                                                                          return trim((string) (
                                                                                                              $component['name']
                                                                                                              ?? $component['proses']
+                                                                                                             ?? $component['deskripsi']
                                                                                                              ?? ''
                                                                                                          ));
                                                                                                      })
@@ -2336,13 +2602,23 @@
                                                                                                      ->unique()
                                                                                                      ->values()
                                                                                                      ->all();
+
+                                                                                                 $materialName = trim((string) (
+                                                                                                     $spkInfo['material']
+                                                                                                     ?? $item['material']
+                                                                                                     ?? ''
+                                                                                                 ));
+
+                                                                                                 if (!empty($componentNames)) {
+                                                                                                     $description = implode(', ', $componentNames);
+                                                                                                 } elseif ($materialName !== '') {
+                                                                                                     $description = $materialName;
+                                                                                                 } else {
+                                                                                                     $description = '-';
+                                                                                                 }
                                                                                              @endphp
 
-                                                                                             @if (!empty($componentNames))
-                                                                                                 {{ implode(', ', $componentNames) }}
-                                                                                             @else
-                                                                                                 -
-                                                                                             @endif
+                                                                                             {{ $description }}
 
                                                                                         </td>
 
