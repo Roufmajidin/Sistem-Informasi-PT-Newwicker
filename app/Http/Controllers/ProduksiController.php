@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use App\Models\Po;
 use App\Models\ProductionTimeline;
 use App\Models\Spk;
+use App\Models\DetailPo;
 use App\Models\Supplier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -261,27 +262,77 @@ class ProduksiController extends Controller
         // dd($a);
         return view('pages.mutasi.index',compact('a'));
     }
-   public function mutasidetail($id)
-    {
-        $spk = Spk::with('po')->findOrFail($id);
+  public function mutasidetail($id)
+{
+    $spk = Spk::with('po')->findOrFail($id);
 
-        $data = $spk->data;
+    $data = $spk->data;
 
-        $supplier = Supplier::where('name', $data['sup'] ?? '')->first();
+    $supplier = Supplier::where(
+        'name',
+        $data['sup'] ?? ''
+    )->first();
 
-        return response()->json([
-            'success'   => true,
-            'spk_id'    => $spk->id,
-            'sup_id'    => $supplier?->id,
-            'supplier'  => $supplier?->name,
-            'no_spk'    => $data['no_spk'] ?? '',
-            'no_po'     => $data['no_po'] ?? '',
-            'kategori'  => $data['kategori'] ?? '',
-            'items'     => $data['items'] ?? [],
-            'kategori'  => $data['kategori'] ?? '',
+    /*
+    |--------------------------------------------------------------------------
+    | Tambahkan photo dari DetailPo berdasarkan detail_po_id masing-masing item
+    |--------------------------------------------------------------------------
+    */
+    $items = collect($data['items'] ?? [])
+        ->map(function ($item) {
 
-        ]);
-    }
+            $detailPoId = $item['detail_po_id'] ?? null;
+
+            $photo = null;
+
+            if ($detailPoId) {
+
+                $detailPo = DetailPo::find($detailPoId);
+
+                if ($detailPo) {
+
+                    $detail = $detailPo->detail;
+
+                    /*
+                    | Kalau detail masih berupa JSON string
+                    | ubah menjadi array.
+                    */
+                    if (is_string($detail)) {
+                        $detail = json_decode(
+                            $detail,
+                            true
+                        ) ?? [];
+                    }
+
+                    if (is_array($detail)) {
+                        $photo = $detail['photo'] ?? null;
+                    }
+                }
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Masukkan photo ke item SPK
+            |--------------------------------------------------------------------------
+            */
+            $item['photo'] = $photo;
+
+            return $item;
+        })
+        ->values()
+        ->toArray();
+
+    return response()->json([
+        'success'   => true,
+        'spk_id'    => $spk->id,
+        'sup_id'    => $supplier?->id,
+        'supplier'  => $supplier?->name,
+        'no_spk'    => $data['no_spk'] ?? '',
+        'no_po'     => $data['no_po'] ?? '',
+        'kategori'  => $data['kategori'] ?? '',
+        'items'     => $items,
+    ]);
+}
     public function mutasiTimelineDetail(Request $request)
 {
  $timeline = ProductionTimeline::where('spk_id', $request->spk_id)

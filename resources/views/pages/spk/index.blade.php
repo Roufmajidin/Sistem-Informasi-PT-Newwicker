@@ -1,2084 +1,2102 @@
 @extends('master.master')
-@section('title', 'SPK Editable')
+@section('title', 'SPK Pages')
 @section('content')
-{{-- @include('pages.spk.stylespk') --}}
-
-<style>
-    /* =========================================================
-   SPK EXPORT / SCREENSHOT / COPY - A4 LANDSCAPE
-   ========================================================= */
-    .spk-excel-image {
-        width: 1123px !important;
-        height: 794px !important;
-        min-width: 1123px !important;
-        max-width: 1123px !important;
-        min-height: 794px !important;
-        max-height: 794px !important;
-        padding: 10px 12px !important;
-        margin: 0 !important;
-        background: #fff !important;
-        color: #000 !important;
-        font-family: Arial, Helvetica, sans-serif !important;
-        font-size: 8px !important;
-        line-height: 1.1 !important;
-        overflow: hidden !important;
-        box-sizing: border-box !important
-    }
-
-    .spk-excel-image *,
-    .spk-excel-image *::before,
-    .spk-excel-image *::after {
-        box-sizing: border-box !important
-    }
-
-    .spk-excel-top {
-        width: 100% !important;
-        height: 58px !important;
-        display: grid !important;
-        grid-template-columns: 150px 1fr 300px !important;
-        align-items: start !important;
-        border-bottom: 2px solid #000 !important
-    }
-
-    .spk-excel-logo {
-        height: 56px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: flex-start !important
-    }
-
-    .spk-excel-logo img {
-        width: 110px !important;
-        height: 48px !important;
-        object-fit: contain !important
-    }
-
-    .spk-excel-company {
-        text-align: right !important;
-        font-size: 8px !important;
-        line-height: 1.25 !important;
-        padding-top: 0 !important
-    }
-
-    .spk-excel-company strong {
-        font-size: 10px !important
-    }
-
-    .spk-excel-info {
-        width: 100% !important;
-        height: 55px !important;
-        border-collapse: collapse !important;
-        table-layout: fixed !important;
-        margin: 0 !important
-    }
-
-    .spk-excel-info col.label-col {
-        width: 85px !important
-    }
-
-    .spk-excel-info col.po-col {
-        width: 150px !important
-    }
-
-    .spk-excel-info td {
-        border: 0 !important;
-        height: 13px !important;
-        padding: 0 3px !important;
-        font-size: 8px !important;
-        line-height: 1 !important;
-        vertical-align: middle !important
-    }
-
-    .spk-excel-info .label {
-        font-weight: bold !important;
-        white-space: nowrap !important
-    }
-
-    .spk-excel-info .po {
-        background: #ffff00 !important;
-        font-weight: bold !important;
-        text-align: center !important;
-        white-space: nowrap !important
-    }
-
-    .spk-excel-item-area {
-        width: 100% !important;
-        height: 438px !important;
-        overflow: hidden !important
-    }
-
-    .spk-excel-items {
-        width: 100% !important;
-        border-collapse: collapse !important;
-        border-spacing: 0 !important;
-        table-layout: fixed !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        font-size: 7.5px !important
-    }
-
-    .spk-excel-items col.c-code {
-        width: 10% !important
-    }
-
-    .spk-excel-items col.c-image {
-        width: 10% !important
-    }
-
-    .spk-excel-items col.c-name {
-        width: 16% !important
-    }
-
-    .spk-excel-items col.c-p,
-    .spk-excel-items col.c-l,
-    .spk-excel-items col.c-t {
-        width: 4% !important
-    }
-
-    .spk-excel-items col.c-material {
-        width: 13% !important
-    }
-
-    .spk-excel-items col.c-pcs,
-    .spk-excel-items col.c-set {
-        width: 4% !important
-    }
-
-    .spk-excel-items col.c-price {
-        width: 10% !important
-    }
-
-    .spk-excel-items col.c-total {
-        width: 12% !important
-    }
-
-    .spk-excel-items col.c-note {
-        width: 9% !important
-    }
-
-    .spk-excel-items th,
-    .spk-excel-items td {
-        border: 1px solid #000 !important;
-        padding: 2px 3px !important;
-        margin: 0 !important;
-        overflow: hidden !important;
-        line-height: 1.05 !important;
-        vertical-align: middle !important
-    }
-
-    .spk-excel-items thead th {
-        height: 18px !important;
-        font-weight: bold !important;
-        text-align: center !important;
-        white-space: nowrap !important
-    }
-
-    .spk-excel-items thead tr:nth-child(2) th {
-        height: 15px !important
-    }
-
-    .spk-excel-items tbody td {
-        text-align: left !important
-    }
-
-    .spk-excel-items tbody td.ex-center {
-        text-align: center !important
-    }
-
-    .spk-excel-items tbody td.ex-right {
-        text-align: right !important;
-        white-space: nowrap !important
-    }
-
-    .spk-excel-item-row td {
-        height: 62px !important
-    }
-
-    .spk-excel-item-row.extra-row td {
-        height: 48px !important
-    }
-
-    .excel-code-text,
-    .excel-name-text,
-    .excel-material-text,
-    .excel-note-text {
-        width: 100% !important;
-        max-height: 58px !important;
-        overflow: hidden !important;
-        white-space: normal !important;
-        word-break: break-word !important
-    }
-
-    .excel-name-text {
-        font-weight: 500 !important
-    }
-
-    .excel-image-cell {
-        width: 100% !important;
-        height: 58px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        overflow: hidden !important
-    }
-
-    .excel-image-cell img {
-        max-width: 65px !important;
-        max-height: 52px !important;
-        width: auto !important;
-        height: auto !important;
-        object-fit: contain !important
-    }
-
-    .excel-number {
-        text-align: center !important;
-        white-space: nowrap !important
-    }
-
-    .excel-money {
-        text-align: right !important;
-        white-space: nowrap !important
-    }
-
-    .spk-excel-spacer td {
-        padding: 0 !important;
-        border-left: 1px solid #000 !important;
-        border-right: 1px solid #000 !important;
-        border-top: 0 !important;
-        border-bottom: 1px solid #000 !important
-    }
-
-    .ex-grand-total td {
-        height: 20px !important;
-        font-weight: bold !important;
-        vertical-align: middle !important;
-        border-top: 1px solid #000 !important
-    }
-
-    .ex-grand-total-label {
-        text-align: right !important
-    }
-
-    .spk-excel-bottom {
-        width: 100% !important;
-        height: 122px !important;
-        display: grid !important;
-        grid-template-columns: 57% 43% !important;
-        margin-top: 2px !important;
-        overflow: hidden !important
-    }
-
-    .spk-excel-terms {
-        padding: 0 8px 0 0 !important;
-        font-size: 7px !important;
-        line-height: 1.32 !important;
-        overflow: hidden !important
-    }
-
-    .spk-excel-terms div {
-        margin: 0 !important;
-        padding: 0 !important
-    }
-
-    .spk-excel-terms .agreement-end {
-        margin-top: 7px !important
-    }
-
-    .spk-excel-payment {
-        padding-left: 2px !important;
-        overflow: hidden !important
-    }
-
-    .spk-excel-payment table {
-        width: 100% !important;
-        border-collapse: collapse !important;
-        table-layout: fixed !important;
-        font-size: 8px !important
-    }
-
-    .spk-excel-payment th,
-    .spk-excel-payment td {
-        border: 1px solid #000 !important;
-        padding: 2px 3px !important;
-        height: 18px !important;
-        line-height: 1 !important;
-        overflow: hidden !important;
-        white-space: nowrap !important
-    }
-
-    .spk-excel-payment th {
-        text-align: center !important
-    }
-
-    .spk-excel-payment .ex-pay-amount {
-        width: 45% !important
-    }
-
-    .spk-excel-payment .ex-pay-date {
-        width: 25% !important
-    }
-
-    .spk-excel-payment .ex-pay-note {
-        width: 30% !important
-    }
-
-    .spk-excel-signature {
-        width: 100% !important;
-        height: 67px !important;
-        margin: 0 !important;
-        border-collapse: collapse !important;
-        table-layout: fixed !important
-    }
-
-    .spk-excel-signature td {
-        border: 0 !important;
-        text-align: center !important;
-        vertical-align: top !important;
-        padding: 0 !important;
-        font-size: 8px !important
-    }
-
-    .ex-sign-title {
-        height: 14px !important;
-        font-weight: bold !important
-    }
-
-    .ex-sign-space {
-        height: 28px !important
-    }
-
-    .ex-sign-name {
-        height: 13px !important;
-        font-weight: bold !important
-    }
-
-    .ex-sign-role {
-        height: 12px !important;
-        font-size: 7px !important
-    }
-
-    .ex-sign-date {
-        font-size: 7px !important
-    }
-
-    /* =========================================================
-   PUSHER REALTIME MOUSE CURSOR
-   ========================================================= */
-    .spk-search-input:empty::before {
-        content: attr(data-placeholder);
-        color: #94a3b8;
-        pointer-events: none;
-    }
-
-    .spk-search-input {
-        cursor: text;
-    }
-
-    #spkRemoteCursors {
-        position: fixed;
-        inset: 0;
-        pointer-events: none;
-        z-index: 9999999;
-    }
-
-    .spk-remote-cursor {
-        position: fixed;
-        pointer-events: none;
-        transform: translate(-1px, -1px);
-        transition:
-            left 90ms linear,
-            top 90ms linear;
-        will-change: left, top;
-    }
-
-    .spk-remote-cursor-arrow {
-        width: 0;
-        height: 0;
-
-        border-top: 0 solid transparent;
-        border-bottom: 15px solid transparent;
-        border-left: 11px solid #2563eb;
-
-        transform: rotate(-42deg);
-
-        filter:
-            drop-shadow(0 1px 1px rgba(0, 0, 0, .25));
-    }
-
-    .spk-remote-cursor-name {
-        position: absolute;
-
-        left: 9px;
-        top: 12px;
-
-        padding: 3px 7px;
-
-        border-radius: 4px;
-
-        background: #2563eb;
-        color: #fff;
-
-        font-size: 10px;
-        font-weight: 700;
-
-        line-height: 1.2;
-
-        white-space: nowrap;
-
-        box-shadow:
-            0 2px 5px rgba(0, 0, 0, .18);
-    }
-
-    .spk-remote-cursor.is-idle {
-        opacity: .45;
-    }
-
-    /* =========================================================
-                   SPK PRODUKSI - CLEAN MODERN LAYOUT (Matching preview.html)
-                   ========================================================= */
-    :root {
-        --spk-navy: #50b95a;
-        --spk-blue: #6f7174;
-        --spk-green: #50b95a;
-        --spk-pink: #f16b89;
-        --spk-border: #d8dee8;
-        --spk-bg: #f4f6f9;
-        --spk-text: #172033;
-        --spk-muted: #737b88;
-    }
-
-    * {
-        box-sizing: border-box;
-    }
-
-    html,
-    body {
-        width: 100%;
-        margin: 0;
-        padding: 0;
-        background: var(--spk-bg);
-        font-family: "Segoe UI", Arial, sans-serif;
-        color: var(--spk-text);
-        font-size: 12px;
-    }
-
-    /* =========================================================
-   FLOATING SPK ACTION
-   ========================================================= */
-
-    .spk-floating-actions {
-        position: fixed;
-
-        right: 18px;
-        top: 50%;
-        transform: translateY(-50%);
-
-        width: 120px;
-
-        z-index: 9999;
-
-        background: rgba(255, 255, 255, .97);
-
-        border: 1px solid #dce3ec;
-
-        border-radius: 12px;
-
-        box-shadow:
-            0 14px 35px rgba(15, 23, 42, .14),
-            0 3px 8px rgba(15, 23, 42, .06);
-
-        overflow: hidden;
-
-        user-select: none;
-
-        transition:
-            box-shadow .15s ease,
-            opacity .15s ease;
-    }
-
-
-    /* =========================================================
-   HEADER / DRAG HANDLE
-   ========================================================= */
-
-    .spk-floating-header {
-
-        height: 38px;
-
-        display: flex;
-
-        align-items: center;
-
-        justify-content: space-between;
-
-        padding: 0 11px;
-
-        background: #f8fafc;
-
-        border-bottom: 1px solid #e8edf3;
-
-        cursor: move;
-
-    }
-
-    .spk-floating-title {
-
-        display: flex;
-
-        align-items: center;
-
-        gap: 7px;
-
-        color: #1e293b;
-
-        font-size: 11px;
-
-        font-weight: 750;
-
-    }
-
-    .spk-floating-title i {
-
-        width: 23px;
-        height: 23px;
-
-        display: flex;
-
-        align-items: center;
-        justify-content: center;
-
-        border-radius: 6px;
-
-        background: #eef3ff;
-
-        color: #3158c9;
-
-        font-size: 10px;
-
-    }
-
-    .spk-drag-hint {
-
-        color: #94a3b8;
-
-        font-size: 11px;
-
-    }
-
-
-    /* =========================================================
-   BODY
-   ========================================================= */
-
-    .spk-floating-body {
-
-        padding: 7px;
-
-        display: flex;
-
-        flex-direction: column;
-
-        gap: 4px;
-
-    }
-
-
-    /* =========================================================
-   BUTTON
-   ========================================================= */
-
-    .spk-floating-btn {
-
-        width: 100%;
-
-        min-height: 42px;
-
-        display: flex;
-
-        align-items: center;
-
-        gap: 9px;
-
-        padding: 6px 8px;
-
-        border: 1px solid transparent;
-
-        border-radius: 8px;
-
-        background: #fff;
-
-        text-align: left;
-
-        cursor: pointer;
-
-        transition:
-            background .15s ease,
-            border-color .15s ease,
-            transform .12s ease;
-
-    }
-
-    .spk-floating-btn:hover {
-
-        transform: translateX(-1px);
-
-    }
-
-
-    /* ICON */
-
-    .spk-btn-icon {
-
-        width: 28px;
-        height: 28px;
-
-        min-width: 28px;
-
-        display: flex;
-
-        align-items: center;
-        justify-content: center;
-
-        border-radius: 7px;
-
-        font-size: 11px;
-
-    }
-
-
-    /* TEXT */
-
-    .spk-floating-btn strong {
-
-        display: block;
-
-        font-size: 10px;
-
-        line-height: 1.2;
-
-        font-weight: 750;
-
-    }
-
-    .spk-floating-btn small {
-
-        display: block;
-
-        margin-top: 2px;
-
-        font-size: 8px;
-
-        color: #8a96a6;
-
-        line-height: 1.2;
-
-    }
-
-
-    /* =========================================================
-   SIGNATURE
-   ========================================================= */
-
-    .spk-btn-signature {
-
-        border-color: #dbe5fb;
-
-    }
-
-    .spk-btn-signature .spk-btn-icon {
-
-        background: #eef3ff;
-
-        color: #3158c9;
-
-    }
-
-    .spk-btn-signature strong {
-
-        color: #3158c9;
-
-    }
-
-    .spk-btn-signature:hover {
-
-        background: #f7f9ff;
-
-        border-color: #b9c9f3;
-
-    }
-
-
-    /* =========================================================
-   SAVE
-   ========================================================= */
-
-    .spk-btn-save {
-
-        border-color: #d9efe1;
-
-    }
-
-    .spk-btn-save .spk-btn-icon {
-
-        background: #edf9f1;
-
-        color: #159957;
-
-    }
-
-    .spk-btn-save strong {
-
-        color: #16834d;
-
-    }
-
-    .spk-btn-save:hover {
-
-        background: #f7fcf8;
-
-        border-color: #b8dfc7;
-
-    }
-
-
-    /* =========================================================
-   CLOSE
-   ========================================================= */
-
-    .spk-btn-close {
-
-        border-color: #f1dada;
-
-    }
-
-    .spk-btn-close .spk-btn-icon {
-
-        background: #fff2f2;
-
-        color: #d64545;
-
-    }
-
-    .spk-btn-close strong {
-
-        color: #c63d3d;
-
-    }
-
-    .spk-btn-close:hover {
-
-        background: #fffafa;
-
-        border-color: #e7bebe;
-
-    }
-
-
-    /* =========================================================
-   DRAGGING
-   ========================================================= */
-
-    .spk-floating-actions.is-dragging {
-
-        transition: none;
-
-        transform: none;
-
-        box-shadow:
-            0 20px 45px rgba(15, 23, 42, .20),
-            0 5px 12px rgba(15, 23, 42, .08);
-
-    }
-
-    .spk-floating-actions.is-dragging .spk-floating-header {
-
-        cursor: grabbing;
-
-    }
-
-    .spk-floating-actions:not(.is-dragging) {
-        will-change: transform;
-    }
-
-
-    /* =========================================================
-   MOBILE
-   ========================================================= */
-
-    @media (max-width: 767px) {
-
-        .spk-floating-actions {
-
-            width: 185px;
-
-            right: 0px;
-            top: 50%;
-            transform: translateY(-50%);
-
-        }
-
-    }
-
-    /* CONTAINER BOX */
-    .box {
-        width: 100% !important;
-        max-width: 100% !important;
-        margin: 0 auto !important;
-        background: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-    }
-
-    .spk-cell-selected {
-        background: #dbeafe !important;
-        outline: 2px solid #3b82f6 !important;
-        outline-offset: -2px;
-    }
-
-    /* TOP STICKY TOOLBAR */
-    .box-header {
-        height: 52px;
-        background: #ffffff;
-        border-bottom: 1px solid var(--spk-border);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0 14px;
-        position: sticky;
-        top: 0;
-        z-index: 100;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-    }
-
-    .box-header h3 {
-        margin: 0;
-        font-size: 14px;
-        font-weight: 700;
-        color: var(--spk-text);
-        letter-spacing: 0.3px;
-    }
-
-    .box-header .toolbar-actions {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        flex-wrap: nowrap;
-    }
-
-    .mode-badge {
-        color: #ffffff;
-        font-size: 9px;
-        font-weight: 700;
-        padding: 4px 8px;
-        border-radius: 3px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    .mode-badge.edit {
-        background: var(--spk-pink);
-    }
-
-    .mode-badge.create {
-        background: var(--spk-green);
-    }
-
-    .box-header select.form-control-sm {
-        height: 30px;
-        border: 1px solid var(--spk-border);
-        background: #ffffff;
-        border-radius: 4px;
-        padding: 0 8px;
-        font-size: 11px;
-        font-weight: 600;
-        color: var(--spk-text);
-        outline: none;
-    }
-
-    .box-header .btn-tool {
-        height: 30px;
-        border: 1px solid var(--spk-border);
-        background: #ffffff;
-        border-radius: 4px;
-        padding: 0 10px;
-        font-size: 11px;
-        font-weight: 600;
-        color: var(--spk-text);
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        cursor: pointer;
-        transition: all 0.15s ease;
-        white-space: nowrap;
-    }
-
-    .box-header .btn-tool:hover {
-        background: #f8fafc;
-        border-color: #cbd5e1;
-    }
-
-    .box-header .btn-tool.btn-blue {
-        background: var(--spk-blue);
-        color: #ffffff;
-        border-color: var(--spk-blue);
-    }
-
-    .box-header .btn-tool.btn-blue:hover {
-        background: #0669b8;
-    }
-
-    /* MAIN CARD CONTAINER */
-    .spk-wrapper {
-        max-width: 1560px;
-        margin: 10px auto !important;
-        padding: 0 12px 24px !important;
-    }
-
-    .spk-main-card {
-        background: #ffffff;
-        border: 1px solid var(--spk-border);
-        border-radius: 6px;
-        overflow: hidden;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
-    }
-
-    /* HEAD LOGO & SEARCH GRID */
-    .spk-card-head {
-        display: grid;
-        grid-template-columns: 38% 62%;
-        min-height: 82px;
-        border-bottom: 1px solid var(--spk-border);
-    }
-
-    .spk-logo-area {
-        border-right: 1px solid var(--spk-border);
-        display: flex;
-        align-items: center;
-        padding: 10px 16px;
-        background: #fafbfc;
-    }
-
-    .spk-logo-area img {
-        max-height: 56px;
-        width: auto;
-        object-fit: contain;
-    }
-
-    .spk-search-area {
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        padding: 10px 16px;
-        background: #ffffff;
-        position: relative;
-    }
-
-    .spk-searchbox {
-        width: min(480px, 100%);
-        position: relative;
-    }
-
-    .spk-searchbox label {
-        display: block;
-        text-align: right;
-        color: var(--spk-muted);
-        font-size: 9px;
-        font-weight: 600;
-        margin-bottom: 4px;
-    }
-
-    .spk-search-input {
-        width: 100%;
-        min-height: 32px;
-        border: 1px solid var(--spk-border);
-        border-radius: 4px;
-        padding: 6px 10px;
-        background: #ffffff;
-        font-size: 11px;
-        color: var(--spk-text);
-        outline: none;
-        transition: border-color 0.15s ease;
-    }
-
-    .spk-search-input:focus {
-        border-color: var(--spk-blue);
-        box-shadow: 0 0 0 2px rgba(8, 123, 217, 0.15);
-    }
-
-    /* AUTOCOMPLETE RESULTS */
-    .suggest-box,
-    #supplierSuggest,
-    #itemSuggest {
-        position: absolute;
-        top: 100%;
-        right: 0;
-        left: 0;
-        background: #ffffff;
-        border: 1px solid var(--spk-border);
-        border-radius: 4px;
-        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
-        max-height: 240px;
-        overflow-y: auto;
-        z-index: 1000;
-        display: none;
-    }
-
-    .suggest-item {
-        padding: 8px 10px;
-        border-bottom: 1px solid #f1f5f9;
-        cursor: pointer;
-        font-size: 11px;
-    }
-
-    .suggest-item:hover {
-        background: #eff6ff;
-    }
-/* =========================================================
-   SUPPLIER SEARCH LOADING
-   ========================================================= */
-
-.supplier-loading {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-
-    padding: 12px 10px;
-
-    color: #64748b;
-    font-size: 11px;
-    background: #fff;
-}
-
-.supplier-loading-spinner {
-    width: 15px;
-    height: 15px;
-
-    border: 2px solid #e2e8f0;
-    border-top-color: #22c55e;
-
+    {{-- @include('pages.spk.stylespk') --}}
+
+    <style>
+        /* =========================================================
+       SPK EXPORT / SCREENSHOT / COPY - A4 LANDSCAPE
+       ========================================================= */
+       .bahan-keterangan-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #dee2e6;
+    border-top-color: #0d6efd;
     border-radius: 50%;
-
-    animation: supplierSpin .7s linear infinite;
+    display: inline-block;
+    animation: bahanKeteranganSpin 0.7s linear infinite;
 }
 
-@keyframes supplierSpin {
-    from {
-        transform: rotate(0deg);
-    }
-
+@keyframes bahanKeteranganSpin {
     to {
         transform: rotate(360deg);
     }
 }
-
-.supplier-loading-text {
-    line-height: 1;
-}
-    /* META INFORMATION GRID */
-    .spk-meta-grid {
-        display: grid;
-        grid-template-columns: 1.3fr 1.3fr 1fr;
-        border-bottom: 1px solid var(--spk-border);
-    }
-
-    .spk-meta-col {
-        padding: 8px 12px;
-        border-right: 1px solid var(--spk-border);
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-    }
-
-    .spk-meta-col:last-child {
-        border-right: none;
-    }
-
-    .spk-meta-label {
-        display: block;
-        font-size: 9px;
-        font-weight: 700;
-        color: var(--spk-muted);
-        text-transform: uppercase;
-        margin-bottom: 3px;
-    }
-
-    .spk-meta-value {
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--spk-text);
-        min-height: 22px;
-        outline: none;
-    }
-
-    .spk-meta-value.editable:focus {
-        background: #eff6ff;
-        outline: 1px solid var(--spk-blue);
-        padding: 2px 4px;
-        border-radius: 3px;
-    }
-
-    .spk-meta-actions {
-        display: flex;
-        gap: 6px;
-        align-items: center;
-        flex-wrap: wrap;
-    }
-
-    .btn-spk-save {
-        height: 29px;
-        background: var(--spk-green);
-        color: #ffffff;
-        border: none;
-        border-radius: 4px;
-        padding: 0 10px;
-        font-size: 10px;
-        font-weight: 700;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        transition: background 0.15s ease;
-    }
-
-    .btn-spk-save:hover {
-        background: #439d4c;
-    }
-
-    .btn-spk-status {
-        height: 29px;
-        background: #1e293b;
-        color: #ffffff;
-        border: none;
-        border-radius: 4px;
-        padding: 0 9px;
-        font-size: 10px;
-        font-weight: 600;
-        cursor: pointer;
-    }
-
-    .btn-spk-status:hover {
-        background: #0f172a;
-    }
-
-    .btn-spk-clean {
-        height: 29px;
-        background: #ef4444;
-        color: #ffffff;
-        border: none;
-        border-radius: 4px;
-        padding: 0 8px;
-        font-size: 10px;
-        font-weight: 600;
-        cursor: pointer;
-    }
-
-    .btn-spk-clean:hover {
-        background: #dc2626;
-    }
-
-    /* DATES GRID */
-    .spk-dates-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        border-bottom: 1px solid var(--spk-border);
-    }
-
-    .spk-date-col {
-        padding: 7px 12px;
-        border-right: 1px solid var(--spk-border);
-    }
-
-    .spk-date-col:last-child {
-        border-right: none;
-    }
-
-    /* DATE PICKER COMPONENT */
-    .spk-date-wrap {
-        position: relative;
-        width: 100%;
-        max-width: 220px;
-        height: 28px;
-    }
-
-    .spk-date-display {
-        width: 100%;
-        height: 28px;
-        border: 1px solid var(--spk-border);
-        border-radius: 4px;
-        padding: 0 28px 0 8px;
-        font-size: 11px;
-        font-weight: 600;
-        color: var(--spk-text);
-        background: #ffffff;
-        cursor: pointer;
-        outline: none;
-    }
-
-    .spk-date-display:focus {
-        border-color: var(--spk-blue);
-        box-shadow: 0 0 0 2px rgba(8, 123, 217, 0.15);
-    }
-
-    .spk-date-picker {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        opacity: 0;
-        pointer-events: none;
-        right: 2px;
-        top: 50%;
-    }
-
-    /* PPN CONTROL */
-    .spk-ppn-actions {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        margin-top: 6px;
-    }
-
-    .btn-add-ppn {
-        height: 24px;
-        padding: 0 9px;
-        border: 1px solid var(--spk-blue);
-        border-radius: 4px;
-        background: #fff;
-        color: var(--spk-blue);
-        font-size: 9px;
-        font-weight: 700;
-        cursor: pointer;
-    }
-
-    .btn-add-ppn:hover {
-        background: #eff6ff;
-    }
-
-    .btn-add-ppn.active {
-        background: var(--spk-blue);
-        color: #fff;
-    }
-
-    .spk-table .ppn-cell {
-        width: 58px !important;
-        min-width: 58px !important;
-        text-align: center !important;
-        font-weight: 700;
-        color: #2563eb;
-        font-variant-numeric: tabular-nums;
-        white-space: nowrap !important;
-        position: relative !important;
-        padding: 3px 4px !important;
-    }
-
-    .spk-table .ppn-cell.ppn-hidden,
-    .spk-table thead .ppn-header.ppn-hidden {
-        display: none !important;
-    }
-
-    .spk-table .ppn-cell.ppn-active {
-        background: #eff6ff !important;
-        color: #2563eb !important;
-    }
-
-    .ppn-value {
-        display: inline-block;
-        line-height: 18px;
-        vertical-align: middle;
-        font-weight: 800;
-        font-size: 10px;
-    }
-
-    .ppn-remove {
-        width: 17px !important;
-        height: 17px !important;
-        min-width: 17px !important;
-        padding: 0 !important;
-        margin-left: 3px !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        vertical-align: middle !important;
-        border: 0 !important;
-        border-radius: 50% !important;
-        background: #ef4444 !important;
-        color: #ffffff !important;
-        font-size: 12px !important;
-        font-weight: 800 !important;
-        line-height: 1 !important;
-        cursor: pointer !important;
-        box-shadow: 0 1px 2px rgba(15, 23, 42, .14) !important;
-        transition: transform .12s ease, background .12s ease, box-shadow .12s ease !important;
-    }
-
-    .ppn-remove:hover {
-        background: #dc2626 !important;
-        transform: scale(1.08);
-        box-shadow: 0 2px 5px rgba(15, 23, 42, .18) !important;
-    }
-
-    .ppn-remove:active {
-        transform: scale(.94);
-    }
-
-    .spk-table .ppn-cell.ppn-excluded {
-        background: #fff !important;
-        color: #94a3b8 !important;
-    }
-
-    .spk-table .ppn-cell.ppn-excluded::after {
-        content: '—';
-        color: #cbd5e1;
-        font-weight: 600;
-    }
-
-    .spk-date-wrap::after {
-        content: '📅';
-        position: absolute;
-        right: 8px;
-        top: 50%;
-        transform: translateY(-50%);
-        font-size: 11px;
-        pointer-events: none;
-    }
-
-    /* ITEM SECTION & TABLE */
-    .spk-section-bar {
-        height: 34px;
-        background: var(--spk-navy);
-        color: #ffffff;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0 12px;
-        font-size: 11px;
-        font-weight: 700;
-    }
-
-    .spk-table-scroll {
-        width: 100%;
-        overflow-x: auto;
-        background: #ffffff;
-        scrollbar-width: thin;
-    }
-
-    .spk-table {
-        width: 100% !important;
-        table-layout: auto !important;
-        border-collapse: collapse !important;
-        font-size: 11px;
-        min-width: 1100px;
-    }
-
-    .spk-table thead th {
-        background: var(--spk-navy) !important;
-        color: #ffffff !important;
-        font-size: 10px;
-        font-weight: 700;
-        text-align: center;
-        vertical-align: middle;
-        padding: 6px 6px !important;
-        border: 1px solid #3b5299 !important;
-        white-space: nowrap;
-        position: sticky;
-        top: 0;
-        z-index: 10;
-    }
-
-    .spk-table tbody td {
-        border: 1px solid var(--spk-border) !important;
-        padding: 4px 6px !important;
-        vertical-align: middle;
-        color: var(--spk-text);
-        background: #ffffff;
-        font-size: 11px;
-    }
-
-    .spk-table tbody tr:hover td {
-        background: #f8fafc;
-    }
-
-    /* SPECIFIC COLUMN WIDTHS */
-    .select-item-cell,
-    .spk-table th.c {
-        width: 32px !important;
-        text-align: center !important;
-    }
-
-    .kode-item,
-    .spk-table th.a {
-        width: 75px !important;
-        text-align: center !important;
-        font-weight: 600;
-    }
-
-    .gambar-cell,
-    .spk-table th.im {
-        width: 72px !important;
-        text-align: center !important;
-    }
-
-    .nama,
-    .spk-table th.nm {
-        min-width: 130px !important;
-        font-weight: 600;
-    }
-
-    .spk-dynamic-header,
-    .custom-column {
-        min-width: 65px !important;
-    }
-
-    .spk-table .p,
-    .spk-table .l,
-    .spk-table .t {
-        width: 44px !important;
-        text-align: center !important;
-    }
-
-    .spk-table .material {
-        min-width: 110px !important;
-        line-height: 1.35;
-        white-space: pre-line;
-    }
-
-    .spk-table .pcs,
-    .spk-table .set {
-        width: 50px !important;
-        text-align: center !important;
-    }
-
-    .spk-table .harga {
-        width: 85px !important;
-        text-align: right !important;
-        font-variant-numeric: tabular-nums;
-    }
-
-    .spk-table .total {
-        width: 95px !important;
-        text-align: right !important;
-        font-weight: 700;
-        font-variant-numeric: tabular-nums;
-    }
-
-    .spk-table .note-box,
-    .spk-table .catatan-cell {
-        min-width: 80px !important;
-    }
-
-    .spk-table .action-cell {
-        width: 34px !important;
-        text-align: center !important;
-    }
-
-    /* IMAGE PREVIEW & UPLOAD */
-    .image-box {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        justify-content: center;
-        gap: 3px;
-        min-height: 44px;
-    }
-
-    .preview-img {
-        max-width: 58px !important;
-        max-height: 44px !important;
-        object-fit: contain;
-        border-radius: 3px;
-        border: 1px solid var(--spk-border);
-    }
-
-    /* PLUS BUTTON ON HEADER */
-    .btn-add-header-plus {
-        width: 18px;
-        height: 18px;
-        border: 0;
-        border-radius: 50%;
-        background: #ffffff;
-        color: var(--spk-navy);
-        font-weight: bold;
-        font-size: 11px;
-        line-height: 18px;
-        cursor: pointer;
-        margin-left: 4px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        vertical-align: middle;
-    }
-
-    .btn-add-header-plus:hover {
-        background: #f1f5f9;
-    }
-
-    /* ADD & DELETE EXTRA ROW BUTTONS */
-    .btn-add-extra {
-        width: 22px !important;
-        height: 22px !important;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0 !important;
-        border: 1px solid #cbd5e1 !important;
-        border-radius: 4px !important;
-        background: #f8fafc !important;
-        color: #334155 !important;
-        cursor: pointer;
-        font-size: 10px !important;
-    }
-
-    .btn-add-extra:hover {
-        background: #e2e8f0 !important;
-    }
-
-    .btn-delete-extra {
-        width: 22px !important;
-        height: 22px !important;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0 !important;
-        border: 0 !important;
-        border-radius: 4px !important;
-        background: #ef4444 !important;
-        color: #ffffff !important;
-        cursor: pointer;
-        font-size: 10px !important;
-    }
-
-    .btn-delete-extra:hover {
-        background: #dc2626 !important;
-    }
-
-    /* EDITABLE & EXCEL SELECTION */
-    .spk-table td.editable {
-        cursor: text;
-        user-select: text;
-        transition: background-color .1s ease, box-shadow .1s ease;
-    }
-
-    .spk-table td.editable:hover {
-        background: #f7faff !important;
-    }
-
-    .spk-table td.editable:focus {
-        outline: 2px solid var(--spk-blue) !important;
-        outline-offset: -2px;
-        background: #eff6ff !important;
-    }
-
-    .spk-table td.excel-selected {
-        background: #dbeafe !important;
-        box-shadow: inset 0 0 0 1px #3b82f6 !important;
-    }
-
-    .spk-table td.excel-selected:focus {
-        background: #bfdbfe !important;
-        outline: 2px solid var(--spk-blue) !important;
-    }
-
-    /* BOTTOM SECTION (2-COL SPLIT LIKE preview.html) */
-    .spk-lower-grid {
-        display: grid;
-        grid-template-columns: minmax(0, 1.25fr) minmax(360px, 0.95fr);
-        gap: 10px;
-        margin-top: 10px;
-    }
-
-    .spk-sub-card {
-        background: #ffffff;
-        border: 1px solid var(--spk-border);
-        border-radius: 6px;
-        overflow: hidden;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
-    }
-
-    .spk-sub-title-green {
-        height: 32px;
-        background: var(--spk-green);
-        color: #ffffff;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: 0.4px;
-        text-transform: uppercase;
-    }
-
-    .spk-sub-title-navy {
-        height: 32px;
-        background: var(--spk-navy);
-        color: #ffffff;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0 10px;
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: 0.4px;
-    }
-
-    .spk-sub-title-navy .btn-add-pay {
-        height: 22px;
-        background: var(--spk-blue);
-        color: #ffffff;
-        border: none;
-        border-radius: 3px;
-        padding: 0 7px;
-        font-size: 9px;
-        font-weight: 700;
-        cursor: pointer;
-    }
-
-    .spk-simple-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 10px;
-    }
-
-    .spk-simple-table th {
-        background: var(--spk-navy);
-        color: #ffffff;
-        padding: 6px 5px;
-        font-size: 9px;
-        font-weight: 700;
-        text-align: center;
-        border: 1px solid #3b5299;
-        white-space: nowrap;
-    }
-
-    .spk-simple-table td {
-        border: 1px solid var(--spk-border);
-        padding: 5px 6px;
-        font-size: 10px;
-        vertical-align: middle;
-    }
-
-    .spk-simple-table td.empty-text {
-        color: var(--spk-muted);
-        text-align: center;
-        padding: 16px !important;
-    }
-
-    /* PAYMENT ROW CONTROLS */
-    .payment-row .total-amount {
-        text-align: right;
-        font-weight: 700;
-        font-variant-numeric: tabular-nums;
-    }
-
-    .payment-row .payment-type {
-        width: 100%;
-        height: 26px;
-        border: 1px solid var(--spk-border);
-        border-radius: 3px;
-        font-size: 10px;
-        padding: 0 4px;
-    }
-
-    /* PAYMENT SUMMARY BOX */
-    #paymentSummary {
-        padding: 10px 12px;
-        border-top: 1px solid var(--spk-border);
-        background: #f8fafc;
-        font-size: 11px;
-        line-height: 1.6;
-    }
-
-    /* =========================================================
-           JUMP TO SIGNATURE HIGHLIGHT
-           ========================================================= */
-    .spk-signature-card.spk-jump-highlight {
-        animation: spkSignatureFlash 1.4s ease;
-    }
-
-    @keyframes spkSignatureFlash {
-        0% {
-            box-shadow: 0 0 0 0 rgba(49, 88, 201, 0);
+        .spk-excel-image {
+            width: 1123px !important;
+            height: 794px !important;
+            min-width: 1123px !important;
+            max-width: 1123px !important;
+            min-height: 794px !important;
+            max-height: 794px !important;
+            padding: 10px 12px !important;
+            margin: 0 !important;
+            background: #fff !important;
+            color: #000 !important;
+            font-family: Arial, Helvetica, sans-serif !important;
+            font-size: 8px !important;
+            line-height: 1.1 !important;
+            overflow: hidden !important;
+            box-sizing: border-box !important
         }
 
-        25% {
-            box-shadow: 0 0 0 5px rgba(49, 88, 201, .16);
+        .spk-excel-image *,
+        .spk-excel-image *::before,
+        .spk-excel-image *::after {
+            box-sizing: border-box !important
         }
 
-        100% {
-            box-shadow: 0 0 0 0 rgba(49, 88, 201, 0);
-        }
-    }
-
-    /* SIGNATURE AREA */
-    .spk-signature-card {
-        margin-top: 12px;
-        background: #ffffff;
-        border: 1px solid var(--spk-border);
-        border-radius: 6px;
-        overflow: hidden;
-    }
-
-    .spk-signature-header {
-        height: 32px;
-        background: #1e293b;
-        color: #ffffff;
-        display: flex;
-        align-items: center;
-        padding: 0 12px;
-        font-size: 11px;
-        font-weight: 700;
-    }
-
-    .spk-signature-body {
-        padding: 10px;
-        overflow-x: auto;
-    }
-
-    @media (max-width: 1000px) {
-        .spk-card-head {
-            grid-template-columns: 1fr;
+        .spk-excel-top {
+            width: 100% !important;
+            height: 58px !important;
+            display: grid !important;
+            grid-template-columns: 150px 1fr 300px !important;
+            align-items: start !important;
+            border-bottom: 2px solid #000 !important
         }
 
-        .spk-logo-area {
-            border-right: none;
-            border-bottom: 1px solid var(--spk-border);
+        .spk-excel-logo {
+            height: 56px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: flex-start !important
         }
 
-        .spk-meta-grid {
-            grid-template-columns: 1fr 1fr;
+        .spk-excel-logo img {
+            width: 110px !important;
+            height: 48px !important;
+            object-fit: contain !important
         }
 
-        .spk-meta-col:last-child {
-            grid-column: 1 / -1;
-            border-top: 1px solid var(--spk-border);
-            border-right: none;
+        .spk-excel-company {
+            text-align: right !important;
+            font-size: 8px !important;
+            line-height: 1.25 !important;
+            padding-top: 0 !important
         }
 
-        .spk-lower-grid {
-            grid-template-columns: 1fr;
+        .spk-excel-company strong {
+            font-size: 10px !important
         }
-    }
 
-    @media (max-width: 650px) {
+        .spk-excel-info {
+            width: 100% !important;
+            height: 55px !important;
+            border-collapse: collapse !important;
+            table-layout: fixed !important;
+            margin: 0 !important
+        }
+
+        .spk-excel-info col.label-col {
+            width: 85px !important
+        }
+
+        .spk-excel-info col.po-col {
+            width: 150px !important
+        }
+
+        .spk-excel-info td {
+            border: 0 !important;
+            height: 13px !important;
+            padding: 0 3px !important;
+            font-size: 8px !important;
+            line-height: 1 !important;
+            vertical-align: middle !important
+        }
+
+        .spk-excel-info .label {
+            font-weight: bold !important;
+            white-space: nowrap !important
+        }
+
+        .spk-excel-info .po {
+            background: #ffff00 !important;
+            font-weight: bold !important;
+            text-align: center !important;
+            white-space: nowrap !important
+        }
+
+        .spk-excel-item-area {
+            width: 100% !important;
+            height: 438px !important;
+            overflow: hidden !important
+        }
+
+        .spk-excel-items {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            border-spacing: 0 !important;
+            table-layout: fixed !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            font-size: 7.5px !important
+        }
+
+        .spk-excel-items col.c-code {
+            width: 10% !important
+        }
+
+        .spk-excel-items col.c-image {
+            width: 10% !important
+        }
+
+        .spk-excel-items col.c-name {
+            width: 16% !important
+        }
+
+        .spk-excel-items col.c-p,
+        .spk-excel-items col.c-l,
+        .spk-excel-items col.c-t {
+            width: 4% !important
+        }
+
+        .spk-excel-items col.c-material {
+            width: 13% !important
+        }
+
+        .spk-excel-items col.c-pcs,
+        .spk-excel-items col.c-set {
+            width: 4% !important
+        }
+
+        .spk-excel-items col.c-price {
+            width: 10% !important
+        }
+
+        .spk-excel-items col.c-total {
+            width: 12% !important
+        }
+
+        .spk-excel-items col.c-note {
+            width: 9% !important
+        }
+
+        .spk-excel-items th,
+        .spk-excel-items td {
+            border: 1px solid #000 !important;
+            padding: 2px 3px !important;
+            margin: 0 !important;
+            overflow: hidden !important;
+            line-height: 1.05 !important;
+            vertical-align: middle !important
+        }
+
+        .spk-excel-items thead th {
+            height: 18px !important;
+            font-weight: bold !important;
+            text-align: center !important;
+            white-space: nowrap !important
+        }
+
+        .spk-excel-items thead tr:nth-child(2) th {
+            height: 15px !important
+        }
+
+        .spk-excel-items tbody td {
+            text-align: left !important
+        }
+
+        .spk-excel-items tbody td.ex-center {
+            text-align: center !important
+        }
+
+        .spk-excel-items tbody td.ex-right {
+            text-align: right !important;
+            white-space: nowrap !important
+        }
+
+        .spk-excel-item-row td {
+            height: 62px !important
+        }
+
+        .spk-excel-item-row.extra-row td {
+            height: 48px !important
+        }
+
+        .excel-code-text,
+        .excel-name-text,
+        .excel-material-text,
+        .excel-note-text {
+            width: 100% !important;
+            max-height: 58px !important;
+            overflow: hidden !important;
+            white-space: normal !important;
+            word-break: break-word !important
+        }
+
+        .excel-name-text {
+            font-weight: 500 !important
+        }
+
+        .excel-image-cell {
+            width: 100% !important;
+            height: 58px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            overflow: hidden !important
+        }
+
+        .excel-image-cell img {
+            max-width: 65px !important;
+            max-height: 52px !important;
+            width: auto !important;
+            height: auto !important;
+            object-fit: contain !important
+        }
+
+        .excel-number {
+            text-align: center !important;
+            white-space: nowrap !important
+        }
+
+        .excel-money {
+            text-align: right !important;
+            white-space: nowrap !important
+        }
+
+        .spk-excel-spacer td {
+            padding: 0 !important;
+            border-left: 1px solid #000 !important;
+            border-right: 1px solid #000 !important;
+            border-top: 0 !important;
+            border-bottom: 1px solid #000 !important
+        }
+
+        .ex-grand-total td {
+            height: 20px !important;
+            font-weight: bold !important;
+            vertical-align: middle !important;
+            border-top: 1px solid #000 !important
+        }
+
+        .ex-grand-total-label {
+            text-align: right !important
+        }
+
+        .spk-excel-bottom {
+            width: 100% !important;
+            height: 122px !important;
+            display: grid !important;
+            grid-template-columns: 57% 43% !important;
+            margin-top: 2px !important;
+            overflow: hidden !important
+        }
+
+        .spk-excel-terms {
+            padding: 0 8px 0 0 !important;
+            font-size: 7px !important;
+            line-height: 1.32 !important;
+            overflow: hidden !important
+        }
+
+        .spk-excel-terms div {
+            margin: 0 !important;
+            padding: 0 !important
+        }
+
+        .spk-excel-terms .agreement-end {
+            margin-top: 7px !important
+        }
+
+        .spk-excel-payment {
+            padding-left: 2px !important;
+            overflow: hidden !important
+        }
+
+        .spk-excel-payment table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            table-layout: fixed !important;
+            font-size: 8px !important
+        }
+
+        .spk-excel-payment th,
+        .spk-excel-payment td {
+            border: 1px solid #000 !important;
+            padding: 2px 3px !important;
+            height: 18px !important;
+            line-height: 1 !important;
+            overflow: hidden !important;
+            white-space: nowrap !important
+        }
+
+        .spk-excel-payment th {
+            text-align: center !important
+        }
+
+        .spk-excel-payment .ex-pay-amount {
+            width: 45% !important
+        }
+
+        .spk-excel-payment .ex-pay-date {
+            width: 25% !important
+        }
+
+        .spk-excel-payment .ex-pay-note {
+            width: 30% !important
+        }
+
+        .spk-excel-signature {
+            width: 100% !important;
+            height: 67px !important;
+            margin: 0 !important;
+            border-collapse: collapse !important;
+            table-layout: fixed !important
+        }
+
+        .spk-excel-signature td {
+            border: 0 !important;
+            text-align: center !important;
+            vertical-align: top !important;
+            padding: 0 !important;
+            font-size: 8px !important
+        }
+
+        .ex-sign-title {
+            height: 14px !important;
+            font-weight: bold !important
+        }
+
+        .ex-sign-space {
+            height: 28px !important
+        }
+
+        .ex-sign-name {
+            height: 13px !important;
+            font-weight: bold !important
+        }
+
+        .ex-sign-role {
+            height: 12px !important;
+            font-size: 7px !important
+        }
+
+        .ex-sign-date {
+            font-size: 7px !important
+        }
+
+        /* =========================================================
+       PUSHER REALTIME MOUSE CURSOR
+       ========================================================= */
+        .spk-search-input:empty::before {
+            content: attr(data-placeholder);
+            color: #94a3b8;
+            pointer-events: none;
+        }
+
+        .spk-search-input {
+            cursor: text;
+        }
+
+        #spkRemoteCursors {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 9999999;
+        }
+
+        .spk-remote-cursor {
+            position: fixed;
+            pointer-events: none;
+            transform: translate(-1px, -1px);
+            transition:
+                left 90ms linear,
+                top 90ms linear;
+            will-change: left, top;
+        }
+
+        .spk-remote-cursor-arrow {
+            width: 0;
+            height: 0;
+
+            border-top: 0 solid transparent;
+            border-bottom: 15px solid transparent;
+            border-left: 11px solid #2563eb;
+
+            transform: rotate(-42deg);
+
+            filter:
+                drop-shadow(0 1px 1px rgba(0, 0, 0, .25));
+        }
+
+        .spk-remote-cursor-name {
+            position: absolute;
+
+            left: 9px;
+            top: 12px;
+
+            padding: 3px 7px;
+
+            border-radius: 4px;
+
+            background: #2563eb;
+            color: #fff;
+
+            font-size: 10px;
+            font-weight: 700;
+
+            line-height: 1.2;
+
+            white-space: nowrap;
+
+            box-shadow:
+                0 2px 5px rgba(0, 0, 0, .18);
+        }
+
+        .spk-remote-cursor.is-idle {
+            opacity: .45;
+        }
+
+        /* =========================================================
+                       SPK PRODUKSI - CLEAN MODERN LAYOUT (Matching preview.html)
+                       ========================================================= */
+        :root {
+            --spk-navy: #50b95a;
+            --spk-blue: #6f7174;
+            --spk-green: #50b95a;
+            --spk-pink: #f16b89;
+            --spk-border: #d8dee8;
+            --spk-bg: #f4f6f9;
+            --spk-text: #172033;
+            --spk-muted: #737b88;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            background: var(--spk-bg);
+            font-family: "Segoe UI", Arial, sans-serif;
+            color: var(--spk-text);
+            font-size: 12px;
+        }
+
+        /* =========================================================
+       FLOATING SPK ACTION
+       ========================================================= */
+
+        .spk-floating-actions {
+            position: fixed;
+
+            right: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+
+            width: 120px;
+
+            z-index: 9999;
+
+            background: rgba(255, 255, 255, .97);
+
+            border: 1px solid #dce3ec;
+
+            border-radius: 12px;
+
+            box-shadow:
+                0 14px 35px rgba(15, 23, 42, .14),
+                0 3px 8px rgba(15, 23, 42, .06);
+
+            overflow: hidden;
+
+            user-select: none;
+
+            transition:
+                box-shadow .15s ease,
+                opacity .15s ease;
+        }
+
+
+        /* =========================================================
+       HEADER / DRAG HANDLE
+       ========================================================= */
+
+        .spk-floating-header {
+
+            height: 38px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            padding: 0 11px;
+
+            background: #f8fafc;
+
+            border-bottom: 1px solid #e8edf3;
+
+            cursor: move;
+
+        }
+
+        .spk-floating-title {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 7px;
+
+            color: #1e293b;
+
+            font-size: 11px;
+
+            font-weight: 750;
+
+        }
+
+        .spk-floating-title i {
+
+            width: 23px;
+            height: 23px;
+
+            display: flex;
+
+            align-items: center;
+            justify-content: center;
+
+            border-radius: 6px;
+
+            background: #eef3ff;
+
+            color: #3158c9;
+
+            font-size: 10px;
+
+        }
+
+        .spk-drag-hint {
+
+            color: #94a3b8;
+
+            font-size: 11px;
+
+        }
+
+
+        /* =========================================================
+       BODY
+       ========================================================= */
+
+        .spk-floating-body {
+
+            padding: 7px;
+
+            display: flex;
+
+            flex-direction: column;
+
+            gap: 4px;
+
+        }
+
+
+        /* =========================================================
+       BUTTON
+       ========================================================= */
+
+        .spk-floating-btn {
+
+            width: 100%;
+
+            min-height: 42px;
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 9px;
+
+            padding: 6px 8px;
+
+            border: 1px solid transparent;
+
+            border-radius: 8px;
+
+            background: #fff;
+
+            text-align: left;
+
+            cursor: pointer;
+
+            transition:
+                background .15s ease,
+                border-color .15s ease,
+                transform .12s ease;
+
+        }
+
+        .spk-floating-btn:hover {
+
+            transform: translateX(-1px);
+
+        }
+
+
+        /* ICON */
+
+        .spk-btn-icon {
+
+            width: 28px;
+            height: 28px;
+
+            min-width: 28px;
+
+            display: flex;
+
+            align-items: center;
+            justify-content: center;
+
+            border-radius: 7px;
+
+            font-size: 11px;
+
+        }
+
+
+        /* TEXT */
+
+        .spk-floating-btn strong {
+
+            display: block;
+
+            font-size: 10px;
+
+            line-height: 1.2;
+
+            font-weight: 750;
+
+        }
+
+        .spk-floating-btn small {
+
+            display: block;
+
+            margin-top: 2px;
+
+            font-size: 8px;
+
+            color: #8a96a6;
+
+            line-height: 1.2;
+
+        }
+
+
+        /* =========================================================
+       SIGNATURE
+       ========================================================= */
+
+        .spk-btn-signature {
+
+            border-color: #dbe5fb;
+
+        }
+
+        .spk-btn-signature .spk-btn-icon {
+
+            background: #eef3ff;
+
+            color: #3158c9;
+
+        }
+
+        .spk-btn-signature strong {
+
+            color: #3158c9;
+
+        }
+
+        .spk-btn-signature:hover {
+
+            background: #f7f9ff;
+
+            border-color: #b9c9f3;
+
+        }
+
+
+        /* =========================================================
+       SAVE
+       ========================================================= */
+
+        .spk-btn-save {
+
+            border-color: #d9efe1;
+
+        }
+
+        .spk-btn-save .spk-btn-icon {
+
+            background: #edf9f1;
+
+            color: #159957;
+
+        }
+
+        .spk-btn-save strong {
+
+            color: #16834d;
+
+        }
+
+        .spk-btn-save:hover {
+
+            background: #f7fcf8;
+
+            border-color: #b8dfc7;
+
+        }
+
+
+        /* =========================================================
+       CLOSE
+       ========================================================= */
+
+        .spk-btn-close {
+
+            border-color: #f1dada;
+
+        }
+
+        .spk-btn-close .spk-btn-icon {
+
+            background: #fff2f2;
+
+            color: #d64545;
+
+        }
+
+        .spk-btn-close strong {
+
+            color: #c63d3d;
+
+        }
+
+        .spk-btn-close:hover {
+
+            background: #fffafa;
+
+            border-color: #e7bebe;
+
+        }
+
+
+        /* =========================================================
+       DRAGGING
+       ========================================================= */
+
+        .spk-floating-actions.is-dragging {
+
+            transition: none;
+
+            transform: none;
+
+            box-shadow:
+                0 20px 45px rgba(15, 23, 42, .20),
+                0 5px 12px rgba(15, 23, 42, .08);
+
+        }
+
+        .spk-floating-actions.is-dragging .spk-floating-header {
+
+            cursor: grabbing;
+
+        }
+
+        .spk-floating-actions:not(.is-dragging) {
+            will-change: transform;
+        }
+
+
+        /* =========================================================
+       MOBILE
+       ========================================================= */
+
+        @media (max-width: 767px) {
+
+            .spk-floating-actions {
+
+                width: 185px;
+
+                right: 0px;
+                top: 50%;
+                transform: translateY(-50%);
+
+            }
+
+        }
+
+        /* CONTAINER BOX */
+        .box {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 auto !important;
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+
+        .spk-cell-selected {
+            background: #dbeafe !important;
+            outline: 2px solid #3b82f6 !important;
+            outline-offset: -2px;
+        }
+
+        /* TOP STICKY TOOLBAR */
         .box-header {
-            height: auto;
-            padding: 8px 10px;
-            flex-wrap: wrap;
-            gap: 8px;
+            height: 52px;
+            background: #ffffff;
+            border-bottom: 1px solid var(--spk-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 14px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+        }
+
+        .box-header h3 {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--spk-text);
+            letter-spacing: 0.3px;
         }
 
         .box-header .toolbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: nowrap;
+        }
+
+        .mode-badge {
+            color: #ffffff;
+            font-size: 9px;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .mode-badge.edit {
+            background: var(--spk-pink);
+        }
+
+        .mode-badge.create {
+            background: var(--spk-green);
+        }
+
+        .box-header select.form-control-sm {
+            height: 30px;
+            border: 1px solid var(--spk-border);
+            background: #ffffff;
+            border-radius: 4px;
+            padding: 0 8px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--spk-text);
+            outline: none;
+        }
+
+        .box-header .btn-tool {
+            height: 30px;
+            border: 1px solid var(--spk-border);
+            background: #ffffff;
+            border-radius: 4px;
+            padding: 0 10px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--spk-text);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+        }
+
+        .box-header .btn-tool:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+        }
+
+        .box-header .btn-tool.btn-blue {
+            background: var(--spk-blue);
+            color: #ffffff;
+            border-color: var(--spk-blue);
+        }
+
+        .box-header .btn-tool.btn-blue:hover {
+            background: #0669b8;
+        }
+
+        /* MAIN CARD CONTAINER */
+        .spk-wrapper {
+            max-width: 1560px;
+            margin: 10px auto !important;
+            padding: 0 12px 24px !important;
+        }
+
+        .spk-main-card {
+            background: #ffffff;
+            border: 1px solid var(--spk-border);
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+        }
+
+        /* HEAD LOGO & SEARCH GRID */
+        .spk-card-head {
+            display: grid;
+            grid-template-columns: 38% 62%;
+            min-height: 82px;
+            border-bottom: 1px solid var(--spk-border);
+        }
+
+        .spk-logo-area {
+            border-right: 1px solid var(--spk-border);
+            display: flex;
+            align-items: center;
+            padding: 10px 16px;
+            background: #fafbfc;
+        }
+
+        .spk-logo-area img {
+            max-height: 56px;
+            width: auto;
+            object-fit: contain;
+        }
+
+        .spk-search-area {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 10px 16px;
+            background: #ffffff;
+            position: relative;
+        }
+
+        .spk-searchbox {
+            width: min(480px, 100%);
+            position: relative;
+        }
+
+        .spk-searchbox label {
+            display: block;
+            text-align: right;
+            color: var(--spk-muted);
+            font-size: 9px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .spk-search-input {
             width: 100%;
+            min-height: 32px;
+            border: 1px solid var(--spk-border);
+            border-radius: 4px;
+            padding: 6px 10px;
+            background: #ffffff;
+            font-size: 11px;
+            color: var(--spk-text);
+            outline: none;
+            transition: border-color 0.15s ease;
+        }
+
+        .spk-search-input:focus {
+            border-color: var(--spk-blue);
+            box-shadow: 0 0 0 2px rgba(8, 123, 217, 0.15);
+        }
+
+        /* AUTOCOMPLETE RESULTS */
+        .suggest-box,
+        #supplierSuggest,
+        #itemSuggest {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            left: 0;
+            background: #ffffff;
+            border: 1px solid var(--spk-border);
+            border-radius: 4px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+            max-height: 240px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+        }
+
+        .suggest-item {
+            padding: 8px 10px;
+            border-bottom: 1px solid #f1f5f9;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        .suggest-item:hover {
+            background: #eff6ff;
+        }
+
+        /* =========================================================
+       SUPPLIER SEARCH LOADING
+       ========================================================= */
+
+        .supplier-loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+
+            padding: 12px 10px;
+
+            color: #64748b;
+            font-size: 11px;
+            background: #fff;
+        }
+
+        .supplier-loading-spinner {
+            width: 15px;
+            height: 15px;
+
+            border: 2px solid #e2e8f0;
+            border-top-color: #22c55e;
+
+            border-radius: 50%;
+
+            animation: supplierSpin .7s linear infinite;
+        }
+
+        @keyframes supplierSpin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .supplier-loading-text {
+            line-height: 1;
+        }
+
+        /* META INFORMATION GRID */
+        .spk-meta-grid {
+            display: grid;
+            grid-template-columns: 1.3fr 1.3fr 1fr;
+            border-bottom: 1px solid var(--spk-border);
+        }
+
+        .spk-meta-col {
+            padding: 8px 12px;
+            border-right: 1px solid var(--spk-border);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .spk-meta-col:last-child {
+            border-right: none;
+        }
+
+        .spk-meta-label {
+            display: block;
+            font-size: 9px;
+            font-weight: 700;
+            color: var(--spk-muted);
+            text-transform: uppercase;
+            margin-bottom: 3px;
+        }
+
+        .spk-meta-value {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--spk-text);
+            min-height: 22px;
+            outline: none;
+        }
+
+        .spk-meta-value.editable:focus {
+            background: #eff6ff;
+            outline: 1px solid var(--spk-blue);
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .spk-meta-actions {
+            display: flex;
+            gap: 6px;
+            align-items: center;
             flex-wrap: wrap;
         }
 
-        .spk-meta-grid,
-        .spk-dates-grid {
-            grid-template-columns: 1fr;
+        .btn-spk-save {
+            height: 29px;
+            background: var(--spk-green);
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            padding: 0 10px;
+            font-size: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: background 0.15s ease;
         }
 
-        .spk-meta-col,
-        .spk-date-col {
-            border-right: none;
+        .btn-spk-save:hover {
+            background: #439d4c;
+        }
+
+        .btn-spk-status {
+            height: 29px;
+            background: #1e293b;
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            padding: 0 9px;
+            font-size: 10px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-spk-status:hover {
+            background: #0f172a;
+        }
+
+        .btn-spk-clean {
+            height: 29px;
+            background: #ef4444;
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            padding: 0 8px;
+            font-size: 10px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-spk-clean:hover {
+            background: #dc2626;
+        }
+
+        /* DATES GRID */
+        .spk-dates-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             border-bottom: 1px solid var(--spk-border);
         }
-    }
+
+        .spk-date-col {
+            padding: 7px 12px;
+            border-right: 1px solid var(--spk-border);
+        }
+
+        .spk-date-col:last-child {
+            border-right: none;
+        }
+
+        /* DATE PICKER COMPONENT */
+        .spk-date-wrap {
+            position: relative;
+            width: 100%;
+            max-width: 220px;
+            height: 28px;
+        }
+
+        .spk-date-display {
+            width: 100%;
+            height: 28px;
+            border: 1px solid var(--spk-border);
+            border-radius: 4px;
+            padding: 0 28px 0 8px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--spk-text);
+            background: #ffffff;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .spk-date-display:focus {
+            border-color: var(--spk-blue);
+            box-shadow: 0 0 0 2px rgba(8, 123, 217, 0.15);
+        }
+
+        .spk-date-picker {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
+            right: 2px;
+            top: 50%;
+        }
+
+        /* PPN CONTROL */
+        .spk-ppn-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 6px;
+        }
+
+        .btn-add-ppn {
+            height: 24px;
+            padding: 0 9px;
+            border: 1px solid var(--spk-blue);
+            border-radius: 4px;
+            background: #fff;
+            color: var(--spk-blue);
+            font-size: 9px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .btn-add-ppn:hover {
+            background: #eff6ff;
+        }
+
+        .btn-add-ppn.active {
+            background: var(--spk-blue);
+            color: #fff;
+        }
+
+        .spk-table .ppn-cell {
+            width: 58px !important;
+            min-width: 58px !important;
+            text-align: center !important;
+            font-weight: 700;
+            color: #2563eb;
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap !important;
+            position: relative !important;
+            padding: 3px 4px !important;
+        }
+
+        .spk-table .ppn-cell.ppn-hidden,
+        .spk-table thead .ppn-header.ppn-hidden {
+            display: none !important;
+        }
+
+        .spk-table .ppn-cell.ppn-active {
+            background: #eff6ff !important;
+            color: #2563eb !important;
+        }
+
+        .ppn-value {
+            display: inline-block;
+            line-height: 18px;
+            vertical-align: middle;
+            font-weight: 800;
+            font-size: 10px;
+        }
+
+        .ppn-remove {
+            width: 17px !important;
+            height: 17px !important;
+            min-width: 17px !important;
+            padding: 0 !important;
+            margin-left: 3px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            vertical-align: middle !important;
+            border: 0 !important;
+            border-radius: 50% !important;
+            background: #ef4444 !important;
+            color: #ffffff !important;
+            font-size: 12px !important;
+            font-weight: 800 !important;
+            line-height: 1 !important;
+            cursor: pointer !important;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, .14) !important;
+            transition: transform .12s ease, background .12s ease, box-shadow .12s ease !important;
+        }
+
+        .ppn-remove:hover {
+            background: #dc2626 !important;
+            transform: scale(1.08);
+            box-shadow: 0 2px 5px rgba(15, 23, 42, .18) !important;
+        }
+
+        .ppn-remove:active {
+            transform: scale(.94);
+        }
+
+        .spk-table .ppn-cell.ppn-excluded {
+            background: #fff !important;
+            color: #94a3b8 !important;
+        }
+
+        .spk-table .ppn-cell.ppn-excluded::after {
+            content: '—';
+            color: #cbd5e1;
+            font-weight: 600;
+        }
+
+        .spk-date-wrap::after {
+            content: '📅';
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 11px;
+            pointer-events: none;
+        }
+
+        /* ITEM SECTION & TABLE */
+        .spk-section-bar {
+            height: 34px;
+            background: var(--spk-navy);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 12px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .spk-table-scroll {
+            width: 100%;
+            overflow-x: auto;
+            background: #ffffff;
+            scrollbar-width: thin;
+        }
+
+        .spk-table {
+            width: 100% !important;
+            table-layout: auto !important;
+            border-collapse: collapse !important;
+            font-size: 11px;
+            min-width: 1100px;
+        }
+
+        .spk-table thead th {
+            background: var(--spk-navy) !important;
+            color: #ffffff !important;
+            font-size: 10px;
+            font-weight: 700;
+            text-align: center;
+            vertical-align: middle;
+            padding: 6px 6px !important;
+            border: 1px solid #3b5299 !important;
+            white-space: nowrap;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .spk-table tbody td {
+            border: 1px solid var(--spk-border) !important;
+            padding: 4px 6px !important;
+            vertical-align: middle;
+            color: var(--spk-text);
+            background: #ffffff;
+            font-size: 11px;
+        }
+
+        .spk-table tbody tr:hover td {
+            background: #f8fafc;
+        }
+
+        /* SPECIFIC COLUMN WIDTHS */
+        .select-item-cell,
+        .spk-table th.c {
+            width: 32px !important;
+            text-align: center !important;
+        }
+
+        .kode-item,
+        .spk-table th.a {
+            width: 75px !important;
+            text-align: center !important;
+            font-weight: 600;
+        }
+
+        .gambar-cell,
+        .spk-table th.im {
+            width: 72px !important;
+            text-align: center !important;
+        }
+
+        .nama,
+        .spk-table th.nm {
+            min-width: 130px !important;
+            font-weight: 600;
+        }
+
+        .spk-dynamic-header,
+        .custom-column {
+            min-width: 65px !important;
+        }
+
+        .spk-table .p,
+        .spk-table .l,
+        .spk-table .t {
+            width: 44px !important;
+            text-align: center !important;
+        }
+
+        .spk-table .material {
+            min-width: 110px !important;
+            line-height: 1.35;
+            white-space: pre-line;
+        }
+
+        .spk-table .pcs,
+        .spk-table .set {
+            width: 50px !important;
+            text-align: center !important;
+        }
+
+        .spk-table .harga {
+            width: 85px !important;
+            text-align: right !important;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .spk-table .total {
+            width: 95px !important;
+            text-align: right !important;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .spk-table .note-box,
+        .spk-table .catatan-cell {
+            min-width: 80px !important;
+        }
+
+        .spk-table .action-cell {
+            width: 34px !important;
+            text-align: center !important;
+        }
+
+        /* IMAGE PREVIEW & UPLOAD */
+        .image-box {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            min-height: 44px;
+        }
+
+        .preview-img {
+            max-width: 58px !important;
+            max-height: 44px !important;
+            object-fit: contain;
+            border-radius: 3px;
+            border: 1px solid var(--spk-border);
+        }
+
+        /* PLUS BUTTON ON HEADER */
+        .btn-add-header-plus {
+            width: 18px;
+            height: 18px;
+            border: 0;
+            border-radius: 50%;
+            background: #ffffff;
+            color: var(--spk-navy);
+            font-weight: bold;
+            font-size: 11px;
+            line-height: 18px;
+            cursor: pointer;
+            margin-left: 4px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            vertical-align: middle;
+        }
+
+        .btn-add-header-plus:hover {
+            background: #f1f5f9;
+        }
+
+        /* ADD & DELETE EXTRA ROW BUTTONS */
+        .btn-add-extra {
+            width: 22px !important;
+            height: 22px !important;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 4px !important;
+            background: #f8fafc !important;
+            color: #334155 !important;
+            cursor: pointer;
+            font-size: 10px !important;
+        }
+
+        .btn-add-extra:hover {
+            background: #e2e8f0 !important;
+        }
+
+        .btn-delete-extra {
+            width: 22px !important;
+            height: 22px !important;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 !important;
+            border: 0 !important;
+            border-radius: 4px !important;
+            background: #ef4444 !important;
+            color: #ffffff !important;
+            cursor: pointer;
+            font-size: 10px !important;
+        }
+
+        .btn-delete-extra:hover {
+            background: #dc2626 !important;
+        }
+
+        /* EDITABLE & EXCEL SELECTION */
+        .spk-table td.editable {
+            cursor: text;
+            user-select: text;
+            transition: background-color .1s ease, box-shadow .1s ease;
+        }
+
+        .spk-table td.editable:hover {
+            background: #f7faff !important;
+        }
+
+        .spk-table td.editable:focus {
+            outline: 2px solid var(--spk-blue) !important;
+            outline-offset: -2px;
+            background: #eff6ff !important;
+        }
+
+        .spk-table td.excel-selected {
+            background: #dbeafe !important;
+            box-shadow: inset 0 0 0 1px #3b82f6 !important;
+        }
+
+        .spk-table td.excel-selected:focus {
+            background: #bfdbfe !important;
+            outline: 2px solid var(--spk-blue) !important;
+        }
+
+        /* BOTTOM SECTION (2-COL SPLIT LIKE preview.html) */
+        .spk-lower-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.25fr) minmax(360px, 0.95fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .spk-sub-card {
+            background: #ffffff;
+            border: 1px solid var(--spk-border);
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+        }
+
+        .spk-sub-title-green {
+            height: 32px;
+            background: var(--spk-green);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+        }
+
+        .spk-sub-title-navy {
+            height: 32px;
+            background: var(--spk-navy);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 10px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+        }
+
+        .spk-sub-title-navy .btn-add-pay {
+            height: 22px;
+            background: var(--spk-blue);
+            color: #ffffff;
+            border: none;
+            border-radius: 3px;
+            padding: 0 7px;
+            font-size: 9px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .spk-simple-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10px;
+        }
+
+        .spk-simple-table th {
+            background: var(--spk-navy);
+            color: #ffffff;
+            padding: 6px 5px;
+            font-size: 9px;
+            font-weight: 700;
+            text-align: center;
+            border: 1px solid #3b5299;
+            white-space: nowrap;
+        }
+
+        .spk-simple-table td {
+            border: 1px solid var(--spk-border);
+            padding: 5px 6px;
+            font-size: 10px;
+            vertical-align: middle;
+        }
+
+        .spk-simple-table td.empty-text {
+            color: var(--spk-muted);
+            text-align: center;
+            padding: 16px !important;
+        }
+
+        /* PAYMENT ROW CONTROLS */
+        .payment-row .total-amount {
+            text-align: right;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .payment-row .payment-type {
+            width: 100%;
+            height: 26px;
+            border: 1px solid var(--spk-border);
+            border-radius: 3px;
+            font-size: 10px;
+            padding: 0 4px;
+        }
+
+        /* PAYMENT SUMMARY BOX */
+        #paymentSummary {
+            padding: 10px 12px;
+            border-top: 1px solid var(--spk-border);
+            background: #f8fafc;
+            font-size: 11px;
+            line-height: 1.6;
+        }
+
+        /* =========================================================
+               JUMP TO SIGNATURE HIGHLIGHT
+               ========================================================= */
+        .spk-signature-card.spk-jump-highlight {
+            animation: spkSignatureFlash 1.4s ease;
+        }
+
+        @keyframes spkSignatureFlash {
+            0% {
+                box-shadow: 0 0 0 0 rgba(49, 88, 201, 0);
+            }
+
+            25% {
+                box-shadow: 0 0 0 5px rgba(49, 88, 201, .16);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(49, 88, 201, 0);
+            }
+        }
+
+        /* SIGNATURE AREA */
+        .spk-signature-card {
+            margin-top: 12px;
+            background: #ffffff;
+            border: 1px solid var(--spk-border);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .spk-signature-header {
+            height: 32px;
+            background: #1e293b;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .spk-signature-body {
+            padding: 10px;
+            overflow-x: auto;
+        }
+
+        @media (max-width: 1000px) {
+            .spk-card-head {
+                grid-template-columns: 1fr;
+            }
+
+            .spk-logo-area {
+                border-right: none;
+                border-bottom: 1px solid var(--spk-border);
+            }
+
+            .spk-meta-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .spk-meta-col:last-child {
+                grid-column: 1 / -1;
+                border-top: 1px solid var(--spk-border);
+                border-right: none;
+            }
+
+            .spk-lower-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 650px) {
+            .box-header {
+                height: auto;
+                padding: 8px 10px;
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            .box-header .toolbar-actions {
+                width: 100%;
+                flex-wrap: wrap;
+            }
+
+            .spk-meta-grid,
+            .spk-dates-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .spk-meta-col,
+            .spk-date-col {
+                border-right: none;
+                border-bottom: 1px solid var(--spk-border);
+            }
+        }
 
 
-    /* =========================================================
-       PUSHER LIVE MESSAGE / COLLABORATION
-       Ctrl + Shift + Z
-       ========================================================= */
-    .spk-live-message-modal {
-        position: fixed;
-        inset: 0;
-        z-index: 1000000;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
-        background: rgba(15, 23, 42, .20);
-        backdrop-filter: blur(2px);
-    }
+        /* =========================================================
+           PUSHER LIVE MESSAGE / COLLABORATION
+           Ctrl + Shift + Z
+           ========================================================= */
+        .spk-live-message-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 1000000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(15, 23, 42, .20);
+            backdrop-filter: blur(2px);
+        }
 
-    .spk-live-message-modal.show {
-        display: flex;
-    }
+        .spk-live-message-modal.show {
+            display: flex;
+        }
 
-    .spk-live-message-card {
-        width: min(520px, calc(100vw - 40px));
-        background: #fff;
-        border: 1px solid #e2e8f0;
-        border-radius: 14px;
-        box-shadow: 0 18px 50px rgba(15, 23, 42, .20);
-        overflow: hidden;
-        animation: spkLiveMessageIn .16s ease-out;
-    }
+        .spk-live-message-card {
+            width: min(520px, calc(100vw - 40px));
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            box-shadow: 0 18px 50px rgba(15, 23, 42, .20);
+            overflow: hidden;
+            animation: spkLiveMessageIn .16s ease-out;
+        }
 
-    .spk-live-message-head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        padding: 12px 14px;
-        border-bottom: 1px solid #edf1f5;
-    }
+        .spk-live-message-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 14px;
+            border-bottom: 1px solid #edf1f5;
+        }
 
-    .spk-live-message-title {
-        display: flex;
-        align-items: center;
-        gap: 9px;
-        min-width: 0;
-    }
+        .spk-live-message-title {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            min-width: 0;
+        }
 
-    .spk-live-message-icon {
-        width: 30px;
-        height: 30px;
-        flex: 0 0 30px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 8px;
-        background: #eef6ff;
-        color: #2563eb;
-        font-size: 14px;
-    }
+        .spk-live-message-icon {
+            width: 30px;
+            height: 30px;
+            flex: 0 0 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            background: #eef6ff;
+            color: #2563eb;
+            font-size: 14px;
+        }
 
-    .spk-live-message-title strong {
-        display: block;
-        color: #1e293b;
-        font-size: 12px;
-        line-height: 1.2;
-    }
+        .spk-live-message-title strong {
+            display: block;
+            color: #1e293b;
+            font-size: 12px;
+            line-height: 1.2;
+        }
 
-    .spk-live-message-title small {
-        display: block;
-        margin-top: 2px;
-        color: #94a3b8;
-        font-size: 9px;
-    }
+        .spk-live-message-title small {
+            display: block;
+            margin-top: 2px;
+            color: #94a3b8;
+            font-size: 9px;
+        }
 
-    .spk-live-message-close {
-        width: 27px;
-        height: 27px;
-        border: 0;
-        border-radius: 7px;
-        background: #f8fafc;
-        color: #64748b;
-        cursor: pointer;
-        font-size: 16px;
-        line-height: 1;
-    }
+        .spk-live-message-close {
+            width: 27px;
+            height: 27px;
+            border: 0;
+            border-radius: 7px;
+            background: #f8fafc;
+            color: #64748b;
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 1;
+        }
 
-    .spk-live-message-close:hover {
-        background: #f1f5f9;
-        color: #0f172a;
-    }
+        .spk-live-message-close:hover {
+            background: #f1f5f9;
+            color: #0f172a;
+        }
 
-    .spk-live-message-body {
-        padding: 13px 14px 14px;
-    }
+        .spk-live-message-body {
+            padding: 13px 14px 14px;
+        }
 
-    .spk-live-message-textarea {
-        width: 100%;
-        min-height: 115px;
-        resize: vertical;
-        box-sizing: border-box;
-        padding: 11px 12px;
-        border: 1px solid #dbe2ea;
-        border-radius: 9px;
-        outline: none;
-        color: #1e293b;
-        background: #fff;
-        font: inherit;
-        font-size: 12px;
-        line-height: 1.5;
-    }
+        .spk-live-message-textarea {
+            width: 100%;
+            min-height: 115px;
+            resize: vertical;
+            box-sizing: border-box;
+            padding: 11px 12px;
+            border: 1px solid #dbe2ea;
+            border-radius: 9px;
+            outline: none;
+            color: #1e293b;
+            background: #fff;
+            font: inherit;
+            font-size: 12px;
+            line-height: 1.5;
+        }
 
-    .spk-live-message-textarea:focus {
-        border-color: #93c5fd;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, .08);
-    }
+        .spk-live-message-textarea:focus {
+            border-color: #93c5fd;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, .08);
+        }
 
-    .spk-live-message-footer {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        margin-top: 9px;
-    }
+        .spk-live-message-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 9px;
+        }
 
-    .spk-live-message-hint {
-        color: #94a3b8;
-        font-size: 9px;
-    }
+        .spk-live-message-hint {
+            color: #94a3b8;
+            font-size: 9px;
+        }
 
-    .spk-live-message-send {
-        border: 0;
-        border-radius: 7px;
-        padding: 7px 13px;
-        background: #2563eb;
-        color: #fff;
-        font-size: 10px;
-        font-weight: 700;
-        cursor: pointer;
-    }
+        .spk-live-message-send {
+            border: 0;
+            border-radius: 7px;
+            padding: 7px 13px;
+            background: #2563eb;
+            color: #fff;
+            font-size: 10px;
+            font-weight: 700;
+            cursor: pointer;
+        }
 
-    .spk-live-message-send:hover {
-        background: #1d4ed8;
-    }
+        .spk-live-message-send:hover {
+            background: #1d4ed8;
+        }
 
-    .spk-live-message-live {
-        position: fixed;
-        right: 20px;
-        bottom: 20px;
-        z-index: 999999;
-        width: min(390px, calc(100vw - 40px));
-        display: none;
-        background: #fff;
-        border: 1px solid #dfe6ee;
-        border-radius: 11px;
-        box-shadow: 0 12px 35px rgba(15, 23, 42, .17);
-        overflow: hidden;
-        animation: spkLiveMessageIn .16s ease-out;
-    }
+        .spk-live-message-live {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            z-index: 999999;
+            width: min(390px, calc(100vw - 40px));
+            display: none;
+            background: #fff;
+            border: 1px solid #dfe6ee;
+            border-radius: 11px;
+            box-shadow: 0 12px 35px rgba(15, 23, 42, .17);
+            overflow: hidden;
+            animation: spkLiveMessageIn .16s ease-out;
+        }
 
-    .spk-live-message-live.show {
-        display: block;
-    }
+        .spk-live-message-live.show {
+            display: block;
+        }
 
-    .spk-live-message-live-head {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 9px 11px;
-        border-bottom: 1px solid #edf1f5;
-    }
+        .spk-live-message-live-head {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 11px;
+            border-bottom: 1px solid #edf1f5;
+        }
 
-    .spk-live-message-dot {
-        width: 7px;
-        height: 7px;
-        border-radius: 50%;
-        background: #22c55e;
-        box-shadow: 0 0 0 3px rgba(34, 197, 94, .12);
-    }
+        .spk-live-message-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #22c55e;
+            box-shadow: 0 0 0 3px rgba(34, 197, 94, .12);
+        }
 
-    .spk-live-message-live-name {
-        color: #334155;
-        font-size: 10px;
-        font-weight: 800;
-    }
+        .spk-live-message-live-name {
+            color: #334155;
+            font-size: 10px;
+            font-weight: 800;
+        }
 
-    .spk-live-message-live-label {
-        margin-left: auto;
-        color: #94a3b8;
-        font-size: 8px;
-    }
+        .spk-live-message-live-label {
+            margin-left: auto;
+            color: #94a3b8;
+            font-size: 8px;
+        }
 
-    .spk-live-message-live-body {
-        padding: 10px 11px 12px;
-        color: #475569;
-        font-size: 11px;
-        line-height: 1.5;
-        white-space: pre-wrap;
-        word-break: break-word;
-        max-height: 180px;
-        overflow-y: auto;
-    }
+        .spk-live-message-live-body {
+            padding: 10px 11px 12px;
+            color: #475569;
+            font-size: 11px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 180px;
+            overflow-y: auto;
+        }
 
-    @keyframes spkLiveMessageIn {
-        from { opacity: 0; transform: translateY(7px) scale(.985); }
-        to { opacity: 1; transform: translateY(0) scale(1); }
-    }
-</style>
+        @keyframes spkLiveMessageIn {
+            from {
+                opacity: 0;
+                transform: translateY(7px) scale(.985);
+            }
 
-@php
-$checkedTypes = $spk['checked_types'] ?? [];
-$status = $spk['status'] ?? 'draft';
-@endphp
-<input type="hidden" id="view_only" value="{{ $viewOnly ? 1 : 0 }}">
-<input type="hidden" id="spk_mode" value="{{ $spk['mode'] }}">
-<input type="hidden" id="spk_id" value="{{ $spk['id'] }}">
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+    </style>
 
-<div id="spkRemoteCursors"></div>
+    @php
+        $checkedTypes = $spk['checked_types'] ?? [];
+        $status = $spk['status'] ?? 'draft';
+    @endphp
+    <input type="hidden" id="view_only" value="{{ $viewOnly ? 1 : 0 }}">
+    <input type="hidden" id="spk_mode" value="{{ $spk['mode'] }}">
+    <input type="hidden" id="spk_id" value="{{ $spk['id'] }}">
 
-<!-- =========================================================
-     PUSHER LIVE MESSAGE MODAL
-     Hanya aktif pada SPK yang sedang dibuka.
-     ========================================================= -->
-<div id="spkLiveMessageModal" class="spk-live-message-modal" aria-hidden="true">
-    <div class="spk-live-message-card" role="dialog" aria-modal="true" aria-labelledby="spkLiveMessageTitle">
-        <div class="spk-live-message-head">
-            <div class="spk-live-message-title">
-                <div class="spk-live-message-icon">💬</div>
-                <div>
-                    <strong id="spkLiveMessageTitle">Pesan realtime</strong>
-                    <small>Hanya terlihat oleh user yang sedang membuka SPK ini</small>
+    <div id="spkRemoteCursors"></div>
+
+    <!-- =========================================================
+         PUSHER LIVE MESSAGE MODAL
+         Hanya aktif pada SPK yang sedang dibuka.
+         ========================================================= -->
+    <div id="spkLiveMessageModal" class="spk-live-message-modal" aria-hidden="true">
+        <div class="spk-live-message-card" role="dialog" aria-modal="true" aria-labelledby="spkLiveMessageTitle">
+            <div class="spk-live-message-head">
+                <div class="spk-live-message-title">
+                    <div class="spk-live-message-icon">💬</div>
+                    <div>
+                        <strong id="spkLiveMessageTitle">Pesan realtime</strong>
+                        <small>Hanya terlihat oleh user yang sedang membuka SPK ini</small>
+                    </div>
+                </div>
+                <button type="button" id="spkLiveMessageClose" class="spk-live-message-close" title="Tutup">×</button>
+            </div>
+            <div class="spk-live-message-body">
+                <textarea id="spkLiveMessageInput" class="spk-live-message-textarea" placeholder="Ketik pesan..." maxlength="1000"
+                    autocomplete="off" spellcheck="true"></textarea>
+                <div class="spk-live-message-footer">
+                    <span class="spk-live-message-hint">Ctrl + Shift + Z untuk membuka • Esc untuk menutup</span>
+                    <button type="button" id="spkLiveMessageSend" class="spk-live-message-send">Kirim</button>
                 </div>
             </div>
-            <button type="button" id="spkLiveMessageClose" class="spk-live-message-close" title="Tutup">×</button>
-        </div>
-        <div class="spk-live-message-body">
-            <textarea
-                id="spkLiveMessageInput"
-                class="spk-live-message-textarea"
-                placeholder="Ketik pesan..."
-                maxlength="1000"
-                autocomplete="off"
-                spellcheck="true"
-            ></textarea>
-            <div class="spk-live-message-footer">
-                <span class="spk-live-message-hint">Ctrl + Shift + Z untuk membuka • Esc untuk menutup</span>
-                <button type="button" id="spkLiveMessageSend" class="spk-live-message-send">Kirim</button>
-            </div>
         </div>
     </div>
-</div>
 
-<div id="spkLiveMessageLive" class="spk-live-message-live" aria-live="polite">
-    <div class="spk-live-message-live-head">
-        <span class="spk-live-message-dot"></span>
-        <span id="spkLiveMessageLiveName" class="spk-live-message-live-name">User</span>
-        <span class="spk-live-message-live-label">mengetik realtime</span>
+    <div id="spkLiveMessageLive" class="spk-live-message-live" aria-live="polite">
+        <div class="spk-live-message-live-head">
+            <span class="spk-live-message-dot"></span>
+            <span id="spkLiveMessageLiveName" class="spk-live-message-live-name">User</span>
+            <span class="spk-live-message-live-label">mengetik realtime</span>
+        </div>
+        <div id="spkLiveMessageLiveBody" class="spk-live-message-live-body"></div>
     </div>
-    <div id="spkLiveMessageLiveBody" class="spk-live-message-live-body"></div>
-</div>
 
-<div class="box">
-    <!-- TOP TOOLBAR -->
+    <div class="box">
+        <!-- TOP TOOLBAR -->
     @section('btn')
-    <header class="box-header">
-        <div style="display:flex; align-items:center; gap:8px;">
-            <h3>SPK PRODUKSI</h3>
-            @if ($spk['mode'] === 'edit')
-            <span class="mode-badge edit">EDIT MODE</span>
-            @else
-            <span class="mode-badge create">CREATE MODE</span>
-            @endif
-        </div>
+        <header class="box-header">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <h3>SPK PRODUKSI</h3>
+                @if ($spk['mode'] === 'edit')
+                    <span class="mode-badge edit">EDIT MODE</span>
+                @else
+                    <span class="mode-badge create">CREATE MODE</span>
+                @endif
+            </div>
 
-        <div class="toolbar-actions">
-            <select name="spk_type" id="spk_type" class="form-control-sm">
-                <option value="">-- Pilih Jenis --</option>
-                @foreach ($jenisSuppliers as $jenis)
-                <option value="{{ strtolower($jenis->name) }}" {{ strtolower($spk['type'] ?? '' )==strtolower($jenis->
-                    name) ? 'selected' : '' }}>
-                    {{ $jenis->name }}
-                </option>
-                @endforeach
-            </select>
+            <div class="toolbar-actions">
+                <select name="spk_type" id="spk_type" class="form-control-sm">
+                    <option value="">-- Pilih Jenis --</option>
+                    @foreach ($jenisSuppliers as $jenis)
+                        <option value="{{ strtolower($jenis->name) }}"
+                            {{ strtolower($spk['type'] ?? '') == strtolower($jenis->name) ? 'selected' : '' }}>
+                            {{ $jenis->name }}
+                        </option>
+                    @endforeach
+                </select>
 
-            <button type="button" class="btn-tool" id="btnRiwayatSpk">
-                🕘 Riwayat SPK
-            </button>
-            <button type="button" class="btn-tool" id="previewBtn">
-                Preview
-            </button>
-            <button type="button" class="btn-tool"
-                onclick="window.location.href='{{ route('spk.export', $spk['id']) }}'">⬇ Download Excel</button>
-            <button type="button" class="btn-tool" id="screenshotSpkBtn">📸 Screenshot</button>
-            <button type="button" class="btn-tool" id="copyJpegBtn">📋 Salin</button>
-        </div>
-    </header>
+                <button type="button" class="btn-tool" id="btnRiwayatSpk">
+                    🕘 Riwayat SPK
+                </button>
+                <button type="button" class="btn-tool" id="previewBtn">
+                    Preview
+                </button>
+                <button type="button" class="btn-tool"
+                    onclick="window.location.href='{{ route('spk.export', $spk['id']) }}'">⬇ Download Excel</button>
+                <button type="button" class="btn-tool" id="screenshotSpkBtn">📸 Screenshot</button>
+                <button type="button" class="btn-tool" id="copyJpegBtn">📋 Salin</button>
+            </div>
+        </header>
     @endsection
 
     <!-- MAIN WORKSPACE -->
@@ -2117,12 +2135,12 @@ $status = $spk['status'] ?? 'draft';
                             💾 Save SPK
                         </button>
                         @if ($status != 'finished')
-                        <button class="btn-spk-status btn-status-spk" data-status="closed">
-                            🔒 Close SPK
-                        </button>
-                        <button id="btnCleanUnchecked" class="btn-spk-clean" style="display:none">
-                            🗑 Bersihkan
-                        </button>
+                            <button class="btn-spk-status btn-status-spk" data-status="closed">
+                                🔒 Close SPK
+                            </button>
+                            <button id="btnCleanUnchecked" class="btn-spk-clean" style="display:none">
+                                🗑 Bersihkan
+                            </button>
                         @endif
                     </div>
                 </div>
@@ -2139,27 +2157,27 @@ $status = $spk['status'] ?? 'draft';
             </div>
 
             @php
-            $tglTerimaRaw = trim((string) ($spk['tgl_terima'] ?? ''));
-            $tglSelesaiRaw = trim((string) ($spk['tgl_selesai'] ?? ''));
+                $tglTerimaRaw = trim((string) ($spk['tgl_terima'] ?? ''));
+                $tglSelesaiRaw = trim((string) ($spk['tgl_selesai'] ?? ''));
 
-            $tglTerimaValue = '';
-            $tglSelesaiValue = '';
+                $tglTerimaValue = '';
+                $tglSelesaiValue = '';
 
-            if ($tglTerimaRaw !== '' && $tglTerimaRaw !== '-') {
-            try {
-            $tglTerimaValue = Carbon\Carbon::parse($tglTerimaRaw)->format('Y-m-d');
-            } catch (Throwable $e) {
-            $tglTerimaValue = '';
-            }
-            }
+                if ($tglTerimaRaw !== '' && $tglTerimaRaw !== '-') {
+                    try {
+                        $tglTerimaValue = Carbon\Carbon::parse($tglTerimaRaw)->format('Y-m-d');
+                    } catch (Throwable $e) {
+                        $tglTerimaValue = '';
+                    }
+                }
 
-            if ($tglSelesaiRaw !== '' && $tglSelesaiRaw !== '-') {
-            try {
-            $tglSelesaiValue = Carbon\Carbon::parse($tglSelesaiRaw)->format('Y-m-d');
-            } catch (Throwable $e) {
-            $tglSelesaiValue = '';
-            }
-            }
+                if ($tglSelesaiRaw !== '' && $tglSelesaiRaw !== '-') {
+                    try {
+                        $tglSelesaiValue = Carbon\Carbon::parse($tglSelesaiRaw)->format('Y-m-d');
+                    } catch (Throwable $e) {
+                        $tglSelesaiValue = '';
+                    }
+                }
             @endphp
 
             <!-- DATES GRID -->
@@ -2172,8 +2190,8 @@ $status = $spk['status'] ?? 'draft';
                                 value="{{ $tglTerimaValue ? date('d/m/y', strtotime($tglTerimaValue)) : '' }}"
                                 placeholder="dd/mm/yy" inputmode="numeric" autocomplete="off" readonly
                                 onclick="openSpkDatePicker(this)">
-                            <input type="date" class="spk-date-picker" value="{{ $tglTerimaValue }}" tabindex="-1"
-                                aria-hidden="true">
+                            <input type="date" class="spk-date-picker" value="{{ $tglTerimaValue }}"
+                                tabindex="-1" aria-hidden="true">
                         </div>
                     </div>
                 </div>
@@ -2185,8 +2203,8 @@ $status = $spk['status'] ?? 'draft';
                                 value="{{ $tglSelesaiValue ? date('d/m/y', strtotime($tglSelesaiValue)) : '' }}"
                                 placeholder="dd/mm/yy" inputmode="numeric" autocomplete="off" readonly
                                 onclick="openSpkDatePicker(this)">
-                            <input type="date" class="spk-date-picker" value="{{ $tglSelesaiValue }}" tabindex="-1"
-                                aria-hidden="true">
+                            <input type="date" class="spk-date-picker" value="{{ $tglSelesaiValue }}"
+                                tabindex="-1" aria-hidden="true">
                         </div>
                     </div>
                 </div>
@@ -2224,9 +2242,9 @@ $status = $spk['status'] ?? 'draft';
                                     title="Tambah Kolom Dinamis">+</button>
                             </th>
                             @foreach ($spk['custom_headers'] ?? [] as $header)
-                            <th class="spk-dynamic-header" data-custom="{{ $header['key'] }}">
-                                {{ $header['label'] }}
-                            </th>
+                                <th class="spk-dynamic-header" data-custom="{{ $header['key'] }}">
+                                    {{ $header['label'] }}
+                                </th>
                             @endforeach
                             <th class="p-header" style="display:none"></th>
                             <th class="num">P</th>
@@ -2235,7 +2253,8 @@ $status = $spk['status'] ?? 'draft';
                             <th class="mat">Material</th>
                             <th class="num pcs qty-unit-header">
                                 <span id="qtyUnitLabel">PCS</span>
-                                <button type="button" id="btnEditQtyUnit" class="btn-edit-qty-unit" title="Ubah satuan quantity">✎</button>
+                                <button type="button" id="btnEditQtyUnit" class="btn-edit-qty-unit"
+                                    title="Ubah satuan quantity">✎</button>
                             </th>
                             <th class="num set">SET</th>
                             <th class="pr harga">Harga</th>
@@ -2247,146 +2266,146 @@ $status = $spk['status'] ?? 'draft';
                     </thead>
                     <tbody id="spkItemsBody">
                         @foreach ($spk['items'] as $item)
-                        @php
-                        $extraRowCount = count(array_slice($item['custom_columns'] ?? [], 1));
-                        $itemRowspan = $extraRowCount + 1;
-                        @endphp
-                        @php
-                            /*
-                             * QTY FIX:
-                             * Gunakan qty asli jika controller sudah mengirimkannya.
-                             * Fallback tetap ke pcs/set agar fungsi lama tidak berubah.
-                             */
-                            $itemUnit = strtolower(trim((string) ($item['satuan'] ?? 'pcs')));
-                            $itemQty = array_key_exists('qty', $item)
-                                ? $item['qty']
-                                : ($itemUnit === 'set' ? ($item['set'] ?? 0) : ($item['pcs'] ?? 0));
-
-                            if ($itemQty === null || $itemQty === '') {
-                                $itemQty = 0;
-                            }
-                        @endphp
-                        <tr class="spk-rowa"
-                            data-detail-id="{{ $item['detail_id'] }}"
-                            data-satuan="{{ $itemUnit }}"
-                            data-qty="{{ $itemQty }}"
-                            data-ppn-enabled="{{ !empty($spk['ppn_enabled']) ? '1' : '0' }}">
-                            <td class="text-center select-item-cell">
-                                <input type="checkbox" class="spk-item-check">
-                            </td>
-                            <!-- KODE -->
-                            <td rowspan="{{ $itemRowspan }}" class="editable text-center kode-item delete-row"
-                                contenteditable="true">
-                                {{ $item['kode'] }}
-                            </td>
-                            <!-- GAMBAR -->
-                            <td rowspan="{{ $itemRowspan }}" class="gambar-cell">
-                                <div class="image-box gambar-cell" contenteditable="true"
-                                    onpaste="handlePaste(event,this)">
-                                    @foreach ($item['images'] as $img)
-                                    <img src="{{ $img }}" class="preview-img">
-                                    @endforeach
-                                </div>
-                                <input type="file" accept="image/*" multiple capture="environment"
-                                    onchange="uploadPreview(this)" style="display:none"
-                                    id="file_{{ $item['detail_id'] }}">
-                                <label for="file_{{ $item['detail_id'] }}"
-                                    style="font-size:8px; cursor:pointer; color:var(--spk-blue); display:block; margin-top:2px;">📷
-                                    Upload</label>
-                            </td>
-                            <!-- NAMA -->
-                            <td rowspan="{{ $itemRowspan }}" class="editable nama" contenteditable="true">
-                                {{ $item['nama'] }}
-                            </td>
-                            <!-- CUSTOM COLUMNS -->
                             @php
-                            $mainCustom = $item['custom_columns'][0] ?? [];
+                                $extraRowCount = count(array_slice($item['custom_columns'] ?? [], 1));
+                                $itemRowspan = $extraRowCount + 1;
                             @endphp
-                            @foreach ($spk['custom_headers'] ?? [] as $header)
-                            <td class="editable custom-column" contenteditable="true"
-                                data-custom="{{ $header['key'] }}">
-                                {{ $mainCustom[$header['key']] ?? '' }}
-                            </td>
-                            @endforeach
-                            <!-- P, L, T -->
-                            <td class="editable text-center p" contenteditable="true">{{ $item['p'] }}</td>
-                            <td class="editable text-center l" contenteditable="true">{{ $item['l'] }}</td>
-                            <td class="editable text-center t" contenteditable="true">{{ $item['t'] }}</td>
-                            <!-- MATERIAL -->
-                            <td class="editable material" contenteditable="true">{{ $item['material'] }}</td>
-                            <!-- PCS / KG / UNIT UTAMA & SET -->
-                            <td class="editable text-center pcs" contenteditable="true">
-                                @if ($itemUnit !== 'set')
-                                    {{ is_numeric($itemQty) ? rtrim(rtrim(number_format((float) $itemQty, 2, ',', '.'), '0'), ',') : $itemQty }}
-                                @else
-                                    0
-                                @endif
-                            </td>
-                            <td class="editable text-center set" contenteditable="true">
-                                @if ($itemUnit === 'set')
-                                    {{ is_numeric($itemQty) ? rtrim(rtrim(number_format((float) $itemQty, 2, ',', '.'), '0'), ',') : $itemQty }}
-                                @else
-                                    0
-                                @endif
-                            </td>
-                            <!-- HARGA & TOTAL -->
-                            <td class="editable text-right harga" contenteditable="true">{{ $item['harga'] }}
-                            </td>
-                            <td class="ppn-cell ppn-hidden"
-                                data-ppn-rate="{{ $spk['ppn_rate'] ?? 11 }}"
+                            @php
+                                /*
+                                 * QTY FIX:
+                                 * Gunakan qty asli jika controller sudah mengirimkannya.
+                                 * Fallback tetap ke pcs/set agar fungsi lama tidak berubah.
+                                 */
+                                $itemUnit = strtolower(trim((string) ($item['satuan'] ?? 'pcs')));
+                                $itemQty = array_key_exists('qty', $item)
+                                    ? $item['qty']
+                                    : ($itemUnit === 'set'
+                                        ? $item['set'] ?? 0
+                                        : $item['pcs'] ?? 0);
+
+                                if ($itemQty === null || $itemQty === '') {
+                                    $itemQty = 0;
+                                }
+                            @endphp
+                            <tr class="spk-rowa" data-detail-id="{{ $item['detail_id'] }}"
+                                data-satuan="{{ $itemUnit }}" data-qty="{{ $itemQty }}"
                                 data-ppn-enabled="{{ !empty($spk['ppn_enabled']) ? '1' : '0' }}">
-                                <span class="ppn-value">{{ $spk['ppn_rate'] ?? 11 }}%</span>
-                            </td>
-                            <td class="text-right total">0</td>
-                            <!-- CATATAN -->
-                            <td>
-                                <div class="editable note-box" contenteditable="true" onpaste="handlePaste(event,this)">
-                                    {!! $item['catatan']['remark'] ?? '' !!}
-                                </div>
-                            </td>
-                            <!-- ACTION -->
-                            <td class="text-center action-cell">
-                                <button type="button" class="btn-add-extra" title="Tambah Sub Baris">➕</button>
-                            </td>
-                        </tr>
-                        <!-- EXTRA SUB-ROWS -->
-                        @foreach (array_slice($item['custom_columns'] ?? [], 1) as $extra)
-                        <tr class="extra-row"
-                            data-ppn-enabled="{{ !empty($spk['ppn_enabled']) ? '1' : '0' }}">
-                            <td class="hallo"></td>
-                            @foreach ($spk['custom_headers'] ?? [] as $header)
-                            <td class="editable custom-column" contenteditable="true"
-                                data-custom="{{ $header['key'] }}">
-                                {{ $extra[$header['key']] ?? '' }}
-                            </td>
+                                <td class="text-center select-item-cell">
+                                    <input type="checkbox" class="spk-item-check">
+                                </td>
+                                <!-- KODE -->
+                                <td rowspan="{{ $itemRowspan }}" class="editable text-center kode-item delete-row"
+                                    contenteditable="true">
+                                    {{ $item['kode'] }}
+                                </td>
+                                <!-- GAMBAR -->
+                                <td rowspan="{{ $itemRowspan }}" class="gambar-cell">
+                                    <div class="image-box gambar-cell" contenteditable="true"
+                                        onpaste="handlePaste(event,this)">
+                                        @foreach ($item['images'] as $img)
+                                            <img src="{{ $img }}" class="preview-img">
+                                        @endforeach
+                                    </div>
+                                    <input type="file" accept="image/*" multiple capture="environment"
+                                        onchange="uploadPreview(this)" style="display:none"
+                                        id="file_{{ $item['detail_id'] }}">
+                                    <label for="file_{{ $item['detail_id'] }}"
+                                        style="font-size:8px; cursor:pointer; color:var(--spk-blue); display:block; margin-top:2px;">📷
+                                        Upload</label>
+                                </td>
+                                <!-- NAMA -->
+                                <td rowspan="{{ $itemRowspan }}" class="editable nama" contenteditable="true">
+                                    {{ $item['nama'] }}
+                                </td>
+                                <!-- CUSTOM COLUMNS -->
+                                @php
+                                    $mainCustom = $item['custom_columns'][0] ?? [];
+                                @endphp
+                                @foreach ($spk['custom_headers'] ?? [] as $header)
+                                    <td class="editable custom-column" contenteditable="true"
+                                        data-custom="{{ $header['key'] }}">
+                                        {{ $mainCustom[$header['key']] ?? '' }}
+                                    </td>
+                                @endforeach
+                                <!-- P, L, T -->
+                                <td class="editable text-center p" contenteditable="true">{{ $item['p'] }}</td>
+                                <td class="editable text-center l" contenteditable="true">{{ $item['l'] }}</td>
+                                <td class="editable text-center t" contenteditable="true">{{ $item['t'] }}</td>
+                                <!-- MATERIAL -->
+                                <td class="editable material" contenteditable="true">{{ $item['material'] }}</td>
+                                <!-- PCS / KG / UNIT UTAMA & SET -->
+                                <td class="editable text-center pcs" contenteditable="true">
+                                    @if ($itemUnit !== 'set')
+                                        {{ is_numeric($itemQty) ? rtrim(rtrim(number_format((float) $itemQty, 2, ',', '.'), '0'), ',') : $itemQty }}
+                                    @else
+                                        0
+                                    @endif
+                                </td>
+                                <td class="editable text-center set" contenteditable="true">
+                                    @if ($itemUnit === 'set')
+                                        {{ is_numeric($itemQty) ? rtrim(rtrim(number_format((float) $itemQty, 2, ',', '.'), '0'), ',') : $itemQty }}
+                                    @else
+                                        0
+                                    @endif
+                                </td>
+                                <!-- HARGA & TOTAL -->
+                                <td class="editable text-right harga" contenteditable="true">{{ $item['harga'] }}
+                                </td>
+                                <td class="ppn-cell ppn-hidden" data-ppn-rate="{{ $spk['ppn_rate'] ?? 11 }}"
+                                    data-ppn-enabled="{{ !empty($spk['ppn_enabled']) ? '1' : '0' }}">
+                                    <span class="ppn-value">{{ $spk['ppn_rate'] ?? 11 }}%</span>
+                                </td>
+                                <td class="text-right total">0</td>
+                                <!-- CATATAN -->
+                                <td>
+                                    <div class="editable note-box" contenteditable="true"
+                                        onpaste="handlePaste(event,this)">
+                                        {!! $item['catatan']['remark'] ?? '' !!}
+                                    </div>
+                                </td>
+                                <!-- ACTION -->
+                                <td class="text-center action-cell">
+                                    <button type="button" class="btn-add-extra" title="Tambah Sub Baris">➕</button>
+                                </td>
+                            </tr>
+                            <!-- EXTRA SUB-ROWS -->
+                            @foreach (array_slice($item['custom_columns'] ?? [], 1) as $extra)
+                                <tr class="extra-row"
+                                    data-ppn-enabled="{{ !empty($spk['ppn_enabled']) ? '1' : '0' }}">
+                                    <td class="hallo"></td>
+                                    @foreach ($spk['custom_headers'] ?? [] as $header)
+                                        <td class="editable custom-column" contenteditable="true"
+                                            data-custom="{{ $header['key'] }}">
+                                            {{ $extra[$header['key']] ?? '' }}
+                                        </td>
+                                    @endforeach
+                                    <td class="editable text-center p" contenteditable="true">
+                                        {{ $extra['p'] ?? '-' }}</td>
+                                    <td class="editable text-center l" contenteditable="true">
+                                        {{ $extra['l'] ?? '-' }}</td>
+                                    <td class="editable text-center t" contenteditable="true">
+                                        {{ $extra['t'] ?? '-' }}</td>
+                                    <td class="editable material" contenteditable="true">
+                                        {{ $extra['material'] ?? '-' }}</td>
+                                    <td class="editable text-center pcs" contenteditable="true">
+                                        {{ $extra['pcs'] ?? 0 }}</td>
+                                    <td class="editable text-center set" contenteditable="true">
+                                        {{ $extra['set'] ?? 0 }}</td>
+                                    <td class="editable text-right harga" contenteditable="true">
+                                        {{ $extra['harga'] ?? 0 }}</td>
+                                    <td class="ppn-cell ppn-hidden" data-ppn-rate="{{ $spk['ppn_rate'] ?? 11 }}"
+                                        data-ppn-enabled="{{ !empty($spk['ppn_enabled']) ? '1' : '0' }}">
+                                        <span class="ppn-value">{{ $spk['ppn_rate'] ?? 11 }}%</span>
+                                    </td>
+                                    <td class="text-right total">{{ number_format($extra['total'] ?? 0) }}</td>
+                                    <td class="editable note-box" contenteditable="true">
+                                        {{ $extra['catatan'] ?? '' }}</td>
+                                    <td class="text-center action-cell">
+                                        <button type="button" class="btn-delete-extra"
+                                            title="Hapus Sub Baris">❌</button>
+                                    </td>
+                                </tr>
                             @endforeach
-                            <td class="editable text-center p" contenteditable="true">
-                                {{ $extra['p'] ?? '-' }}</td>
-                            <td class="editable text-center l" contenteditable="true">
-                                {{ $extra['l'] ?? '-' }}</td>
-                            <td class="editable text-center t" contenteditable="true">
-                                {{ $extra['t'] ?? '-' }}</td>
-                            <td class="editable material" contenteditable="true">
-                                {{ $extra['material'] ?? '-' }}</td>
-                            <td class="editable text-center pcs" contenteditable="true">
-                                {{ $extra['pcs'] ?? 0 }}</td>
-                            <td class="editable text-center set" contenteditable="true">
-                                {{ $extra['set'] ?? 0 }}</td>
-                            <td class="editable text-right harga" contenteditable="true">
-                                {{ $extra['harga'] ?? 0 }}</td>
-                            <td class="ppn-cell ppn-hidden"
-                                data-ppn-rate="{{ $spk['ppn_rate'] ?? 11 }}"
-                                data-ppn-enabled="{{ !empty($spk['ppn_enabled']) ? '1' : '0' }}">
-                                <span class="ppn-value">{{ $spk['ppn_rate'] ?? 11 }}%</span>
-                            </td>
-                            <td class="text-right total">{{ number_format($extra['total'] ?? 0) }}</td>
-                            <td class="editable note-box" contenteditable="true">
-                                {{ $extra['catatan'] ?? '' }}</td>
-                            <td class="text-center action-cell">
-                                <button type="button" class="btn-delete-extra" title="Hapus Sub Baris">❌</button>
-                            </td>
-                        </tr>
-                        @endforeach
                         @endforeach
                         <tr id="spkItemAnchor"></tr>
                     </tbody>
@@ -2418,46 +2437,45 @@ $status = $spk['status'] ?? 'draft';
 
                         <tbody>
                             @forelse (($bahanBaku ?? collect()) as $bahan)
-                            @php
-                            $tanggalBahan = $bahan->tanggal ?? null;
+                                @php
+                                    $tanggalBahan = $bahan->tanggal ?? null;
 
-                            $hargaInv = (float) ($bahan->stok->harga ?? 0);
-                            $qtyBahan = (float) ($bahan->qty ?? 0);
+                                    $hargaInv = (float) ($bahan->stok->harga ?? 0);
+                                    $qtyBahan = (float) ($bahan->qty ?? 0);
 
-                            /*
-                            * Jika harga_vivi memiliki nilai:
-                            * gunakan harga_vivi.
-                            *
-                            * Jika null / kosong:
-                            * gunakan harga inventory.
-                            */
-                            $hargaViviRaw = $bahan->harga_vivi ?? null;
+                                    /*
+                                     * Jika harga_vivi memiliki nilai:
+                                     * gunakan harga_vivi.
+                                     *
+                                     * Jika null / kosong:
+                                     * gunakan harga inventory.
+                                     */
+                                    $hargaViviRaw = $bahan->harga_vivi ?? null;
 
-                            $harga = (
-                            $hargaViviRaw !== null &&
-                            trim((string) $hargaViviRaw) !== ''
-                            )
-                            ? (float) $hargaViviRaw
-                            : $hargaInv;
+                                    $harga =
+                                        $hargaViviRaw !== null && trim((string) $hargaViviRaw) !== ''
+                                            ? (float) $hargaViviRaw
+                                            : $hargaInv;
 
-                            $totalBahan = $qtyBahan * $harga;
-                            @endphp
+                                    $totalBahan = $qtyBahan * $harga;
+                                @endphp
 
-                            <tr class="bahan-baku-row">
-                                <td class="text-center">
-                                    {{ $loop->iteration }}
-                                </td>
+                                <tr class="bahan-baku-row">
+                                    <td class="text-center">
+                                        {{ $loop->iteration }}
+                                    </td>
 
-                                <td class="text-center">
-                                    @if ($tanggalBahan)
-                                    {{ \Carbon\Carbon::parse($tanggalBahan)->format('d/m/Y') }}
-                                    @else
-                                    -
-                                    @endif
-                                </td>
+                                    <td class="text-center">
+                                        @if ($tanggalBahan)
+                                            {{ \Carbon\Carbon::parse($tanggalBahan)->format('d/m/Y') }}
+                                        @else
+                                            -
+                                        @endif
+                                    </td>
 
-                                <td class="text-center">
-                                    <span style="
+                                    <td class="text-center">
+                                        <span
+                                            style="
                     display:inline-flex;
                     align-items:center;
                     justify-content:center;
@@ -2469,50 +2487,57 @@ $status = $spk['status'] ?? 'draft';
                     background:{{ strtolower($bahan->tipe ?? '') === 'out' ? '#fff1f2' : '#ecfdf5' }};
                     color:{{ strtolower($bahan->tipe ?? '') === 'out' ? '#be123c' : '#047857' }};
                 ">
-                                        {{ $bahan->tipe ?? '-' }}
-                                    </span>
-                                </td>
+                                            {{ $bahan->tipe ?? '-' }}
+                                        </span>
+                                    </td>
 
-                                <td>
-                                    <div style="font-weight:600;">
-                                        {{ $bahan->stok->nama_barang ?? '-' }}
-                                    </div>
+                                    <td>
+                                        <div style="font-weight:600;">
+                                            {{ $bahan->stok->nama_barang ?? '-' }}
+                                        </div>
 
-                                    @if (!empty($bahan->stok->kode_barang))
-                                    <small style="color:#94a3b8;">
-                                        {{ $bahan->stok->kode_barang }}
-                                    </small>
-                                    @endif
-                                </td>
+                                        @if (!empty($bahan->stok->kode_barang))
+                                            <small style="color:#94a3b8;">
+                                                {{ $bahan->stok->kode_barang }}
+                                            </small>
+                                        @endif
+                                    </td>
 
-                                <td class="text-right">
-                                    {{ rtrim(rtrim(number_format($qtyBahan, 2, ',', '.'), '0'), ',') }}
+                                    <td class="text-right">
+                                        {{ rtrim(rtrim(number_format($qtyBahan, 2, ',', '.'), '0'), ',') }}
 
-                                    @if (!empty($bahan->stok->satuan))
-                                    <span style="color:#64748b;">
-                                        {{ $bahan->stok->satuan }}
-                                    </span>
-                                    @endif
-                                </td>
+                                        @if (!empty($bahan->stok->satuan))
+                                            <span style="color:#64748b;">
+                                                {{ $bahan->stok->satuan }}
+                                            </span>
+                                        @endif
+                                    </td>
 
-                                <td class="text-right">
-                                    Rp {{ number_format($harga, 0, ',', '.') }}
-                                </td>
+                                    <td class="text-right">
+                                        Rp {{ number_format($harga, 0, ',', '.') }}
+                                    </td>
 
-                                <td class="text-right" style="font-weight:700;">
-                                    Rp {{ number_format($totalBahan, 0, ',', '.') }}
-                                </td>
+                                    <td class="text-right" style="font-weight:700;">
+                                        Rp {{ number_format($totalBahan, 0, ',', '.') }}
+                                    </td>
 
-                                <td>
-                                    {{ $bahan->keterangan ?? '-' }}
-                                </td>
-                            </tr>
+                                  <td
+    class="bahan-keterangan-edit"
+    data-transaksi-id="{{ $bahan->id }}"
+    data-spk-id="{{ $bahan->spk_id }}"
+    title="Double click untuk edit"
+>
+    <span class="keterangan-text">
+        {{ $bahan->keterangan ?: '-' }}
+    </span>
+</td>
+                                </tr>
                             @empty
-                            <tr>
-                                <td colspan="8" class="empty-text">
-                                    Belum ada pengambilan bahan baku dari warehouse.
-                                </td>
-                            </tr>
+                                <tr>
+                                    <td colspan="8" class="empty-text">
+                                        Belum ada pengambilan bahan baku dari warehouse.
+                                    </td>
+                                </tr>
                             @endforelse
                         </tbody>
                     </table>
@@ -2539,95 +2564,100 @@ $status = $spk['status'] ?? 'draft';
                         </thead>
                         <tbody id="paymentBody">
                             @php
-                            $payments = $spk['payments'] ?? [];
+                                $payments = $spk['payments'] ?? [];
                             @endphp
                             @if (count($payments))
-                            @foreach ($payments as $pay)
-                            @php
-                            $paymentId = $pay['payment_id'] ?? 'pay_' . uniqid();
-                            @endphp
-                            <tr class="payment-row" data-adjustment="{{ $pay['adjustment'] ?? 0 }}"
-                                data-payment-id="{{ $paymentId }}" data-pr-id="{{ $pay['pr_id'] ?? '' }}">
-                                <td class="text-center">
-                                    <input type="checkbox" class="payment-request-check" {{ $pay['is_request'] ?? false
-                                        ? 'checked' : '' }}>
-                                </td>
-                                <td class="editable total-amount" contenteditable="true">
+                                @foreach ($payments as $pay)
                                     @php
-                                    $amount = $pay['amount'] ?? '';
-                                    if ($amount !== '' && $amount !== null) {
-                                    $amount = preg_replace('/[^\d-]/', '', (string) $amount);
-                                    $amount = (int) $amount;
-                                    }
+                                        $paymentId = $pay['payment_id'] ?? 'pay_' . uniqid();
                                     @endphp
-                                    {{ $amount !== '' ? number_format($amount, 0, ',', '.') : '' }}
-                                </td>
-                                <td class="editable date-isian" contenteditable="true">
-                                    {{ $pay['date'] ?? '' }}
-                                </td>
-                                <td>
-                                    <select class="payment-type">
-                                        <option value="">-- Pilih --</option>
-                                        <option value="dp" {{ ($pay['note'] ?? '' )=='dp' ? 'selected' : '' }}>DP
-                                        </option>
-                                        <option value="pelunasan" {{ ($pay['note'] ?? '' )=='pelunasan' ? 'selected'
-                                            : '' }}>
-                                            Pelunasan</option>
-                                        <option value="bahan" {{ ($pay['note'] ?? '' )=='bahan' ? 'selected' : '' }}>
-                                            Bahan
-                                        </option>
-                                        <option value="return_bahan" {{ ($pay['note'] ?? '' )=='return_bahan'
-                                            ? 'selected' : '' }}>
-                                            Return Bahan</option>
-                                        <option value="kasbon" {{ ($pay['note'] ?? '' )=='kasbon' ? 'selected' : '' }}>
-                                            Kasbon
-                                        </option>
-                                        <option value="ppn" {{ ($pay['note'] ?? '' )=='ppn' ? 'selected' : '' }}>PPN
-                                        </option>
-                                    </select>
-                                </td>
-                                <td class="editable note-tambahan" contenteditable="true">
-                                    {{ $pay['note_tambahan'] ?? '' }}
-                                </td>
-                                <td>
-                                    @if (($pay['adjustment'] ?? 0) > 0)
-                                    <div style="color:#16a34a; font-weight:bold; font-size:9px;">
-                                        Bayar: Rp {{ number_format($pay['adjustment'], 0, ',', '.') }}
-                                    </div>
-                                    <div style="color:#dc2626; font-size:9px;">
-                                        Sisa: Rp
-                                        {{ number_format(($pay['amount'] ?? 0) - ($pay['adjustment'] ?? 0), 0, ',', '.')
-                                        }}
-                                    </div>
-                                    @elseif ($pay['is_request'] ?? false)
-                                    <span style="color:#16a34a; font-weight:600;">Full Payment</span>
-                                    @else
-                                    <span style="color:#94a3b8;">Belum Request</span>
-                                    @endif
-                                </td>
-                            </tr>
-                            @endforeach
+                                    <tr class="payment-row" data-adjustment="{{ $pay['adjustment'] ?? 0 }}"
+                                        data-payment-id="{{ $paymentId }}"
+                                        data-pr-id="{{ $pay['pr_id'] ?? '' }}">
+                                        <td class="text-center">
+                                            <input type="checkbox" class="payment-request-check"
+                                                {{ $pay['is_request'] ?? false ? 'checked' : '' }}>
+                                        </td>
+                                        <td class="editable total-amount" contenteditable="true">
+                                            @php
+                                                $amount = $pay['amount'] ?? '';
+                                                if ($amount !== '' && $amount !== null) {
+                                                    $amount = preg_replace('/[^\d-]/', '', (string) $amount);
+                                                    $amount = (int) $amount;
+                                                }
+                                            @endphp
+                                            {{ $amount !== '' ? number_format($amount, 0, ',', '.') : '' }}
+                                        </td>
+                                        <td class="editable date-isian" contenteditable="true">
+                                            {{ $pay['date'] ?? '' }}
+                                        </td>
+                                        <td>
+                                            <select class="payment-type">
+                                                <option value="">-- Pilih --</option>
+                                                <option value="dp"
+                                                    {{ ($pay['note'] ?? '') == 'dp' ? 'selected' : '' }}>DP
+                                                </option>
+                                                <option value="pelunasan"
+                                                    {{ ($pay['note'] ?? '') == 'pelunasan' ? 'selected' : '' }}>
+                                                    Pelunasan</option>
+                                                <option value="bahan"
+                                                    {{ ($pay['note'] ?? '') == 'bahan' ? 'selected' : '' }}>
+                                                    Bahan
+                                                </option>
+                                                <option value="return_bahan"
+                                                    {{ ($pay['note'] ?? '') == 'return_bahan' ? 'selected' : '' }}>
+                                                    Return Bahan</option>
+                                                <option value="kasbon"
+                                                    {{ ($pay['note'] ?? '') == 'kasbon' ? 'selected' : '' }}>
+                                                    Kasbon
+                                                </option>
+                                                <option value="ppn"
+                                                    {{ ($pay['note'] ?? '') == 'ppn' ? 'selected' : '' }}>PPN
+                                                </option>
+                                            </select>
+                                        </td>
+                                        <td class="editable note-tambahan" contenteditable="true">
+                                            {{ $pay['note_tambahan'] ?? '' }}
+                                        </td>
+                                        <td>
+                                            @if (($pay['adjustment'] ?? 0) > 0)
+                                                <div style="color:#16a34a; font-weight:bold; font-size:9px;">
+                                                    Bayar: Rp {{ number_format($pay['adjustment'], 0, ',', '.') }}
+                                                </div>
+                                                <div style="color:#dc2626; font-size:9px;">
+                                                    Sisa: Rp
+                                                    {{ number_format(($pay['amount'] ?? 0) - ($pay['adjustment'] ?? 0), 0, ',', '.') }}
+                                                </div>
+                                            @elseif ($pay['is_request'] ?? false)
+                                                <span style="color:#16a34a; font-weight:600;">Full Payment</span>
+                                            @else
+                                                <span style="color:#94a3b8;">Belum Request</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
                             @else
-                            <tr class="payment-row" data-payment-id="pay_{{ uniqid() }}" data-adjustment="0">
-                                <td class="text-center">
-                                    <input type="checkbox" class="payment-request-check">
-                                </td>
-                                <td class="editable total-amount" contenteditable="true"></td>
-                                <td class="editable date-isian" contenteditable="true"></td>
-                                <td>
-                                    <select class="payment-type">
-                                        <option value="">-- Pilih --</option>
-                                        <option value="dp">DP</option>
-                                        <option value="pelunasan">Pelunasan</option>
-                                        <option value="bahan">Bahan</option>
-                                        <option value="return_bahan">Return Bahan</option>
-                                        <option value="kasbon">Kasbon</option>
-                                        <option value="ppn">PPN</option>
-                                    </select>
-                                </td>
-                                <td class="editable note-tambahan" contenteditable="true"></td>
-                                <td>-</td>
-                            </tr>
+                                <tr class="payment-row" data-payment-id="pay_{{ uniqid() }}"
+                                    data-adjustment="0">
+                                    <td class="text-center">
+                                        <input type="checkbox" class="payment-request-check">
+                                    </td>
+                                    <td class="editable total-amount" contenteditable="true"></td>
+                                    <td class="editable date-isian" contenteditable="true"></td>
+                                    <td>
+                                        <select class="payment-type">
+                                            <option value="">-- Pilih --</option>
+                                            <option value="dp">DP</option>
+                                            <option value="pelunasan">Pelunasan</option>
+                                            <option value="bahan">Bahan</option>
+                                            <option value="return_bahan">Return Bahan</option>
+                                            <option value="kasbon">Kasbon</option>
+                                            <option value="ppn">PPN</option>
+                                        </select>
+                                    </td>
+                                    <td class="editable note-tambahan" contenteditable="true"></td>
+                                    <td>-</td>
+                                </tr>
                             @endif
                         </tbody>
                     </table>
@@ -2638,107 +2668,108 @@ $status = $spk['status'] ?? 'draft';
 
         <!-- APPROVAL SIGNATURE CARD (IF EXISTS) -->
         @if (isset($spk['signature']) && $spk['signature'])
-        @php $sign = $spk['signature']; @endphp
-        <div class="spk-signature-card">
-            <div class="spk-signature-header">
-                Approval SPK
+            @php $sign = $spk['signature']; @endphp
+            <div class="spk-signature-card">
+                <div class="spk-signature-header">
+                    Approval SPK
+                </div>
+                <div class="spk-signature-body">
+                    <table class="spk-simple-table" style="text-align:center;">
+                        <thead>
+                            <tr>
+                                <th>Made By</th>
+                                <th>Checked By</th>
+                                <th>Approved By</th>
+                                <th>Supplier</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="height:90px;">
+                                <td>
+                                    @if ($sign->made_at)
+                                        <img src="{{ asset('assets/signature/' . $sign->made_by . '.png') }}"
+                                            style="max-height:70px;">
+                                    @else
+                                        <span style="color:#94a3b8;">Pending</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    <div style="display:flex; justify-content:space-around; align-items:center;">
+                                        <div style="flex:1;">
+                                            @if ($sign->checked_at)
+                                                <img src="{{ asset('assets/signature/' . $sign->checked_by . '.png') }}"
+                                                    style="max-height:65px;">
+                                            @else
+                                                <button class="btn btn-warning btn-sm btn-sign"
+                                                    data-id="{{ $sign->id }}" data-type="checked">TAP TO
+                                                    SIGN</button>
+                                            @endif
+                                        </div>
+                                        <div style="flex:1;">
+                                            @if ($sign->checked_at_2)
+                                                <img src="{{ asset('assets/signature/' . $sign->checked_by_2 . '.png') }}"
+                                                    style="max-height:65px;">
+                                            @else
+                                                <button class="btn btn-warning btn-sm btn-sign"
+                                                    data-id="{{ $sign->id }}" data-type="checked_2">TAP TO
+                                                    SIGN</button>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    @if ($sign->approved_at)
+                                        <img src="{{ asset('assets/signature/' . $sign->approved_by . '.png') }}"
+                                            style="max-height:70px;">
+                                    @else
+                                        <button class="btn btn-success btn-sm btn-sign" data-id="{{ $sign->id }}"
+                                            data-type="approved">TAP TO SIGN</button>
+                                    @endif
+                                </td>
+                                <td>
+                                    <b>{{ $sign->supplier->name ?? '-' }}</b>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <b>{{ $sign->madeBy->name ?? '-' }}</b><br>
+                                    <small>{{ strtoupper($sign->madeBy?->karyawan?->divisi?->nama ?? '-') }}</small><br>
+                                    <small
+                                        style="color:#64748b;">{{ $sign->made_at ? $sign->made_at->format('d/m/Y H:i') : 'Pending' }}</small>
+                                </td>
+                                <td>
+                                    <div style="display:flex; justify-content:space-around;">
+                                        <div>
+                                            <b>{{ $sign->checkedBy->name ?? '-' }}</b><br>
+                                            <small>{{ strtoupper($sign->checkedBy?->karyawan?->divisi?->nama ?? '-') }}</small><br>
+                                            <small
+                                                style="color:#64748b;">{{ $sign->checked_at ? $sign->checked_at->format('d/m/Y H:i') : 'Pending' }}</small>
+                                        </div>
+                                        <div>
+                                            <b>{{ $sign->checkedBy2->name ?? '-' }}</b><br>
+                                            <small>{{ strtoupper($sign->checkedBy2?->karyawan?->divisi?->nama ?? '-') }}</small><br>
+                                            <small
+                                                style="color:#64748b;">{{ $sign->checked_at_2 ? $sign->checked_at_2->format('d/m/Y H:i') : 'Pending' }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <b>{{ $sign->approvedBy->name ?? '-' }}</b><br>
+                                    <small>{{ strtoupper($sign->approvedBy?->karyawan?->divisi?->nama ?? '-') }}</small><br>
+                                    <small
+                                        style="color:#64748b;">{{ $sign->approved_at
+                                            ? $sign->approved_at->format('d/m/Y
+                                                                            H:i')
+                                            : 'Pending' }}</small>
+                                </td>
+                                <td>
+                                    {{ $sign->supplier->name ?? '-' }}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
-            <div class="spk-signature-body">
-                <table class="spk-simple-table" style="text-align:center;">
-                    <thead>
-                        <tr>
-                            <th>Made By</th>
-                            <th>Checked By</th>
-                            <th>Approved By</th>
-                            <th>Supplier</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr style="height:90px;">
-                            <td>
-                                @if ($sign->made_at)
-                                <img src="{{ asset('assets/signature/' . $sign->made_by . '.png') }}"
-                                    style="max-height:70px;">
-                                @else
-                                <span style="color:#94a3b8;">Pending</span>
-                                @endif
-                            </td>
-                            <td>
-                                <div style="display:flex; justify-content:space-around; align-items:center;">
-                                    <div style="flex:1;">
-                                        @if ($sign->checked_at)
-                                        <img src="{{ asset('assets/signature/' . $sign->checked_by . '.png') }}"
-                                            style="max-height:65px;">
-                                        @else
-                                        <button class="btn btn-warning btn-sm btn-sign" data-id="{{ $sign->id }}"
-                                            data-type="checked">TAP TO
-                                            SIGN</button>
-                                        @endif
-                                    </div>
-                                    <div style="flex:1;">
-                                        @if ($sign->checked_at_2)
-                                        <img src="{{ asset('assets/signature/' . $sign->checked_by_2 . '.png') }}"
-                                            style="max-height:65px;">
-                                        @else
-                                        <button class="btn btn-warning btn-sm btn-sign" data-id="{{ $sign->id }}"
-                                            data-type="checked_2">TAP TO
-                                            SIGN</button>
-                                        @endif
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                @if ($sign->approved_at)
-                                <img src="{{ asset('assets/signature/' . $sign->approved_by . '.png') }}"
-                                    style="max-height:70px;">
-                                @else
-                                <button class="btn btn-success btn-sm btn-sign" data-id="{{ $sign->id }}"
-                                    data-type="approved">TAP TO SIGN</button>
-                                @endif
-                            </td>
-                            <td>
-                                <b>{{ $sign->supplier->name ?? '-' }}</b>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>
-                                <b>{{ $sign->madeBy->name ?? '-' }}</b><br>
-                                <small>{{ strtoupper($sign->madeBy?->karyawan?->divisi?->nama ?? '-') }}</small><br>
-                                <small style="color:#64748b;">{{ $sign->made_at ? $sign->made_at->format('d/m/Y H:i') :
-                                    'Pending' }}</small>
-                            </td>
-                            <td>
-                                <div style="display:flex; justify-content:space-around;">
-                                    <div>
-                                        <b>{{ $sign->checkedBy->name ?? '-' }}</b><br>
-                                        <small>{{ strtoupper($sign->checkedBy?->karyawan?->divisi?->nama ?? '-')
-                                            }}</small><br>
-                                        <small style="color:#64748b;">{{ $sign->checked_at ?
-                                            $sign->checked_at->format('d/m/Y H:i') : 'Pending' }}</small>
-                                    </div>
-                                    <div>
-                                        <b>{{ $sign->checkedBy2->name ?? '-' }}</b><br>
-                                        <small>{{ strtoupper($sign->checkedBy2?->karyawan?->divisi?->nama ?? '-')
-                                            }}</small><br>
-                                        <small style="color:#64748b;">{{ $sign->checked_at_2 ?
-                                            $sign->checked_at_2->format('d/m/Y H:i') : 'Pending' }}</small>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                <b>{{ $sign->approvedBy->name ?? '-' }}</b><br>
-                                <small>{{ strtoupper($sign->approvedBy?->karyawan?->divisi?->nama ?? '-') }}</small><br>
-                                <small style="color:#64748b;">{{ $sign->approved_at ? $sign->approved_at->format('d/m/Y
-                                    H:i') : 'Pending' }}</small>
-                            </td>
-                            <td>
-                                {{ $sign->supplier->name ?? '-' }}
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
         @endif
     </div>
 </div>
@@ -2812,7 +2843,183 @@ $status = $spk['status'] ?? 'draft';
     /* =========================================
            ADD DYNAMIC HEADER BUTTON
            ========================================= */
-    document.getElementById('btnAddHeader')?.addEventListener('click', function (e) {
+           /* =========================================================
+   EDIT KETERANGAN BAHAN BAKU
+   DOUBLE CLICK -> EDIT
+   ENTER -> SAVE
+   ========================================================= */
+
+$(document).on('dblclick', '.bahan-keterangan-edit', function () {
+
+    const td = this;
+
+    // WAJIB ambil dari data-transaksi-id
+    const transaksiId = td.dataset.transaksiId;
+
+    console.log('=== EDIT KETERANGAN ===');
+    console.log('Transaksi Stok ID:', transaksiId);
+    console.log('SPK ID:', td.dataset.spkId);
+
+    if (!transaksiId) {
+        Swal.fire({
+            icon: 'error',
+            title: 'ID transaksi tidak ditemukan',
+            text: 'Data TransaksiStok pada baris ini tidak memiliki ID.'
+        });
+
+        return;
+    }
+
+    // Jangan membuat editor kedua kali
+    if (td.querySelector('.bahan-keterangan-input')) {
+        return;
+    }
+
+    const oldValue =
+        td.querySelector('.keterangan-text')?.textContent.trim() || '';
+
+    td.innerHTML = '';
+
+    const input = document.createElement('input');
+
+    input.type = 'text';
+    input.className = 'form-control form-control-sm bahan-keterangan-input';
+    input.value = oldValue === '-' ? '' : oldValue;
+
+    td.appendChild(input);
+
+    input.focus();
+    input.select();
+
+    input.addEventListener('keydown', function (e) {
+
+        // ENTER = SAVE
+        if (e.key === 'Enter') {
+
+            e.preventDefault();
+
+            const value = input.value.trim();
+
+            saveBahanKeterangan(
+                td,
+                transaksiId,
+                value,
+                oldValue
+            );
+        }
+
+        // ESC = CANCEL
+        if (e.key === 'Escape') {
+
+            e.preventDefault();
+
+            td.innerHTML = `
+                <span class="keterangan-text">
+                    ${escapeHtml(oldValue || '-')}
+                </span>
+            `;
+        }
+    });
+});
+function saveBahanKeterangan(td, transaksiId, value, oldValue) {
+
+    console.log('SAVE TRANSAKSI STOK ID:', transaksiId);
+    console.log('KETERANGAN:', value);
+
+    // Loading circular
+    td.innerHTML = `
+        <div style="
+            display:flex;
+            align-items:center;
+            gap:8px;
+            min-height:32px;
+        ">
+            <span class="bahan-keterangan-spinner"></span>
+
+            <span style="
+                color:#6c757d;
+                font-size:12px;
+            ">
+                Menyimpan...
+            </span>
+        </div>
+    `;
+
+    fetch("{{ route('spk.bahan-baku.keterangan') }}", {
+
+        method: "POST",
+
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": document
+                .querySelector('meta[name="csrf-token"]')
+                .getAttribute('content'),
+
+            "Accept": "application/json"
+        },
+
+        body: JSON.stringify({
+
+            // INI ID TRANSAKSI_STOK
+            id: transaksiId,
+
+            keterangan: value
+        })
+    })
+
+    .then(response => {
+
+        if (!response.ok) {
+            throw new Error('HTTP ' + response.status);
+        }
+
+        return response.json();
+    })
+
+    .then(result => {
+
+        console.log('RESPONSE SAVE:', result);
+
+        td.innerHTML = `
+            <span class="keterangan-text">
+                ${escapeHtml(result.keterangan || '-')}
+            </span>
+        `;
+
+        td.style.backgroundColor = '#d1fae5';
+
+        setTimeout(() => {
+            td.style.backgroundColor = '';
+        }, 800);
+    })
+
+    .catch(error => {
+
+        console.error('SAVE KETERANGAN ERROR:', error);
+
+        td.innerHTML = `
+            <span class="keterangan-text">
+                ${escapeHtml(oldValue || '-')}
+            </span>
+        `;
+
+        Swal.fire({
+            icon: 'error',
+            title: 'Gagal menyimpan',
+            text: 'Keterangan gagal disimpan.'
+        });
+    });
+}
+function escapeHtml(value) {
+
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+    document.getElementById('btnAddHeader')?.addEventListener('click', function(e) {
         e.stopPropagation();
         const label = prompt('Nama Kolom Header Baru:');
         if (!label) return;
@@ -2852,14 +3059,14 @@ $status = $spk['status'] ?? 'draft';
     /* =========================================
        CHECKBOX & CLEAN UNCHECKED ITEMS
        ========================================= */
-    document.getElementById('checkAllItems')?.addEventListener('change', function (e) {
+    document.getElementById('checkAllItems')?.addEventListener('change', function(e) {
         document.querySelectorAll('.spk-item-check').forEach(cb => {
             cb.checked = e.target.checked;
         });
         toggleCleanButton();
     });
 
-    document.addEventListener('change', function (e) {
+    document.addEventListener('change', function(e) {
         if (e.target.classList.contains('spk-item-check')) {
             toggleCleanButton();
         }
@@ -2873,8 +3080,8 @@ $status = $spk['status'] ?? 'draft';
         }
     }
 
-    document.getElementById('btnCleanUnchecked')?.addEventListener('click', function () {
-        document.querySelectorAll('.spk-rowa').forEach(function (row) {
+    document.getElementById('btnCleanUnchecked')?.addEventListener('click', function() {
+        document.querySelectorAll('.spk-rowa').forEach(function(row) {
             const cb = row.querySelector('.spk-item-check');
             if (cb && !cb.checked) {
                 let next = row.nextElementSibling;
@@ -2899,7 +3106,7 @@ $status = $spk['status'] ?? 'draft';
     /* =========================================
        ADD & DELETE EXTRA SUB ROWS
        ========================================= */
-    document.addEventListener('click', function (e) {
+    document.addEventListener('click', function(e) {
         if (!e.target.classList.contains('btn-add-extra')) return;
 
         const parentRow = e.target.closest('.spk-rowa');
@@ -2945,9 +3152,9 @@ $status = $spk['status'] ?? 'draft';
             parentRow?.dataset.ppnEnabled ??
             (
                 document.getElementById('itemsTable')
-                    ?.dataset.ppnEnabled === '1'
-                    ? '1'
-                    : '0'
+                ?.dataset.ppnEnabled === '1' ?
+                '1' :
+                '0'
             );
 
         const newPpnCell =
@@ -2959,7 +3166,7 @@ $status = $spk['status'] ?? 'draft';
 
             newPpnCell.dataset.ppnRate =
                 document.getElementById('itemsTable')
-                    ?.dataset.ppnRate || '11';
+                ?.dataset.ppnRate || '11';
         }
 
         let lastRow = parentRow;
@@ -2984,7 +3191,7 @@ $status = $spk['status'] ?? 'draft';
         }
     });
 
-    document.addEventListener('click', function (e) {
+    document.addEventListener('click', function(e) {
         if (e.target.classList.contains('btn-delete-extra')) {
             const row = e.target.closest('.extra-row');
             let prev = row.previousElementSibling;
@@ -3039,7 +3246,7 @@ $status = $spk['status'] ?? 'draft';
     /* =========================================
        ROW DELETION WITH SWEETALERT
        ========================================= */
-    document.addEventListener('click', function (e) {
+    document.addEventListener('click', function(e) {
         if (e.target.classList.contains('delete-row')) {
             const row = e.target.closest('.spk-rowa');
             if (!row) return;
@@ -3224,9 +3431,9 @@ $status = $spk['status'] ?? 'draft';
         const ppnEnabled =
             globalPpnEnabled && rowPpnEnabled;
 
-        const ppnAmount = ppnEnabled
-            ? Math.round(baseTotal * (ppnRate / 100))
-            : 0;
+        const ppnAmount = ppnEnabled ?
+            Math.round(baseTotal * (ppnRate / 100)) :
+            0;
 
         const finalTotal =
             baseTotal + ppnAmount;
@@ -3315,7 +3522,7 @@ $status = $spk['status'] ?? 'draft';
        Enter / Shift + Enter
        ========================================================= */
 
-    (function () {
+    (function() {
 
         function editableCellsInRow(row) {
             return Array.from(
@@ -3351,7 +3558,7 @@ $status = $spk['status'] ?? 'draft';
         }
 
 
-        document.addEventListener('keydown', function (e) {
+        document.addEventListener('keydown', function(e) {
 
             const cell = e.target.closest(
                 '#spkItemsBody td.editable[contenteditable="true"]'
@@ -3628,7 +3835,7 @@ $status = $spk['status'] ?? 'draft';
     /* =========================================================
        FLOATING SPK ACTION
        ========================================================= */
-    (function () {
+    (function() {
 
         const panel =
             document.getElementById('spkFloatingActions');
@@ -3649,7 +3856,7 @@ $status = $spk['status'] ?? 'draft';
         let offsetY = 0;
 
 
-        handle.addEventListener('mousedown', function (e) {
+        handle.addEventListener('mousedown', function(e) {
 
             dragging = true;
 
@@ -3686,7 +3893,7 @@ $status = $spk['status'] ?? 'draft';
         });
 
 
-        document.addEventListener('mousemove', function (e) {
+        document.addEventListener('mousemove', function(e) {
 
             if (!dragging) return;
 
@@ -3732,7 +3939,7 @@ $status = $spk['status'] ?? 'draft';
         });
 
 
-        document.addEventListener('mouseup', function () {
+        document.addEventListener('mouseup', function() {
 
             if (!dragging) return;
 
@@ -3755,7 +3962,7 @@ $status = $spk['status'] ?? 'draft';
 
         handle.addEventListener(
             'touchstart',
-            function (e) {
+            function(e) {
 
                 const touch =
                     e.touches[0];
@@ -3785,14 +3992,15 @@ $status = $spk['status'] ?? 'draft';
                     'is-dragging'
                 );
 
-            },
-            { passive: true }
+            }, {
+                passive: true
+            }
         );
 
 
         handle.addEventListener(
             'touchmove',
-            function (e) {
+            function(e) {
 
                 const touch =
                     e.touches[0];
@@ -3834,14 +4042,15 @@ $status = $spk['status'] ?? 'draft';
                 panel.style.top =
                     y + 'px';
 
-            },
-            { passive: true }
+            }, {
+                passive: true
+            }
         );
 
 
         handle.addEventListener(
             'touchend',
-            function () {
+            function() {
 
                 panel.classList.remove(
                     'is-dragging'
@@ -3859,7 +4068,7 @@ $status = $spk['status'] ?? 'draft';
             .getElementById('btnJumpSignature')
             ?.addEventListener(
                 'click',
-                function () {
+                function() {
 
                     /*
                      * Cari beberapa kemungkinan
@@ -3921,7 +4130,7 @@ $status = $spk['status'] ?? 'draft';
                      */
                     target.classList.add('spk-jump-highlight');
 
-                    setTimeout(function () {
+                    setTimeout(function() {
                         target.classList.remove('spk-jump-highlight');
                     }, 1400);
 
@@ -3937,7 +4146,7 @@ $status = $spk['status'] ?? 'draft';
             .getElementById('floatingSaveSpk')
             ?.addEventListener(
                 'click',
-                function () {
+                function() {
 
                     /*
                      * Gunakan tombol Save existing.
@@ -3967,7 +4176,7 @@ $status = $spk['status'] ?? 'draft';
             .getElementById('floatingCloseSpk')
             ?.addEventListener(
                 'click',
-                function () {
+                function() {
 
                     /*
                      * Gunakan tombol Close existing
@@ -4005,9 +4214,8 @@ $status = $spk['status'] ?? 'draft';
 
         // Ambil satuan dari data SPK yang sudah ada.
         // Jika tidak ada, tetap PCS seperti behavior lama.
-        let initialUnit = @json(
-            strtoupper((string) (collect($spk['items'] ?? [])->pluck('satuan')->filter()->first() ?? 'PCS'))
-        );
+        let initialUnit = @json(strtoupper(
+                (string) (collect($spk['items'] ?? [])->pluck('satuan')->filter()->first() ?? 'PCS')));
 
         if (!initialUnit) initialUnit = 'PCS';
 
@@ -4076,6 +4284,7 @@ $status = $spk['status'] ?? 'draft';
                 }
             });
         }
+
         function closePopover() {
             document.querySelector('.qty-unit-popover')?.remove();
         }
@@ -4237,7 +4446,7 @@ $status = $spk['status'] ?? 'draft';
         initializePpnBaseTotals();
     }
 
-    document.addEventListener('input', function (e) {
+    document.addEventListener('input', function(e) {
         if (
             e.target.classList.contains('pcs') ||
             e.target.classList.contains('set') ||
@@ -4261,7 +4470,7 @@ $status = $spk['status'] ?? 'draft';
         }
     });
 
-    document.addEventListener('paste', function (e) {
+    document.addEventListener('paste', function(e) {
         if (e.target.closest('.pcs, .set, .harga')) {
             setTimeout(() => {
                 const row = e.target.closest('tr');
@@ -4283,12 +4492,12 @@ $status = $spk['status'] ?? 'draft';
     /* =========================================
        PPN STATE API
        ========================================= */
-    window.isPpnEnabled = function () {
+    window.isPpnEnabled = function() {
         const table = document.getElementById('itemsTable');
         return String(table?.dataset.ppnEnabled || '0') === '1';
     };
 
-    window.getPpnRate = function () {
+    window.getPpnRate = function() {
         const table = document.getElementById('itemsTable');
         const rate = Number(table?.dataset.ppnRate || 11);
         return Number.isFinite(rate) ? rate : 11;
@@ -4297,7 +4506,7 @@ $status = $spk['status'] ?? 'draft';
     /* =========================================
                PPN 11% CONTROL
                ========================================= */
-    (function () {
+    (function() {
         const table = document.getElementById('itemsTable');
         const btn = document.getElementById('btnAddPpn');
         const status = document.getElementById('ppnStatus');
@@ -4488,7 +4697,7 @@ $status = $spk['status'] ?? 'draft';
          */
         btn.addEventListener(
             'click',
-            function () {
+            function() {
 
                 const nextEnabled =
                     table.dataset.ppnEnabled !== '1';
@@ -4507,7 +4716,7 @@ $status = $spk['status'] ?? 'draft';
          */
         document.addEventListener(
             'click',
-            function (event) {
+            function(event) {
 
                 const removeBtn =
                     event.target.closest(
@@ -4622,9 +4831,9 @@ $status = $spk['status'] ?? 'draft';
                     undefined
                 ) {
                     row.dataset.ppnEnabled =
-                        table.dataset.ppnEnabled === '1'
-                            ? '1'
-                            : '0';
+                        table.dataset.ppnEnabled === '1' ?
+                        '1' :
+                        '0';
                 }
 
             });
@@ -4637,30 +4846,30 @@ $status = $spk['status'] ?? 'draft';
    SUPPLIER AUTOCOMPLETE
    ========================================= */
 
-const supInput =
-    document.getElementById('supplierInput');
+    const supInput =
+        document.getElementById('supplierInput');
 
-const supSuggest =
-    document.getElementById('supplierSuggest');
+    const supSuggest =
+        document.getElementById('supplierSuggest');
 
-let supTimer = null;
+    let supTimer = null;
 
-let supRequest = null;
+    let supRequest = null;
 
 
-/*
-|--------------------------------------------------------------------------
-| LOADING
-|--------------------------------------------------------------------------
-*/
+    /*
+    |--------------------------------------------------------------------------
+    | LOADING
+    |--------------------------------------------------------------------------
+    */
 
-function showSupplierLoading() {
+    function showSupplierLoading() {
 
-    if (!supSuggest) {
-        return;
-    }
+        if (!supSuggest) {
+            return;
+        }
 
-    supSuggest.innerHTML = `
+        supSuggest.innerHTML = `
         <div class="supplier-loading">
 
             <span class="supplier-loading-spinner"></span>
@@ -4672,320 +4881,316 @@ function showSupplierLoading() {
         </div>
     `;
 
-    supSuggest.style.display = 'block';
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| HIDE
-|--------------------------------------------------------------------------
-*/
-
-function hideSupplierSuggest() {
-
-    if (!supSuggest) {
-        return;
+        supSuggest.style.display = 'block';
     }
 
-    supSuggest.innerHTML = '';
 
-    supSuggest.style.display = 'none';
-}
+    /*
+    |--------------------------------------------------------------------------
+    | HIDE
+    |--------------------------------------------------------------------------
+    */
+
+    function hideSupplierSuggest() {
+
+        if (!supSuggest) {
+            return;
+        }
+
+        supSuggest.innerHTML = '';
+
+        supSuggest.style.display = 'none';
+    }
 
 
-/*
-|--------------------------------------------------------------------------
-| SUPPLIER INPUT
-|--------------------------------------------------------------------------
-*/
+    /*
+    |--------------------------------------------------------------------------
+    | SUPPLIER INPUT
+    |--------------------------------------------------------------------------
+    */
 
-supInput?.addEventListener(
-    'input',
-    function () {
+    supInput?.addEventListener(
+        'input',
+        function() {
 
-        const keyword =
-            supInput.innerText
+            const keyword =
+                supInput.innerText
                 .replace(/\u00a0/g, ' ')
                 .trim();
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | CANCEL TIMER
-        |--------------------------------------------------------------------------
-        */
+            /*
+            |--------------------------------------------------------------------------
+            | CANCEL TIMER
+            |--------------------------------------------------------------------------
+            */
 
-        clearTimeout(
-            supTimer
-        );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | CANCEL REQUEST SEBELUMNYA
-        |--------------------------------------------------------------------------
-        */
-
-        if (supRequest) {
-
-            supRequest.abort();
-
-            supRequest = null;
-        }
+            clearTimeout(
+                supTimer
+            );
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | KURANG DARI 2 KARAKTER
-        |--------------------------------------------------------------------------
-        */
+            /*
+            |--------------------------------------------------------------------------
+            | CANCEL REQUEST SEBELUMNYA
+            |--------------------------------------------------------------------------
+            */
 
-        if (
-            keyword.length < 2
-        ) {
+            if (supRequest) {
 
-            hideSupplierSuggest();
+                supRequest.abort();
 
-            return;
-        }
+                supRequest = null;
+            }
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | TAMPILKAN LOADING LANGSUNG
-        |--------------------------------------------------------------------------
-        */
+            /*
+            |--------------------------------------------------------------------------
+            | KURANG DARI 2 KARAKTER
+            |--------------------------------------------------------------------------
+            */
 
-        showSupplierLoading();
+            if (
+                keyword.length < 2
+            ) {
 
+                hideSupplierSuggest();
 
-        /*
-        |--------------------------------------------------------------------------
-        | DEBOUNCE 300ms
-        |--------------------------------------------------------------------------
-        */
-
-        supTimer =
-            setTimeout(
-                async function () {
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | ABORT CONTROLLER
-                    |--------------------------------------------------------------------------
-                    */
-
-                    supRequest =
-                        new AbortController();
+                return;
+            }
 
 
-                    try {
+            /*
+            |--------------------------------------------------------------------------
+            | TAMPILKAN LOADING LANGSUNG
+            |--------------------------------------------------------------------------
+            */
 
-                        /*
-                        |--------------------------------------------------------------------------
-                        | REQUEST
-                        |--------------------------------------------------------------------------
-                        */
+            showSupplierLoading();
 
-                        const response =
-                            await fetch(
-                                `/supplier/search?q=${encodeURIComponent(keyword)}`,
-                                {
-                                    signal:
-                                        supRequest.signal,
 
-                                    headers: {
-                                        'X-Requested-With':
-                                            'XMLHttpRequest',
+            /*
+            |--------------------------------------------------------------------------
+            | DEBOUNCE 300ms
+            |--------------------------------------------------------------------------
+            */
 
-                                        'Accept':
-                                            'application/json'
-                                    }
+            supTimer =
+                setTimeout(
+                    async function() {
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | ABORT CONTROLLER
+                            |--------------------------------------------------------------------------
+                            */
+
+                            supRequest =
+                                new AbortController();
+
+
+                            try {
+
+                                /*
+                                |--------------------------------------------------------------------------
+                                | REQUEST
+                                |--------------------------------------------------------------------------
+                                */
+
+                                const response =
+                                    await fetch(
+                                        `/supplier/search?q=${encodeURIComponent(keyword)}`, {
+                                            signal: supRequest.signal,
+
+                                            headers: {
+                                                'X-Requested-With': 'XMLHttpRequest',
+
+                                                'Accept': 'application/json'
+                                            }
+                                        }
+                                    );
+
+
+                                /*
+                                |--------------------------------------------------------------------------
+                                | CEK HTTP
+                                |--------------------------------------------------------------------------
+                                */
+
+                                if (
+                                    !response.ok
+                                ) {
+
+                                    throw new Error(
+                                        `HTTP ${response.status}`
+                                    );
                                 }
-                            );
 
 
-                        /*
-                        |--------------------------------------------------------------------------
-                        | CEK HTTP
-                        |--------------------------------------------------------------------------
-                        */
+                                /*
+                                |--------------------------------------------------------------------------
+                                | JSON
+                                |--------------------------------------------------------------------------
+                                */
 
-                        if (
-                            !response.ok
-                        ) {
-
-                            throw new Error(
-                                `HTTP ${response.status}`
-                            );
-                        }
+                                const data =
+                                    await response.json();
 
 
-                        /*
-                        |--------------------------------------------------------------------------
-                        | JSON
-                        |--------------------------------------------------------------------------
-                        */
+                                /*
+                                |--------------------------------------------------------------------------
+                                | BERSIHKAN LOADING
+                                |--------------------------------------------------------------------------
+                                */
 
-                        const data =
-                            await response.json();
-
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | BERSIHKAN LOADING
-                        |--------------------------------------------------------------------------
-                        */
-
-                        supSuggest.innerHTML =
-                            '';
+                                supSuggest.innerHTML =
+                                    '';
 
 
-                        /*
-                        |--------------------------------------------------------------------------
-                        | TIDAK ADA DATA
-                        |--------------------------------------------------------------------------
-                        */
+                                /*
+                                |--------------------------------------------------------------------------
+                                | TIDAK ADA DATA
+                                |--------------------------------------------------------------------------
+                                */
 
-                        if (
-                            !data ||
-                            data.length === 0
-                        ) {
+                                if (
+                                    !data ||
+                                    data.length === 0
+                                ) {
 
-                            supSuggest.innerHTML = `
+                                    supSuggest.innerHTML = `
                                 <div class="supplier-loading">
                                     Supplier tidak ditemukan
                                 </div>
                             `;
 
-                            supSuggest.style.display =
-                                'block';
+                                    supSuggest.style.display =
+                                        'block';
 
-                            return;
-                        }
-
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | RENDER RESULT
-                        |--------------------------------------------------------------------------
-                        */
-
-                        data.forEach(
-                            function (item) {
-
-                                const div =
-                                    document.createElement(
-                                        'div'
-                                    );
-
-
-                                div.className =
-                                    'suggest-item';
-
-
-                                div.textContent =
-                                    item.name;
+                                    return;
+                                }
 
 
                                 /*
                                 |--------------------------------------------------------------------------
-                                | CLICK SUPPLIER
+                                | RENDER RESULT
                                 |--------------------------------------------------------------------------
                                 */
 
-                                div.onclick =
-                                    function () {
+                                data.forEach(
+                                    function(item) {
 
-                                        supInput.innerText =
+                                        const div =
+                                            document.createElement(
+                                                'div'
+                                            );
+
+
+                                        div.className =
+                                            'suggest-item';
+
+
+                                        div.textContent =
                                             item.name;
 
 
                                         /*
                                         |--------------------------------------------------------------------------
-                                        | SET JENIS SUPPLIER
+                                        | CLICK SUPPLIER
                                         |--------------------------------------------------------------------------
                                         */
 
-                                        if (
-                                            item.jenis
-                                        ) {
+                                        div.onclick =
+                                            function() {
 
-                                            const type =
-                                                document.getElementById(
-                                                    'spk_type'
-                                                );
+                                                supInput.innerText =
+                                                    item.name;
 
 
-                                            if (type) {
+                                                /*
+                                                |--------------------------------------------------------------------------
+                                                | SET JENIS SUPPLIER
+                                                |--------------------------------------------------------------------------
+                                                */
 
-                                                type.value =
-                                                    item.jenis;
-                                            }
-                                        }
+                                                if (
+                                                    item.jenis
+                                                ) {
 
-
-                                        /*
-                                        |--------------------------------------------------------------------------
-                                        | HIDE RESULT
-                                        |--------------------------------------------------------------------------
-                                        */
-
-                                        hideSupplierSuggest();
-
-
-                                        /*
-                                        |--------------------------------------------------------------------------
-                                        | FOCUS
-                                        |--------------------------------------------------------------------------
-                                        */
-
-                                        supInput.focus();
-                                    };
+                                                    const type =
+                                                        document.getElementById(
+                                                            'spk_type'
+                                                        );
 
 
-                                supSuggest.appendChild(
-                                    div
+                                                    if (type) {
+
+                                                        type.value =
+                                                            item.jenis;
+                                                    }
+                                                }
+
+
+                                                /*
+                                                |--------------------------------------------------------------------------
+                                                | HIDE RESULT
+                                                |--------------------------------------------------------------------------
+                                                */
+
+                                                hideSupplierSuggest();
+
+
+                                                /*
+                                                |--------------------------------------------------------------------------
+                                                | FOCUS
+                                                |--------------------------------------------------------------------------
+                                                */
+
+                                                supInput.focus();
+                                            };
+
+
+                                        supSuggest.appendChild(
+                                            div
+                                        );
+                                    }
                                 );
-                            }
-                        );
 
 
-                        supSuggest.style.display =
-                            'block';
+                                supSuggest.style.display =
+                                    'block';
 
 
-                    } catch (error) {
+                            } catch (error) {
 
-                        /*
-                        |--------------------------------------------------------------------------
-                        | ABORT = ABAIKAN
-                        |--------------------------------------------------------------------------
-                        */
+                                /*
+                                |--------------------------------------------------------------------------
+                                | ABORT = ABAIKAN
+                                |--------------------------------------------------------------------------
+                                */
 
-                        if (
-                            error.name ===
-                            'AbortError'
-                        ) {
+                                if (
+                                    error.name ===
+                                    'AbortError'
+                                ) {
 
-                            return;
-                        }
-
-
-                        console.error(
-                            'Supplier search:',
-                            error
-                        );
+                                    return;
+                                }
 
 
-                        /*
-                        |--------------------------------------------------------------------------
-                        | ERROR MESSAGE
-                        |--------------------------------------------------------------------------
-                        */
+                                console.error(
+                                    'Supplier search:',
+                                    error
+                                );
 
-                        supSuggest.innerHTML = `
+
+                                /*
+                                |--------------------------------------------------------------------------
+                                | ERROR MESSAGE
+                                |--------------------------------------------------------------------------
+                                */
+
+                                supSuggest.innerHTML = `
                             <div class="supplier-loading"
                                  style="color:#dc2626;">
 
@@ -4995,77 +5200,77 @@ supInput?.addEventListener(
                         `;
 
 
-                        supSuggest.style.display =
-                            'block';
+                                supSuggest.style.display =
+                                    'block';
 
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | HILANGKAN ERROR SETELAH 2 DETIK
-                        |--------------------------------------------------------------------------
-                        */
-
-                        setTimeout(
-                            function () {
 
                                 /*
-                                | Jangan menghilangkan
-                                | hasil request baru.
+                                |--------------------------------------------------------------------------
+                                | HILANGKAN ERROR SETELAH 2 DETIK
+                                |--------------------------------------------------------------------------
                                 */
-                                if (
-                                    supSuggest &&
-                                    supSuggest.innerText
-                                        .includes(
-                                            'Gagal mencari supplier'
-                                        )
-                                ) {
 
-                                    hideSupplierSuggest();
-                                }
+                                setTimeout(
+                                    function() {
 
-                            },
-                            2000
-                        );
+                                        /*
+                                        | Jangan menghilangkan
+                                        | hasil request baru.
+                                        */
+                                        if (
+                                            supSuggest &&
+                                            supSuggest.innerText
+                                            .includes(
+                                                'Gagal mencari supplier'
+                                            )
+                                        ) {
 
+                                            hideSupplierSuggest();
+                                        }
 
-                    } finally {
-
-                        supRequest =
-                            null;
-                    }
-
-                },
-                300
-            );
-    }
-);
+                                    },
+                                    2000
+                                );
 
 
-/*
-|--------------------------------------------------------------------------
-| CLICK DI LUAR SUPPLIER
-|--------------------------------------------------------------------------
-*/
+                            } finally {
 
-document.addEventListener(
-    'click',
-    function (e) {
+                                supRequest =
+                                    null;
+                            }
 
-        if (
-            supInput &&
-            !supInput.contains(e.target) &&
-            supSuggest &&
-            !supSuggest.contains(e.target)
-        ) {
-
-            hideSupplierSuggest();
+                        },
+                        300
+                );
         }
-    }
-);
+    );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | CLICK DI LUAR SUPPLIER
+    |--------------------------------------------------------------------------
+    */
+
+    document.addEventListener(
+        'click',
+        function(e) {
+
+            if (
+                supInput &&
+                !supInput.contains(e.target) &&
+                supSuggest &&
+                !supSuggest.contains(e.target)
+            ) {
+
+                hideSupplierSuggest();
+            }
+        }
+    );
     /* =========================================
       ITEM SEARCH & ADD ROW
       ========================================= */
-    (function () {
+    (function() {
 
         const itemInput = document.getElementById('itemSearch');
         const itemSuggest = document.getElementById('itemSuggest');
@@ -5118,7 +5323,7 @@ document.addEventListener(
         | SEARCH
         |--------------------------------------------------------------------------
         */
-        itemInput.addEventListener('input', function () {
+        itemInput.addEventListener('input', function() {
 
             const keyword = getSearchKeyword();
 
@@ -5142,7 +5347,7 @@ document.addEventListener(
                 return;
             }
 
-            itemTimer = setTimeout(async function () {
+            itemTimer = setTimeout(async function() {
 
                 /*
                  * Batalkan request sebelumnya kalau masih berjalan
@@ -5219,7 +5424,7 @@ document.addEventListener(
                     /*
                      * Tampilkan hasil
                      */
-                    data.forEach(function (item) {
+                    data.forEach(function(item) {
 
                         const div = document.createElement('div');
 
@@ -5252,11 +5457,11 @@ document.addEventListener(
                          * PENTING:
                          * Klik hasil -> langsung masuk ke tabel
                          */
-                        div.addEventListener('mousedown', function (e) {
+                        div.addEventListener('mousedown', function(e) {
                             e.preventDefault();
                         });
 
-                        div.addEventListener('click', function (e) {
+                        div.addEventListener('click', function(e) {
 
                             e.preventDefault();
                             e.stopPropagation();
@@ -5314,7 +5519,7 @@ document.addEventListener(
         | ENTER = PILIH HASIL PERTAMA
         |--------------------------------------------------------------------------
         */
-        itemInput.addEventListener('keydown', function (e) {
+        itemInput.addEventListener('keydown', function(e) {
 
             if (e.key !== 'Enter') return;
 
@@ -5346,12 +5551,12 @@ document.addEventListener(
         | UPDATE SUGGESTION INDEX
         |--------------------------------------------------------------------------
         */
-        const observer = new MutationObserver(function () {
+        const observer = new MutationObserver(function() {
 
             const results =
                 itemSuggest.querySelectorAll('.suggest-item');
 
-            results.forEach(function (el, index) {
+            results.forEach(function(el, index) {
                 el.dataset.itemIndex = index;
             });
 
@@ -5367,7 +5572,7 @@ document.addEventListener(
         | KLIK DI LUAR
         |--------------------------------------------------------------------------
         */
-        document.addEventListener('mousedown', function (e) {
+        document.addEventListener('mousedown', function(e) {
 
             if (
                 !itemInput.contains(e.target) &&
@@ -5422,7 +5627,7 @@ document.addEventListener(
 
             document
                 .querySelectorAll('.spk-dynamic-header')
-                .forEach(function (th) {
+                .forEach(function(th) {
 
                     dynamicCols += `
                     <td
@@ -5529,12 +5734,12 @@ document.addEventListener(
                     }).join('')
                     : (
                         item.photo
-                            ? `
-                            <img
-                                src="${escapeHtml(item.photo)}"
-                                class="preview-img"
-                                onerror="this.style.display='none'">
-                          `
+                            ? ` <
+                img
+            src = "${escapeHtml(item.photo)}"
+            class = "preview-img"
+            onerror = "this.style.display='none'" >
+                `
                             : ''
                     )
                 }
@@ -5705,7 +5910,7 @@ document.addEventListener(
 
             if (namaCell) {
 
-                requestAnimationFrame(function () {
+                requestAnimationFrame(function() {
 
                     namaCell.focus();
 
@@ -5734,7 +5939,7 @@ document.addEventListener(
             | SCROLL KE ROW BARU
             |--------------------------------------------------------------------------
             */
-            requestAnimationFrame(function () {
+            requestAnimationFrame(function() {
 
                 tr.scrollIntoView({
                     behavior: 'smooth',
@@ -5757,7 +5962,7 @@ document.addEventListener(
                 e.preventDefault();
                 let blob = item.getAsFile();
                 let reader = new FileReader();
-                reader.onload = function (event) {
+                reader.onload = function(event) {
                     let img = document.createElement('img');
                     img.src = event.target.result;
                     img.className = 'preview-img';
@@ -5786,7 +5991,7 @@ document.addEventListener(
     /* =========================================
        PAYMENT REQUEST & CALCULATIONS
        ========================================= */
-    document.getElementById('btnAddPayment')?.addEventListener('click', function () {
+    document.getElementById('btnAddPayment')?.addEventListener('click', function() {
         let tr = document.createElement('tr');
         let paymentId = 'pay_' + Date.now();
         tr.classList.add('payment-row');
@@ -5869,24 +6074,24 @@ document.addEventListener(
             const amount =
                 (
                     row.querySelector('.total-amount')
-                        ?.innerText || ''
+                    ?.innerText || ''
                 )
-                    .replace(/\./g, '')
-                    .trim();
+                .replace(/\./g, '')
+                .trim();
 
             const date =
                 row.querySelector('.date-isian')
-                    ?.innerText
-                    .trim() || '';
+                ?.innerText
+                .trim() || '';
 
             const note =
                 row.querySelector('.payment-type')
-                    ?.value || '';
+                ?.value || '';
 
             const noteTambahan =
                 row.querySelector('.note-tambahan')
-                    ?.innerText
-                    .trim() || '';
+                ?.innerText
+                .trim() || '';
 
             const isRequest =
                 checkbox?.checked || false;
@@ -6031,15 +6236,15 @@ document.addEventListener(
 
             const response = await fetch(
                 '/payment-request/store', {
-                method: 'POST',
+                    method: 'POST',
 
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
 
-                body: JSON.stringify(payload)
-            }
+                    body: JSON.stringify(payload)
+                }
             );
 
 
@@ -6102,8 +6307,7 @@ document.addEventListener(
                 icon: 'success',
 
                 title: isRequest ?
-                    'Payment request dibuat' :
-                    'Payment request dibatalkan'
+                    'Payment request dibuat' : 'Payment request dibatalkan'
             });
 
 
@@ -6164,7 +6368,7 @@ document.addEventListener(
        PAYMENT REQUEST CHECKBOX EVENT
        ========================================================= */
 
-    document.addEventListener('change', function (e) {
+    document.addEventListener('change', function(e) {
 
         if (
             !e.target.classList.contains(
@@ -6259,14 +6463,14 @@ document.addEventListener(
         if (container) container.innerHTML = summary;
     }
 
-    document.addEventListener('change', function (e) {
+    document.addEventListener('change', function(e) {
         if (e.target.classList.contains('payment-type') || e.target.classList.contains(
-            'payment-request-check')) {
+                'payment-request-check')) {
             updatePaymentSummary();
         }
     });
 
-    document.addEventListener('input', function (e) {
+    document.addEventListener('input', function(e) {
         if (e.target.classList.contains('total-amount')) {
             updatePaymentSummary();
         }
@@ -6275,7 +6479,7 @@ document.addEventListener(
     /* =========================================
        SAVE SPK PAYLOAD
        ========================================= */
-    document.getElementById('btnSaveSpk')?.addEventListener('click', function () {
+    document.getElementById('btnSaveSpk')?.addEventListener('click', function() {
         let items = [];
         let payments = [];
         const validation = validatePaymentLimit();
@@ -6347,7 +6551,7 @@ document.addEventListener(
                 extraData.ppn_rate =
                     Number(
                         document.getElementById('itemsTable')
-                            ?.dataset.ppnRate || 11
+                        ?.dataset.ppnRate || 11
                     );
                 customColumns.push(extraData);
                 next = next.nextElementSibling;
@@ -6370,13 +6574,11 @@ document.addEventListener(
                 // PPN per row:
                 // tidak mengubah field lama, hanya menambahkan
                 // state agar pengecualian per item dapat diketahui.
-                ppn_enabled:
-                    row.dataset.ppnEnabled === '1',
-                ppn_rate:
-                    Number(
-                        document.getElementById('itemsTable')
-                            ?.dataset.ppnRate || 11
-                    ),
+                ppn_enabled: row.dataset.ppnEnabled === '1',
+                ppn_rate: Number(
+                    document.getElementById('itemsTable')
+                    ?.dataset.ppnRate || 11
+                ),
                 images: images,
                 catatan: noteBox ? extractNoteData(noteBox) : {
                     remark: '',
@@ -6436,16 +6638,17 @@ document.addEventListener(
             document.getElementById('itemsTable')?.dataset.ppnRate
         );
         console.log('PAYLOAD:', payload);
-        let url = mode === 'edit' ? "{{ url('/spk/update') }}/" + spkId : "{{ url('/spk/create') }}/" + spkId;
+        let url = mode === 'edit' ? "{{ url('/spk/update') }}/" + spkId : "{{ url('/spk/create') }}/" +
+            spkId;
 
         fetch(url, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRF-TOKEN": "{{ csrf_token() }}"
-            },
-            body: JSON.stringify(payload)
-        })
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-TOKEN": "{{ csrf_token() }}"
+                },
+                body: JSON.stringify(payload)
+            })
             .then(res => res.json())
             .then(res => {
                 if (res.success) {
@@ -6563,7 +6766,7 @@ document.addEventListener(
     /* =========================================
        PRINT PREVIEW - SAME LAYOUT AS INDEX.BLADE (8)
        ========================================= */
-    document.getElementById('previewBtn')?.addEventListener('click', function () {
+    document.getElementById('previewBtn')?.addEventListener('click', function() {
         const data = collectSpkData();
         renderPrevieww(data);
     });
@@ -7089,17 +7292,17 @@ document.addEventListener(
                 no_spk: cleanText(document.querySelector('.no-spk')?.innerText),
                 no_po: cleanText(document.querySelector('.no-po')?.innerText),
                 nama_supplier: cleanText(document.getElementById('supplierInput')?.innerText),
-                tgl_terima: typeof getSpkDateValue === 'function'
-                    ? cleanText(getSpkDateValue('.tgl-terima'))
-                    : cleanText(document.querySelector('.tgl-terima')?.innerText),
-                tgl_selesai: typeof getSpkDateValue === 'function'
-                    ? cleanText(getSpkDateValue('.tgl-selesai'))
-                    : cleanText(document.querySelector('.tgl-selesai')?.innerText)
+                tgl_terima: typeof getSpkDateValue === 'function' ?
+                    cleanText(getSpkDateValue('.tgl-terima')) :
+                    cleanText(document.querySelector('.tgl-terima')?.innerText),
+                tgl_selesai: typeof getSpkDateValue === 'function' ?
+                    cleanText(getSpkDateValue('.tgl-selesai')) :
+                    cleanText(document.querySelector('.tgl-selesai')?.innerText)
             },
             items: [],
             payments: [],
             qtyUnit: (document.getElementById('qtyUnit')?.value ||
-                document.getElementById('qtyUnitLabel')?.innerText || 'PCS')
+                    document.getElementById('qtyUnitLabel')?.innerText || 'PCS')
                 .toString()
                 .trim()
                 .toUpperCase() || 'PCS'
@@ -7171,19 +7374,19 @@ document.addEventListener(
         let number;
 
         if (text.includes('.') && text.includes(',')) {
-            number = text.lastIndexOf(',') > text.lastIndexOf('.')
-                ? parseFloat(text.replace(/\./g, '').replace(',', '.'))
-                : parseFloat(text.replace(/,/g, ''));
+            number = text.lastIndexOf(',') > text.lastIndexOf('.') ?
+                parseFloat(text.replace(/\./g, '').replace(',', '.')) :
+                parseFloat(text.replace(/,/g, ''));
         } else if (text.includes('.')) {
             const parts = text.split('.');
-            number = parts.length > 2
-                ? parseFloat(text.replace(/\./g, ''))
-                : parseFloat(text);
+            number = parts.length > 2 ?
+                parseFloat(text.replace(/\./g, '')) :
+                parseFloat(text);
         } else if (text.includes(',')) {
             const parts = text.split(',');
-            number = parts.length === 2 && parts[1].length <= 2
-                ? parseFloat(text.replace(',', '.'))
-                : parseFloat(text.replace(/,/g, ''));
+            number = parts.length === 2 && parts[1].length <= 2 ?
+                parseFloat(text.replace(',', '.')) :
+                parseFloat(text.replace(/,/g, ''));
         } else {
             number = parseFloat(text);
         }
@@ -7217,8 +7420,8 @@ document.addEventListener(
 
         const index =
             type === 'made' ? 0 :
-                type === 'checked' ? 1 :
-                    type === 'approved' ? 2 : -1;
+            type === 'checked' ? 1 :
+            type === 'approved' ? 2 : -1;
 
         if (index < 0) return '-';
 
@@ -7431,9 +7634,9 @@ document.addEventListener(
                             <tbody>
         `;
 
-        const paymentRows = data.payments.length
-            ? data.payments
-            : [{}, {}, {}, {}];
+        const paymentRows = data.payments.length ?
+            data.payments :
+            [{}, {}, {}, {}];
 
         paymentRows.slice(0, 5).forEach(pay => {
             html += `
@@ -7552,7 +7755,7 @@ document.addEventListener(
         }
     }
 
-    document.getElementById('copyJpegBtn')?.addEventListener('click', async function () {
+    document.getElementById('copyJpegBtn')?.addEventListener('click', async function() {
         const btn = this;
         const originalText = btn.innerHTML;
 
@@ -7599,7 +7802,7 @@ document.addEventListener(
         }
     });
 
-    document.getElementById('screenshotSpkBtn')?.addEventListener('click', async function () {
+    document.getElementById('screenshotSpkBtn')?.addEventListener('click', async function() {
         const btn = this;
         const originalText = btn.innerHTML;
 
@@ -7798,8 +8001,8 @@ document.addEventListener(
             item.rows.forEach(detail => {
                 grandTotal += parseFloat(
                     String(detail.total || 0)
-                        .replace(/\./g, '')
-                        .replace(/,/g, '')
+                    .replace(/\./g, '')
+                    .replace(/,/g, '')
                 ) || 0;
             });
         });
@@ -8137,7 +8340,7 @@ document.addEventListener(
     /* =========================================
        TIMELINE RIWAYAT MODAL
        ========================================= */
-    document.getElementById('btnRiwayatSpk')?.addEventListener('click', function () {
+    document.getElementById('btnRiwayatSpk')?.addEventListener('click', function() {
         const spkId = document.getElementById('spk_id')?.value;
         if (!spkId) {
             Swal.fire({
@@ -8158,7 +8361,7 @@ document.addEventListener(
                         if (typeof row === 'string') {
                             try {
                                 row = JSON.parse(row);
-                            } catch (e) { }
+                            } catch (e) {}
                         }
                         html += `
                                 <div style="display:flex; justify-content:flex-end; margin-bottom:12px;">
@@ -8181,7 +8384,7 @@ document.addEventListener(
        SIGNATURE / APPROVAL
        Same workflow as index.blade (8)
        ========================================= */
-    document.addEventListener('click', function (e) {
+    document.addEventListener('click', function(e) {
         const btn = e.target.closest('.btn-sign');
         if (!btn) return;
 
@@ -8217,17 +8420,17 @@ document.addEventListener(
             if (!result.isConfirmed) return;
 
             fetch(`/spk/signature/${id}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
-                        ?.content || ''
-                },
-                body: JSON.stringify({
-                    type: type,
-                    remark: result.value || ''
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
+                            ?.content || ''
+                    },
+                    body: JSON.stringify({
+                        type: type,
+                        remark: result.value || ''
+                    })
                 })
-            })
                 .then(async response => {
                     const data = await response.json().catch(() => ({}));
                     if (!response.ok) {
@@ -8272,12 +8475,12 @@ document.addEventListener(
        EXCEL-STYLE KEYBOARD & NAVIGATION
        ========================================= */
 
-    (function () {
+    (function() {
         function isEditableCell(el) {
             return el && el.isContentEditable && !el.classList.contains('image-box') && !!el.closest('.spk-table');
         }
 
-        document.addEventListener('keydown', function (e) {
+        document.addEventListener('keydown', function(e) {
             const cell = e.target.closest('.spk-table td.editable');
             if (!cell || !isEditableCell(cell)) return;
 
@@ -8303,7 +8506,7 @@ document.addEventListener(
     /* =========================================================
    MULTI CELL SELECT + DELETE
    ========================================================= */
-    (function () {
+    (function() {
 
         let selectionStartCell = null;
         let selectionEndCell = null;
@@ -8463,7 +8666,7 @@ document.addEventListener(
 
         document.addEventListener(
             'click',
-            function (e) {
+            function(e) {
 
                 const cell = e.target.closest(
                     '#spkItemsBody td.editable[contenteditable="true"]'
@@ -8512,7 +8715,7 @@ document.addEventListener(
 
         document.addEventListener(
             'mousedown',
-            function (e) {
+            function(e) {
 
                 const cell = e.target.closest(
                     '#spkItemsBody td.editable[contenteditable="true"]'
@@ -8544,7 +8747,7 @@ document.addEventListener(
 
         document.addEventListener(
             'mouseover',
-            function (e) {
+            function(e) {
 
                 if (!isDragging) return;
 
@@ -8567,7 +8770,7 @@ document.addEventListener(
 
         document.addEventListener(
             'mouseup',
-            function () {
+            function() {
 
                 isDragging = false;
 
@@ -8583,7 +8786,7 @@ document.addEventListener(
 
         document.addEventListener(
             'keydown',
-            function (e) {
+            function(e) {
 
                 if (
                     e.key !== 'Delete' &&
@@ -8621,7 +8824,7 @@ document.addEventListener(
 
 
                 selectedCells.forEach(
-                    function (cell) {
+                    function(cell) {
 
                         /*
                          * Kosongkan isi cell.
@@ -8672,7 +8875,7 @@ document.addEventListener(
                     .querySelectorAll(
                         '#spkItemsBody tr.spk-rowa, #spkItemsBody tr.extra-row'
                     )
-                    .forEach(function (row) {
+                    .forEach(function(row) {
 
                         if (
                             typeof hitungTotal ===
@@ -8726,7 +8929,7 @@ document.addEventListener(
 
         document.addEventListener(
             'mousedown',
-            function (e) {
+            function(e) {
 
                 if (
                     !e.target.closest(
@@ -8748,7 +8951,7 @@ document.addEventListener(
     /* =========================================
        DATE PICKER HELPER
        ========================================= */
-    (function () {
+    (function() {
         function pad2(val) {
             return String(val).padStart(2, '0');
         }
@@ -8767,7 +8970,7 @@ document.addEventListener(
             return year + '-' + pad2(m[2]) + '-' + pad2(m[1]);
         }
 
-        window.openSpkDatePicker = function (displayInput) {
+        window.openSpkDatePicker = function(displayInput) {
             const wrap = displayInput.closest('.spk-date-wrap');
             const picker = wrap?.querySelector('.spk-date-picker');
             if (!picker) return;
@@ -8776,13 +8979,13 @@ document.addEventListener(
                     picker.showPicker();
                     return;
                 }
-            } catch (err) { }
+            } catch (err) {}
             picker.style.pointerEvents = 'auto';
             picker.click();
             picker.style.pointerEvents = 'none';
         };
 
-        document.addEventListener('change', function (event) {
+        document.addEventListener('change', function(event) {
             const picker = event.target.closest('.spk-date-picker');
             if (!picker) return;
             const wrap = picker.closest('.spk-date-wrap');
@@ -8791,7 +8994,7 @@ document.addEventListener(
             display.value = isoToDisplay(picker.value);
         });
 
-        window.getSpkDateValue = function (selector) {
+        window.getSpkDateValue = function(selector) {
             const picker = document.querySelector(selector + ' .spk-date-picker');
             if (picker?.value) return picker.value;
             const display = document.querySelector(selector + ' .spk-date-display');
@@ -8808,7 +9011,7 @@ document.addEventListener(
        - Nilai yang dikirim tetap angka tanpa titik
        - Tidak mengubah fungsi Payment Request / Summary
        ========================================================= */
-    (function () {
+    (function() {
         function digitsOnly(value) {
             return String(value ?? '').replace(/[^0-9]/g, '');
         }
@@ -8911,7 +9114,7 @@ document.addEventListener(
         }
 
         // Saat mengetik: langsung tampil 1.000 / 10.000 / 120.000 / dst.
-        document.addEventListener('input', function (e) {
+        document.addEventListener('input', function(e) {
             const cell = e.target.closest('.payment-row .total-amount');
             if (!cell) return;
 
@@ -8919,18 +9122,18 @@ document.addEventListener(
         }, true);
 
         // Saat paste angka mentah.
-        document.addEventListener('paste', function (e) {
+        document.addEventListener('paste', function(e) {
             const cell = e.target.closest('.payment-row .total-amount');
             if (!cell) return;
 
-            setTimeout(function () {
+            setTimeout(function() {
                 formatPaymentCell(cell, true);
                 updatePaymentSummary();
             }, 0);
         }, true);
 
         // Saat keluar dari cell, pastikan tampilannya rapi.
-        document.addEventListener('blur', function (e) {
+        document.addEventListener('blur', function(e) {
             const cell = e.target.closest('.payment-row .total-amount');
             if (!cell) return;
 
@@ -8962,7 +9165,7 @@ document.addEventListener(
    REALTIME MOUSE CURSOR - PUSHER
    ========================================================= */
 
-    (function () {
+    (function() {
 
         'use strict';
 
@@ -8980,10 +9183,10 @@ document.addEventListener(
         */
 
         const currentUserId =
-            @json(auth() -> id());
+            @json(auth()->id());
 
         const currentUserName =
-            @json(auth() -> user() -> name ?? 'User');
+            @json(auth()->user()->name ?? 'User');
 
 
         /*
@@ -9011,23 +9214,20 @@ document.addEventListener(
 
         const pusher =
             new Pusher(
-                pusherKey,
-                {
+                pusherKey, {
                     cluster: pusherCluster || 'ap1',
 
                     forceTLS: true,
 
-                    authEndpoint:
-                        @json(route('pusher.auth')),
+                    authEndpoint: @json(route('pusher.auth')),
 
                     auth: {
                         headers: {
-                            'X-CSRF-TOKEN':
-                                document
-                                    .querySelector(
-                                        'meta[name="csrf-token"]'
-                                    )
-                                    ?.getAttribute('content') || ''
+                            'X-CSRF-TOKEN': document
+                                .querySelector(
+                                    'meta[name="csrf-token"]'
+                                )
+                                ?.getAttribute('content') || ''
                         }
                     }
                 }
@@ -9047,21 +9247,21 @@ document.addEventListener(
         const channel =
             pusher.subscribe(channelName);
 
-        pusher.connection.bind('connected', function () {
+        pusher.connection.bind('connected', function() {
             console.log(
                 '[PUSHER] Connected:',
                 pusher.connection.socket_id
             );
         });
 
-        pusher.connection.bind('error', function (err) {
+        pusher.connection.bind('error', function(err) {
             console.error(
                 '[PUSHER] Connection error:',
                 err
             );
         });
 
-        channel.bind('pusher:subscription_succeeded', function (members) {
+        channel.bind('pusher:subscription_succeeded', function(members) {
 
             console.log(
                 '[PUSHER] Presence connected'
@@ -9072,7 +9272,7 @@ document.addEventListener(
                 members.count
             );
 
-            members.each(function (member) {
+            members.each(function(member) {
 
                 console.log(
                     '[PUSHER] Member:',
@@ -9106,8 +9306,7 @@ document.addEventListener(
         |--------------------------------------------------------------------------
         */
 
-        const remoteCursors =
-            {};
+        const remoteCursors = {};
 
 
         /*
@@ -9312,7 +9511,7 @@ document.addEventListener(
 
         document.addEventListener(
             'mousemove',
-            function (event) {
+            function(event) {
 
                 const now =
                     Date.now();
@@ -9383,13 +9582,10 @@ document.addEventListener(
                         y: y
                     });
                     channel.trigger(
-                        'client-spk-cursor',
-                        {
-                            user_id:
-                                currentUserId,
+                        'client-spk-cursor', {
+                            user_id: currentUserId,
 
-                            name:
-                                currentUserName,
+                            name: currentUserName,
 
                             x: x,
 
@@ -9406,8 +9602,7 @@ document.addEventListener(
 
                 }
 
-            },
-            {
+            }, {
                 passive: true
             }
         );
@@ -9421,7 +9616,7 @@ document.addEventListener(
 
         channel.bind(
             'client-spk-cursor',
-            function (data) {
+            function(data) {
 
                 console.log(
                     '[PUSHER] Cursor received:',
@@ -9442,7 +9637,7 @@ document.addEventListener(
 
         channel.bind(
             'pusher:member_added',
-            function (member) {
+            function(member) {
 
                 /*
                 | Tidak perlu membuat cursor.
@@ -9467,7 +9662,7 @@ document.addEventListener(
 
         channel.bind(
             'pusher:member_removed',
-            function (member) {
+            function(member) {
 
                 removeCursor(
                     String(member.id)
@@ -9487,7 +9682,7 @@ document.addEventListener(
         */
 
         setInterval(
-            function () {
+            function() {
 
                 const now =
                     Date.now();
@@ -9496,11 +9691,11 @@ document.addEventListener(
                 Object.keys(
                     remoteCursors
                 ).forEach(
-                    function (userId) {
+                    function(userId) {
 
                         const state =
                             remoteCursors[
-                            userId
+                                userId
                             ];
 
 
@@ -9585,7 +9780,7 @@ document.addEventListener(
             liveMessageModal.classList.add('show');
             liveMessageModal.setAttribute('aria-hidden', 'false');
 
-            setTimeout(function () {
+            setTimeout(function() {
                 liveMessageInput.focus();
             }, 30);
         }
@@ -9621,7 +9816,7 @@ document.addEventListener(
 
             if (!force && now - liveMessageLastSentAt < LIVE_MESSAGE_SEND_INTERVAL) {
                 clearTimeout(liveMessageTypingTimer);
-                liveMessageTypingTimer = setTimeout(function () {
+                liveMessageTypingTimer = setTimeout(function() {
                     sendLiveMessageTyping(false);
                 }, LIVE_MESSAGE_SEND_INTERVAL - (now - liveMessageLastSentAt));
                 return;
@@ -9633,8 +9828,7 @@ document.addEventListener(
 
             try {
                 channel.trigger(
-                    'client-spk-live-message',
-                    {
+                    'client-spk-live-message', {
                         spk_id: String(spkId),
                         user_id: String(currentUserId),
                         name: currentUserName,
@@ -9656,8 +9850,7 @@ document.addEventListener(
 
             try {
                 channel.trigger(
-                    'client-spk-live-message',
-                    {
+                    'client-spk-live-message', {
                         spk_id: String(spkId),
                         user_id: String(currentUserId),
                         name: currentUserName,
@@ -9687,7 +9880,7 @@ document.addEventListener(
 
             const message =
                 String(data.message ?? '')
-                    .slice(0, LIVE_MESSAGE_MAX_LENGTH);
+                .slice(0, LIVE_MESSAGE_MAX_LENGTH);
 
             if (!data.typing || !message.length) {
                 if (liveMessageRemoteTimer) {
@@ -9719,7 +9912,7 @@ document.addEventListener(
                 clearTimeout(liveMessageRemoteTimer);
             }
 
-            liveMessageRemoteTimer = setTimeout(function () {
+            liveMessageRemoteTimer = setTimeout(function() {
                 if (liveMessageLive) {
                     liveMessageLive.classList.remove('show');
                 }
@@ -9731,7 +9924,7 @@ document.addEventListener(
         */
         channel.bind(
             'client-spk-live-message',
-            function (data) {
+            function(data) {
                 console.log(
                     '[PUSHER] Live message received:',
                     data
@@ -9744,7 +9937,7 @@ document.addEventListener(
         /*
         | SHORTCUT CTRL + SHIFT + Z
         */
-        document.addEventListener('keydown', function (event) {
+        document.addEventListener('keydown', function(event) {
             if (
                 event.ctrlKey &&
                 event.shiftKey &&
@@ -9768,7 +9961,7 @@ document.addEventListener(
         /*
         | INPUT REALTIME
         */
-        liveMessageInput?.addEventListener('input', function () {
+        liveMessageInput?.addEventListener('input', function() {
             sendLiveMessageTyping(false);
         });
 
@@ -9778,18 +9971,18 @@ document.addEventListener(
         | Pesan terakhir dikirim lagi sebagai final message.
         | User lain sudah melihatnya realtime saat mengetik.
         */
-        liveMessageSend?.addEventListener('click', function () {
+        liveMessageSend?.addEventListener('click', function() {
             sendLiveMessageTyping(true);
             sendLiveMessageStopped();
             closeLiveMessage();
         });
 
-        liveMessageClose?.addEventListener('click', function () {
+        liveMessageClose?.addEventListener('click', function() {
             sendLiveMessageStopped();
             closeLiveMessage();
         });
 
-        liveMessageModal?.addEventListener('click', function (event) {
+        liveMessageModal?.addEventListener('click', function(event) {
             if (event.target === liveMessageModal) {
                 sendLiveMessageStopped();
                 closeLiveMessage();
@@ -9799,7 +9992,7 @@ document.addEventListener(
         /*
         | Saat window kehilangan fokus, hentikan indikator typing.
         */
-        window.addEventListener('blur', function () {
+        window.addEventListener('blur', function() {
             if (liveMessageModal?.classList.contains('show')) {
                 sendLiveMessageStopped();
             }
@@ -9814,13 +10007,13 @@ document.addEventListener(
 
         window.addEventListener(
             'beforeunload',
-            function () {
+            function() {
 
                 try {
                     pusher.unsubscribe(
                         channelName
                     );
-                } catch (e) { }
+                } catch (e) {}
 
             }
         );

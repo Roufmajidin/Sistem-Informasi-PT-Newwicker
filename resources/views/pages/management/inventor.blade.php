@@ -236,13 +236,26 @@
                                         <td>
 
                                             {{-- Selain Admin Produksi dan bukan John/Aji --}}
-                                            @if (auth()->user()->role != 'admin produksi' && !in_array(auth()->user()->email, ['john@gmail.com', 'aji@gmail.com']))
-                                                @if ($spk['status'] == 'draft')
-                                                    <button type="button" class="btn btn-success btn-sm btn-ajukan"
-                                                        data-id="{{ $spk['id'] }}" data-spk="{{ $spk['no_spk'] }}">
-                                                        Ajukan
-                                                    </button>
-                                                @endif
+                                            @php
+                                                $userEmail = strtolower(trim((string) auth()->user()->email));
+                                                $userRole = strtolower(trim((string) auth()->user()->role));
+                                                $spkStatus = strtolower(trim((string) ($spk['status'] ?? '')));
+                                                $isNur = $userEmail === 'nurk@gmail.com';
+
+                                                // Nur boleh mengajukan SPK draft.
+                                                // User lain tetap mengikuti aturan lama.
+                                                $canAjukan = $isNur
+                                                    || (
+                                                        $userRole !== 'admin produksi'
+                                                        && !in_array($userEmail, ['john@gmail.com', 'aji@gmail.com'], true)
+                                                    );
+                                            @endphp
+
+                                            @if ($canAjukan && $spkStatus === 'draft')
+                                                <button type="button" class="btn btn-success btn-sm btn-ajukan"
+                                                    data-id="{{ $spk['id'] }}" data-spk="{{ $spk['no_spk'] }}">
+                                                    Ajukan
+                                                </button>
                                             @endif
 
                                             {{-- Detail boleh untuk semua selain Admin Produksi, termasuk John & Aji --}}
@@ -407,6 +420,58 @@
             </div>
         </div>
     @endsection
+
+    <style>
+        /* Menu yang muncul saat klik kanan baris SPK */
+        .spk-row-menu {
+            position: fixed;
+            z-index: 99999;
+            min-width: 150px;
+            padding: 5px;
+            background: #fff;
+            border: 1px solid #d9dee5;
+            border-radius: 7px;
+            box-shadow: 0 8px 22px rgba(0, 0, 0, .18);
+        }
+
+        .spk-row-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 8px 11px;
+            color: #263445;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 5px;
+            white-space: nowrap;
+        }
+
+
+        .spk-row-menu-item {
+            width: 100%;
+            border: 0;
+            background: transparent;
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .spk-row-menu-item:hover {
+            background: #f1f5f9;
+            color: #0d6efd;
+            text-decoration: none;
+        }
+
+        .spk-row-menu-item i {
+            width: 16px;
+            text-align: center;
+        }
+
+        .inventor-table tbody tr.active-row > td {
+            background-color: #fff3cd !important;
+        }
+    </style>
+
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 
@@ -630,22 +695,22 @@
     ${
         !hideHarga
         ? `
-                                                                                                    <td>
-                                                                                                        ${
-                                                                                                            hargaInventory
-                                                                                                                ? 'Rp ' + hargaInventory.toLocaleString('id-ID')
-                                                                                                                : '-'
-                                                                                                        }
-                                                                                                    </td>
+                                                                                                                            <td>
+                                                                                                                                ${
+                                                                                                                                    hargaInventory
+                                                                                                                                        ? 'Rp ' + hargaInventory.toLocaleString('id-ID')
+                                                                                                                                        : '-'
+                                                                                                                                }
+                                                                                                                            </td>
 
-                                                                                                    <td>
-                                                                                                        ${hargaViviCol}
-                                                                                                    </td>
+                                                                                                                            <td>
+                                                                                                                                ${hargaViviCol}
+                                                                                                                            </td>
 
-                                                                                                    <td class="fw-bold text-success">
-                                                                                                        Rp ${total.toLocaleString('id-ID')}
-                                                                                                    </td>
-                                                                                                `
+                                                                                                                            <td class="fw-bold text-success">
+                                                                                                                                Rp ${total.toLocaleString('id-ID')}
+                                                                                                                            </td>
+                                                                                                                        `
         : ''
     }
 
@@ -730,11 +795,11 @@
                 ${
                     !isCushion
                     ? `
-                                                                                                                                    <td class="text-center text-success fw-bold">
-                                                                                                                                        ${item.passed}
-                                                                                                                                    </td>
-                                                                                                                                  
-                                                                                                                                    `
+                                                                                                                                                            <td class="text-center text-success fw-bold">
+                                                                                                                                                                ${item.passed}
+                                                                                                                                                            </td>
+                                                                                                                                                          
+                                                                                                                                                            `
                     : ''
                 }
             </tr>
@@ -827,8 +892,7 @@
                     let totalSpk = 0;
 
                     const items = Array.isArray(res.items) ?
-                        res.items :
-                        [];
+                        res.items : [];
 
                     /*
                     |--------------------------------------------------------------------------
@@ -1018,12 +1082,31 @@
                                 parseFloat(row.harga_vivi || 0);
 
                             const hargaKontrak =
-                                hargaVivi > 0
-                                    ? hargaVivi
-                                    : hargaInventory;
+                                hargaVivi > 0 ?
+                                hargaVivi :
+                                hargaInventory;
 
                             const total =
                                 hargaKontrak * qty;
+
+                            // =====================================================
+                            // STATUS PER TRANSAKSI BAHAN
+                            // =====================================================
+
+                            const keteranganBahan = String(
+                                row.keterangan ?? ''
+                            )
+                                .replace(/&nbsp;/gi, ' ')
+                                .trim()
+                                .toLowerCase();
+
+                            const isJasaBahan =
+                                row.is_jasa === true ||
+                                row.is_jasa === 1 ||
+                                keteranganBahan === 'jasa' ||
+                                keteranganBahan === 'upah' ||
+                                keteranganBahan === 'upah kerja' ||
+                                keteranganBahan === 'jasa/upah kerja';
 
                             bahanEvents.push({
                                 type: 'bahan',
@@ -1033,18 +1116,14 @@
                                 hargaInventory: hargaInventory,
                                 hargaVivi: hargaVivi,
                                 hargaKontrak: hargaKontrak,
-                                total: total
+                                total: total,
+
+                                // STATUS KHUSUS TRANSAKSI INI
+                                isJasa: isJasaBahan
                             });
 
-                            /*
-                            |--------------------------------------------------------------------------
-                            | UPAH
-                            |--------------------------------------------------------------------------
-                            | Bahan tetap ditampilkan, tetapi tidak mengurangi
-                            | saldo maupun TOTAL PAYMENT.
-                            |--------------------------------------------------------------------------
-                            */
-                            if (!isUpahSpk) {
+                            // HANYA BAHAN BIASA masuk total payment
+                            if (!isJasaBahan) {
                                 totalPayment += total;
                             }
 
@@ -1253,10 +1332,10 @@
                                 ${
                                     keteranganSpk
                                         ? `
-                                            <span class="badge bg-warning text-dark">
-                                                ${keteranganSpk}
-                                            </span>
-                                          `
+                                                                    <span class="badge bg-warning text-dark">
+                                                                        ${keteranganSpk}
+                                                                    </span>
+                                                                  `
                                         : '-'
                                 }
                             </td>
@@ -1335,15 +1414,15 @@
                                     ${
                                         pay.is_request
                                         ? `
-                                            <span class="badge bg-success">
-                                                ✓ Requested
-                                            </span>
-                                          `
+                                                                    <span class="badge bg-success">
+                                                                        ✓ Requested
+                                                                    </span>
+                                                                  `
                                         : `
-                                            <span class="badge bg-warning">
-                                                Belum Request
-                                            </span>
-                                          `
+                                                                    <span class="badge bg-warning">
+                                                                        Belum Request
+                                                                    </span>
+                                                                  `
                                     }
                                 </td>
 
@@ -1351,39 +1430,39 @@
                                     ${
                                         pay.adjustment > 0
                                         ? `
-                                            <div>
-                                                Paid :
-                                                <b>
-                                                    Rp ${Number(
-                                                        pay.payment_request_amount || 0
-                                                    ).toLocaleString('id-ID')}
-                                                </b>
-                                            </div>
+                                                                    <div>
+                                                                        Paid :
+                                                                        <b>
+                                                                            Rp ${Number(
+                                                                                pay.payment_request_amount || 0
+                                                                            ).toLocaleString('id-ID')}
+                                                                        </b>
+                                                                    </div>
 
-                                            <small class="text-danger">
-                                                Sisa :
-                                                Rp ${Number(
-                                                    pay.remaining_amount || 0
-                                                ).toLocaleString('id-ID')}
-                                            </small>
-                                          `
+                                                                    <small class="text-danger">
+                                                                        Sisa :
+                                                                        Rp ${Number(
+                                                                            pay.remaining_amount || 0
+                                                                        ).toLocaleString('id-ID')}
+                                                                    </small>
+                                                                  `
                                         : pay.finance_approved
                                         ? `
-                                            <span class="badge bg-success">
-                                                Full Payment
-                                            </span>
-                                          `
+                                                                    <span class="badge bg-success">
+                                                                        Full Payment
+                                                                    </span>
+                                                                  `
                                         : pay.is_request
                                         ? `
-                                            <span class="badge bg-warning">
-                                                Menunggu Finance
-                                            </span>
-                                          `
+                                                                    <span class="badge bg-warning">
+                                                                        Menunggu Finance
+                                                                    </span>
+                                                                  `
                                         : `
-                                            <span class="badge bg-secondary">
-                                                Belum Request
-                                            </span>
-                                          `
+                                                                    <span class="badge bg-secondary">
+                                                                        Belum Request
+                                                                    </span>
+                                                                  `
                                     }
                                 </td>
 
@@ -1409,11 +1488,10 @@
                         const hargaKontrak = event.hargaKontrak;
                         const total = event.total;
 
-                        if (!isUpahSpk) {
+                        if (!event.isJasa) {
                             runningSaldo -= total;
                             runningSaldo = Math.max(0, runningSaldo);
                         }
-
                         paymentNo++;
 
                         let hargaKontrakHtml = '';
@@ -1434,17 +1512,17 @@
                         } else {
 
                             hargaKontrakHtml =
-                                hargaVivi > 0
-                                    ? 'Rp ' + hargaVivi.toLocaleString('id-ID')
-                                    : '-';
+                                hargaVivi > 0 ?
+                                'Rp ' + hargaVivi.toLocaleString('id-ID') :
+                                '-';
 
                         }
 
-                        if (isUpahSpk) {
+                        if (event.isJasa) {
 
                             paymentHtml += `
                                 <tr class="payment-upah-row"
-                                    title="Upah kerja / tidak mengurangi saldo">
+                                    title="Jasa / upah kerja - tidak mengurangi saldo">
 
                                     <td>
                                         ${paymentNo}
@@ -1456,7 +1534,7 @@
 
                                     <td>
                                         <span class="badge bg-primary">
-                                            Upah
+                                            jasa/upah kerja
                                         </span>
 
                                         <div class="fw-bold mt-1">
@@ -1516,9 +1594,17 @@
                                     </td>
 
                                     <td>
-                                        <span class="badge bg-danger">
-                                            potongan bahan
-                                        </span>
+                                        <span class="badge ${
+    event.isJasa
+        ? 'bg-primary'
+        : 'bg-danger'
+}">
+    ${
+        event.isJasa
+            ? 'jasa/upah kerja'
+            : 'potongan bahan'
+    }
+</span>
 
                                         <div class="fw-bold mt-1">
                                             ${row.nama_barang ?? '-'}
@@ -1571,9 +1657,19 @@
                                     </td>
 
                                     <td>
-                                        <span class="badge bg-info">
-                                            -
-                                        </span>
+                                        ${
+                                            event.isJasa
+                                                ? `
+                                                    <span class="badge bg-primary">
+                                                        jasa/upah kerja
+                                                    </span>
+                                                  `
+                                                : (
+                                                    row.keterangan
+                                                        ? `<span class="text-muted">${row.keterangan}</span>`
+                                                        : '-'
+                                                  )
+                                        }
                                     </td>
 
                                     <td>
@@ -1623,10 +1719,10 @@
                                 ${
                                     keteranganSpk
                                         ? `
-                                            <span class="badge bg-warning text-dark">
-                                                ${keteranganSpk}
-                                            </span>
-                                          `
+                                                                    <span class="badge bg-warning text-dark">
+                                                                        ${keteranganSpk}
+                                                                    </span>
+                                                                  `
                                         : ''
                                 }
                             </td>
@@ -1704,15 +1800,15 @@
                                         ${
                                             pay.is_request
                                             ? `
-                                                <span class="badge bg-success">
-                                                    ✓ Requested
-                                                </span>
-                                              `
+                                                                        <span class="badge bg-success">
+                                                                            ✓ Requested
+                                                                        </span>
+                                                                      `
                                             : `
-                                                <span class="badge bg-warning">
-                                                    Belum Request
-                                                </span>
-                                              `
+                                                                        <span class="badge bg-warning">
+                                                                            Belum Request
+                                                                        </span>
+                                                                      `
                                         }
                                     </td>
 
@@ -1720,27 +1816,27 @@
                                         ${
                                             pay.adjustment > 0
                                             ? `
-                                                <div>
-                                                    Paid :
-                                                    <b>
-                                                        Rp ${Number(
-                                                            pay.payment_request_amount || 0
-                                                        ).toLocaleString('id-ID')}
-                                                    </b>
-                                                </div>
+                                                                        <div>
+                                                                            Paid :
+                                                                            <b>
+                                                                                Rp ${Number(
+                                                                                    pay.payment_request_amount || 0
+                                                                                ).toLocaleString('id-ID')}
+                                                                            </b>
+                                                                        </div>
 
-                                                <small class="text-danger">
-                                                    Sisa :
-                                                    Rp ${Number(
-                                                        pay.remaining_amount || 0
-                                                    ).toLocaleString('id-ID')}
-                                                </small>
-                                              `
+                                                                        <small class="text-danger">
+                                                                            Sisa :
+                                                                            Rp ${Number(
+                                                                                pay.remaining_amount || 0
+                                                                            ).toLocaleString('id-ID')}
+                                                                        </small>
+                                                                      `
                                             : `
-                                                <span class="badge bg-secondary">
-                                                    Tidak mengurangi saldo
-                                                </span>
-                                              `
+                                                                        <span class="badge bg-secondary">
+                                                                            Tidak mengurangi saldo
+                                                                        </span>
+                                                                      `
                                         }
                                     </td>
 
@@ -1992,23 +2088,114 @@
             }
             /*
                 |--------------------------------------------------------------------------
-                | CLICK ROW = DETAIL
+                | CLICK ROW = MENU SPK
                 |--------------------------------------------------------------------------
+                | Klik kiri pada baris SPK menampilkan dropdown kecil:
+                | - View SPK    -> /spk/edit/{id}
+                | - See Details -> modal detail yang sudah ada
                 */
-            $(document).on('click', '.spk-row', function(e) {
 
-                // jangan jalan kalau klik tombol
-                if ($(e.target).closest('button,a').length) {
+            function closeSpkRowMenu() {
+                $('#spkRowMenu').remove();
+                $('.inventor-table tbody tr').removeClass('active-row');
+            }
+
+            function showSpkRowMenu(e, row) {
+                closeSpkRowMenu();
+
+                const spkId = row.data('id');
+
+                if (!spkId) {
                     return;
                 }
 
-                // highlight baris aktif
-                $('.inventor-table tbody tr').removeClass('active-row');
-                $(this).addClass('active-row');
+                row.addClass('active-row');
 
-                // jalankan tombol Detail
-                $(this).find('.btn-detail').trigger('click');
+                const menu = $(`
+                    <div id="spkRowMenu" class="spk-row-menu">
+                        <a href="/spk/edit/${encodeURIComponent(spkId)}"
+                           class="spk-row-menu-item">
+                            <i class="fa fa-eye"></i>
+                            <span>View to SPK</span>
+                        </a>
+                        <button type="button"
+                                class="spk-row-menu-item spk-see-details">
+                            <i class="fa fa-list-alt"></i>
+                            <span>See Details</span>
+                        </button>
+                    </div>
+                `);
 
+                $('body').append(menu);
+                menu.data('spk-id', spkId);
+                menu.data('spk-row', row);
+
+                // Posisi mengikuti titik klik, tetapi jangan sampai keluar viewport.
+                const menuWidth = menu.outerWidth();
+                const menuHeight = menu.outerHeight();
+                const gap = 4;
+
+                let left = e.clientX + gap;
+                let top = e.clientY + gap;
+
+                if (left + menuWidth > window.innerWidth - 8) {
+                    left = e.clientX - menuWidth - gap;
+                }
+
+                if (top + menuHeight > window.innerHeight - 8) {
+                    top = e.clientY - menuHeight - gap;
+                }
+
+                menu.css({
+                    left: Math.max(8, left),
+                    top: Math.max(8, top)
+                });
+            }
+
+            // Klik kiri pada row = tampilkan dropdown.
+            $(document).on('click', '.spk-row', function(e) {
+                // Tombol/link/input/select di dalam row tetap bekerja normal.
+                if ($(e.target).closest('button,a,input,select,textarea').length) {
+                    return;
+                }
+
+                e.stopPropagation();
+                showSpkRowMenu(e, $(this));
+            });
+
+            // See Details = jalankan modal detail existing.
+            $(document).on('click', '.spk-see-details', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const menu = $('#spkRowMenu');
+                const spkId = menu.data('spk-id');
+                const row = menu.data('spk-row');
+
+                closeSpkRowMenu();
+
+                if (spkId && row) {
+                    $(row).find('.btn-detail').trigger('click');
+                }
+            });
+
+            // Simpan referensi row/id pada menu setelah dibuat.
+            // Klik di luar menu = tutup.
+            $(document).on('click', function(e) {
+                if (
+                    $('#spkRowMenu').length &&
+                    !$(e.target).closest('#spkRowMenu').length &&
+                    !$(e.target).closest('.spk-row').length
+                ) {
+                    closeSpkRowMenu();
+                }
+            });
+
+            // ESC = tutup menu.
+            $(document).on('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    closeSpkRowMenu();
+                }
             });
         </script>
     @endpush

@@ -39,6 +39,8 @@ use App\Http\Controllers\UpahController;
 use App\Http\Controllers\SpekController;
 use Illuminate\Http\Request;
 use Pusher\Pusher;
+use App\Http\Controllers\PurchasingController;
+
 // pusher
 Route::post('/pusher/auth', function (Request $request) {
 
@@ -1093,3 +1095,24 @@ Route::delete(
     '/laporan/transaksi/{id}',
     [LaporanController::class, 'deleteTransaksi']
 )->name('laporan.transaksi.delete');
+
+Route::post(
+    '/spk/bahan-baku/keterangan',
+    [SpkController::class, 'updateBahanBakuKeterangan']
+)->name('spk.bahan-baku.keterangan');
+
+// purchasing
+Route::get(
+    '/pengajuan_purchasing',
+    [PurchasingController::class, 'index']
+)->name('pengajuan_purchasing');
+
+Route::get(
+    '/pengajuan_purchasing/search',
+    [PurchasingController::class, 'searchBarang']
+)->name('pengajuan_purchasing.search');
+
+Route::get(
+    '/pengajuan_purchasing/barang/{id}',
+    [PurchasingController::class, 'detailBarang']
+)->name('pengajuan_purchasing.barang');

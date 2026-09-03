@@ -401,7 +401,54 @@
             </div>
         </div>
     @endsection
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+<style>
+.spk-row-menu {
+    position: fixed;
+    z-index: 99999;
+    min-width: 150px;
+    padding: 5px;
+    background: #fff;
+    border: 1px solid #d9dee5;
+    border-radius: 7px;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, .18);
+}
+
+.spk-row-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 11px;
+    color: #263445;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 5px;
+    white-space: nowrap;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+}
+
+.spk-row-menu-item:hover {
+    background: #f1f5f9;
+    color: #0d6efd;
+    text-decoration: none;
+}
+
+.spk-row-menu-item i {
+    width: 16px;
+    text-align: center;
+}
+
+.inventor-table tbody tr.active-row > td {
+    background-color: #fff3cd !important;
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 
     @push('scripts')
@@ -596,6 +643,20 @@
                                 hargaVivi * qty :
                                 hargaInventory * qty;
 
+                            // JASA / UPAH ditentukan PER TRANSAKSI bahan baku.
+                            // Jangan menggunakan status global SPK.
+                            const keteranganBahan = String(
+                                row.keterangan || ''
+                            ).trim().toLowerCase();
+
+                            const isJasaBahan =
+                                row.is_jasa === true ||
+                                row.is_jasa === 1 ||
+                                keteranganBahan === 'jasa' ||
+                                keteranganBahan === 'upah' ||
+                                keteranganBahan === 'upah kerja' ||
+                                keteranganBahan === 'jasa/upah kerja';
+
                             bahanHtml += `
 <tr>
     <td>${i + 1}</td>
@@ -639,7 +700,17 @@
         : ''
     }
 
-    <td>${row.keterangan ?? '-'}</td>
+    <td>
+        ${
+            isJasaBahan
+                ? `
+                    <span class="badge bg-primary">
+                        jasa/upah kerja
+                    </span>
+                  `
+                : (row.keterangan ?? '-')
+        }
+    </td>
 </tr>
 `;
                         });
@@ -1266,23 +1337,119 @@
             }
             /*
 |--------------------------------------------------------------------------
-| CLICK ROW = DETAIL
+| CLICK ROW = DROPDOWN
+|--------------------------------------------------------------------------
+| Klik kiri pada baris menampilkan:
+| - View to SPK
+| - See Details
 |--------------------------------------------------------------------------
 */
-$(document).on('click', '.spk-row', function(e) {
+function closeSpkRowMenu() {
+    $('#spkRowMenu').remove();
+    $('.inventor-table tbody tr').removeClass('active-row');
+}
 
-    // jangan jalan kalau klik tombol
-    if ($(e.target).closest('button,a').length) {
+function showSpkRowMenu(e, row) {
+    closeSpkRowMenu();
+
+    const spkId = row.data('id');
+
+    if (!spkId) {
         return;
     }
 
-    // highlight baris aktif
-    $('.inventor-table tbody tr').removeClass('active-row');
-    $(this).addClass('active-row');
+    row.addClass('active-row');
 
-    // jalankan tombol Detail
-    $(this).find('.btn-detail').trigger('click');
+    const menu = $(`
+        <div id="spkRowMenu" class="spk-row-menu">
+            <a href="/spk/edit/${encodeURIComponent(spkId)}"
+               class="spk-row-menu-item">
+                <i class="fa fa-eye"></i>
+                <span>View to SPK</span>
+            </a>
 
+            <button type="button"
+                    class="spk-row-menu-item spk-see-details">
+                <i class="fa fa-list-alt"></i>
+                <span>See Details</span>
+            </button>
+        </div>
+    `);
+
+    $('body').append(menu);
+
+    menu.data('spk-id', spkId);
+    menu.data('spk-row', row);
+
+    const menuWidth = menu.outerWidth();
+    const menuHeight = menu.outerHeight();
+    const gap = 4;
+
+    let left = e.clientX + gap;
+    let top = e.clientY + gap;
+
+    // Kalau terlalu dekat kanan, tampilkan ke kiri cursor.
+    if (left + menuWidth > window.innerWidth - 8) {
+        left = e.clientX - menuWidth - gap;
+    }
+
+    // Kalau terlalu dekat bawah, tampilkan ke atas cursor.
+    if (top + menuHeight > window.innerHeight - 8) {
+        top = e.clientY - menuHeight - gap;
+    }
+
+    menu.css({
+        left: Math.max(8, left),
+        top: Math.max(8, top)
+    });
+}
+
+// Klik kiri row = dropdown.
+$(document).on('click', '.spk-row', function(e) {
+
+    // Jangan tampilkan menu kalau klik tombol/link/input.
+    if ($(e.target).closest('button,a,input,select,textarea').length) {
+        return;
+    }
+
+    e.stopPropagation();
+
+    showSpkRowMenu(e, $(this));
+});
+
+// See Details = jalankan handler Detail yang sudah ada.
+$(document).on('click', '.spk-see-details', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const menu = $('#spkRowMenu');
+    const spkId = menu.data('spk-id');
+    const row = menu.data('spk-row');
+
+    closeSpkRowMenu();
+
+    if (spkId && row && row.length) {
+        $(row).find('.btn-detail').trigger('click');
+    }
+});
+
+// Klik di luar menu/baris = tutup dropdown.
+$(document).on('click', function(e) {
+
+    if (
+        $('#spkRowMenu').length &&
+        !$(e.target).closest('#spkRowMenu').length &&
+        !$(e.target).closest('.spk-row').length
+    ) {
+        closeSpkRowMenu();
+    }
+});
+
+// ESC = tutup dropdown.
+$(document).on('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeSpkRowMenu();
+    }
 });
         </script>
     @endpush

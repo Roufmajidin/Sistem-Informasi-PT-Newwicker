@@ -163,12 +163,45 @@
 
                     <div class="modal-body">
 
-                        <div class="mb-3">
-                            <label>Item</label>
+                        <div class="item-picker-wrap">
+                            <div class="item-picker-label">
+                                <div class="item-picker-label-left">
+                                   
+                                    <div>
+                                        {{-- <div class="item-picker-title">Pilih Item</div> --}}
+                                        <div class="item-picker-subtitle">
+                                            Pilih item SPK untuk melihat detail & timeline
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
-                            <select id="itemSelect" class="form-select">
-                                <option>Pilih Item</option>
-                            </select>
+                            <div class="item-select-shell item-select-shell-photo">
+                                <span class="item-select-leading-icon item-select-photo-preview" id="itemSelectPhotoPreview">
+                                    <img
+                                        id="itemSelectPhoto"
+                                        src="{{ asset('storage/rouf.jpeg') }}"
+                                        alt="Foto item"
+                                        style="display:block;"
+                                    >
+                                    <i class="fa fa-cube"
+                                       id="itemSelectPhotoPlaceholder"
+                                       style="display:none;"></i>
+                                </span>
+
+                                <select id="itemSelect" class="form-select item-select">
+                                    <option value="">Pilih Item...</option>
+                                </select>
+
+                                <span class="item-select-arrow">
+                                    <i class="fa fa-chevron-down"></i>
+                                </span>
+                            </div>
+
+                            <div id="itemSelectPhotoName" class="item-select-photo-name" style="display:none;">
+                                <span class="item-select-photo-name-title"></span>
+                                <span class="item-select-photo-name-meta"></span>
+                            </div>
                         </div>
 
                         {{-- Detail item --}}
@@ -192,7 +225,13 @@
                 let currentSupId = null;
                 let kategoriSpk = '';
                 $(document).on('click', '.pilih-spk', function() {
+
+                    // Reset data/modal sebelumnya terlebih dahulu
                     resetModal();
+
+                    // Tandai HANYA baris SPK yang baru diklik
+                    $('#tbodySpk tr.pilih-spk').removeClass('active');
+                    $(this).addClass('active');
 
                     currentSpkId = $(this).data('id');
                     $.ajax({
@@ -212,16 +251,14 @@
 
                             items = res.items;
 
-                            let html = '<option value="">Pilih Item</option>';
+                            let html = '<option value="">Pilih Item...</option>';
 
                             $.each(res.items, function(i, item) {
-
                                 html += `
-                    <option value="${item.detail_po_id}" data-index="${i}">
+                    <option value="${item.detail_po_id}" data-index="${i}" data-photo="${escapeHtml(item.photo || '')}">
                         ${item.kode} - ${item.nama} (${item.qty} ${item.satuan})
                     </option>
                 `;
-
                             });
                             $('#modalSpk').modal('show');
 
@@ -759,6 +796,52 @@
                 }
 
 
+                function getItemPhotoUrl(photo) {
+                    if (!photo) return '';
+                    photo = String(photo).trim();
+                    if (!photo) return '';
+                    if (photo.startsWith('http://') || photo.startsWith('https://') || photo.startsWith('data:image/')) return photo;
+                    if (photo.startsWith('//')) return window.location.protocol + photo;
+                    if (photo.startsWith('/')) return photo;
+                    if (photo.startsWith('storage/')) return '/' + photo;
+                    return '/storage/' + photo.replace(/^\/+/, '');
+                }
+
+                function updateItemSelectPhoto(item) {
+                    const $img = $('#itemSelectPhoto');
+                    const $placeholder = $('#itemSelectPhotoPlaceholder');
+                    const $box = $('#itemSelectPhotoName');
+                    if (!item) {
+                        $img.attr('src', '').hide();
+                        $placeholder.show();
+                        $box.hide();
+                        return;
+                    }
+                    const photo = getItemPhotoUrl(item.photo);
+                    if (photo) {
+                        $img.attr('src', photo).show();
+                        $placeholder.hide();
+                        $img.off('error.itemPhoto').on('error.itemPhoto', function() {
+                            $(this)
+                                .attr('src', "{{ asset('storage/rouf.jpeg') }}")
+                                .off('error.itemPhoto')
+                                .show();
+                            $placeholder.hide();
+                        });
+                    } else {
+                        $img
+                            .attr('src', "{{ asset('storage/rouf.jpeg') }}")
+                            .show();
+                        $placeholder.hide();
+                    }
+                    $box.find('.item-select-photo-name-title').text(item.nama || item.name || '-');
+                    $box.find('.item-select-photo-name-meta').text(
+                        [item.kode || '', item.qty !== undefined && item.qty !== null ? (formatNumber(item.qty) + (item.satuan ? ' ' + item.satuan : '')) : '']
+                            .filter(Boolean).join(' • ')
+                    );
+                    $box.show();
+                }
+
                 $('#itemSelect').on('change', function() {
 
                     let detailPoId = $(this).val();
@@ -768,6 +851,9 @@
                     let item = items[index];
                     console.log(item)
                     if (!item) return;
+
+                    // Tambahan foto saja; logic existing di bawah tetap sama.
+                    updateItemSelectPhoto(item);
 
                     /*
                     |--------------------------------------------------------------------------
@@ -1048,26 +1134,36 @@
 
                 });
 
-                function resetModal() {
+            function resetModal() {
 
-                    items = [];
-                    currentSpkId = null;
-                    currentSupId = null;
-                    supplierName = '';
+    items = [];
+    currentSpkId = null;
+    currentSupId = null;
+    supplierName = '';
 
-                    $('#judulSpk').text('Detail SPK');
+    $('#judulSpk').text('Detail SPK');
 
-                    $('#itemSelect').html('<option value="">Pilih Item</option>');
+    $('#itemSelect').html('<option value="">Pilih Item...</option>');
 
-                    $('#itemInfo').empty();
+    $('#itemInfo').empty();
 
-                    $('#timelineTable').empty();
+    $('#timelineTable').empty();
 
-                    // Reset select ke option pertama
-                    $('#itemSelect').prop('selectedIndex', 0);
+    // Reset select ke option pertama
+    $('#itemSelect').prop('selectedIndex', 0);
 
-                }
+    // Reset foto item
+    $('#itemSelectPhoto')
+        .attr('src', "{{ asset('storage/rouf.jpeg') }}")
+        .show();
 
+    $('#itemSelectPhotoPlaceholder').hide();
+
+    $('#itemSelectPhotoName').hide();
+
+    // Hapus blok/highlight SPK sebelumnya
+    $('#tbodySpk tr.pilih-spk').removeClass('active');
+}
                 $('#modalSpk').on('hidden.bs.modal', function() {
 
                     resetModal();
@@ -1295,10 +1391,92 @@
                         let html =
                             '';
 
+                        let displayIndex = 0;
 
                         items.forEach(
-                            function (item, index) {
+                            function (item) {
 
+                                /*
+                                | Jika item mempunyai custom_columns / komponen,
+                                | tooltip menampilkan KOMPONEN item tersebut saja.
+                                | Struktur dan Qty SPK mengikuti rincian komponen
+                                | yang juga dipakai pada Detail Item.
+                                |
+                                | Jika tidak mempunyai komponen, behaviour lama
+                                | tetap dipakai: tampilkan item utama.
+                                */
+                                const hasComponents =
+                                    Array.isArray(item.hover_components) &&
+                                    item.hover_components.length > 0;
+
+                                if (hasComponents) {
+
+                                    item.hover_components.forEach(
+                                        function (component) {
+
+                                            const name =
+                                                component.name ||
+                                                '-';
+
+                                            const qty =
+                                                Number(component.qtySpk || 0);
+
+                                            const qtyIn =
+                                                Number(component.qtyIn || 0) || 0;
+
+                                            let inClass =
+                                                'zero';
+
+                                            if (
+                                                qty > 0 &&
+                                                qtyIn >= qty
+                                            ) {
+                                                inClass =
+                                                    'full';
+                                            } else if (
+                                                qtyIn > 0
+                                            ) {
+                                                inClass =
+                                                    'partial';
+                                            }
+
+                                            displayIndex++;
+
+                                            html += `
+                                                <tr>
+                                                    <td>
+                                                        ${displayIndex}
+                                                    </td>
+
+                                                    <td
+                                                        class="spk-hover-name"
+                                                        title="${escapeHtml(name)}"
+                                                    >
+                                                        ${escapeHtml(name)}
+                                                    </td>
+
+                                                    <td>
+                                                        ${formatNumber(qty)}
+                                                    </td>
+
+                                                    <td
+                                                        class="spk-hover-in ${inClass}"
+                                                    >
+                                                        ${formatNumber(qtyIn)}
+                                                    </td>
+                                                </tr>
+                                            `;
+
+                                        }
+                                    );
+
+                                    return;
+                                }
+
+
+                                /*
+                                | Tidak ada komponen -> gunakan tampilan lama.
+                                */
                                 const name =
                                     getItemName(item);
 
@@ -1310,34 +1488,28 @@
                                         item.qty_in || 0
                                     ) || 0;
 
-
                                 let inClass =
                                     'zero';
-
 
                                 if (
                                     qty > 0 &&
                                     qtyIn >= qty
                                 ) {
-
                                     inClass =
                                         'full';
-
                                 } else if (
                                     qtyIn > 0
                                 ) {
-
                                     inClass =
                                         'partial';
-
                                 }
 
+                                displayIndex++;
 
                                 html += `
                                     <tr>
-
                                         <td>
-                                            ${index + 1}
+                                            ${displayIndex}
                                         </td>
 
                                         <td
@@ -1356,7 +1528,6 @@
                                         >
                                             ${formatNumber(qtyIn)}
                                         </td>
-
                                     </tr>
                                 `;
 
@@ -1368,6 +1539,10 @@
                             html;
 
 
+                        /*
+                        | Counter tetap berdasarkan jumlah ITEM SPK,
+                        | bukan jumlah baris komponen yang dirender.
+                        */
                         count.textContent =
                             items.length +
                             ' item';
@@ -1521,6 +1696,9 @@
                                                     copy.qty_in =
                                                         0;
 
+                                                    copy.hover_components =
+                                                        null;
+
                                                     return copy;
 
                                                 }
@@ -1668,6 +1846,30 @@
                                                         items[index]
                                                             .qty_in =
                                                                 qtyIn;
+
+                                                        /*
+                                                        | Kalau item mempunyai custom_columns,
+                                                        | siapkan baris komponen untuk tooltip.
+                                                        | getComponentRows() adalah logic yang sama
+                                                        | dengan tabel Rincian Komponen di modal.
+                                                        | Kalau custom_columns kosong, hover tetap
+                                                        | menggunakan item utama seperti sebelumnya.
+                                                        */
+                                                        const customColumns =
+                                                            Array.isArray(items[index].custom_columns)
+                                                                ? items[index].custom_columns
+                                                                : [];
+
+                                                        if (customColumns.length > 0) {
+                                                            items[index].hover_components =
+                                                                getComponentRows(
+                                                                    items[index],
+                                                                    res.timeline || []
+                                                                );
+                                                        } else {
+                                                            items[index].hover_components =
+                                                                null;
+                                                        }
 
 
                                                         /*
@@ -1940,7 +2142,24 @@
                 /* =========================================================
                    SPK HOVER PREVIEW
                    ========================================================= */
+#tbodySpk tr.pilih-spk {
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
 
+#tbodySpk tr.pilih-spk.active td {
+    background-color: #fff3cd !important;
+    color: #000 !important;
+}
+
+#tbodySpk tr.pilih-spk.active {
+    background-color: #fff3cd !important;
+    box-shadow: inset 4px 0 0 #ffc107;
+}
+
+#tbodySpk tr.pilih-spk.active:hover td {
+    background-color: #ffe69c !important;
+}
                 #spkHoverPreview {
                     position: fixed;
                     display: none;
@@ -2331,8 +2550,196 @@
                     min-width: 900px;
                 }
 
-                #itemSelect {
-                    max-width: 100%;
+                /* =========================================================
+                   ITEM PICKER
+                   ========================================================= */
+
+                .item-picker-wrap {
+                    margin-bottom: 18px;
+                    padding: 14px 16px 16px;
+                    border: 1px solid #e8edf3;
+                    border-radius: 14px;
+                    background: linear-gradient(180deg, #fbfcfe 0%, #f7f9fc 100%);
+                }
+
+                .item-picker-label {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    margin-bottom: 10px;
+                }
+
+                .item-picker-label-left {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    min-width: 0;
+                }
+
+                .item-picker-icon {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 34px;
+                    height: 34px;
+                    flex: 0 0 34px;
+                    border: 1px solid #dbe5f0;
+                    border-radius: 10px;
+                    background: #fff;
+                    color: #4f73d9;
+                    box-shadow: 0 2px 6px rgba(15, 23, 42, .05);
+                }
+
+                .item-picker-title {
+                    color: #1e293b;
+                    font-size: 12px;
+                    font-weight: 700;
+                    line-height: 1.25;
+                }
+
+                .item-picker-subtitle {
+                    margin-top: 2px;
+                    color: #94a3b8;
+                    font-size: 9px;
+                    line-height: 1.35;
+                }
+
+                .item-select-shell-photo { position: relative; }
+                .item-select-shell-photo .item-select-photo-preview {
+                    width: 46px;
+                    height: 46px;
+                    flex: 0 0 46px;
+                    overflow: hidden;
+                    border-radius: 8px;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: #f3f5f7;
+                    color: #64748b;
+                }
+                .item-select-shell-photo .item-select-photo-preview img {
+                    width: 100%; height: 100%; object-fit: cover; display: block;
+                }
+                .item-select-photo-name {
+                    margin-top: 6px; padding-left: 54px;
+                    display: flex; flex-direction: column; line-height: 1.25;
+                }
+                .item-select-photo-name-title { font-size: 11px; font-weight: 700; color: #1f2937; }
+                .item-select-photo-name-meta { font-size: 10px; color: #64748b; }
+
+                .item-select-shell {
+                    position: relative;
+                }
+
+                .item-select-leading-icon {
+                    position: absolute;
+                    top: 50%;
+                    left: 13px;
+                    z-index: 3;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 24px;
+                    height: 24px;
+                    transform: translateY(-50%);
+                    border-radius: 7px;
+                    background: #f1f5f9;
+                    color: #64748b;
+                    font-size: 10px;
+                    pointer-events: none;
+                    transition: all .18s ease;
+                }
+
+                #itemSelect.item-select {
+                    width: 100%;
+                    min-height: 46px;
+                    padding: 10px 42px 10px 46px;
+                    border: 1px solid #dbe2ea;
+                    border-radius: 11px;
+                    background-color: #fff;
+                    color: #334155;
+                    font-size: 12px;
+                    font-weight: 600;
+                    line-height: 1.4;
+                    box-shadow: 0 2px 7px rgba(15, 23, 42, .04);
+                    cursor: pointer;
+                    outline: none;
+                    appearance: none;
+                    -webkit-appearance: none;
+                    transition:
+                        border-color .18s ease,
+                        box-shadow .18s ease,
+                        background-color .18s ease;
+                }
+
+                #itemSelect.item-select:hover {
+                    border-color: #b8c7dc;
+                    background-color: #fcfdff;
+                }
+
+                #itemSelect.item-select:focus {
+                    border-color: #7b9be8;
+                    background-color: #fff;
+                    box-shadow:
+                        0 0 0 3px rgba(79, 115, 217, .10),
+                        0 4px 12px rgba(15, 23, 42, .05);
+                }
+
+                #itemSelect.item-select:focus + .item-select-arrow {
+                    color: #4f73d9;
+                    transform: translateY(-50%) rotate(180deg);
+                }
+
+                .item-select-arrow {
+                    position: absolute;
+                    top: 50%;
+                    right: 14px;
+                    z-index: 3;
+                    color: #94a3b8;
+                    font-size: 10px;
+                    pointer-events: none;
+                    transform: translateY(-50%);
+                    transition: color .18s ease, transform .18s ease;
+                }
+
+                .item-select-shell:focus-within .item-select-leading-icon {
+                    background: #eef3ff;
+                    color: #4f73d9;
+                }
+
+                /* Selected item gets a slightly stronger visual hierarchy */
+                #itemSelect.item-select:not([value=""]) {
+                    color: #334155;
+                }
+
+                #itemSelect.item-select option {
+                    padding: 8px;
+                    color: #334155;
+                    background: #fff;
+                    font-weight: 500;
+                }
+
+                #itemSelect.item-select option:first-child {
+                    color: #94a3b8;
+                }
+
+                @media (max-width: 576px) {
+                    .item-picker-wrap {
+                        padding: 12px;
+                        border-radius: 12px;
+                    }
+
+                    .item-picker-icon {
+                        width: 32px;
+                        height: 32px;
+                        flex-basis: 32px;
+                    }
+
+                    #itemSelect.item-select {
+                        min-height: 44px;
+                        font-size: 11px;
+                        padding-left: 44px;
+                    }
                 }
 
                 @media (max-width: 768px) {

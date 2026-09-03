@@ -2894,7 +2894,7 @@ $items = $po->details->map(function ($d) {
 
             'data' =>
                 $afterData,
-
+  'status' => 'draft',
             'created_by' =>
                 auth()->id(),
         ]);
@@ -7262,4 +7262,26 @@ $items = $po->details->map(function ($d) {
             ], 500);
         }
     }
+   public function updateBahanBakuKeterangan(Request $request)
+{
+    $request->validate([
+        'id' => 'required|integer',
+        'keterangan' => 'nullable|string|max:1000',
+    ]);
+
+    $transaksi = TransaksiStok::where('id', $request->id)
+        ->where('tipe', 'out')
+        ->whereNotNull('spk_id')
+        ->firstOrFail();
+
+    $transaksi->keterangan = $request->keterangan;
+    $transaksi->save();
+
+    return response()->json([
+        'success' => true,
+        'id' => $transaksi->id,
+        'spk_id' => $transaksi->spk_id,
+        'keterangan' => $transaksi->keterangan,
+    ]);
+}
 }
