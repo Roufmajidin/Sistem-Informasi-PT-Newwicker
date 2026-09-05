@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 
 class NewPengajuanController extends Controller
 {
-    //
+        //
     public function index(){
 // dummy data orang
       $users = User::orderBy('name')->get();

@@ -2127,6 +2127,43 @@
     | NORMAL TOTAL
     |--------------------------------------------------------------------------
     */
+    if ($categoryKey === 'rangka') {
+
+    $kategoriSpk = strtoupper(
+        trim($spk['kategori'] ?? '')
+    );
+
+    $allRangkaSpks = $monitoring['rangka']['spks'] ?? [];
+
+    $hasRangkaKayu = false;
+    $hasRangkaTriplek = false;
+
+    foreach ($allRangkaSpks as $rangkaSpk) {
+        $kategoriRangka = strtoupper(
+            trim($rangkaSpk['kategori'] ?? '')
+        );
+
+        if (str_contains($kategoriRangka, 'RANGKA KAYU')) {
+            $hasRangkaKayu = true;
+        }
+
+        if (str_contains($kategoriRangka, 'RANGKA TRIPLEK')) {
+            $hasRangkaTriplek = true;
+        }
+    }
+
+    /*
+     * Jika dalam item yang sama ada Rangka Kayu + Rangka Triplek,
+     * yang dihitung hanya Rangka Kayu.
+     */
+    if (
+        $hasRangkaKayu
+        && $hasRangkaTriplek
+        && !str_contains($kategoriSpk, 'RANGKA KAYU')
+    ) {
+        continue;
+    }
+}
     $monitoring[$categoryKey]['in'] +=
         (float) ($spk['qty_in'] ?? 0);
 
@@ -2143,15 +2180,14 @@
 | ANYAM COMPONENT
 |--------------------------------------------------------------------------
 |
-| Contoh:
+| Composite Anyam:
+| - Jika ketiga component memiliki data IN, gunakan MIN(IN component).
+| - Jika ketiga component memiliki data PASSED, gunakan MIN(PASSED component).
+| - Jika data component tidak tersedia / semuanya 0, JANGAN menimpa
+|   nilai SPK. Gunakan qty_in / passed dari SPK seperti Anyam biasa.
 |
-| ANYAM RANGKA     40
-| ANYAM DUDUKAN    40
-| ANYAM SANDARAN   40
-|
-| Hasil:
-|
-| MIN(40,40,40) = 40
+| Ini penting karena hasil inspection bisa tersimpan pada level SPK,
+| sedangkan components hanya berisi struktur/proses Anyam.
 |--------------------------------------------------------------------------
 */
 $anyamSpks = $monitoring['anyam']['spks'] ?? [];
@@ -2184,87 +2220,139 @@ if (!empty($anyamSpks)) {
             |--------------------------------------------------------------------------
             */
             if (str_contains($componentName, 'ANYAM RANGKA')) {
-
                 $componentName = 'ANYAM RANGKA';
-
             } elseif (str_contains($componentName, 'ANYAM DUDUKAN')) {
-
                 $componentName = 'ANYAM DUDUKAN';
-
             } elseif (str_contains($componentName, 'ANYAM SANDARAN')) {
-
                 $componentName = 'ANYAM SANDARAN';
-
             } else {
+                /*
+                | ANYAM biasa tidak masuk MIN component.
+                | Nilai SPK tetap menjadi sumber utama.
+                */
                 continue;
             }
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | TOTAL PER COMPONENT
-            |--------------------------------------------------------------------------
-            */
             $componentIn[$componentName] =
                 ($componentIn[$componentName] ?? 0)
-                +
-                (float) ($component['qty_in'] ?? 0);
+                + (float) ($component['qty_in'] ?? 0);
 
             $componentPass[$componentName] =
                 ($componentPass[$componentName] ?? 0)
-                +
-                (float) ($component['passed'] ?? 0);
+                + (float) ($component['passed'] ?? 0);
         }
     }
 
+    $requiredAnyamComponents = [
+        'ANYAM RANGKA',
+        'ANYAM DUDUKAN',
+        'ANYAM SANDARAN',
+    ];
 
     /*
     |--------------------------------------------------------------------------
-    | ANYAM IN
+    | CEK COMPOSITE LENGKAP
     |--------------------------------------------------------------------------
     */
-    if (!empty($componentIn)) {
+    $hasFullAnyamComposite = true;
 
-        $monitoring['anyam']['in'] =
-            min($componentIn);
+    foreach ($requiredAnyamComponents as $requiredComponent) {
+        if (!array_key_exists($requiredComponent, $componentIn)) {
+            $hasFullAnyamComposite = false;
+            break;
+        }
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | ANYAM COMPONENT - IN
+    |--------------------------------------------------------------------------
+    |
+    | Hanya pakai MIN component apabila memang ada data IN component.
+    | Kalau ketiga component ada tetapi semuanya 0, berarti component
+    | tidak menjadi sumber inspection; pertahankan qty_in dari SPK.
+    |--------------------------------------------------------------------------
+    */
+    $componentInHasRealData = false;
+
+    if ($hasFullAnyamComposite) {
+        foreach ($requiredAnyamComponents as $requiredComponent) {
+            if ((float) ($componentIn[$requiredComponent] ?? 0) > 0) {
+                $componentInHasRealData = true;
+                break;
+            }
+        }
+    }
+
+    if ($hasFullAnyamComposite && $componentInHasRealData) {
+        /*
+        |--------------------------------------------------------------------------
+        | ANYAM COMPONENT - IN
+        |--------------------------------------------------------------------------
+        | Untuk composite Anyam, qty_in tiap component bukan dijumlahkan
+        | sebagai total produk karena component mewakili proses yang berbeda.
+        |
+        | Contoh:
+        | ANYAM RANGKA    = 40
+        | ANYAM DUDUKAN   = 30
+        | ANYAM SANDARAN  = 37
+        |
+        | IN Anyam = MIN(40, 30, 37) = 30
+        |--------------------------------------------------------------------------
+        */
+        $anyamComponentValues = [];
+
+        foreach ($requiredAnyamComponents as $requiredComponent) {
+            if (array_key_exists($requiredComponent, $componentIn)) {
+                $anyamComponentValues[] =
+                    (float) ($componentIn[$requiredComponent] ?? 0);
+            }
+        }
+
+        if (!empty($anyamComponentValues)) {
+            $monitoring['anyam']['in'] = min($anyamComponentValues);
+        }
+    }
 
     /*
     |--------------------------------------------------------------------------
-    | ANYAM PASS
+    | ANYAM COMPONENT - PASSED
+    |--------------------------------------------------------------------------
+    |
+    | Sama seperti IN.
+    | Jika data Passed component benar-benar tersedia, gunakan MIN().
+    | Jika tidak, gunakan nilai passed dari SPK yang sudah dihitung di atas.
     |--------------------------------------------------------------------------
     */
-    if (!empty($componentPass)) {
+    $hasFullAnyamCompositePass = true;
 
-        $monitoring['anyam']['pass'] =
-            min($componentPass);
+    foreach ($requiredAnyamComponents as $requiredComponent) {
+        if (!array_key_exists($requiredComponent, $componentPass)) {
+            $hasFullAnyamCompositePass = false;
+            break;
+        }
+    }
+
+    $componentPassHasRealData = false;
+
+    if ($hasFullAnyamCompositePass) {
+        foreach ($requiredAnyamComponents as $requiredComponent) {
+            if ((float) ($componentPass[$requiredComponent] ?? 0) > 0) {
+                $componentPassHasRealData = true;
+                break;
+            }
+        }
+    }
+
+    if ($hasFullAnyamCompositePass && $componentPassHasRealData) {
+        $monitoring['anyam']['pass'] = min(
+            $componentPass['ANYAM RANGKA'],
+            $componentPass['ANYAM DUDUKAN'],
+            $componentPass['ANYAM SANDARAN']
+        );
     }
 }
 
-
-/*
-|--------------------------------------------------------------------------
-| PACKAGING / BOX
-|--------------------------------------------------------------------------
-|
-| Contoh:
-|
-| BOX       30
-| EMPTY     30
-| LAYER     60
-|
-| Angka utama:
-|
-| Packaging IN = 30
-|
-| Tooltip:
-|
-| BOX       30
-| EMPTY     30
-| LAYER     60
-|--------------------------------------------------------------------------
-*/
 $packagingSpks =
     $monitoring['packaging']['spks'] ?? [];
 
@@ -2493,8 +2581,18 @@ if (!empty($packagingSpks)) {
 
                                                                                         </td>
 
-                                                                                        <td class="col-total">
-                                                                                            {{ $formatQty($spkInfo['qty_in'] ?? 0) }}
+                                                                                        <td class="col-total"
+                                                                                            data-tooltip-in-value="{{ $formatQty(
+                                                                                                $categoryKey === 'anyam'
+                                                                                                    ? collect($spkInfo['components'] ?? [])->sum(fn ($component) => (float) ($component['qty_in'] ?? 0))
+                                                                                                    : ($spkInfo['qty_in'] ?? 0)
+                                                                                            ) }}"
+                                                                                            data-tooltip-pass-value="{{ $formatQty($spkInfo['passed'] ?? 0) }}">
+                                                                                            {{ $formatQty(
+                                                                                                $categoryKey === 'anyam'
+                                                                                                    ? collect($spkInfo['components'] ?? [])->sum(fn ($component) => (float) ($component['qty_in'] ?? 0))
+                                                                                                    : ($spkInfo['qty_in'] ?? 0)
+                                                                                            ) }}
                                                                                         </td>
                                                                                     </tr>
                                                                                 @endforeach
@@ -2717,7 +2815,37 @@ if (!empty($packagingSpks)) {
                                         </div>
 
                                         {{-- LIST SPK --}}
-                                        @forelse($item['spks'] as $spk)
+                                        @php
+                                            /*
+                                            |--------------------------------------------------------------------------
+                                            | MODAL SPK - HINDARI DUPLIKASI
+                                            |--------------------------------------------------------------------------
+                                            | Untuk SPK composite, controller dapat membuat beberapa
+                                            | record monitoring dengan SPK ID yang sama:
+                                            |   ANYAM RANGKA
+                                            |   ANYAM DUDUKAN
+                                            |   ANYAM SANDARAN
+                                            |
+                                            | Record tersebut tetap diperlukan untuk tabel monitoring,
+                                            | tetapi di modal cukup tampilkan 1 kartu untuk 1 SPK.
+                                            |--------------------------------------------------------------------------
+                                            */
+                                            $modalSpks = [];
+
+                                            foreach (($item['spks'] ?? []) as $modalSpk) {
+                                                $modalSpkKey = (string) (
+                                                    $modalSpk['spk_id']
+                                                    ?? $modalSpk['no_spk']
+                                                    ?? md5(json_encode($modalSpk))
+                                                );
+
+                                                if (!isset($modalSpks[$modalSpkKey])) {
+                                                    $modalSpks[$modalSpkKey] = $modalSpk;
+                                                }
+                                            }
+                                        @endphp
+
+                                        @forelse($modalSpks as $spk)
 
                                             <div class="card border-0 shadow-sm mb-3">
                                                 <div class="card-body">

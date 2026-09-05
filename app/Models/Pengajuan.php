@@ -16,6 +16,7 @@ class Pengajuan extends Model
         'divisi_id',
         'no_spk',
         'urgent',
+        'is_draft'
     ];
 public function divisi()
 {
@@ -47,5 +48,12 @@ public function divisi()
     public function files()
     {
     return $this->hasMany(PengajuanFile::class, 'pengajuan_id');
+    }
+      public function divisiItems()
+    {
+        return $this->hasMany(
+            PengajuanDivisi::class,
+            'pengajuan_id'
+        );
     }
 }

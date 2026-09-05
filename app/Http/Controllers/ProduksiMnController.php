@@ -1532,91 +1532,59 @@ class ProduksiMnController extends Controller
         );
     }
 
-        private function buildMonitoringData(Request $request)
-    {
-        $start = microtime(true);
+   public function buildMonitoringData(Request $request)
+{
+    $start = microtime(true);
 
-        /*
-        |--------------------------------------------------------------------------
-        | LOAD PO
-        |--------------------------------------------------------------------------
-        */
-        $pos = Po::with([
-            'detailPos',
-            'spks',
-        ])->get();
+    /*
+    |--------------------------------------------------------------------------
+    | LOAD PO
+    |--------------------------------------------------------------------------
+    */
+    $pos = Po::with(['detailPos', 'spks'])->get();
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | INSPECTION PER SPK
-        |--------------------------------------------------------------------------
-        |
-        | Inspection yang mempunyai spk_id.
-        |
-        | Key:
-        | spk_id_detail_po_id
-        |
-        */
-        $inspectionTotals = InspectSchedule::query()
-            ->selectRaw('
+    /*
+    |--------------------------------------------------------------------------
+    | INSPECTION PER SPK
+    |--------------------------------------------------------------------------
+    */
+    $inspectionTotals = InspectSchedule::query()
+        ->selectRaw('
             spk_id,
             detail_po_id,
             SUM(passed) as total_passed,
             SUM(rejected) as total_rejected
         ')
-            ->whereNotNull('spk_id')
-            ->groupBy(
-                'spk_id',
-                'detail_po_id'
-            )
-            ->get()
-            ->keyBy(function ($row) {
-                return $row->spk_id
-                    . '_'
-                    . $row->detail_po_id;
-            });
+        ->whereNotNull('spk_id')
+        ->groupBy('spk_id', 'detail_po_id')
+        ->get()
+        ->keyBy(fn ($row) => $row->spk_id . '_' . $row->detail_po_id);
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | INSPECTION TANPA SPK
-        |--------------------------------------------------------------------------
-        |
-        | Unfinish dan Final dilakukan QC tanpa SPK.
-        |
-        | kategori_id:
-        | 6 = Unfinish
-        | 7 = Final
-        |
-        */
-        $inspectionWithoutSpk = InspectSchedule::query()
-            ->selectRaw('
+    /*
+    |--------------------------------------------------------------------------
+    | INSPECTION TANPA SPK - UNFINISH / FINAL
+    |--------------------------------------------------------------------------
+    */
+    $inspectionWithoutSpk = InspectSchedule::query()
+        ->selectRaw('
             detail_po_id,
             kategori_id,
             SUM(passed) as total_passed,
             SUM(rejected) as total_rejected
         ')
-            ->whereNull('spk_id')
-            ->whereIn('kategori_id', [6, 7])
-            ->groupBy(
-                'detail_po_id',
-                'kategori_id'
-            )
-            ->get()
-            ->groupBy('detail_po_id');
+        ->whereNull('spk_id')
+        ->whereIn('kategori_id', [6, 7])
+        ->groupBy('detail_po_id', 'kategori_id')
+        ->get()
+        ->groupBy('detail_po_id');
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | PRODUCTION TIMELINE
-        |--------------------------------------------------------------------------
-        |
-        | Total IN per SPK.
-        |
-        */
-        $inventoryTotals = ProductionTimeline::query()
-            ->selectRaw('
+    /*
+    |--------------------------------------------------------------------------
+    | PRODUCTION TIMELINE TOTAL PER SPK
+    |--------------------------------------------------------------------------
+    */
+    $inventoryTotals = ProductionTimeline::query()
+        ->selectRaw('
             spk_id,
             detail_po_id,
             SUM(
@@ -1627,35 +1595,18 @@ class ProduksiMnController extends Controller
                 END
             ) as total_in
         ')
-            ->whereNotNull('spk_id')
-            ->groupBy(
-                'spk_id',
-                'detail_po_id'
-            )
-            ->get()
-            ->keyBy(function ($row) {
-                return $row->spk_id
-                    . '_'
-                    . $row->detail_po_id;
-            });
+        ->whereNotNull('spk_id')
+        ->groupBy('spk_id', 'detail_po_id')
+        ->get()
+        ->keyBy(fn ($row) => $row->spk_id . '_' . $row->detail_po_id);
 
-        /*
-        |--------------------------------------------------------------------------
-        | PRODUCTION TIMELINE PER PROCESS
-        |--------------------------------------------------------------------------
-        |
-        | KHUSUS untuk SPK composite seperti:
-        |
-        | RANGKA + ANYAM
-        |
-        | Jangan bergantung pada spk_id karena RANGKA dan ANYAM
-        | dapat berasal dari SPK yang berbeda.
-        |
-        | process kosong -> fallback ke jenis.
-        |
-        */
-        $inventoryByDetailComponent = ProductionTimeline::query()
-            ->selectRaw('
+    /*
+    |--------------------------------------------------------------------------
+    | PRODUCTION TIMELINE PER COMPONENT / REMARK
+    |--------------------------------------------------------------------------
+    */
+    $inventoryByDetailComponent = ProductionTimeline::query()
+        ->selectRaw('
             spk_id,
             detail_po_id,
             type,
@@ -1668,1770 +1619,843 @@ class ProduksiMnController extends Controller
                 END
             ) as total_in
         ')
-            ->whereNotNull('spk_id')
-            ->whereNotNull('detail_po_id')
-            ->groupBy(
-                'spk_id',
-                'detail_po_id',
-                'type',
-                'remark'
-            )
-            ->get();
+        ->whereNotNull('spk_id')
+        ->whereNotNull('detail_po_id')
+        ->groupBy('spk_id', 'detail_po_id', 'type', 'remark')
+        ->get();
 
+    $result = [];
 
-        /*
-        |--------------------------------------------------------------------------
-        | RESULT
-        |--------------------------------------------------------------------------
-        */
-        $result = [];
+    $normalizeArray = function ($value) {
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            return json_last_error() === JSON_ERROR_NONE && is_array($decoded)
+                ? $decoded
+                : [];
+        }
 
+        return is_array($value) ? $value : [];
+    };
 
-        /*
-        |--------------------------------------------------------------------------
-        | HELPER LOCAL
-        |--------------------------------------------------------------------------
-        */
-        $normalizeArray = function ($value) {
+    /*
+    |--------------------------------------------------------------------------
+    | LOOP PO
+    |--------------------------------------------------------------------------
+    */
+    foreach ($pos as $po) {
+        $poData = [
+            'po_id' => $po->id,
+            'po_number' => $po->order_no,
+            'buyer' => $po->company_name,
+            'items' => [],
+        ];
 
-            if (is_string($value)) {
+        foreach ($po->detailPos as $detailPo) {
+            $detail = $normalizeArray($detailPo->detail);
 
-                $decoded = json_decode(
-                    $value,
-                    true
-                );
+            $itemName = $detail['description']
+                ?? $detail['nama']
+                ?? $detail['item']
+                ?? '-';
 
-                if (
-                    json_last_error() === JSON_ERROR_NONE
-                    && is_array($decoded)
-                ) {
-                    return $decoded;
+            $itemImage = $detail['item_image']
+                ?? $detail['image']
+                ?? $detail['gambar']
+                ?? $detail['photo']
+                ?? null;
+
+            $unfinishPassed = 0;
+            $unfinishRejected = 0;
+            $finalPassed = 0;
+            $finalRejected = 0;
+
+            foreach (
+                $inspectionWithoutSpk[$detailPo->id] ?? collect()
+                as $inspection
+            ) {
+                $kategoriId = (int) $inspection->kategori_id;
+
+                if ($kategoriId === 6) {
+                    $unfinishPassed += (float) ($inspection->total_passed ?? 0);
+                    $unfinishRejected += (float) ($inspection->total_rejected ?? 0);
+                } elseif ($kategoriId === 7) {
+                    $finalPassed += (float) ($inspection->total_passed ?? 0);
+                    $finalRejected += (float) ($inspection->total_rejected ?? 0);
                 }
-
-                return [];
             }
 
-            return is_array($value)
-                ? $value
-                : [];
-        };
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | LOOP PO
-        |--------------------------------------------------------------------------
-        */
-        foreach ($pos as $po) {
-
-            $poData = [
-                'po_id' =>
-                    $po->id,
-
-                'po_number' =>
-                    $po->order_no,
-
-                'buyer' =>
-                    $po->company_name,
-
-                'items' =>
-                    [],
+            $itemData = [
+                'detail_po_id' => $detailPo->id,
+                'item_name' => $itemName,
+                'item_image' => $itemImage,
+                'material' => $detail['material'] ?? '-',
+                'qty' => (float) ($detail['qty'] ?? 0),
+                'spks' => [],
+                'unfinish' => [
+                    'passed' => $unfinishPassed,
+                    'rejected' => $unfinishRejected,
+                ],
+                'final' => [
+                    'passed' => $finalPassed,
+                    'rejected' => $finalRejected,
+                ],
             ];
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | LOOP DETAIL PO
-            |--------------------------------------------------------------------------
-            */
-            foreach (
-                $po->detailPos
-                as $detailPo
-            ) {
+            foreach ($po->spks as $spk) {
+                $spkData = $normalizeArray($spk->data);
 
                 /*
                 |--------------------------------------------------------------------------
-                | DETAIL PO
+                | NORMALISASI KATEGORI SEBELUM COMPONENT
                 |--------------------------------------------------------------------------
                 */
-                $detail =
-                    $normalizeArray(
-                        $detailPo->detail
+                $kategoriSpk = strtoupper(
+                    preg_replace(
+                        '/\s+/',
+                        ' ',
+                        trim((string) ($spkData['kategori'] ?? ''))
+                    )
+                );
+
+                foreach (($spkData['items'] ?? []) as $spkItem) {
+                    if (($spkItem['detail_po_id'] ?? null) != $detailPo->id) {
+                        continue;
+                    }
+
+                    $classification = ProductionMonitoringHelper::classifySpkCategory(
+                        $spkData['kategori'] ?? ''
                     );
 
+                    $key = $spk->id . '_' . $detailPo->id;
+                    $inspection = $inspectionTotals[$key] ?? null;
+                    $inventory = $inventoryTotals[$key] ?? null;
 
-                /*
-                |--------------------------------------------------------------------------
-                | ITEM NAME
-                |--------------------------------------------------------------------------
-                */
-                $itemName =
-                    $detail['description']
-                    ?? $detail['nama']
-                    ?? $detail['item']
-                    ?? '-';
+                    $totalIn = (float) ($inventory->total_in ?? 0);
+                    $totalPassed = (float) ($inspection->total_passed ?? 0);
+                    $totalRejected = (float) ($inspection->total_rejected ?? 0);
 
-
-                /*
-                |--------------------------------------------------------------------------
-                | ITEM IMAGE
-                |--------------------------------------------------------------------------
-                */
-                $itemImage =
-                    $detail['item_image']
-                    ?? $detail['image']
-                    ?? $detail['gambar']
-                    ?? $detail['photo']
-                    ?? null;
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | UNFINISH
-                |--------------------------------------------------------------------------
-                */
-                $unfinishPassed = 0;
-                $unfinishRejected = 0;
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | FINAL
-                |--------------------------------------------------------------------------
-                */
-                $finalPassed = 0;
-                $finalRejected = 0;
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | INSPECTION TANPA SPK
-                |--------------------------------------------------------------------------
-                */
-                $itemInspections =
-                    $inspectionWithoutSpk[
-                        $detailPo->id
-                    ]
-                    ?? collect();
-
-
-                foreach (
-                    $itemInspections
-                    as $inspection
-                ) {
-
-                    $kategoriId =
-                        (int) $inspection->kategori_id;
-
+                    // DEBUG ANYAM - HAPUS SETELAH DATA SUDAH DITEMUKAN
+                    // if (
+                    //     strtoupper(trim((string) ($spkData['kategori'] ?? ''))) === 'ANYAM'
+                    //     && strtoupper(trim((string) ($po->order_no ?? ''))) === 'NW 26 - 44'
+                    // ) {
+                    //     dd([
+                    //         'PO' => $po->order_no ?? null,
+                    //         'PO_ID' => $po->id ?? null,
+                    //         'DETAIL_PO_ID' => $detailPo->id ?? null,
+                    //         'ITEM_NAME' => $itemName ?? null,
+                    //         'SPK_ID' => $spk->id ?? null,
+                    //         'NO_SPK' => $spkData['no_spk'] ?? null,
+                    //         'KATEGORI' => $spkData['kategori'] ?? null,
+                    //         'SPK_ITEM' => $spkItem,
+                    //         'TOTAL_IN' => $totalIn,
+                    //         'TOTAL_PASSED' => $totalPassed,
+                    //         'TOTAL_REJECTED' => $totalRejected,
+                    //         'INVENTORY_TOTAL_ROW' => $inventory ? $inventory->toArray() : null,
+                    //         'INSPECTION_TOTAL_ROW' => $inspection ? $inspection->toArray() : null,
+                    //         'TIMELINE_COMPONENT_ROWS' => $inventoryByDetailComponent
+                    //             ->filter(function ($row) use ($spk, $detailPo) {
+                    //                 return (int) ($row->spk_id ?? 0) === (int) $spk->id
+                    //                     && (int) ($row->detail_po_id ?? 0) === (int) $detailPo->id;
+                    //             })
+                    //             ->values()
+                    //             ->map(fn ($row) => $row->toArray())
+                    //             ->all(),
+                    //     ]);
+                    // }
 
                     /*
                     |--------------------------------------------------------------------------
-                    | UNFINISH
+                    | COMPONENT
                     |--------------------------------------------------------------------------
                     */
-                    if (
-                        $kategoriId === 6
-                    ) {
+                    $components = [];
+                    $customColumns = $normalizeArray($spkItem['custom_columns'] ?? []);
 
-                        $unfinishPassed +=
-                            (float) (
-                                $inspection->total_passed
-                                ?? 0
-                            );
-
-                        $unfinishRejected +=
-                            (float) (
-                                $inspection->total_rejected
-                                ?? 0
-                            );
-                    }
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | FINAL
-                    |--------------------------------------------------------------------------
-                    */ elseif (
-                        $kategoriId === 7
-                    ) {
-
-                        $finalPassed +=
-                            (float) (
-                                $inspection->total_passed
-                                ?? 0
-                            );
-
-                        $finalRejected +=
-                            (float) (
-                                $inspection->total_rejected
-                                ?? 0
-                            );
-                    }
-                }
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | ITEM DATA
-                |--------------------------------------------------------------------------
-                */
-                $itemData = [
-
-                    'detail_po_id' =>
-                        $detailPo->id,
-
-                    'item_name' =>
-                        $itemName,
-
-                    'item_image' =>
-                        $itemImage,
-
-                    'material' =>
-                        $detail['material'] ?? '-',
-
-                    'qty' =>
-                        (float) (
-                            $detail['qty']
-                            ?? 0
-                        ),
-
-                    'spks' =>
-                        [],
-
-                    'unfinish' => [
-
-                        'passed' =>
-                            $unfinishPassed,
-
-                        'rejected' =>
-                            $unfinishRejected,
-                    ],
-
-                    'final' => [
-
-                        'passed' =>
-                            $finalPassed,
-
-                        'rejected' =>
-                            $finalRejected,
-                    ],
-                ];
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | LOOP SPK
-                |--------------------------------------------------------------------------
-                */
-                foreach (
-                    $po->spks
-                    as $spk
-                ) {
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | SPK DATA
-                    |--------------------------------------------------------------------------
-                    */
-                    $spkData =
-                        $normalizeArray(
-                            $spk->data
-                        );
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | LOOP ITEM SPK
-                    |--------------------------------------------------------------------------
-                    */
-                    foreach (
-                        ($spkData['items'] ?? [])
-                        as $spkItem
-                    ) {
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | FILTER DETAIL PO
-                        |--------------------------------------------------------------------------
-                        */
-                        if (
-                            ($spkItem['detail_po_id'] ?? null)
-                            != $detailPo->id
-                        ) {
+                    foreach ($customColumns as $customColumn) {
+                        if (!is_array($customColumn)) {
                             continue;
                         }
 
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | CLASSIFICATION
-                        |--------------------------------------------------------------------------
-                        */
-                        $classification =
-                            ProductionMonitoringHelper::classifySpkCategory(
-                                $spkData['kategori']
-                                ?? ''
-                            );
-
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | KEY MONITORING
-                        |--------------------------------------------------------------------------
-                        */
-                        $key =
-                            $spk->id
-                            . '_'
-                            . $detailPo->id;
-
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | INSPECTION
-                        |--------------------------------------------------------------------------
-                        */
-                        $inspection =
-                            $inspectionTotals[$key]
-                            ?? null;
-
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | INVENTORY
-                        |--------------------------------------------------------------------------
-                        */
-                        $inventory =
-                            $inventoryTotals[$key]
-                            ?? null;
-
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | TOTAL IN ASLI
-                        |--------------------------------------------------------------------------
-                        */
-                        $totalIn =
-                            (float) (
-                                $inventory->total_in
-                                ?? 0
-                            );
-
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | PASSED
-                        |--------------------------------------------------------------------------
-                        */
-                        $totalPassed =
-                            (float) (
-                                $inspection->total_passed
-                                ?? 0
-                            );
-
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | REJECTED
-                        |--------------------------------------------------------------------------
-                        */
-                        $totalRejected =
-                            (float) (
-                                $inspection->total_rejected
-                                ?? 0
-                            );
-
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | COMPONENT
-                        |--------------------------------------------------------------------------
-                        |
-                        | PENTING:
-                        |
-                        | Sumber component BUKAN custom_headers.
-                        |
-                        | Sumber yang benar:
-                        |
-                        | $spkItem['custom_columns'][*]['proses']
-                        |
-                        | Contoh:
-                        |
-                        | ANYAM RANGKA
-                        | ANYAM DUDUKAN
-                        | ANYAM SANDARAN
-                        |
-                        */
-                        $components = [];
-
-                        $customColumns =
-                            $normalizeArray(
-                                $spkItem['custom_columns']
-                                ?? []
-                            );
-
-
-                        foreach (
-                            $customColumns
-                            as $customColumn
-                        ) {
-
-                            if (
-                                !is_array($customColumn)
-                            ) {
-                                continue;
-                            }
-
-
-                            /*
-                            |--------------------------------------------------------------------------
-                            | NAMA PROSES / COMPONENT
-                            |--------------------------------------------------------------------------
-                            */
-                          $processName =
-    trim(
-        (string) (
-            $customColumn['proses']
-            ?? $customColumn['deskripsi']
-            ?? $customColumn['name']
-            ?? ''
-        )
-    );
-
-
-                            /*
-                            |--------------------------------------------------------------------------
-                            | SKIP KOSONG
-                            |--------------------------------------------------------------------------
-                            */
-                            if (
-                                $processName === ''
-                            ) {
-                                continue;
-                            }
-
-
-                            /*
-                            |--------------------------------------------------------------------------
-                            | QTY COMPONENT
-                            |--------------------------------------------------------------------------
-                            */
-                            $componentQty =
-                                $customColumn['pcs']
-                                ?? $customColumn['qty']
-                                ?? $customColumn['quantity']
-                                ?? $spkItem['qty']
-                                ?? 0;
-
-
-                            /*
-                            |--------------------------------------------------------------------------
-                            | COMPONENT
-                            |--------------------------------------------------------------------------
-                            */
-                            $components[] = [
-
-                                'name' =>
-                                    $processName,
-
-                                'qty_spk' =>
-                                    (float) 
-                                    $componentQty,
-
-                                'qty_in' =>
-                                    0,
-
-                                'passed' =>
-                                    0,
-
-                                'rejected' =>
-                                    0,
-                            ];
-                        }
-
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | REMOVE DUPLICATE COMPONENT
-                        |--------------------------------------------------------------------------
-                        */
-                        $uniqueComponents = [];
-
-                        foreach (
-                            $components
-                            as $component
-                        ) {
-
-                            $componentKey =
-                                strtoupper(
-                                    preg_replace(
-                                        '/\s+/',
-                                        ' ',
-                                        trim(
-                                            $component['name']
-                                        )
-                                    )
-                                );
-
-
-                            if (
-                                isset(
-                                $uniqueComponents[
-                                    $componentKey
-                                ]
-                            )
-                            ) {
-                                continue;
-                            }
-
-
-                            $uniqueComponents[
-                                $componentKey
-                            ] =
-                                $component;
-                        }
-
-
-                        $components =
-                            array_values(
-                                $uniqueComponents
-                            );
-
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | JUMLAH COMPONENT
-                        |--------------------------------------------------------------------------
-                        */
-                        $componentCount =
-                            count($components);
-
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | DETEKSI COMPOSITE RANGKA + ANYAM
-                        |--------------------------------------------------------------------------
-                        */
-                        $kategoriSpk = strtoupper(
-                            preg_replace(
-                                '/\s+/',
-                                ' ',
-                                trim(
-                                    (string) (
-                                        $spkData['kategori'] ?? ''
-                                    )
-                                )
-                            )
-                        );
-
-                        $hasRangka = false;
-                        $hasAnyam = false;
-                        $hasDudukan = false;
-                        $hasSandaran = false;
-
-                        foreach ($components as $componentCheck) {
-
-                            $componentNameCheck = strtoupper(
-                                trim(
-                                    (string) (
-                                        $componentCheck['name'] ?? ''
-                                    )
-                                )
-                            );
-
-                            if (str_contains($componentNameCheck, 'RANGKA')) {
-                                $hasRangka = true;
-                            }
-
-                            if (str_contains($componentNameCheck, 'ANYAM')) {
-                                $hasAnyam = true;
-                            }
-
-                            if (
-                                str_contains($componentNameCheck, 'DUDUKAN')
-                                || str_contains($componentNameCheck, 'DUDUK')
-                            ) {
-                                $hasDudukan = true;
-                            }
-
-                            if (
-                                str_contains($componentNameCheck, 'SANDARAN')
-                                || str_contains($componentNameCheck, 'SANDAR')
-                            ) {
-                                $hasSandaran = true;
-                            }
-                        }
-
-                        $isAssemblingComposite =
-                            $hasDudukan
-                            && $hasSandaran;
-                        $isRangkaAnyamComposite =
-                            $kategoriSpk === 'ANYAM'
-                            || ($hasRangka && $hasAnyam);
-                        /*
-                        |--------------------------------------------------------------------------
-                        | DETEKSI PACKAGING / BOX COMPOSITE
-                        |--------------------------------------------------------------------------
-                        |
-                        | Contoh custom_columns:
-                        |
-                        | BOX
-                        | LAYER
-                        | EMPTY
-                        |
-                        | IN masing-masing component diambil dari
-                        | ProductionTimeline.remark:
-                        |
-                        | box   -> BOX
-                        | layer -> LAYER
-                        | empty -> EMPTY
-                        |
-                        | Jangan membagi total IN.
-                        */
-                        $kategoriSpkLower = strtolower($kategoriSpk);
-
-                        $classificationCategory =
-                            strtolower(
-                                trim(
-                                    (string) (
-                                        $classification['category'] ?? ''
-                                    )
-                                )
-                            );
-
-                        $isPackagingComposite =
-                            $classificationCategory === 'box'
-                            || $classificationCategory === 'packaging'
-                            || str_contains(
-                                $kategoriSpkLower,
-                                'box'
-                            )
-                            || str_contains(
-                                $kategoriSpkLower,
-                                'packaging'
-                            );
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | QTY IN MONITORING
-                        |--------------------------------------------------------------------------
-                        |
-                        | PRIORITAS:
-                        |
-                        | 1. Assembling
-                        | 2. Rangka + Anyam
-                        | 3. Packaging / Box
-                        | 4. SPK biasa
-                        |
-                        */
-                        if ($isAssemblingComposite) {
-
-                            /*
-                            |--------------------------------------------------------------------------
-                            | ASSEMBLING: DUDUKAN + SANDARAN
-                            |--------------------------------------------------------------------------
-                            | 1 set utuh membutuhkan 1 dudukan + 1 sandaran.
-                            | Qty assembling = MIN(qty dudukan, qty sandaran).
-                            */
-                            $qtyDudukan = 0;
-                            $qtySandaran = 0;
-
-                            foreach ($components as &$component) {
-
-                                $componentName = strtoupper(
-                                    trim(
-                                        (string) (
-                                            $component['name'] ?? ''
-                                        )
-                                    )
-                                );
-
-                                $processRows = $inventoryByDetailComponent
-                                    ->filter(function ($row) use (
-                                        $spk,
-                                        $detailPo,
-                                        $componentName
-                                    ) {
-
-                                        if (
-                                            (int) ($row->spk_id ?? 0)
-                                            !== (int) $spk->id
-                                        ) {
-                                            return false;
-                                        }
-
-                                        if (
-                                            (int) ($row->detail_po_id ?? 0)
-                                            !== (int) $detailPo->id
-                                        ) {
-                                            return false;
-                                        }
-
-                                        $remarkKey = strtoupper(
-                                            trim(
-                                                (string) (
-                                                    $row->remark ?? ''
-                                                )
-                                            )
-                                        );
-
-                                        if ($remarkKey === '') {
-                                            return false;
-                                        }
-
-                                        if (
-                                            str_contains($componentName, 'DUDUKAN')
-                                            || str_contains($componentName, 'DUDUK')
-                                        ) {
-                                            return
-                                                str_contains($remarkKey, 'DUDUKAN')
-                                                || str_contains($remarkKey, 'DUDUK');
-                                        }
-
-                                        if (
-                                            str_contains($componentName, 'SANDARAN')
-                                            || str_contains($componentName, 'SANDAR')
-                                        ) {
-                                            return
-                                                str_contains($remarkKey, 'SANDARAN')
-                                                || str_contains($remarkKey, 'SANDAR');
-                                        }
-
-                                        return false;
-                                    });
-
-                                $component['qty_in'] =
-                                    (float) $processRows->sum('total_in');
-
-                                $component['passed'] =
-                                    $totalPassed;
-
-                                $component['rejected'] =
-                                    $totalRejected;
-
-                                if (
-                                    str_contains($componentName, 'DUDUKAN')
-                                    || str_contains($componentName, 'DUDUK')
-                                ) {
-                                    $qtyDudukan +=
-                                        (float) $component['qty_in'];
-                                }
-
-                                if (
-                                    str_contains($componentName, 'SANDARAN')
-                                    || str_contains($componentName, 'SANDAR')
-                                ) {
-                                    $qtySandaran +=
-                                        (float) $component['qty_in'];
-                                }
-                            }
-
-                            unset($component);
-
-                            $qtyAssembling = min(
-                                $qtyDudukan,
-                                $qtySandaran
-                            );
-
-                            foreach ($components as &$component) {
-                                $component['qty_assembling'] =
-                                    $qtyAssembling;
-                            }
-
-                            unset($component);
-
-                        } elseif ($isRangkaAnyamComposite) {
-
-                            foreach (
-                                $components
-                                as &$component
-                            ) {
-
-                                $componentName = strtoupper(
-                                    trim(
-                                        (string) (
-                                            $component['name'] ?? ''
-                                        )
-                                    )
-                                );
-
-                                if (str_contains($componentName, 'RANGKA')) {
-                                    $targetProcess = 'RANGKA';
-                                } elseif (str_contains($componentName, 'ANYAM')) {
-                                    $targetProcess = 'ANYAM';
-                                } else {
-                                    $targetProcess = $componentName;
-                                }
-
-                                /*
-                                | Cari semua Timeline pada detail PO ini.
-                                | ANYAM/RANGKA menggunakan contains supaya variasi
-                                | seperti ANYAM DUDUKAN / RANGKA ROTAN ikut masuk.
-                                */
-                                $processRows = $inventoryByDetailComponent
-                                    ->filter(function ($row) use (
-                                        $spk,
-                                        $detailPo,
-                                        $targetProcess
-                                    ) {
-
-                                        /*
-                                        |--------------------------------------------------------------------------
-                                        | SPK DAN DETAIL PO HARUS SAMA
-                                        |--------------------------------------------------------------------------
-                                        */
-                                        if (
-                                            (int) ($row->spk_id ?? 0)
-                                            !== (int) $spk->id
-                                        ) {
-                                            return false;
-                                        }
-
-                                        if (
-                                            (int) ($row->detail_po_id ?? 0)
-                                            !== (int) $detailPo->id
-                                        ) {
-                                            return false;
-                                        }
-
-                                        /*
-                                        |--------------------------------------------------------------------------
-                                        | COMPONENT DIAMBIL DARI REMARK
-                                        |--------------------------------------------------------------------------
-                                        */
-                                        $remarkKey = strtoupper(
-                                            trim(
-                                                (string) (
-                                                    $row->remark ?? ''
-                                                )
-                                            )
-                                        );
-
-                                        if ($remarkKey === '') {
-                                            return false;
-                                        }
-
-                                        if ($targetProcess === 'ANYAM') {
-                                            return str_contains(
-                                                $remarkKey,
-                                                'ANYAM'
-                                            );
-                                        }
-
-                                        if ($targetProcess === 'RANGKA') {
-                                            return str_contains(
-                                                $remarkKey,
-                                                'RANGKA'
-                                            );
-                                        }
-
-                                        return $remarkKey === strtoupper(
-                                            trim($targetProcess)
-                                        );
-                                    });
-
-                                $component['qty_in'] =
-                                    (float) $processRows->sum('total_in');
-
-                                $component['passed'] =
-                                    $totalPassed;
-
-                                $component['rejected'] =
-                                    $totalRejected;
-                            }
-
-                            unset($component);
-
-                        } elseif ($isPackagingComposite) {
-
-                            /*
-                            |--------------------------------------------------------------------------
-                            | PACKAGING / BOX
-                            |--------------------------------------------------------------------------
-                            |
-                            | Setiap component membaca IN dari remark.
-                            |
-                            | BOX   -> remark box
-                            | LAYER -> remark layer
-                            | EMPTY -> remark empty
-                            |
-                            | Matching dibuat case-insensitive dan toleran
-                            | terhadap tambahan teks pada remark.
-                            */
-                            foreach (
-                                $components
-                                as &$component
-                            ) {
-
-                                $componentName = strtoupper(
-                                    trim(
-                                        (string) (
-                                            $component['name'] ?? ''
-                                        )
-                                    )
-                                );
-
-                                $processRows =
-                                    $inventoryByDetailComponent
-                                        ->filter(function ($row) use (
-                                            $spk,
-                                            $detailPo,
-                                            $componentName
-                                        ) {
-
-                                            if (
-                                                (int) ($row->spk_id ?? 0)
-                                                !== (int) $spk->id
-                                            ) {
-                                                return false;
-                                            }
-
-                                            if (
-                                                (int) ($row->detail_po_id ?? 0)
-                                                !== (int) $detailPo->id
-                                            ) {
-                                                return false;
-                                            }
-
-                                            /*
-                                            |--------------------------------------------------------------------------
-                                            | HANYA TRANSAKSI IN
-                                            |--------------------------------------------------------------------------
-                                            |
-                                            | Query sudah menghitung total_in,
-                                            | tetapi tetap aman apabila ada row
-                                            | dengan type selain IN.
-                                            */
-                                            if (
-                                                strtolower(
-                                                    trim(
-                                                        (string) (
-                                                            $row->type ?? ''
-                                                        )
-                                                    )
-                                                ) !== 'in'
-                                            ) {
-                                                return false;
-                                            }
-
-                                            $remarkKey = strtoupper(
-                                                trim(
-                                                    (string) (
-                                                        $row->remark ?? ''
-                                                    )
-                                                )
-                                            );
-
-                                            if ($remarkKey === '') {
-                                                return false;
-                                            }
-
-                                            /*
-                                            |--------------------------------------------------------------------------
-                                            | NORMALISASI REMARK
-                                            |--------------------------------------------------------------------------
-                                            |
-                                            | BOX      cocok BOX
-                                            | BOX 1    cocok BOX
-                                            | layer    cocok LAYER
-                                            | EMPTY    cocok EMPTY
-                                            */
-                                            $componentKey = preg_replace(
-                                                '/[^A-Z0-9]+/',
-                                                ' ',
-                                                $componentName
-                                            );
-
-                                            $remarkNormalized = preg_replace(
-                                                '/[^A-Z0-9]+/',
-                                                ' ',
-                                                $remarkKey
-                                            );
-
-                                            $componentKey =
-                                                trim($componentKey);
-
-                                            $remarkNormalized =
-                                                trim($remarkNormalized);
-
-                                            if (
-                                                $componentKey === ''
-                                                || $remarkNormalized === ''
-                                            ) {
-                                                return false;
-                                            }
-
-                                            /*
-                                            | Component BOX tidak boleh mengambil
-                                            | LAYER / EMPTY.
-                                            */
-                                            return
-                                                $remarkNormalized === $componentKey
-                                                || str_contains(
-                                                    ' ' . $remarkNormalized . ' ',
-                                                    ' ' . $componentKey . ' '
-                                                )
-                                                || str_contains(
-                                                    $remarkNormalized,
-                                                    $componentKey
-                                                );
-                                        });
-
-                                $component['qty_in'] =
-                                    (float) $processRows->sum(
-                                        'total_in'
-                                    );
-
-                                $component['passed'] =
-                                    $totalPassed;
-
-                                $component['rejected'] =
-                                    $totalRejected;
-                            }
-
-                            unset($component);
-
-                            /*
-                            |--------------------------------------------------------------------------
-                            | QTY IN UTAMA PACKAGING
-                            |--------------------------------------------------------------------------
-                            |
-                            | Kolom IN utama menggunakan component BOX.
-                            |
-                            | Contoh:
-                            |
-                            | BOX   = 30
-                            | LAYER = 60
-                            | EMPTY = 30
-                            |
-                            | Maka IN Packaging = 30.
-                            */
-                            $packagingQtyIn = 0;
-
-                            foreach ($components as $component) {
-
-                                $componentName = strtoupper(
-                                    trim(
-                                        (string) (
-                                            $component['name'] ?? ''
-                                        )
-                                    )
-                                );
-
-                                if (
-                                    $componentName === 'BOX'
-                                    || str_contains(
-                                        $componentName,
-                                        'BOX'
-                                    )
-                                ) {
-                                    $packagingQtyIn =
-                                        (float) (
-                                            $component['qty_in'] ?? 0
-                                        );
-
-                                    break;
-                                }
-                            }
-
-                            /*
-                            | Jika tidak ada component BOX, fallback ke
-                            | component pertama agar tidak menghasilkan
-                            | nilai kosong secara salah.
-                            */
-                            if (
-                                $packagingQtyIn <= 0
-                                && !empty($components)
-                            ) {
-                                $packagingQtyIn =
-                                    (float) (
-                                        $components[0]['qty_in'] ?? 0
-                                    );
-                            }
-
-                            $componentQtyIn =
-                                $packagingQtyIn;
-
-                        } else {
-
-                            /*
-                            |--------------------------------------------------------------------------
-                            | SPK BIASA - LOGIC LAMA
-                            |--------------------------------------------------------------------------
-                            */
-                            if ($componentCount > 1) {
-
-                                $componentQtyIn =
-                                    floor(
-                                        $totalIn
-                                        /
-                                        $componentCount
-                                    );
-
-                            } else {
-
-                                $componentQtyIn =
-                                    $totalIn;
-                            }
-
-                            foreach (
-                                $components
-                                as &$component
-                            ) {
-
-                                $component['qty_in'] =
-                                    $componentQtyIn;
-
-                                $component['passed'] =
-                                    $totalPassed;
-
-                                $component['rejected'] =
-                                    $totalRejected;
-                            }
-
-                            unset($component);
-                        }
-
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | SUB NAME
-                        |--------------------------------------------------------------------------
-                        |
-                        | Sesuai kebutuhan:
-                        |
-                        | SUB NAME = supplier SPK.
-                        |
-                        */
-                        $subName =
-                            $spkData['sup']
-                            ?? '-';
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | MATERIAL SPK
-                        |--------------------------------------------------------------------------
-                        | Material disimpan pada item SPK. Jika tidak ada, gunakan
-                        | material dari detail PO sebagai fallback.
-                        */
-                        $spkMaterial = trim((string) (
-                            $spkItem['material']
-                            ?? $detail['material']
-                            ?? '-'
+                        $processName = trim((string) (
+                            $customColumn['proses']
+                            ?? $customColumn['deskripsi']
+                            ?? $customColumn['name']
+                            ?? ''
                         ));
 
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | PUSH SPK
-                        |--------------------------------------------------------------------------
-                        */
-                        /*
-                        |--------------------------------------------------------------------------
-                        | PUSH SPK
-                        |--------------------------------------------------------------------------
-                        |
-                        | Composite RANGKA + ANYAM dibuat menjadi record terpisah
-                        | supaya Blade dapat menjumlahkan IN ke kolom yang benar.
-                        */
-                        if ($isAssemblingComposite) {
-
-                            $qtyAssembling =
-                                (float) (
-                                    $components[0]['qty_assembling']
-                                    ?? 0
-                                );
-
-                            $assemblingNames = collect($components)
-                                ->pluck('name')
-                                ->filter()
-                                ->values()
-                                ->implode(' + ');
-
-                            $itemData['spks'][] = [
-
-                                'spk_id' =>
-                                    $spk->id,
-
-                                'no_spk' =>
-                                    $spkData['no_spk']
-                                    ?? '-',
-
-                                'sub_name' =>
-                                    $subName,
-
-                                'supplier' =>
-                                    $spkData['sup']
-                                    ?? '-',
-
-                                'kategori' =>
-                                    $spkData['kategori']
-                                    ?? '-',
-
-                                'material' =>
-                                    $spkMaterial,
-
-                                'kategori_monitoring' =>
-                                    'assembling',
-
-                                'classification' =>
-                                    $classification['classification']
-                                    ?? null,
-
-                                'is_exception' =>
-                                    $classification['is_exception']
-                                    ?? false,
-
-                                'exception_rule' =>
-                                    $classification['exception_rule']
-                                    ?? false,
-
-                                'qty' =>
-                                    $qtyAssembling,
-
-                                'harga' =>
-                                    (float) (
-                                        $spkItem['harga']
-                                        ?? 0
-                                    ),
-
-                                'total_in' =>
-                                    $qtyAssembling,
-
-                                'qty_in' =>
-                                    $qtyAssembling,
-
-                                'passed' =>
-                                    (float) $totalPassed,
-
-                                'rejected' =>
-                                    (float) $totalRejected,
-
-                                'component_count' =>
-                                    1,
-
-                                'component_name' =>
-                                    $assemblingNames,
-
-                                'components' =>
-                                    $components,
-                            ];
-
-                        } elseif ($isRangkaAnyamComposite) {
-
-                            foreach ($components as $component) {
-
-                                $componentName = trim(
-                                    (string) (
-                                        $component['name'] ?? ''
-                                    )
-                                );
-
-                                $componentNameUpper = strtoupper(
-                                    $componentName
-                                );
-
-                                if (str_contains($componentNameUpper, 'RANGKA')) {
-                                    $componentCategory = 'rangka';
-                                } elseif (str_contains($componentNameUpper, 'ANYAM')) {
-                                    $componentCategory = 'anyam';
-                                } else {
-                                    $componentCategory =
-                                        $classification['category'] ?? null;
-                                }
-
-                                $itemData['spks'][] = [
-
-                                    'spk_id' =>
-                                        $spk->id,
-
-                                    'no_spk' =>
-                                        $spkData['no_spk']
-                                        ?? '-',
-
-                                    'sub_name' =>
-                                        $subName,
-
-                                    'supplier' =>
-                                        $spkData['sup']
-                                        ?? '-',
-
-                                    'kategori' =>
-                                        $spkData['kategori']
-                                        ?? '-',
-
-                                    'material' =>
-                                        $spkMaterial,
-
-                                    'kategori_monitoring' =>
-                                        $componentCategory,
-
-                                    'classification' =>
-                                        $classification['classification']
-                                        ?? null,
-
-                                    'is_exception' =>
-                                        $classification['is_exception']
-                                        ?? false,
-
-                                    'exception_rule' =>
-                                        $classification['exception_rule']
-                                        ?? false,
-
-                                    'qty' =>
-                                        (float) (
-                                            $spkItem['qty']
-                                            ?? 0
-                                        ),
-
-                                    'harga' =>
-                                        (float) (
-                                            $spkItem['harga']
-                                            ?? 0
-                                        ),
-
-                                    'total_in' =>
-                                        (float) (
-                                            $component['qty_in']
-                                            ?? 0
-                                        ),
-
-                                    'qty_in' =>
-                                        (float) (
-                                            $component['qty_in']
-                                            ?? 0
-                                        ),
-
-                                    'passed' =>
-                                        (float) (
-                                            $component['passed']
-                                            ?? 0
-                                        ),
-
-                                    'rejected' =>
-                                        (float) (
-                                            $component['rejected']
-                                            ?? 0
-                                        ),
-
-                                    'component_count' =>
-                                        1,
-
-                                    'component_name' =>
-                                        $componentName,
-
-                                    'components' => [
-                                        $component,
-                                    ],
-                                ];
-                            }
-
-                        } elseif ($isPackagingComposite) {
-
-                            /*
-                            |--------------------------------------------------------------------------
-                            | PUSH PACKAGING / BOX
-                            |--------------------------------------------------------------------------
-                            |
-                            | Tetap satu record SPK.
-                            | qty_in utama = IN component BOX.
-                            | Detail component tetap dikirim ke Blade.
-                            */
-                            $itemData['spks'][] = [
-
-                                'spk_id' =>
-                                    $spk->id,
-
-                                'no_spk' =>
-                                    $spkData['no_spk']
-                                    ?? '-',
-
-                                'sub_name' =>
-                                    $subName,
-
-                                'supplier' =>
-                                    $spkData['sup']
-                                    ?? '-',
-
-                                'kategori' =>
-                                    $spkData['kategori']
-                                    ?? '-',
-
-                                'material' =>
-                                    $spkMaterial,
-
-                                'kategori_monitoring' =>
-                                    'packaging',
-
-                                'classification' =>
-                                    $classification['classification']
-                                    ?? null,
-
-                                'is_exception' =>
-                                    $classification['is_exception']
-                                    ?? false,
-
-                                'exception_rule' =>
-                                    $classification['exception_rule']
-                                    ?? null,
-
-                                'qty' =>
-                                    (float) (
-                                        $spkItem['qty']
-                                        ?? 0
-                                    ),
-
-                                'harga' =>
-                                    (float) (
-                                        $spkItem['harga']
-                                        ?? 0
-                                    ),
-
-                                /*
-                                | Total IN asli seluruh component.
-                                | Dipertahankan untuk kebutuhan detail/debug.
-                                */
-                                'total_in' =>
-                                    $totalIn,
-
-                                /*
-                                | IN utama = BOX.
-                                */
-                                'qty_in' =>
-                                    (float) $componentQtyIn,
-
-                                'passed' =>
-                                    $totalPassed,
-
-                                'rejected' =>
-                                    $totalRejected,
-
-                                'component_count' =>
-                                    $componentCount,
-
-                                'component_name' =>
-                                    collect($components)
-                                        ->pluck('name')
-                                        ->filter()
-                                        ->values()
-                                        ->implode(' + '),
-
-                                'components' =>
-                                    $components,
-                            ];
-
-                        } else {
-
-                            /*
-                            |--------------------------------------------------------------------------
-                            | SPK BIASA - TETAP SEPERTI SEBELUMNYA
-                            |--------------------------------------------------------------------------
-                            */
-                            $itemData['spks'][] = [
-
-                                'spk_id' =>
-                                    $spk->id,
-
-                                'no_spk' =>
-                                    $spkData['no_spk']
-                                    ?? '-',
-
-                                'sub_name' =>
-                                    $subName,
-
-                                'supplier' =>
-                                    $spkData['sup']
-                                    ?? '-',
-
-                                'kategori' =>
-                                    $spkData['kategori']
-                                    ?? '-',
-
-                                'material' =>
-                                    $spkMaterial,
-
-                                'kategori_monitoring' =>
-                                    $classification['category']
-                                    ?? null,
-
-                                'classification' =>
-                                    $classification['classification']
-                                    ?? null,
-
-                                'is_exception' =>
-                                    $classification['is_exception']
-                                    ?? false,
-
-                                'exception_rule' =>
-                                    $classification['exception_rule']
-                                    ?? null,
-
-                                'qty' =>
-                                    (float) (
-                                        $spkItem['qty']
-                                        ?? 0
-                                    ),
-
-                                'harga' =>
-                                    (float) (
-                                        $spkItem['harga']
-                                        ?? 0
-                                    ),
-
-                                'total_in' =>
-                                    $totalIn,
-
-                                'qty_in' =>
-                                    $componentQtyIn,
-
-                                'passed' =>
-                                    $totalPassed,
-
-                                'rejected' =>
-                                    $totalRejected,
-
-                                'component_count' =>
-                                    $componentCount,
-
-                                'components' =>
-                                    $components,
-                            ];
+                        if ($processName === '') {
+                            continue;
                         }
+
+                        $componentQty = $customColumn['pcs']
+                            ?? $customColumn['qty']
+                            ?? $customColumn['quantity']
+                            ?? $spkItem['qty']
+                            ?? 0;
+
+                        $components[] = [
+                            'name' => $processName,
+                            'qty_spk' => (float) $componentQty,
+                            'qty_in' => 0,
+                            'passed' => 0,
+                            'rejected' => 0,
+                        ];
                     }
-                }
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | PUSH ITEM
-                |--------------------------------------------------------------------------
-                */
-                $poData['items'][] =
-                    $itemData;
-            }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | PUSH PO
-            |--------------------------------------------------------------------------
-            */
-            $result[] = $poData;
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | FILTER REQUEST
-        |--------------------------------------------------------------------------
-        */
-
-        $search = trim(
-            (string) $request->input('search_po', '')
-        );
-
-        $brand = strtolower(
-            trim(
-                (string) $request->input('brand', 'all')
-            )
-        );
-
-        $sort = strtolower(
-            trim(
-                (string) $request->input('sort', 'desc')
-            )
-        );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | VALIDATE BRAND
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            !in_array(
-                $brand,
-                ['all', 'nw', 'nws', 'nwr', 'nwd'],
-                true
-            )
-        ) {
-            $brand = 'all';
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | VALIDATE SORT
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            !in_array(
-                $sort,
-                ['asc', 'desc'],
-                true
-            )
-        ) {
-            $sort = 'desc';
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | COLLECTION
-        |--------------------------------------------------------------------------
-        */
-
-        $result = collect($result);
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | SEARCH NO PO / BUYER
-        |--------------------------------------------------------------------------
-        */
-
-        if ($search !== '') {
-
-            $searchLower = strtolower($search);
-
-            $result = $result->filter(
-                function ($po) use ($searchLower) {
-
-                    $poNumber = strtolower(
-                        (string) (
-                            $po['po_number'] ?? ''
-                        )
-                    );
-
-                    $buyer = strtolower(
-                        (string) (
-                            $po['buyer'] ?? ''
-                        )
-                    );
-
-                    return
-                        str_contains(
-                            $poNumber,
-                            $searchLower
-                        )
-                        ||
-                        str_contains(
-                            $buyer,
-                            $searchLower
-                        );
-                }
-            );
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | FILTER COMPANY
-        |--------------------------------------------------------------------------
-        |
-        | NW  -> hanya NW
-        | NWS -> hanya NWS
-        | NWR -> hanya NWR
-        | NWD -> hanya NWD
-        |
-        */
-
-        if ($brand !== 'all') {
-
-            $result = $result->filter(
-                function ($po) use ($brand) {
-
-                    $poNumber = strtoupper(
-                        trim(
-                            (string) (
-                                $po['po_number'] ?? ''
-                            )
-                        )
-                    );
 
                     /*
                     |--------------------------------------------------------------------------
-                    | Ambil prefix sebelum spasi
+                    | FIX UTAMA:
+                    | ANYAM MURNI TANPA CUSTOM_COLUMNS TETAP MASUK
                     |--------------------------------------------------------------------------
-                    |
-                    | NW 26 - 36  => NW
-                    | NWS 26 - 01 => NWS
-                    | NWR 26 - 01 => NWR
-                    | NWD 26 - 01 => NWD
-                    |
                     */
+                    if ($kategoriSpk === 'ANYAM' && empty($components)) {
+                        $components[] = [
+                            'name' => 'ANYAM',
+                            'qty_spk' => (float) ($spkItem['qty'] ?? 0),
+                            'qty_in' => 0,
+                            'passed' => 0,
+                            'rejected' => 0,
+                        ];
+                    }
 
-                    $prefix = strtoupper(
-                        trim(
-                            explode(' ', $poNumber)[0]
-                        )
+                    /*
+                    |--------------------------------------------------------------------------
+                    | REMOVE DUPLICATE COMPONENT
+                    |--------------------------------------------------------------------------
+                    */
+                    $uniqueComponents = [];
+
+                    foreach ($components as $component) {
+                        $componentKey = strtoupper(
+                            preg_replace(
+                                '/\s+/',
+                                ' ',
+                                trim((string) ($component['name'] ?? ''))
+                            )
+                        );
+
+                        if ($componentKey === '' || isset($uniqueComponents[$componentKey])) {
+                            continue;
+                        }
+
+                        $uniqueComponents[$componentKey] = $component;
+                    }
+
+                    $components = array_values($uniqueComponents);
+                    $componentCount = count($components);
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | DETEKSI COMPOSITE
+                    |--------------------------------------------------------------------------
+                    */
+                    $hasRangka = false;
+                    $hasAnyam = false;
+                    $hasDudukan = false;
+                    $hasSandaran = false;
+
+                    foreach ($components as $componentCheck) {
+                        $name = strtoupper(trim((string) ($componentCheck['name'] ?? '')));
+
+                        if (str_contains($name, 'RANGKA')) {
+                            $hasRangka = true;
+                        }
+
+                        if (str_contains($name, 'ANYAM')) {
+                            $hasAnyam = true;
+                        }
+
+                        if (str_contains($name, 'DUDUKAN') || str_contains($name, 'DUDUK')) {
+                            $hasDudukan = true;
+                        }
+
+                        if (str_contains($name, 'SANDARAN') || str_contains($name, 'SANDAR')) {
+                            $hasSandaran = true;
+                        }
+                    }
+
+                    $isAssemblingComposite =
+                        $hasDudukan
+                        && $hasSandaran
+                        && !$hasAnyam
+                        && !$hasRangka;
+
+                    $isRangkaAnyamComposite =
+                        ($hasRangka && $hasAnyam);
+
+                    $kategoriSpkLower = strtolower($kategoriSpk);
+
+                    $classificationCategory = strtolower(
+                        trim((string) ($classification['category'] ?? ''))
                     );
 
-                    return $prefix === strtoupper($brand);
+                    $isPackagingComposite =
+                        $classificationCategory === 'box'
+                        || $classificationCategory === 'packaging'
+                        || str_contains($kategoriSpkLower, 'box')
+                        || str_contains($kategoriSpkLower, 'packaging');
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | ASSEMBLING
+                    |--------------------------------------------------------------------------
+                    */
+                    if ($isAssemblingComposite) {
+                        $qtyDudukan = 0;
+                        $qtySandaran = 0;
+
+                        foreach ($components as &$component) {
+                            $componentName = strtoupper(
+                                trim((string) ($component['name'] ?? ''))
+                            );
+
+                            $processRows = $inventoryByDetailComponent->filter(
+                                function ($row) use ($spk, $detailPo, $componentName) {
+                                    if (
+                                        (int) ($row->spk_id ?? 0) !== (int) $spk->id
+                                        || (int) ($row->detail_po_id ?? 0) !== (int) $detailPo->id
+                                    ) {
+                                        return false;
+                                    }
+
+                                    $remarkKey = strtoupper(
+                                        trim((string) ($row->remark ?? ''))
+                                    );
+
+                                    if ($remarkKey === '') {
+                                        return false;
+                                    }
+
+                                    if (
+                                        str_contains($componentName, 'DUDUKAN')
+                                        || str_contains($componentName, 'DUDUK')
+                                    ) {
+                                        return str_contains($remarkKey, 'DUDUKAN')
+                                            || str_contains($remarkKey, 'DUDUK');
+                                    }
+
+                                    if (
+                                        str_contains($componentName, 'SANDARAN')
+                                        || str_contains($componentName, 'SANDAR')
+                                    ) {
+                                        return str_contains($remarkKey, 'SANDARAN')
+                                            || str_contains($remarkKey, 'SANDAR');
+                                    }
+
+                                    return false;
+                                }
+                            );
+
+                            $component['qty_in'] = (float) $processRows->sum('total_in');
+                            $component['passed'] = $totalPassed;
+                            $component['rejected'] = $totalRejected;
+
+                            if (
+                                str_contains($componentName, 'DUDUKAN')
+                                || str_contains($componentName, 'DUDUK')
+                            ) {
+                                $qtyDudukan += $component['qty_in'];
+                            }
+
+                            if (
+                                str_contains($componentName, 'SANDARAN')
+                                || str_contains($componentName, 'SANDAR')
+                            ) {
+                                $qtySandaran += $component['qty_in'];
+                            }
+                        }
+
+                        unset($component);
+
+                        $qtyAssembling = min($qtyDudukan, $qtySandaran);
+
+                        foreach ($components as &$component) {
+                            $component['qty_assembling'] = $qtyAssembling;
+                        }
+
+                        unset($component);
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | RANGKA + ANYAM / ANYAM MURNI
+                    |--------------------------------------------------------------------------
+                    */
+                    } elseif ($isRangkaAnyamComposite) {
+                        foreach ($components as &$component) {
+                            $componentName = strtoupper(
+                                trim((string) ($component['name'] ?? ''))
+                            );
+
+                            if (str_contains($componentName, 'ANYAM')) {
+                                $targetProcess = 'ANYAM';
+                            } elseif (str_contains($componentName, 'RANGKA')) {
+                                $targetProcess = 'RANGKA';
+                            } else {
+                                $targetProcess = $componentName;
+                            }
+
+                            $processRows = $inventoryByDetailComponent->filter(
+                                function ($row) use ($spk, $detailPo, $targetProcess, $componentName) {
+                                    if (
+                                        (int) ($row->spk_id ?? 0) !== (int) $spk->id
+                                        || (int) ($row->detail_po_id ?? 0) !== (int) $detailPo->id
+                                    ) {
+                                        return false;
+                                    }
+
+                                    $remarkKey = strtoupper(
+                                        trim((string) ($row->remark ?? ''))
+                                    );
+
+                                    if ($remarkKey === '') {
+                                        return false;
+                                    }
+
+                                    if ($targetProcess === 'ANYAM') {
+                                        /*
+                                         * IMPORTANT:
+                                         * Jangan menjumlahkan semua remark ANYAM ke setiap component.
+                                         * Setiap component harus mengambil remark-nya sendiri.
+                                         * Contoh:
+                                         *   ANYAM RANGKA   -> 40
+                                         *   ANYAM DUDUKAN  -> 30
+                                         *   ANYAM SANDARAN -> 37
+                                         */
+                                        return str_contains(
+                                            $remarkKey,
+                                            strtoupper(trim($componentName))
+                                        );
+                                    }
+
+                                    if ($targetProcess === 'RANGKA') {
+                                        return str_contains($remarkKey, 'RANGKA');
+                                    }
+
+                                    return $remarkKey === strtoupper(trim($targetProcess));
+                                }
+                            );
+
+                            $component['qty_in'] = (float) $processRows->sum('total_in');
+                            $component['passed'] = $totalPassed;
+                            $component['rejected'] = $totalRejected;
+                        }
+
+                        unset($component);
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | ANYAM MURNI
+                    |--------------------------------------------------------------------------
+                    | Untuk Anyam yang memiliki component seperti:
+                    | ANYAM RANGKA / ANYAM DUDUKAN / ANYAM SANDARAN,
+                    | IN harus diambil dari ProductionTimeline berdasarkan REMARK component.
+                    |
+                    | Jangan mengisi setiap component dengan $totalIn karena $totalIn adalah
+                    | TOTAL seluruh proses SPK. Jika dilakukan, misalnya total 107, maka
+                    | ketiga component akan menjadi 107 dan hasil monitoring salah.
+                    |
+                    | Jika tidak ada data per-component sama sekali, baru fallback ke $totalIn
+                    | untuk menjaga Anyam biasa tetap bekerja seperti sebelumnya.
+                    */
+                    } elseif ($kategoriSpk === 'ANYAM') {
+                        $componentHasRealIn = false;
+
+                        foreach ($components as &$component) {
+                            $componentName = strtoupper(
+                                trim((string) (
+                                    $component['name']
+                                    ?? $component['proses']
+                                    ?? $component['deskripsi']
+                                    ?? ''
+                                ))
+                            );
+
+                            $processRows = $inventoryByDetailComponent->filter(
+                                function ($row) use ($spk, $detailPo, $componentName) {
+                                    if (
+                                        (int) ($row->spk_id ?? 0) !== (int) $spk->id
+                                        || (int) ($row->detail_po_id ?? 0) !== (int) $detailPo->id
+                                    ) {
+                                        return false;
+                                    }
+
+                                    if (
+                                        strtolower(trim((string) ($row->type ?? ''))) !== 'in'
+                                    ) {
+                                        return false;
+                                    }
+
+                                    $remarkKey = strtoupper(
+                                        trim((string) ($row->remark ?? ''))
+                                    );
+
+                                    if ($remarkKey === '' || $componentName === '') {
+                                        return false;
+                                    }
+
+                                    $componentKey = trim(
+                                        preg_replace('/[^A-Z0-9]+/', ' ', $componentName)
+                                    );
+
+                                    $remarkNormalized = trim(
+                                        preg_replace('/[^A-Z0-9]+/', ' ', $remarkKey)
+                                    );
+
+                                    if ($componentKey === '' || $remarkNormalized === '') {
+                                        return false;
+                                    }
+
+                                    return $remarkNormalized === $componentKey
+                                        || str_contains(
+                                            ' ' . $remarkNormalized . ' ',
+                                            ' ' . $componentKey . ' '
+                                        )
+                                        || str_contains(
+                                            $remarkNormalized,
+                                            $componentKey
+                                        );
+                                }
+                            );
+
+                            $component['qty_in'] = (float) $processRows->sum('total_in');
+                            $component['passed'] = $totalPassed;
+                            $component['rejected'] = $totalRejected;
+
+                            if ($component['qty_in'] > 0) {
+                                $componentHasRealIn = true;
+                            }
+                        }
+
+                        unset($component);
+
+                        // Anyam murni tanpa remark component: fallback ke total SPK.
+                        if (!$componentHasRealIn) {
+                            $componentQtyIn = $totalIn;
+
+                            foreach ($components as &$component) {
+                                $component['qty_in'] = $totalIn;
+                            }
+
+                            unset($component);
+                        } else {
+                            // Dipakai hanya untuk kompatibilitas field lama.
+                            // Monitoring utama mengambil nilai dari masing-masing component.
+                            $componentQtyIn = (float) collect($components)
+                                ->pluck('qty_in')
+                                ->filter(fn ($value) => (float) $value > 0)
+                                ->min();
+                        }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | PACKAGING / BOX
+                    |--------------------------------------------------------------------------
+                    */
+                    } elseif ($isPackagingComposite) {
+                        foreach ($components as &$component) {
+                            $componentName = strtoupper(
+                                trim((string) ($component['name'] ?? ''))
+                            );
+
+                            $processRows = $inventoryByDetailComponent->filter(
+                                function ($row) use ($spk, $detailPo, $componentName) {
+                                    if (
+                                        (int) ($row->spk_id ?? 0) !== (int) $spk->id
+                                        || (int) ($row->detail_po_id ?? 0) !== (int) $detailPo->id
+                                    ) {
+                                        return false;
+                                    }
+
+                                    if (
+                                        strtolower(trim((string) ($row->type ?? ''))) !== 'in'
+                                    ) {
+                                        return false;
+                                    }
+
+                                    $remarkKey = strtoupper(
+                                        trim((string) ($row->remark ?? ''))
+                                    );
+
+                                    if ($remarkKey === '') {
+                                        return false;
+                                    }
+
+                                    $componentKey = trim(
+                                        preg_replace('/[^A-Z0-9]+/', ' ', $componentName)
+                                    );
+
+                                    $remarkNormalized = trim(
+                                        preg_replace('/[^A-Z0-9]+/', ' ', $remarkKey)
+                                    );
+
+                                    if ($componentKey === '' || $remarkNormalized === '') {
+                                        return false;
+                                    }
+
+                                    return $remarkNormalized === $componentKey
+                                        || str_contains(
+                                            ' ' . $remarkNormalized . ' ',
+                                            ' ' . $componentKey . ' '
+                                        )
+                                        || str_contains(
+                                            $remarkNormalized,
+                                            $componentKey
+                                        );
+                                }
+                            );
+
+                            $component['qty_in'] = (float) $processRows->sum('total_in');
+                            $component['passed'] = $totalPassed;
+                            $component['rejected'] = $totalRejected;
+                        }
+
+                        unset($component);
+
+                        $packagingQtyIn = 0;
+
+                        foreach ($components as $component) {
+                            $componentName = strtoupper(
+                                trim((string) ($component['name'] ?? ''))
+                            );
+
+                            if (
+                                $componentName === 'BOX'
+                                || str_contains($componentName, 'BOX')
+                            ) {
+                                $packagingQtyIn = (float) ($component['qty_in'] ?? 0);
+                                break;
+                            }
+                        }
+
+                        if ($packagingQtyIn <= 0 && !empty($components)) {
+                            $packagingQtyIn = (float) ($components[0]['qty_in'] ?? 0);
+                        }
+
+                        $componentQtyIn = $packagingQtyIn;
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | SPK BIASA
+                    |--------------------------------------------------------------------------
+                    */
+                    } else {
+                        $componentQtyIn = $componentCount > 1
+                            ? floor($totalIn / $componentCount)
+                            : $totalIn;
+
+                        foreach ($components as &$component) {
+                            $component['qty_in'] = $componentQtyIn;
+                            $component['passed'] = $totalPassed;
+                            $component['rejected'] = $totalRejected;
+                        }
+
+                        unset($component);
+                    }
+
+                    $subName = $spkData['sup'] ?? '-';
+
+                    $spkMaterial = trim((string) (
+                        $spkItem['material']
+                        ?? $detail['material']
+                        ?? '-'
+                    ));
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | PUSH DATA
+                    |--------------------------------------------------------------------------
+                    */
+                    if ($isAssemblingComposite) {
+                        $qtyAssembling = (float) ($components[0]['qty_assembling'] ?? 0);
+
+                        $itemData['spks'][] = [
+                            'spk_id' => $spk->id,
+                            'no_spk' => $spkData['no_spk'] ?? '-',
+                            'sub_name' => $subName,
+                            'supplier' => $spkData['sup'] ?? '-',
+                            'kategori' => $spkData['kategori'] ?? '-',
+                            'material' => $spkMaterial,
+                            'kategori_monitoring' => 'assembling',
+                            'classification' => $classification['classification'] ?? null,
+                            'is_exception' => $classification['is_exception'] ?? false,
+                            'exception_rule' => $classification['exception_rule'] ?? false,
+                            'qty' => $qtyAssembling,
+                            'harga' => (float) ($spkItem['harga'] ?? 0),
+                            'total_in' => $qtyAssembling,
+                            'qty_in' => $qtyAssembling,
+                            'passed' => $totalPassed,
+                            'rejected' => $totalRejected,
+                            'component_count' => 1,
+                            'component_name' => collect($components)->pluck('name')->filter()->values()->implode(' + '),
+                            'components' => $components,
+                        ];
+
+                    } elseif ($isRangkaAnyamComposite) {
+                        foreach ($components as $component) {
+                            $componentName = trim((string) ($component['name'] ?? ''));
+                            $componentUpper = strtoupper($componentName);
+
+                            if (str_contains($componentUpper, 'ANYAM')) {
+                                $componentCategory = 'anyam';
+                            } elseif (str_contains($componentUpper, 'RANGKA')) {
+                                $componentCategory = 'rangka';
+                            } else {
+                                $componentCategory = $classification['category'] ?? null;
+                            }
+
+                            $itemData['spks'][] = [
+                                'spk_id' => $spk->id,
+                                'no_spk' => $spkData['no_spk'] ?? '-',
+                                'sub_name' => $subName,
+                                'supplier' => $spkData['sup'] ?? '-',
+                                'kategori' => $spkData['kategori'] ?? '-',
+                                'material' => $spkMaterial,
+                                'kategori_monitoring' => $componentCategory,
+                                'classification' => $classification['classification'] ?? null,
+                                'is_exception' => $classification['is_exception'] ?? false,
+                                'exception_rule' => $classification['exception_rule'] ?? false,
+                                'qty' => (float) ($spkItem['qty'] ?? 0),
+                                'harga' => (float) ($spkItem['harga'] ?? 0),
+                                'total_in' => (float) ($component['qty_in'] ?? 0),
+                                'qty_in' => (float) ($component['qty_in'] ?? 0),
+                                'passed' => (float) ($component['passed'] ?? 0),
+                                'rejected' => (float) ($component['rejected'] ?? 0),
+                                'component_count' => 1,
+                                'component_name' => $componentName,
+                                'components' => [$component],
+                            ];
+                        }
+
+                    } elseif ($isPackagingComposite) {
+                        $itemData['spks'][] = [
+                            'spk_id' => $spk->id,
+                            'no_spk' => $spkData['no_spk'] ?? '-',
+                            'sub_name' => $subName,
+                            'supplier' => $spkData['sup'] ?? '-',
+                            'kategori' => $spkData['kategori'] ?? '-',
+                            'material' => $spkMaterial,
+                            'kategori_monitoring' => 'packaging',
+                            'classification' => $classification['classification'] ?? null,
+                            'is_exception' => $classification['is_exception'] ?? false,
+                            'exception_rule' => $classification['exception_rule'] ?? null,
+                            'qty' => (float) ($spkItem['qty'] ?? 0),
+                            'harga' => (float) ($spkItem['harga'] ?? 0),
+                            'total_in' => $totalIn,
+                            'qty_in' => (float) $componentQtyIn,
+                            'passed' => $totalPassed,
+                            'rejected' => $totalRejected,
+                            'component_count' => $componentCount,
+                            'component_name' => collect($components)->pluck('name')->filter()->values()->implode(' + '),
+                            'components' => $components,
+                        ];
+
+                    } else {
+                        $itemData['spks'][] = [
+                            'spk_id' => $spk->id,
+                            'no_spk' => $spkData['no_spk'] ?? '-',
+                            'sub_name' => $subName,
+                            'supplier' => $spkData['sup'] ?? '-',
+                            'kategori' => $spkData['kategori'] ?? '-',
+                            'material' => $spkMaterial,
+                            'kategori_monitoring' => $classification['category'] ?? null,
+                            'classification' => $classification['classification'] ?? null,
+                            'is_exception' => $classification['is_exception'] ?? false,
+                            'exception_rule' => $classification['exception_rule'] ?? null,
+                            'qty' => (float) ($spkItem['qty'] ?? 0),
+                            'harga' => (float) ($spkItem['harga'] ?? 0),
+                            'total_in' => $totalIn,
+                            'qty_in' => (float) $componentQtyIn,
+                            'passed' => $totalPassed,
+                            'rejected' => $totalRejected,
+                            'component_count' => $componentCount,
+                            'components' => $components,
+                        ];
+                    }
                 }
-            );
+            }
+
+            $poData['items'][] = $itemData;
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | SORT PO
-        |--------------------------------------------------------------------------
-        */
-
-        $result = $result->sortBy(
-            function ($po) {
-
-                $poNumber =
-                    (string) (
-                        $po['po_number'] ?? ''
-                    );
-
-                preg_match(
-                    '/(\d+)\s*$/',
-                    $poNumber,
-                    $matches
-                );
-
-                return isset($matches[1])
-                    ? (int) $matches[1]
-                    : PHP_INT_MAX;
-            },
-            SORT_NUMERIC,
-            $sort === 'desc'
-        );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | RESET INDEX
-        |--------------------------------------------------------------------------
-        */
-
-        $result = $result
-            ->values()
-            ->toArray();
-        Log::info('PRODUCTION MONITORING TIME', [
-            'time' => round(
-                microtime(true) - $start,
-                3
-            ),
-
-            'search' =>
-                $request->input('search_po'),
-
-            'brand' =>
-                $request->input('brand'),
-
-            'sort' =>
-                $request->input('sort'),
-
-            'total_po' =>
-                count($result),
-        ]);
-        return $result;
+        $result[] = $poData;
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | FILTER
+    |--------------------------------------------------------------------------
+    */
+    $search = trim((string) $request->input('search_po', ''));
+
+    $brand = strtolower(
+        trim((string) $request->input('brand', 'all'))
+    );
+
+    $sort = strtolower(
+        trim((string) $request->input('sort', 'desc'))
+    );
+
+    if (!in_array($brand, ['all', 'nw', 'nws', 'nwr', 'nwd'], true)) {
+        $brand = 'all';
+    }
+
+    if (!in_array($sort, ['asc', 'desc'], true)) {
+        $sort = 'desc';
+    }
+
+    $result = collect($result);
+
+    if ($search !== '') {
+        $searchLower = strtolower($search);
+
+        $result = $result->filter(function ($po) use ($searchLower) {
+            return str_contains(
+                strtolower((string) ($po['po_number'] ?? '')),
+                $searchLower
+            ) || str_contains(
+                strtolower((string) ($po['buyer'] ?? '')),
+                $searchLower
+            );
+        });
+    }
+
+    if ($brand !== 'all') {
+        $result = $result->filter(function ($po) use ($brand) {
+            $poNumber = strtoupper(trim((string) ($po['po_number'] ?? '')));
+            $prefix = strtoupper(trim(explode(' ', $poNumber)[0]));
+
+            return $prefix === strtoupper($brand);
+        });
+    }
+
+    $result = $result->sortBy(
+        function ($po) {
+            $poNumber = (string) ($po['po_number'] ?? '');
+
+            preg_match('/(\d+)\s*$/', $poNumber, $matches);
+
+            return isset($matches[1])
+                ? (int) $matches[1]
+                : PHP_INT_MAX;
+        },
+        SORT_NUMERIC,
+        $sort === 'desc'
+    );
+
+    $result = $result->values()->toArray();
+
+    Log::info('PRODUCTION MONITORING TIME', [
+        'time' => round(microtime(true) - $start, 3),
+        'search' => $request->input('search_po'),
+        'brand' => $request->input('brand'),
+        'sort' => $request->input('sort'),
+        'total_po' => count($result),
+    ]);
+
+    return $result;
+}
+
 
     public function data(Request $request)
     {

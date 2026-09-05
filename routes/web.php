@@ -1101,18 +1101,18 @@ Route::post(
     [SpkController::class, 'updateBahanBakuKeterangan']
 )->name('spk.bahan-baku.keterangan');
 
-// purchasing
-Route::get(
-    '/pengajuan_purchasing',
-    [PurchasingController::class, 'index']
-)->name('pengajuan_purchasing');
+// routes/web.php - route purchasing
+Route::get('/pengajuan_purchasing', [PurchasingController::class, 'index'])
+    ->name('pengajuan_purchasing');
 
-Route::get(
-    '/pengajuan_purchasing/search',
-    [PurchasingController::class, 'searchBarang']
-)->name('pengajuan_purchasing.search');
+Route::get('/pengajuan_purchasing/search', [PurchasingController::class, 'searchBarang'])
+    ->name('pengajuan_purchasing.search');
 
-Route::get(
-    '/pengajuan_purchasing/barang/{id}',
-    [PurchasingController::class, 'detailBarang']
-)->name('pengajuan_purchasing.barang');
+Route::get('/pengajuan_purchasing/barang/{id}', [PurchasingController::class, 'detailBarang'])
+    ->name('pengajuan_purchasing.barang');
+
+Route::post('/pengajuan_purchasing/save', [PurchasingController::class, 'saveDraft'])
+    ->name('pengajuan_purchasing.save');
+
+Route::get('/pengajuan_purchasing/edit/{id}', [PurchasingController::class, 'edit'])
+    ->name('pengajuan_purchasing.edit');
