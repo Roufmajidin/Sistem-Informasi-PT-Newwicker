@@ -1,3 +1,28 @@
+@php
+    $approvalLocked = !empty($editPengajuan)
+        && (
+            empty($canEdit)
+            || (int) ($editPengajuan->is_draft ?? 0) === 1
+        );
+
+    /*
+     * CREATE:
+     *   Made by = user yang sedang login.
+     *
+     * EDIT / VIEW:
+     *   Made by = pembuat asli dari pengajuan.
+     */
+    $isViewerOnly = !empty($editPengajuan) && empty($canEdit);
+
+    $madeByName = !empty($editPengajuan)
+        ? (optional($editPengajuan->user)->name ?? auth()->user()->name)
+        : auth()->user()->name;
+
+    $attachmentCount = !empty($editPengajuan) && isset($editPengajuan->files)
+        ? $editPengajuan->files->where('type', 'image')->count()
+        : 0;
+@endphp
+
 {{-- HEADER --}}
         <div class="page-header">
             <div>
@@ -29,7 +54,7 @@
                     <i class="fa fa-trash"></i>
                     Clear Cache
                 </button>
-                <div id="draftCacheStatus" class="draft-cache-status"></div>
+                <div id="draftCacheStatus" class="draft-cache-status viewer-action-status"></div>
             </div>
         </div>
 
@@ -68,7 +93,7 @@
         </div>
 
         {{-- SEARCH INVENTORY --}}
-        <div class="search-section">
+        <div class="search-section" @if($isViewerOnly) style="display:none;" @endif>
 
             <div class="search-title">
                 <i class="fa fa-search"></i>
@@ -261,7 +286,7 @@
         </div>
 
         {{-- TABLE --}}
-        <div class="table-section">
+        <div id="purchasingFormSection" class="table-section">
 
             <div class="table-title">
                 Daftar Barang yang Diajukan
@@ -319,9 +344,7 @@
 
             <div class="table-footer">
 
-                <button type="button"
-                        class="btn-add-row"
-                        id="btnAddManualRow">
+                <button type="button" class="btn-add-row" id="btnAddManualRow" @if($isViewerOnly) style="display:none;" @endif>
                     <i class="fa fa-plus"></i>
                     Add Row
                 </button>
@@ -329,13 +352,331 @@
                 <button type="button"
                         class="btn btn-success btn-sm"
                         id="btnSubmitRequest">
-                    <i class="fa fa-paper-plane"></i>
-                    Submit Pengajuan
+                    <i class="fa fa-paperclip"></i>
+                    Attachment
+                    @if($attachmentCount > 0)
+                        <span class="attachment-count-badge">{{ $attachmentCount }}</span>
+                    @endif
                 </button>
 
             </div>
+
+
+@if($isViewerOnly)
+<div id="viewerPurchaseRequest" class="viewer-purchase-request">
+
+    <div class="vpr-top">
+        <div class="vpr-brand">
+            <img src="{{ asset('images/logo-newwicker.png') }}"
+                 alt="NewWicker"
+                 class="vpr-logo">
+        </div>
+        <div class="vpr-title">Purchase Request</div>
+        <div class="vpr-need">
+            <b>Need by Date :</b>
+            <span>
+                {{ !empty($editData['need_date'])
+                    ? \Carbon\Carbon::parse($editData['need_date'])->format('j-M-y')
+                    : '-' }}
+            </span>
+        </div>
+    </div>
+
+    <div class="vpr-meta">
+        <div>
+            <b>Requisition Date :</b>
+            <span>
+                {{ !empty($editData['tanggal'])
+                    ? \Carbon\Carbon::parse($editData['tanggal'])->format('d/m/Y')
+                    : optional($editPengajuan->created_at)->format('d/m/Y') }}
+            </span>
+        </div>
+
+        <div>
+            <b>Department :</b>
+            <span>
+                {{ optional($editPengajuan->divisi)->nama
+                    ?? optional($editPengajuan->divisi)->name
+                    ?? '-' }}
+            </span>
+        </div>
+
+        <div>
+            <b>Made by :</b>
+            <span>{{ $madeByName }}</span>
+        </div>
+    </div>
+
+    <div class="vpr-table-wrap">
+        <table class="vpr-table">
+            <thead>
+                <tr>
+                    <th>No.</th>
+                    <th>PO</th>
+                    <th>Supplier</th>
+                    <th>Payment</th>
+                    <th>Description</th>
+                    <th>Quantity</th>
+                    <th>Sat</th>
+                    <th>Unit Price</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @php
+                    $vprItems = $editData['items'] ?? [];
+                    $vprGrandTotal = 0;
+                @endphp
+
+                @forelse($vprItems as $i => $item)
+                    @php
+                        $qty = (float)($item['qty'] ?? 0);
+                        $price = (float)($item['unit_price'] ?? 0);
+                        $total = (float)($item['total'] ?? ($qty * $price));
+                        $vprGrandTotal += $total;
+                    @endphp
+                    <tr>
+                        <td class="center">{{ $i + 1 }}</td>
+                        <td class="center">{{ $item['po_no'] ?? '-' }}</td>
+                        <td>{{ $item['supplier'] ?? '-' }}</td>
+                        <td class="center">{{ $item['payment'] ?? '-' }}</td>
+                        <td>
+    @if(!empty($item['description']))
+        {{ $item['description'] }}
+    @else
+        {{ $item['name'] ?? '-' }}
+    @endif
+</td>
+                        <td class="center">
+                            {{ rtrim(rtrim(number_format($qty, 2, '.', ''), '0'), '.') }}
+                        </td>
+                        <td class="center">{{ $item['unit'] ?? '-' }}</td>
+                        <td class="right">{{ number_format($price, 0, ',', '.') }}</td>
+                        <td class="right">{{ number_format($total, 0, ',', '.') }}</td>
+                        <td class="center">{{ $item['status'] ?? '-' }}</td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="10" class="center">Tidak ada item.</td>
+                    </tr>
+                @endforelse
+
+                <tr class="vpr-total">
+                    <td colspan="8" class="right">TOTAL</td>
+                    <td class="right">{{ number_format($vprGrandTotal, 0, ',', '.') }}</td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+@endif
+
+{{-- ATTACHMENT --}}
+<div class="attachment-section" id="attachmentSection" style="display:none;">
+    <div class="attachment-header">
+        <div>
+            <div class="attachment-title">
+                <i class="fa fa-paperclip"></i>
+                Attachment
+            </div>
+            <div class="attachment-subtitle">
+                Lampiran gambar pengajuan
+            </div>
+        </div>
+    </div>
+
+    {{-- CREATOR: upload --}}
+    <div id="attachmentCreator" style="display:none;">
+        <input type="file"
+               id="attachmentInput"
+               name="images[]"
+               accept="image/*"
+               multiple
+               style="display:none;">
+
+        <div class="attachment-upload-box" id="attachmentBrowseBox">
+            <i class="fa fa-plus"></i>
+            <span>Browse Image</span>
+            <small>Bisa pilih lebih dari satu gambar</small>
+        </div>
+
+        <div class="attachment-preview" id="attachmentPreview"></div>
+    </div>
+
+    {{-- VIEWER: image vertikal --}}
+    <div id="attachmentViewer" style="display:none;">
+        <div class="attachment-viewer-list" id="attachmentViewerList">
+            {{-- gambar existing di-render oleh JS --}}
+        </div>
+
+        <div id="attachmentViewerEmpty"
+             style="display:none;text-align:center;color:#999;padding:20px;">
+            <i class="fa fa-image"
+               style="font-size:28px;display:block;margin-bottom:7px;"></i>
+            Tidak ada attachment.
+        </div>
+    </div>
+</div>
+
+<style>
+    .attachment-section {
+        margin-top: 14px;
+        margin-bottom: 18px;
+        padding: 14px;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        background: #fff;
+    }
+
+    .attachment-header {
+        margin-bottom: 12px;
+    }
+
+    .attachment-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: #1f2937;
+    }
+
+    .attachment-title i {
+        margin-right: 6px;
+    }
+
+    .attachment-subtitle {
+        margin-top: 3px;
+        font-size: 11px;
+        color: #7b8794;
+    }
+
+    .attachment-upload-box {
+        min-height: 150px;
+        border: 2px dashed #cbd5e1;
+        border-radius: 10px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        background: #f8fafc;
+        transition: .2s;
+    }
+
+    .attachment-upload-box:hover {
+        border-color: #198754;
+        background: #f0fdf4;
+    }
+
+    .attachment-upload-box i {
+        font-size: 30px;
+        margin-bottom: 7px;
+        color: #198754;
+    }
+
+    .attachment-upload-box span {
+        font-size: 13px;
+        font-weight: 700;
+        color: #374151;
+    }
+
+    .attachment-upload-box small {
+        margin-top: 4px;
+        color: #9ca3af;
+        font-size: 10px;
+    }
+
+    .attachment-preview {
+        margin-top: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .attachment-preview-item,
+    .attachment-viewer-item {
+        position: relative;
+        width: 100%;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 6px;
+        background: #fff;
+    }
+
+    .attachment-preview-item img,
+    .attachment-viewer-item img {
+        display: block;
+        width: 100%;
+        max-height: 500px;
+        object-fit: contain;
+        border-radius: 6px;
+        cursor: pointer;
+        background: #f8fafc;
+    }
+
+    .attachment-remove {
+        position: absolute;
+        right: 12px;
+        top: 12px;
+        width: 30px;
+        height: 30px;
+        border: 0;
+        border-radius: 50%;
+        background: rgba(220, 53, 69, .95);
+        color: #fff;
+        cursor: pointer;
+        z-index: 2;
+    }
+
+    .attachment-viewer-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .attachment-viewer-item {
+        padding: 8px;
+    }
+
+    .attachment-number {
+        padding: 4px 7px;
+        font-size: 10px;
+        color: #6b7280;
+        font-weight: 600;
+    }
+
+    @media (max-width: 768px) {
+        .attachment-preview-item img,
+        .attachment-viewer-item img {
+            max-height: 350px;
+        }
+    }
+</style>
+
 {{-- SIGNATURE --}}
-<div class="signature-section">
+@php
+    $approvalStepsByOrder = collect($editData['approval_steps'] ?? [])
+        ->keyBy('step_order');
+
+    // Fallback langsung dari User -> Karyawan -> Divisi.
+    foreach ([2, 3, 4, 5, 6, 7] as $approvalOrder) {
+        if (!isset($approvalStepsByOrder[$approvalOrder])) {
+            continue;
+        }
+
+        $approvalUserId = $approvalStepsByOrder[$approvalOrder]['user_id'] ?? null;
+        $approvalUser = $approvalUserId
+            ? $users->firstWhere('id', $approvalUserId)
+            : null;
+
+        if (empty($approvalStepsByOrder[$approvalOrder]['division_name'])) {
+            $approvalStepsByOrder[$approvalOrder]['division_name'] =
+                optional(optional($approvalUser?->karyawan)->divisi)->nama;
+        }
+    }
+@endphp
+
+<div id="purchasingSignatureSection" class="signature-section">
 
     <table class="signature-table">
 
@@ -352,17 +693,19 @@
         <tbody>
 
             <tr class="signature-role">
-                <td>{{ auth()->user()->name }}</td>
+                
+                <td>{{ $madeByName }}</td>
 
-                <td>Person 1</td>
-                <td>Person 2</td>
+                <td>{{ $approvalStepsByOrder[2]['division_name'] ?? '-' }}</td>
+                <td>{{ $approvalStepsByOrder[3]['division_name'] ?? '-' }}</td>
 
-                <td>Person 1</td>
-                <td>Person 2</td>
+                <td>{{ $approvalStepsByOrder[4]['division_name'] ?? '-' }}</td>
+                <td>{{ $approvalStepsByOrder[5]['division_name'] ?? '-' }}</td>
 
-                <td>Finance</td>
+                <td>{{ $approvalStepsByOrder[6]['division_name'] ?? '-' }}</td>
 
-                <td>Approver</td>
+                <td>{{ $approvalStepsByOrder[7]['division_name'] ?? '-' }}</td>
+            
             </tr>
 
             <tr class="signature-input-row">
@@ -370,7 +713,7 @@
                 {{-- MADE BY --}}
                 <td>
                     <input type="text"
-                           value="{{ auth()->user()->name }}"
+                           value="{{ $madeByName }}"
                            readonly
                            class="signature-input">
                 </td>
@@ -378,7 +721,7 @@
                 {{-- CHECKED BY 1 --}}
                 <td>
                     <select class="signature-select"
-                            id="checked_by_1">
+                            id="checked_by_1" {{ $approvalLocked ? "disabled" : "" }}>
                         <option value="">-- Select --</option>
 
                         @foreach($users as $user)
@@ -392,7 +735,7 @@
                 {{-- CHECKED BY 2 --}}
                 <td>
                     <select class="signature-select"
-                            id="checked_by_2">
+                            id="checked_by_2" {{ $approvalLocked ? "disabled" : "" }}>
                         <option value="">-- Select --</option>
 
                         @foreach($users as $user)
@@ -406,7 +749,7 @@
                 {{-- CHECKED BY 3 / PERSON 1 --}}
                 <td>
                     <select class="signature-select"
-                            id="checked_by_3">
+                            id="checked_by_3" {{ $approvalLocked ? "disabled" : "" }}>
                         <option value="">-- Select --</option>
 
                         @foreach($users as $user)
@@ -420,7 +763,7 @@
                 {{-- CHECKED BY 4 / PERSON 2 --}}
                 <td>
                     <select class="signature-select"
-                            id="checked_by_4">
+                            id="checked_by_4" {{ $approvalLocked ? "disabled" : "" }}>
                         <option value="">-- Select --</option>
 
                         @foreach($users as $user)
@@ -434,7 +777,7 @@
                 {{-- FINANCE --}}
                 <td>
                     <select class="signature-select"
-                            id="checked_by_finance">
+                            id="checked_by_finance" {{ $approvalLocked ? "disabled" : "" }}>
                         <option value="">-- Select --</option>
 
                         @foreach($users as $user)
@@ -448,7 +791,7 @@
                 {{-- APPROVED --}}
                 <td>
                     <select class="signature-select"
-                            id="approved_by">
+                            id="approved_by" {{ $approvalLocked ? "disabled" : "" }}>
                         <option value="">-- Select --</option>
 
                         @foreach($users as $user)
@@ -477,6 +820,10 @@ $(document).ready(function () {
     const EDIT_MODE = @json(!empty($editPengajuan));
     const EDIT_DATA = @json($editData ?? null);
     const CAN_EDIT = @json(!empty($canEdit) || empty($editPengajuan));
+    const CURRENT_USER_ID = @json((int) auth()->id());
+    const CURRENT_USER_NAME = @json(auth()->user()->name ?? '');
+    const APPROVAL_STEPS = @json($editData['approval_steps'] ?? []);
+    const IS_PUBLISHED = @json(!empty($editPengajuan) && (int) ($editPengajuan->is_draft ?? 0) === 1);
 
     function escapeHtml(value) {
         return $('<div>').text(value ?? '').html();
@@ -1492,6 +1839,11 @@ $(document).ready(function () {
         clearTimeout(cacheSaveTimer);
 
 
+        // Reset attachment
+        attachmentFiles = [];
+        $('#attachmentInput').val('');
+        $('#attachmentPreview').empty();
+
         // Reset barang
         requestItems = [];
 
@@ -1550,6 +1902,183 @@ $(document).ready(function () {
     }
 
 
+    /*
+     * APPROVAL UI
+     *
+     * Select nama approver TIDAK boleh diubah oleh approver.
+     * Hanya user yang ID-nya sama dengan user yang ditugaskan
+     * pada step tersebut yang mendapatkan tombol "Tanda Tangan".
+     *
+     * Creator boleh mengatur assignment selama masih draft.
+     * Setelah publish, assignment dikunci.
+     */
+    function renderApprovalButtons() {
+        if (!EDIT_MODE || !Array.isArray(APPROVAL_STEPS)) {
+            return;
+        }
+
+        const fieldMap = {
+            2: '#checked_by_1',
+            3: '#checked_by_2',
+            4: '#checked_by_3',
+            5: '#checked_by_4',
+            6: '#checked_by_finance',
+            7: '#approved_by'
+        };
+
+        Object.keys(fieldMap).forEach(function (order) {
+            const field = $(fieldMap[order]);
+            if (!field.length) return;
+
+            const step = APPROVAL_STEPS.find(function (item) {
+                return String(item.step_order) === String(order);
+            });
+
+            if (!step) return;
+
+            // Published = assignment terkunci.
+            if (IS_PUBLISHED || !CAN_EDIT) {
+                field.prop('disabled', true);
+            }
+
+            // Hapus tombol lama jika ada.
+            field.closest('td').find('.approval-tap-wrap').remove();
+
+            const assignedUserId = Number(step.user_id || 0);
+            const assignedUserName = String(step.user_name || '');
+            const status = String(step.status || 'pending').toLowerCase();
+
+            const cell = field.closest('td');
+
+            if (!assignedUserName) {
+                cell.append(
+                    '<div class="approval-waiting">Belum ada approver</div>'
+                );
+                return;
+            }
+
+            // Sudah ditandatangani.
+            if (status === 'approved') {
+                cell.append(
+                    '<div class="approval-tap-wrap">' +
+                        '<span class="approval-tap-done">' +
+                            '<i class="fa fa-check-circle"></i> Sudah TTD' +
+                        '</span>' +
+                    '</div>'
+                );
+                return;
+            }
+
+            // Hanya user yang memang ditugaskan yang boleh tapping.
+            if (assignedUserId === CURRENT_USER_ID) {
+                cell.append(
+                    '<div class="approval-tap-wrap">' +
+                        '<button type="button" ' +
+                            'class="approval-tap-btn" ' +
+                            'data-step-order="' + order + '" ' +
+                            'data-step-name="' + escapeHtml(assignedUserName) + '">' +
+                            '<i class="fa fa-signature"></i> Tanda Tangan' +
+                        '</button>' +
+                    '</div>'
+                );
+            } else {
+                cell.append(
+                    '<div class="approval-tap-wrap">' +
+                        '<span class="approval-waiting">' +
+                            'Menunggu ' + escapeHtml(assignedUserName) +
+                        '</span>' +
+                    '</div>'
+                );
+            }
+        });
+    }
+
+    $(document).off('click.purchasingApproval', '.approval-tap-btn');
+
+    $(document).on('click.purchasingApproval', '.approval-tap-btn', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const button = $(this);
+        const stepOrder = button.data('step-order');
+        const stepName = button.data('step-name') || 'approver';
+
+        if (!stepOrder) return;
+
+        if (!confirm(
+            'Konfirmasi tanda tangan\n\n' +
+            'Anda akan menandatangani sebagai:\n' +
+            stepName +
+            '\n\nLanjutkan?'
+        )) {
+            return;
+        }
+
+        button
+            .prop('disabled', true)
+            .html('<i class="fa fa-spinner fa-spin"></i> Menyimpan...');
+
+        $.ajax({
+            url: "{{ route('pengajuan_purchasing.approve_step', ['id' => '__ID__']) }}"
+                .replace('__ID__', EDIT_DATA.id),
+            type: 'POST',
+            dataType: 'json',
+            data: {
+                _token: "{{ csrf_token() }}",
+                step_order: stepOrder
+            },
+
+            success: function (response) {
+                if (!response.success) {
+                    alert(response.message || 'Tanda tangan gagal disimpan.');
+                    button
+                        .prop('disabled', false)
+                        .html('<i class="fa fa-signature"></i> Tanda Tangan');
+                    return;
+                }
+
+                alert(response.message || 'Tanda tangan berhasil disimpan.');
+
+                const cell = button.closest('td');
+
+                button.replaceWith(
+                    '<span class="approval-tap-done">' +
+                        '<i class="fa fa-check-circle"></i> Sudah TTD' +
+                    '</span>'
+                );
+
+                // Update state lokal agar reload/aksi berikutnya konsisten.
+                const step = APPROVAL_STEPS.find(function (item) {
+                    return String(item.step_order) === String(stepOrder);
+                });
+
+                if (step) {
+                    step.status = 'approved';
+                    step.approved_at = response.approved_at || null;
+                }
+            },
+
+            error: function (xhr) {
+                console.error(
+                    'APPROVAL ERROR:',
+                    xhr.responseJSON || xhr.responseText
+                );
+
+                let message = 'Gagal menyimpan tanda tangan.';
+
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    message = xhr.responseJSON.message;
+                }
+
+                alert(message);
+
+                button
+                    .prop('disabled', false)
+                    .html('<i class="fa fa-signature"></i> Tanda Tangan');
+            }
+        });
+    });
+
     // ============================================================
     // SIMPAN DRAFT KE DATABASE VIA AJAX
     // ============================================================
@@ -1562,7 +2091,10 @@ $(document).ready(function () {
 
         const button = $(this);
 
-        if (EDIT_MODE && !CAN_EDIT) {
+    
+
+
+    if (EDIT_MODE && !CAN_EDIT) {
             alert('Anda bukan pembuat pengajuan ini. Pengajuan hanya dapat dilihat.');
             return;
         }
@@ -1750,6 +2282,189 @@ $(document).ready(function () {
     };
 
 
+
+    // ============================================================
+    // ATTACHMENT
+    // ============================================================
+
+    let attachmentFiles = [];
+
+    const EXISTING_ATTACHMENT_FILES = @json(
+        !empty($editPengajuan) && isset($editPengajuan->files)
+            ? $editPengajuan->files->where('type', 'image')->pluck('file_path')->values()
+            : []
+    );
+
+    function attachmentUrl(path) {
+        if (!path) return '';
+        path = String(path).replace(/^\/+/, '');
+        if (path.indexOf('storage/') === 0) {
+            return "{{ url('/') }}/" + path;
+        }
+        return "{{ asset('storage') }}/" + path;
+    }
+
+    function renderAttachmentPreview() {
+        const container = $('#attachmentPreview');
+        container.empty();
+
+        attachmentFiles.forEach(function(file, index) {
+            const url = URL.createObjectURL(file);
+
+            container.append(`
+                <div class="attachment-preview-item">
+                    <button type="button"
+                            class="attachment-remove"
+                            data-index="${index}"
+                            title="Hapus gambar">
+                        <i class="fa fa-times"></i>
+                    </button>
+
+                    <img src="${url}"
+                         alt="Attachment ${index + 1}"
+                         title="Klik untuk membuka gambar">
+                </div>
+            `);
+        });
+    }
+
+    function renderExistingAttachments() {
+        const container = $('#attachmentViewerList');
+        container.empty();
+
+        if (!EXISTING_ATTACHMENT_FILES || EXISTING_ATTACHMENT_FILES.length === 0) {
+            $('#attachmentViewerEmpty').show();
+            return;
+        }
+
+        $('#attachmentViewerEmpty').hide();
+
+        EXISTING_ATTACHMENT_FILES.forEach(function(path, index) {
+            const url = attachmentUrl(path);
+
+            container.append(`
+                <div class="attachment-viewer-item">
+                    <div class="attachment-number">
+                        Attachment ${index + 1}
+                    </div>
+
+                    <img src="${url}"
+                         alt="Attachment ${index + 1}"
+                         title="Klik untuk membuka gambar"
+                         onerror="this.closest('.attachment-viewer-item').style.display='none';">
+                </div>
+            `);
+        });
+    }
+
+    // ============================================================
+    // ATTACHMENT VIEWER - AUTO LOAD UNTUK VIEWER / APPROVER
+    // ============================================================
+    if (EDIT_MODE && !CAN_EDIT) {
+        $('#attachmentSection').css({ display: "block", visibility: "visible" });
+        $('#attachmentCreator').hide();
+        $('#attachmentViewer').css({ display: "block", visibility: "visible" });
+        renderExistingAttachments();
+    }
+
+    function openAttachmentSection() {
+        $('#attachmentSection').slideToggle(180);
+
+        if (!$('#attachmentSection').is(':visible')) {
+            return;
+        }
+
+        if (CAN_EDIT) {
+            $('#attachmentCreator').show();
+            $('#attachmentViewer').hide();
+        } else {
+            $('#attachmentCreator').hide();
+            $('#attachmentViewer').show();
+            renderExistingAttachments();
+        }
+    }
+
+    // Tombol Attachment
+    $(document).off('click.purchasingAttachment', '#btnSubmitRequest');
+    $(document).on('click.purchasingAttachment', '#btnSubmitRequest', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (!CAN_EDIT) {
+            $('#attachmentSection').show();
+            $('#attachmentCreator').hide();
+            $('#attachmentViewer').show();
+            renderExistingAttachments();
+            return;
+        }
+
+        $('#attachmentSection').show();
+        $('#attachmentCreator').show();
+        $('#attachmentViewer').hide();
+    });
+
+    // Browse image
+    $(document).off('click.purchasingAttachmentBrowse', '#attachmentBrowseBox');
+    $(document).on('click.purchasingAttachmentBrowse', '#attachmentBrowseBox', function() {
+        if (!CAN_EDIT) return;
+        $('#attachmentInput').trigger('click');
+    });
+
+    // Pilih banyak image
+    $(document).off('change.purchasingAttachmentInput', '#attachmentInput');
+    $(document).on('change.purchasingAttachmentInput', '#attachmentInput', function() {
+        if (!CAN_EDIT) return;
+
+        const selected = Array.from(this.files || []);
+
+        selected.forEach(function(file) {
+            if (!file.type || !file.type.startsWith('image/')) {
+                return;
+            }
+
+            const duplicate = attachmentFiles.some(function(existing) {
+                return existing.name === file.name &&
+                       existing.size === file.size &&
+                       existing.lastModified === file.lastModified;
+            });
+
+            if (!duplicate) {
+                attachmentFiles.push(file);
+            }
+        });
+
+        renderAttachmentPreview();
+
+        // Reset input supaya file yang sama masih bisa dipilih lagi.
+        $(this).val('');
+    });
+
+    // Hapus preview sebelum upload
+    $(document).off('click.purchasingAttachmentRemove', '.attachment-remove');
+    $(document).on('click.purchasingAttachmentRemove', '.attachment-remove', function() {
+        if (!CAN_EDIT) return;
+
+        const index = Number($(this).data('index'));
+
+        if (!Number.isNaN(index)) {
+            attachmentFiles.splice(index, 1);
+            renderAttachmentPreview();
+        }
+    });
+
+    // Klik gambar -> buka tab baru
+    $(document).off('click.purchasingAttachmentImage',
+        '.attachment-preview-item img, .attachment-viewer-item img');
+
+    $(document).on('click.purchasingAttachmentImage',
+        '.attachment-preview-item img, .attachment-viewer-item img',
+        function() {
+            const src = $(this).attr('src');
+            if (src) {
+                window.open(src, '_blank');
+            }
+        });
+
     // ============================================================
     // LOAD DATA EDIT DARI DATABASE
     // Jika URL /pengajuan_purchasing/edit/{id}, data database menjadi sumber utama.
@@ -1807,13 +2522,20 @@ $(document).ready(function () {
         loadDraftCache();
     }
 
+    // Render tombol Tanda Tangan SETELAH data pengajuan
+    // dan assignment approver selesai dimuat.
+    renderApprovalButtons();
+
     if (EDIT_MODE && !CAN_EDIT) {
         $('#requestDate, #department, #neededDate').prop('disabled', true);
         $('#materialSearch, #btnSearchMaterial, #requestQty, #requestReason').prop('disabled', true);
         $('#btnAddMaterial, #btnAddNewMaterial, #btnCancelNewMaterial, #btnAddManualRow').prop('disabled', true);
-        $('#btnSubmitRequest, #btnSaveRequest, #btnClearCache').prop('disabled', true);
-        $('#checked_by_1, #checked_by_2, #checked_by_3, #checked_by_4, #checked_by_finance, #approved_by').prop('disabled', true);
+        $('#btnSaveRequest, #btnClearCache').prop('disabled', true);
+        
         $('.remove-row').prop('disabled', true);
+
+        $('#checked_by_1, #checked_by_2, #checked_by_3, #checked_by_4, #checked_by_finance, #approved_by')
+            .prop('disabled', true);
 
         showCacheStatus(
             'Mode View Only — hanya pembuat pengajuan yang dapat mengubah data.',
@@ -1845,11 +2567,16 @@ $(document).ready(function () {
     });
 
     // Klik Lihat/Edit: buka data yang benar berdasarkan ID pada URL.
-    $(document).on('click', '.btn-view-submission:not(:disabled)', function () {
+    $(document).off('click.purchasingDetail', '.btn-view-submission');
+    $(document).on('click.purchasingDetail', '.btn-view-submission', function () {
         const id = $(this).data('id');
         if (!id) return;
 
-        window.location.href = "{{ url('/pengajuan_purchasing/edit') }}/" + id;
+        let url = "{{ url('/pengajuan_purchasing/edit') }}/" + id;
+        if (String($(this).data('view-only')) === '1') {
+            url += '?view_only=1';
+        }
+        window.location.href = url;
     });
 
     $('#btnSubmitRequest').on('click', function () {
@@ -1879,3 +2606,554 @@ $(document).ready(function () {
 });
 </script>
 
+
+<style>
+    .approval-tap-wrap {
+        margin-top: 5px;
+        text-align: center;
+    }
+
+    .approval-tap-btn {
+        border: 0;
+        border-radius: 5px;
+        padding: 4px 8px;
+        font-size: 10px;
+        font-weight: 700;
+        cursor: pointer;
+        background: #198754;
+        color: #fff;
+        white-space: nowrap;
+    }
+
+    .approval-tap-btn:hover {
+        opacity: .9;
+    }
+
+    .approval-tap-btn:disabled {
+        opacity: .55;
+        cursor: not-allowed;
+    }
+
+    .approval-tap-done {
+        display: inline-block;
+        margin-top: 5px;
+        padding: 3px 7px;
+        border-radius: 5px;
+        background: #e8f7ee;
+        color: #198754;
+        font-size: 10px;
+        font-weight: 700;
+    }
+
+    .approval-waiting {
+        display: inline-block;
+        margin-top: 5px;
+        font-size: 9px;
+        color: #9ca3af;
+    }
+
+    .signature-assigned-name {
+        font-weight: 700;
+    }
+</style>
+
+
+{{-- ============================================================
+     FLOATING NAVIGATION
+     ============================================================ --}}
+<div id="purchasingFloatingNav" class="purchasing-floating-nav">
+    <div id="purchasingFloatingHandle" class="purchasing-floating-handle">
+        <span><i class="fa fa-bars"></i> Navigasi</span>
+        <i class="fa fa-arrows-alt"></i>
+    </div>
+
+    <div class="purchasing-floating-body">
+        <button type="button"
+                class="purchasing-nav-btn"
+                data-scroll-target="#purchasingFormSection">
+            <i class="fa fa-list"></i>
+            <span>List Form</span>
+        </button>
+
+        <button type="button"
+                class="purchasing-nav-btn"
+                data-scroll-target="#purchasingSignatureSection">
+            <i class="fa fa-pencil"></i>
+            <span>Signature</span>
+        </button>
+    </div>
+</div>
+
+<style>
+    .purchasing-floating-nav {
+        position: fixed;
+        z-index: 99999;
+        right: 22px;
+        bottom: 24px;
+        width: 150px;
+        background: #fff;
+        border: 1px solid #d9e0e7;
+        border-radius: 10px;
+        box-shadow: 0 8px 24px rgba(0,0,0,.15);
+        overflow: hidden;
+        user-select: none;
+    }
+
+    .purchasing-floating-handle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 10px;
+        background: #243447;
+        color: #fff;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: move;
+    }
+
+    .purchasing-floating-handle i:last-child {
+        font-size: 10px;
+        opacity: .8;
+    }
+
+    .purchasing-floating-body {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 6px;
+    }
+
+    .purchasing-nav-btn {
+        width: 100%;
+        border: 0;
+        border-radius: 6px;
+        background: #f5f7fa;
+        color: #344054;
+        padding: 8px 9px;
+        text-align: left;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: .15s;
+    }
+
+    .purchasing-nav-btn:hover,
+    .purchasing-nav-btn.active {
+        background: #243447;
+        color: #fff;
+    }
+
+    .purchasing-nav-btn i {
+        width: 18px;
+        margin-right: 5px;
+        text-align: center;
+    }
+
+    @media (max-width: 768px) {
+        .purchasing-floating-nav {
+            right: 10px;
+            bottom: 12px;
+            width: 135px;
+        }
+    }
+</style>
+
+<script>
+(function () {
+    function initPurchasingFloatingNav() {
+        const nav = document.getElementById('purchasingFloatingNav');
+        const handle = document.getElementById('purchasingFloatingHandle');
+
+        if (!nav || !handle || nav.dataset.initialized === '1') return;
+        nav.dataset.initialized = '1';
+
+        nav.querySelectorAll('.purchasing-nav-btn').forEach(function (button) {
+            button.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const target = document.querySelector(
+                    button.getAttribute('data-scroll-target')
+                );
+
+                if (!target) return;
+
+                const top =
+                    target.getBoundingClientRect().top +
+                    window.pageYOffset -
+                    75;
+
+                window.scrollTo({
+                    top: Math.max(0, top),
+                    behavior: 'smooth'
+                });
+
+                nav.querySelectorAll('.purchasing-nav-btn')
+                    .forEach(function (btn) {
+                        btn.classList.remove('active');
+                    });
+
+                button.classList.add('active');
+            });
+        });
+
+        // Drag mouse + touch.
+        let dragging = false;
+        let startX = 0;
+        let startY = 0;
+        let startLeft = 0;
+        let startTop = 0;
+
+        function point(e) {
+            if (e.touches && e.touches.length) {
+                return {
+                    x: e.touches[0].clientX,
+                    y: e.touches[0].clientY
+                };
+            }
+
+            return {
+                x: e.clientX,
+                y: e.clientY
+            };
+        }
+
+        function startDrag(e) {
+            const p = point(e);
+            const rect = nav.getBoundingClientRect();
+
+            dragging = true;
+            startX = p.x;
+            startY = p.y;
+            startLeft = rect.left;
+            startTop = rect.top;
+
+            nav.style.left = startLeft + 'px';
+            nav.style.top = startTop + 'px';
+            nav.style.right = 'auto';
+            nav.style.bottom = 'auto';
+
+            document.body.style.userSelect = 'none';
+
+            if (e.type === 'touchstart') e.preventDefault();
+        }
+
+        function moveDrag(e) {
+            if (!dragging) return;
+
+            const p = point(e);
+            const dx = p.x - startX;
+            const dy = p.y - startY;
+
+            const maxLeft = Math.max(5, window.innerWidth - nav.offsetWidth - 5);
+            const maxTop = Math.max(5, window.innerHeight - nav.offsetHeight - 5);
+
+            nav.style.left = Math.max(
+                5,
+                Math.min(maxLeft, startLeft + dx)
+            ) + 'px';
+
+            nav.style.top = Math.max(
+                5,
+                Math.min(maxTop, startTop + dy)
+            ) + 'px';
+
+            if (e.type === 'touchmove') e.preventDefault();
+        }
+
+        function endDrag() {
+            dragging = false;
+            document.body.style.userSelect = '';
+        }
+
+        handle.addEventListener('mousedown', startDrag);
+        document.addEventListener('mousemove', moveDrag);
+        document.addEventListener('mouseup', endDrag);
+
+        handle.addEventListener('touchstart', startDrag, { passive: false });
+        document.addEventListener('touchmove', moveDrag, { passive: false });
+        document.addEventListener('touchend', endDrag);
+
+        function updateActive() {
+            const form = document.querySelector('#purchasingFormSection');
+            const signature = document.querySelector('#purchasingSignatureSection');
+
+            if (!form || !signature) return;
+
+            const marker = window.scrollY + 140;
+            const active =
+                marker >= signature.offsetTop
+                    ? '#purchasingSignatureSection'
+                    : '#purchasingFormSection';
+
+            nav.querySelectorAll('.purchasing-nav-btn').forEach(function (button) {
+                button.classList.toggle(
+                    'active',
+                    button.getAttribute('data-scroll-target') === active
+                );
+            });
+        }
+
+        window.addEventListener('scroll', updateActive, { passive: true });
+        updateActive();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initPurchasingFloatingNav);
+    } else {
+        initPurchasingFloatingNav();
+    }
+})();
+</script>
+
+<style>
+.viewer-only .viewer-action-save,
+.viewer-only .viewer-action-clear,
+.viewer-only .viewer-action-status {
+    display: none !important;
+}
+.viewer-hide-search-section {
+    display: none !important;
+}
+</style>
+
+<script>
+(function () {
+    const isViewerOnly = @json(!empty($editPengajuan) && empty($canEdit));
+    if (isViewerOnly) {
+        document.documentElement.classList.add('viewer-only');
+        document.body.classList.add('viewer-only');
+    }
+})();
+</script>
+
+
+<style>
+/* ============================================================
+   VIEWER: PURCHASE REQUEST STYLE
+   Hanya aktif untuk viewer/approver.
+   Attachment + Signature tetap memakai section existing.
+   ============================================================ */
+
+body.viewer-only #viewerPurchaseRequest {
+    display: block !important;
+}
+
+body.viewer-only .page-header,
+body.viewer-only .purchasing-readonly-banner,
+body.viewer-only .request-info,
+body.viewer-only .search-section,
+body.viewer-only .table-section > .table-title,
+body.viewer-only .table-section > .request-table-wrapper,
+body.viewer-only .table-section > .table-footer {
+    display: none !important;
+}
+
+/* Jangan hide attachment dan signature */
+body.viewer-only #attachmentSection,
+body.viewer-only #purchasingSignatureSection {
+    display: block !important;
+}
+
+body.viewer-only #attachmentViewer {
+    display: block !important;
+}
+
+body.viewer-only #attachmentCreator {
+    display: none !important;
+}
+
+/* Hardening attachment viewer agar tidak kalah oleh inline display:none / JS lain */
+body.viewer-only #attachmentSection,
+body.viewer-only #attachmentViewer {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+body.viewer-only #attachmentCreator {
+    display: none !important;
+}
+
+body.viewer-only .attachment-section {
+    height: auto !important;
+    overflow: visible !important;
+}
+
+body.viewer-only .attachment-viewer-list {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+}
+
+body.viewer-only .attachment-viewer-item {
+    display: block !important;
+    visibility: visible !important;
+}
+
+body.viewer-only .attachment-viewer-item img {
+    display: block !important;
+    visibility: visible !important;
+    max-width: 100% !important;
+    height: auto !important;
+}
+
+.viewer-purchase-request {
+    border: 1px solid #222;
+    background: #fff;
+    color: #111;
+}
+
+.vpr-top {
+    min-height: 76px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    border-bottom: 1px solid #222;
+    align-items: stretch;
+}
+
+.vpr-brand,
+.vpr-title,
+.vpr-need {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+}
+
+.vpr-brand {
+    padding: 8px 14px;
+    justify-content: flex-start;
+}
+
+.vpr-logo {
+    display: block;
+    width: 150px;
+    max-width: 100%;
+    height: auto;
+    max-height: 55px;
+    object-fit: contain;
+    object-position: left center;
+}
+
+.vpr-title {
+    justify-content: center;
+    text-align: center;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 22px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.vpr-need {
+    border-left: 1px solid #222;
+    padding: 8px 10px;
+    align-items: flex-start;
+    justify-content: flex-start;
+    flex-direction: column;
+    font-size: 10px;
+}
+
+.vpr-need b {
+    display: block;
+    margin-bottom: 8px;
+}
+
+.vpr-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    border-bottom: 1px solid #222;
+    font-size: 10px;
+}
+
+.vpr-meta > div {
+    min-height: 35px;
+    padding: 7px 9px;
+    border-right: 1px solid #222;
+}
+
+.vpr-meta > div:last-child {
+    border-right: 0;
+}
+
+.vpr-meta b {
+    margin-right: 5px;
+}
+
+.vpr-table-wrap {
+    overflow-x: auto;
+}
+
+.vpr-table {
+    width: 100%;
+    min-width: 900px;
+    border-collapse: collapse;
+    font-size: 9px;
+}
+
+.vpr-table th,
+.vpr-table td {
+    border: 1px solid #222;
+    padding: 5px 6px;
+}
+
+.vpr-table th {
+    text-align: center;
+    font-weight: 700;
+    background: #293B4D;
+    white-space: nowrap;
+}
+
+.vpr-table td {
+    height: 27px;
+}
+
+.vpr-table .center {
+    text-align: center;
+}
+
+.vpr-table .right {
+    text-align: right;
+}
+
+.vpr-total td {
+    font-weight: 700;
+}
+
+@media (max-width: 800px) {
+    .viewer-purchase-request {
+        margin: 8px;
+    }
+
+    .vpr-top {
+        grid-template-columns: 1fr;
+    }
+
+    .vpr-brand {
+        justify-content: center;
+    }
+
+    .vpr-logo {
+        width: 135px;
+        max-height: 48px;
+        object-position: center;
+    }
+
+    .vpr-title {
+        padding: 8px;
+    }
+
+    .vpr-need {
+        border-left: 0;
+        border-top: 1px solid #222;
+    }
+
+    .vpr-meta {
+        grid-template-columns: 1fr;
+    }
+
+    .vpr-meta > div {
+        border-right: 0;
+        border-bottom: 1px solid #222;
+    }
+}
+</style>

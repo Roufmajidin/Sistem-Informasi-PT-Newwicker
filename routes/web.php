@@ -1116,3 +1116,21 @@ Route::post('/pengajuan_purchasing/save', [PurchasingController::class, 'saveDra
 
 Route::get('/pengajuan_purchasing/edit/{id}', [PurchasingController::class, 'edit'])
     ->name('pengajuan_purchasing.edit');
+Route::post(
+    '/pengajuan_purchasing/{id}/attachments',
+    [PurchasingController::class, 'uploadAttachments']
+)->name('pengajuan_purchasing.attachments');
+
+Route::delete(
+    '/pengajuan_purchasing/{id}/attachments/{fileId}',
+    [PurchasingController::class, 'deleteAttachment']
+)->name('pengajuan_purchasing.attachments.delete');
+
+Route::post(
+    '/pengajuan_purchasing/{id}/publish',
+    [PurchasingController::class, 'publish']
+)->name('pengajuan_purchasing.publish');
+Route::post(
+    '/pengajuan_purchasing/{id}/approve-step',
+    [PurchasingController::class, 'approveStep']
+)->name('pengajuan_purchasing.approve_step');

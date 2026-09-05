@@ -12,7 +12,9 @@ use App\Models\User;
 use App\Models\Divisi;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-
+use App\Models\PengajuanFile;
+use App\Models\Karyawan;
+use Illuminate\Support\Facades\Storage;
 class PurchasingController extends Controller
 {
     /**
@@ -21,17 +23,24 @@ class PurchasingController extends Controller
     public function index()
     {
         $users = User::orderBy('name')->get();
+
+        $karyawanByUserId = Karyawan::with('divisi')
+            ->whereIn('id', $users->pluck('karyawan_id')->filter()->unique())
+            ->get()
+            ->keyBy('id');
         $divisis = Divisi::orderBy('nama')->get();
 
         $pengajuans = Pengajuan::with([
             'user',
             'divisi',
             'meta',
-            'divisiItems'
+            'divisiItems',
+            'files'
+
         ])
-        ->where('type_pengajuan', 'purchasing')
-        ->orderByDesc('id')
-        ->get();
+            ->where('type_pengajuan', 'purchasing')
+            ->orderByDesc('id')
+            ->get();
 
         return view('pages.purchasing.index', compact(
             'users',
@@ -62,11 +71,11 @@ class PurchasingController extends Controller
                     'like',
                     '%' . $keyword . '%'
                 )
-                ->orWhere(
-                    'nama_barang',
-                    'like',
-                    '%' . $keyword . '%'
-                );
+                    ->orWhere(
+                        'nama_barang',
+                        'like',
+                        '%' . $keyword . '%'
+                    );
             })
             ->orderBy('nama_barang')
             ->limit(20)
@@ -207,6 +216,10 @@ class PurchasingController extends Controller
             'items.*.price' =>
                 'nullable|numeric|min:0',
 
+            /* Attachment disimpan bersamaan saat tombol Simpan ditekan */
+            'images' => 'nullable|array|max:10',
+            'images.*' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+
             /*
              * Signature
              */
@@ -251,6 +264,18 @@ class PurchasingController extends Controller
                         'message' => 'Anda tidak memiliki hak untuk mengubah pengajuan ini.'
                     ], 403);
                 }
+
+                /*
+                 * Setelah dipublish, jangan izinkan saveDraft lagi.
+                 * Jika tetap disimpan, approvalSteps akan dihapus dan
+                 * tanda tangan yang sudah masuk bisa hilang.
+                 */
+                if ((int) ($targetPengajuan->is_draft ?? 0) === 1) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Pengajuan sudah dipublish dan tidak dapat diedit lagi.'
+                    ], 403);
+                }
             }
 
 
@@ -278,10 +303,7 @@ class PurchasingController extends Controller
             |--------------------------------------------------------------------------
             */
 
-            $pengajuan = DB::transaction(function () use (
-                $request,
-                $divisiId
-            ) {
+            $pengajuan = DB::transaction(function () use ($request, $divisiId) {
 
                 /*
                 |--------------------------------------------------------------------------
@@ -428,8 +450,8 @@ class PurchasingController extends Controller
 
                     $idStock =
                         !empty($item['id_stock'])
-                            ? $item['id_stock']
-                            : null;
+                        ? $item['id_stock']
+                        : null;
 
 
                     /*
@@ -517,8 +539,8 @@ class PurchasingController extends Controller
                          */
                         'added_to_warehouse' =>
                             !empty($idStock)
-                                ? 0
-                                : 0,
+                            ? 0
+                            : 0,
                     ]);
                 }
 
@@ -662,6 +684,47 @@ class PurchasingController extends Controller
             });
 
 
+
+            /*
+            |--------------------------------------------------------------------------
+            | 5. ATTACHMENT
+            |--------------------------------------------------------------------------
+            | Attachment baru hanya disimpan ketika tombol SIMPAN ditekan.
+            | File yang sudah ada tidak dihapus saat edit.
+            */
+
+            $uploadedFiles = [];
+
+            if ($request->hasFile('images')) {
+
+                foreach ($request->file('images') as $image) {
+
+                    $filename = 'pengajuan_' .
+                        $pengajuan->id . '_' .
+                        time() . '_' .
+                        \Illuminate\Support\Str::random(8) . '.' .
+                        $image->getClientOriginalExtension();
+
+                    $path = $image->storeAs(
+                        'pengajuan',
+                        $filename,
+                        'public'
+                    );
+
+                    $file = PengajuanFile::create([
+                        'pengajuan_id' => $pengajuan->id,
+                        'file_path' => $path,
+                        'type' => 'image',
+                    ]);
+
+                    $uploadedFiles[] = [
+                        'id' => $file->id,
+                        'file_path' => $file->file_path,
+                        'url' => Storage::disk('public')->url($file->file_path),
+                    ];
+                }
+            }
+
             /*
             |--------------------------------------------------------------------------
             | RESPONSE
@@ -679,6 +742,9 @@ class PurchasingController extends Controller
 
                 'status' =>
                     $pengajuan->status,
+
+                'files' =>
+                    $uploadedFiles,
             ]);
 
 
@@ -711,6 +777,102 @@ class PurchasingController extends Controller
         }
     }
 
+
+    /**
+     * Tanda tangan / approval per step.
+     *
+     * Hanya user yang namanya tercantum pada step tersebut
+     * yang boleh melakukan approval.
+     *
+     * step_order:
+     * 2 = Checked by Person 1
+     * 3 = Checked by Person 2
+     * 4 = Checked by Person 1 Group 2
+     * 5 = Checked by Person 2 Group 2
+     * 6 = Finance
+     * 7 = Approved by
+     */
+    public function approveStep(Request $request, $id)
+    {
+        try {
+            $request->validate([
+                'step_order' => 'required|integer|in:2,3,4,5,6,7',
+            ]);
+
+            $pengajuan = Pengajuan::where('type_pengajuan', 'purchasing')
+                ->findOrFail($id);
+
+            // Approval hanya boleh dilakukan setelah pengajuan dipublish.
+            if ((int) ($pengajuan->is_draft ?? 0) !== 1) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Pengajuan belum dipublish. Approval belum dapat dilakukan.',
+                ], 422);
+            }
+
+            $stepOrder = (int) $request->input('step_order');
+
+            $step = PengajuanApprovalStep::where('pengajuan_id', $pengajuan->id)
+                ->where('step_order', $stepOrder)
+                ->first();
+
+            if (!$step) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Approval step tidak ditemukan.',
+                ], 404);
+            }
+
+            // Identitas approver HARUS sama dengan nama yang sudah ditentukan
+            // pada step. User tidak boleh memilih nama lain.
+            $currentUserName = (string) auth()->user()->name;
+            $assignedUserName = (string) ($step->user_name ?? '');
+
+            if ($assignedUserName === '' || $assignedUserName !== $currentUserName) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Anda tidak memiliki hak untuk melakukan tanda tangan pada step ini. Tanda tangan hanya dapat dilakukan oleh "' .
+                        ($assignedUserName ?: 'user yang ditentukan') . '".',
+                ], 403);
+            }
+
+            if (strtolower((string) $step->status) === 'approved') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Step ini sudah ditandatangani.',
+                ], 422);
+            }
+
+            $step->update([
+                'status' => 'approved',
+                'approved_at' => now(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Tanda tangan berhasil disimpan.',
+                'pengajuan_id' => $pengajuan->id,
+                'step_order' => $stepOrder,
+                'user_name' => $currentUserName,
+                'status' => 'approved',
+                'approved_at' => optional($step->approved_at)->toDateTimeString(),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('APPROVE PURCHASING ERROR', [
+                'pengajuan_id' => $id,
+                'step_order' => $request->input('step_order'),
+                'user_id' => auth()->id(),
+                'message' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menyimpan tanda tangan: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
 
     /**
      * Membuat approval step.
@@ -755,30 +917,171 @@ class PurchasingController extends Controller
                 null,
         ]);
     }
+    public function uploadAttachments(Request $request, $id)
+{
+    $pengajuan = Pengajuan::findOrFail($id);
+
+    // Hanya pembuat pengajuan yang boleh upload
+    if ((int) $pengajuan->user_id !== (int) auth()->id()) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Hanya pembuat pengajuan yang dapat menambahkan attachment.'
+        ], 403);
+    }
+
+    $request->validate([
+        'images' => 'required|array|max:10',
+        'images.*' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+    ], [
+        'images.required' => 'Silakan pilih gambar terlebih dahulu.',
+        'images.max' => 'Maksimal 10 gambar.',
+        'images.*.image' => 'File harus berupa gambar.',
+        'images.*.mimes' => 'Format gambar harus JPG, JPEG, PNG, atau WEBP.',
+        'images.*.max' => 'Ukuran setiap gambar maksimal 5 MB.',
+    ]);
+
+    $uploaded = [];
+
+    foreach ($request->file('images', []) as $image) {
+
+        $filename = 'pengajuan_' .
+            $pengajuan->id . '_' .
+            time() . '_' .
+            \Illuminate\Support\Str::random(8) . '.' .
+            $image->getClientOriginalExtension();
+
+        $path = $image->storeAs(
+            'pengajuan',
+            $filename,
+            'public'
+        );
+
+        $file = PengajuanFile::create([
+            'pengajuan_id' => $pengajuan->id,
+            'file_path' => $path,
+            'type' => 'image',
+        ]);
+
+        $uploaded[] = [
+            'id' => $file->id,
+            'file_path' => $file->file_path,
+            'url' => Storage::disk('public')->url($file->file_path),
+        ];
+    }
+
+    return response()->json([
+        'success' => true,
+        'message' => count($uploaded) . ' gambar berhasil diupload.',
+        'files' => $uploaded,
+    ]);
+}
+public function deleteAttachment($id, $fileId)
+{
+    $pengajuan = Pengajuan::findOrFail($id);
+
+    // Hanya pembuat yang boleh menghapus
+    if ((int) $pengajuan->user_id !== (int) auth()->id()) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Hanya pembuat pengajuan yang dapat menghapus attachment.'
+        ], 403);
+    }
+
+    $file = PengajuanFile::where('id', $fileId)
+        ->where('pengajuan_id', $pengajuan->id)
+        ->firstOrFail();
+
+    if ($file->file_path) {
+        Storage::disk('public')->delete($file->file_path);
+    }
+
+    $file->delete();
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Attachment berhasil dihapus.'
+    ]);
+}
+    /**
+     * Publish pengajuan purchasing.
+     *
+     * is_draft:
+     * 0 = draft / belum publish
+     * 1 = published
+     */
+    public function publish($id)
+    {
+        try {
+            $pengajuan = Pengajuan::where('type_pengajuan', 'purchasing')
+                ->findOrFail($id);
+
+            // Publish hanya dari kondisi draft.
+            if ((int) ($pengajuan->is_draft ?? 0) !== 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Pengajuan ini sudah dipublish.'
+                ], 422);
+            }
+
+            $pengajuan->update([
+                'is_draft' => 1,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Pengajuan #' . $pengajuan->id . ' berhasil dipublish.',
+                'pengajuan_id' => $pengajuan->id,
+                'is_draft' => 1,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('PUBLISH PURCHASING ERROR', [
+                'pengajuan_id' => $id,
+                'message' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal publish pengajuan: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function edit($id)
     {
         $users = User::orderBy('name')->get();
+
+        // Mapping user -> karyawan -> divisi.
+        // Variabel ini wajib dibuat di dalam edit() karena
+        // approval_steps di bawah juga diproses di dalam edit().
+        $karyawanByUserId = Karyawan::with('divisi')
+            ->whereIn('id', $users->pluck('karyawan_id')->filter()->unique())
+            ->get()
+            ->keyBy('id');
+
         $divisis = Divisi::orderBy('nama')->get();
 
         $pengajuans = Pengajuan::with([
             'user',
             'divisi',
             'meta',
-            'divisiItems.stok'
+            'divisiItems.stok',
+            'files'
+
         ])
-        ->where('type_pengajuan', 'purchasing')
-        ->orderByDesc('id')
-        ->get();
+            ->where('type_pengajuan', 'purchasing')
+            ->orderByDesc('id')
+            ->get();
 
         $editPengajuan = Pengajuan::with([
             'user',
             'divisi',
             'meta',
             'divisiItems.stok',
-            'approvalSteps'
+            'approvalSteps',
+            'files'
         ])
-        ->where('type_pengajuan', 'purchasing')
-        ->findOrFail($id);
+            ->where('type_pengajuan', 'purchasing')
+            ->findOrFail($id);
 
         // Hanya pembuat yang boleh mengedit. User lain tetap dapat melihat.
         $canEdit = (int) $editPengajuan->user_id === (int) auth()->id();
@@ -813,6 +1116,22 @@ class PurchasingController extends Controller
                     'is_new' => empty($item->id_stock),
                 ];
             })->values(),
+            'files' => $editPengajuan->files
+                ->where('type', 'image')
+                ->map(function ($file) {
+                    $path = ltrim((string) $file->file_path, '/');
+
+                    return [
+                        'id' => $file->id,
+                        'file_path' => $path,
+                        'url' => $path !== ''
+                            ? Storage::disk('public')->url($path)
+                            : null,
+                    ];
+                })
+                ->values()
+                ->all(),
+
             'signature' => [
                 'checked_by_1' => null,
                 'checked_by_2' => null,
@@ -821,6 +1140,7 @@ class PurchasingController extends Controller
                 'checked_by_finance' => null,
                 'approved_by' => null,
             ],
+            'approval_steps' => [],
         ];
 
         foreach ($editPengajuan->approvalSteps as $step) {
@@ -837,6 +1157,25 @@ class PurchasingController extends Controller
             if (isset($keyMap[$order]) && $step->user_name) {
                 $user = $users->firstWhere('name', $step->user_name);
                 $editData['signature'][$keyMap[$order]] = $user?->id;
+            }
+
+            if ($order >= 2 && $order <= 7) {
+                $user = $step->user_name
+                    ? $users->firstWhere('name', $step->user_name)
+                    : null;
+
+                $editData['approval_steps'][] = [
+                    'id' => $step->id,
+                    'step_order' => $order,
+                    'step_name' => $step->step_name,
+                    'user_id' => $user?->id,
+                    'user_name' => $step->user_name,
+                    'division_name' => $user?->karyawan_id
+                        ? optional(optional($karyawanByUserId->get($user->karyawan_id))->divisi)->nama
+                        : null,
+                    'status' => $step->status,
+                    'approved_at' => optional($step->approved_at)->toDateTimeString(),
+                ];
             }
         }
 
