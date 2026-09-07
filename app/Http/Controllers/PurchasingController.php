@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Stok;
+use App\Models\TransaksiStok;
 use App\Models\Pengajuan;
 use App\Models\PengajuanMeta;
 use App\Models\PengajuanDivisi;
@@ -24,7 +25,7 @@ class PurchasingController extends Controller
     {
         $users = User::orderBy('name')->get();
 
-        $karyawanByUserId = Karyawan::with('divisi')
+        $karyawanById = Karyawan::with('divisi')
             ->whereIn('id', $users->pluck('karyawan_id')->filter()->unique())
             ->get()
             ->keyBy('id');
@@ -217,9 +218,8 @@ class PurchasingController extends Controller
                 'nullable|numeric|min:0',
 
             /* Attachment disimpan bersamaan saat tombol Simpan ditekan */
-            'images' => 'nullable|array|max:10',
-            'images.*' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
-
+            'images' => 'nullable|array|max:200',
+            'images.*' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:10240',
             /*
              * Signature
              */
@@ -342,6 +342,9 @@ class PurchasingController extends Controller
                         'divisi_id' =>
                             $divisiId,
 
+                        'need_date' =>
+                            $request->input('need_date') ?: null,
+
                         'urgent' =>
                             0,
 
@@ -374,6 +377,9 @@ class PurchasingController extends Controller
 
                             'divisi_id' =>
                                 $divisiId,
+
+                            'need_date' =>
+                                $request->input('need_date') ?: null,
 
                             'urgent' =>
                                 0,
@@ -918,90 +924,90 @@ class PurchasingController extends Controller
         ]);
     }
     public function uploadAttachments(Request $request, $id)
-{
-    $pengajuan = Pengajuan::findOrFail($id);
+    {
+        $pengajuan = Pengajuan::findOrFail($id);
 
-    // Hanya pembuat pengajuan yang boleh upload
-    if ((int) $pengajuan->user_id !== (int) auth()->id()) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Hanya pembuat pengajuan yang dapat menambahkan attachment.'
-        ], 403);
-    }
+        // Hanya pembuat pengajuan yang boleh upload
+        if ((int) $pengajuan->user_id !== (int) auth()->id()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Hanya pembuat pengajuan yang dapat menambahkan attachment.'
+            ], 403);
+        }
 
-    $request->validate([
-        'images' => 'required|array|max:10',
-        'images.*' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
-    ], [
-        'images.required' => 'Silakan pilih gambar terlebih dahulu.',
-        'images.max' => 'Maksimal 10 gambar.',
-        'images.*.image' => 'File harus berupa gambar.',
-        'images.*.mimes' => 'Format gambar harus JPG, JPEG, PNG, atau WEBP.',
-        'images.*.max' => 'Ukuran setiap gambar maksimal 5 MB.',
-    ]);
-
-    $uploaded = [];
-
-    foreach ($request->file('images', []) as $image) {
-
-        $filename = 'pengajuan_' .
-            $pengajuan->id . '_' .
-            time() . '_' .
-            \Illuminate\Support\Str::random(8) . '.' .
-            $image->getClientOriginalExtension();
-
-        $path = $image->storeAs(
-            'pengajuan',
-            $filename,
-            'public'
-        );
-
-        $file = PengajuanFile::create([
-            'pengajuan_id' => $pengajuan->id,
-            'file_path' => $path,
-            'type' => 'image',
+        $request->validate([
+            'images' => 'required|array|max:200',
+            'images.*' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:10240',
+        ], [
+            'images.required' => 'Silakan pilih gambar terlebih dahulu.',
+            'images.max' => 'Maksimal 200 gambar.',
+            'images.*.image' => 'File harus berupa gambar.',
+            'images.*.mimes' => 'Format gambar harus JPG, JPEG, PNG, atau WEBP.',
+            'images.*.max' => 'Ukuran setiap gambar maksimal 10 MB.',
         ]);
 
-        $uploaded[] = [
-            'id' => $file->id,
-            'file_path' => $file->file_path,
-            'url' => Storage::disk('public')->url($file->file_path),
-        ];
-    }
+        $uploaded = [];
 
-    return response()->json([
-        'success' => true,
-        'message' => count($uploaded) . ' gambar berhasil diupload.',
-        'files' => $uploaded,
-    ]);
-}
-public function deleteAttachment($id, $fileId)
-{
-    $pengajuan = Pengajuan::findOrFail($id);
+        foreach ($request->file('images', []) as $image) {
 
-    // Hanya pembuat yang boleh menghapus
-    if ((int) $pengajuan->user_id !== (int) auth()->id()) {
+            $filename = 'pengajuan_' .
+                $pengajuan->id . '_' .
+                time() . '_' .
+                \Illuminate\Support\Str::random(8) . '.' .
+                $image->getClientOriginalExtension();
+
+            $path = $image->storeAs(
+                'pengajuan',
+                $filename,
+                'public'
+            );
+
+            $file = PengajuanFile::create([
+                'pengajuan_id' => $pengajuan->id,
+                'file_path' => $path,
+                'type' => 'image',
+            ]);
+
+            $uploaded[] = [
+                'id' => $file->id,
+                'file_path' => $file->file_path,
+                'url' => Storage::disk('public')->url($file->file_path),
+            ];
+        }
+
         return response()->json([
-            'success' => false,
-            'message' => 'Hanya pembuat pengajuan yang dapat menghapus attachment.'
-        ], 403);
+            'success' => true,
+            'message' => count($uploaded) . ' gambar berhasil diupload.',
+            'files' => $uploaded,
+        ]);
     }
+    public function deleteAttachment($id, $fileId)
+    {
+        $pengajuan = Pengajuan::findOrFail($id);
 
-    $file = PengajuanFile::where('id', $fileId)
-        ->where('pengajuan_id', $pengajuan->id)
-        ->firstOrFail();
+        // Hanya pembuat yang boleh menghapus
+        if ((int) $pengajuan->user_id !== (int) auth()->id()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Hanya pembuat pengajuan yang dapat menghapus attachment.'
+            ], 403);
+        }
 
-    if ($file->file_path) {
-        Storage::disk('public')->delete($file->file_path);
+        $file = PengajuanFile::where('id', $fileId)
+            ->where('pengajuan_id', $pengajuan->id)
+            ->firstOrFail();
+
+        if ($file->file_path) {
+            Storage::disk('public')->delete($file->file_path);
+        }
+
+        $file->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Attachment berhasil dihapus.'
+        ]);
     }
-
-    $file->delete();
-
-    return response()->json([
-        'success' => true,
-        'message' => 'Attachment berhasil dihapus.'
-    ]);
-}
     /**
      * Publish pengajuan purchasing.
      *
@@ -1053,7 +1059,7 @@ public function deleteAttachment($id, $fileId)
         // Mapping user -> karyawan -> divisi.
         // Variabel ini wajib dibuat di dalam edit() karena
         // approval_steps di bawah juga diproses di dalam edit().
-        $karyawanByUserId = Karyawan::with('divisi')
+        $karyawanById = Karyawan::with('divisi')
             ->whereIn('id', $users->pluck('karyawan_id')->filter()->unique())
             ->get()
             ->keyBy('id');
@@ -1082,10 +1088,7 @@ public function deleteAttachment($id, $fileId)
         ])
             ->where('type_pengajuan', 'purchasing')
             ->findOrFail($id);
-
-        // Hanya pembuat yang boleh mengedit. User lain tetap dapat melihat.
         $canEdit = (int) $editPengajuan->user_id === (int) auth()->id();
-
         $editData = [
             'id' => $editPengajuan->id,
             'tanggal' => optional($editPengajuan->meta)->tanggal
@@ -1095,6 +1098,7 @@ public function deleteAttachment($id, $fileId)
             'need_date' => $editPengajuan->need_date ?? '',
             'items' => $editPengajuan->divisiItems->map(function ($item) {
                 return [
+                    'detail_id' => $item->id,
                     'id' => $item->id_stock,
                     'code' => optional($item->stok)->kode_barang ?? '',
                     'name' => $item->nama_barang,
@@ -1171,7 +1175,7 @@ public function deleteAttachment($id, $fileId)
                     'user_id' => $user?->id,
                     'user_name' => $step->user_name,
                     'division_name' => $user?->karyawan_id
-                        ? optional(optional($karyawanByUserId->get($user->karyawan_id))->divisi)->nama
+                        ? optional(optional($karyawanById->get($user->karyawan_id))->divisi)->nama
                         : null,
                     'status' => $step->status,
                     'approved_at' => optional($step->approved_at)->toDateTimeString(),
@@ -1189,4 +1193,138 @@ public function deleteAttachment($id, $fileId)
         ));
     }
 
+
+
+    public function addToWarehouse($id)
+    {
+        if (strtolower((string) optional(auth()->user())->email) !== 'sumanti@gmail.com') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak memiliki hak untuk menambahkan barang ke warehouse.',
+            ], 403);
+        }
+
+        try {
+            $result = DB::transaction(function () use ($id) {
+                $item = PengajuanDivisi::with(['pengajuan', 'stok'])
+                    ->lockForUpdate()
+                    ->findOrFail($id);
+
+                $pengajuan = $item->pengajuan;
+
+                if (!$pengajuan || $pengajuan->type_pengajuan !== 'purchasing') {
+                    throw new \Exception('Data pengajuan purchasing tidak ditemukan.');
+                }
+                if ((int) ($pengajuan->is_draft ?? 0) !== 1) {
+                    throw new \Exception('Pengajuan belum dipublish.');
+                }
+                $approvalSteps = PengajuanApprovalStep::where('pengajuan_id', $pengajuan->id)
+                    ->whereIn('step_order', [2, 3, 4, 5, 6, 7])
+                    ->get();
+                if (
+                    $approvalSteps->count() !== 6 || $approvalSteps->contains(function ($step) {
+                        return strtolower((string) $step->status) !== 'approved';
+                    })
+                ) {
+                    throw new \Exception('Pengajuan belum selesai approval. Semua approval harus sudah TTD terlebih dahulu.');
+                }
+
+                if ((bool) ($item->added_to_warehouse ?? false)) {
+                    throw new \Exception('Barang ini sudah ditambahkan ke warehouse.');
+                }
+
+                $qty = (float) $item->qty;
+                if ($qty <= 0) {
+                    throw new \Exception('Qty barang tidak valid.');
+                }
+
+                $stok = null;
+
+                // Jika detail purchasing sudah menunjuk ke stok, gunakan stok tersebut.
+                if (!empty($item->id_stock)) {
+                    $stok = Stok::lockForUpdate()->find($item->id_stock);
+                }
+
+                // Untuk barang baru, cek lagi berdasarkan nama barang yang sama persis.
+                if (!$stok) {
+                    $namaBarang = trim((string) $item->nama_barang);
+                    $stok = Stok::whereRaw('LOWER(TRIM(nama_barang)) = ?', [strtolower($namaBarang)])
+                        ->lockForUpdate()
+                        ->first();
+                }
+
+                // Jika belum ada di inventory, buat master stok baru.
+                if (!$stok) {
+                    $namaBarang = trim((string) $item->nama_barang);
+                    $unit = trim((string) ($item->unit ?? '')) ?: 'pcs';
+                    $harga = (float) ($item->price ?? 0);
+
+                    // Kolom jenis di master Stok wajib dan berupa enum.
+                    // Barang baru dari form purchasing belum menyimpan jenis,
+                    // sehingga default yang aman untuk purchasing adalah bahan penolong.
+                    $kodeBarang = 'PUR-' . date('ymdHis') . '-' . strtoupper(substr(bin2hex(random_bytes(3)), 0, 6));
+
+                    $stok = Stok::create([
+                        'kode_barang' => $kodeBarang,
+                        'nama_barang' => $namaBarang,
+                        'jenis' => 'bahan penolong',
+                        'satuan' => $unit,
+                        'harga' => $harga,
+                        'stok_awal' => 0,
+                    ]);
+                }
+
+                // Harga master hanya diisi jika transaksi berasal dari barang baru / harga master masih 0.
+                // Untuk barang existing, harga master tidak diubah.
+                TransaksiStok::create([
+                    'stok_id' => $stok->id,
+                    'tanggal' => now()->toDateString(),
+                    'tipe' => 'in',
+                    'qty' => $qty,
+                    'po' => $item->po_no ?? null,
+                    'spk_id' => null,
+                    'keterangan' => 'Pembelian Purchasing #' . $pengajuan->id . ' - ' . $item->nama_barang,
+                    'harga_vivi' => $item->price ?? null,
+                    'no_invoice' => null,
+                ]);
+
+                // Hubungkan item purchasing ke stok dan tandai sudah masuk warehouse.
+                $item->update([
+                    'id_stock' => $stok->id,
+                    'added_to_warehouse' => 1,
+                ]);
+
+                return [
+                    'item_id' => $item->id,
+                    'stok_id' => $stok->id,
+                    'kode_barang' => $stok->kode_barang,
+                    'nama_barang' => $stok->nama_barang,
+                    'qty' => $qty,
+                    'unit' => $item->unit ?? $stok->satuan,
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Barang berhasil ditambahkan ke warehouse sebagai transaksi IN.',
+                'data' => $result,
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Detail barang pengajuan tidak ditemukan.',
+            ], 404);
+        } catch (\Throwable $e) {
+            Log::error('ADD TO WAREHOUSE ERROR', [
+                'item_id' => $id,
+                'user_id' => auth()->id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
 }

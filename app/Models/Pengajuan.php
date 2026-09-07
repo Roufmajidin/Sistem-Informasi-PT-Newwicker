@@ -16,12 +16,14 @@ class Pengajuan extends Model
         'divisi_id',
         'no_spk',
         'urgent',
-        'is_draft'
+        'is_draft',
+        'need_date',
+
     ];
-public function divisi()
-{
-    return $this->belongsTo(Divisi::class);
-}
+    public function divisi()
+    {
+        return $this->belongsTo(Divisi::class);
+    }
     public function meta()
     {
         return $this->hasOne(PengajuanMeta::class);
@@ -47,9 +49,9 @@ public function divisi()
     }
     public function files()
     {
-    return $this->hasMany(PengajuanFile::class, 'pengajuan_id');
+        return $this->hasMany(PengajuanFile::class, 'pengajuan_id');
     }
-      public function divisiItems()
+    public function divisiItems()
     {
         return $this->hasMany(
             PengajuanDivisi::class,

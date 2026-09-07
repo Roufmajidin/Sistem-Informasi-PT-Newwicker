@@ -7,6 +7,7 @@ use App\Models\Divisi;
 use App\Models\Karyawan;
 use App\Models\Lembur;
 use App\Models\User;
+use App\Models\Izin;
 use Carbon\Carbon;
 use Illuminate\Container\Attributes\Auth;
 use Illuminate\Http\Request;

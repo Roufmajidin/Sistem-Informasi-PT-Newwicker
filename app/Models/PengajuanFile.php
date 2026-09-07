@@ -17,4 +17,5 @@ class PengajuanFile extends Model
     {
         return $this->belongsTo(Pengajuan::class);
     }
+    
 }

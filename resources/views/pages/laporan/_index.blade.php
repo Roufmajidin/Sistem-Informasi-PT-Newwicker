@@ -37,12 +37,31 @@
                         <input type="text" id="searchBarang" class="form-control" placeholder="Cari nama barang...">
                     </div>
                     <div class="col-md-2 mt-4">
+                        <div class="warehouse-action-buttons">
+                            <a href="/laporan/warehouse-history"
+                               class="warehouse-action-btn warehouse-history-btn">
+                                <i class="fa fa-info-circle"></i>
+                                <span>History</span>
+                            </a>
 
-                        <button type="button" class="btn btn-primary" id="addRow">
-                            <i class="fa fa-info"></i>
-                            <a href="/laporan/warehouse-history"> history</a>
-                        </button>
+                            <button type="button"
+                                    id="btnListPembelian"
+                                    class="warehouse-action-btn warehouse-purchase-btn">
+                <a href="{{ route('pengajuan_purchasing', ['uri' => 'list_pengajuan']) }}"
+   class="warehouse-action-btn warehouse-purchase-btn">
+    <i class="fa fa-shopping-cart"></i>
+    <span>List Pembelian</span>
+
+    <span id="purchasingPendingBadge"
+          class="warehouse-purchase-badge"
+          style="display:none;">
+        0
+    </span>
+</a>
+                            </button>
+                        </div>
                     </div>
+                    
 
 
                     <div class="col-md-5 text-right">
@@ -216,6 +235,7 @@
 
     <script>
         $(function() {
+    loadPurchasingPendingCount();
 
             // ============================
             // TAMBAH BARIS
@@ -326,6 +346,41 @@
             // ============================
             // FORMAT HARGA
             // ============================
+            function loadPurchasingPendingCount() {
+    $.ajax({
+        url: "{{ route('warehouse.purchasing.pending.count') }}",
+        type: "GET",
+        dataType: "json",
+
+        success: function(response) {
+
+            if (!response.success) {
+                return;
+            }
+
+            let count = parseInt(response.count || 0);
+
+            const badge = $('#purchasingPendingBadge');
+
+            if (count > 0) {
+                badge
+                    .text(count)
+                    .show();
+            } else {
+                badge
+                    .text('0')
+                    .hide();
+            }
+        },
+
+        error: function(xhr) {
+            console.error(
+                'Gagal mengambil counter List Pembelian:',
+                xhr.responseText
+            );
+        }
+    });
+}
             $(document).on('keyup', '.harga', function() {
 
                 let value = $(this).val().replace(/\D/g, '');
@@ -618,5 +673,314 @@
 
         );
     </script>
+
+<style>
+/* =========================================================
+   WAREHOUSE ACTION BUTTONS
+   Satu style khusus agar tidak tertimpa Bootstrap / style lain.
+   UI ONLY - tidak mengubah endpoint / AJAX / logic
+   ========================================================= */
+.warehouse-action-buttons{
+    display:flex !important;
+    align-items:center !important;
+    gap:8px !important;
+    flex-wrap:nowrap !important;
+    margin:0 !important;
+}
+
+.warehouse-action-btn{
+    position:relative !important;
+    display:inline-flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    gap:6px !important;
+    width:auto !important;
+    min-width:0 !important;
+    height:34px !important;
+    margin:0 !important;
+    padding:0 12px !important;
+    border:1px solid !important;
+    border-radius:6px !important;
+    font-family:inherit !important;
+    font-size:11px !important;
+    font-weight:600 !important;
+    line-height:1 !important;
+    text-decoration:none !important;
+    white-space:nowrap !important;
+    box-shadow:none !important;
+    cursor:pointer !important;
+    box-sizing:border-box !important;
+}
+
+.warehouse-action-btn i{
+    font-size:11px !important;
+    line-height:1 !important;
+}
+
+.warehouse-history-btn{
+    background:#0d6efd !important;
+    border-color:#0d6efd !important;
+    color:#fff !important;
+}
+
+.warehouse-history-btn:hover,
+.warehouse-history-btn:focus{
+    background:#0b5ed7 !important;
+    border-color:#0a58ca !important;
+    color:#fff !important;
+}
+
+.warehouse-purchase-btn{
+    background:#f6a623 !important;
+    border-color:#f6a623 !important;
+    color:#fff !important;
+    padding-right:14px !important;
+}
+
+.warehouse-purchase-btn:hover,
+.warehouse-purchase-btn:focus{
+    background:#e99a18 !important;
+    border-color:#e99a18 !important;
+    color:#fff !important;
+}
+
+.warehouse-purchase-badge{
+    position:absolute !important;
+    top:-7px !important;
+    right:-7px !important;
+    min-width:19px !important;
+    height:19px !important;
+    padding:0 5px !important;
+    display:none;
+    align-items:center !important;
+    justify-content:center !important;
+    box-sizing:border-box !important;
+    border-radius:50% !important;
+    background:#dc3545 !important;
+    color:#fff !important;
+    border:2px solid #fff !important;
+    font-size:9px !important;
+    font-weight:700 !important;
+    line-height:15px !important;
+    text-align:center !important;
+    box-shadow:0 1px 3px rgba(0,0,0,.18) !important;
+    z-index:10 !important;
+}
+
+@media(max-width:768px){
+    .warehouse-action-buttons{
+        gap:6px !important;
+    }
+
+    .warehouse-action-btn{
+        height:33px !important;
+        padding-left:10px !important;
+        padding-right:10px !important;
+        font-size:10.5px !important;
+    }
+}
+
+/* =========================================================
+   LAPORAN STOK - TABLE UI mengikuti index SPEK
+   UI ONLY. Tidak mengubah ID, class, endpoint, AJAX, atau JS.
+   ========================================================= */
+
+.table-stok-wrapper{
+    width:100%;
+    overflow:auto;
+    background:#fff;
+    border:1px solid #e5e7eb;
+    border-radius:8px;
+    box-shadow:0 1px 2px rgba(16,24,40,.025);
+}
+
+.table-stok-wrapper table{
+    width:100%;
+    min-width:1180px;
+    margin:0;
+    border-collapse:collapse;
+    border-spacing:0;
+    background:#fff;
+}
+
+.table-stok-wrapper table thead th{
+    height:38px;
+    padding:0 10px;
+    background:#fcfcfd;
+    border:0;
+    border-bottom:1px solid #e9edf2;
+    color:#475467;
+    text-align:left;
+    vertical-align:middle;
+    font-size:10px;
+    font-weight:700;
+    white-space:nowrap;
+}
+
+.table-stok-wrapper table tbody td{
+    height:48px;
+    padding:7px 10px;
+    border:0;
+    border-bottom:1px solid #f0f2f5;
+    color:#475467;
+    background:#fff;
+    font-size:11.5px;
+    vertical-align:middle;
+    white-space:nowrap;
+}
+
+.table-stok-wrapper table tbody tr{
+    transition:.12s ease;
+}
+
+.table-stok-wrapper table tbody tr:hover td{
+    background:#fafcff;
+}
+
+.table-stok-wrapper table tbody tr:last-child td{
+    border-bottom:0;
+}
+
+/* Nomor */
+.table-stok-wrapper table th:first-child,
+.table-stok-wrapper table td:first-child{
+    text-align:center;
+    color:#667085;
+    font-weight:600;
+}
+
+/* Input pada tabel tetap editable, tetapi visual dibuat seperti
+   field ringan pada index spek */
+.table-stok-wrapper .form-control{
+    width:100%;
+    min-width:0;
+    height:32px;
+    min-height:32px;
+    padding:0 9px;
+    border:1px solid #dfe3e8;
+    border-radius:6px;
+    background:#fff;
+    color:#344054;
+    font-size:10.5px;
+    box-shadow:none;
+    outline:none;
+    transition:.15s ease;
+}
+
+.table-stok-wrapper .form-control:focus{
+    border-color:#93c5fd;
+    box-shadow:0 0 0 3px rgba(37,99,235,.07);
+}
+
+.table-stok-wrapper select.form-control{
+    cursor:pointer;
+    padding-right:25px;
+}
+
+.table-stok-wrapper input[type="date"].form-control{
+    min-width:130px;
+}
+
+.table-stok-wrapper .btn{
+    min-width:32px;
+    height:31px;
+    min-height:31px;
+    padding:0 8px;
+    border-radius:6px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:5px;
+    font-size:11px;
+    line-height:1;
+    border-width:1px;
+}
+
+.table-stok-wrapper .btn-info{
+    color:#2563eb;
+    background:#eff6ff;
+    border-color:#bfdbfe;
+}
+
+.table-stok-wrapper .btn-info:hover{
+    color:#1d4ed8;
+    background:#dbeafe;
+}
+
+.table-stok-wrapper .btn-success{
+    color:#15803d;
+    background:#f0fdf4;
+    border-color:#bbf7d0;
+}
+
+.table-stok-wrapper .btn-success:hover{
+    color:#166534;
+    background:#dcfce7;
+}
+
+.table-stok-wrapper .btn-danger{
+    color:#dc2626;
+    background:#fff;
+    border-color:#fecaca;
+}
+
+.table-stok-wrapper .btn-danger:hover{
+    color:#dc2626;
+    background:#fff5f5;
+}
+
+/* Kolom angka lebih rapi */
+.table-stok-wrapper td:nth-child(7),
+.table-stok-wrapper td:nth-child(8),
+.table-stok-wrapper td:nth-child(9){
+    text-align:right;
+    font-variant-numeric:tabular-nums;
+}
+
+/* Header kolom angka */
+.table-stok-wrapper th:nth-child(7),
+.table-stok-wrapper th:nth-child(8),
+.table-stok-wrapper th:nth-child(9){
+    text-align:right;
+}
+
+/* Harga */
+.table-stok-wrapper .harga{
+    text-align:right;
+    font-variant-numeric:tabular-nums;
+}
+
+/* Tampilan tombol aksi seperti icon-btn pada spek */
+.table-stok-wrapper td:nth-last-child(2),
+.table-stok-wrapper td:last-child{
+    text-align:center;
+}
+
+.table-stok-wrapper td:nth-last-child(2){
+    min-width:95px;
+}
+
+.table-stok-wrapper td:last-child{
+    min-width:90px;
+}
+
+/* Sedikit pemisah visual untuk data utama */
+.table-stok-wrapper tbody td:first-child{
+    color:#98a2b3;
+    font-size:10px;
+}
+
+/* Responsive */
+@media(max-width:900px){
+    .table-stok-wrapper{
+        border-radius:7px;
+    }
+
+    .table-stok-wrapper table{
+        min-width:1180px;
+    }
+}
+</style>
+
     @include('pages.laporan.style')
 @endsection

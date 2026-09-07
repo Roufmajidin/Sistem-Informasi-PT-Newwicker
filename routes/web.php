@@ -1089,7 +1089,7 @@ Route::prefix('spek')->name('spek.')->group(function () {
 });
 
 
-Route::get('monitoring-barang-masukp', [ProduksiMnController::class, 'test'])->name('produksi.test');
+Route::get('monitoring-barang-masuk', [ProduksiMnController::class, 'test'])->name('produksi.test');
 
 Route::delete(
     '/laporan/transaksi/{id}',
@@ -1134,3 +1134,12 @@ Route::post(
     '/pengajuan_purchasing/{id}/approve-step',
     [PurchasingController::class, 'approveStep']
 )->name('pengajuan_purchasing.approve_step');
+
+Route::get(
+    '/laporan/warehouse-purchasing/pending-count',
+    [LaporanController::class, 'warehousePurchasingPendingCount']
+)->name('warehouse.purchasing.pending.count');
+Route::post(
+    '/pengajuan_purchasing/detail/{id}/add-to-warehouse',
+    [PurchasingController::class, 'addToWarehouse']
+)->name('pengajuan_purchasing.add_to_warehouse');

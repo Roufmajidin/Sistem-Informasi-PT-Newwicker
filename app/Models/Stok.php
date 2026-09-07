@@ -10,7 +10,8 @@ class Stok extends Model
         'jenis',
         'satuan',
         'harga',
-        'stok_awal'
+        'stok_awal',
+        'opname',
     ];
     public function transaksi()
     {

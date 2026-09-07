@@ -19,11 +19,24 @@
                                 <th>Pembuat</th>
                                 <th>Jumlah Item</th>
                                 <th>Status</th>
+                                <th>Approver</th>
                                 <th>draft</th>
+                                <th>added to warehouse</th>
                                 <th style="width:80px;">Aksi</th>
                             </tr>
                         </thead>
                     <tbody id="submissionListBody">
+    @php
+        /*
+         * Approval step:
+         * Step 2-7 adalah approver yang menentukan pengajuan selesai.
+         * Load sekaligus supaya kolom Approver bisa membaca data approval.
+         */
+        if (($pengajuans ?? collect()) instanceof \Illuminate\Database\Eloquent\Collection) {
+            $pengajuans->loadMissing('approvalSteps');
+        }
+    @endphp
+
     @forelse(($pengajuans ?? collect()) as $index => $pengajuan)
 
         @php
@@ -42,6 +55,30 @@
                 ? $pengajuan->divisiItems->count()
                 : 0;
 
+            // STATUS ADD TO WAREHOUSE
+            // 0 = belum ada yang masuk warehouse
+            // 1 = semua item sudah masuk warehouse
+            // partial = sebagian item sudah masuk warehouse
+            $warehouseItems = $pengajuan->divisiItems ?? collect();
+            $warehouseItemCount = $warehouseItems->count();
+            $warehouseAddedCount = $warehouseItems->filter(function ($item) {
+                return (int) ($item->added_to_warehouse ?? 0) === 1;
+            })->count();
+
+            if ($warehouseItemCount === 0) {
+                $warehouseStatus = 'Belum ada item';
+                $warehouseStatusClass = 'status-pending';
+            } elseif ($warehouseAddedCount === $warehouseItemCount) {
+                $warehouseStatus = 'Added to Warehouse';
+                $warehouseStatusClass = 'status-approved';
+            } elseif ($warehouseAddedCount > 0) {
+                $warehouseStatus = 'Partial (' . $warehouseAddedCount . '/' . $warehouseItemCount . ')';
+                $warehouseStatusClass = 'status-pending';
+            } else {
+                $warehouseStatus = 'Belum';
+                $warehouseStatusClass = 'status-pending';
+            }
+
             $tanggal = optional($pengajuan->meta)->tanggal
                 ?? $pengajuan->created_at;
 
@@ -54,6 +91,79 @@
 
             // NILAI DRAFT DARI DATABASE
             $isDraft = (int) ($pengajuan->is_draft ?? 0);
+
+            /*
+             * APPROVER
+             *
+             * Step 1 = Made by, tidak ditampilkan.
+             * Step 2-7 = seluruh jalur approval.
+             *
+             * Jika masih ada step pending dan sudah ada nama user:
+             *     Waiting [Eka, Didin, ...]
+             *
+             * Jika ada rejected:
+             *     Rejected [Nama]
+             *
+             * Jika seluruh step 2-7 sudah approved:
+             *     Approved
+             */
+            $approvalSteps = $pengajuan->approvalSteps ?? collect();
+
+            $approvalSteps = $approvalSteps
+                ->filter(function ($step) {
+                    return (int) ($step->step_order ?? 0) >= 2
+                        && (int) ($step->step_order ?? 0) <= 7;
+                })
+                ->sortBy(function ($step) {
+                    return (int) ($step->step_order ?? 0);
+                })
+                ->values();
+
+            $rejectedApprovers = $approvalSteps
+                ->filter(function ($step) {
+                    return strtolower((string) ($step->status ?? '')) === 'rejected';
+                })
+                ->map(function ($step) {
+                    return trim((string) ($step->user_name ?? ''));
+                })
+                ->filter()
+                ->unique()
+                ->values();
+
+            $waitingApprovers = $approvalSteps
+                ->filter(function ($step) {
+                    return strtolower((string) ($step->status ?? '')) !== 'approved'
+                        && strtolower((string) ($step->status ?? '')) !== 'rejected'
+                        && trim((string) ($step->user_name ?? '')) !== '';
+                })
+                ->map(function ($step) {
+                    return trim((string) ($step->user_name ?? ''));
+                })
+                ->filter()
+                ->unique()
+                ->values();
+
+            $approvalTotal = $approvalSteps->count();
+
+            $approvalApprovedCount = $approvalSteps
+                ->filter(function ($step) {
+                    return strtolower((string) ($step->status ?? '')) === 'approved';
+                })
+                ->count();
+
+            if ($rejectedApprovers->isNotEmpty()) {
+                $approverText = 'Rejected [' . $rejectedApprovers->implode(', ') . ']';
+                $approverClass = 'approver-rejected';
+            } elseif ($waitingApprovers->isNotEmpty()) {
+                $approverText = 'Waiting [' . $waitingApprovers->implode(', ') . ']';
+                $approverClass = 'approver-waiting';
+            } elseif ($approvalTotal > 0 && $approvalApprovedCount === $approvalTotal) {
+                $approverText = 'Approved';
+                $approverClass = 'approver-approved';
+            } else {
+                $approverText = 'Waiting [-]';
+                $approverClass = 'approver-waiting';
+            }
         @endphp
 
         <tr class="submission-row"
@@ -62,7 +172,8 @@
                 $divisiName . ' ' .
                 $creator . ' ' .
                 $status . ' ' .
-                $isDraft
+                $isDraft . ' ' .
+                $warehouseStatus
             ) }}">
 
             {{-- NO --}}
@@ -105,6 +216,14 @@
                 </span>
             </td>
 
+            {{-- APPROVER --}}
+            <td class="text-center">
+                <span class="approver-badge {{ $approverClass }}"
+                      title="{{ $approverText }}">
+                    {{ $approverText }}
+                </span>
+            </td>
+
             {{-- IS DRAFT --}}
             <td class="text-center">
                 @if($isDraft === 1)
@@ -117,6 +236,13 @@
                     </span>
                 @endif
             </td>
+            {{-- ADDED TO WAREHOUSE --}}
+            <td class="text-center">
+                <span class="status-badge {{ $warehouseStatusClass }}">
+                    {{ $warehouseStatus }}
+                </span>
+            </td>
+
             {{-- AKSI --}}
             <td class="text-center">
                 @php
@@ -163,7 +289,7 @@
     @empty
 
         <tr>
-            <td colspan="9" class="submission-empty">
+            <td colspan="11" class="submission-empty">
                 <i class="fa fa-folder-open"
                    style="font-size:28px;display:block;margin-bottom:8px;">
                 </i>
@@ -212,6 +338,39 @@
         font-weight: 600;
         white-space: nowrap;
         margin: 1px;
+    }
+
+    /* ============================================================
+       APPROVER
+       ============================================================ */
+    .approver-badge {
+        display: inline-block;
+        max-width: 260px;
+        padding: 4px 7px;
+        border-radius: 5px;
+        font-size: 10px;
+        font-weight: 600;
+        line-height: 1.35;
+        white-space: normal;
+        word-break: break-word;
+    }
+
+    .approver-waiting {
+        color: #856404;
+        background: #fff3cd;
+        border: 1px solid #ffe69c;
+    }
+
+    .approver-approved {
+        color: #146c43;
+        background: #d1e7dd;
+        border: 1px solid #a3cfbb;
+    }
+
+    .approver-rejected {
+        color: #b02a37;
+        background: #f8d7da;
+        border: 1px solid #f1aeb5;
     }
 </style>
 

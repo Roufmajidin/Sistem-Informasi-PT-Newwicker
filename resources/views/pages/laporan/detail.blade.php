@@ -221,12 +221,14 @@
 
                                 <label>&nbsp;</label>
 
-                                <button type="button" id="btnTambahTransaksi" class="btn btn-success btn-block" disabled
-                                    style="cursor:not-allowed;opacity:.6">
+                                <button type="button"
+    id="btnTambahTransaksi"
+    class="btn btn-success btn-block"
+    style="cursor:pointer;opacity:1">
 
-                                    Save
+    Save
 
-                                </button>
+</button>
 
                             </div>
 
@@ -608,90 +610,110 @@ $(document).on('click', '.btn-delete-transaksi', function () {
     `);
         }
 
-        function checkSaveButton() {
+ function checkSaveButton() {
 
-            let qtyIn =
-                parseFloat(
-                    $('#qty_in').val()
-                ) || 0;
+    const qtyInRaw = $('#qty_in').val();
+    const qtyOutRaw = $('#qty_out').val();
 
-            let qtyOut =
-                parseFloat(
-                    $('#qty_out').val()
-                ) || 0;
+    const qtyIn = parseFloat(qtyInRaw);
+    const qtyOut = parseFloat(qtyOutRaw);
+    const stokTersedia = parseFloat($('#stok_tersedia').val());
 
-            let stokTersedia =
-                parseFloat(
-                    $('#stok_tersedia').val()
-                ) || 0;
+    const inValue = Number.isFinite(qtyIn) ? qtyIn : 0;
+    const outValue = Number.isFinite(qtyOut) ? qtyOut : 0;
+    const stokValue = Number.isFinite(stokTersedia) ? stokTersedia : 0;
 
-            let valid = true;
+    $('#warningStok').hide().text('');
+    $('#qty_out').removeClass('is-invalid');
 
-            $('#warningStok')
-                .hide();
+    let valid = true;
 
-            $('#qty_out')
-                .removeClass('is-invalid');
+    /*
+     * IN / stock opname:
+     * Boleh dilakukan walaupun stok saat ini negatif.
+     *
+     * OUT:
+     * Tetap tidak boleh melebihi stok tersedia.
+     *
+     * Catatan penting:
+     * Validasi OUT hanya dijalankan jika memang ada nilai OUT > 0.
+     */
+    if (outValue > 0 && outValue > stokValue) {
+        valid = false;
 
-            if (
-                qtyOut > stokTersedia
-            ) {
+        $('#qty_out').addClass('is-invalid');
 
-                valid = false;
+        $('#warningStok')
+            .text('Stok tersedia hanya ' + stokValue)
+            .show();
+    }
 
-                $('#qty_out')
-                    .addClass('is-invalid');
+    /*
+     * SAVE aktif jika:
+     * - ada IN > 0, atau
+     * - ada OUT > 0
+     *
+     * IN tetap valid walaupun stok negatif.
+     */
+    const enable = (inValue > 0 || outValue > 0) && valid;
+
+    $('#btnTambahTransaksi')
+        .prop('disabled', !enable)
+        .css({
+            cursor: enable ? 'pointer' : 'not-allowed',
+            opacity: enable ? 1 : 0.6
+        });
+}
+
+/*
+ * Jalankan setiap kali qty IN / OUT berubah.
+ */
+$(document).on(
+    'input change keyup',
+    '#qty_in, #qty_out',
+    function () {
+        checkSaveButton();
+    }
+);
+
+/*
+ * Jalankan setelah seluruh halaman selesai dimuat.
+ * setTimeout juga memastikan elemen sudah tersedia jika
+ * ada script dari master yang melakukan render ulang.
+ */
+$(document).ready(function () {
+    setTimeout(function () {
+        checkSaveButton();
+    }, 50);
+});
+
+/*
+ * SAVE TRANSAKSI
+ */
+        $(document).on('click', '#btnTambahTransaksi', function() {
+
+            const qtyIn = parseFloat($('#qty_in').val()) || 0;
+            const qtyOut = parseFloat($('#qty_out').val()) || 0;
+            const stokTersedia = parseFloat($('#stok_tersedia').val()) || 0;
+
+            /*
+             * IN boleh walaupun stok negatif.
+             * OUT tidak boleh melebihi stok tersedia.
+             */
+            if (qtyIn <= 0 && qtyOut <= 0) {
+                return;
+            }
+
+            if (qtyOut > 0 && qtyOut > stokTersedia) {
+                $('#qty_out').addClass('is-invalid');
 
                 $('#warningStok')
-                    .html(
-                        'Stok tersedia hanya ' +
-                        stokTersedia
-                    )
+                    .text('Stok tersedia hanya ' + stokTersedia)
                     .show();
 
+                checkSaveButton();
+                return;
             }
-
-            let enable =
-                (qtyIn > 0 || qtyOut > 0) &&
-                valid;
-
-            $('#btnTambahTransaksi')
-                .prop(
-                    'disabled',
-                    !enable
-                );
-
-            if (enable) {
-
-                $('#btnTambahTransaksi')
-                    .css({
-                        cursor: 'pointer',
-                        opacity: 1
-                    });
-
-            } else {
-
-                $('#btnTambahTransaksi')
-                    .css({
-                        cursor: 'not-allowed',
-                        opacity: .6
-                    });
-
-            }
-
-        }
-        $(document).on(
-            'input',
-            '#qty_in,#qty_out',
-            checkSaveButton
-        );
-
-        $(document).ready(function() {
-
-            checkSaveButton();
-
-        });
-        $(document).on('click', '#btnTambahTransaksi', function() {
 
             $.ajax({
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use Carbon\Carbon;
 use App\Models\Spk;
 use App\Models\Stok;
+use App\Models\Pengajuan;
 use App\Models\TransaksiStok;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -12,37 +13,75 @@ use App\Exports\WarehouseHistoryExport;
 use Maatwebsite\Excel\Facades\Excel;
 class LaporanController extends Controller
 {
-    public function index(Request $request)
-    {
-        $jenis = $request->jenis;
+   public function index(Request $request)
+{
+    $jenis = $request->jenis;
 
-        $stoks = Stok::query()
-            ->withSum([
-                'transaksi as total_in' => function ($q) {
-                    $q->where('tipe', 'in');
-                },
-            ], 'qty')
-            ->withSum([
-                'transaksi as total_out' => function ($q) {
-                    $q->where('tipe', 'out');
-                },
-            ], 'qty')
-            ->when($jenis, function ($q) use ($jenis) {
-                $q->where('jenis', $jenis);
-            })
-            ->orderBy('nama_barang')
-            ->get()
-            ->map(function ($stok) {
-                $stok->saldo =
-                    ($stok->stok_awal ?? 0) +
-                    ($stok->total_in ?? 0) -
-                    ($stok->total_out ?? 0);
+    /*
+    |--------------------------------------------------------------------------
+    | SUMMARY TRANSAKSI PER BARANG
+    |--------------------------------------------------------------------------
+    | Sebelumnya menggunakan 2x withSum().
+    | Sekarang transaksi dihitung sekali dalam satu aggregate query.
+    */
 
-                return $stok;
-            });
+    $transactionSummary = TransaksiStok::query()
+        ->select(
+            'stok_id',
+            DB::raw("SUM(CASE WHEN tipe = 'in' THEN qty ELSE 0 END) AS total_in"),
+            DB::raw("SUM(CASE WHEN tipe = 'out' THEN qty ELSE 0 END) AS total_out")
+        )
+        ->groupBy('stok_id');
 
-        return view('pages.laporan.index', compact('stoks'));
-    }
+    /*
+    |--------------------------------------------------------------------------
+    | DATA STOK
+    |--------------------------------------------------------------------------
+    */
+
+    $stoks = Stok::query()
+        ->leftJoinSub(
+            $transactionSummary,
+            'transaction_summary',
+            function ($join) {
+                $join->on(
+                    'stoks.id',
+                    '=',
+                    'transaction_summary.stok_id'
+                );
+            }
+        )
+        ->select(
+            'stoks.*',
+            DB::raw('COALESCE(transaction_summary.total_in, 0) AS total_in'),
+            DB::raw('COALESCE(transaction_summary.total_out, 0) AS total_out')
+        )
+        ->when($jenis, function ($q) use ($jenis) {
+            $q->where('stoks.jenis', $jenis);
+        })
+        ->orderBy('stoks.nama_barang')
+        ->get()
+        ->map(function ($stok) {
+
+            /*
+            |--------------------------------------------------------------------------
+            | SALDO
+            |--------------------------------------------------------------------------
+            */
+
+            $stok->saldo =
+                ($stok->stok_awal ?? 0)
+                + ($stok->total_in ?? 0)
+                - ($stok->total_out ?? 0);
+
+            return $stok;
+        });
+
+    return view(
+        'pages.laporan.index',
+        compact('stoks')
+    );
+}
 
     public function warehouseHistory(Request $request)
     {
@@ -920,5 +959,24 @@ class LaporanController extends Controller
             ], 500);
         }
     }
+    public function warehousePurchasingPendingCount()
+{
+    $count = Pengajuan::query()
+        ->where('type_pengajuan', 'purchasing')
+        ->where('is_draft', 1)
+        ->whereHas('approvalSteps')
+        ->whereDoesntHave('approvalSteps', function ($query) {
+            $query->where(function ($q) {
+                $q->whereNull('status')
+                  ->orWhere('status', '!=', 'approved');
+            });
+        })
+        ->count();
+
+    return response()->json([
+        'success' => true,
+        'count' => $count,
+    ]);
+}
 
 }

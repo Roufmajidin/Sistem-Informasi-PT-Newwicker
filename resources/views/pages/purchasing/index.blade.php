@@ -785,7 +785,7 @@
         <div class="purchasing-card">
 
             <div class="purchasing-tabs">
-                <button type="button" class="purchasing-tab active" data-tab="draftFormTab"
+                <button type="button" class="purchasing-tab" data-tab="draftFormTab"
                     onclick="showPurchasingTab('draftFormTab', this)">
                     <i class="fa fa-edit"></i> Draft Form
                 </button>
@@ -796,7 +796,7 @@
                 </button>
             </div>
 
-            <div id="draftFormTab" class="purchasing-tab-content active">
+            <div id="draftFormTab" class="purchasing-tab-content">
                 @include('pages.purchasing.partials.form')
             </div>
 
@@ -834,9 +834,20 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
-            showPurchasingTab('draftFormTab',
-                document.querySelector('.purchasing-tab[data-tab="draftFormTab"]')
-            );
+            const params = new URLSearchParams(window.location.search);
+            const uri = params.get('uri');
+
+            if (uri === 'list_pengajuan') {
+                showPurchasingTab(
+                    'listPengajuanTab',
+                    document.querySelector('.purchasing-tab[data-tab="listPengajuanTab"]')
+                );
+            } else {
+                showPurchasingTab(
+                    'draftFormTab',
+                    document.querySelector('.purchasing-tab[data-tab="draftFormTab"]')
+                );
+            }
         });
     </script>
 @endsection
