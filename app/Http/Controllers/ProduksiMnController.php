@@ -1532,7 +1532,7 @@ class ProduksiMnController extends Controller
         );
     }
 
-    public function buildMonitoringData(Request $request)
+ public function buildMonitoringData(Request $request)
     {
         $start = microtime(true);
 
@@ -1881,11 +1881,11 @@ class ProduksiMnController extends Controller
                             && !$hasAnyam
                             && !$hasRangka;
 
-                        $isRangkaAnyamComposite =
-                            ($hasRangka && $hasAnyam && !$isRangkaRotan);
-
                         $kategoriSpkLower = strtolower($kategoriSpk);
                         $isRangkaRotan = str_contains($kategoriSpkLower, 'rangka rotan');
+
+                        $isRangkaAnyamComposite =
+                            ($hasRangka && $hasAnyam && !$isRangkaRotan);
                         $classificationCategory = strtolower(
                             trim((string) ($classification['category'] ?? ''))
                         );
@@ -1895,6 +1895,122 @@ class ProduksiMnController extends Controller
                             || $classificationCategory === 'packaging'
                             || str_contains($kategoriSpkLower, 'box')
                             || str_contains($kategoriSpkLower, 'packaging');
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | PACKAGING / BOX / CARTON BOX
+                        |--------------------------------------------------------------------------
+                        | Pastikan component tetap terbaca walaupun field nama pada
+                        | custom_columns menggunakan key selain proses/deskripsi/name.
+                        | Contoh component:
+                        | BOX / LAYER / EMPTY
+                        |--------------------------------------------------------------------------
+                        */
+                        if ($isPackagingComposite && empty($components)) {
+                            foreach ($customColumns as $customColumn) {
+                                if (!is_array($customColumn)) {
+                                    continue;
+                                }
+
+                                $packagingComponentName = '';
+
+                                foreach ([
+                                    'proses',
+                                    'deskripsi',
+                                    'name',
+                                    'nama',
+                                    'nama_material',
+                                    'nama_bahan',
+                                    'bahan',
+                                    'komponen',
+                                    'component',
+                                    'description',
+                                ] as $nameKey) {
+                                    $value = $customColumn[$nameKey] ?? null;
+
+                                    if (
+                                        is_string($value)
+                                        && trim($value) !== ''
+                                        && !in_array(
+                                            strtolower(trim($value)),
+                                            ['-', 'null', 'undefined', 'n/a', 'na'],
+                                            true
+                                        )
+                                    ) {
+                                        $packagingComponentName = trim($value);
+                                        break;
+                                    }
+                                }
+
+                                if ($packagingComponentName === '') {
+                                    continue;
+                                }
+
+                                $packagingComponentQty =
+                                    $customColumn['pcs']
+                                    ?? $customColumn['qty']
+                                    ?? $customColumn['quantity']
+                                    ?? $spkItem['qty']
+                                    ?? 0;
+
+                                $components[] = [
+                                    'name' => $packagingComponentName,
+                                    'qty_spk' => (float) $packagingComponentQty,
+                                    'qty_in' => 0,
+                                    'passed' => 0,
+                                    'rejected' => 0,
+                                ];
+                            }
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | REMOVE DUPLICATE COMPONENT
+                            |--------------------------------------------------------------------------
+                            */
+                            $uniquePackagingComponents = [];
+
+                            foreach ($components as $component) {
+                                $componentKey = strtoupper(
+                                    preg_replace(
+                                        '/\s+/',
+                                        ' ',
+                                        trim((string) ($component['name'] ?? ''))
+                                    )
+                                );
+
+                                if (
+                                    $componentKey === ''
+                                    || isset($uniquePackagingComponents[$componentKey])
+                                ) {
+                                    continue;
+                                }
+
+                                $uniquePackagingComponents[$componentKey] = $component;
+                            }
+
+                            $components = array_values($uniquePackagingComponents);
+                            $componentCount = count($components);
+                        }
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | FALLBACK BOX
+                        |--------------------------------------------------------------------------
+                        | Jika benar-benar tidak ada custom component, buat satu
+                        | component BOX agar Qty IN tetap dapat ditampilkan.
+                        |--------------------------------------------------------------------------
+                        */
+                        if ($isPackagingComposite && empty($components)) {
+                            $components[] = [
+                                'name' => 'BOX',
+                                'qty_spk' => (float) ($spkItem['qty'] ?? 0),
+                                'qty_in' => 0,
+                                'passed' => 0,
+                                'rejected' => 0,
+                            ];
+
+                            $componentCount = 1;
+                        }
 
                         /*
                         |--------------------------------------------------------------------------
@@ -2153,10 +2269,29 @@ class ProduksiMnController extends Controller
                             |--------------------------------------------------------------------------
                             */
                         } elseif ($isPackagingComposite) {
+                            /*
+                            |--------------------------------------------------------------------------
+                            | QTY IN PER COMPONENT
+                            |--------------------------------------------------------------------------
+                            | Setiap component mengambil Qty IN berdasarkan:
+                            | spk_id + detail_po_id + remark.
+                            |
+                            | Contoh:
+                            | BOX   -> remark BOX   -> 30
+                            | LAYER -> remark LAYER -> 60
+                            | EMPTY -> remark EMPTY -> 30
+                            |--------------------------------------------------------------------------
+                            */
                             foreach ($components as &$component) {
                                 $componentName = strtoupper(
                                     trim((string) ($component['name'] ?? ''))
                                 );
+
+                                $component['qty_in'] = 0;
+
+                                if ($componentName === '') {
+                                    continue;
+                                }
 
                                 $processRows = $inventoryByDetailComponent->filter(
                                     function ($row) use ($spk, $detailPo, $componentName) {
@@ -2189,19 +2324,19 @@ class ProduksiMnController extends Controller
                                             preg_replace('/[^A-Z0-9]+/', ' ', $remarkKey)
                                         );
 
-                                        if ($componentKey === '' || $remarkNormalized === '') {
+                                        if (
+                                            $componentKey === ''
+                                            || $remarkNormalized === ''
+                                        ) {
                                             return false;
                                         }
 
-                                        return $remarkNormalized === $componentKey
-                                            || str_contains(
-                                                ' ' . $remarkNormalized . ' ',
-                                                ' ' . $componentKey . ' '
-                                            )
-                                            || str_contains(
-                                                $remarkNormalized,
-                                                $componentKey
-                                            );
+                                        /*
+                                        |--------------------------------------------------------------------------
+                                        | EXACT COMPONENT MATCH
+                                        |--------------------------------------------------------------------------
+                                        */
+                                        return $remarkNormalized === $componentKey;
                                     }
                                 );
 
@@ -2212,6 +2347,16 @@ class ProduksiMnController extends Controller
 
                             unset($component);
 
+                            /*
+                            |--------------------------------------------------------------------------
+                            | QTY IN UTAMA SPK PACKAGING
+                            |--------------------------------------------------------------------------
+                            | Field qty_in utama mengikuti component BOX.
+                            | Jika tidak ada BOX, gunakan component pertama.
+                            | Jika semua component belum mempunyai IN berdasarkan remark,
+                            | fallback ke total IN SPK.
+                            |--------------------------------------------------------------------------
+                            */
                             $packagingQtyIn = 0;
 
                             foreach ($components as $component) {
@@ -2219,22 +2364,41 @@ class ProduksiMnController extends Controller
                                     trim((string) ($component['name'] ?? ''))
                                 );
 
-                                if (
-                                    $componentName === 'BOX'
-                                    || str_contains($componentName, 'BOX')
-                                ) {
+                                if ($componentName === 'BOX') {
                                     $packagingQtyIn = (float) ($component['qty_in'] ?? 0);
                                     break;
                                 }
                             }
 
+                            if ($packagingQtyIn <= 0) {
+                                foreach ($components as $component) {
+                                    $componentName = strtoupper(
+                                        trim((string) ($component['name'] ?? ''))
+                                    );
+
+                                    if ($componentName === 'CARTON BOX') {
+                                        $packagingQtyIn = (float) ($component['qty_in'] ?? 0);
+                                        break;
+                                    }
+                                }
+                            }
+
                             if ($packagingQtyIn <= 0 && !empty($components)) {
-                                $packagingQtyIn = (float) ($components[0]['qty_in'] ?? 0);
+                                $packagingQtyIn = (float) (
+                                    collect($components)
+                                        ->pluck('qty_in')
+                                        ->filter(fn ($value) => (float) $value > 0)
+                                        ->first()
+                                    );
+                            }
+
+                            if ($packagingQtyIn <= 0) {
+                                $packagingQtyIn = (float) $totalIn;
                             }
 
                             $componentQtyIn = $packagingQtyIn;
 
-                            /*
+                        /*
                             |--------------------------------------------------------------------------
                             | SPK BIASA
                             |--------------------------------------------------------------------------
@@ -2457,6 +2621,8 @@ class ProduksiMnController extends Controller
     }
 
 
+
+    // end
     public function data(Request $request)
     {
         $datas = $this->buildMonitoringData($request);

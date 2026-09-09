@@ -5,380 +5,833 @@
 
     <style>
         /* =========================================================
-       SPK EXPORT / SCREENSHOT / COPY - A4 LANDSCAPE
-       ========================================================= */
-       .bahan-keterangan-spinner {
-    width: 16px;
-    height: 16px;
-    border: 2px solid #dee2e6;
-    border-top-color: #0d6efd;
-    border-radius: 50%;
-    display: inline-block;
-    animation: bahanKeteranganSpin 0.7s linear infinite;
+   DOWNLOAD EXCEL - PREMIUM UI
+   ========================================================= */
+
+.btn-download-excel {
+    position: relative;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+
+    min-width: 142px;
+    height: 34px;
+
+    padding: 0 13px !important;
+
+    border: 1px solid #d7dee8 !important;
+    border-radius: 7px !important;
+
+    background: linear-gradient(
+        180deg,
+        #ffffff 0%,
+        #f7f9fc 100%
+    ) !important;
+
+    color: #25364d !important;
+
+    font-size: 11px !important;
+    font-weight: 600 !important;
+
+    box-shadow:
+        0 1px 2px rgba(15, 23, 42, .05),
+        inset 0 1px 0 rgba(255,255,255,.8);
+
+    transition:
+        transform .18s ease,
+        box-shadow .18s ease,
+        border-color .18s ease,
+        background .18s ease;
 }
 
-@keyframes bahanKeteranganSpin {
+.btn-download-excel:hover {
+    transform: translateY(-1px);
+
+    border-color: #b9c6d8 !important;
+
+    background: linear-gradient(
+        180deg,
+        #ffffff 0%,
+        #eef3f8 100%
+    ) !important;
+
+    box-shadow:
+        0 5px 14px rgba(15, 23, 42, .10);
+}
+
+.btn-download-excel:active {
+    transform: translateY(0);
+}
+
+.btn-download-excel:disabled {
+    cursor: wait;
+    opacity: .85;
+    transform: none;
+}
+
+/* Excel icon */
+
+.btn-download-excel .excel-icon {
+    width: 19px;
+    height: 19px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 4px;
+
+    background: #217346;
+    color: #fff;
+
+    font-size: 11px;
+    font-weight: 800;
+
+    box-shadow:
+        0 2px 5px rgba(33,115,70,.20);
+}
+
+/* Spinner */
+
+.download-spinner {
+    display: none;
+
+    width: 13px;
+    height: 13px;
+
+    border: 2px solid #dbe2ea;
+    border-top-color: #217346;
+
+    border-radius: 50%;
+
+    animation: excelDownloadSpin .7s linear infinite;
+}
+
+.btn-download-excel.is-loading .download-spinner {
+    display: inline-block;
+}
+
+.btn-download-excel.is-loading .excel-icon {<
+    
+    display: none;
+}
+
+@keyframes excelDownloadSpin {
     to {
         transform: rotate(360deg);
     }
-}
+}<
+
+        /* =========================================================
+               SPK EXPORT / SCREENSHOT / COPY - A4 LANDSCAPE
+               PREMIUM CLEAN DOCUMENT UI
+               KHUSUS OUTPUT SCREENSHOT / COPY
+               ========================================================= */
+
+        .bahan-keterangan-spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #dee2e6;
+            border-top-color: #0d6efd;
+            border-radius: 50%;
+            display: inline-block;
+            animation: bahanKeteranganSpin 0.7s linear infinite;
+        }
+
+        @keyframes bahanKeteranganSpin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* =========================================================
+           ROOT CANVAS
+           ========================================================= */
+
         .spk-excel-image {
             width: 1123px !important;
             height: 794px !important;
+
             min-width: 1123px !important;
             max-width: 1123px !important;
             min-height: 794px !important;
             max-height: 794px !important;
-            padding: 10px 12px !important;
+
+            padding: 12px 14px !important;
             margin: 0 !important;
-            background: #fff !important;
-            color: #000 !important;
+
+            background: #ffffff !important;
+            color: #172033 !important;
+
             font-family: Arial, Helvetica, sans-serif !important;
             font-size: 8px !important;
-            line-height: 1.1 !important;
+            line-height: 1.2 !important;
+
             overflow: hidden !important;
-            box-sizing: border-box !important
+            box-sizing: border-box !important;
         }
 
         .spk-excel-image *,
         .spk-excel-image *::before,
         .spk-excel-image *::after {
-            box-sizing: border-box !important
+            box-sizing: border-box !important;
         }
+
+        /* =========================================================
+           HEADER
+           ========================================================= */
 
         .spk-excel-top {
             width: 100% !important;
-            height: 58px !important;
+            height: 66px !important;
+
             display: grid !important;
-            grid-template-columns: 150px 1fr 300px !important;
-            align-items: start !important;
-            border-bottom: 2px solid #000 !important
+            grid-template-columns: 180px 1fr 330px !important;
+
+            align-items: center !important;
+
+            position: relative !important;
+
+            border-bottom: 2px solid #26374d !important;
+        }
+
+        .spk-excel-top::after {
+            content: "" !important;
+
+            position: absolute !important;
+            left: 0 !important;
+            bottom: -2px !important;
+
+            width: 105px !important;
+            height: 3px !important;
+
+            background: #d4a72c !important;
         }
 
         .spk-excel-logo {
-            height: 56px !important;
+            height: 60px !important;
+
             display: flex !important;
             align-items: center !important;
-            justify-content: flex-start !important
+            justify-content: flex-start !important;
         }
 
         .spk-excel-logo img {
-            width: 110px !important;
-            height: 48px !important;
-            object-fit: contain !important
+            width: 205px !important;
+            height: 60px !important;
+
+            object-fit: contain !important;
         }
 
         .spk-excel-company {
             text-align: right !important;
+
             font-size: 8px !important;
-            line-height: 1.25 !important;
-            padding-top: 0 !important
+            line-height: 1.4 !important;
+
+            color: #536174 !important;
+
+            padding-top: 2px !important;
         }
 
         .spk-excel-company strong {
-            font-size: 10px !important
+            display: inline-block !important;
+
+            color: #172033 !important;
+
+            font-size: 13px !important;
+            font-weight: 700 !important;
+
+            margin-bottom: 2px !important;
         }
+
+        .spk-excel-company u {
+            color: #315f9b !important;
+            text-decoration: none !important;
+        }
+
+        /* =========================================================
+           INFO SPK
+           ========================================================= */
 
         .spk-excel-info {
             width: 100% !important;
-            height: 55px !important;
-            border-collapse: collapse !important;
+            height: 58px !important;
+
+            border-collapse: separate !important;
+            border-spacing: 0 !important;
             table-layout: fixed !important;
-            margin: 0 !important
+
+            margin: 5px 0 5px 0 !important;
+
+            background: #f8fafc !important;
+
+            border: 1px solid #d9e0e8 !important;
+            border-radius: 5px !important;
+
+            overflow: hidden !important;
         }
 
         .spk-excel-info col.label-col {
-            width: 85px !important
+            width: 82px !important;
         }
 
         .spk-excel-info col.po-col {
-            width: 150px !important
+            width: 155px !important;
         }
 
         .spk-excel-info td {
-            border: 0 !important;
-            height: 13px !important;
-            padding: 0 3px !important;
+            border: none !important;
+
+            height: 14px !important;
+
+            padding: 1px 6px !important;
+
             font-size: 8px !important;
-            line-height: 1 !important;
-            vertical-align: middle !important
+            line-height: 1.1 !important;
+
+            vertical-align: middle !important;
+
+            color: #334155 !important;
         }
 
         .spk-excel-info .label {
-            font-weight: bold !important;
-            white-space: nowrap !important
+            color: #64748b !important;
+
+            font-weight: 700 !important;
+            text-transform: uppercase !important;
+
+            letter-spacing: .2px !important;
+
+            white-space: nowrap !important;
         }
 
         .spk-excel-info .po {
-            background: #ffff00 !important;
-            font-weight: bold !important;
+            background: #26374d !important;
+
+            color: #ffffff !important;
+
+            font-size: 9px !important;
+            font-weight: 700 !important;
+
             text-align: center !important;
-            white-space: nowrap !important
+            vertical-align: middle !important;
+
+            white-space: nowrap !important;
         }
+
+        /* =========================================================
+           ITEM AREA
+           ========================================================= */
 
         .spk-excel-item-area {
             width: 100% !important;
-            height: 438px !important;
-            overflow: hidden !important
+            height: auto !important;
+            min-height: 0 !important;
+
+            overflow: hidden !important;
+
+            border-radius: 4px !important;
         }
+
+        /* =========================================================
+           ITEM TABLE
+           ========================================================= */
 
         .spk-excel-items {
             width: 100% !important;
-            border-collapse: collapse !important;
+
+            border-collapse: separate !important;
             border-spacing: 0 !important;
+
             table-layout: fixed !important;
+
             margin: 0 !important;
             padding: 0 !important;
-            font-size: 7.5px !important
+
+            font-size: 8px !important;
+
+            border: 1px solid #26374d !important;
         }
 
         .spk-excel-items col.c-code {
-            width: 10% !important
+            width: 10% !important;
         }
 
         .spk-excel-items col.c-image {
-            width: 10% !important
+            width: 10% !important;
         }
 
         .spk-excel-items col.c-name {
-            width: 16% !important
+            width: 16% !important;
         }
 
         .spk-excel-items col.c-p,
         .spk-excel-items col.c-l,
         .spk-excel-items col.c-t {
-            width: 4% !important
+            width: 4% !important;
         }
 
         .spk-excel-items col.c-material {
-            width: 13% !important
+            width: 13% !important;
         }
 
         .spk-excel-items col.c-pcs,
         .spk-excel-items col.c-set {
-            width: 4% !important
+            width: 4% !important;
         }
 
         .spk-excel-items col.c-price {
-            width: 10% !important
+            width: 10% !important;
         }
 
         .spk-excel-items col.c-total {
-            width: 12% !important
+            width: 12% !important;
         }
 
         .spk-excel-items col.c-note {
-            width: 9% !important
+            width: 9% !important;
         }
 
         .spk-excel-items th,
         .spk-excel-items td {
-            border: 1px solid #000 !important;
-            padding: 2px 3px !important;
+            border: 1px solid #d7dee7 !important;
+
+            padding: 4px 5px !important;
+
             margin: 0 !important;
+
             overflow: hidden !important;
-            line-height: 1.05 !important;
-            vertical-align: middle !important
+
+            line-height: 1.15 !important;
+
+            vertical-align: middle !important;
         }
 
         .spk-excel-items thead th {
-            height: 18px !important;
-            font-weight: bold !important;
+            height: 19px !important;
+
+            padding: 3px 4px !important;
+
+            background: #26374d !important;
+            color: #ffffff !important;
+
+            border-color: #46566b !important;
+
+            font-size: 8px !important;
+            font-weight: 700 !important;
+
             text-align: center !important;
-            white-space: nowrap !important
+            vertical-align: middle !important;
+
+            white-space: nowrap !important;
         }
 
         .spk-excel-items thead tr:nth-child(2) th {
-            height: 15px !important
+            height: 16px !important;
+
+            background: #34485f !important;
+
+            font-size: 7.5px !important;
         }
 
         .spk-excel-items tbody td {
-            text-align: left !important
+            height: 62px !important;
+
+            background: #ffffff !important;
+            color: #273449 !important;
+
+            font-size: 8px !important;
         }
 
-        .spk-excel-items tbody td.ex-center {
-            text-align: center !important
+        .spk-excel-items tbody tr:nth-child(even) td {
+            background: #f8fafc !important;
         }
 
-        .spk-excel-items tbody td.ex-right {
+        .spk-excel-items tbody td.excel-number {
+            text-align: center !important;
+
+            font-weight: 500 !important;
+
+            white-space: nowrap !important;
+        }
+
+        .spk-excel-items tbody td.excel-money {
             text-align: right !important;
-            white-space: nowrap !important
+
+            font-weight: 600 !important;
+
+            white-space: nowrap !important;
+
+            font-variant-numeric: tabular-nums !important;
         }
 
-        .spk-excel-item-row td {
-            height: 62px !important
-        }
+        /* =========================================================
+           TEXT
+           ========================================================= */
 
-        .spk-excel-item-row.extra-row td {
-            height: 48px !important
-        }
-
-        .excel-code-text,
-        .excel-name-text,
-        .excel-material-text,
-        .excel-note-text {
+        .excel-code-text {
             width: 100% !important;
-            max-height: 58px !important;
-            overflow: hidden !important;
-            white-space: normal !important;
-            word-break: break-word !important
+
+            text-align: center !important;
+
+            color: #26374d !important;
+
+            font-size: 8px !important;
+            font-weight: 700 !important;
         }
 
         .excel-name-text {
-            font-weight: 500 !important
+            width: 100% !important;
+
+            max-height: 58px !important;
+
+            overflow: hidden !important;
+
+            white-space: normal !important;
+            word-break: break-word !important;
+
+            color: #172033 !important;
+
+            font-size: 8.5px !important;
+            font-weight: 600 !important;
+
+            line-height: 1.25 !important;
         }
+
+        .excel-material-text {
+            width: 100% !important;
+
+            max-height: 58px !important;
+
+            overflow: hidden !important;
+
+            white-space: normal !important;
+            word-break: break-word !important;
+
+            color: #475569 !important;
+
+            font-size: 8px !important;
+            line-height: 1.25 !important;
+        }
+
+        .excel-note-text {
+            width: 100% !important;
+
+            max-height: 58px !important;
+
+            overflow: hidden !important;
+
+            white-space: normal !important;
+            word-break: break-word !important;
+
+            color: #64748b !important;
+
+            font-size: 7.5px !important;
+            line-height: 1.2 !important;
+        }
+
+        /* =========================================================
+           IMAGE
+           ========================================================= */
 
         .excel-image-cell {
             width: 100% !important;
             height: 58px !important;
+
             display: flex !important;
+
             align-items: center !important;
             justify-content: center !important;
-            overflow: hidden !important
+
+            overflow: hidden !important;
+
+            background: #f8fafc !important;
+
+            border-radius: 3px !important;
         }
 
         .excel-image-cell img {
-            max-width: 65px !important;
-            max-height: 52px !important;
+            max-width: 68px !important;
+            max-height: 54px !important;
+
             width: auto !important;
             height: auto !important;
-            object-fit: contain !important
+
+            object-fit: contain !important;
+
+            border-radius: 3px !important;
         }
 
         .excel-number {
             text-align: center !important;
-            white-space: nowrap !important
+            white-space: nowrap !important;
         }
 
         .excel-money {
             text-align: right !important;
-            white-space: nowrap !important
+            white-space: nowrap !important;
+
+            font-variant-numeric: tabular-nums !important;
         }
+
+        /* =========================================================
+           EXTRA ROW
+           ========================================================= */
+
+        .spk-excel-item-row td {
+            height: 62px !important;
+        }
+
+        .spk-excel-item-row.extra-row td {
+            height: 48px !important;
+        }
+
+        /* =========================================================
+           SPACER
+           ========================================================= */
 
         .spk-excel-spacer td {
             padding: 0 !important;
-            border-left: 1px solid #000 !important;
-            border-right: 1px solid #000 !important;
+
+            background: #ffffff !important;
+
+            border-left: 1px solid #d7dee7 !important;
+            border-right: 1px solid #d7dee7 !important;
+
             border-top: 0 !important;
-            border-bottom: 1px solid #000 !important
+            border-bottom: 1px solid #d7dee7 !important;
         }
 
+        /* =========================================================
+           GRAND TOTAL
+           ========================================================= */
+
         .ex-grand-total td {
-            height: 20px !important;
-            font-weight: bold !important;
+            height: 23px !important;
+
+            padding: 3px 5px !important;
+
+            background: #eef2f6 !important;
+
+            border-top: 2px solid #26374d !important;
+            border-bottom: 1px solid #26374d !important;
+
+            color: #26374d !important;
+
+            font-weight: 700 !important;
+
             vertical-align: middle !important;
-            border-top: 1px solid #000 !important
         }
 
         .ex-grand-total-label {
-            text-align: right !important
+            text-align: right !important;
+
+            padding-right: 8px !important;
+
+            font-size: 8px !important;
+
+            letter-spacing: .3px !important;
         }
+
+        .ex-grand-total .excel-money {
+            color: #172033 !important;
+
+            font-size: 9px !important;
+
+            font-weight: 800 !important;
+        }
+
+        /* =========================================================
+           BOTTOM AREA
+           ========================================================= */
 
         .spk-excel-bottom {
             width: 100% !important;
-            height: 122px !important;
+
+            height: 116px !important;
+
             display: grid !important;
-            grid-template-columns: 57% 43% !important;
-            margin-top: 2px !important;
-            overflow: hidden !important
+
+            grid-template-columns: 58% 42% !important;
+
+            gap: 8px !important;
+
+            margin-top: 6px !important;
+
+            overflow: hidden !important;
         }
 
+        /* =========================================================
+           TERMS
+           ========================================================= */
+
         .spk-excel-terms {
-            padding: 0 8px 0 0 !important;
+            padding: 2px 10px 0 2px !important;
+
             font-size: 7px !important;
-            line-height: 1.32 !important;
-            overflow: hidden !important
+            line-height: 1.4 !important;
+
+            color: #536174 !important;
+
+            overflow: hidden !important;
         }
 
         .spk-excel-terms div {
             margin: 0 !important;
-            padding: 0 !important
+            padding: 0 !important;
         }
 
         .spk-excel-terms .agreement-end {
-            margin-top: 7px !important
+            margin-top: 7px !important;
+
+            color: #26374d !important;
+
+            font-weight: 600 !important;
         }
 
+        /* =========================================================
+           PAYMENT
+           ========================================================= */
+
         .spk-excel-payment {
-            padding-left: 2px !important;
-            overflow: hidden !important
+            padding-left: 0 !important;
+
+            overflow: hidden !important;
+
+            border: 1px solid #d5dce5 !important;
+
+            border-radius: 4px !important;
         }
 
         .spk-excel-payment table {
             width: 100% !important;
+            height: 100% !important;
+
             border-collapse: collapse !important;
+
             table-layout: fixed !important;
-            font-size: 8px !important
+
+            font-size: 7.5px !important;
         }
 
         .spk-excel-payment th,
         .spk-excel-payment td {
-            border: 1px solid #000 !important;
-            padding: 2px 3px !important;
+            border: 1px solid #d5dce5 !important;
+
+            padding: 3px 5px !important;
+
             height: 18px !important;
-            line-height: 1 !important;
+
+            line-height: 1.1 !important;
+
             overflow: hidden !important;
-            white-space: nowrap !important
+
+            white-space: nowrap !important;
+
+            color: #334155 !important;
         }
 
         .spk-excel-payment th {
-            text-align: center !important
+            background: #26374d !important;
+
+            color: #ffffff !important;
+
+            text-align: center !important;
+
+            font-weight: 700 !important;
+        }
+
+        .spk-excel-payment tbody tr:nth-child(even) td {
+            background: #f8fafc !important;
+        }
+
+        .spk-excel-payment .excel-money {
+            text-align: right !important;
+
+            font-weight: 600 !important;
         }
 
         .spk-excel-payment .ex-pay-amount {
-            width: 45% !important
+            width: 45% !important;
         }
 
         .spk-excel-payment .ex-pay-date {
-            width: 25% !important
+            width: 25% !important;
         }
 
         .spk-excel-payment .ex-pay-note {
-            width: 30% !important
-        }
-
-        .spk-excel-signature {
-            width: 100% !important;
-            height: 67px !important;
-            margin: 0 !important;
-            border-collapse: collapse !important;
-            table-layout: fixed !important
-        }
-
-        .spk-excel-signature td {
-            border: 0 !important;
-            text-align: center !important;
-            vertical-align: top !important;
-            padding: 0 !important;
-            font-size: 8px !important
-        }
-
-        .ex-sign-title {
-            height: 14px !important;
-            font-weight: bold !important
-        }
-
-        .ex-sign-space {
-            height: 28px !important
-        }
-
-        .ex-sign-name {
-            height: 13px !important;
-            font-weight: bold !important
-        }
-
-        .ex-sign-role {
-            height: 12px !important;
-            font-size: 7px !important
-        }
-
-        .ex-sign-date {
-            font-size: 7px !important
+            width: 30% !important;
         }
 
         /* =========================================================
-       PUSHER REALTIME MOUSE CURSOR
-       ========================================================= */
+           SIGNATURE
+           ========================================================= */
+
+        .spk-excel-signature {
+            width: 100% !important;
+
+            height: 64px !important;
+
+            margin: 3px 0 0 0 !important;
+
+            border-collapse: separate !important;
+
+            table-layout: fixed !important;
+        }
+
+        .spk-excel-signature td {
+            border: none !important;
+
+            text-align: center !important;
+
+            color: #536174 !important;
+
+            font-size: 7px !important;
+
+            padding: 0 !important;
+
+            vertical-align: top !important;
+        }
+
+        .spk-excel-signature .ex-sign-title {
+            height: 14px !important;
+
+            color: #26374d !important;
+
+            font-size: 7.5px !important;
+
+            font-weight: 700 !important;
+        }
+
+        .spk-excel-signature .ex-sign-space {
+            height: 29px !important;
+        }
+
+        .spk-excel-signature .ex-sign-name {
+            height: 13px !important;
+
+            color: #26374d !important;
+
+            font-size: 7px !important;
+
+            font-weight: 700 !important;
+        }
+
+        .spk-excel-signature .ex-sign-role {
+            height: 12px !important;
+
+            font-size: 7px !important;
+        }
+
+        .spk-excel-signature .ex-sign-date {
+            font-size: 7px !important;
+        }
+
+        /* =========================================================
+               PUSHER REALTIME MOUSE CURSOR
+               ========================================================= */
         .spk-search-input:empty::before {
             content: attr(data-placeholder);
             color: #94a3b8;
@@ -449,8 +902,8 @@
         }
 
         /* =========================================================
-                       SPK PRODUKSI - CLEAN MODERN LAYOUT (Matching preview.html)
-                       ========================================================= */
+                               SPK PRODUKSI - CLEAN MODERN LAYOUT (Matching preview.html)
+                               ========================================================= */
         :root {
             --spk-navy: #50b95a;
             --spk-blue: #6f7174;
@@ -478,8 +931,8 @@
         }
 
         /* =========================================================
-       FLOATING SPK ACTION
-       ========================================================= */
+               FLOATING SPK ACTION
+               ========================================================= */
 
         .spk-floating-actions {
             position: fixed;
@@ -513,8 +966,8 @@
 
 
         /* =========================================================
-       HEADER / DRAG HANDLE
-       ========================================================= */
+               HEADER / DRAG HANDLE
+               ========================================================= */
 
         .spk-floating-header {
 
@@ -582,8 +1035,8 @@
 
 
         /* =========================================================
-       BODY
-       ========================================================= */
+               BODY
+               ========================================================= */
 
         .spk-floating-body {
 
@@ -599,8 +1052,8 @@
 
 
         /* =========================================================
-       BUTTON
-       ========================================================= */
+               BUTTON
+               ========================================================= */
 
         .spk-floating-btn {
 
@@ -691,8 +1144,8 @@
 
 
         /* =========================================================
-       SIGNATURE
-       ========================================================= */
+               SIGNATURE
+               ========================================================= */
 
         .spk-btn-signature {
 
@@ -724,8 +1177,8 @@
 
 
         /* =========================================================
-       SAVE
-       ========================================================= */
+               SAVE
+               ========================================================= */
 
         .spk-btn-save {
 
@@ -757,8 +1210,8 @@
 
 
         /* =========================================================
-       CLOSE
-       ========================================================= */
+               CLOSE
+               ========================================================= */
 
         .spk-btn-close {
 
@@ -790,8 +1243,8 @@
 
 
         /* =========================================================
-       DRAGGING
-       ========================================================= */
+               DRAGGING
+               ========================================================= */
 
         .spk-floating-actions.is-dragging {
 
@@ -817,8 +1270,8 @@
 
 
         /* =========================================================
-       MOBILE
-       ========================================================= */
+               MOBILE
+               ========================================================= */
 
         @media (max-width: 767px) {
 
@@ -1050,8 +1503,8 @@
         }
 
         /* =========================================================
-       SUPPLIER SEARCH LOADING
-       ========================================================= */
+               SUPPLIER SEARCH LOADING
+               ========================================================= */
 
         .supplier-loading {
             display: flex;
@@ -1705,8 +2158,8 @@
         }
 
         /* =========================================================
-               JUMP TO SIGNATURE HIGHLIGHT
-               ========================================================= */
+                       JUMP TO SIGNATURE HIGHLIGHT
+                       ========================================================= */
         .spk-signature-card.spk-jump-highlight {
             animation: spkSignatureFlash 1.4s ease;
         }
@@ -1802,9 +2255,9 @@
 
 
         /* =========================================================
-           PUSHER LIVE MESSAGE / COLLABORATION
-           Ctrl + Shift + Z
-           ========================================================= */
+                   PUSHER LIVE MESSAGE / COLLABORATION
+                   Ctrl + Shift + Z
+                   ========================================================= */
         .spk-live-message-modal {
             position: fixed;
             inset: 0;
@@ -2026,9 +2479,9 @@
     <div id="spkRemoteCursors"></div>
 
     <!-- =========================================================
-         PUSHER LIVE MESSAGE MODAL
-         Hanya aktif pada SPK yang sedang dibuka.
-         ========================================================= -->
+                 PUSHER LIVE MESSAGE MODAL
+                 Hanya aktif pada SPK yang sedang dibuka.
+                 ========================================================= -->
     <div id="spkLiveMessageModal" class="spk-live-message-modal" aria-hidden="true">
         <div class="spk-live-message-card" role="dialog" aria-modal="true" aria-labelledby="spkLiveMessageTitle">
             <div class="spk-live-message-head">
@@ -2521,16 +2974,12 @@
                                         Rp {{ number_format($totalBahan, 0, ',', '.') }}
                                     </td>
 
-                                  <td
-    class="bahan-keterangan-edit"
-    data-transaksi-id="{{ $bahan->id }}"
-    data-spk-id="{{ $bahan->spk_id }}"
-    title="Double click untuk edit"
->
-    <span class="keterangan-text">
-        {{ $bahan->keterangan ?: '-' }}
-    </span>
-</td>
+                                    <td class="bahan-keterangan-edit" data-transaksi-id="{{ $bahan->id }}"
+                                        data-spk-id="{{ $bahan->spk_id }}" title="Double click untuk edit">
+                                        <span class="keterangan-text">
+                                            {{ $bahan->keterangan ?: '-' }}
+                                        </span>
+                                    </td>
                                 </tr>
                             @empty
                                 <tr>
@@ -2759,7 +3208,7 @@
                                     <small
                                         style="color:#64748b;">{{ $sign->approved_at
                                             ? $sign->approved_at->format('d/m/Y
-                                                                            H:i')
+                                                                                                                                                            H:i')
                                             : 'Pending' }}</small>
                                 </td>
                                 <td>
@@ -2843,91 +3292,92 @@
     /* =========================================
            ADD DYNAMIC HEADER BUTTON
            ========================================= */
-           /* =========================================================
+    /* =========================================================
    EDIT KETERANGAN BAHAN BAKU
    DOUBLE CLICK -> EDIT
    ENTER -> SAVE
    ========================================================= */
 
-$(document).on('dblclick', '.bahan-keterangan-edit', function () {
+    $(document).on('dblclick', '.bahan-keterangan-edit', function() {
 
-    const td = this;
+        const td = this;
 
-    // WAJIB ambil dari data-transaksi-id
-    const transaksiId = td.dataset.transaksiId;
+        // WAJIB ambil dari data-transaksi-id
+        const transaksiId = td.dataset.transaksiId;
 
-    console.log('=== EDIT KETERANGAN ===');
-    console.log('Transaksi Stok ID:', transaksiId);
-    console.log('SPK ID:', td.dataset.spkId);
+        console.log('=== EDIT KETERANGAN ===');
+        console.log('Transaksi Stok ID:', transaksiId);
+        console.log('SPK ID:', td.dataset.spkId);
 
-    if (!transaksiId) {
-        Swal.fire({
-            icon: 'error',
-            title: 'ID transaksi tidak ditemukan',
-            text: 'Data TransaksiStok pada baris ini tidak memiliki ID.'
-        });
+        if (!transaksiId) {
+            Swal.fire({
+                icon: 'error',
+                title: 'ID transaksi tidak ditemukan',
+                text: 'Data TransaksiStok pada baris ini tidak memiliki ID.'
+            });
 
-        return;
-    }
-
-    // Jangan membuat editor kedua kali
-    if (td.querySelector('.bahan-keterangan-input')) {
-        return;
-    }
-
-    const oldValue =
-        td.querySelector('.keterangan-text')?.textContent.trim() || '';
-
-    td.innerHTML = '';
-
-    const input = document.createElement('input');
-
-    input.type = 'text';
-    input.className = 'form-control form-control-sm bahan-keterangan-input';
-    input.value = oldValue === '-' ? '' : oldValue;
-
-    td.appendChild(input);
-
-    input.focus();
-    input.select();
-
-    input.addEventListener('keydown', function (e) {
-
-        // ENTER = SAVE
-        if (e.key === 'Enter') {
-
-            e.preventDefault();
-
-            const value = input.value.trim();
-
-            saveBahanKeterangan(
-                td,
-                transaksiId,
-                value,
-                oldValue
-            );
+            return;
         }
 
-        // ESC = CANCEL
-        if (e.key === 'Escape') {
+        // Jangan membuat editor kedua kali
+        if (td.querySelector('.bahan-keterangan-input')) {
+            return;
+        }
 
-            e.preventDefault();
+        const oldValue =
+            td.querySelector('.keterangan-text')?.textContent.trim() || '';
 
-            td.innerHTML = `
+        td.innerHTML = '';
+
+        const input = document.createElement('input');
+
+        input.type = 'text';
+        input.className = 'form-control form-control-sm bahan-keterangan-input';
+        input.value = oldValue === '-' ? '' : oldValue;
+
+        td.appendChild(input);
+
+        input.focus();
+        input.select();
+
+        input.addEventListener('keydown', function(e) {
+
+            // ENTER = SAVE
+            if (e.key === 'Enter') {
+
+                e.preventDefault();
+
+                const value = input.value.trim();
+
+                saveBahanKeterangan(
+                    td,
+                    transaksiId,
+                    value,
+                    oldValue
+                );
+            }
+
+            // ESC = CANCEL
+            if (e.key === 'Escape') {
+
+                e.preventDefault();
+
+                td.innerHTML = `
                 <span class="keterangan-text">
                     ${escapeHtml(oldValue || '-')}
                 </span>
             `;
-        }
+            }
+        });
     });
-});
-function saveBahanKeterangan(td, transaksiId, value, oldValue) {
 
-    console.log('SAVE TRANSAKSI STOK ID:', transaksiId);
-    console.log('KETERANGAN:', value);
+    function saveBahanKeterangan(td, transaksiId, value, oldValue) {
 
-    // Loading circular
-    td.innerHTML = `
+        console.log('SAVE TRANSAKSI STOK ID:', transaksiId);
+        console.log('KETERANGAN:', value);
+
+        // Loading circular
+        td.innerHTML = `
         <div style="
             display:flex;
             align-items:center;
@@ -2945,80 +3395,81 @@ function saveBahanKeterangan(td, transaksiId, value, oldValue) {
         </div>
     `;
 
-    fetch("{{ route('spk.bahan-baku.keterangan') }}", {
+        fetch("{{ route('spk.bahan-baku.keterangan') }}", {
 
-        method: "POST",
+                method: "POST",
 
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-TOKEN": document
-                .querySelector('meta[name="csrf-token"]')
-                .getAttribute('content'),
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRF-TOKEN": document
+                        .querySelector('meta[name="csrf-token"]')
+                        .getAttribute('content'),
 
-            "Accept": "application/json"
-        },
+                    "Accept": "application/json"
+                },
 
-        body: JSON.stringify({
+                body: JSON.stringify({
 
-            // INI ID TRANSAKSI_STOK
-            id: transaksiId,
+                    // INI ID TRANSAKSI_STOK
+                    id: transaksiId,
 
-            keterangan: value
-        })
-    })
+                    keterangan: value
+                })
+            })
 
-    .then(response => {
+            .then(response => {
 
-        if (!response.ok) {
-            throw new Error('HTTP ' + response.status);
-        }
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status);
+                }
 
-        return response.json();
-    })
+                return response.json();
+            })
 
-    .then(result => {
+            .then(result => {
 
-        console.log('RESPONSE SAVE:', result);
+                console.log('RESPONSE SAVE:', result);
 
-        td.innerHTML = `
+                td.innerHTML = `
             <span class="keterangan-text">
                 ${escapeHtml(result.keterangan || '-')}
             </span>
         `;
 
-        td.style.backgroundColor = '#d1fae5';
+                td.style.backgroundColor = '#d1fae5';
 
-        setTimeout(() => {
-            td.style.backgroundColor = '';
-        }, 800);
-    })
+                setTimeout(() => {
+                    td.style.backgroundColor = '';
+                }, 800);
+            })
 
-    .catch(error => {
+            .catch(error => {
 
-        console.error('SAVE KETERANGAN ERROR:', error);
+                console.error('SAVE KETERANGAN ERROR:', error);
 
-        td.innerHTML = `
+                td.innerHTML = `
             <span class="keterangan-text">
                 ${escapeHtml(oldValue || '-')}
             </span>
         `;
 
-        Swal.fire({
-            icon: 'error',
-            title: 'Gagal menyimpan',
-            text: 'Keterangan gagal disimpan.'
-        });
-    });
-}
-function escapeHtml(value) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal menyimpan',
+                    text: 'Keterangan gagal disimpan.'
+                });
+            });
+    }
 
-    return String(value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-}
+    function escapeHtml(value) {
+
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
     document.getElementById('btnAddHeader')?.addEventListener('click', function(e) {
         e.stopPropagation();
         const label = prompt('Nama Kolom Header Baru:');
@@ -7293,11 +7744,11 @@ function escapeHtml(value) {
                 no_po: cleanText(document.querySelector('.no-po')?.innerText),
                 nama_supplier: cleanText(document.getElementById('supplierInput')?.innerText),
                 tgl_terima: typeof getSpkDateValue === 'function' ?
-                    cleanText(getSpkDateValue('.tgl-terima')) :
-                    cleanText(document.querySelector('.tgl-terima')?.innerText),
+                    cleanText(getSpkDateValue('.tgl-terima')) : cleanText(document.querySelector('.tgl-terima')
+                        ?.innerText),
                 tgl_selesai: typeof getSpkDateValue === 'function' ?
-                    cleanText(getSpkDateValue('.tgl-selesai')) :
-                    cleanText(document.querySelector('.tgl-selesai')?.innerText)
+                    cleanText(getSpkDateValue('.tgl-selesai')) : cleanText(document.querySelector('.tgl-selesai')
+                        ?.innerText)
             },
             items: [],
             payments: [],
@@ -7364,29 +7815,102 @@ function escapeHtml(value) {
     }
 
     function excelNumber(value) {
-        if (value === null || value === undefined || value === '') return 0;
+        if (value === null || value === undefined || value === '') {
+            return 0;
+        }
 
         let text = String(value)
             .replace(/Rp/gi, '')
             .replace(/\s/g, '')
             .trim();
 
-        let number;
+        let number = 0;
+
+        /*
+         * FORMAT ANGKA INDONESIA
+         *
+         * 152.500     -> 152500
+         * 2.363.750   -> 2363750
+         * 15.5        -> 15.5
+         * 1.25        -> 1.25
+         * 152.500,50  -> 152500.50
+         */
 
         if (text.includes('.') && text.includes(',')) {
-            number = text.lastIndexOf(',') > text.lastIndexOf('.') ?
-                parseFloat(text.replace(/\./g, '').replace(',', '.')) :
-                parseFloat(text.replace(/,/g, ''));
+
+            // Contoh: 152.500,50
+            number = parseFloat(
+                text.replace(/\./g, '').replace(',', '.')
+            );
+
         } else if (text.includes('.')) {
+
             const parts = text.split('.');
-            number = parts.length > 2 ?
-                parseFloat(text.replace(/\./g, '')) :
-                parseFloat(text);
+
+            /*
+             * Kalau hanya ada SATU titik:
+             *
+             * 152.500 -> harga Indonesia -> 152500
+             * 15.5    -> decimal -> 15.5
+             */
+            if (
+                parts.length === 2 &&
+                parts[1].length === 3 &&
+                /^\d+$/.test(parts[0]) &&
+                /^\d+$/.test(parts[1])
+            ) {
+                number = parseFloat(
+                    parts[0] + parts[1]
+                );
+            }
+
+            /*
+             * Lebih dari satu titik berarti separator ribuan.
+             *
+             * 2.363.750 -> 2363750
+             */
+            else if (parts.length > 2) {
+                number = parseFloat(
+                    text.replace(/\./g, '')
+                );
+            }
+
+            /*
+             * Decimal biasa.
+             *
+             * 15.5 -> 15.5
+             * 1.25 -> 1.25
+             */
+            else {
+                number = parseFloat(text);
+            }
+
         } else if (text.includes(',')) {
+
             const parts = text.split(',');
-            number = parts.length === 2 && parts[1].length <= 2 ?
-                parseFloat(text.replace(',', '.')) :
-                parseFloat(text.replace(/,/g, ''));
+
+            /*
+             * 15,5 -> 15.5
+             * 1,25 -> 1.25
+             */
+            if (
+                parts.length === 2 &&
+                parts[1].length <= 2
+            ) {
+                number = parseFloat(
+                    text.replace(',', '.')
+                );
+            }
+
+            /*
+             * 2,363,750 -> 2363750
+             */
+            else {
+                number = parseFloat(
+                    text.replace(/,/g, '')
+                );
+            }
+
         } else {
             number = parseFloat(text);
         }
@@ -7433,7 +7957,37 @@ function escapeHtml(value) {
     }
 
     function buildExcelLikeSpk(data) {
-        const logo = document.querySelector('#printArea img')?.src || '';
+        const logo = 'https://newwicker.my.id/assets/images/NEWWICKER%20WHITE.png';
+
+        /*
+         * Hitung tinggi area item SEBELUM template HTML dibuat.
+         * Ini penting karena itemAreaHeight dipakai di template literal.
+         */
+        const ITEM_AREA_MAX_HEIGHT = 438;
+        const ITEM_HEADER_HEIGHT = 33;
+        const ITEM_TOTAL_HEIGHT = 23;
+
+        let estimatedRowsHeight = 0;
+        let totalDetailRows = 0;
+
+        data.items.forEach(item => {
+            item.rows.forEach((detail, index) => {
+                totalDetailRows++;
+                estimatedRowsHeight += index === 0 ? 62 : 48;
+            });
+        });
+
+        const calculatedItemAreaHeight =
+            ITEM_HEADER_HEIGHT +
+            estimatedRowsHeight +
+            ITEM_TOTAL_HEIGHT;
+
+        const itemAreaHeight = Math.min(
+            ITEM_AREA_MAX_HEIGHT,
+            Math.max(90, calculatedItemAreaHeight)
+        );
+
+        const spacerHeight = 0;
 
         let grandTotal = 0;
         data.items.forEach(item => {
@@ -7446,7 +8000,7 @@ function escapeHtml(value) {
             <div class="spk-excel-image">
                 <div class="spk-excel-top">
                     <div class="spk-excel-logo">
-                        ${logo ? `<img src="${excelEscape(logo)}" crossorigin="anonymous" alt="">` : ''}
+                        <img src="${excelEscape(logo)}" crossorigin="anonymous" alt="NewWicker">
                     </div>
                     <div></div>
                     <div class="spk-excel-company">
@@ -7485,7 +8039,7 @@ function escapeHtml(value) {
                     </tr>
                 </table>
 
-                <div class="spk-excel-item-area">
+                <div class="spk-excel-item-area" style="height:${itemAreaHeight}px !important;">
                     <table class="spk-excel-items">
                         <colgroup>
                             <col class="c-code">
@@ -7523,23 +8077,6 @@ function escapeHtml(value) {
                         </thead>
                         <tbody>
         `;
-
-        const ITEM_AREA_HEIGHT = 438;
-        const HEADER_HEIGHT = 33;
-        const TOTAL_HEIGHT = 20;
-
-        let estimatedRowsHeight = 0;
-
-        data.items.forEach(item => {
-            item.rows.forEach((detail, index) => {
-                estimatedRowsHeight += index === 0 ? 62 : 48;
-            });
-        });
-
-        const spacerHeight = Math.max(
-            0,
-            ITEM_AREA_HEIGHT - HEADER_HEIGHT - TOTAL_HEIGHT - estimatedRowsHeight
-        );
 
         data.items.forEach(item => {
             item.rows.forEach((detail, index) => {
@@ -7635,8 +8172,7 @@ function escapeHtml(value) {
         `;
 
         const paymentRows = data.payments.length ?
-            data.payments :
-            [{}, {}, {}, {}];
+            data.payments : [{}, {}, {}, {}];
 
         paymentRows.slice(0, 5).forEach(pay => {
             html += `
@@ -7693,7 +8229,7 @@ function escapeHtml(value) {
          */
         Object.assign(wrapper.style, {
             position: 'fixed',
-            left: '0px',
+            left: '-10000px',
             top: '0px',
             width: `${SPK_EXPORT_WIDTH}px`,
             height: `${SPK_EXPORT_HEIGHT}px`,
@@ -7703,7 +8239,7 @@ function escapeHtml(value) {
             maxHeight: `${SPK_EXPORT_HEIGHT}px`,
             overflow: 'hidden',
             background: '#ffffff',
-            zIndex: '-999999',
+            zIndex: '999999',
             pointerEvents: 'none'
         });
 

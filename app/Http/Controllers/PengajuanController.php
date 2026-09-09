@@ -43,11 +43,11 @@ class PengajuanController extends Controller
 
                 $pengajuan = Pengajuan::create([
                     'type_pengajuan' => $type,
-                    'user_id'        => auth()->id() ?? 1,
-                    'status'         => 'pending',
-                    'no_spk'         => $request->no_spk ?? '',
-                    'keterangan'     => $request->keterangan,
-                    'divisi_id'      => $request->divisi_id,
+                    'user_id' => auth()->id() ?? 1,
+                    'status' => 'pending',
+                    'no_spk' => $request->no_spk ?? '',
+                    'keterangan' => $request->keterangan,
+                    'divisi_id' => $request->divisi_id,
                 ]);
 
                 // =========================
@@ -58,12 +58,12 @@ class PengajuanController extends Controller
                     foreach ($request->file('images') as $img) {
 
                         $filename =
-                        'pengajuan_' .
-                        time() .
-                        '_' .
-                        Str::random(5) .
-                        '.' .
-                        $img->getClientOriginalExtension();
+                            'pengajuan_' .
+                            time() .
+                            '_' .
+                            Str::random(5) .
+                            '.' .
+                            $img->getClientOriginalExtension();
 
                         $path = $img->storeAs(
                             'pengajuan',
@@ -73,10 +73,10 @@ class PengajuanController extends Controller
 
                         DB::table('pengajuan_files')->insert([
                             'pengajuan_id' => $pengajuan->id,
-                            'file_path'    => $path,
-                            'type'         => 'image',
-                            'created_at'   => now(),
-                            'updated_at'   => now(),
+                            'file_path' => $path,
+                            'type' => 'image',
+                            'created_at' => now(),
+                            'updated_at' => now(),
                         ]);
                     }
                 }
@@ -84,7 +84,7 @@ class PengajuanController extends Controller
                 DB::commit();
 
                 return response()->json([
-                    'status'  => true,
+                    'status' => true,
                     'message' => '✅ Berhasil disimpan (All Divisi)',
                 ]);
             }
@@ -94,27 +94,27 @@ class PengajuanController extends Controller
             // =========================
             if ($type === 'Finance') {
 
-                $meta     = json_decode($request->meta_json, true);
-                $details  = json_decode($request->details_json, true) ?? [];
+                $meta = json_decode($request->meta_json, true);
+                $details = json_decode($request->details_json, true) ?? [];
                 $approval = json_decode($request->approval_json, true) ?? [];
 
                 // =========================
                 // 🔥 DEBUG LOG
                 // =========================
                 Log::info([
-                    'meta'          => $meta,
+                    'meta' => $meta,
                     'details_count' => count($details),
                 ]);
 
                 // =========================
                 // 🔥 VALIDASI META
                 // =========================
-                if (! $meta || ! isset($meta['nomor'])) {
+                if (!$meta || !isset($meta['nomor'])) {
 
                     DB::rollback();
 
                     return response()->json([
-                        'status'  => false,
+                        'status' => false,
                         'message' => '❌ Meta tidak valid',
                     ], 422);
                 }
@@ -124,7 +124,7 @@ class PengajuanController extends Controller
                 // =========================
                 $tanggal = null;
 
-                if (! empty($meta['tanggal'])) {
+                if (!empty($meta['tanggal'])) {
 
                     try {
 
@@ -138,7 +138,7 @@ class PengajuanController extends Controller
                         DB::rollback();
 
                         return response()->json([
-                            'status'  => false,
+                            'status' => false,
                             'message' => '❌ Format tanggal salah: ' . $meta['tanggal'],
                         ], 422);
                     }
@@ -156,13 +156,13 @@ class PengajuanController extends Controller
                     DB::rollback();
 
                     return response()->json([
-                        'status'  => false,
+                        'status' => false,
                         'message' =>
-                        '❌ Data sudah ada (Tanggal: ' .
-                        $meta['tanggal'] .
-                        ' / No: ' .
-                        $meta['nomor'] .
-                        ')',
+                            '❌ Data sudah ada (Tanggal: ' .
+                            $meta['tanggal'] .
+                            ' / No: ' .
+                            $meta['nomor'] .
+                            ')',
                     ], 422);
                 }
 
@@ -171,21 +171,21 @@ class PengajuanController extends Controller
                 // =========================
                 $pengajuan = Pengajuan::create([
                     'type_pengajuan' => $type,
-                    'user_id'        => auth()->id() ?? 1,
-                    'status'         => 'pending',
-                    'keterangan'     => $request->keterangan,
+                    'user_id' => auth()->id() ?? 1,
+                    'status' => 'pending',
+                    'keterangan' => $request->keterangan,
                 ]);
 
                 // =========================
                 // 🔥 INSERT META
                 // =========================
                 PengajuanMeta::create([
-                    'pengajuan_id'    => $pengajuan->id,
-                    'tanggal'         => $tanggal,
-                    'nomor'           => trim($meta['nomor']),
+                    'pengajuan_id' => $pengajuan->id,
+                    'tanggal' => $tanggal,
+                    'nomor' => trim($meta['nomor']),
                     'type_pembayaran' => $meta['type_pembayaran'] ?? null,
-                    'total_transfer'  => $meta['transfer'] ?? 0,
-                    'grand_total'     => $meta['grand_total'] ?? 0,
+                    'total_transfer' => $meta['transfer'] ?? 0,
+                    'grand_total' => $meta['grand_total'] ?? 0,
                 ]);
 
                 // =========================
@@ -205,15 +205,15 @@ class PengajuanController extends Controller
                     // =========================
                     $detailDate = null;
 
-                    if (! empty($d['date'])) {
+                    if (!empty($d['date'])) {
 
                         try {
 
                             $detailDate =
-                            \Carbon\Carbon::createFromFormat(
-                                'd/m/Y',
-                                trim($d['date'])
-                            )->format('Y-m-d');
+                                \Carbon\Carbon::createFromFormat(
+                                    'd/m/Y',
+                                    trim($d['date'])
+                                )->format('Y-m-d');
 
                         } catch (\Exception $e) {
 
@@ -227,34 +227,34 @@ class PengajuanController extends Controller
 
                         'pengajuan_id' => $pengajuan->id,
 
-                        'no'           => $d['no'] ?? null,
+                        'no' => $d['no'] ?? null,
 
-                        'date'         => $detailDate,
+                        'date' => $detailDate,
 
-                        'no_po'        => $d['no_po'] ?? '',
+                        'no_po' => $d['no_po'] ?? '',
 
-                        'no_inv'       => $d['no_inv'] ?? '',
+                        'no_inv' => $d['no_inv'] ?? '',
 
-                        'type_biaya'   => $d['type_biaya'] ?? '',
+                        'type_biaya' => $d['type_biaya'] ?? '',
 
-                        'nama_barang'  => $d['nama_barang'] ?? '',
+                        'nama_barang' => $d['nama_barang'] ?? '',
 
-                        'qty'          => $d['qty'] ?? 0,
+                        'qty' => $d['qty'] ?? 0,
 
                         'harga_satuan' => str_replace('.', '', $d['harga_satuan'] ?? 0),
 
-                        'total_harga'  => str_replace('.', '', $d['total_harga'] ?? 0),
+                        'total_harga' => str_replace('.', '', $d['total_harga'] ?? 0),
 
-                        'created_at'   => now(),
+                        'created_at' => now(),
 
-                        'updated_at'   => now(),
+                        'updated_at' => now(),
                     ];
                 }
 
                 // =========================
                 // 🔥 INSERT DETAIL
                 // =========================
-                if (! empty($insertDetails)) {
+                if (!empty($insertDetails)) {
 
                     PengajuanDetail::insert($insertDetails);
                 }
@@ -303,23 +303,23 @@ class PengajuanController extends Controller
 
                         'pengajuan_id' => $pengajuan->id,
 
-                        'step_order'   => $i + 1,
+                        'step_order' => $i + 1,
 
-                        'step_name'    => $s['name'],
+                        'step_name' => $s['name'],
 
-                        'user_name'    => $s['user'],
+                        'user_name' => $s['user'],
 
-                        'status'       => $i === 0
+                        'status' => $i === 0
                             ? 'approved'
                             : 'pending',
 
-                        'approved_at'  => $i === 0
+                        'approved_at' => $i === 0
                             ? now()
                             : null,
 
-                        'created_at'   => now(),
+                        'created_at' => now(),
 
-                        'updated_at'   => now(),
+                        'updated_at' => now(),
                     ];
                 }
 
@@ -328,7 +328,7 @@ class PengajuanController extends Controller
                 DB::commit();
 
                 return response()->json([
-                    'status'  => true,
+                    'status' => true,
                     'message' => '✅ Pengajuan Finance berhasil disimpan',
                 ]);
             }
@@ -336,7 +336,7 @@ class PengajuanController extends Controller
             DB::rollback();
 
             return response()->json([
-                'status'  => false,
+                'status' => false,
                 'message' => '❌ Type pengajuan tidak dikenali',
             ], 422);
 
@@ -346,14 +346,14 @@ class PengajuanController extends Controller
 
             Log::error([
                 'message' => $e->getMessage(),
-                'line'    => $e->getLine(),
-                'file'    => $e->getFile(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
             ]);
 
             return response()->json([
-                'status'  => false,
+                'status' => false,
                 'message' => $e->getMessage(),
-                'line'    => $e->getLine(),
+                'line' => $e->getLine(),
             ], 500);
         }
     }
@@ -363,13 +363,13 @@ class PengajuanController extends Controller
 
         try {
 
-            if (! $request->hasFile('images')) {
+            if (!$request->hasFile('images')) {
                 return response()->json([
-                    'status'  => false,
+                    'status' => false,
                     'message' => 'Foto wajib diisi',
                 ], 422);
             }
-            if ($request->type_pengajuan === 'Finance' && ! $request->divisi_id) {
+            if ($request->type_pengajuan === 'Finance' && !$request->divisi_id) {
                 return back()->with('error', 'Divisi wajib diisi untuk Finance');
             }
 
@@ -385,12 +385,12 @@ class PengajuanController extends Controller
 
                 $pengajuan = Pengajuan::create([
                     'type_pengajuan' => $request->type_pengajuan,
-                    'user_id'        => auth()->id() ?? 1,
-                    'status'         => 'pending',
-                    'no_spk'         => $request->no_spk ?? '',
-                    'keterangan'     => $request->keterangan,
-                    'divisi_id'      => $request->divisi_id,
-                    'urgent'         => $request->urgent,
+                    'user_id' => auth()->id() ?? 1,
+                    'status' => 'pending',
+                    'no_spk' => $request->no_spk ?? '',
+                    'keterangan' => $request->keterangan,
+                    'divisi_id' => $request->divisi_id,
+                    'urgent' => $request->urgent,
                 ]);
             }
             // =========================
@@ -405,18 +405,18 @@ class PengajuanController extends Controller
                 // 🔥 pakai tabel kamu
                 DB::table('pengajuan_files')->insert([
                     'pengajuan_id' => $pengajuan->id,
-                    'file_path'    => $path,
-                    'type'         => 'image', // 🔥 bisa nanti pdf dll
-                    'created_at'   => now(),
-                    'updated_at'   => now(),
+                    'file_path' => $path,
+                    'type' => 'image', // 🔥 bisa nanti pdf dll
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
             }
 
             DB::commit();
 
             return response()->json([
-                'status'       => true,
-                'message'      => '✅ Pengajuan berhasil disimpan',
+                'status' => true,
+                'message' => '✅ Pengajuan berhasil disimpan',
                 'pengajuan_id' => $pengajuan->id,
             ]);
 
@@ -425,59 +425,59 @@ class PengajuanController extends Controller
             DB::rollback();
 
             return response()->json([
-                'status'  => false,
+                'status' => false,
                 'message' => $e->getMessage(),
             ], 500);
         }
     }
-public function addImage(Request $request, $id)
-{
-    $pengajuan = Pengajuan::findOrFail($id);
+    public function addImage(Request $request, $id)
+    {
+        $pengajuan = Pengajuan::findOrFail($id);
 
-    // hanya pembuat pengajuan
-    if ($pengajuan->user_id != auth()->id()) {
+        // hanya pembuat pengajuan
+        if ($pengajuan->user_id != auth()->id()) {
+
+            return response()->json([
+                'status' => false,
+                'message' => 'Anda bukan pembuat pengajuan'
+            ], 403);
+        }
+
+        $request->validate([
+            'images' => 'required',
+            'images.*' => 'image|max:10240'
+        ]);
+
+        foreach ($request->file('images') as $img) {
+
+            $filename =
+                'pengajuan_' .
+                time() .
+                '_' .
+                Str::random(5) .
+                '.' .
+                $img->getClientOriginalExtension();
+
+            $path = $img->storeAs(
+                'pengajuan',
+                $filename,
+                'public'
+            );
+
+            DB::table('pengajuan_files')->insert([
+                'pengajuan_id' => $pengajuan->id,
+                'file_path' => $path,
+                'type' => 'image',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
 
         return response()->json([
-            'status' => false,
-            'message' => 'Anda bukan pembuat pengajuan'
-        ], 403);
-    }
-
-    $request->validate([
-        'images' => 'required',
-        'images.*' => 'image|max:10240'
-    ]);
-
-    foreach ($request->file('images') as $img) {
-
-        $filename =
-            'pengajuan_' .
-            time() .
-            '_' .
-            Str::random(5) .
-            '.' .
-            $img->getClientOriginalExtension();
-
-        $path = $img->storeAs(
-            'pengajuan',
-            $filename,
-            'public'
-        );
-
-        DB::table('pengajuan_files')->insert([
-            'pengajuan_id' => $pengajuan->id,
-            'file_path'    => $path,
-            'type'         => 'image',
-            'created_at'   => now(),
-            'updated_at'   => now(),
+            'status' => true,
+            'message' => 'Gambar berhasil ditambahkan'
         ]);
     }
-
-    return response()->json([
-        'status' => true,
-        'message' => 'Gambar berhasil ditambahkan'
-    ]);
-}
     public function reset()
     {
         if (app()->environment('production')) {
@@ -498,10 +498,20 @@ public function addImage(Request $request, $id)
     public function list(Request $request)
     {
         // dd($request->all());
-        $user     = auth()->user();
-        $karyawan = Karyawan::find($user->karyawan_id);
+        $user = auth()->user();
+        $type = trim($request->type ?? '');
 
-        if (! $karyawan) {
+        $karyawan = Karyawan::find($user->karyawan_id);
+        if (
+            $user &&
+            strtolower($user->email) === 'factory@newwicker.com' &&
+            $type === 'Finance'
+        ) {
+            return response()->json([
+                'message' => 'Not Allowed'
+            ], 403);
+        }
+        if (!$karyawan) {
             return response()->json([]);
         }
 
@@ -521,7 +531,7 @@ public function addImage(Request $request, $id)
 
             if ($type) {
                 // hanya boleh Finance & All Divisi
-                if (! in_array($type, ['Finance', 'All Divisi'])) {
+                if (!in_array($type, ['Finance', 'All Divisi'])) {
                     return response()->json([
                         'message' => 'You are not allowed',
                     ], 403);
@@ -542,7 +552,7 @@ public function addImage(Request $request, $id)
             if ($type) {
 
                 // ❌ selain Finance & All Divisi ditolak
-                if (! in_array($type, ['Finance', 'All Divisi'])) {
+                if (!in_array($type, ['Finance', 'All Divisi'])) {
                     return response()->json([
                         'message' => 'Type not allowed',
                     ], 403);
@@ -600,7 +610,7 @@ public function addImage(Request $request, $id)
 
         // 🔥 SUNTIK KE META
         if ($data->meta) {
-            $data->meta->on_hold     = $onHold;
+            $data->meta->on_hold = $onHold;
             $data->meta->qty_on_hold = $qtyOnHold;
         }
 
@@ -610,18 +620,18 @@ public function addImage(Request $request, $id)
     {
         $user = auth()->user();
 
-        if (! $user) {
+        if (!$user) {
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
         // 🔥 ambil karyawan
         $karyawan = Karyawan::find($user->karyawan_id);
-        $div      = Divisi::find($karyawan->divisi_id);
+        $div = Divisi::find($karyawan->divisi_id);
 
         // 🔥 VALIDASI DIVISI CO
         if (strtoupper($div->nama) !== 'CO') {
             return response()->json([
-                'status'  => false,
+                'status' => false,
                 'message' => 'Hanya divisi CO yang bisa approve',
             ], 403);
         }
@@ -630,19 +640,19 @@ public function addImage(Request $request, $id)
 
         if ($pengajuan->type_pengajuan !== 'All Divisi') {
             return response()->json([
-                'status'  => false,
+                'status' => false,
                 'message' => 'Bukan pengajuan All Divisi',
             ], 400);
         }
 
         $pengajuan->update([
-            'remark'        => 'Approved by ' . $user->name,
+            'remark' => 'Approved by ' . $user->name,
             'approved_date' => now(),
-            'status'        => 'approved',
+            'status' => 'approved',
         ]);
 
         return response()->json([
-            'status'  => true,
+            'status' => true,
             'message' => 'Berhasil approve',
         ]);
     }
@@ -650,9 +660,9 @@ public function addImage(Request $request, $id)
     {
         $data = $request->all();
 
-        if (! is_array($data)) {
+        if (!is_array($data)) {
             return response()->json([
-                'status'  => false,
+                'status' => false,
                 'message' => 'Format harus array',
             ], 422);
         }
@@ -662,20 +672,20 @@ public function addImage(Request $request, $id)
         foreach ($data as $item) {
 
             // validasi minimal
-            if (! isset($item['id'])) {
+            if (!isset($item['id'])) {
                 continue;
             }
 
             $user = User::find($item['id']);
-            if (! $user) {
+            if (!$user) {
                 continue;
             }
 
-            if (! empty($item['email'])) {
+            if (!empty($item['email'])) {
                 $user->email = $item['email'];
             }
 
-            if (! empty($item['password'])) {
+            if (!empty($item['password'])) {
                 $user->password = Hash::make($item['password']);
             }
 
@@ -684,7 +694,7 @@ public function addImage(Request $request, $id)
         }
 
         return response()->json([
-            'status'  => true,
+            'status' => true,
             'message' => 'Berhasil update massal',
             'updated' => $updated,
         ]);
@@ -701,7 +711,7 @@ public function addImage(Request $request, $id)
             $step = PengajuanApprovalStep::findOrFail($id);
 
             $currentUser = strtolower(trim(auth()->user()->name));
-            $stepUser    = strtolower(trim($step->user_name));
+            $stepUser = strtolower(trim($step->user_name));
 
             // =========================
             // 🔥 VALIDASI USER
@@ -745,7 +755,7 @@ public function addImage(Request $request, $id)
             // 🔥 APPROVE STEP
             // =========================
             $step->update([
-                'status'      => 'approved',
+                'status' => 'approved',
                 'approved_at' => now(),
             ]);
 
@@ -765,7 +775,7 @@ public function addImage(Request $request, $id)
             if ($remaining == 0) {
                 Pengajuan::where('id', $step->pengajuan_id)
                     ->update([
-                        'status'        => 'approved',
+                        'status' => 'approved',
                         'approved_date' => now(),
                     ]);
             }
@@ -773,9 +783,9 @@ public function addImage(Request $request, $id)
             DB::commit();
 
             return response()->json([
-                'success'      => true,
-                'message'      => 'Berhasil approve',
-                'step_id'      => $step->id,
+                'success' => true,
+                'message' => 'Berhasil approve',
+                'step_id' => $step->id,
                 'pengajuan_id' => $step->pengajuan_id,
             ]);
 
@@ -806,19 +816,19 @@ public function addImage(Request $request, $id)
                 $path = $img->storeAs('pengajuan', $filename, 'public');
 
                 DB::table('pengajuan_files')->insert([
-                    'pengajuan_id'        => $detail->pengajuan_id,
+                    'pengajuan_id' => $detail->pengajuan_id,
                     'pengajuan_detail_id' => $detailId, // 🔥 INI PENTING
-                    'file_path'           => $path,
-                    'type'                => 'image',
-                    'created_at'          => now(),
-                    'updated_at'          => now(),
+                    'file_path' => $path,
+                    'type' => 'image',
+                    'created_at' => now(),
+                    'updated_at' => now(),
                 ]);
             }
 
             DB::commit();
 
             return response()->json([
-                'status'  => true,
+                'status' => true,
                 'message' => 'Upload berhasil',
             ]);
 
@@ -827,7 +837,7 @@ public function addImage(Request $request, $id)
             DB::rollback();
 
             return response()->json([
-                'status'  => false,
+                'status' => false,
                 'message' => $e->getMessage(),
             ], 500);
         }
@@ -866,8 +876,8 @@ public function addImage(Request $request, $id)
 
         $msg = ApprovalMessage::create([
             'pengajuan_id' => $req->pengajuan_id,
-            'user_id'      => auth()->id(),
-            'message'      => $req->message,
+            'user_id' => auth()->id(),
+            'message' => $req->message,
         ]);
         return response()->json($msg);
     }
@@ -920,8 +930,8 @@ public function addImage(Request $request, $id)
 
         return response()->json([
             'total_pengajuan' => $data->count(),
-            'total_step'      => $stepCount,
-            'data'            => $data,
+            'total_step' => $stepCount,
+            'data' => $data,
         ]);
     }
     public function exportExcel($id)
@@ -931,17 +941,17 @@ public function addImage(Request $request, $id)
         // 🔥 TEMPLATE PATH
         $templatePath = base_path('public/templates/finance_template.xlsx');
 
-        if (! file_exists($templatePath)) {
+        if (!file_exists($templatePath)) {
             abort(404, 'Template tidak ditemukan: ' . $templatePath);
         }
 
         $spreadsheet = IOFactory::load($templatePath);
-        $sheet       = $spreadsheet->getActiveSheet();
+        $sheet = $spreadsheet->getActiveSheet();
 
         // =========================
         // 🔥 INSERT ROW (BIAR LAYOUT TETAP)
         // =========================
-        $startRow    = 11;
+        $startRow = 11;
         $detailCount = count($pengajuan->details);
 
         if ($detailCount > 1) {
@@ -1043,7 +1053,7 @@ public function addImage(Request $request, $id)
     {
         $path = public_path('assets/' . $filename);
 
-        if (! file_exists($path)) {
+        if (!file_exists($path)) {
             \Log::error('TTD tidak ditemukan: ' . $path);
             return;
         }
@@ -1069,7 +1079,7 @@ public function addImage(Request $request, $id)
             // 🔥 VALIDASI: hanya owner yang boleh delete
             if ($pengajuan->user_id != auth()->id()) {
                 return response()->json([
-                    'status'  => false,
+                    'status' => false,
                     'message' => 'Tidak punya akses hapus',
                 ], 403);
             }
@@ -1099,7 +1109,7 @@ public function addImage(Request $request, $id)
             DB::commit();
 
             return response()->json([
-                'status'  => true,
+                'status' => true,
                 'message' => 'Pengajuan berhasil dihapus',
             ]);
 
@@ -1108,7 +1118,7 @@ public function addImage(Request $request, $id)
             DB::rollback();
 
             return response()->json([
-                'status'  => false,
+                'status' => false,
                 'message' => $e->getMessage(),
             ], 500);
         }
