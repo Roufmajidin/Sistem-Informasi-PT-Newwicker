@@ -846,32 +846,90 @@ class LaporanController extends Controller
         ]);
     }
 
-    public function searchSpk(Request $request)
-    {
-        $keyword = $request->q;
-        // dd($request->all());
-        $spks = Spk::where('data', 'like', '%' . $keyword . '%')
-            ->latest()
-            ->take(10)
-            ->get();
+    // public function searchSpk(Request $request)
+    // {
+    //     $keyword = $request->q;
+    //     // dd($request->all());
+    //     $spks = Spk::where('data', 'like', '%' . $keyword . '%')
+    //         ->latest()
+    //         ->take(10)
+    //         ->get();
 
-        $result = [];
+    //     $result = [];
 
-        foreach ($spks as $spk) {
+    //     foreach ($spks as $spk) {
 
-            $data = $spk->data;
+    //         $data = $spk->data;
 
-            $result[] = [
-                'id' => $spk->id,
-                'no_spk' => $data['no_spk'] ?? '',
-                'supplier' => $data['sup'] ?? '',
-                'items' => $data['items'] ?? [],
-            ];
+    //         $result[] = [
+    //             'id' => $spk->id,
+    //             'no_spk' => $data['no_spk'] ?? '',
+    //             'supplier' => $data['sup'] ?? '',
+    //             'items' => $data['items'] ?? [],
+    //         ];
+    //     }
+
+    //     return response()->json($result);
+    // }
+public function searchSpk(Request $request)
+{
+    $keyword = $request->q;
+
+    $spks = Spk::where('data', 'like', '%' . $keyword . '%')
+        ->latest()
+        ->take(10)
+        ->get();
+
+    $result = [];
+
+    foreach ($spks as $spk) {
+
+        $data = is_array($spk->data)
+            ? $spk->data
+            : (json_decode($spk->data, true) ?? []);
+
+        /*
+        |--------------------------------------------------------------------------
+        | NORMALISASI ITEMS
+        |--------------------------------------------------------------------------
+        | Pastikan items selalu array.
+        */
+        $items = $data['items'] ?? [];
+
+        if (is_string($items)) {
+            $decodedItems = json_decode($items, true);
+
+            $items = json_last_error() === JSON_ERROR_NONE
+                ? $decodedItems
+                : [];
         }
 
-        return response()->json($result);
+        if (!is_array($items)) {
+            $items = [];
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | NORMALISASI ITEM
+        |--------------------------------------------------------------------------
+        */
+        $items = array_values(array_filter(
+            $items,
+            function ($item) {
+                return is_array($item);
+            }
+        ));
+
+        $result[] = [
+            'id'       => $spk->id,
+            'no_spk'   => $data['no_spk'] ?? '',
+            'supplier' => $data['sup'] ?? '',
+            'items'    => $items,
+        ];
     }
 
+    return response()->json($result);
+}
     public function searchBarang(Request $request)
     {
         $q = $request->q;

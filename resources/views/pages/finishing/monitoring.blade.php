@@ -782,6 +782,18 @@
 
 
 
+{{-- ========================================================= --}}
+{{-- STICKY CLONE THEAD --}}
+{{-- ========================================================= --}}
+<div id="invoiceStickyHeader" aria-hidden="true">
+    <table>
+        <thead>
+            <tr></tr>
+        </thead>
+    </table>
+</div>
+
+
 {{-- ================================================================
     MODAL IMPORT INVOICE LAMA
 ================================================================ --}}
@@ -1008,6 +1020,60 @@
     /* =========================================================
    TAB MONITORING
    ========================================================= */
+
+    /*
+    |--------------------------------------------------------------------------
+    | STICKY TABBAR + THEAD
+    |--------------------------------------------------------------------------
+    */
+
+    :root {
+        --monitoring-topbar-height: 48px;
+        --monitoring-tabbar-height: 58px;
+    }
+
+    /* TABBAR freeze tepat di bawah topbar */
+    #ledgerTabs {
+        position: sticky;
+        top: var(--monitoring-topbar-height);
+        z-index: 1050;
+        background: #f8f9fb;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, .08);
+    }
+
+    /* Clone THEAD, dipakai saat THEAD asli sudah keluar viewport */
+    #invoiceStickyHeader {
+        position: fixed;
+        top: calc(
+            var(--monitoring-topbar-height) +
+            var(--monitoring-tabbar-height)
+        );
+        z-index: 1040;
+        display: none;
+        overflow: hidden;
+        background: #2f4050;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, .18);
+        pointer-events: none;
+    }
+
+    #invoiceStickyHeader table {
+        margin: 0 !important;
+        border-collapse: separate;
+        border-spacing: 0;
+        table-layout: fixed;
+    }
+
+    #invoiceStickyHeader th {
+        background: #2f4050 !important;
+        color: #fff !important;
+        box-sizing: border-box;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+
+    #invoiceStickyHeader .date-sort-btn {
+        color: #fff !important;
+    }
 
     .ledger-tabs {
         display: flex;
@@ -1524,6 +1590,202 @@
     SCRIPT
 ================================================================ --}}
 <script>
+    /*
+    |--------------------------------------------------------------------------
+    | STICKY TABBAR + THEAD
+    |--------------------------------------------------------------------------
+    */
+
+    (function () {
+
+        const TOPBAR_HEIGHT = 48;
+
+        function updateTabbarHeight() {
+            const tabs = document.getElementById('ledgerTabs');
+
+            if (!tabs) {
+                return 58;
+            }
+
+            const height = Math.ceil(tabs.getBoundingClientRect().height);
+
+            document.documentElement.style.setProperty(
+                '--monitoring-topbar-height',
+                TOPBAR_HEIGHT + 'px'
+            );
+
+            document.documentElement.style.setProperty(
+                '--monitoring-tabbar-height',
+                height + 'px'
+            );
+
+            return height;
+        }
+
+        function buildStickyThead() {
+            const activePane = document.querySelector(
+                '#ledgerTabContent .tab-pane.show.active'
+            );
+
+            const table = activePane
+                ? activePane.querySelector('.ledger-table')
+                : null;
+
+            const sticky = document.getElementById('invoiceStickyHeader');
+            const stickyRow = sticky
+                ? sticky.querySelector('thead tr')
+                : null;
+
+            const originalRow = table
+                ? table.querySelector('thead tr')
+                : null;
+
+            if (!table || !sticky || !stickyRow || !originalRow) {
+                if (sticky) {
+                    sticky.style.display = 'none';
+                }
+                return;
+            }
+
+            stickyRow.innerHTML = '';
+
+            Array.from(originalRow.children).forEach(function (th) {
+                const clone = th.cloneNode(true);
+
+                // Clone hanya untuk visual, tidak menerima event.
+                clone.removeAttribute('onclick');
+
+                stickyRow.appendChild(clone);
+            });
+
+            syncStickyThead();
+        }
+
+        function syncStickyThead() {
+            const activePane = document.querySelector(
+                '#ledgerTabContent .tab-pane.show.active'
+            );
+
+            const table = activePane
+                ? activePane.querySelector('.ledger-table')
+                : null;
+
+            const sticky = document.getElementById('invoiceStickyHeader');
+            const stickyTable = sticky
+                ? sticky.querySelector('table')
+                : null;
+
+            const stickyRow = sticky
+                ? sticky.querySelector('thead tr')
+                : null;
+
+            const originalRow = table
+                ? table.querySelector('thead tr')
+                : null;
+
+            if (
+                !table ||
+                !sticky ||
+                !stickyTable ||
+                !stickyRow ||
+                !originalRow
+            ) {
+                if (sticky) {
+                    sticky.style.display = 'none';
+                }
+                return;
+            }
+
+            const tabsHeight = updateTabbarHeight();
+
+            const stickyTop = TOPBAR_HEIGHT + tabsHeight;
+
+            const tableRect = table.getBoundingClientRect();
+            const headerRect = originalRow.getBoundingClientRect();
+
+            /*
+            |--------------------------------------------------------------------------
+            | Tampilkan clone jika THEAD asli sudah melewati posisi
+            | bawah tabbar.
+            |--------------------------------------------------------------------------
+            */
+            if (
+                headerRect.bottom > stickyTop ||
+                tableRect.bottom <= stickyTop
+            ) {
+                sticky.style.display = 'none';
+                return;
+            }
+
+            const originalCells = Array.from(originalRow.children);
+            const stickyCells = Array.from(stickyRow.children);
+
+            originalCells.forEach(function (cell, index) {
+
+                const clone = stickyCells[index];
+
+                if (!clone) {
+                    return;
+                }
+
+                const width = cell.getBoundingClientRect().width;
+
+                clone.style.width = width + 'px';
+                clone.style.minWidth = width + 'px';
+                clone.style.maxWidth = width + 'px';
+            });
+
+            stickyTable.style.width = tableRect.width + 'px';
+
+            sticky.style.top = stickyTop + 'px';
+            sticky.style.left = tableRect.left + 'px';
+            sticky.style.width = tableRect.width + 'px';
+            sticky.style.height = headerRect.height + 'px';
+
+            sticky.style.display = 'block';
+        }
+
+        function refreshSticky() {
+            updateTabbarHeight();
+            buildStickyThead();
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+
+            refreshSticky();
+
+            window.addEventListener(
+                'scroll',
+                syncStickyThead,
+                { passive: true }
+            );
+
+            window.addEventListener(
+                'resize',
+                refreshSticky
+            );
+
+            /*
+            |--------------------------------------------------------------------------
+            | Ketika tab diganti, rebuild THEAD clone sesuai tabel aktif.
+            |--------------------------------------------------------------------------
+            */
+            const tabs = document.getElementById('ledgerTabs');
+
+            if (tabs) {
+                tabs.addEventListener('click', function () {
+
+                    setTimeout(refreshSticky, 50);
+                    setTimeout(refreshSticky, 250);
+
+                });
+            }
+
+        });
+
+    })();
+
+
     document.addEventListener(
         'DOMContentLoaded',
         function() {

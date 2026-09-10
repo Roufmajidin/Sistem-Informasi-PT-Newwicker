@@ -221,14 +221,12 @@
 
                                 <label>&nbsp;</label>
 
-                                <button type="button"
-    id="btnTambahTransaksi"
-    class="btn btn-success btn-block"
-    style="cursor:pointer;opacity:1">
+                                <button type="button" id="btnTambahTransaksi" class="btn btn-success btn-block"
+                                    style="cursor:pointer;opacity:1">
 
-    Save
+                                    Save
 
-</button>
+                                </button>
 
                             </div>
 
@@ -260,7 +258,9 @@
                                     <th>PO</th>
                                     <th>No Invoice</th>
                                     <th>SPK</th>
-                                    <th>Keterangan</th>
+                                    <th>
+                                        Keterangan
+                                    </th>
                                     <th>Act</th>
                                 </tr>
 
@@ -269,7 +269,14 @@
                             <tbody>
 
                                 @foreach ($transaksi as $item)
-                                    <tr>
+                                    @php
+                                        $isOpname = stripos(
+    trim((string) $item->keterangan),
+    'opname'
+) !== false;
+                                    @endphp
+
+                                    <tr class="{{ $isOpname ? 'row-opname' : '' }}">
 
                                         {{-- Tanggal --}}
                                         <td>
@@ -425,271 +432,172 @@
     <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-<script>
-$(document).on('click', '.btn-delete-transaksi', function () {
-
-    const button = $(this);
-    const id = button.data('id');
-
-    Swal.fire({
-        title: 'Are you sure?',
-        text: 'Transaksi ini akan dihapus.',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Yes, delete it!',
-        cancelButtonText: 'Cancel'
-    }).then(function(result) {
-
-        if (!result.isConfirmed) {
-            return;
-        }
-
-        $.ajax({
-            url: "{{ url('/laporan/transaksi') }}/" + id,
-            type: 'DELETE',
-
-            data: {
-                _token: "{{ csrf_token() }}"
-            },
-
-            beforeSend: function() {
-                button.prop('disabled', true);
-            },
-
-            success: function(response) {
-
-                if (response.success) {
-
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Deleted!',
-                        text: response.message,
-                        timer: 1200,
-                        showConfirmButton: false
-                    }).then(function() {
-
-                        // refresh supaya total IN, OUT dan stok
-                        // langsung dihitung ulang
-                        location.reload();
-
-                    });
-
-                }
-            },
-
-            error: function(xhr) {
-
-                button.prop('disabled', false);
-
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Gagal',
-                    text: xhr.responseJSON?.message ||
-                          'Terjadi kesalahan saat menghapus transaksi.'
-                });
-
-            }
-        });
-
-    });
-
-});
-</script>
     <script>
-        
-        // ajax
-        $(document).on('keyup', '#searchSpk', function() {
+        $(document).on('click', '.btn-delete-transaksi', function() {
 
-            let q = $(this).val();
-            loadSpk($(this).val());
-            $('#searchSpk').focus();
+            const button = $(this);
+            const id = button.data('id');
 
-            $.get('/spk/search-spk', {
-                q: q
-            }, function(res) {
+            Swal.fire({
+                title: 'Are you sure?',
+                text: 'Transaksi ini akan dihapus.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, delete it!',
+                cancelButtonText: 'Cancel'
+            }).then(function(result) {
 
-                let html = '';
-                console.log(res);
-                res.forEach(function(item) {
+                if (!result.isConfirmed) {
+                    return;
+                }
 
-                    html += `
-            <tr>
-                <td>${item.no_spk}</td>
-                <td>${item.supplier}</td>
+                $.ajax({
+                    url: "{{ url('/laporan/transaksi') }}/" + id,
+                    type: 'DELETE',
 
-                <td>
-                    <button
-                        class="btn btn-success btn-sm pilih-spk"
-                        data-spk='${JSON.stringify(item)}'>
-                        Pilih
-                    </button>
-                </td>
-            </tr>
-            `;
+                    data: {
+                        _token: "{{ csrf_token() }}"
+                    },
+
+                    beforeSend: function() {
+                        button.prop('disabled', true);
+                    },
+
+                    success: function(response) {
+
+                        if (response.success) {
+
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Deleted!',
+                                text: response.message,
+                                timer: 1200,
+                                showConfirmButton: false
+                            }).then(function() {
+
+                                // refresh supaya total IN, OUT dan stok
+                                // langsung dihitung ulang
+                                location.reload();
+
+                            });
+
+                        }
+                    },
+
+                    error: function(xhr) {
+
+                        button.prop('disabled', false);
+
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal',
+                            text: xhr.responseJSON?.message ||
+                                'Terjadi kesalahan saat menghapus transaksi.'
+                        });
+
+                    }
                 });
 
-                $('#spkTableBody').html(html);
-
             });
 
         });
-        // pilih
-        $(document).on('click', '.pilih-spk', function() {
+    </script>
+    <script>
+        // SEARCH SPK - satu request dengan debounce
+        $(document).on('input', '#searchSpk', function() {
 
-            let data = $(this).data('spk');
+            const q = $(this).val().trim();
 
-            $('#spk_id').val(data.id);
+            clearTimeout(spkSearchTimer);
 
-            $('#no_spk').val(data.no_spk);
-            // $('#modalSpk').modal('hide');
-
-            tampilkanDetailSpk(data);
-
-        });
-        //
-        $('#modalSpk').on('shown.bs.modal', function() {
-            backdrop: false
-            loadSpk();
-
-            $('#searchSpk').focus();
+            spkSearchTimer = setTimeout(function() {
+                loadSpk(q);
+            }, 300);
 
         });
 
-        function tampilkanDetailSpk(data) {
-            let itemRows = '';
+function checkSaveButton() {
 
-            data.items.forEach(function(item) {
+            const qtyInRaw = $('#qty_in').val();
+            const qtyOutRaw = $('#qty_out').val();
 
-                itemRows += `
-        <tr>
-            <td>${item.kode}</td>
-            <td>${item.nama}</td>
-            <td>${item.qty}</td>
-        </tr>
-        `;
-            });
+            const qtyIn = parseFloat(qtyInRaw);
+            const qtyOut = parseFloat(qtyOutRaw);
+            const stokTersedia = parseFloat($('#stok_tersedia').val());
 
-            $('#spkInfo').html(`
-        <div class="alert alert-success position-relative">
+            const inValue = Number.isFinite(qtyIn) ? qtyIn : 0;
+            const outValue = Number.isFinite(qtyOut) ? qtyOut : 0;
+            const stokValue = Number.isFinite(stokTersedia) ? stokTersedia : 0;
 
-            <button
-                type="button"
-                id="closeSpkInfo"
-                class="btn btn-danger btn-sm"
-                style="
-                    position:absolute;
-                    top:10px;
-                    right:10px;
-                ">
-                ✕
-            </button>
+            $('#warningStok').hide().text('');
+            $('#qty_out').removeClass('is-invalid');
 
-            <h4>${data.no_spk}</h4>
+            let valid = true;
 
-            Supplier : ${data.supplier}
+            /*
+             * IN / stock opname:
+             * Boleh dilakukan walaupun stok saat ini negatif.
+             *
+             * OUT:
+             * Tetap tidak boleh melebihi stok tersedia.
+             *
+             * Catatan penting:
+             * Validasi OUT hanya dijalankan jika memang ada nilai OUT > 0.
+             */
+            if (outValue > 0 && outValue > stokValue) {
+                valid = false;
 
-            <table class="table table-bordered mt-2">
+                $('#qty_out').addClass('is-invalid');
 
-                <thead>
-                    <tr>
-                        <th>Kode</th>
-                        <th>Nama</th>
-                        <th>Qty</th>
-                    </tr>
-                </thead>
+                $('#warningStok')
+                    .text('Stok tersedia hanya ' + stokValue)
+                    .show();
+            }
 
-                <tbody>
-                    ${itemRows}
-                </tbody>
+            /*
+             * SAVE aktif jika:
+             * - ada IN > 0, atau
+             * - ada OUT > 0
+             *
+             * IN tetap valid walaupun stok negatif.
+             */
+            const enable = (inValue > 0 || outValue > 0) && valid;
 
-            </table>
-
-        </div>
-    `);
+            $('#btnTambahTransaksi')
+                .prop('disabled', !enable)
+                .css({
+                    cursor: enable ? 'pointer' : 'not-allowed',
+                    opacity: enable ? 1 : 0.6
+                });
         }
 
- function checkSaveButton() {
+        /*
+         * Jalankan setiap kali qty IN / OUT berubah.
+         */
+        $(document).on(
+            'input change keyup',
+            '#qty_in, #qty_out',
+            function() {
+                checkSaveButton();
+            }
+        );
 
-    const qtyInRaw = $('#qty_in').val();
-    const qtyOutRaw = $('#qty_out').val();
-
-    const qtyIn = parseFloat(qtyInRaw);
-    const qtyOut = parseFloat(qtyOutRaw);
-    const stokTersedia = parseFloat($('#stok_tersedia').val());
-
-    const inValue = Number.isFinite(qtyIn) ? qtyIn : 0;
-    const outValue = Number.isFinite(qtyOut) ? qtyOut : 0;
-    const stokValue = Number.isFinite(stokTersedia) ? stokTersedia : 0;
-
-    $('#warningStok').hide().text('');
-    $('#qty_out').removeClass('is-invalid');
-
-    let valid = true;
-
-    /*
-     * IN / stock opname:
-     * Boleh dilakukan walaupun stok saat ini negatif.
-     *
-     * OUT:
-     * Tetap tidak boleh melebihi stok tersedia.
-     *
-     * Catatan penting:
-     * Validasi OUT hanya dijalankan jika memang ada nilai OUT > 0.
-     */
-    if (outValue > 0 && outValue > stokValue) {
-        valid = false;
-
-        $('#qty_out').addClass('is-invalid');
-
-        $('#warningStok')
-            .text('Stok tersedia hanya ' + stokValue)
-            .show();
-    }
-
-    /*
-     * SAVE aktif jika:
-     * - ada IN > 0, atau
-     * - ada OUT > 0
-     *
-     * IN tetap valid walaupun stok negatif.
-     */
-    const enable = (inValue > 0 || outValue > 0) && valid;
-
-    $('#btnTambahTransaksi')
-        .prop('disabled', !enable)
-        .css({
-            cursor: enable ? 'pointer' : 'not-allowed',
-            opacity: enable ? 1 : 0.6
+        /*
+         * Jalankan setelah seluruh halaman selesai dimuat.
+         * setTimeout juga memastikan elemen sudah tersedia jika
+         * ada script dari master yang melakukan render ulang.
+         */
+        $(document).ready(function() {
+            setTimeout(function() {
+                checkSaveButton();
+            }, 50);
         });
-}
 
-/*
- * Jalankan setiap kali qty IN / OUT berubah.
- */
-$(document).on(
-    'input change keyup',
-    '#qty_in, #qty_out',
-    function () {
-        checkSaveButton();
-    }
-);
-
-/*
- * Jalankan setelah seluruh halaman selesai dimuat.
- * setTimeout juga memastikan elemen sudah tersedia jika
- * ada script dari master yang melakukan render ulang.
- */
-$(document).ready(function () {
-    setTimeout(function () {
-        checkSaveButton();
-    }, 50);
-});
-
-/*
- * SAVE TRANSAKSI
- */
+        /*
+         * SAVE TRANSAKSI
+         */
         $(document).on('click', '#btnTambahTransaksi', function() {
 
             const qtyIn = parseFloat($('#qty_in').val()) || 0;
@@ -750,110 +658,7 @@ $(document).ready(function () {
 
         });
 
-        $(document).on('keyup', '#po', function() {
-
-            let q = $(this).val();
-
-            if (q.length < 2) {
-
-                $('#spkSuggestion').html('');
-
-                return;
-            }
-
-            $.get('/spk/search-spk', {
-                q: q
-            }, function(res) {
-
-                let html = '';
-
-                res.forEach(function(item) {
-
-                    html += `
-                <div
-                    class="spk-item"
-                    data-id="${item.id}"
-                    data-spk='${JSON.stringify(item)}'
-                    style="
-                        padding:8px;
-                        cursor:pointer;
-                        border-bottom:1px solid #eee;
-                    ">
-                    ${item.no_spk}
-                </div>
-            `;
-                });
-
-                $('#spkSuggestion').html(html);
-
-            });
-
-        });
-
-        $(document).on('click', '.spk-item', function() {
-
-            let data = $(this).data('spk');
-
-            $('#spk_id').val(data.id);
-
-            $('#no_spk').val(data.no_spk);
-            $('#spkSuggestion').html('');
-
-            let itemRows = '';
-
-            data.items.forEach(function(item) {
-
-                itemRows += `
-            <tr>
-                <td>${item.kode}</td>
-                <td>${item.nama}</td>
-                <td>${item.qty}</td>
-            </tr>
-        `;
-            });
-
-            $('#spkInfo').html(`
-    <div
-        class="alert alert-success position-relative">
-
-        <button
-            type="button"
-            id="closeSpkInfo"
-            class="btn btn-danger btn-sm"
-            style="
-                position:absolute;
-                top:10px;
-                right:10px;
-            ">
-            ✕
-        </button>
-
-        <h4>${data.no_spk}</h4>
-
-        Supplier :
-        ${data.supplier}
-
-        <table class="table table-bordered mt-2">
-
-            <thead>
-                <tr>
-                    <th>Kode</th>
-                    <th>Nama</th>
-                    <th>Qty</th>
-                </tr>
-            </thead>
-
-            <tbody>
-                ${itemRows}
-            </tbody>
-
-        </table>
-
-    </div>
-`);
-
-        });
-        $(document).on('click', '#closeSpkInfo', function() {
+$(document).on('click', '#closeSpkInfo', function() {
 
             $('#spkInfo').slideUp();
 
@@ -861,32 +666,157 @@ $(document).ready(function () {
 
         // get the spk all
         function loadSpk(q = '') {
-            $.get('/spk/search-spk', {
-                q: q
-            }, function(res) {
 
-                let html = '';
+            if (spkRequest) {
+                spkRequest.abort();
+                spkRequest = null;
+            }
 
-                res.forEach(function(item) {
+            $('#spkTableBody').html(`
+        <tr>
+            <td colspan="3"
+                class="text-center text-muted"
+                style="padding:20px">
 
-                    html += `
-            <tr>
-                <td>${item.no_spk}</td>
-                <td>${item.supplier}</td>
-                <td>
-                    <button
-                        class="btn btn-success btn-xs pilih-spk"
-                        data-spk='${JSON.stringify(item)}'>
-                        Pilih
-                    </button>
-                </td>
-            </tr>
-            `;
-                });
+                <i class="fa fa-spinner fa-spin"></i>
+                Mencari SPK...
 
-                $('#spkTableBody').html(html);
+            </td>
+        </tr>
+    `);
+
+            spkRequest = $.ajax({
+
+                url: '/spk/search-spk',
+
+                type: 'GET',
+
+                data: {
+                    q: q
+                },
+
+                success: function(res) {
+
+                    console.log('HASIL SEARCH SPK:', res);
+
+                    let html = '';
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | RESET CACHE
+                    |--------------------------------------------------------------------------
+                    */
+
+                    spkCache = {};
+
+                    if (!Array.isArray(res) || res.length === 0) {
+
+                        html = `
+                    <tr>
+                        <td colspan="3"
+                            class="text-center text-muted"
+                            style="padding:20px">
+
+                            SPK tidak ditemukan
+
+                        </td>
+                    </tr>
+                `;
+
+                    } else {
+
+                        res.forEach(function(item) {
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | Simpan object SPK berdasarkan ID
+                            |--------------------------------------------------------------------------
+                            */
+
+                            spkCache[String(item.id)] = item;
+
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | Pastikan items array
+                            |--------------------------------------------------------------------------
+                            */
+
+                            if (!Array.isArray(item.items)) {
+                                item.items = [];
+                            }
+
+
+                            html += `
+                        <tr>
+
+                            <td>
+                                ${escapeHtml(item.no_spk ?? '-')}
+                            </td>
+
+                            <td>
+                                ${escapeHtml(item.supplier ?? '-')}
+                            </td>
+
+                            <td>
+
+                                <button
+                                    type="button"
+                                    class="btn btn-success btn-xs pilih-spk"
+                                    data-spk-id="${item.id}">
+
+                                    Pilih
+
+                                </button>
+
+                            </td>
+
+                        </tr>
+                    `;
+                        });
+                    }
+
+                    $('#spkTableBody').html(html);
+
+                },
+
+                error: function(xhr, status) {
+
+                    if (status === 'abort') {
+                        return;
+                    }
+
+                    console.error(
+                        'Gagal mencari SPK:',
+                        xhr
+                    );
+
+                    $('#spkTableBody').html(`
+                <tr>
+                    <td colspan="3"
+                        class="text-center text-danger"
+                        style="padding:20px">
+
+                        Gagal mengambil data SPK
+
+                    </td>
+                </tr>
+            `);
+                },
+
+                complete: function() {
+                    spkRequest = null;
+                }
 
             });
+        }
+
+        function escapeHtml(value) {
+
+            return $('<div>')
+                .text(value ?? '')
+                .html();
+
         }
         $('#btnCariSpk').click(function() {
 
@@ -903,21 +833,6 @@ $(document).ready(function () {
             $('#spkDrawerOverlay').hide();
 
         });
-        $(document).on('click', '.pilih-spk', function() {
-
-            let data = $(this).data('spk');
-
-            $('#spk_id').val(data.id);
-
-            $('#no_spk').val(data.no_spk);
-
-
-            tampilkanDetailSpk(data);
-
-            $('#spkDrawer').removeClass('show');
-            $('#spkDrawerOverlay').hide();
-
-        });
         let currentHistoryId = null;
 
         $(document).on('click', '.editable-spk', function() {
@@ -929,69 +844,12 @@ $(document).ready(function () {
 
             loadSpk(); // fungsi yang sudah ada
         });
-        // spk edit 
-        $(document).on('click', '.pilih-spk', function() {
-
-            let data = $(this).data('spk');
-
-            /*
-             * EDIT HISTORY
-             */
-            if (currentHistoryId) {
-
-                $.ajax({
-
-                    url: '/history/update-spk/' + currentHistoryId,
-
-                    type: 'POST',
-
-                    data: {
-
-                        _token: '{{ csrf_token() }}',
-
-                        spk_id: data.id
-
-                    },
-
-                    success: function(res) {
-
-                        $('td.editable-spk[data-id="' + currentHistoryId + '"]')
-                            .text(data.no_spk);
-
-                        $('td.editable-spk[data-id="' + currentHistoryId + '"]')
-                            .attr('data-spkid', data.id);
-
-                        currentHistoryId = null;
-
-                        $('#spkDrawer').removeClass('show');
-                        $('#spkDrawerOverlay').hide();
-
-                    }
-
-                });
-
-                return;
-            }
-
-            /*
-             * FORM INPUT (yang lama)
-             */
-            $('#spk_id').val(data.id);
-
-            $('#no_spk').val(data.no_spk);
-
-            tampilkanDetailSpk(data);
-
-            $('#spkDrawer').removeClass('show');
-            $('#spkDrawerOverlay').hide();
-
-        });
         // save
     </script>
     <style>
         /* =========================================================
-           REALTIME REMOTE CURSOR - PUSHER
-           ========================================================= */
+                   REALTIME REMOTE CURSOR - PUSHER
+                   ========================================================= */
 
         #stokRemoteCursors {
             position: fixed;
@@ -1792,6 +1650,578 @@ $(document).ready(function () {
                 }
             );
 
+
+        })();
+    </script>
+    <script>
+        let spkSearchTimer = null;
+        let spkRequest = null;
+        let spkCache = {};
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | TAMPILKAN DETAIL SPK
+        |--------------------------------------------------------------------------
+        */
+
+        function tampilkanDetailSpk(data) {
+
+            console.log('DATA SPK DIPILIH:', data);
+
+            let itemRows = '';
+
+            const items = Array.isArray(data?.items) ?
+                data.items : [];
+
+            if (items.length === 0) {
+
+                itemRows = `
+            <tr>
+                <td colspan="3"
+                    class="text-center text-muted"
+                    style="padding:15px">
+                    Tidak ada detail item pada SPK ini
+                </td>
+            </tr>
+        `;
+
+            } else {
+
+                items.forEach(function(item) {
+
+                    itemRows += `
+                <tr>
+                    <td>${item?.kode ?? '-'}</td>
+                    <td>${item?.nama ?? '-'}</td>
+                    <td>${item?.qty ?? 0}</td>
+                </tr>
+            `;
+
+                });
+            }
+
+
+            $('#spkInfo').html(`
+
+        <div class="alert alert-success position-relative">
+
+            <button
+                type="button"
+                id="closeSpkInfo"
+                class="btn btn-danger btn-sm"
+                style="
+                    position:absolute;
+                    top:10px;
+                    right:10px;
+                ">
+                ✕
+            </button>
+
+            <h4>
+                ${data?.no_spk ?? '-'}
+            </h4>
+
+            <div>
+                Supplier :
+                ${data?.supplier ?? '-'}
+            </div>
+
+            <table class="table table-bordered mt-2">
+
+                <thead>
+                    <tr>
+                        <th>Kode</th>
+                        <th>Nama</th>
+                        <th>Qty</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    ${itemRows}
+                </tbody>
+
+            </table>
+
+        </div>
+
+    `);
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | LOAD SPK
+        |--------------------------------------------------------------------------
+        */
+
+        function loadSpk(q = '') {
+
+            /*
+            |--------------------------------------------------------------------------
+            | Batalkan request sebelumnya
+            |--------------------------------------------------------------------------
+            */
+
+            if (spkRequest) {
+                spkRequest.abort();
+                spkRequest = null;
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Loading
+            |--------------------------------------------------------------------------
+            */
+
+            $('#spkTableBody').html(`
+        <tr>
+            <td colspan="3"
+                class="text-center text-muted"
+                style="padding:20px">
+
+                <i class="fa fa-spinner fa-spin"></i>
+                Mencari SPK...
+
+            </td>
+        </tr>
+    `);
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | AJAX
+            |--------------------------------------------------------------------------
+            */
+
+            spkRequest = $.ajax({
+
+                url: '/spk/search-spk',
+
+                type: 'GET',
+
+                data: {
+                    q: q
+                },
+
+                success: function(res) {
+
+                    console.log('HASIL SEARCH SPK:', res);
+
+                    let html = '';
+
+
+                    if (!Array.isArray(res) || res.length === 0) {
+
+                        html = `
+                    <tr>
+                        <td colspan="3"
+                            class="text-center text-muted"
+                            style="padding:20px">
+
+                            SPK tidak ditemukan
+
+                        </td>
+                    </tr>
+                `;
+
+                    } else {
+
+                        res.forEach(function(item) {
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | Simpan object SPK ke cache berdasarkan ID
+                            |--------------------------------------------------------------------------
+                            | Tombol hanya membawa data-spk-id sehingga karakter seperti
+                            | apostrophe (O'REILLY) tidak merusak HTML attribute.
+                            |--------------------------------------------------------------------------
+                            */
+
+                            spkCache[String(item.id)] = item;
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | Pastikan items selalu array
+                            |--------------------------------------------------------------------------
+                            */
+
+                            if (!Array.isArray(item.items)) {
+                                item.items = [];
+                            }
+
+
+                            html += `
+
+                        <tr>
+
+                            <td>
+                                ${item.no_spk ?? '-'}
+                            </td>
+
+                            <td>
+                                ${item.supplier ?? '-'}
+                            </td>
+
+                            <td>
+
+                                <button
+                                    type="button"
+                                    class="btn btn-success btn-xs pilih-spk"
+                                    data-spk-id="${item.id}" >
+
+                                    Pilih
+
+                                </button>
+
+                            </td>
+
+                        </tr>
+
+                    `;
+                        });
+                    }
+
+
+                    $('#spkTableBody').html(html);
+
+                },
+
+                error: function(xhr, status) {
+
+                    if (status === 'abort') {
+                        return;
+                    }
+
+                    console.error('Gagal mencari SPK:', xhr);
+
+                    $('#spkTableBody').html(`
+                <tr>
+                    <td colspan="3"
+                        class="text-center text-danger"
+                        style="padding:20px">
+
+                        Gagal mengambil data SPK
+
+                    </td>
+                </tr>
+            `);
+                },
+
+                complete: function() {
+                    spkRequest = null;
+                }
+
+            });
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | BUKA DRAWER
+        |--------------------------------------------------------------------------
+        */
+
+        $(document).on('click', '#btnCariSpk', function() {
+
+            $('#spkDrawer').addClass('show');
+
+            $('#spkDrawerOverlay').show();
+
+            $('#searchSpk').val('');
+
+            loadSpk();
+
+            setTimeout(function() {
+                $('#searchSpk').focus();
+            }, 100);
+
+        });
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | TUTUP DRAWER
+        |--------------------------------------------------------------------------
+        */
+
+        $(document).on(
+            'click',
+            '#closeDrawer, #spkDrawerOverlay',
+            function() {
+
+                $('#spkDrawer').removeClass('show');
+
+                $('#spkDrawerOverlay').hide();
+
+            }
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SEARCH SPK
+        |--------------------------------------------------------------------------
+        |
+        | Debounce:
+        | User berhenti mengetik 300ms baru request.
+        |
+        */
+
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | PILIH SPK
+        |--------------------------------------------------------------------------
+        |
+        | HANYA SATU HANDLER
+        |
+        */
+
+        $(document).on('click', '.pilih-spk', function(e) {
+
+            e.preventDefault();
+
+            const spkId = String(
+                $(this).attr('data-spk-id')
+            );
+
+            const data = spkCache[spkId];
+
+
+            console.log('SPK ID:', spkId);
+
+            console.log(
+                'DATA SPK DIPILIH:',
+                data
+            );
+
+
+            if (!data) {
+
+                console.error(
+                    'Data SPK tidak ditemukan di cache:',
+                    spkId
+                );
+
+                return;
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | EDIT HISTORY
+            |--------------------------------------------------------------------------
+            */
+
+            if (currentHistoryId) {
+
+                $.ajax({
+
+                    url: '/history/update-spk/' +
+                        currentHistoryId,
+
+                    type: 'POST',
+
+                    data: {
+
+                        _token: '{{ csrf_token() }}',
+
+                        spk_id: data.id
+
+                    },
+
+                    success: function() {
+
+                        $('td.editable-spk[data-id="' +
+                                currentHistoryId +
+                                '"]')
+                            .text(
+                                data.no_spk ?? '-'
+                            );
+
+                        $('td.editable-spk[data-id="' +
+                                currentHistoryId +
+                                '"]')
+                            .attr(
+                                'data-spkid',
+                                data.id
+                            );
+
+                        currentHistoryId = null;
+
+                        $('#spkDrawer')
+                            .removeClass('show');
+
+                        $('#spkDrawerOverlay')
+                            .hide();
+
+                    }
+
+                });
+
+                return;
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | FORM INPUT
+            |--------------------------------------------------------------------------
+            */
+
+            $('#spk_id')
+                .val(data.id ?? '');
+
+            $('#no_spk')
+                .val(data.no_spk ?? '');
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | TAMPILKAN DETAIL
+            |--------------------------------------------------------------------------
+            */
+
+            tampilkanDetailSpk(data);
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | TUTUP DRAWER
+            |--------------------------------------------------------------------------
+            */
+
+            $('#spkDrawer')
+                .removeClass('show');
+
+            $('#spkDrawerOverlay')
+                .hide();
+
+        });
+
+        /*
+        |--------------------------------------------------------------------------
+        | EDIT SPK HISTORY
+        |--------------------------------------------------------------------------
+        */
+
+        $(document).on('click', '.editable-spk', function() {
+
+            currentHistoryId = $(this).data('id');
+
+            $('#spkDrawer').addClass('show');
+
+            $('#spkDrawerOverlay').show();
+
+            $('#searchSpk').val('');
+
+            loadSpk();
+
+            setTimeout(function() {
+                $('#searchSpk').focus();
+            }, 100);
+
+        });
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | CLOSE DETAIL SPK
+        |--------------------------------------------------------------------------
+        */
+
+        $(document).on(
+            'click',
+            '#closeSpkInfo',
+            function() {
+
+                $('#spkInfo').slideUp();
+
+            }
+        );
+    </script>
+    <style>
+        /*
+        |--------------------------------------------------------------------------
+        | TRANSAKSI OPNAME
+        |--------------------------------------------------------------------------
+        | Default: disembunyikan.
+        | Shortcut Ctrl + Alt + O untuk tampil/sembunyikan.
+        |--------------------------------------------------------------------------
+        */
+        .row-opname {
+            display: none !important;
+        }
+
+        .row-opname.opname-visible {
+            display: table-row !important;
+        }
+    </style>
+
+    <script>
+        (function () {
+
+            function toggleOpnameRows() {
+
+                const rows = document.querySelectorAll('.row-opname');
+
+                if (!rows.length) {
+                    console.log('[OPNAME] Tidak ada baris opname.');
+                    return;
+                }
+
+                const visible =
+                    document.body.getAttribute('data-opname-visible') === '1';
+
+                rows.forEach(function (row) {
+
+                    if (visible) {
+                        row.classList.remove('opname-visible');
+                    } else {
+                        row.classList.add('opname-visible');
+                    }
+
+                });
+
+                document.body.setAttribute(
+                    'data-opname-visible',
+                    visible ? '0' : '1'
+                );
+
+                console.log(
+                    '[OPNAME]',
+                    visible ? 'HIDDEN' : 'SHOW',
+                    'jumlah:',
+                    rows.length
+                );
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | SHORTCUT
+            |--------------------------------------------------------------------------
+            | Ctrl + Alt + O
+            |--------------------------------------------------------------------------
+            */
+
+            document.addEventListener('keydown', function (event) {
+
+                if (
+                    event.ctrlKey &&
+                    event.altKey &&
+                    event.key.toLowerCase() === 'o'
+                ) {
+
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    toggleOpnameRows();
+                }
+
+            }, true);
 
         })();
     </script>

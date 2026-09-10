@@ -1025,7 +1025,7 @@ $(document).ready(function() {
     let massPekerjaanTimers = {};
 
 
-    function createMassRow() {
+    function createMassRow(focusArticle = true) {
 
         massRowCounter++;
 
@@ -1061,14 +1061,9 @@ $(document).ready(function() {
             </td>
 
             <td>
-                <div class="mass-search-wrapper">
-                    <input type="text"
-                            class="form-control mass-pekerjaan"
-                            autocomplete="off"
-                            placeholder="Pekerjaan">
-
-                    <div class="mass-search-result mass-pekerjaan-result"></div>
-                </div>
+                <select class="form-control mass-pekerjaan">
+                    <option value="">Pilih pekerjaan...</option>
+                </select>
             </td>
 
             <td>
@@ -1101,9 +1096,9 @@ $(document).ready(function() {
             </td>
 
             <td>
-                <input type="text"
-                        class="form-control mass-no-po"
-                        placeholder="No PO">
+                <select class="form-control mass-no-po">
+                    <option value="">Pilih No PO...</option>
+                </select>
             </td>
 
             <td>
@@ -1122,6 +1117,16 @@ $(document).ready(function() {
 
         </tr>
     `);
+
+        const row = $('#massUpahBodyRows .mass-upah-row').last();
+
+        calculateMassRow(row);
+
+        if (focusArticle) {
+            setTimeout(function() {
+                row.find('.mass-article').trigger('focus');
+            }, 30);
+        }
     }
 
 
@@ -1156,7 +1161,7 @@ $(document).ready(function() {
             .addClass('d-none')
             .empty();
 
-        createMassRow();
+        createMassRow(false);
     }
 
 
@@ -1171,6 +1176,18 @@ $(document).ready(function() {
         $('#btnSaveUpahTransaksi').addClass('d-none');
         $('#btnSaveMassUpah').removeClass('d-none');
         $('#btnToggleMassUpah').addClass('d-none');
+
+        $('#modalInsertUpah .modal-title').html(`
+            <i class="fas fa-layer-group mr-1"></i>
+            Mass Input Transaksi Upah
+        `);
+
+        setTimeout(function() {
+            $('#massUpahBodyRows .mass-upah-row')
+                .first()
+                .find('.mass-article')
+                .trigger('focus');
+        }, 50);
     }
 
 
@@ -1186,18 +1203,38 @@ $(document).ready(function() {
     }
 
 
-    $('#btnToggleMassUpah').on('click', function() {
+    $('#btnToggleMassUpah').on('click', function(e) {
+        e.preventDefault();
         showMassUpah();
     });
 
 
-    $('#btnBackNormalUpah').on('click', function() {
+    $('#btnBackNormalUpah').on('click', function(e) {
+        e.preventDefault();
         showNormalUpah();
     });
 
 
-    $(document).on('click', '#btnAddMassRow', function() {
-        createMassRow();
+    $(document).on('click', '#btnAddMassRow', function(e) {
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        $('.mass-search-result')
+            .empty()
+            .removeClass('show');
+
+        createMassRow(true);
+
+        const wrapper = $('#modalInsertUpah .mass-table-wrapper');
+
+        if (wrapper.length) {
+            setTimeout(function() {
+                wrapper.animate({
+                    scrollTop: wrapper[0].scrollHeight
+                }, 180);
+            }, 50);
+        }
     });
 
 
@@ -1216,11 +1253,18 @@ $(document).ready(function() {
 
         clearTimeout(massArticleTimers[rowId]);
 
-        row.find('.mass-article-result').empty().removeClass('show');
+        row.find('.mass-article-result')
+            .empty()
+            .removeClass('show');
+
         row.find('.mass-description').val('');
-        row.find('.mass-pekerjaan').val('');
-        row.find('.mass-pekerjaan-result').empty().removeClass('show');
+        row.find('.mass-pekerjaan')
+            .empty()
+            .append('<option value="">Pilih pekerjaan...</option>');
         row.find('.mass-harga').val(0);
+        row.find('.mass-no-po')
+            .empty()
+            .append('<option value="">Pilih No PO...</option>');
 
         calculateMassRow(row);
 
@@ -1234,20 +1278,25 @@ $(document).ready(function() {
                 data: {
                     q: keyword
                 },
-
                 success: function(response) {
 
-                    if (!Array.isArray(response)) response = [];
+                    if (row.find('.mass-article').val().trim() !== keyword) {
+                        return;
+                    }
+
+                    if (!Array.isArray(response)) {
+                        response = [];
+                    }
 
                     if (!response.length) {
                         row.find('.mass-article-result')
                             .html(`
-                            <div class="mass-search-item">
-                                <div class="mass-search-desc">
-                                    Article tidak ditemukan.
+                                <div class="mass-search-item">
+                                    <div class="mass-search-desc">
+                                        Article tidak ditemukan.
+                                    </div>
                                 </div>
-                            </div>
-                        `)
+                            `)
                             .addClass('show');
                         return;
                     }
@@ -1260,60 +1309,46 @@ $(document).ready(function() {
                             item.exists_in_upah === true;
 
                         html += `
-    <div
-        class="article-result-item
-            ${isExisting ? '' : 'article-not-in-db'}"
+                            <div
+                                class="mass-search-item mass-article-result-item ${
+                                    isExisting ? '' : 'article-not-in-db'
+                                }"
+                                data-article="${escapeHtml(item.article || '')}"
+                                data-description="${escapeHtml(item.description || '')}"
+                                data-harga="${item.harga || 0}"
+                                data-jenis="${escapeHtml(item.jenis || '')}"
+                                data-exists="${isExisting ? '1' : '0'}"
+                            >
+                                <div class="article-result-code">
+                                    ${escapeHtml(item.article || '')}
+                                </div>
 
-        data-article="${escapeHtml(item.article)}"
+                                <div class="article-result-description">
+                                    ${escapeHtml(item.description || '-')}
+                                </div>
 
-        data-description="${escapeHtml(
-            item.description || ''
-        )}"
-
-        data-harga="${item.harga || 0}"
-
-        data-jenis="${escapeHtml(
-            item.jenis || ''
-        )}"
-
-        data-exists="${isExisting ? '1' : '0'}"
-    >
-
-        <div class="article-result-code">
-            ${escapeHtml(item.article)}
-        </div>
-
-        <div class="article-result-description">
-            ${escapeHtml(
-                item.description || '-'
-            )}
-        </div>
-
-        ${
-            isExisting
-                ? `
-                    <div class="article-result-type">
-                        ${escapeHtml(
-                            item.jenis || '-'
-                        )}
-                    </div>
-                `
-                : `
-                    <div class="article-result-type text-warning">
-                        <i class="fas fa-exclamation-circle mr-1"></i>
-                        NOT YET IN DATABASE
-                    </div>
-                `
-        }
-
-    </div>
-`;
+                                ${
+                                    isExisting
+                                        ? `
+                                            <div class="article-result-type">
+                                                ${escapeHtml(item.jenis || '-')}
+                                            </div>
+                                        `
+                                        : `
+                                            <div class="article-result-type text-warning">
+                                                <i class="fas fa-exclamation-circle mr-1"></i>
+                                                NOT YET IN DATABASE
+                                            </div>
+                                        `
+                                }
+                            </div>
+                        `;
                     });
+
                     row.find('.mass-article-result')
                         .html(html)
                         .addClass('show');
                 },
-
                 error: function(xhr) {
                     console.error('Mass article search error:', xhr);
                 }
@@ -1323,160 +1358,257 @@ $(document).ready(function() {
     });
 
 
-    $(document).on('click', '.mass-article-result-item', function(e) {
+    /*
+    |--------------------------------------------------------------------------
+    | MASS ARTICLE SELECT + LOAD PEKERJAAN & NO PO
+    |--------------------------------------------------------------------------
+    */
 
+    $(document).on('mousedown', '.mass-article-result-item', function(e) {
+
+        e.preventDefault();
         e.stopPropagation();
 
         const item = $(this);
         const row = item.closest('.mass-upah-row');
+        const article = item.attr('data-article') || '';
+        const description = item.attr('data-description') || '';
+        const rowId = row.data('row');
 
-        row.find('.mass-article')
-            .val(item.attr('data-article') || '');
+        row.find('.mass-article').val(article);
+        row.find('.mass-description').val(description);
 
-        row.find('.mass-description')
-            .val(item.attr('data-description') || '');
+        row.find('.mass-article-result').empty().removeClass('show');
 
-        row.find('.mass-pekerjaan')
-            .val('');
+        const pekerjaanSelect = row.find('.mass-pekerjaan');
+        const poSelect = row.find('.mass-no-po');
 
-        row.find('.mass-pekerjaan-result')
-            .empty()
-            .removeClass('show');
+        // Reset pekerjaan
+        pekerjaanSelect.empty().append(
+            '<option value="">Memuat pekerjaan...</option>'
+        ).prop('disabled', true);
 
-        row.find('.mass-harga')
-            .val(0);
+        // Reset No PO
+        poSelect.empty().append(
+            '<option value="">Memuat No PO...</option>'
+        ).prop('disabled', true);
 
-        row.find('.mass-article-result')
-            .empty()
-            .removeClass('show');
-
+        row.find('.mass-harga').val(0);
         calculateMassRow(row);
+
+        /*
+        |--------------------------------------------------------------------------
+        | LOAD PEKERJAAN
+        |--------------------------------------------------------------------------
+        */
+        $.ajax({
+            url: "{{ route('upah.transaksi.search.pekerjaan') }}",
+            type: 'GET',
+            data: {
+                article: article,
+                q: ''
+            },
+            success: function(response) {
+
+                // Laravel endpoint normally returns an array.
+                // Keep this tolerant in case the response is wrapped in data.
+                if (!Array.isArray(response)) {
+                    response = Array.isArray(response?.data) ? response.data : [];
+                }
+
+                // Jangan menimpa pilihan jika user sudah memilih article lain
+                // pada row yang sama saat request sebelumnya masih berjalan.
+                if (row.data('row') != rowId || row.find('.mass-article').val().trim() !== article) {
+                    return;
+                }
+
+                pekerjaanSelect.empty().append(
+                    '<option value="">Pilih pekerjaan...</option>'
+                );
+
+                response.forEach(function(item) {
+                    const jenis = item.jenis || '';
+                    const harga = parseFloat(item.harga) || 0;
+
+                    if (!jenis) return;
+
+                    pekerjaanSelect.append(
+                        $('<option>', {
+                            value: jenis,
+                            text: jenis + ' — Rp ' + formatRupiah(harga)
+                        }).attr('data-harga', harga)
+                    );
+                });
+
+                pekerjaanSelect.prop('disabled', false);
+
+                if (!response.length) {
+                    pekerjaanSelect.append(
+                        '<option value="">Tidak ada pekerjaan untuk article ini</option>'
+                    );
+                }
+            },
+            error: function(xhr) {
+                console.error('Load mass pekerjaan error:', xhr);
+
+                pekerjaanSelect.empty().append(
+                    '<option value="">Gagal memuat pekerjaan</option>'
+                ).prop('disabled', false);
+            }
+        });
+
+        /*
+        |--------------------------------------------------------------------------
+        | LOAD NO PO
+        |--------------------------------------------------------------------------
+        */
+        $.ajax({
+            url: "{{ route('upah.transaksi.search.po') }}",
+            type: 'GET',
+            data: {
+                article: article,
+                description: description
+            },
+            success: function(response) {
+
+                if (!Array.isArray(response)) {
+                    response = Array.isArray(response?.data) ? response.data : [];
+                }
+
+                if (row.data('row') != rowId || row.find('.mass-article').val().trim() !== article) {
+                    return;
+                }
+
+                poSelect.empty().append(
+                    '<option value="">Pilih No PO...</option>'
+                );
+
+                const seenPo = {};
+
+                response.forEach(function(item) {
+                    const noPo = item.no_po || '';
+
+                    if (!noPo || seenPo[noPo]) {
+                        return;
+                    }
+
+                    seenPo[noPo] = true;
+
+                    poSelect.append(
+                        $('<option>', {
+                            value: noPo,
+                            text: noPo
+                        })
+                    );
+                });
+
+                poSelect.prop('disabled', false);
+
+                if (!response.length) {
+                    poSelect.append(
+                        '<option value="">Tidak ada PO terkait</option>'
+                    );
+                }
+            },
+            error: function(xhr) {
+                console.error('Load mass No PO error:', xhr);
+
+                poSelect.empty().append(
+                    '<option value="">Gagal memuat No PO</option>'
+                ).prop('disabled', false);
+            }
+        });
+
+        setTimeout(function() {
+            pekerjaanSelect.trigger('focus');
+        }, 50);
     });
 
 
     /*
     |--------------------------------------------------------------------------
-    | MASS PEKERJAAN SEARCH
+    | MASS PEKERJAAN SELECT
     |--------------------------------------------------------------------------
     */
 
-    $(document).on('input', '.mass-pekerjaan', function() {
+    $(document).on('change', '.mass-pekerjaan', function() {
 
-        const input = $(this);
-        const row = input.closest('.mass-upah-row');
-        const rowId = row.data('row');
-        const keyword = input.val().trim();
+        const select = $(this);
+        const row = select.closest('.mass-upah-row');
 
-        const article =
-            row.find('.mass-article').val().trim();
+        const option = select.find('option:selected');
+        const harga = parseFloat(option.attr('data-harga')) || 0;
 
-        clearTimeout(massPekerjaanTimers[rowId]);
-
-        row.find('.mass-pekerjaan-result')
-            .empty()
-            .removeClass('show');
-
-        if (!article || !keyword) return;
-
-        massPekerjaanTimers[rowId] = setTimeout(function() {
-
-            $.ajax({
-                url: "{{ route('upah.transaksi.search.pekerjaan') }}",
-                type: 'GET',
-                data: {
-                    article: article,
-                    q: keyword
-                },
-
-                success: function(response) {
-
-                    if (!Array.isArray(response)) response = [];
-
-                    if (!response.length) {
-                        row.find('.mass-pekerjaan-result')
-                            .html(`
-                            <div class="mass-search-item">
-                                <div class="mass-search-desc">
-                                    Jenis pekerjaan tidak ditemukan.
-                                </div>
-                            </div>
-                        `)
-                            .addClass('show');
-                        return;
-                    }
-
-                    let html = '';
-
-                    response.forEach(function(item) {
-                        html += `
-                        <div class="mass-search-item mass-pekerjaan-result-item"
-                                data-jenis="${escapeHtml(item.jenis || '')}"
-                                data-harga="${item.harga || 0}">
-                            <div class="mass-search-code">
-                                ${escapeHtml(item.jenis || '')}
-                            </div>
-                            <div class="mass-search-desc">
-                                Rp ${formatRupiah(item.harga || 0)}
-                            </div>
-                        </div>
-                    `;
-                    });
-
-                    row.find('.mass-pekerjaan-result')
-                        .html(html)
-                        .addClass('show');
-                },
-
-                error: function(xhr) {
-                    console.error('Mass pekerjaan search error:', xhr);
-                }
-            });
-
-        }, 300);
-    });
-
-
-    $(document).on('click', '.mass-pekerjaan-result-item', function(e) {
-
-        e.stopPropagation();
-
-        const item = $(this);
-        const row = item.closest('.mass-upah-row');
-
-        row.find('.mass-pekerjaan')
-            .val(item.attr('data-jenis') || '');
-
-        row.find('.mass-harga')
-            .val(parseFloat(item.attr('data-harga')) || 0);
-
-        row.find('.mass-pekerjaan-result')
-            .empty()
-            .removeClass('show');
+        row.find('.mass-harga').val(harga);
 
         calculateMassRow(row);
-    });
 
+        setTimeout(function() {
+            row.find('.mass-qty').trigger('focus').select();
+        }, 20);
+    });
+/*
+    |--------------------------------------------------------------------------
+    | MASS CALCULATION
+    |--------------------------------------------------------------------------
+    */
 
     $(document).on('input', '.mass-qty, .mass-harga', function() {
         calculateMassRow($(this).closest('.mass-upah-row'));
     });
 
 
-    $(document).on('click', '.btn-remove-mass-row', function() {
+    /*
+    |--------------------------------------------------------------------------
+    | MASS ROW REMOVE
+    |--------------------------------------------------------------------------
+    */
+
+    $(document).on('click', '.btn-remove-mass-row', function(e) {
+
+        e.preventDefault();
+        e.stopPropagation();
 
         const rows = $('#massUpahBodyRows .mass-upah-row');
+        const row = $(this).closest('.mass-upah-row');
+        const rowId = row.data('row');
+
+        clearTimeout(massArticleTimers[rowId]);
+        clearTimeout(massPekerjaanTimers[rowId]);
 
         if (rows.length <= 1) {
-            rows.first().find('input, textarea').val('');
-            rows.first().find('.mass-tanggal').val('{{ date('Y-m-d') }}');
-            rows.first().find('.mass-qty').val(1);
-            rows.first().find('.mass-harga').val(0);
-            calculateMassRow(rows.first());
+
+            row.find('input, textarea').val('');
+            row.find('.mass-pekerjaan').empty().append('<option value="">Pilih pekerjaan...</option>');
+            row.find('.mass-no-po').empty().append('<option value="">Pilih No PO...</option>');
+
+            row.find('.mass-tanggal')
+                .val('{{ date('Y-m-d') }}');
+
+            row.find('.mass-qty').val(1);
+            row.find('.mass-harga').val(0);
+
+            row.find('.mass-article-result, .mass-pekerjaan-result')
+                .empty()
+                .removeClass('show');
+
+            row.removeClass('mass-row-invalid');
+
+            calculateMassRow(row);
+
+            row.find('.mass-article').trigger('focus');
+
             return;
         }
 
-        $(this).closest('.mass-upah-row').remove();
+        row.remove();
+
         renumberMassRows();
+
+        $('#massUpahBodyRows .mass-upah-row')
+            .last()
+            .find('.mass-article')
+            .trigger('focus');
     });
 
 
@@ -1491,6 +1623,7 @@ $(document).ready(function() {
         const button = $(this);
         const rows = [];
         let invalid = false;
+        let firstInvalidRow = null;
 
         $('#massUpahBodyRows .mass-upah-row').each(function() {
 
@@ -1515,25 +1648,57 @@ $(document).ready(function() {
                 no_spk: row.find('.mass-no-spk').val().trim()
             };
 
-            if (
+            const rowInvalid =
                 !item.article ||
                 !item.tanggal ||
                 !item.pekerjaan ||
                 qty <= 0 ||
-                harga < 0
-            ) {
+                harga < 0;
+
+            row.removeClass('mass-row-invalid');
+
+            if (rowInvalid) {
+
                 invalid = true;
+                row.addClass('mass-row-invalid');
+
+                if (!firstInvalidRow) {
+                    firstInvalidRow = row;
+                }
             }
 
             rows.push(item);
         });
 
         if (invalid) {
+
             $('#massUpahError')
                 .removeClass('d-none')
                 .text(
                     'Mohon lengkapi Article, Tanggal, Pekerjaan, Qty, dan Harga pada semua baris.'
                 );
+
+            if (firstInvalidRow) {
+
+                const wrapper =
+                    $('#modalInsertUpah .mass-table-wrapper');
+
+                if (wrapper.length) {
+                    wrapper.animate({
+                        scrollTop:
+                            firstInvalidRow.position().top +
+                            wrapper.scrollTop() -
+                            50
+                    }, 200);
+                }
+
+                setTimeout(function() {
+                    firstInvalidRow
+                        .find('.mass-article')
+                        .trigger('focus');
+                }, 220);
+            }
+
             return;
         }
 
@@ -1577,21 +1742,28 @@ $(document).ready(function() {
 
             error: function(xhr) {
 
-                let message = 'Gagal menyimpan data mass.';
+                let message =
+                    'Gagal menyimpan data mass.';
 
                 if (
                     xhr.responseJSON &&
                     xhr.responseJSON.errors
                 ) {
+
                     message =
-                        Object.values(xhr.responseJSON.errors)
+                        Object.values(
+                            xhr.responseJSON.errors
+                        )
                         .flat()
                         .join('\n');
+
                 } else if (
                     xhr.responseJSON &&
                     xhr.responseJSON.message
                 ) {
-                    message = xhr.responseJSON.message;
+
+                    message =
+                        xhr.responseJSON.message;
                 }
 
                 $('#massUpahError')
@@ -1600,6 +1772,7 @@ $(document).ready(function() {
             },
 
             complete: function() {
+
                 button
                     .prop('disabled', false)
                     .html(
@@ -1617,13 +1790,18 @@ $(document).ready(function() {
     */
 
     $('#modalInsertUpah').on('hidden.bs.modal', function() {
+
         showNormalUpah();
+
         editingUpahId = null;
+
         $('#modalInsertUpah .modal-title').html(`
             <i class="fas fa-money-bill-wave mr-1"></i>
             Tambah Transaksi Upah
         `);
+
         $('#btnToggleMassUpah').removeClass('d-none');
+
         $('#btnSaveUpahTransaksi')
             .prop('disabled', false)
             .html('<i class="fas fa-save mr-1"></i> Simpan');
@@ -1636,28 +1814,26 @@ $(document).ready(function() {
     |--------------------------------------------------------------------------
     */
 
-    $(document).on(
-        'click',
-        function(e) {
+    $(document).on('click', function(e) {
 
-            if (
-                !$(e.target)
-                .closest('.article-search-wrapper')
-                .length
-            ) {
+        if (
+            !$(e.target).closest('.article-search-wrapper').length &&
+            !$(e.target).closest('.mass-search-wrapper').length
+        ) {
 
-                $('#articleSearchResult')
-                    .empty()
-                    .removeClass('show');
+            $('#articleSearchResult')
+                .empty()
+                .removeClass('show');
 
-                $('#pekerjaanSearchResult')
-                    .empty()
-                    .removeClass('show');
+            $('#pekerjaanSearchResult')
+                .empty()
+                .removeClass('show');
 
-            }
-
+            $('.mass-article-result, .mass-pekerjaan-result')
+                .empty()
+                .removeClass('show');
         }
-    );
+    });
 
 
     /*
@@ -1672,47 +1848,18 @@ $(document).ready(function() {
             value === null ||
             value === undefined
         ) {
-
             return '';
-
         }
 
-
         return String(value)
-
-            .replace(
-                /&/g,
-                '&amp;'
-            )
-
-            .replace(
-                /</g,
-                '&lt;'
-            )
-
-            .replace(
-                />/g,
-                '&gt;'
-            )
-
-            .replace(
-                /"/g,
-                '&quot;'
-            )
-
-            .replace(
-                /'/g,
-                '&#039;'
-            );
-
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | EDIT TRANSAKSI UPAH
-    |--------------------------------------------------------------------------
-    */
     $(document).on('click', '.btn-edit-upah', function () {
 
     const button = $(this);

@@ -464,143 +464,165 @@
         // TAMBAH BARIS
         // ============================================================
 
-        $('#addRowss').on('click', function(e) {
+        // Delegated handler supaya tombol Tambah Baris tetap bekerja
+        // walaupun table/DOM berubah atau script dijalankan ulang.
+        $(document)
+            .off('click.addRowss', '#addRowss')
+            .on('click.addRowss', '#addRowss', function(e) {
 
-            e.preventDefault();
+                e.preventDefault();
+                e.stopPropagation();
 
-            let rowCount =
-                $('#tableBody tr').length + 1;
+                const $tbody = $('#tableBody');
 
-            let row = `
-                <tr data-id="">
+                if (!$tbody.length) {
+                    console.error('[TAMBAH BARIS] #tableBody tidak ditemukan.');
+                    return;
+                }
 
-                    <td>
-                        ${rowCount}
-                    </td>
+                const rowCount = 1;
 
-                    <td>
+                const today = new Date();
+                const yyyy = today.getFullYear();
+                const mm = String(today.getMonth() + 1).padStart(2, '0');
+                const dd = String(today.getDate()).padStart(2, '0');
+                const todayValue = `${yyyy}-${mm}-${dd}`;
 
-                        <input
-                            type="hidden"
-                            class="id"
-                            value=""
-                        >
+                const row = `
+                    <tr data-id="" class="row-new">
 
-                        <input
-                            type="text"
-                            class="form-control kode_barang"
-                        >
+                        <td class="row-number">
+                            ${rowCount}
+                        </td>
 
-                    </td>
+                        <td>
+                            <input type="hidden" class="id" value="">
 
-                    <td>
+                            <input
+                                type="text"
+                                class="form-control kode_barang"
+                                autocomplete="off"
+                            >
+                        </td>
 
-                        <input
-                            type="text"
-                            class="form-control nama_barang"
-                        >
+                        <td>
+                            <input
+                                type="text"
+                                class="form-control nama_barang"
+                                autocomplete="off"
+                            >
+                        </td>
 
-                    </td>
+                        <td>
+                            <select class="form-control jenis">
+                                <option value="bahan baku">Bahan Baku</option>
+                                <option value="bahan penolong">Bahan Penolong</option>
+                                <option value="bahan penolong alat">Bahan Penolong Alat</option>
+                                <option value="bahan finishing">Bahan Finishing</option>
+                            </select>
+                        </td>
 
-                    <td>
+                        <td>
+                            <input
+                                type="text"
+                                class="form-control satuan"
+                                autocomplete="off"
+                            >
+                        </td>
 
-                        <select class="form-control jenis">
+                        <td>
+                            <input
+                                type="text"
+                                class="form-control harga"
+                                autocomplete="off"
+                            >
+                        </td>
 
-                            <option value="bahan baku">
-                                Bahan Baku
-                            </option>
+                        <td>
+                            <input
+                                type="number"
+                                step="0.001"
+                                class="form-control stok_awal"
+                                value="0"
+                            >
+                        </td>
 
-                            <option value="bahan penolong">
-                                Bahan Penolong
-                            </option>
+                        <td>0</td>
+                        <td>0</td>
 
-                            <option value="bahan penolong alat">
-                                Bahan Penolong Alat
-                            </option>
+                        <td>
+                            <input
+                                type="date"
+                                class="form-control tanggal"
+                                value="${todayValue}"
+                            >
+                        </td>
 
-                            <option value="bahan finishing">
-                                Bahan Finishing
-                            </option>
+                        <td>
+                            <button
+                                type="button"
+                                class="btn btn-success btn-sm btn-save"
+                                title="Simpan"
+                            >
+                                <i class="fa fa-save"></i>
+                            </button>
 
-                        </select>
+                            <button
+                                type="button"
+                                class="btn btn-danger btn-sm remove-row"
+                                title="Hapus"
+                            >
+                                <i class="fa fa-trash"></i>
+                            </button>
+                        </td>
 
-                    </td>
+                        <td></td>
 
-                    <td>
+                    </tr>
+                `;
 
-                        <input
-                            type="text"
-                            class="form-control satuan"
-                        >
+                const $newRow = $(row);
 
-                    </td>
+                // BARIS BARU SELALU MASUK PALING ATAS
+                $tbody.prepend($newRow);
 
-                    <td>
+                // Jangan panggil filterData() di sini.
+                // Kalau user sedang melakukan search, baris baru bisa langsung
+                // tersembunyi sehingga terlihat seperti tombol tidak bekerja.
+                $newRow.show();
 
-                        <input
-                            type="text"
-                            class="form-control harga"
-                        >
+                // Update nomor semua baris yang ada.
+                $tbody.find('tr').each(function(index) {
+                    $(this).find('.row-number, td:first').first().text(index + 1);
+                });
 
-                    </td>
+                // Langsung fokus ke Kode Barang.
+                $newRow.find('.kode_barang').trigger('focus');
 
-                    <td>
+                // Scroll ke baris baru agar terlihat.
+                const wrapper = document.getElementById('wrapperStok');
 
-                        <input
-                            type="number"
-                            step="0.001"
-                            class="form-control stok_awal"
-                            value="0"
-                        >
+                if (wrapper) {
+                    const rowRect = $newRow[0].getBoundingClientRect();
+                    const wrapperRect = wrapper.getBoundingClientRect();
 
-                    </td>
+                    if (
+                        rowRect.bottom > wrapperRect.bottom ||
+                        rowRect.top < wrapperRect.top
+                    ) {
+                        $newRow[0].scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'nearest',
+                            inline: 'nearest'
+                        });
+                    }
+                }
 
-                    <td>
-                        0
-                    </td>
-
-                    <td>
-                        0
-                    </td>
-
-                    <td>
-
-                        <input
-                            type="date"
-                            class="form-control tanggal"
-                            value="{{ date('Y-m-d') }}"
-                        >
-
-                    </td>
-
-                    <td>
-
-                        <button
-                            type="button"
-                            class="btn btn-success btn-sm btn-save"
-                        >
-                            <i class="fa fa-save"></i>
-                        </button>
-
-                        <button
-                            type="button"
-                            class="btn btn-danger btn-sm remove-row"
-                        >
-                            <i class="fa fa-trash"></i>
-                        </button>
-
-                    </td>
-
-                    <td></td>
-
-                </tr>
-            `;
-
-            $('#tableBody').append(row);
-
-            filterData();
-
-        });
+                console.log(
+                    '[TAMBAH BARIS] Berhasil menambahkan baris baru:',
+                    rowCount
+                );
+            });
 
 
         // ============================================================

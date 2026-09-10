@@ -279,10 +279,10 @@ class PengajuanController extends Controller
                         'user' => 'Eka Wahyuning Lestari',
                     ],
 
-                    [
-                        'name' => 'Knowing By',
-                        'user' => 'Stanley',
-                    ],
+                    // [
+                    //     'name' => 'Knowing By',
+                    //     'user' => 'Stanley',
+                    // ],
 
                     [
                         'name' => 'Approve By',

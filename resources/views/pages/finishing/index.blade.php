@@ -26,6 +26,54 @@
             |--------------------------------------------------------------------------
             */
 
+        /*
+        |--------------------------------------------------------------------------
+        | STICKY TH TABLE UTAMA
+        |--------------------------------------------------------------------------
+        */
+
+        #invoiceTable thead th {
+            background: #2f4050 !important;
+            color: #fff !important;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Jarak dari TOPBAR
+        |--------------------------------------------------------------------------
+        | Sticky header tidak boleh menutup navbar/topbar aplikasi.
+        |--------------------------------------------------------------------------
+        */
+        :root {
+            --invoice-sticky-top: 48px;
+        }
+
+        #invoiceStickyHeader {
+            position: fixed;
+            top: var(--invoice-sticky-top);
+            z-index: 1030;
+            display: none;
+            overflow: hidden;
+            background: #2f4050;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, .18);
+            pointer-events: none;
+        }
+
+        #invoiceStickyHeader table {
+            margin: 0 !important;
+            border-collapse: separate;
+            border-spacing: 0;
+            table-layout: fixed;
+        }
+
+        #invoiceStickyHeader th {
+            background: #2f4050 !important;
+            color: #fff !important;
+            box-sizing: border-box;
+            vertical-align: middle;
+        }
+
+
         .material-table th,
         .material-table td {
             vertical-align: middle;
@@ -454,6 +502,16 @@
 
 
     {{-- ============================================================= --}}
+    {{-- Sticky clone header tabel utama --}}
+    <div id="invoiceStickyHeader">
+        <table>
+            <thead>
+                <tr></tr>
+            </thead>
+        </table>
+    </div>
+
+
     {{-- MODAL 1 : CREATE / EDIT INVOICE --}}
     {{-- ============================================================= --}}
 
@@ -568,7 +626,9 @@
                                         Tomo
                                     </option>
 
-
+  <option value="sample">
+                                        RND (SAMPLE)
+                                    </option>
                                     <option value="darto">
                                         Darto
                                     </option>
@@ -856,6 +916,97 @@
 
     </div>
 
+
+
+    <script>
+        /*
+        |--------------------------------------------------------------------------
+        | STICKY TH TABLE UTAMA
+        |--------------------------------------------------------------------------
+        */
+
+        (function () {
+
+            function buildStickyInvoiceHeader() {
+                const table = document.getElementById('invoiceTable');
+                const sticky = document.getElementById('invoiceStickyHeader');
+                const originalRow = table?.querySelector('thead tr');
+                const stickyRow = sticky?.querySelector('tr');
+
+                if (!table || !sticky || !originalRow || !stickyRow) {
+                    return;
+                }
+
+                stickyRow.innerHTML = '';
+
+                Array.from(originalRow.children).forEach(function (th) {
+                    const clone = th.cloneNode(true);
+                    clone.removeAttribute('onclick');
+                    stickyRow.appendChild(clone);
+                });
+
+                syncStickyInvoiceHeader();
+            }
+
+            function syncStickyInvoiceHeader() {
+                const table = document.getElementById('invoiceTable');
+                const sticky = document.getElementById('invoiceStickyHeader');
+                const originalRow = table?.querySelector('thead tr');
+                const stickyRow = sticky?.querySelector('tr');
+                const stickyTable = sticky?.querySelector('table');
+
+                if (!table || !sticky || !originalRow || !stickyRow || !stickyTable) {
+                    return;
+                }
+
+                const tableRect = table.getBoundingClientRect();
+                const headerRect = originalRow.getBoundingClientRect();
+
+                // Header asli masih terlihat -> clone disembunyikan.
+                if (headerRect.bottom > 0 || tableRect.bottom <= 0) {
+                    sticky.style.display = 'none';
+                    return;
+                }
+
+                const originalCells = Array.from(originalRow.children);
+                const stickyCells = Array.from(stickyRow.children);
+
+                originalCells.forEach(function (cell, index) {
+                    if (!stickyCells[index]) {
+                        return;
+                    }
+
+                    const width = cell.getBoundingClientRect().width;
+
+                    stickyCells[index].style.width = width + 'px';
+                    stickyCells[index].style.minWidth = width + 'px';
+                    stickyCells[index].style.maxWidth = width + 'px';
+                });
+
+                stickyTable.style.width = tableRect.width + 'px';
+                sticky.style.top =
+                    getComputedStyle(document.documentElement)
+                        .getPropertyValue('--invoice-sticky-top').trim() || '48px';
+
+                sticky.style.left = tableRect.left + 'px';
+                sticky.style.width = tableRect.width + 'px';
+                sticky.style.height = headerRect.height + 'px';
+                sticky.style.display = 'block';
+            }
+
+            document.addEventListener('DOMContentLoaded', function () {
+                buildStickyInvoiceHeader();
+
+                window.addEventListener('scroll', syncStickyInvoiceHeader, {
+                    passive: true
+                });
+
+                window.addEventListener('resize', buildStickyInvoiceHeader);
+            });
+
+        })();
+
+    </script>
 
 
     <script>
