@@ -80,13 +80,70 @@
                 </div>
             </div>
             <div class="box-body">
-                @php
+                {{-- @php
                     $totalIn = $transaksi->where('tipe', 'in')->sum('qty');
 
                     $totalOut = $transaksi->where('tipe', 'out')->sum('qty');
 
                     $stokTersedia = $stok->stok_awal + $totalIn - $totalOut;
-                @endphp
+                @endphp --}}
+                @php
+    /*
+     * OPNAME = PENYESUAIAN STOK AWAL
+     * Opname tidak dianggap sebagai transaksi IN/OUT biasa.
+     */
+
+    // Pisahkan transaksi opname
+    $transaksiOpname = $transaksi->filter(function ($item) {
+        $keterangan = strtolower(trim((string) $item->keterangan));
+
+        return str_contains($keterangan, 'opname')
+            || str_contains($keterangan, 'opanem')
+            || str_contains($keterangan, 'opaneme');
+    });
+
+    // Transaksi normal
+    $transaksiNormal = $transaksi->reject(function ($item) {
+        $keterangan = strtolower(trim((string) $item->keterangan));
+
+        return str_contains($keterangan, 'opname')
+            || str_contains($keterangan, 'opanem')
+            || str_contains($keterangan, 'opaneme');
+    });
+
+    // =========================
+    // PENYESUAIAN STOK AWAL
+    // =========================
+    $opnameIn = $transaksiOpname
+        ->where('tipe', 'in')
+        ->sum('qty');
+
+    $opnameOut = $transaksiOpname
+        ->where('tipe', 'out')
+        ->sum('qty');
+
+    $stokAwalAdjusted = (float) $stok->stok_awal
+        + (float) $opnameIn
+        - (float) $opnameOut;
+
+    // =========================
+    // TRANSAKSI NORMAL
+    // =========================
+    $totalIn = $transaksiNormal
+        ->where('tipe', 'in')
+        ->sum('qty');
+
+    $totalOut = $transaksiNormal
+        ->where('tipe', 'out')
+        ->sum('qty');
+
+    // =========================
+    // STOK SAAT INI
+    // =========================
+    $stokTersedia = $stokAwalAdjusted
+        + $totalIn
+        - $totalOut;
+@endphp
                 @php
                     function qtyFormat($value)
                     {
@@ -95,7 +152,7 @@
                 @endphp
                 <div class="alert alert-info">
 
-                    <b>Total Masuk :</b>
+                    {{-- <b>Total Masuk :</b>
                     {{ qtyFormat($totalIn) }}
                     {{ $stok->satuan }}
 
@@ -105,13 +162,13 @@
                     {{ qtyFormat($totalOut) }}
                     {{ $stok->satuan }}
 
-                    |
+                    | --}}
 
                     <b>Stok Saat Ini :</b>
                     {{ qtyFormat($stokTersedia) }}
                     {{ $stok->satuan }}
 
-                    hey : jangan lupa untuk masukkan no invoice setiap pembelian bahan finishing
+                    {{-- hey : jangan lupa untuk masukkan no invoice setiap pembelian bahan finishing --}}
 
                 </div>
                 <div class="row mb-3">

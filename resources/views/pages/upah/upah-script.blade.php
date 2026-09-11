@@ -1,3 +1,4 @@
+<script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
 <script>
 $(document).ready(function() {
 
@@ -29,6 +30,11 @@ $(document).ready(function() {
                 .html('<i class="fas fa-save mr-1"></i> Simpan');
 
             $('#formInsertUpah')[0].reset();
+
+            // Pastikan setiap membuka Single Add, No PO kembali ke SELECT.
+            // Jika transaksi sebelumnya memakai input manual, helper akan
+            // mengembalikannya menjadi select.
+            ensureSingleNoPoSelect('Pilih No PO...');
 
             showNormalUpah();
 
@@ -501,6 +507,14 @@ $(document).ready(function() {
 
             if (!exists) {
                 setManualPekerjaanMode(article);
+
+                // Tetap cari No PO. Jika tidak ditemukan,
+                // field otomatis berubah menjadi input manual.
+                loadPoByArticle(
+                    article,
+                    $('#insert_description').val().trim()
+                );
+
                 return;
             }
 
@@ -1149,6 +1163,68 @@ $(document).ready(function() {
     }
 
 
+    /*
+    |--------------------------------------------------------------------------
+    | MASS NO PO HELPER
+    |--------------------------------------------------------------------------
+    | Jika PO ditemukan -> gunakan SELECT.
+    | Jika PO tidak ditemukan -> ubah menjadi INPUT agar user bisa
+    | mengetik No PO manual. Value tetap dibaca oleh .val() saat save.
+    |--------------------------------------------------------------------------
+    */
+
+    function resetMassNoPo(row, placeholder = 'Pilih No PO...') {
+
+        let field = row.find('.mass-no-po');
+
+        if (!field.length) return;
+
+        if (!field.is('select')) {
+
+            field.replaceWith(`
+                <select class="form-control mass-no-po">
+                    <option value="">${placeholder}</option>
+                </select>
+            `);
+
+            return;
+        }
+
+        field
+            .empty()
+            .append(`<option value="">${placeholder}</option>`)
+            .prop('disabled', false);
+    }
+
+
+    function makeMassNoPoManual(row, value = '') {
+
+        const field = row.find('.mass-no-po');
+
+        if (!field.length) return;
+
+        if (field.is('input')) {
+
+            field
+                .val(value)
+                .prop('disabled', false)
+                .attr('placeholder', 'Ketik No PO');
+
+            return;
+        }
+
+        field.replaceWith(`
+            <input
+                type="text"
+                class="form-control mass-no-po"
+                value="${String(value).replace(/"/g, '&quot;')}"
+                placeholder="Ketik No PO"
+                autocomplete="off"
+            >
+        `);
+    }
+
+
     function resetMassUpah() {
 
         massRowCounter = 0;
@@ -1262,9 +1338,7 @@ $(document).ready(function() {
             .empty()
             .append('<option value="">Pilih pekerjaan...</option>');
         row.find('.mass-harga').val(0);
-        row.find('.mass-no-po')
-            .empty()
-            .append('<option value="">Pilih No PO...</option>');
+        resetMassNoPo(row);
 
         calculateMassRow(row);
 
@@ -1381,6 +1455,10 @@ $(document).ready(function() {
         row.find('.mass-article-result').empty().removeClass('show');
 
         const pekerjaanSelect = row.find('.mass-pekerjaan');
+
+        // Reset No PO to SELECT first. Jika hasil AJAX kosong,
+        // field akan otomatis berubah menjadi INPUT manual.
+        resetMassNoPo(row);
         const poSelect = row.find('.mass-no-po');
 
         // Reset pekerjaan
@@ -1479,11 +1557,8 @@ $(document).ready(function() {
                     return;
                 }
 
-                poSelect.empty().append(
-                    '<option value="">Pilih No PO...</option>'
-                );
-
                 const seenPo = {};
+                const poList = [];
 
                 response.forEach(function(item) {
                     const noPo = item.no_po || '';
@@ -1493,29 +1568,50 @@ $(document).ready(function() {
                     }
 
                     seenPo[noPo] = true;
-
-                    poSelect.append(
-                        $('<option>', {
-                            value: noPo,
-                            text: noPo
-                        })
-                    );
+                    poList.push(noPo);
                 });
 
-                poSelect.prop('disabled', false);
+                /*
+                |--------------------------------------------------------------------------
+                | PO DITEMUKAN
+                |--------------------------------------------------------------------------
+                */
+                if (poList.length) {
 
-                if (!response.length) {
-                    poSelect.append(
-                        '<option value="">Tidak ada PO terkait</option>'
-                    );
+                    resetMassNoPo(row);
+
+                    const poSelect = row.find('.mass-no-po');
+
+                    poList.forEach(function(noPo) {
+
+                        poSelect.append(
+                            $('<option>', {
+                                value: noPo,
+                                text: noPo
+                            })
+                        );
+
+                    });
+
+                    poSelect.prop('disabled', false);
+
+                /*
+                |--------------------------------------------------------------------------
+                | PO TIDAK DITEMUKAN
+                |--------------------------------------------------------------------------
+                | SELECT diganti INPUT agar user bisa mengetik No PO manual.
+                |--------------------------------------------------------------------------
+                */
+                } else {
+
+                    makeMassNoPoManual(row);
+
                 }
             },
             error: function(xhr) {
                 console.error('Load mass No PO error:', xhr);
 
-                poSelect.empty().append(
-                    '<option value="">Gagal memuat No PO</option>'
-                ).prop('disabled', false);
+                makeMassNoPoManual(row);
             }
         });
 
@@ -1579,8 +1675,11 @@ $(document).ready(function() {
         if (rows.length <= 1) {
 
             row.find('input, textarea').val('');
-            row.find('.mass-pekerjaan').empty().append('<option value="">Pilih pekerjaan...</option>');
-            row.find('.mass-no-po').empty().append('<option value="">Pilih No PO...</option>');
+            row.find('.mass-pekerjaan')
+                .empty()
+                .append('<option value="">Pilih pekerjaan...</option>');
+
+            resetMassNoPo(row);
 
             row.find('.mass-tanggal')
                 .val('{{ date('Y-m-d') }}');
@@ -2738,110 +2837,153 @@ $('#btnExportUpah').off('click').on('click', async function(e) {
     }
 
 });
-function loadPoByArticle(article, description = '', selectedNoPo = '') {
+function ensureSingleNoPoSelect(placeholder = 'Pilih No PO...') {
 
-const select = $('#insert_no_po');
+    let field = $('#insert_no_po');
 
-select.empty();
+    if (!field.length) return null;
 
-select.append(
-    '<option value="">Memuat No PO...</option>'
-);
+    if (!field.is('select')) {
+        field.replaceWith(`
+            <select id="insert_no_po" name="no_po" class="form-control">
+                <option value="">${placeholder}</option>
+            </select>
+        `);
+        field = $('#insert_no_po');
+    } else {
+        field
+            .empty()
+            .append(`<option value="">${placeholder}</option>`)
+            .prop('disabled', false);
+    }
 
-if (!article) {
-
-    select.empty().append(
-        '<option value="">Pilih No PO...</option>'
-    );
-
-    return;
+    return field;
 }
 
-$.ajax({
 
-    url: "{{ route('upah.transaksi.search.po') }}",
+function makeSingleNoPoManual(value = '') {
 
-    type: 'GET',
+    let field = $('#insert_no_po');
 
-    data: {
-        article: article,
-        description: description
-    },
+    if (!field.length) return null;
 
-    success: function(response) {
+    if (field.is('input')) {
+        return field
+            .val(value)
+            .prop('disabled', false)
+            .attr('placeholder', 'Ketik No PO');
+    }
 
-        if (!Array.isArray(response)) {
-            response = [];
-        }
+    field.replaceWith(`
+        <input
+            type="text"
+            id="insert_no_po"
+            name="no_po"
+            class="form-control"
+            value="${String(value).replace(/"/g, '&quot;')}"
+            placeholder="Ketik No PO"
+            autocomplete="off"
+        >
+    `);
 
-        select.empty();
+    return $('#insert_no_po');
+}
 
-        /*
-        |--------------------------------------------------------------------------
-        | TIDAK ADA PO
-        |--------------------------------------------------------------------------
-        */
 
-        if (!response.length) {
+function loadPoByArticle(article, description = '', selectedNoPo = '') {
 
-            select.append(
-                '<option value="">Tidak ada PO terkait</option>'
-            );
+    ensureSingleNoPoSelect('Memuat No PO...');
 
-            return;
-        }
+    let select = $('#insert_no_po');
 
-        /*
-        |--------------------------------------------------------------------------
-        | DEFAULT
-        |--------------------------------------------------------------------------
-        */
+    if (!article) {
+        ensureSingleNoPoSelect('Pilih No PO...');
+        return;
+    }
 
-        select.append(
-            '<option value="">Pilih No PO...</option>'
-        );
+    $.ajax({
 
-        /*
-        |--------------------------------------------------------------------------
-        | LIST PO
-        |--------------------------------------------------------------------------
-        */
+        url: "{{ route('upah.transaksi.search.po') }}",
 
-        response.forEach(function(item) {
+        type: 'GET',
 
-            if (!item.no_po) {
+        data: {
+            article: article,
+            description: description
+        },
+
+        success: function(response) {
+
+            if (!Array.isArray(response)) {
+                response = Array.isArray(response?.data) ? response.data : [];
+            }
+
+            const seenPo = {};
+            const poList = [];
+
+            response.forEach(function(item) {
+
+                const noPo = item.no_po || '';
+
+                if (!noPo || seenPo[noPo]) {
+                    return;
+                }
+
+                seenPo[noPo] = true;
+                poList.push(noPo);
+            });
+
+            /*
+            |--------------------------------------------------------------
+            | PO DITEMUKAN -> SELECT
+            |--------------------------------------------------------------
+            */
+            if (poList.length) {
+
+                ensureSingleNoPoSelect();
+                select = $('#insert_no_po');
+
+                poList.forEach(function(noPo) {
+
+                    select.append(
+                        $('<option>', {
+                            value: noPo,
+                            text: noPo
+                        })
+                    );
+
+                });
+
+                if (selectedNoPo) {
+                    select.val(selectedNoPo);
+                }
+
                 return;
             }
 
-            select.append(
-                $('<option>', {
-                    value: item.no_po,
-                    text: item.no_po
-                })
+            /*
+            |--------------------------------------------------------------
+            | PO TIDAK DITEMUKAN -> INPUT MANUAL
+            |--------------------------------------------------------------
+            */
+            makeSingleNoPoManual(selectedNoPo || '');
+
+        },
+
+        error: function(xhr) {
+
+            console.error(
+                'Load PO error:',
+                xhr
             );
 
-        });
-
-        if (selectedNoPo) {
-            select.val(selectedNoPo);
+            /* Jika endpoint gagal, tetap izinkan user mengetik PO manual. */
+            makeSingleNoPoManual(selectedNoPo || '');
         }
 
-    },
-
-    error: function(xhr) {
-
-        console.error(
-            'Load PO error:',
-            xhr
-        );
-
-        select.empty().append(
-            '<option value="">Gagal memuat No PO</option>'
-        );
-    }
-
-});
+    });
 }
+
 $(document).on('click', '.btn-delete-upah', function () {
 
     const button = $(this);
@@ -3008,3 +3150,364 @@ function deleteUpah(id, button) {
 }
 
 </script>
+
+<!-- =========================================================
+     REALTIME REMOTE CURSOR - UPah / TRANSAKSI UPAH
+     Mengikuti pola cursor pada halaman Detail Barang.
+     ========================================================= -->
+<style>
+    #upahRemoteCursors {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 9999999;
+    }
+
+    .upah-remote-cursor {
+        position: fixed;
+        pointer-events: none;
+        transform: translate(-1px, -1px);
+        transition:
+            left 90ms linear,
+            top 90ms linear;
+        will-change: left, top;
+    }
+
+    .upah-remote-cursor-arrow {
+        width: 0;
+        height: 0;
+
+        border-top: 0 solid transparent;
+        border-bottom: 15px solid transparent;
+        border-left: 11px solid #2563eb;
+
+        transform: rotate(-42deg);
+
+        filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .25));
+    }
+
+    .upah-remote-cursor-name {
+        position: absolute;
+        left: 9px;
+        top: 12px;
+
+        padding: 3px 7px;
+
+        border-radius: 4px;
+
+        background: #2563eb;
+        color: #fff;
+
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1.2;
+
+        white-space: nowrap;
+
+        box-shadow: 0 2px 5px rgba(0, 0, 0, .18);
+    }
+
+    .upah-remote-cursor.is-idle {
+        opacity: .45;
+    }
+</style>
+
+<div id="upahRemoteCursors"></div>
+
+<script>
+(function () {
+    'use strict';
+
+    /* =========================================================
+       USER
+       ========================================================= */
+    const currentUserId = @json(auth()->id());
+    const currentUserName = @json(auth()->user()->name ?? 'User');
+
+    if (!currentUserId) {
+        console.warn('[UPAH Cursor] User ID tidak tersedia.');
+        return;
+    }
+
+    /* =========================================================
+       PUSHER CONFIG
+       ========================================================= */
+    const pusherKey =
+        @json(config('broadcasting.connections.pusher.key'));
+
+    const pusherCluster =
+        @json(config('broadcasting.connections.pusher.options.cluster'));
+
+    if (!pusherKey) {
+        console.warn('[UPAH Cursor] Pusher key belum tersedia.');
+        return;
+    }
+
+    /* =========================================================
+       CONTAINER
+       ========================================================= */
+    const container = document.getElementById('upahRemoteCursors');
+
+    if (!container) {
+        console.warn('[UPAH Cursor] Container tidak ditemukan.');
+        return;
+    }
+
+    /* =========================================================
+       PUSHER
+       ========================================================= */
+    if (typeof Pusher === 'undefined') {
+        console.warn('[UPAH Cursor] Pusher belum termuat.');
+        return;
+    }
+
+    const pusher = new Pusher(pusherKey, {
+        cluster: pusherCluster || 'ap1',
+        forceTLS: true,
+        authEndpoint: @json(route('pusher.auth')),
+        auth: {
+            headers: {
+                'X-CSRF-TOKEN': document
+                    .querySelector('meta[name="csrf-token"]')
+                    ?.getAttribute('content') || ''
+            }
+        }
+    });
+
+    /* =========================================================
+       CHANNEL
+       Semua user pada halaman Transaksi Upah memakai channel
+       yang sama, sehingga cursor bisa terlihat bersama.
+       ========================================================= */
+    const channelName = 'presence-upah-transaksi';
+    const channel = pusher.subscribe(channelName);
+
+    /* =========================================================
+       CURSOR STORAGE
+       ========================================================= */
+    const remoteCursors = {};
+
+    /* =========================================================
+       CREATE CURSOR
+       ========================================================= */
+    function createCursor(userId, name) {
+        const id = 'upah-remote-cursor-' + userId;
+
+        let cursor = document.getElementById(id);
+
+        if (cursor) {
+            const label = cursor.querySelector('.upah-remote-cursor-name');
+            if (label && name) {
+                label.textContent = name;
+            }
+            return cursor;
+        }
+
+        cursor = document.createElement('div');
+        cursor.id = id;
+        cursor.className = 'upah-remote-cursor';
+
+        const arrow = document.createElement('div');
+        arrow.className = 'upah-remote-cursor-arrow';
+
+        const label = document.createElement('div');
+        label.className = 'upah-remote-cursor-name';
+        label.textContent = name || 'User';
+
+        cursor.appendChild(arrow);
+        cursor.appendChild(label);
+
+        container.appendChild(cursor);
+
+        remoteCursors[String(userId)] = {
+            element: cursor,
+            lastMove: Date.now(),
+            x: 0,
+            y: 0
+        };
+
+        return cursor;
+    }
+
+    /* =========================================================
+       REMOVE CURSOR
+       ========================================================= */
+    function removeCursor(userId) {
+        const key = String(userId);
+        const data = remoteCursors[key];
+
+        if (!data) {
+            return;
+        }
+
+        data.element.remove();
+        delete remoteCursors[key];
+    }
+
+    /* =========================================================
+       UPDATE CURSOR
+       ========================================================= */
+    function updateCursor(data) {
+        if (!data) {
+            return;
+        }
+
+        const userId = String(data.user_id);
+
+        /* Jangan tampilkan cursor sendiri */
+        if (userId === String(currentUserId)) {
+            return;
+        }
+
+        const cursor = createCursor(userId, data.name);
+        const state = remoteCursors[userId];
+
+        if (!state) {
+            return;
+        }
+
+        const x = Number(data.x);
+        const y = Number(data.y);
+
+        if (!Number.isFinite(x) || !Number.isFinite(y)) {
+            return;
+        }
+
+        state.x = x;
+        state.y = y;
+        state.lastMove = Date.now();
+
+        cursor.style.left = x + 'px';
+        cursor.style.top = y + 'px';
+
+        cursor.classList.remove('is-idle');
+    }
+
+    /* =========================================================
+       CONNECTION LOG
+       ========================================================= */
+    pusher.connection.bind('connected', function () {
+        console.log(
+            '[PUSHER UPAH] Connected:',
+            pusher.connection.socket_id
+        );
+    });
+
+    pusher.connection.bind('error', function (err) {
+        console.error('[PUSHER UPAH] Connection error:', err);
+    });
+
+    /* =========================================================
+       SUBSCRIPTION
+       ========================================================= */
+    channel.bind('pusher:subscription_succeeded', function (members) {
+        console.log('[PUSHER UPAH] Presence connected');
+        console.log('[PUSHER UPAH] Channel:', channelName);
+        console.log('[PUSHER UPAH] Members:', members.count);
+    });
+
+    /* =========================================================
+       SEND CURSOR
+       ========================================================= */
+    let lastSend = 0;
+    let lastX = null;
+    let lastY = null;
+
+    const SEND_INTERVAL = 150;
+    const MIN_DISTANCE = 5;
+
+    document.addEventListener('mousemove', function (event) {
+        const now = Date.now();
+
+        /* Throttle */
+        if (now - lastSend < SEND_INTERVAL) {
+            return;
+        }
+
+        const x = event.clientX;
+        const y = event.clientY;
+
+        /* Jangan kirim jika gerak terlalu sedikit */
+        if (lastX !== null && lastY !== null) {
+            const dx = x - lastX;
+            const dy = y - lastY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < MIN_DISTANCE) {
+                return;
+            }
+        }
+
+        lastX = x;
+        lastY = y;
+        lastSend = now;
+
+        try {
+            channel.trigger('client-upah-cursor', {
+                user_id: currentUserId,
+                name: currentUserName,
+                x: x,
+                y: y
+            });
+        } catch (error) {
+            console.warn('[UPAH Cursor]', error);
+        }
+    }, {
+        passive: true
+    });
+
+    /* =========================================================
+       RECEIVE CURSOR
+       ========================================================= */
+    channel.bind('client-upah-cursor', function (data) {
+        updateCursor(data);
+    });
+
+    /* =========================================================
+       MEMBER ADDED
+       ========================================================= */
+    channel.bind('pusher:member_added', function (member) {
+        console.log(
+            '[UPAH Cursor] User masuk:',
+            member.info?.name || member.id
+        );
+    });
+
+    /* =========================================================
+       MEMBER REMOVED
+       ========================================================= */
+    channel.bind('pusher:member_removed', function (member) {
+        removeCursor(String(member.id));
+    });
+
+    /* =========================================================
+       IDLE
+       ========================================================= */
+    setInterval(function () {
+        const now = Date.now();
+
+        Object.keys(remoteCursors).forEach(function (userId) {
+            const state = remoteCursors[userId];
+
+            if (!state) {
+                return;
+            }
+
+            if (now - state.lastMove > 5000) {
+                state.element.classList.add('is-idle');
+            }
+        });
+    }, 1000);
+
+    /* =========================================================
+       CLEANUP
+       ========================================================= */
+    window.addEventListener('beforeunload', function () {
+        try {
+            pusher.unsubscribe(channelName);
+        } catch (e) {}
+    });
+
+})();
+</script>
+

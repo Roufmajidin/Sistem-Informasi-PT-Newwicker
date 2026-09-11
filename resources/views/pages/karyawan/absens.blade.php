@@ -2,6 +2,7 @@
     <thead>
         <tr>
             <th>No</th>
+            <th>ID</th>
             <th class="sticky">Nama</th>
             <th>Status</th>
             <th>Divisi</th>
@@ -21,6 +22,7 @@
                 <td>{{ $index + 1 }}</td>
                 <td class="sticky">{{ $karyawan->name }}</td>
                 <td>{{ $karyawan->status }}</td>
+                <td>{{ $karyawan->id }}</td>
                 @php
                     $divisi = App\Models\Divisi::find($karyawan->divisi_id);
                 @endphp
