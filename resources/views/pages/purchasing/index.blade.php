@@ -833,21 +833,32 @@
             }
         }
 
-        document.addEventListener('DOMContentLoaded', function() {
-            const params = new URLSearchParams(window.location.search);
-            const uri = params.get('uri');
+      document.addEventListener('DOMContentLoaded', function() {
+    const params = new URLSearchParams(window.location.search);
 
-            if (uri === 'list_pengajuan') {
-                showPurchasingTab(
-                    'listPengajuanTab',
-                    document.querySelector('.purchasing-tab[data-tab="listPengajuanTab"]')
-                );
-            } else {
-                showPurchasingTab(
-                    'draftFormTab',
-                    document.querySelector('.purchasing-tab[data-tab="draftFormTab"]')
-                );
-            }
-        });
-    </script>
+    const uri = params.get('uri');
+    const published = params.get('published');
+
+    const openList =
+        uri === 'list_pengajuan' ||
+        published === 'true' ||
+        published === '1';
+
+    if (openList) {
+        showPurchasingTab(
+            'listPengajuanTab',
+            document.querySelector(
+                '.purchasing-tab[data-tab="listPengajuanTab"]'
+            )
+        );
+    } else {
+        showPurchasingTab(
+            'draftFormTab',
+            document.querySelector(
+                '.purchasing-tab[data-tab="draftFormTab"]'
+            )
+        );
+    }
+});
+      </script>
 @endsection

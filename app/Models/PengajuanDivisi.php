@@ -21,6 +21,7 @@ class PengajuanDivisi extends Model
     'unit',
     'price',
     'added_to_warehouse',
+    'payment_type',
 ];
 
     protected $casts = [

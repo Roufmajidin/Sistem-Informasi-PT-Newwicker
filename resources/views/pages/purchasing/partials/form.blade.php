@@ -375,9 +375,7 @@
                             <th>Unit Price</th>
                             <th>Total</th>
                             <th>Status</th>
-                            @if (auth()->user()->email === 'sumanti@gmail.com')
-                                <th>Aksi</th>
-                            @endif
+                            <th>Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -422,33 +420,52 @@
                                 <td class="right">{{ number_format($price, 0, ',', '.') }}</td>
                                 <td class="right">{{ number_format($total, 0, ',', '.') }}</td>
                                 <td class="center">{{ $item['status'] ?? '-' }}</td>
-                                @if (auth()->user()->email === 'sumanti@gmail.com')
-                                    <td class="center">
-                                        <button type="button" class="btn-add-to-warehouse"
-                                            data-item-id="{{ $detailId ?? '' }}"
-                                            data-item-name="{{ $item['name'] ?? ($item['description'] ?? 'Barang') }}"
-                                            data-qty="{{ $qty }}" data-unit="{{ $item['unit'] ?? '-' }}">
-                                            <i class="fa fa-plus-circle"></i>
-                                            Add to Warehouse
-                                        </button>
-                                    </td>
-                                @endif
+                             <td class="center">
+
+    @if (!empty($item['added_to_warehouse']))
+        {{-- SUDAH MASUK WAREHOUSE --}}
+        <span class="warehouse-added-badge">
+            <i class="fa fa-check-circle"></i>
+            Added to Warehouse
+        </span>
+
+    @elseif (auth()->user()->email === 'sumanti@gmail.com')
+        {{-- BELUM MASUK + USER BERHAK ADD --}}
+        <button type="button"
+            class="btn-add-to-warehouse"
+            data-item-id="{{ $detailId ?? '' }}"
+            data-item-name="{{ $item['name'] ?? ($item['description'] ?? 'Barang') }}"
+            data-qty="{{ $qty }}"
+            data-unit="{{ $item['unit'] ?? '-' }}">
+
+            <i class="fa fa-plus-circle"></i>
+            Add to Warehouse
+
+        </button>
+
+    @else
+        {{-- BELUM MASUK + USER BIASA --}}
+        <span class="warehouse-waiting-badge">
+            <i class="fa fa-clock-o"></i>
+            Waiting Warehouse
+        </span>
+    @endif
+
+</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="{{ auth()->user()->email === 'sumanti@gmail.com' ? 11 : 10 }}"
+                                <td colspan="11"
                                     class="center">Tidak ada item.</td>
                             </tr>
                         @endforelse
 
                         <tr class="vpr-total">
-                            <td colspan="{{ auth()->user()->email === 'sumanti@gmail.com' ? 9 : 8 }}" class="right">
+                            <td colspan="9" class="right">
                                 TOTAL</td>
                             <td class="right">{{ number_format($vprGrandTotal, 0, ',', '.') }}</td>
                             <td></td>
-                            @if (auth()->user()->email === 'sumanti@gmail.com')
-                                <td></td>
-                            @endif
+                            <td></td>
                         </tr>
                     </tbody>
                 </table>
@@ -498,6 +515,43 @@
     </div>
 
     <style>
+        /* Warehouse status - only for the Add to Warehouse area */
+        .warehouse-added-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 5px 8px;
+            border-radius: 5px;
+            background: #e8f7ee;
+            color: #198754;
+            font-size: 10px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .warehouse-added-badge i {
+            font-size: 11px;
+        }
+
+        .warehouse-waiting-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 5px 8px;
+            border-radius: 5px;
+            background: #f5f5f5;
+            color: #8a8f98;
+            font-size: 10px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .warehouse-waiting-badge i {
+            font-size: 11px;
+        }
+
         .attachment-section {
             margin-top: 14px;
             margin-bottom: 18px;

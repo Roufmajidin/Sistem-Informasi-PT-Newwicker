@@ -467,86 +467,31 @@ class PurchasingController extends Controller
                     */
 
                     PengajuanDivisi::create([
+                        'pengajuan_id' => $pengajuan->id,
 
-                        'pengajuan_id' =>
-                            $pengajuan->id,
+                        'id_stock' => $idStock,
 
-                        /*
-                         * Barang lama:
-                         * id_stock ada.
-                         *
-                         * Barang baru:
-                         * id_stock = null.
-                         */
-                        'id_stock' =>
-                            $idStock,
+                        'divisi_id' => $divisiId,
 
-                        /*
-                         * Divisi tetap menggunakan ID
-                         * dari master divisi.
-                         */
-                        'divisi_id' =>
-                            $divisiId,
+                        'nama_barang' => $item['nama_barang'],
 
-                        /*
-                         * Nama barang
-                         */
-                        'nama_barang' =>
-                            $item['nama_barang'],
+                        'po_no' => $item['po_no'] ?? null,
 
-                        /*
-                         * PO NO PER ROW
-                         */
-                        'po_no' =>
-                            $item['po_no'] ?? null,
+                        'supplier' => $item['supplier'] ?? null,
 
-                        /*
-                         * Supplier PER ROW
-                         */
-                        'supplier' =>
-                            $item['supplier'] ?? null,
+                        'payment_type' => $item['payment'] ?? null,
 
-                        /*
-                         * Description PER ROW
-                         */
-                        'description' =>
-                            $item['description'] ?? null,
+                        'description' => $item['description'] ?? null,
 
-                        /*
-                         * Keterangan PER ROW
-                         */
-                        'keterangan' =>
-                            $item['keterangan'] ?? null,
+                        'keterangan' => $item['keterangan'] ?? null,
 
-                        /*
-                         * Quantity
-                         */
-                        'qty' =>
-                            $item['qty'],
+                        'qty' => $item['qty'],
 
-                        /*
-                         * Unit
-                         */
-                        'unit' =>
-                            $item['unit'] ?? null,
+                        'unit' => $item['unit'] ?? null,
 
-                        /*
-                         * Harga
-                         */
-                        'price' =>
-                            $item['price'] ?? 0,
+                        'price' => $item['price'] ?? 0,
 
-                        /*
-                         * Barang inventory:
-                         * 1 = sudah terkait warehouse
-                         *
-                         * Barang baru:
-                         * 0 = belum ada di warehouse
-                         */
-                        'added_to_warehouse' =>
-                            !empty($idStock)
-                            ? 0
-                            : 0,
+                        'added_to_warehouse' => !empty($idStock) ? 0 : 0,
                     ]);
                 }
 
@@ -1100,24 +1045,43 @@ class PurchasingController extends Controller
                 return [
                     'detail_id' => $item->id,
                     'id' => $item->id_stock,
+
                     'code' => optional($item->stok)->kode_barang ?? '',
                     'name' => $item->nama_barang,
                     'jenis' => optional($item->stok)->jenis ?? '',
-                    'warehouse' => $item->id_stock ? 'Gudang Utama' : 'Belum ada di inventory',
+
+                    'warehouse' => $item->id_stock
+                        ? 'Gudang Utama'
+                        : 'Belum ada di inventory',
+
                     'stock' => $item->id_stock
                         ? (float) (optional($item->stok)->stok_awal ?? 0)
                         : 0,
+
                     'qty' => (float) $item->qty,
                     'unit' => $item->unit ?? optional($item->stok)->satuan ?? '',
+
                     'reason' => '',
+
                     'supplier' => $item->supplier ?? '',
                     'po_no' => $item->po_no ?? '',
-                    'payment' => $item->payment ?? '',
+
+                    // PERBAIKAN PAYMENT
+                    'payment' => $item->payment_type ?? '',
+
                     'description' => $item->description ?? '',
                     'keterangan' => $item->keterangan ?? '',
+
                     'unit_price' => (float) ($item->price ?? 0),
-                    'total' => (float) (($item->price ?? 0) * ($item->qty ?? 0)),
+
+                    'total' => (float) (
+                        ($item->price ?? 0) * ($item->qty ?? 0)
+                    ),
+
                     'is_new' => empty($item->id_stock),
+
+                 
+                    'added_to_warehouse' => (bool) $item->added_to_warehouse,
                 ];
             })->values(),
             'files' => $editPengajuan->files
