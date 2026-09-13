@@ -1352,7 +1352,12 @@ class PurchasingController extends Controller
              * Drawing dibuat dengan ukuran FIXED sehingga tidak mengikuti
              * tinggi row.
              */
-            $sheet->getDrawingCollection()->exchangeArray([]);
+            /*
+             * PENTING:
+             * Jangan menghapus Drawing pada sheet utama.
+             * Logo NewWicker berasal dari Drawing di template Excel.
+             * TTD baru akan ditambahkan sebagai Drawing terpisah.
+             */
 
             /*
              * ============================================================
@@ -1384,18 +1389,75 @@ class PurchasingController extends Controller
                 'H9',
                 'Department : ' . $departmentName
             );
-            $sheet->setCellValue(
-                'L9',
-                'Need by Date :'
-            );
-            $sheet->setCellValue(
-                'L10',
-                $needDateText
-            );
+            /*
+             * NEED BY DATE:
+             * Template sudah mempunyai SATU kotak Need by Date di P6:P7.
+             * Jangan membuat kotak/header kedua di L9:P10.
+             */
+            $sheet->setCellValue('P6', 'Need by Date :');
+            $sheet->setCellValue('P7', $needDate ? \Carbon\Carbon::parse($needDate)->format('d-M-y') : '-');
+
+            $sheet->getStyle('P6:P7')
+                ->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                ->setVertical(Alignment::VERTICAL_CENTER);
+
+            $sheet->getStyle('P6')
+                ->getFont()
+                ->setBold(true);
+
+            $sheet->getStyle('P7')
+                ->getNumberFormat()
+                ->setFormatCode('d-M-yy');
+
+            /*
+             * Hapus hanya ISI Need by Date lama di header tabel.
+             * BORDER TEMPLATE TIDAK disentuh, karena area ini masih merupakan
+             * bagian dari header Purchase Request.
+             */
+            $sheet->setCellValue('L9', null);
+            $sheet->setCellValue('L10', null);
+
             $sheet->setCellValue(
                 'C10',
                 'Made by : ' . $madeByName
             );
+
+            /*
+             * Pastikan border header tabel tetap utuh.
+             * Area L9:P10 tetap mengikuti border asli template.
+             */
+            $tableHeaderRanges = [
+                "B9:Q9",
+                "B10:Q10",
+                "B12:Q12",
+                "B13:Q13",
+            ];
+
+            foreach ($tableHeaderRanges as $headerRange) {
+                $sheet->getStyle($headerRange)
+                    ->getBorders()
+                    ->getTop()
+                    ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+
+                $sheet->getStyle($headerRange)
+                    ->getBorders()
+                    ->getBottom()
+                    ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+            }
+
+            /*
+             * Status column tetap mempunyai garis kiri/kanan.
+             */
+            $sheet->getStyle('Q12:Q13')
+                ->getBorders()
+                ->getLeft()
+                ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+
+            $sheet->getStyle('Q12:Q13')
+                ->getBorders()
+                ->getRight()
+                ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
 
             /*
              * ============================================================
@@ -1581,7 +1643,7 @@ class PurchasingController extends Controller
                 $sheet->setCellValue("L{$row}", $qty);
                 $sheet->setCellValue("M{$row}", $unit);
                 $sheet->setCellValue("N{$row}", $price);
-                $sheet->setCellValue("P{$row}", $lineTotal);
+                $sheet->setCellValue("P{$row}", "=L{$row}*N{$row}");
 
                 $sheet->setCellValue(
                     "Q{$row}",
@@ -1622,6 +1684,17 @@ class PurchasingController extends Controller
                         Alignment::HORIZONTAL_RIGHT
                     );
 
+                /*
+                 * Harga dan Total:
+                 * "Rp." berada di sisi kiri melalui accounting-style format,
+                 * angka berada di sisi kanan cell.
+                 */
+                $sheet->getStyle("N{$row}:P{$row}")
+                    ->getAlignment()
+                    ->setHorizontal(
+                        Alignment::HORIZONTAL_RIGHT
+                    );
+
                 $sheet->getStyle("Q{$row}")
                     ->getAlignment()
                     ->setHorizontal(
@@ -1630,7 +1703,7 @@ class PurchasingController extends Controller
 
                 $sheet->getStyle("N{$row}:P{$row}")
                     ->getNumberFormat()
-                    ->setFormatCode('"Rp" #,##0');
+                    ->setFormatCode('"Rp."* #,##0');
             }
 
             /*
@@ -1647,7 +1720,7 @@ class PurchasingController extends Controller
                 $sheet->setCellValue("L{$row}", 0);
                 $sheet->setCellValue("M{$row}", '-');
                 $sheet->setCellValue("N{$row}", 0);
-                $sheet->setCellValue("P{$row}", 0);
+                $sheet->setCellValue("P{$row}", "=L{$row}*N{$row}");
                 $sheet->setCellValue("Q{$row}", '-');
             }
 
@@ -1683,7 +1756,7 @@ class PurchasingController extends Controller
             /*
              * Explicit Rupiah format. TOTAL remains an Excel formula.
              */
-            $totalCurrencyFormat = '"Rp" #,##0';
+            $totalCurrencyFormat = '"Rp."* #,##0';
 
             $sheet->getStyle("P{$totalRow}")
                 ->getNumberFormat()
@@ -1703,11 +1776,11 @@ class PurchasingController extends Controller
 
             $sheet->getStyle("N{$totalRow}:P{$totalRow}")
                 ->getNumberFormat()
-                ->setFormatCode('"Rp" #,##0');
+                ->setFormatCode('"Rp."* #,##0');
 
             $sheet->getStyle("P{$totalRow}")
                 ->getNumberFormat()
-                ->setFormatCode('"Rp" #,##0');
+                ->setFormatCode('"Rp."* #,##0');
 
             $sheet->getStyle("N{$totalRow}:P{$totalRow}")
                 ->getAlignment()
@@ -2426,6 +2499,10 @@ class PurchasingController extends Controller
                 }
             }
 
+            /*
+             * Sheet Lampiran dibuat baru, jadi tidak ada logo template
+             * yang perlu dipertahankan di sini.
+             */
             $attachmentSheet->getDrawingCollection()->exchangeArray([]);
 
             /*
