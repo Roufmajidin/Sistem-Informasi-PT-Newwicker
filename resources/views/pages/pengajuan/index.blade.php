@@ -618,9 +618,6 @@
                     scanner = null;
                 }
             }
-
-
-
             $('#filter-type').on('change', function() {
 
                 let type = $(this).val();

@@ -1143,3 +1143,7 @@ Route::post(
     '/pengajuan_purchasing/detail/{id}/add-to-warehouse',
     [PurchasingController::class, 'addToWarehouse']
 )->name('pengajuan_purchasing.add_to_warehouse');
+Route::get(
+    '/pengajuan_purchasing/{id}/export',
+    [PurchasingController::class, 'exportpurchasing']
+)->name('pengajuan_purchasing.export');

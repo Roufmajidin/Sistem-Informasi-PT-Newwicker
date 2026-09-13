@@ -779,7 +779,12 @@
             border-color: #d1d5db;
         }
     </style>
-
+      @section('btn')
+            <div>
+                <h6 class="mb-0 fw-bold">Pengajuan purchasing</h6>
+                <small class="text-muted">Bahan baku's, bahan penolong, dlll</small>
+            </div>
+        @endsection
     <div class="purchasing-page">
 
         <div class="purchasing-card">

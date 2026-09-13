@@ -16,6 +16,10 @@ use Illuminate\Support\Facades\Log;
 use App\Models\PengajuanFile;
 use App\Models\Karyawan;
 use Illuminate\Support\Facades\Storage;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
 class PurchasingController extends Controller
 {
     /**
@@ -549,56 +553,56 @@ class PurchasingController extends Controller
 
                 /*
                 |--------------------------------------------------------------------------
-                | CHECKED BY PERSON 1
+                | CHECKED BY APPROVER 1
                 |--------------------------------------------------------------------------
                 */
 
                 $this->createApprovalStep(
                     $pengajuan->id,
                     2,
-                    'Checked by Person 1',
+                    'Checked by',
                     $signature['checked_by_1'] ?? null
                 );
 
 
                 /*
                 |--------------------------------------------------------------------------
-                | CHECKED BY PERSON 2
+                | CHECKED BY APPROVER 2
                 |--------------------------------------------------------------------------
                 */
 
                 $this->createApprovalStep(
                     $pengajuan->id,
                     3,
-                    'Checked by Person 2',
+                    'Checked by',
                     $signature['checked_by_2'] ?? null
                 );
 
 
                 /*
                 |--------------------------------------------------------------------------
-                | CHECKED BY PERSON 1 GROUP 2
+                | CHECKED BY APPROVER 1 GROUP 2
                 |--------------------------------------------------------------------------
                 */
 
                 $this->createApprovalStep(
                     $pengajuan->id,
                     4,
-                    'Checked by Person 1',
+                    'Checked by',
                     $signature['checked_by_3'] ?? null
                 );
 
 
                 /*
                 |--------------------------------------------------------------------------
-                | CHECKED BY PERSON 2 GROUP 2
+                | CHECKED BY APPROVER 2 GROUP 2
                 |--------------------------------------------------------------------------
                 */
 
                 $this->createApprovalStep(
                     $pengajuan->id,
                     5,
-                    'Checked by Person 2',
+                    'Checked by',
                     $signature['checked_by_4'] ?? null
                 );
 
@@ -1080,7 +1084,7 @@ class PurchasingController extends Controller
 
                     'is_new' => empty($item->id_stock),
 
-                 
+
                     'added_to_warehouse' => (bool) $item->added_to_warehouse,
                 ];
             })->values(),
@@ -1291,4 +1295,1542 @@ class PurchasingController extends Controller
             ], 422);
         }
     }
+
+    /**
+     * Export Pengajuan Purchasing ke Excel menggunakan template.
+     *
+     * Template:
+     * storage/app/templates/templates-pengajuan.xlsx
+     */
+    public function exportpurchasing($id)
+    {
+        try {
+            $pengajuan = Pengajuan::with([
+                'user',
+                'divisi',
+                'meta',
+                'divisiItems.stok',
+                'approvalSteps',
+                'files',
+            ])
+                ->where('type_pengajuan', 'purchasing')
+                ->findOrFail($id);
+
+            $templatePath = storage_path(
+                'app/templates/templates-pengajuan-approver.xlsx'
+            );
+
+            if (!is_file($templatePath)) {
+                abort(
+                    500,
+                    'Template Excel tidak ditemukan: ' . $templatePath
+                );
+            }
+
+            $spreadsheet = IOFactory::load($templatePath);
+
+            $sheet = $spreadsheet->getSheetByName('mizan (4)')
+                ?: $spreadsheet->getActiveSheet();
+
+            /*
+             * ============================================================
+             * IMPORTANT: HAPUS DRAWING DARI TEMPLATE
+             * ============================================================
+             *
+             * Template mempunyai object/shape lama pada area signature.
+             * Kalau dibiarkan, object tersebut akan tetap ikut diekspor
+             * dan menimbulkan kotak putih/duplicate text seperti pada
+             * hasil sebelumnya.
+             *
+             * PhpSpreadsheet mendukung collection Drawing, tetapi tidak
+             * menyediakan API native untuk membuat Excel "Insert Shape"
+             * seperti UI Excel. Karena itu kita gunakan:
+             *
+             * - border + merged cells sebagai shape/container signature
+             * - Drawing floating untuk file PNG TTD
+             *
+             * Drawing dibuat dengan ukuran FIXED sehingga tidak mengikuti
+             * tinggi row.
+             */
+            $sheet->getDrawingCollection()->exchangeArray([]);
+
+            /*
+             * ============================================================
+             * HEADER
+             * ============================================================
+             */
+            $tanggal = optional($pengajuan->meta)->tanggal;
+            $needDate = $pengajuan->need_date;
+
+            $tanggalText = $tanggal
+                ? \Carbon\Carbon::parse($tanggal)->format('d/m/Y')
+                : '-';
+
+            $needDateText = $needDate
+                ? \Carbon\Carbon::parse($needDate)->format('d-M-y')
+                : '-';
+
+            $departmentName = optional($pengajuan->divisi)->nama
+                ?? optional($pengajuan->divisi)->name
+                ?? '-';
+
+            $madeByName = optional($pengajuan->user)->name ?? '-';
+
+            $sheet->setCellValue(
+                'B9',
+                'Requisition Date : ' . $tanggalText
+            );
+            $sheet->setCellValue(
+                'H9',
+                'Department : ' . $departmentName
+            );
+            $sheet->setCellValue(
+                'L9',
+                'Need by Date :'
+            );
+            $sheet->setCellValue(
+                'L10',
+                $needDateText
+            );
+            $sheet->setCellValue(
+                'C10',
+                'Made by : ' . $madeByName
+            );
+
+            /*
+             * ============================================================
+             * ITEM TABLE
+             * ============================================================
+             */
+            $items = $pengajuan->divisiItems
+                ->sortBy('id')
+                ->values();
+
+            $itemStartRow = 14;
+
+            /*
+             * Simpan format currency TOTAL dari template SEBELUM insert row.
+             * Pada template terbaru, format Rp berada pada P17. Setelah row
+             * baru disisipkan, nomor row TOTAL dapat bergeser, jadi format ini
+             * harus diambil terlebih dahulu.
+             */
+            $templateTotalCurrencyFormat = $sheet->getStyle('P17')
+                ->getNumberFormat()
+                ->getFormatCode();
+
+            // Template terbaru: hanya row 14 yang merupakan master item.
+            // Row 15 adalah row TOTAL dan harus dipertahankan stylenya.
+            $baseItemRows = 1;
+            $itemCount = max(1, $items->count());
+
+            /*
+             * Hapus nilai/formula lama pada area item + total bawaan template.
+             * Style dan border tidak dihapus.
+             */
+            for ($clearRow = 14; $clearRow <= 17; $clearRow++) {
+                foreach (range(2, 17) as $clearCol) {
+                    $sheet->getCellByColumnAndRow(
+                        (int) $clearCol,
+                        (int) $clearRow
+                    )->setValue(null);
+                }
+            }
+
+            /*
+             * Hapus merge item/total lama pada area template.
+             * Template terbaru: row 14 = item, row 15 = TOTAL.
+             */
+            foreach ($sheet->getMergeCells() as $merged) {
+                $parts = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::splitRange(
+                    (string) $merged
+                );
+
+                if (
+                    !isset($parts[0][0], $parts[0][1]) ||
+                    !isset($parts[0][1][0], $parts[0][1][1])
+                ) {
+                    continue;
+                }
+
+                $left = $parts[0][0];
+                $right = $parts[0][1];
+
+                $minCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString(
+                    preg_replace('/\d+/', '', $left)
+                );
+                $maxCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString(
+                    preg_replace('/\d+/', '', $right)
+                );
+                $minRow = (int) preg_replace('/\D+/', '', $left);
+                $maxRow = (int) preg_replace('/\D+/', '', $right);
+
+                if (
+                    $minCol <= 17 &&
+                    $maxCol >= 2 &&
+                    $minRow <= 15 &&
+                    $maxRow >= 14
+                ) {
+                    $sheet->unmergeCells($merged);
+                }
+            }
+
+            /*
+             * ============================================================
+             * TEMPLATE ROW RULE
+             * ============================================================
+             *
+             * Template terbaru Anda memang dibuat seperti ini:
+             *   Row 14 = MASTER ITEM
+             *   Row 15 = TOTAL
+             *
+             * Jadi JANGAN memakai row 16 sebagai master item.
+             * Jika item > 1, kita sisipkan row tepat sebelum row TOTAL (15).
+             * Dengan begitu row TOTAL asli otomatis terdorong ke bawah dan
+             * tetap mempertahankan style/border TOTAL dari template.
+             *
+             * Setiap row item tambahan menyalin style ROW 14 persis.
+             */
+            if ($itemCount > 1) {
+                $extraItemCount = $itemCount - 1;
+
+                // Sisipkan sebelum TOTAL row 15.
+                $sheet->insertNewRowBefore(15, $extraItemCount);
+
+                // Copy tinggi + style row 14 ke setiap row item baru.
+                for ($copyRow = 15; $copyRow <= 14 + $itemCount - 1; $copyRow++) {
+                    $sheet->getRowDimension($copyRow)->setRowHeight(
+                        $sheet->getRowDimension(14)->getRowHeight() ?: 32
+                    );
+
+                    foreach (range(2, 17) as $copyCol) {
+                        $sourceCell = $sheet->getCellByColumnAndRow(
+                            (int) $copyCol,
+                            14
+                        );
+                        $targetCell = $sheet->getCellByColumnAndRow(
+                            (int) $copyCol,
+                            (int) $copyRow
+                        );
+
+                        // Copy style template row 14, termasuk border.
+                        $targetCell->setXfIndex($sourceCell->getXfIndex());
+                    }
+                }
+            }
+
+            $lastItemRow = $itemStartRow + $itemCount - 1;
+            $totalRow = $lastItemRow + 1;
+
+            /*
+             * Struktur per item:
+             * B No
+             * C PO
+             * D Supplier
+             * E Payment
+             * F:J Description
+             * L Qty
+             * M Sat
+             * N:O Unit Price
+             * P Total
+             * Q Status
+             */
+            $grandTotal = 0;
+
+            foreach ($items as $index => $item) {
+                $row = $itemStartRow + $index;
+
+                $qty = (float) ($item->qty ?? 0);
+                $price = (float) ($item->price ?? 0);
+                $lineTotal = $qty * $price;
+                $grandTotal += $lineTotal;
+
+                $unit = $item->unit
+                    ?: optional($item->stok)->satuan
+                    ?: '-';
+
+                /*
+                 * Clear cells.
+                 */
+                foreach (range(2, 17) as $col) {
+                    $sheet->getCellByColumnAndRow(
+                        $col,
+                        $row
+                    )->setValue(null);
+                }
+
+                /*
+                 * Merge only the cells which need a wider area.
+                 */
+                $sheet->mergeCells("F{$row}:J{$row}");
+                $sheet->mergeCells("N{$row}:O{$row}");
+
+                $sheet->setCellValue("B{$row}", $index + 1);
+                $sheet->setCellValue("C{$row}", $item->po_no ?: '-');
+                $sheet->setCellValue("D{$row}", $item->supplier ?: '-');
+                $sheet->setCellValue(
+                    "E{$row}",
+                    $item->payment_type ?: '-'
+                );
+
+                // Description = nama_barang.
+                $sheet->setCellValue(
+                    "F{$row}",
+                    $item->nama_barang ?: '-'
+                );
+
+                $sheet->setCellValue("L{$row}", $qty);
+                $sheet->setCellValue("M{$row}", $unit);
+                $sheet->setCellValue("N{$row}", $price);
+                $sheet->setCellValue("P{$row}", $lineTotal);
+
+                $sheet->setCellValue(
+                    "Q{$row}",
+                    (bool) ($item->added_to_warehouse ?? false)
+                    ? 'Added to Warehouse'
+                    : '-'
+                );
+
+                $sheet->getRowDimension($row)->setRowHeight(32);
+
+                $sheet->getStyle("B{$row}:Q{$row}")
+                    ->getAlignment()
+                    ->setVertical(
+                        Alignment::VERTICAL_CENTER
+                    )
+                    ->setWrapText(true);
+
+                $sheet->getStyle("B{$row}:E{$row}")
+                    ->getAlignment()
+                    ->setHorizontal(
+                        Alignment::HORIZONTAL_CENTER
+                    );
+
+                /* Description F:J: merged + left aligned. */
+                $sheet->getStyle("F{$row}:J{$row}")
+                    ->getAlignment()
+                    ->setHorizontal(
+                        Alignment::HORIZONTAL_LEFT
+                    )
+                    ->setVertical(
+                        Alignment::VERTICAL_CENTER
+                    )
+                    ->setWrapText(true);
+
+                $sheet->getStyle("L{$row}:P{$row}")
+                    ->getAlignment()
+                    ->setHorizontal(
+                        Alignment::HORIZONTAL_RIGHT
+                    );
+
+                $sheet->getStyle("Q{$row}")
+                    ->getAlignment()
+                    ->setHorizontal(
+                        Alignment::HORIZONTAL_CENTER
+                    );
+
+                $sheet->getStyle("N{$row}:P{$row}")
+                    ->getNumberFormat()
+                    ->setFormatCode('"Rp" #,##0');
+            }
+
+            /*
+             * Kalau tidak ada item, tetap tampil satu row kosong.
+             */
+            if ($items->isEmpty()) {
+                $row = $itemStartRow;
+
+                $sheet->mergeCells("F{$row}:J{$row}");
+                $sheet->mergeCells("N{$row}:O{$row}");
+
+                $sheet->setCellValue("B{$row}", 1);
+                $sheet->setCellValue("F{$row}", '-');
+                $sheet->setCellValue("L{$row}", 0);
+                $sheet->setCellValue("M{$row}", '-');
+                $sheet->setCellValue("N{$row}", 0);
+                $sheet->setCellValue("P{$row}", 0);
+                $sheet->setCellValue("Q{$row}", '-');
+            }
+
+            /*
+             * Total.
+             */
+            $sheet->mergeCells("C{$totalRow}:M{$totalRow}");
+
+            $sheet->setCellValue(
+                "N{$totalRow}",
+                'TOTAL'
+            );
+
+            /*
+             * TOTAL HARUS MENGGUNAKAN RUMUS EXCEL, BUKAN VALUE PHP.
+             *
+             * Contoh:
+             *   1 item  -> =SUM(P14:P14)
+             *   2 item  -> =SUM(P14:P15)
+             *   7 item  -> =SUM(P14:P20)
+             *
+             * Dengan begitu jika harga/qty diedit di Excel, TOTAL ikut
+             * menghitung ulang secara otomatis.
+             */
+            $totalFormula = "=SUM(P{$itemStartRow}:P{$lastItemRow})";
+            $sheet->setCellValue("P{$totalRow}", $totalFormula);
+
+            /*
+             * Pertahankan format currency/Rp dari TOTAL template.
+             * Template Anda menggunakan accounting format Rp pada cell
+             * TOTAL, jadi jangan menggantinya dengan #,##0 biasa.
+             */
+            /*
+             * Explicit Rupiah format. TOTAL remains an Excel formula.
+             */
+            $totalCurrencyFormat = '"Rp" #,##0';
+
+            $sheet->getStyle("P{$totalRow}")
+                ->getNumberFormat()
+                ->setFormatCode($totalCurrencyFormat);
+
+            $sheet->setCellValue(
+                "Q{$totalRow}",
+                ''
+            );
+
+            $sheet->getRowDimension($totalRow)->setRowHeight(24);
+
+            $sheet->getStyle("N{$totalRow}:P{$totalRow}")
+                ->getFont()
+                ->setBold(true)
+                ->setSize(9);
+
+            $sheet->getStyle("N{$totalRow}:P{$totalRow}")
+                ->getNumberFormat()
+                ->setFormatCode('"Rp" #,##0');
+
+            $sheet->getStyle("P{$totalRow}")
+                ->getNumberFormat()
+                ->setFormatCode('"Rp" #,##0');
+
+            $sheet->getStyle("N{$totalRow}:P{$totalRow}")
+                ->getAlignment()
+                ->setHorizontal(
+                    Alignment::HORIZONTAL_RIGHT
+                )
+                ->setVertical(
+                    Alignment::VERTICAL_CENTER
+                );
+
+            /*
+             * ============================================================
+             * CLEAN TEMPLATE TOTAL ROW RESIDUE
+             * ============================================================
+             *
+             * Template asli mempunyai 3 baris item (14:16) dan total
+             * bawaan setelahnya. Jika item hanya 1 atau 2, total dinamis
+             * berada di row 15/16, sehingga row template lama masih dapat
+             * berisi formula seperti =SUM(P14:P15).
+             *
+             * Hapus NILAI/FORMULA pada row setelah total dinamis sampai
+             * row 17 agar tidak muncul angka ganda seperti:
+             *   333,000
+             *   666,000
+             *
+             * Hanya isi yang dibersihkan; border/layout template tetap.
+             */
+            $templateLastTableRow = 17;
+
+            if ($totalRow < $templateLastTableRow) {
+                for ($clearRow = $totalRow + 1; $clearRow <= $templateLastTableRow; $clearRow++) {
+                    foreach (range(2, 17) as $clearCol) {
+                        $sheet->getCellByColumnAndRow(
+                            (int) $clearCol,
+                            (int) $clearRow
+                        )->setValue(null);
+                    }
+                }
+            }
+
+            /*
+             * ============================================================
+             * SIGNATURE / APPROVAL
+             * ============================================================
+             *
+             * IKUTI PROPORSI TEMPLATE ASLI.
+             *
+             * Block yang dipakai template:
+             *
+             * B:C   Made by
+             * D:E   Approver 1
+             * F:G   Approver 2
+             * H:I   Approver 3
+             * J:K   Approver 3 / Approver 4 sesuai step
+             * L:M   Approver 4
+             * N:Q   Approver 5 / final approver
+             *
+             * Jangan memakai block L:N dan O:Q karena akan mengubah
+             * proporsi template asli.
+             */
+            $approvalSteps = $pengajuan->approvalSteps
+                ->sortBy('step_order')
+                ->values();
+
+            /*
+             * Step 1 = Made by.
+             * Jika step 1 tidak ada di approval_steps, buat virtual step
+             * menggunakan user pembuat pengajuan.
+             */
+            $madeStep = $approvalSteps->firstWhere('step_order', 1);
+
+            if (!$madeStep) {
+                $madeStep = new PengajuanApprovalStep();
+                $madeStep->step_order = 1;
+                $madeStep->step_name = 'Made by';
+                $madeStep->user_name = $madeByName;
+                $madeStep->status = 'approved';
+                $madeStep->approved_at = $pengajuan->created_at;
+            }
+
+            $approvalSteps = collect([$madeStep])
+                ->merge(
+                    $approvalSteps->reject(
+                        fn($step) => (int) $step->step_order === 1
+                    )
+                )
+                ->values();
+
+            /*
+             * Cari user berdasarkan user_name karena tabel
+             * pengajuan_approval_steps tidak mempunyai user_id.
+             */
+            $userNames = $approvalSteps
+                ->pluck('user_name')
+                ->filter()
+                ->map(fn($name) => trim((string) $name))
+                ->filter()
+                ->unique()
+                ->values();
+
+            $usersByName = User::with('karyawan.divisi')
+                ->whereIn('name', $userNames->all())
+                ->get()
+                ->keyBy('name');
+
+            /*
+             * ============================================================
+             * SIGNATURE / APPROVAL — FINAL CLEAN LAYOUT
+             * ============================================================
+             *
+             * Proporsi mengikuti template:
+             * B:C = Made by
+             * D:E = Approver 1
+             * F:G = Approver 2
+             * H:I = Approver 3
+             * J:K = Approver 4 (blok sempit / VP SALES)
+             * L:M = Approver 5
+             * N:Q = Final Approver
+             *
+             * Fokus perbaikan:
+             * - area header/nama dibuat cukup tinggi
+             * - area TTD dipisahkan dari nama dan tanggal
+             * - blok J:K diperlakukan khusus karena sangat sempit
+             * - tanggal tidak dipaksa satu baris pada blok sempit
+             * - TTD dicrop dari whitespace PNG lalu di-center
+             */
+            $approvalSteps = $pengajuan->approvalSteps
+                ->sortBy('step_order')
+                ->values();
+
+            $madeStep = $approvalSteps->firstWhere('step_order', 1);
+
+            if (!$madeStep) {
+                $madeStep = new PengajuanApprovalStep();
+                $madeStep->step_order = 1;
+                $madeStep->step_name = 'Made by';
+                $madeStep->user_name = $madeByName;
+                $madeStep->status = 'approved';
+                $madeStep->approved_at = $pengajuan->created_at;
+            }
+
+            $approvalSteps = collect([$madeStep])
+                ->merge(
+                    $approvalSteps->reject(
+                        fn($step) => (int) $step->step_order === 1
+                    )
+                )
+                ->values();
+
+            $userNames = $approvalSteps
+                ->pluck('user_name')
+                ->filter()
+                ->map(fn($name) => trim((string) $name))
+                ->filter()
+                ->unique()
+                ->values();
+
+            $usersByName = User::with('karyawan.divisi')
+                ->whereIn('name', $userNames->all())
+                ->get()
+                ->keyBy('name');
+
+            /* Proporsi block TTD sesuai template. */
+            $signatureBlocks = [
+                1 => ['B', 'C'],
+                2 => ['D', 'E'],
+                3 => ['F', 'G'],
+                4 => ['H', 'I'],
+                5 => ['J', 'K'],
+                6 => ['L', 'M'],
+                7 => ['N', 'Q'],
+            ];
+
+            $signatureTopRow = $totalRow + 2;
+            $signatureRoleRow = $signatureTopRow + 1;
+            $signatureBodyStartRow = $signatureRoleRow + 1;
+            $signatureBodyEndRow = $signatureBodyStartRow + 4; // 5 row area
+            $signatureDateRow = $signatureBodyEndRow + 1;
+
+            /* Hapus merge lama yang menyentuh signature area. */
+            $signatureMerges = $sheet->getMergeCells();
+            foreach ($signatureMerges as $merged) {
+                $parts = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::splitRange((string) $merged);
+                $range = $parts[0] ?? [];
+                if (count($range) < 2) {
+                    continue;
+                }
+
+                $from = $range[0];
+                $to = $range[1];
+                $fromCol = preg_replace('/\d+/', '', $from);
+                $toCol = preg_replace('/\d+/', '', $to);
+                $fromRow = (int) preg_replace('/\D+/', '', $from);
+                $toRow = (int) preg_replace('/\D+/', '', $to);
+
+                $fromIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($fromCol);
+                $toIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($toCol);
+
+                if (
+                    $fromIndex <= 17 &&
+                    $toIndex >= 2 &&
+                    $fromRow <= $signatureDateRow &&
+                    $toRow >= $signatureTopRow
+                ) {
+                    $sheet->unmergeCells($merged);
+                }
+            }
+
+            /* Bersihkan isi lama seperti Person 1, Person 2, dst. */
+            for ($r = $signatureTopRow; $r <= $signatureDateRow; $r++) {
+                foreach (range(2, 17) as $col) {
+                    $sheet->getCellByColumnAndRow($col, $r)->setValue(null);
+                }
+            }
+
+            /* Judul section. */
+            $sheet->mergeCells("B{$signatureTopRow}:Q{$signatureTopRow}");
+            $sheet->setCellValue(
+                "B{$signatureTopRow}",
+                'Signature / Approval'
+            );
+            $sheet->getRowDimension($signatureTopRow)->setRowHeight(18);
+            $sheet->getStyle("B{$signatureTopRow}:Q{$signatureTopRow}")
+                ->getFont()
+                ->setBold(true)
+                ->setSize(9);
+            $sheet->getStyle("B{$signatureTopRow}:Q{$signatureTopRow}")
+                ->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_LEFT)
+                ->setVertical(Alignment::VERTICAL_CENTER);
+
+            /*
+             * Tinggi dibuat sedikit lebih longgar agar setiap elemen punya
+             * breathing room dan TTD tidak mepet ke nama/tanggal.
+             */
+            $sheet->getRowDimension($signatureRoleRow)->setRowHeight(43);
+            for ($r = $signatureBodyStartRow; $r <= $signatureBodyEndRow; $r++) {
+                $sheet->getRowDimension($r)->setRowHeight(25);
+            }
+            $sheet->getRowDimension($signatureDateRow)->setRowHeight(34);
+
+            /* Buat container tiap signature block. */
+            foreach ($signatureBlocks as [$left, $right]) {
+                $sheet->mergeCells(
+                    "{$left}{$signatureRoleRow}:{$right}{$signatureRoleRow}"
+                );
+                $sheet->mergeCells(
+                    "{$left}{$signatureBodyStartRow}:{$right}{$signatureBodyEndRow}"
+                );
+                $sheet->mergeCells(
+                    "{$left}{$signatureDateRow}:{$right}{$signatureDateRow}"
+                );
+
+                /*
+                 * Signature TIDAK memakai border kotak.
+                 * Template tetap dipakai, tetapi seluruh area signature
+                 * dibuat clean tanpa garis vertikal/horizontal.
+                 */
+                /*
+                 * SIGNATURE CLEAN — tidak ada border pada area approver.
+                 */
+                $range = "{$left}{$signatureRoleRow}:{$right}{$signatureDateRow}";
+
+                $sheet->getStyle($range)->applyFromArray([
+                    'borders' => [
+                        'top' => [
+                            'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_NONE,
+                        ],
+                        'bottom' => [
+                            'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_NONE,
+                        ],
+                        'left' => [
+                            'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_NONE,
+                        ],
+                        'right' => [
+                            'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_NONE,
+                        ],
+                        'insideHorizontal' => [
+                            'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_NONE,
+                        ],
+                        'insideVertical' => [
+                            'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_NONE,
+                        ],
+                    ],
+                ]);
+            }
+
+            /*
+             * Crop whitespace PNG TTD.
+             * Ini membuat ukuran Drawing benar-benar mengikuti tinta/signature.
+             */
+            $preparedSignatureFiles = [];
+
+            $prepareSignature = function (string $sourcePath) use (&$preparedSignatureFiles): ?string {
+                if (!function_exists('imagecreatefrompng')) {
+                    return $sourcePath;
+                }
+
+                $info = @getimagesize($sourcePath);
+                if (!$info || empty($info[0]) || empty($info[1])) {
+                    return $sourcePath;
+                }
+
+                $src = @imagecreatefrompng($sourcePath);
+                if (!$src) {
+                    return $sourcePath;
+                }
+
+                imagealphablending($src, false);
+                imagesavealpha($src, true);
+
+                $w = imagesx($src);
+                $h = imagesy($src);
+                $minX = $w;
+                $minY = $h;
+                $maxX = -1;
+                $maxY = -1;
+
+                for ($y = 0; $y < $h; $y++) {
+                    for ($x = 0; $x < $w; $x++) {
+                        $rgba = imagecolorat($src, $x, $y);
+                        $a = ($rgba >> 24) & 0x7F;
+                        $r = ($rgba >> 16) & 0xFF;
+                        $g = ($rgba >> 8) & 0xFF;
+                        $b = $rgba & 0xFF;
+
+                        /* Putih hampir murni dianggap background. */
+                        $isInk = ($r < 238 || $g < 238 || $b < 238 || $a > 10);
+
+                        if ($isInk) {
+                            $minX = min($minX, $x);
+                            $minY = min($minY, $y);
+                            $maxX = max($maxX, $x);
+                            $maxY = max($maxY, $y);
+                        }
+                    }
+                }
+
+                /* Tidak ditemukan tinta. */
+                if ($maxX < 0 || $maxY < 0) {
+                    imagedestroy($src);
+                    return $sourcePath;
+                }
+
+                /* Tambahkan padding kecil agar tinta tidak terpotong. */
+                $paddingX = max(4, (int) round(($maxX - $minX + 1) * 0.04));
+                $paddingY = max(4, (int) round(($maxY - $minY + 1) * 0.08));
+
+                $cropX = max(0, $minX - $paddingX);
+                $cropY = max(0, $minY - $paddingY);
+                $cropRight = min($w - 1, $maxX + $paddingX);
+                $cropBottom = min($h - 1, $maxY + $paddingY);
+
+                $cropW = max(1, $cropRight - $cropX + 1);
+                $cropH = max(1, $cropBottom - $cropY + 1);
+
+                $dst = imagecreatetruecolor($cropW, $cropH);
+                imagealphablending($dst, false);
+                imagesavealpha($dst, true);
+                $transparent = imagecolorallocatealpha($dst, 255, 255, 255, 127);
+                imagefilledrectangle($dst, 0, 0, $cropW, $cropH, $transparent);
+
+                imagecopy(
+                    $dst,
+                    $src,
+                    0,
+                    0,
+                    $cropX,
+                    $cropY,
+                    $cropW,
+                    $cropH
+                );
+
+                $tmpPng = storage_path(
+                    'app/tmp/ttd_' . uniqid('', true) . '.png'
+                );
+
+                if (!is_dir(dirname($tmpPng))) {
+                    @mkdir(dirname($tmpPng), 0775, true);
+                }
+
+                imagepng($dst, $tmpPng, 6);
+                imagedestroy($dst);
+                imagedestroy($src);
+
+                if (!is_file($tmpPng)) {
+                    return $sourcePath;
+                }
+
+                $preparedSignatureFiles[] = $tmpPng;
+                return $tmpPng;
+            };
+
+            /* Hitung ukuran gambar tanpa merusak aspect ratio. */
+            $getTtdSize = function (string $path, float $maxWidth, float $maxHeight): array {
+                $info = @getimagesize($path);
+                if (!$info || empty($info[0]) || empty($info[1])) {
+                    return [0, 0];
+                }
+
+                $width = (float) $info[0];
+                $height = (float) $info[1];
+                $ratio = min($maxWidth / $width, $maxHeight / $height);
+
+                return [
+                    max(1, (int) round($width * $ratio)),
+                    max(1, (int) round($height * $ratio)),
+                ];
+            };
+
+            /*
+             * Isi 7 approver.
+             */
+            foreach ($signatureBlocks as $blockNo => [$left, $right]) {
+                $step = $approvalSteps->get($blockNo - 1);
+
+                if (!$step) {
+                    continue;
+                }
+
+                $stepOrder = (int) $step->step_order;
+                $userName = trim((string) ($step->user_name ?: '-'));
+                $user = $usersByName->get($userName);
+                $userId = $user?->id;
+                $isNarrowBlock = ($blockNo === 5); // J:K / VP SALES
+                $isFinalBlock = ($blockNo === 7);  // N:Q
+
+                if ($blockNo === 1) {
+                    $role = 'Made by';
+                    $divisionName = null;
+                } elseif ($isFinalBlock) {
+                    $role = 'Approved by';
+                    $divisionName = null;
+                } else {
+                    $role = 'Checked by';
+                    $divisionName = optional(
+                        optional($user?->karyawan)->divisi
+                    )->nama;
+
+                    if ($stepOrder === 6 || $blockNo === 6) {
+                        $divisionName = 'FINANCE ACC';
+                    }
+                }
+
+                /*
+                 * Header lebih pendek khusus block J:K.
+                 * Jangan sampai "Approved at" / role dipaksa terlalu sempit.
+                 */
+                if ($isNarrowBlock) {
+                    $headerParts = [$role];
+                    if ($divisionName) {
+                        $headerParts[] = $divisionName;
+                    }
+                    $headerParts[] = $userName;
+                    $header = implode("\n", $headerParts);
+                } else {
+                    $header = $role;
+                    if ($divisionName) {
+                        $header .= "\n{$divisionName}";
+                    }
+                    $header .= "\n{$userName}";
+                }
+
+                $sheet->setCellValue(
+                    "{$left}{$signatureRoleRow}",
+                    $header
+                );
+
+                $roleStyle = $sheet->getStyle(
+                    "{$left}{$signatureRoleRow}:{$right}{$signatureRoleRow}"
+                );
+
+                $roleStyle->getFont()
+                    ->setBold(false)
+                    ->setSize($isNarrowBlock ? 6.2 : 7.5);
+
+                $roleStyle->getAlignment()
+                    ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                    ->setVertical(Alignment::VERTICAL_CENTER)
+                    ->setWrapText(true);
+
+                /* Area TTD benar-benar terpisah dari header dan tanggal. */
+                $bodyRange =
+                    "{$left}{$signatureBodyStartRow}:{$right}{$signatureBodyEndRow}";
+
+                $sheet->getStyle($bodyRange)
+                    ->getAlignment()
+                    ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                    ->setVertical(Alignment::VERTICAL_CENTER)
+                    ->setWrapText(false);
+
+                /* Status / approved at. */
+                $approved = strtolower(trim((string) $step->status)) === 'approved';
+
+                if ($approved) {
+                    $approvedAt = $step->approved_at
+                        ? \Carbon\Carbon::parse($step->approved_at)
+                        : null;
+
+                    if ($isNarrowBlock) {
+                        /* 3 baris agar tidak pecah menjadi karakter vertikal. */
+                        $dateText = $approvedAt
+                            ? "Approved\n" . $approvedAt->format('d-m-Y') . "\n" . $approvedAt->format('H:i')
+                            : "Approved\n-";
+                    } else {
+                        $dateText = $approvedAt
+                            ? "Approved at:\n" . $approvedAt->format('d-m-Y H:i')
+                            : "Approved at:\n-";
+                    }
+                } else {
+                    $dateText = 'Pending';
+                }
+
+                $sheet->setCellValue(
+                    "{$left}{$signatureDateRow}",
+                    $dateText
+                );
+
+                $dateStyle = $sheet->getStyle(
+                    "{$left}{$signatureDateRow}:{$right}{$signatureDateRow}"
+                );
+
+                $dateStyle->getFont()
+                    ->setBold(true)
+                    ->setSize($isNarrowBlock ? 5.8 : 7.0);
+
+                $dateStyle->getAlignment()
+                    ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                    ->setVertical(Alignment::VERTICAL_CENTER)
+                    ->setWrapText(true);
+
+                /* ========================================================
+                 * TTD — CENTERED, PROPORTIONAL, DENGAN SAFE AREA
+                 * ======================================================== */
+                if ($userId) {
+                    $sourceTtdPath = public_path(
+                        'assets/ttd_png/' . $userId . '.png'
+                    );
+
+                    if (is_file($sourceTtdPath)) {
+                        $ttdPath = $prepareSignature($sourceTtdPath);
+
+                        $leftIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($left);
+                        $rightIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($right);
+
+                        $blockWidthExcel = 0.0;
+                        for ($c = $leftIndex; $c <= $rightIndex; $c++) {
+                            $col = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($c);
+                            $width = $sheet->getColumnDimension($col)->getWidth();
+                            if (!$width || $width <= 0) {
+                                $width = 8.43;
+                            }
+                            $blockWidthExcel += $width;
+                        }
+
+                        /* Excel width -> pendekatan pixel. */
+                        $blockWidthPx = $blockWidthExcel * 7.0;
+                        $bodyHeightPx = 5 * 25 * (96 / 72);
+
+                        /*
+                         * Block sempit tidak dipaksa besar karena akan menyentuh
+                         * border. Block normal dibuat lebih besar.
+                         */
+                        if ($isNarrowBlock) {
+                            // VP SALES tetap proporsional, tetapi gunakan hampir
+                            // seluruh lebar kotak agar TTD tidak terlihat kecil.
+                            $maxWidth = max(30, floor($blockWidthPx * 0.84));
+                            $maxHeight = 58;
+                        } else {
+                            // Signature normal dibuat jauh lebih besar dan
+                            // memanfaatkan area body tanpa menyentuh border.
+                            $maxWidth = max(42, floor($blockWidthPx * 0.92));
+                            $maxHeight = $isFinalBlock ? 84 : 74;
+                        }
+
+                        [$ttdWidth, $ttdHeight] = $getTtdSize(
+                            $ttdPath,
+                            $maxWidth,
+                            $maxHeight
+                        );
+
+                        if ($ttdWidth > 0 && $ttdHeight > 0) {
+                            $drawing = new Drawing();
+                            $drawing->setName('TTD - ' . $userName);
+                            $drawing->setDescription('TTD - ' . $userName);
+                            $drawing->setPath($ttdPath);
+                            $drawing->setWidth($ttdWidth);
+                            $drawing->setHeight($ttdHeight);
+                            $drawing->setCoordinates(
+                                "{$left}{$signatureBodyStartRow}"
+                            );
+
+                            /* Center horizontal terhadap block. */
+                            $offsetX = max(
+                                1,
+                                (int) round(($blockWidthPx - $ttdWidth) / 2)
+                            );
+
+                            /*
+                             * Center vertikal tetapi diberi sedikit bias ke atas.
+                             * Tujuannya memberi jarak aman dari Approved at.
+                             */
+                            $safeBodyHeightPx = $bodyHeightPx - 12;
+                            $offsetY = max(
+                                4,
+                                (int) round(($safeBodyHeightPx - $ttdHeight) / 2) - 4
+                            );
+
+                            $drawing->setOffsetX($offsetX);
+                            $drawing->setOffsetY($offsetY);
+                            $drawing->setWorksheet($sheet);
+                        }
+                    }
+                }
+            }
+
+            /*
+             * File temp TTD jangan dihapus sebelum writer selesai membaca
+             * gambar. Cleanup dilakukan setelah XLSX selesai di-stream.
+             */
+
+            /*
+             * ============================================================
+             * CLEANUP ROW 26-27
+             * ============================================================
+             * Baris kosong setelah signature tidak boleh memiliki border
+             * dari template lama.
+             */
+            /*
+             * Hanya hapus border jika row 26-27 memang berada DI BAWAH
+             * signature. Jangan menyentuh border signature apabila jumlah
+             * item membuat signature bergeser sampai row tersebut.
+             */
+            if ($signatureDateRow < 26) {
+                $sheet->getStyle('B26:Q27')
+                    ->getBorders()
+                    ->getTop()
+                    ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_NONE);
+                $sheet->getStyle('B26:Q27')
+                    ->getBorders()
+                    ->getBottom()
+                    ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_NONE);
+                $sheet->getStyle('B26:Q27')
+                    ->getBorders()
+                    ->getLeft()
+                    ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_NONE);
+                $sheet->getStyle('B26:Q27')
+                    ->getBorders()
+                    ->getRight()
+                    ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_NONE);
+                // PhpSpreadsheet tidak menyediakan getInsideHorizontal()/getInsideVertical().
+                // Border internal pada area kosong 26:27 tidak perlu disentuh;
+                // cukup hilangkan border luar area tersebut.
+            }
+
+            /*
+             * ============================================================
+             * LAMPIRAN — SHEET 2 KHUSUS
+             * ============================================================
+             *
+             * Attachment TIDAK lagi ditempel di bawah Signature pada sheet
+             * Purchase Request. Semua attachment dikumpulkan di SHEET 2.
+             *
+             * Sheet 1 : Purchase Request
+             * Sheet 2 : Lampiran
+             *
+             * Dengan cara ini jumlah item sebanyak apa pun tidak akan pernah
+             * membuat gambar attachment terpotong di batas page sheet 1.
+             */
+            $attachments = $pengajuan->files
+                ->where('type', 'image')
+                ->values();
+
+            /*
+             * Pastikan workbook memiliki sheet kedua.
+             */
+            if ($spreadsheet->getSheetCount() < 2) {
+                $attachmentSheet = $spreadsheet->createSheet();
+            } else {
+                $attachmentSheet = $spreadsheet->getSheet(1);
+            }
+
+            $attachmentSheet->setTitle('Lampiran');
+            $attachmentSheet->setShowGridlines(false);
+            $attachmentSheet->setPrintGridlines(false);
+
+            /*
+             * Bersihkan isi/merge/drawing lama pada sheet 2.
+             */
+            foreach ($attachmentSheet->getMergeCells() as $merged) {
+                try {
+                    $attachmentSheet->unmergeCells($merged);
+                } catch (\Throwable $ignored) {
+                    // Ignore invalid legacy merge.
+                }
+            }
+
+            /*
+             * Clear template content safely.
+             * getColumnIndex() pada beberapa versi PhpSpreadsheet mengembalikan
+             * huruf kolom (mis. "A"), sedangkan getCellByColumnAndRow()
+             * membutuhkan integer. Karena itu jangan passing nilai tersebut
+             * langsung ke getCellByColumnAndRow().
+             */
+            $highestRow = max(200, (int) $attachmentSheet->getHighestRow());
+            $highestColumnIndex = max(18,
+                \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString(
+                    $attachmentSheet->getHighestColumn()
+                )
+            );
+
+            for ($rowNo = 1; $rowNo <= $highestRow; $rowNo++) {
+                for ($colNo = 1; $colNo <= $highestColumnIndex; $colNo++) {
+                    $attachmentSheet->getCellByColumnAndRow($colNo, $rowNo)
+                        ->setValue(null);
+                }
+            }
+
+            $attachmentSheet->getDrawingCollection()->exchangeArray([]);
+
+            /*
+             * Lebar area kiri/kanan dibuat seimbang agar dua gambar benar-benar
+             * berada berdampingan dalam A4 Landscape.
+             */
+            $attachmentSheet->getColumnDimension('A')->setWidth(2);
+            foreach (['B','C','D','E','F','G','H','I'] as $col) {
+                $attachmentSheet->getColumnDimension($col)->setWidth(11);
+            }
+            foreach (['J','K','L','M','N','O','P','Q'] as $col) {
+                $attachmentSheet->getColumnDimension($col)->setWidth(11);
+            }
+
+            $attachmentSheet->getColumnDimension('R')->setWidth(2);
+
+            /*
+             * A4 Landscape:
+             *  - 2 gambar per halaman
+             *  - pasangan berikutnya selalu page baru
+             */
+            $attachmentSheet->getPageSetup()
+                ->setOrientation(
+                    \PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::ORIENTATION_LANDSCAPE
+                )
+                ->setPaperSize(
+                    \PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::PAPERSIZE_A4
+                )
+                ->setFitToWidth(1)
+                ->setFitToHeight(0)
+                ->setFitToPage(true)
+                ->setHorizontalCentered(true)
+                ->setVerticalCentered(false);
+
+            $attachmentSheet->getPageMargins()
+                ->setTop(0.25)
+                ->setRight(0.25)
+                ->setBottom(0.25)
+                ->setLeft(0.25)
+                ->setHeader(0)
+                ->setFooter(0);
+
+            $attachmentSheet->getHeaderFooter()
+                ->setOddFooter('&CPage &P of &N');
+
+            $attachmentSheet->setCellValue('B1', 'Purchase Request');
+            $attachmentSheet->mergeCells('B1:Q1');
+            $attachmentSheet->getStyle('B1:Q1')
+                ->getFont()
+                ->setBold(true)
+                ->setSize(14);
+            $attachmentSheet->getStyle('B1:Q1')
+                ->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                ->setVertical(Alignment::VERTICAL_CENTER);
+            $attachmentSheet->getRowDimension(1)->setRowHeight(24);
+
+            $attachmentSheet->setCellValue(
+                'B2',
+                'Lampiran Purchase Request #' . $pengajuan->id
+            );
+            $attachmentSheet->mergeCells('B2:Q2');
+            $attachmentSheet->getStyle('B2:Q2')
+                ->getFont()
+                ->setBold(true)
+                ->setSize(10);
+            $attachmentSheet->getStyle('B2:Q2')
+                ->getAlignment()
+                ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                ->setVertical(Alignment::VERTICAL_CENTER);
+            $attachmentSheet->getRowDimension(2)->setRowHeight(18);
+
+            $attachmentColumns = [
+                ['B', 'I'],
+                ['J', 'Q'],
+            ];
+
+            /*
+             * Ukuran image dibuat besar, tetapi tidak lebih besar dari setengah
+             * area printable A4 agar dua gambar tetap muat berdampingan.
+             */
+            $attachmentMaxWidth = 360;
+            $attachmentMaxHeight = 390;
+
+            $attachmentRow = 4;
+            $attachmentIndex = 0;
+
+            foreach ($attachments->chunk(2) as $pairIndex => $pair) {
+                /*
+                 * Pair pertama = halaman pertama SHEET 2.
+                 * Pair berikutnya = halaman berikutnya.
+                 */
+                if ($pairIndex > 0) {
+                    $breakAfterRow = $attachmentRow - 1;
+                    $attachmentSheet->setBreak(
+                        "B{$breakAfterRow}",
+                        \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet::BREAK_ROW
+                    );
+                }
+
+                $pageLabel = 'Lampiran : Hal ' . ($pairIndex + 2);
+
+                $attachmentSheet->mergeCells(
+                    "B{$attachmentRow}:Q{$attachmentRow}"
+                );
+                $attachmentSheet->setCellValue(
+                    "B{$attachmentRow}",
+                    $pageLabel
+                );
+                $attachmentSheet->getStyle(
+                    "B{$attachmentRow}:Q{$attachmentRow}"
+                )
+                    ->getFont()
+                    ->setBold(true)
+                    ->setSize(11);
+                $attachmentSheet->getStyle(
+                    "B{$attachmentRow}:Q{$attachmentRow}"
+                )
+                    ->getAlignment()
+                    ->setHorizontal(Alignment::HORIZONTAL_LEFT)
+                    ->setVertical(Alignment::VERTICAL_CENTER);
+                $attachmentSheet->getRowDimension(
+                    $attachmentRow
+                )->setRowHeight(22);
+
+                $imageRow = $attachmentRow + 1;
+                $reservedRows = 27;
+
+                for (
+                    $r = $imageRow;
+                    $r < $imageRow + $reservedRows;
+                    $r++
+                ) {
+                    $attachmentSheet->getRowDimension($r)->setRowHeight(15);
+                }
+
+                foreach ($pair->values() as $pairOffset => $attachment) {
+                    $filePath = null;
+
+                    try {
+                        if (!empty($attachment->file_path)) {
+                            $filePath = Storage::disk('public')
+                                ->path($attachment->file_path);
+                        }
+                    } catch (\Throwable $attachmentPathError) {
+                        Log::warning(
+                            'PURCHASING EXPORT ATTACHMENT PATH ERROR',
+                            [
+                                'pengajuan_id' => $pengajuan->id,
+                                'file_id' => $attachment->id,
+                                'file_path' => $attachment->file_path,
+                                'message' => $attachmentPathError->getMessage(),
+                            ]
+                        );
+                    }
+
+                    if (!$filePath || !is_file($filePath)) {
+                        continue;
+                    }
+
+                    $extension = strtolower(
+                        pathinfo($filePath, PATHINFO_EXTENSION)
+                    );
+
+                    if (!in_array(
+                        $extension,
+                        ['jpg', 'jpeg', 'png', 'gif'],
+                        true
+                    )) {
+                        continue;
+                    }
+
+                    $info = @getimagesize($filePath);
+                    if (!$info || empty($info[0]) || empty($info[1])) {
+                        continue;
+                    }
+
+                    $originalWidth = (int) $info[0];
+                    $originalHeight = (int) $info[1];
+
+                    $ratio = min(
+                        $attachmentMaxWidth / $originalWidth,
+                        $attachmentMaxHeight / $originalHeight,
+                        1
+                    );
+
+                    $imageWidth = max(
+                        120,
+                        (int) round($originalWidth * $ratio)
+                    );
+                    $imageHeight = max(
+                        100,
+                        (int) round($originalHeight * $ratio)
+                    );
+
+                    [$leftCol, $rightCol] =
+                        $attachmentColumns[$pairOffset];
+
+                    /*
+                     * Tidak ada border container.
+                     */
+                    $attachmentSheet->mergeCells(
+                        "{$leftCol}{$imageRow}:{$rightCol}" .
+                        ($imageRow + $reservedRows - 1)
+                    );
+
+                    $attachmentSheet->getStyle(
+                        "{$leftCol}{$imageRow}:{$rightCol}" .
+                        ($imageRow + $reservedRows - 1)
+                    )
+                        ->getAlignment()
+                        ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                        ->setVertical(Alignment::VERTICAL_CENTER);
+
+                    $drawing = new Drawing();
+                    $drawing->setName(
+                        'Attachment ' . ($attachmentIndex + 1)
+                    );
+                    $drawing->setDescription(
+                        'Attachment ' . ($attachmentIndex + 1)
+                    );
+                    $drawing->setPath($filePath);
+                    $drawing->setWidth($imageWidth);
+                    $drawing->setHeight($imageHeight);
+                    $drawing->setCoordinates(
+                        "{$leftCol}{$imageRow}"
+                    );
+
+                    /*
+                     * Hitung lebar blok agar image benar-benar center.
+                     */
+                    $leftIndex =
+                        \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString(
+                            $leftCol
+                        );
+                    $rightIndex =
+                        \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString(
+                            $rightCol
+                        );
+
+                    $blockWidthExcel = 0.0;
+                    for ($c = $leftIndex; $c <= $rightIndex; $c++) {
+                        $col =
+                            \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(
+                                $c
+                            );
+                        $columnWidth =
+                            $attachmentSheet->getColumnDimension($col)->getWidth();
+                        $blockWidthExcel +=
+                            ($columnWidth && $columnWidth > 0)
+                            ? $columnWidth
+                            : 8.43;
+                    }
+
+                    $blockWidthPx = $blockWidthExcel * 7.0;
+                    $blockHeightPx =
+                        $reservedRows * 15 * (96 / 72);
+
+                    $offsetX = max(
+                        0,
+                        (int) round(
+                            ($blockWidthPx - $imageWidth) / 2
+                        )
+                    );
+                    $offsetY = max(
+                        0,
+                        (int) round(
+                            ($blockHeightPx - $imageHeight) / 2
+                        )
+                    );
+
+                    $drawing->setOffsetX($offsetX);
+                    $drawing->setOffsetY($offsetY);
+                    $drawing->setWorksheet($attachmentSheet);
+
+                    $attachmentIndex++;
+                }
+
+                /*
+                 * Jarak kecil sebelum pair berikutnya.
+                 */
+                $attachmentRow =
+                    $imageRow + $reservedRows + 2;
+            }
+
+            $attachmentLastRow = max(4, $attachmentRow - 1);
+
+            $attachmentSheet->getPageSetup()
+                ->setPrintArea("B1:Q{$attachmentLastRow}");
+
+            $attachmentSheet->setSelectedCell('B1');
+
+            /*
+             * ============================================================
+             * READY TO PRINT — SHEET 1
+             * ============================================================
+             */
+            $lastPrintRow = max(
+                $signatureDateRow + 1,
+                $totalRow + 1
+            );
+
+            $sheet->setShowGridlines(false);
+            $sheet->setPrintGridlines(false);
+
+            $sheet->getPageSetup()
+                ->setOrientation(
+                    \PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::ORIENTATION_LANDSCAPE
+                )
+                ->setPaperSize(
+                    \PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::PAPERSIZE_A4
+                )
+                ->setFitToWidth(1)
+                ->setFitToHeight(0)
+                ->setFitToPage(true)
+                ->setHorizontalCentered(true)
+                ->setVerticalCentered(false);
+
+            $sheet->getPageMargins()
+                ->setTop(0.20)
+                ->setRight(0.20)
+                ->setBottom(0.20)
+                ->setLeft(0.20)
+                ->setHeader(0)
+                ->setFooter(0);
+
+            $sheet->getPageSetup()
+                ->setPrintArea("B1:Q{$lastPrintRow}");
+
+            $sheet->getHeaderFooter()
+                ->setOddFooter('&CPage &P of &N');
+
+            /*
+             * Sheet 2 harus tetap visible. Hanya sheet setelah sheet 2 yang
+             * disembunyikan bila template suatu saat mempunyai sheet tambahan.
+             */
+            foreach ($spreadsheet->getWorksheetIterator() as $worksheet) {
+                $index = $spreadsheet->getIndex($worksheet);
+                if ($index >= 2) {
+                    $worksheet->setSheetState(
+                        \PhpOffice\PhpSpreadsheet\Worksheet\Worksheet::SHEETSTATE_HIDDEN
+                    );
+                }
+            }
+
+            $spreadsheet->setActiveSheetIndex(
+                $spreadsheet->getIndex($sheet)
+            );
+
+            $filename =
+                'Purchase_Request_' .
+                $pengajuan->id .
+                '_' .
+                now()->format(
+                    'Ymd_His'
+                ) .
+                '.xlsx';
+
+            $writer =
+                new Xlsx(
+                    $spreadsheet
+                );
+
+            $writer->setPreCalculateFormulas(
+                true
+            );
+
+            return response()->streamDownload(
+                function () use ($writer, &$preparedSignatureFiles) {
+                    $writer->save(
+                        'php://output'
+                    );
+
+                    foreach ($preparedSignatureFiles as $tempSignatureFile) {
+                        if (is_file($tempSignatureFile)) {
+                            @unlink($tempSignatureFile);
+                        }
+                    }
+                },
+                $filename,
+                [
+                    'Content-Type' =>
+                        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    'Cache-Control' =>
+                        'max-age=0',
+                ]
+            );
+        } catch (\Throwable $e) {
+            Log::error(
+                'EXPORT PURCHASING ERROR',
+                [
+                    'pengajuan_id' => $id,
+                    'message' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                    'trace' => $e->getTraceAsString(),
+                ]
+            );
+
+            abort(
+                500,
+                'Gagal export Purchase Request: ' .
+                $e->getMessage()
+            );
+        }
+    }
+
 }

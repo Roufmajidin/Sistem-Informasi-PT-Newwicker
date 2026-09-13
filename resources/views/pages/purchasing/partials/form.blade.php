@@ -49,6 +49,16 @@
         </button>
         <div id="draftCacheStatus" class="draft-cache-status viewer-action-status"></div>
     </div>
+
+    @if (!empty($editPengajuan))
+        <div style="margin-top:8px;">
+            <a href="{{ route('pengajuan_purchasing.export', ['id' => $editPengajuan->id]) }}"
+                class="btn btn-success btn-sm" target="_blank" title="Export pengajuan ke Excel">
+                <i class="fa fa-file-excel-o"></i>
+                Export to Excel
+            </a>
+        </div>
+    @endif
 </div>
 
 @if (!empty($editPengajuan) && empty($canEdit))
@@ -370,6 +380,7 @@
                             <th>Supplier</th>
                             <th>Payment</th>
                             <th>Description</th>
+                            <th>Keterangan</th>
                             <th>Quantity</th>
                             <th>Sat</th>
                             <th>Unit Price</th>
@@ -407,11 +418,14 @@
                                 <td>{{ $item['supplier'] ?? '-' }}</td>
                                 <td class="center">{{ $item['payment'] ?? '-' }}</td>
                                 <td>
-                                    @if (!empty($item['description']))
-                                        {{ $item['description'] }}
-                                    @else
-                                        {{ $item['name'] ?? '-' }}
+                                    @if (!empty($item['code']))
+                                        <strong>{{ $item['code'] }}</strong><br>
                                     @endif
+
+                                    {{ $item['name'] ?? '-' }}
+                                </td>
+                                <td>
+                                    {{ $item['description'] ?? '-' }}
                                 </td>
                                 <td class="center">
                                     {{ rtrim(rtrim(number_format($qty, 2, '.', ''), '0'), '.') }}
@@ -420,48 +434,43 @@
                                 <td class="right">{{ number_format($price, 0, ',', '.') }}</td>
                                 <td class="right">{{ number_format($total, 0, ',', '.') }}</td>
                                 <td class="center">{{ $item['status'] ?? '-' }}</td>
-                             <td class="center">
+                                <td class="center">
 
-    @if (!empty($item['added_to_warehouse']))
-        {{-- SUDAH MASUK WAREHOUSE --}}
-        <span class="warehouse-added-badge">
-            <i class="fa fa-check-circle"></i>
-            Added to Warehouse
-        </span>
+                                    @if (!empty($item['added_to_warehouse']))
+                                        {{-- SUDAH MASUK WAREHOUSE --}}
+                                        <span class="warehouse-added-badge">
+                                            <i class="fa fa-check-circle"></i>
+                                            Added to Warehouse
+                                        </span>
+                                    @elseif (auth()->user()->email === 'sumanti@gmail.com')
+                                        {{-- BELUM MASUK + USER BERHAK ADD --}}
+                                        <button type="button" class="btn-add-to-warehouse"
+                                            data-item-id="{{ $detailId ?? '' }}"
+                                            data-item-name="{{ $item['name'] ?? ($item['description'] ?? 'Barang') }}"
+                                            data-qty="{{ $qty }}" data-unit="{{ $item['unit'] ?? '-' }}">
 
-    @elseif (auth()->user()->email === 'sumanti@gmail.com')
-        {{-- BELUM MASUK + USER BERHAK ADD --}}
-        <button type="button"
-            class="btn-add-to-warehouse"
-            data-item-id="{{ $detailId ?? '' }}"
-            data-item-name="{{ $item['name'] ?? ($item['description'] ?? 'Barang') }}"
-            data-qty="{{ $qty }}"
-            data-unit="{{ $item['unit'] ?? '-' }}">
+                                            <i class="fa fa-plus-circle"></i>
+                                            Add to Warehouse
 
-            <i class="fa fa-plus-circle"></i>
-            Add to Warehouse
+                                        </button>
+                                    @else
+                                        {{-- BELUM MASUK + USER BIASA --}}
+                                        <span class="warehouse-waiting-badge">
+                                            <i class="fa fa-clock-o"></i>
+                                            Waiting Warehouse
+                                        </span>
+                                    @endif
 
-        </button>
-
-    @else
-        {{-- BELUM MASUK + USER BIASA --}}
-        <span class="warehouse-waiting-badge">
-            <i class="fa fa-clock-o"></i>
-            Waiting Warehouse
-        </span>
-    @endif
-
-</td>
+                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="11"
-                                    class="center">Tidak ada item.</td>
+                                <td colspan="11" class="center">Tidak ada item.</td>
                             </tr>
                         @endforelse
 
                         <tr class="vpr-total">
-                            <td colspan="9" class="right">
+                            <td colspan="10" class="right">
                                 TOTAL</td>
                             <td class="right">{{ number_format($vprGrandTotal, 0, ',', '.') }}</td>
                             <td></td>
@@ -532,6 +541,25 @@
 
         .warehouse-added-badge i {
             font-size: 11px;
+        }
+
+        .approval-approved-at {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 2px;
+            line-height: 1.2;
+            white-space: nowrap;
+        }
+
+        .approval-approved-label {
+            display: block;
+        }
+
+        .approval-approved-date {
+            display: block;
+            padding-left: 15px;
+            font-weight: 700;
         }
 
         .warehouse-waiting-badge {
@@ -845,6 +873,7 @@
         const CURRENT_USER_ID = @json((int) auth()->id());
         const CURRENT_USER_NAME = @json(auth()->user()->name ?? '');
         const APPROVAL_STEPS = @json($editData['approval_steps'] ?? []);
+        const TTD_BASE_URL = @json(asset('assets/ttd_png'));
         const IS_PUBLISHED = @json(!empty($editPengajuan) && (int) ($editPengajuan->is_draft ?? 0) === 1);
 
         function escapeHtml(value) {
@@ -1253,7 +1282,7 @@
             if (selectedMaterial.is_new) {
                 alert(
                     'Gunakan pilihan "Tambahkan sebagai barang baru" untuk item yang tidak ada di inventory.'
-                    );
+                );
                 return;
             }
 
@@ -1936,6 +1965,31 @@
          * Creator boleh mengatur assignment selama masih draft.
          * Setelah publish, assignment dikunci.
          */
+        function formatApprovedAt(value) {
+            if (!value) {
+                return '-';
+            }
+
+            const raw = String(value).trim();
+            const date = new Date(raw.replace(' ', 'T'));
+
+            if (Number.isNaN(date.getTime())) {
+                return raw;
+            }
+
+            const pad = function(number) {
+                return String(number).padStart(2, '0');
+            };
+
+            return (
+                pad(date.getDate()) + '-' +
+                pad(date.getMonth() + 1) + '-' +
+                date.getFullYear() + ' ' +
+                pad(date.getHours()) + ':' +
+                pad(date.getMinutes())
+            );
+        }
+
         function renderApprovalButtons() {
             if (!EDIT_MODE || !Array.isArray(APPROVAL_STEPS)) {
                 return;
@@ -1985,8 +2039,17 @@
                 if (status === 'approved') {
                     cell.append(
                         '<div class="approval-tap-wrap">' +
-                        '<span class="approval-tap-done">' +
-                        '<i class="fa fa-check-circle"></i> Sudah TTD' +
+                        '<span class="approval-tap-done approval-approved-at">' +
+                        '<img class="approval-ttd-image" ' +
+                        'src="' + escapeHtml(TTD_BASE_URL + '/' + assignedUserId + '.png') + '" ' +
+                        'alt="TTD ' + escapeHtml(assignedUserName) + '" ' +
+                        'onerror="this.style.display=\'none\';">' +
+                        '<span class="approval-approved-label">' +
+                        '<i class="fa fa-check-circle"></i> Approved at:' +
+                        '</span>' +
+                        '<span class="approval-approved-date">' +
+                        escapeHtml(formatApprovedAt(step.approved_at)) +
+                        '</span>' +
                         '</span>' +
                         '</div>'
                     );
@@ -2082,9 +2145,21 @@
 
                     const cell = button.closest('td');
 
+                    const approvedAt = response.approved_at || null;
+
                     button.replaceWith(
-                        '<span class="approval-tap-done">' +
-                        '<i class="fa fa-check-circle"></i> Sudah TTD' +
+                        '<span class="approval-tap-done approval-approved-at">' +
+                        '<img class="approval-ttd-image" ' +
+                        'src="' + escapeHtml(TTD_BASE_URL + '/' + assignedUserId +
+                            '.png') + '" ' +
+                        'alt="TTD ' + escapeHtml(stepName) + '" ' +
+                        'onerror="this.style.display=\'none\';">' +
+                        '<span class="approval-approved-label">' +
+                        '<i class="fa fa-check-circle"></i> Approved at:' +
+                        '</span>' +
+                        '<span class="approval-approved-date">' +
+                        escapeHtml(formatApprovedAt(approvedAt)) +
+                        '</span>' +
                         '</span>'
                     );
 
@@ -2902,12 +2977,38 @@
     .approval-tap-done {
         display: inline-block;
         margin-top: 5px;
-        padding: 3px 7px;
-        border-radius: 5px;
-        background: #e8f7ee;
+        padding: 3px 0;
         color: #198754;
         font-size: 10px;
         font-weight: 700;
+        background: transparent;
+        border: 0;
+        border-radius: 0;
+    }
+
+    .approval-ttd-image {
+        display: block;
+        width: auto;
+        max-width: 110px;
+        height: 48px;
+        object-fit: contain;
+        object-position: center center;
+        margin: 0 auto 3px;
+    }
+
+    .approval-approved-at {
+        text-align: center;
+        line-height: 1.2;
+    }
+
+    .approval-approved-label,
+    .approval-approved-date {
+        display: block;
+    }
+
+    .approval-approved-date {
+        padding-left: 0;
+        margin-top: 2px;
     }
 
     .approval-waiting {
