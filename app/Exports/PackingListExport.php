@@ -11,6 +11,7 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use Maatwebsite\Excel\Concerns\WithCustomStartCell;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
+use Illuminate\Support\Facades\Http;
 class PackingListExport implements WithEvents
 {
     protected $ipl;

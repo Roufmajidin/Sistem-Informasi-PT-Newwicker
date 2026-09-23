@@ -406,13 +406,18 @@
 
                 e.preventDefault();
 
-                $('#po_id').val($(this).data('id'));
+                const poId = $(this).data('id');
+                const orderNo = $(this).data('order');
+                const company = $(this).data('company');
 
-                $('#sales_order').val($(this).data('order'));
+                // Simpan PO yang dipilih ke header saja.
+                // JANGAN langsung memasukkan item ke tabel IPL.
+                $('#po_id').val(poId);
+                $('#sales_order').val(orderNo);
+                $('#buyer_name').val(company);
 
-                $('#buyer_name').val($(this).data('company'));
-                loadItems($(this).data('id'));
-
+                // Item baru akan dimasukkan ke tabel melalui:
+                // Add PO -> modal -> pilih item -> Add To Table.
                 $('#poResult').hide();
 
             });
