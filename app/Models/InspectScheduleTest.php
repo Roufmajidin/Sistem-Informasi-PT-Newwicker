@@ -1,12 +1,12 @@
 <?php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class InspectSchedule extends Model
+class InspectScheduleTest extends Model
 {
-
-    protected $table = 'inspect_schedule';
+    protected $table = 'inspect_schedule_test';
 
     protected $fillable = [
         'po_id',
@@ -24,9 +24,12 @@ class InspectSchedule extends Model
         'is_reinspect',
     ];
 
-    /* ===============================
-       RELATIONS (OPSIONAL TAPI DISARANKAN)
-    =============================== */
+    protected $casts = [
+        'is_service' => 'boolean',
+        'nw_service' => 'boolean',
+        'is_reinspect' => 'boolean',
+        'tanggal_inspect' => 'date',
+    ];
 
     public function po()
     {
@@ -42,18 +45,21 @@ class InspectSchedule extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
+
     public function kategori()
     {
         return $this->belongsTo(Kategori::class, 'kategori_id');
     }
+
     public function spk()
     {
-        return $this->belongsTo(Spk::class);
+        return $this->belongsTo(Spk::class, 'spk_id');
     }
+
     public function qcReports()
     {
         return $this->hasMany(
-            QcReport::class,
+            QcReportTest::class,
             'inspect_schedule_id'
         );
     }
@@ -61,7 +67,7 @@ class InspectSchedule extends Model
     public function reportPhotos()
     {
         return $this->hasMany(
-            ReportPhoto::class,
+            ReportPhotoTest::class,
             'inspect_schedule_id'
         );
     }

@@ -276,6 +276,9 @@
     @endsection
 
     @push('scripts')
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
         <script>
             // search modal
             function searchCombinePo(keyword) {
@@ -818,59 +821,63 @@
             // save ipl
             function saveIpl(payload) {
 
-                $.ajax({
+    $.ajax({
 
-                    url: "{{ route('export.saveIpl') }}",
+        url: "{{ route('export.saveIpl') }}",
 
-                    type: "POST",
+        type: "POST",
 
-                    data: JSON.stringify(payload),
+        data: JSON.stringify(payload),
 
-                    contentType: "application/json",
+        contentType: "application/json",
 
-                    headers: {
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        },
 
-                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        success: function(res) {
 
-                    },
+            if (res.success) {
 
-                    success: function(res) {
+                toastr.success(
+                    res.message || 'IPL berhasil disimpan.',
+                    'Berhasil'
+                );
 
-                        Swal.fire({
+                setTimeout(function() {
 
-                            icon: 'success',
+                    window.location.href =
+                        "{{ route('export.ipl') }}";
 
-                            title: 'Success',
+                }, 1200);
 
-                            text: res.message
+            } else {
 
-                        }).then(() => {
-
-                            window.location.href = "{{ route('export.ipl') }}";
-
-                        });
-
-                    },
-
-                    error: function(xhr) {
-
-                        Swal.fire({
-
-                            icon: 'error',
-
-                            title: 'Error',
-
-                            text: xhr.responseJSON.message
-
-                        });
-
-                    }
-
-                });
+                toastr.error(
+                    res.message || 'IPL gagal disimpan.',
+                    'Gagal'
+                );
 
             }
 
+        },
 
+        error: function(xhr) {
+
+            let message =
+                xhr.responseJSON?.message ||
+                'Terjadi kesalahan saat menyimpan IPL.';
+
+            toastr.error(
+                message,
+                'Gagal'
+            );
+
+        }
+
+    });
+
+}
 
             $(document).on('click', '.combine-po-item', function(e) {
 
@@ -1155,53 +1162,143 @@
                     return;
                 }
 
+                /*
+                |--------------------------------------------------------------------------
+                | Qty modal = Qty PO - Qty yang sudah loaded
+                |--------------------------------------------------------------------------
+                | Data available_qty dan used_qty berasal dari /export/po-items/{id}.
+                | Jangan melakukan check-detail AJAX lagi di sini karena data PO item
+                | sudah membawa qty sisa dari backend.
+                */
+
+                let qtyPo = parseFloat(item.qty) || 0;
+                let usedQty = parseFloat(item.used_qty) || 0;
+                let availableQty = parseFloat(item.available_qty);
+
+                // fallback aman untuk data lama
+                if (isNaN(availableQty)) {
+                    availableQty = Math.max(0, qtyPo - usedQty);
+                }
+
+                availableQty = Math.max(0, availableQty);
+
+                // Jika sudah habis, jangan masukkan ke tabel modal
+                if (availableQty <= 0) {
+                    return;
+                }
+
                 $('#emptyCombineItem').remove();
 
                 $('#combineItemTable tbody').append(`
 
 <tr data-detail="${item.id}">
-    <td><input
-    type="hidden"
-    class="combine-po-id"
-    value="${po.id}"></td>
+
     <td class="text-center">
+
+        <input
+            type="hidden"
+            class="combine-po-id"
+            value="${po.id}">
+
         <input
             type="checkbox"
             class="combine-item"
             checked>
+
     </td>
 
     <td>
-        <img src="${item.photo}" width="60">
+        <img
+            src="${item.photo}"
+            width="60">
     </td>
 
-    <td>${po.order_no}</td>
+    <td>
+        ${po.order_no}
+    </td>
 
-    <td>${item.article_nr}</td>
+    <td>
+        ${item.article_nr}
+    </td>
 
-    <td>${item.description}</td>
+    <td>
+        ${item.description}
+    </td>
 
-    <td class="text-center">${item.qty}</td>
+    <td class="text-center">
 
-    <td class="text-end">${formatCurrency(item.value)}</td>
+        <strong>
+            ${availableQty}
+        </strong>
 
-    <!-- hidden -->
-    <input type="hidden" class="combine-detail" value="${item.id}">
-    <input type="hidden" class="combine-photo" value="${item.photo}">
-    <input type="hidden" class="combine-article" value="${item.article_nr}">
-    <input type="hidden" class="combine-description" value="${item.description}">
-    <input type="hidden" class="combine-qty" value="${item.qty}">
-    <input type="hidden" class="combine-packw" value="${item.pack_w}">
-    <input type="hidden" class="combine-packd" value="${item.pack_d}">
-    <input type="hidden" class="combine-packh" value="${item.pack_h}">
-    <input type="hidden" class="combine-value" value="${item.value}">
-    <input type="hidden" class="combine-po-no" value="${po.order_no}">
+        <br>
+
+        <small class="text-muted">
+            PO: ${qtyPo} | Loaded: ${usedQty}
+        </small>
+
+    </td>
+
+    <td class="text-end">
+        ${formatCurrency(item.value)}
+    </td>
+
+    <input
+        type="hidden"
+        class="combine-detail"
+        value="${item.id}">
+
+    <input
+        type="hidden"
+        class="combine-photo"
+        value="${item.photo}">
+
+    <input
+        type="hidden"
+        class="combine-article"
+        value="${item.article_nr}">
+
+    <input
+        type="hidden"
+        class="combine-description"
+        value="${item.description}">
+
+    <input
+        type="hidden"
+        class="combine-qty"
+        value="${availableQty}">
+
+    <input
+        type="hidden"
+        class="combine-packw"
+        value="${item.pack_w}">
+
+    <input
+        type="hidden"
+        class="combine-packd"
+        value="${item.pack_d}">
+
+    <input
+        type="hidden"
+        class="combine-packh"
+        value="${item.pack_h}">
+
+    <input
+        type="hidden"
+        class="combine-value"
+        value="${item.value}">
+
+    <input
+        type="hidden"
+        class="combine-po-no"
+        value="${po.order_no}">
 
 </tr>
 
 `);
 
             }
+
             const modalAddPo = new bootstrap.Modal(
                 document.getElementById('modalAddPo')
             );
@@ -1217,6 +1314,14 @@
 
                     if (!$(this).find('.combine-item').is(':checked'))
                         return;
+
+                    let availableQty = parseFloat(
+                        $(this).find('.combine-qty').val()
+                    ) || 0;
+
+                    if (availableQty <= 0) {
+                        return;
+                    }
 
                     let item = {
 
@@ -1555,12 +1660,19 @@ Belum ada item
                         item_id: item.id,
                         id: item.detail_po_id,
 
-                        po_id: item.po_id,
+                        // Jika po_id lama NULL, sementara gunakan null.
+                        // Backend akan memulihkan berdasarkan po_no.
+                        po_id: (
+                                item.po_id &&
+                                item.po_id !== 'null' &&
+                                item.po_id !== 'undefined'
+                            ) ?
+                            item.po_id :
+                            '',
 
                         order_no: item.po_no,
 
                         article_nr: item.article_nr,
-
                         description: item.description,
 
                         photo: item.photo,
@@ -1631,32 +1743,69 @@ Belum ada item
             // edit
 
 
-            function updateIpl(payload) {
+           function updateIpl(payload) {
 
-                console.log(payload);
+    console.log(payload);
 
-                $.ajax({
+    $.ajax({
 
-                    url: "/export/" + IPL.id,
+        url: "/export/" + IPL.id,
 
-                    type: "PUT",
+        type: "PUT",
 
-                    data: JSON.stringify(payload),
+        data: JSON.stringify(payload),
 
-                    contentType: "application/json",
+        contentType: "application/json",
 
-                    headers: {
-                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                    },
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        },
 
-                    success: function(res) {
-                        console.log(res);
-                    }
+        success: function(res) {
 
-                });
+            if (res.success) {
+
+                toastr.success(
+                    res.message || 'IPL berhasil diperbarui.',
+                    'Berhasil'
+                );
+
+                setTimeout(function() {
+
+                    window.location.href =
+                        "{{ route('export.ipl') }}";
+
+                }, 1200);
+
+            } else {
+
+                toastr.error(
+                    res.message || 'IPL gagal diperbarui.',
+                    'Gagal'
+                );
 
             }
 
+        },
+
+        error: function(xhr) {
+
+            console.error(xhr);
+
+            let message =
+                xhr.responseJSON?.message ||
+                'Terjadi kesalahan saat memperbarui IPL.';
+
+            toastr.error(
+                message,
+                'Gagal'
+            );
+
+        }
+
+    });
+
+}
             function buildPayload() {
 
                 let payload = {
@@ -1757,34 +1906,43 @@ Belum ada item
                 return payload;
 
             }
-            $(document).on('input', '.qty_pcs', function() {
+            $(document).on('change', '.qty_pcs', function() {
 
                 let row = $(this).closest('tr');
 
                 let detailPoId = row.find('input[name$="[detail_po_id]"]').val();
-                let itemId = row.data('id'); // id export_ipl_items
-
                 let qtyInput = $(this);
+                let data = {};
 
-                $.get('/export/check-detail/' + detailPoId, {
-                    item_id: itemId
-                }, function(res) {
+                // Hanya EDIT yang mengirim item_id untuk mengecualikan
+                // item IPL yang sedang diedit dari perhitungan used_qty.
+                if (typeof MODE !== 'undefined' && MODE === 'edit') {
+
+                    let itemId = row.data('id');
+
+                    if (itemId) {
+                        data.item_id = itemId;
+                    }
+                }
+
+                $.get('/export/check-detail/' + detailPoId, data, function(res) {
 
                     let qty = parseFloat(qtyInput.val()) || 0;
+                    let availableQty = parseFloat(res.available_qty) || 0;
 
-                    if (qty > res.available_qty) {
+                    if (qty > availableQty) {
 
                         qtyInput.addClass('is-invalid');
 
                         Swal.fire({
                             icon: 'warning',
-                            title: 'Qty melebihi sisa',
+                            title: 'Qty melebihi sisa PO',
                             text: `Qty PO : ${res.qty_po}
 Sudah digunakan : ${res.used_qty}
 Sisa : ${res.available_qty}`
                         });
 
-                        qtyInput.val(res.available_qty);
+                        qtyInput.val(availableQty);
 
                     } else {
 
@@ -1792,10 +1950,13 @@ Sisa : ${res.available_qty}`
 
                     }
 
+                    calculateRow(row);
+
                 });
 
             });
         </script>
+
         <script>
             const MODE = "{{ $mode }}";
 

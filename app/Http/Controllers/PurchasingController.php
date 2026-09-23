@@ -221,6 +221,9 @@ class PurchasingController extends Controller
             'items.*.price' =>
                 'nullable|numeric|min:0',
 
+            'items.*.status' =>
+                'nullable|string|in:urgent,non urgent,terjadwal',
+
             /* Attachment disimpan bersamaan saat tombol Simpan ditekan */
             'images' => 'nullable|array|max:200',
             'images.*' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:10240',
@@ -470,7 +473,7 @@ class PurchasingController extends Controller
                     |--------------------------------------------------------------------------
                     */
 
-                    PengajuanDivisi::create([
+                    $detail = PengajuanDivisi::create([
                         'pengajuan_id' => $pengajuan->id,
 
                         'id_stock' => $idStock,
@@ -497,6 +500,11 @@ class PurchasingController extends Controller
 
                         'added_to_warehouse' => !empty($idStock) ? 0 : 0,
                     ]);
+
+                    // Status item disimpan terpisah agar tidak bergantung
+                    // pada $fillable di model PengajuanDivisi.
+                    $detail->status = $item['status'] ?? 'urgent';
+                    $detail->save();
                 }
 
 
@@ -1081,6 +1089,8 @@ class PurchasingController extends Controller
                     'total' => (float) (
                         ($item->price ?? 0) * ($item->qty ?? 0)
                     ),
+
+                    'status' => $item->status ?? 'urgent',
 
                     'is_new' => empty($item->id_stock),
 
@@ -2486,7 +2496,8 @@ class PurchasingController extends Controller
              * langsung ke getCellByColumnAndRow().
              */
             $highestRow = max(200, (int) $attachmentSheet->getHighestRow());
-            $highestColumnIndex = max(18,
+            $highestColumnIndex = max(
+                18,
                 \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString(
                     $attachmentSheet->getHighestColumn()
                 )
@@ -2510,10 +2521,10 @@ class PurchasingController extends Controller
              * berada berdampingan dalam A4 Landscape.
              */
             $attachmentSheet->getColumnDimension('A')->setWidth(2);
-            foreach (['B','C','D','E','F','G','H','I'] as $col) {
+            foreach (['B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'] as $col) {
                 $attachmentSheet->getColumnDimension($col)->setWidth(11);
             }
-            foreach (['J','K','L','M','N','O','P','Q'] as $col) {
+            foreach (['J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q'] as $col) {
                 $attachmentSheet->getColumnDimension($col)->setWidth(11);
             }
 
@@ -2667,11 +2678,13 @@ class PurchasingController extends Controller
                         pathinfo($filePath, PATHINFO_EXTENSION)
                     );
 
-                    if (!in_array(
-                        $extension,
-                        ['jpg', 'jpeg', 'png', 'gif'],
-                        true
-                    )) {
+                    if (
+                        !in_array(
+                            $extension,
+                            ['jpg', 'jpeg', 'png', 'gif'],
+                            true
+                        )
+                    ) {
                         continue;
                     }
 

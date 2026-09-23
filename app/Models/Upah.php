@@ -20,6 +20,7 @@ class Upah extends Model
         'no_po',
         'no_spk',
         'updated_by',
+      
     ];
 
     protected $casts = [

@@ -10,6 +10,19 @@
      */
     $isViewerOnly = !empty($editPengajuan) && empty($canEdit);
 
+    /*
+     * Warehouse hanya berlaku untuk DIVISI PURCHASING.
+     * Untuk mode VIEW ONLY, gunakan nilai ini untuk menentukan apakah
+     * kolom Warehouse dan Aksi Warehouse perlu ditampilkan.
+     */
+    $viewerDepartmentName = !empty($editPengajuan)
+        ? strtoupper(
+            trim((string) (optional($editPengajuan->divisi)->nama ?? (optional($editPengajuan->divisi)->name ?? ''))),
+        )
+        : '';
+
+    $isViewerPurchasing = $viewerDepartmentName === 'PURCHASING';
+
     $madeByName = !empty($editPengajuan)
         ? optional($editPengajuan->user)->name ?? auth()->user()->name
         : auth()->user()->name;
@@ -81,7 +94,9 @@
         <select id="department">
             <option value="">-- Pilih Departemen --</option>
             @foreach ($divisis ?? collect() as $divisi)
-                <option value="{{ $divisi->id }}">{{ $divisi->nama ?? $divisi->name }}</option>
+                <option value="{{ $divisi->id }}"
+                    data-department-name="{{ strtoupper(trim($divisi->nama ?? ($divisi->name ?? ''))) }}">
+                    {{ $divisi->nama ?? $divisi->name }}</option>
             @endforeach
         </select>
     </div>
@@ -94,7 +109,7 @@
 </div>
 
 {{-- SEARCH INVENTORY --}}
-<div class="search-section" @if ($isViewerOnly) style="display:none;" @endif>
+<div id="warehouseSearchSection" class="search-section" @if ($isViewerOnly) style="display:none;" @endif>
 
     <div class="search-title">
         <i class="fa fa-search"></i>
@@ -278,7 +293,7 @@
                     <th class="payment-column">Payment</th>
                     <th class="description-column">Description</th>
                     <th class="keterangan-column">Keterangan</th>
-                    <th class="warehouse-column">Warehouse</th>
+                    <th class="warehouse-column" id="warehouseHeader">Warehouse</th>
                     <th class="qty-column">Qty</th>
                     <th class="unit-column">Sat</th>
                     <th class="price-column">Unit Price</th>
@@ -290,7 +305,7 @@
 
             <tbody id="requestTableBody">
                 <tr id="emptyRequestRow">
-                    <td colspan="14" class="empty-request">
+                    <td id="emptyRequestColspan" colspan="14" class="empty-request">
                         <i class="fa fa-cubes"></i>
                         Belum ada barang yang ditambahkan
                     </td>
@@ -299,7 +314,7 @@
 
             <tfoot>
                 <tr>
-                    <td colspan="11" style="text-align:right;font-weight:700;">
+                    <td id="grandTotalLabel" colspan="11" style="text-align:right;font-weight:700;">
                         TOTAL
                     </td>
                     <td id="grandTotal" style="font-weight:700;">
@@ -372,7 +387,8 @@
             </div>
 
             <div class="vpr-table-wrap">
-                <table class="vpr-table">
+                <table
+                    class="vpr-table {{ $isViewerPurchasing ? 'vpr-table-purchasing' : 'vpr-table-non-purchasing' }}">
                     <thead>
                         <tr>
                             <th>No.</th>
@@ -381,105 +397,153 @@
                             <th>Payment</th>
                             <th>Description</th>
                             <th>Keterangan</th>
+                            @if ($isViewerPurchasing)
+                                <th>Warehouse</th>
+                            @endif
                             <th>Quantity</th>
                             <th>Sat</th>
                             <th>Unit Price</th>
                             <th>Total</th>
                             <th>Status</th>
-                            <th>Aksi</th>
+                            @if ($isViewerPurchasing)
+                                <th>Aksi</th>
+                            @endif
                         </tr>
                     </thead>
+
                     <tbody>
                         @php
                             $vprItems = $editData['items'] ?? [];
                             $vprGrandTotal = 0;
+                            $vprColumnCount = $isViewerPurchasing ? 13 : 11;
                         @endphp
 
                         @forelse($vprItems as $i => $item)
                             @php
                                 $qty = (float) ($item['qty'] ?? 0);
                                 $price = (float) ($item['unit_price'] ?? 0);
-                                $total = (float) ($item['total'] ?? $qty * $price);
 
-                                // ID yang dikirim ke Add to Warehouse harus ID detail
-                                // pengajuan_divisi, bukan id_stock.
-                                // Fallback ke relasi asli jika editData versi lama belum
-                                // mengirimkan detail_id.
+                                /*
+                                 * Total viewer dihitung dari Qty x Unit Price.
+                                 * Jangan bergantung pada nilai total lama dari JSON.
+                                 */
+                                $total = $qty * $price;
+                                $vprGrandTotal += $total;
+
+                                // ID detail pengajuan_divisi untuk Add to Warehouse.
                                 $detailId = $item['detail_id'] ?? null;
+
                                 if (!$detailId && isset($editPengajuan->divisiItems)) {
                                     $detailId = optional($editPengajuan->divisiItems->values()->get($i))->id;
                                 }
-
-                                $vprGrandTotal += $total;
                             @endphp
+
                             <tr>
                                 <td class="center">{{ $i + 1 }}</td>
-                                <td class="center">{{ $item['po_no'] ?? '-' }}</td>
-                                <td>{{ $item['supplier'] ?? '-' }}</td>
-                                <td class="center">{{ $item['payment'] ?? '-' }}</td>
+
+                                <td class="center">
+                                    {{ $item['po_no'] ?? '-' }}
+                                </td>
+
+                                <td>
+                                    {{ $item['supplier'] ?? '-' }}
+                                </td>
+
+                                <td class="center">
+                                    {{ $item['payment'] ?? '-' }}
+                                </td>
+
                                 <td>
                                     @if (!empty($item['code']))
                                         <strong>{{ $item['code'] }}</strong><br>
                                     @endif
-
                                     {{ $item['name'] ?? '-' }}
                                 </td>
+
                                 <td>
                                     {{ $item['description'] ?? '-' }}
                                 </td>
+
+                                @if ($isViewerPurchasing)
+                                    <td class="center warehouse-action-cell">
+                                        @if (!empty($item['added_to_warehouse']))
+                                            <span class="warehouse-added-badge">
+                                                <i class="fa fa-check-circle"></i>
+                                                Added to Warehouse
+                                            </span>
+                                        @elseif (auth()->user()->email === 'sumanti@gmail.com')
+                                            <button type="button" class="btn-add-to-warehouse"
+                                                data-item-id="{{ $detailId ?? '' }}"
+                                                data-item-name="{{ $item['name'] ?? ($item['description'] ?? 'Barang') }}"
+                                                data-qty="{{ $qty }}"
+                                                data-unit="{{ $item['unit'] ?? '-' }}">
+                                                <i class="fa fa-plus-circle"></i>
+                                                Add to Warehouse
+                                            </button>
+                                        @else
+                                            <span class="warehouse-waiting-badge">
+                                                <i class="fa fa-clock-o"></i>
+                                                Waiting Warehouse
+                                            </span>
+                                        @endif
+                                    </td>
+                                @endif
+
                                 <td class="center">
                                     {{ rtrim(rtrim(number_format($qty, 2, '.', ''), '0'), '.') }}
                                 </td>
-                                <td class="center">{{ $item['unit'] ?? '-' }}</td>
-                                <td class="right">{{ number_format($price, 0, ',', '.') }}</td>
-                                <td class="right">{{ number_format($total, 0, ',', '.') }}</td>
-                                <td class="center">{{ $item['status'] ?? '-' }}</td>
+
                                 <td class="center">
-
-                                    @if (!empty($item['added_to_warehouse']))
-                                        {{-- SUDAH MASUK WAREHOUSE --}}
-                                        <span class="warehouse-added-badge">
-                                            <i class="fa fa-check-circle"></i>
-                                            Added to Warehouse
-                                        </span>
-                                    @elseif (auth()->user()->email === 'sumanti@gmail.com')
-                                        {{-- BELUM MASUK + USER BERHAK ADD --}}
-                                        <button type="button" class="btn-add-to-warehouse"
-                                            data-item-id="{{ $detailId ?? '' }}"
-                                            data-item-name="{{ $item['name'] ?? ($item['description'] ?? 'Barang') }}"
-                                            data-qty="{{ $qty }}" data-unit="{{ $item['unit'] ?? '-' }}">
-
-                                            <i class="fa fa-plus-circle"></i>
-                                            Add to Warehouse
-
-                                        </button>
-                                    @else
-                                        {{-- BELUM MASUK + USER BIASA --}}
-                                        <span class="warehouse-waiting-badge">
-                                            <i class="fa fa-clock-o"></i>
-                                            Waiting Warehouse
-                                        </span>
-                                    @endif
-
+                                    {{ $item['unit'] ?? '-' }}
                                 </td>
+
+                                <td class="right">
+                                    {{ number_format($price, 0, ',', '.') }}
+                                </td>
+
+                                <td class="right">
+                                    {{ number_format($total, 0, ',', '.') }}
+                                </td>
+
+                                <td class="center">
+                                    {{ $item['status'] ?? '-' }}
+                                </td>
+
+                                @if ($isViewerPurchasing)
+                                    <td class="center">
+                                        {{-- Aksi hanya untuk Purchasing karena hanya Purchasing
+                                             yang berhubungan dengan Warehouse. --}}
+                                    </td>
+                                @endif
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="11" class="center">Tidak ada item.</td>
+                                <td colspan="{{ $vprColumnCount }}" class="center">
+                                    Tidak ada item.
+                                </td>
                             </tr>
                         @endforelse
 
                         <tr class="vpr-total">
-                            <td colspan="10" class="right">
-                                TOTAL</td>
-                            <td class="right">{{ number_format($vprGrandTotal, 0, ',', '.') }}</td>
+                            <td colspan="{{ $isViewerPurchasing ? 10 : 8 }}" class="right">
+                                TOTAL
+                            </td>
+
+                            <td class="right">
+                                {{ number_format($vprGrandTotal, 0, ',', '.') }}
+                            </td>
+
                             <td></td>
-                            <td></td>
+
+                            @if ($isViewerPurchasing)
+                                <td></td>
+                            @endif
                         </tr>
                     </tbody>
                 </table>
             </div>
         </div>
+
     @endif
 
     {{-- ATTACHMENT --}}
@@ -715,23 +779,50 @@
 
     {{-- SIGNATURE --}}
     @php
-        $approvalStepsByOrder = collect($editData['approval_steps'] ?? [])->keyBy('step_order');
+        /*
+         * APPROVAL STEP BOLEH TIDAK LENGKAP.
+         *
+         * Sebelumnya $approvalStepsByOrder adalah Illuminate Collection,
+         * lalu elemennya dimodifikasi langsung:
+         *
+         *   $approvalStepsByOrder[$order]['division_name'] = ...
+         *
+         * PHP menganggap itu indirect modification terhadap overloaded
+         * element Collection dan menghasilkan:
+         *
+         *   Indirect modification of overloaded element of
+         *   Illuminate\\Support\\Collection has no effect
+         *
+         * Sekarang setiap step diubah menjadi array BARU melalui map().
+         * Step yang tidak ada tetap tidak dibuat.
+         */
+        $approvalStepsByOrder = collect($editData['approval_steps'] ?? [])
+            ->keyBy('step_order')
+            ->map(function ($step) use ($users) {
+                $step = is_array($step) ? $step : (method_exists($step, 'toArray') ? $step->toArray() : (array) $step);
 
-        // Fallback langsung dari User -> Karyawan -> Divisi.
-        foreach ([2, 3, 4, 5, 6, 7] as $approvalOrder) {
-            if (!isset($approvalStepsByOrder[$approvalOrder])) {
-                continue;
-            }
+                $approvalUserId = $step['user_id'] ?? null;
 
-            $approvalUserId = $approvalStepsByOrder[$approvalOrder]['user_id'] ?? null;
-            $approvalUser = $approvalUserId ? $users->firstWhere('id', $approvalUserId) : null;
+                $approvalUser = $approvalUserId ? $users->firstWhere('id', $approvalUserId) : null;
 
-            if (empty($approvalStepsByOrder[$approvalOrder]['division_name'])) {
-                $approvalStepsByOrder[$approvalOrder]['division_name'] = optional(
-                    optional($approvalUser?->karyawan)->divisi,
-                )->nama;
-            }
-        }
+                if (empty($step['division_name'])) {
+                    $step['division_name'] = optional(optional($approvalUser?->karyawan)->divisi)->nama;
+                }
+
+                return $step;
+            });
+
+        /*
+         * Daftar step yang BENAR-BENAR tersedia pada pengajuan.
+         * Tidak ada kewajiban step 2,3,4,5,6,7 semuanya terisi.
+         */
+        $activeApprovalOrders = $approvalStepsByOrder
+            ->keys()
+            ->map(fn($order) => (int) $order)
+            ->filter(fn($order) => $order >= 2 && $order <= 7)
+            ->sort()
+            ->values()
+            ->all();
     @endphp
 
     <div id="purchasingSignatureSection" class="signature-section">
@@ -740,11 +831,13 @@
 
             <thead>
                 <tr>
-                    <th>Made by</th>
-                    <th colspan="2">Checked by</th>
-                    <th colspan="2">Checked by</th>
-                    <th>Checked by Finance</th>
-                    <th>Approved by</th>
+                    <th data-approval-header="made">Made by</th>
+                    <th data-approval-header="2">Checked by</th>
+                    <th data-approval-header="3">Checked by</th>
+                    <th data-approval-header="4">Checked by</th>
+                    <th data-approval-header="5">Checked by</th>
+                    <th data-approval-header="6">Checked by Finance</th>
+                    <th data-approval-header="7">Approved by</th>
                 </tr>
             </thead>
 
@@ -754,15 +847,15 @@
 
                     <td>{{ $madeByName }}</td>
 
-                    <td>{{ $approvalStepsByOrder[2]['division_name'] ?? '-' }}</td>
-                    <td>{{ $approvalStepsByOrder[3]['division_name'] ?? '-' }}</td>
+                    <td data-approval-slot="2">{{ $approvalStepsByOrder[2]['division_name'] ?? '-' }}</td>
+                    <td data-approval-slot="3">{{ $approvalStepsByOrder[3]['division_name'] ?? '-' }}</td>
 
-                    <td>{{ $approvalStepsByOrder[4]['division_name'] ?? '-' }}</td>
-                    <td>{{ $approvalStepsByOrder[5]['division_name'] ?? '-' }}</td>
+                    <td data-approval-slot="4">{{ $approvalStepsByOrder[4]['division_name'] ?? '-' }}</td>
+                    <td data-approval-slot="5">{{ $approvalStepsByOrder[5]['division_name'] ?? '-' }}</td>
 
-                    <td>{{ $approvalStepsByOrder[6]['division_name'] ?? '-' }}</td>
+                    <td data-approval-slot="6">{{ $approvalStepsByOrder[6]['division_name'] ?? '-' }}</td>
 
-                    <td>{{ $approvalStepsByOrder[7]['division_name'] ?? '-' }}</td>
+                    <td data-approval-slot="7">{{ $approvalStepsByOrder[7]['division_name'] ?? '-' }}</td>
 
                 </tr>
 
@@ -774,7 +867,12 @@
                     </td>
 
                     {{-- CHECKED BY 1 --}}
-                    <td>
+                    <td class="approval-slot" data-approval-slot="2">
+                        <button type="button" class="approval-delete-btn" data-target="#checked_by_1"
+                            title="Hapus approver" aria-label="Hapus approver"
+                            {{ $approvalLocked ? 'disabled' : '' }}>
+                            <i class="fa fa-trash"></i>
+                        </button>
                         <select class="signature-select" id="checked_by_1" {{ $approvalLocked ? 'disabled' : '' }}>
                             <option value="">-- Select --</option>
 
@@ -787,7 +885,12 @@
                     </td>
 
                     {{-- CHECKED BY 2 --}}
-                    <td>
+                    <td class="approval-slot" data-approval-slot="3">
+                        <button type="button" class="approval-delete-btn" data-target="#checked_by_2"
+                            title="Hapus approver" aria-label="Hapus approver"
+                            {{ $approvalLocked ? 'disabled' : '' }}>
+                            <i class="fa fa-trash"></i>
+                        </button>
                         <select class="signature-select" id="checked_by_2" {{ $approvalLocked ? 'disabled' : '' }}>
                             <option value="">-- Select --</option>
 
@@ -800,7 +903,12 @@
                     </td>
 
                     {{-- CHECKED BY 3 / PERSON 1 --}}
-                    <td>
+                    <td class="approval-slot" data-approval-slot="4">
+                        <button type="button" class="approval-delete-btn" data-target="#checked_by_3"
+                            title="Hapus approver" aria-label="Hapus approver"
+                            {{ $approvalLocked ? 'disabled' : '' }}>
+                            <i class="fa fa-trash"></i>
+                        </button>
                         <select class="signature-select" id="checked_by_3" {{ $approvalLocked ? 'disabled' : '' }}>
                             <option value="">-- Select --</option>
 
@@ -813,7 +921,12 @@
                     </td>
 
                     {{-- CHECKED BY 4 / PERSON 2 --}}
-                    <td>
+                    <td class="approval-slot" data-approval-slot="5">
+                        <button type="button" class="approval-delete-btn" data-target="#checked_by_4"
+                            title="Hapus approver" aria-label="Hapus approver"
+                            {{ $approvalLocked ? 'disabled' : '' }}>
+                            <i class="fa fa-trash"></i>
+                        </button>
                         <select class="signature-select" id="checked_by_4" {{ $approvalLocked ? 'disabled' : '' }}>
                             <option value="">-- Select --</option>
 
@@ -826,7 +939,12 @@
                     </td>
 
                     {{-- FINANCE --}}
-                    <td>
+                    <td class="approval-slot" data-approval-slot="6">
+                        <button type="button" class="approval-delete-btn" data-target="#checked_by_finance"
+                            title="Hapus approver" aria-label="Hapus approver"
+                            {{ $approvalLocked ? 'disabled' : '' }}>
+                            <i class="fa fa-trash"></i>
+                        </button>
                         <select class="signature-select" id="checked_by_finance"
                             {{ $approvalLocked ? 'disabled' : '' }}>
                             <option value="">-- Select --</option>
@@ -840,7 +958,12 @@
                     </td>
 
                     {{-- APPROVED --}}
-                    <td>
+                    <td class="approval-slot" data-approval-slot="7">
+                        <button type="button" class="approval-delete-btn" data-target="#approved_by"
+                            title="Hapus approver" aria-label="Hapus approver"
+                            {{ $approvalLocked ? 'disabled' : '' }}>
+                            <i class="fa fa-trash"></i>
+                        </button>
                         <select class="signature-select" id="approved_by" {{ $approvalLocked ? 'disabled' : '' }}>
                             <option value="">-- Select --</option>
 
@@ -867,6 +990,44 @@
         let selectedMaterial = null;
         let requestItems = [];
 
+        /*
+         * Hapus approver pada slot TTD tertentu.
+         * Made by sengaja tidak diberi tombol delete.
+         *
+         * Yang dihapus hanya nilai select terkait. Karena proses Save
+         * membaca nilai masing-masing select, approval step tersebut
+         * otomatis terkirim kosong dan tidak menjadi approver aktif.
+         */
+        $(document).on('click', '.approval-delete-btn', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const target = $(this).data('target');
+
+            if (!target || !$(target).length || $(target).prop('disabled')) {
+                return;
+            }
+
+            const currentText = $(target + ' option:selected').text().trim();
+
+            if (!$(target).val()) {
+                return;
+            }
+
+            if (!confirm('Hapus approver ' + currentText + ' dari slot ini?')) {
+                return;
+            }
+
+            $(target).val('').trigger('change');
+
+            /*
+             * Refresh data draft/cache bila fungsi tersedia.
+             */
+            if (typeof scheduleDraftCache === 'function') {
+                scheduleDraftCache();
+            }
+        });
+
         const EDIT_MODE = @json(!empty($editPengajuan));
         const EDIT_DATA = @json($editData ?? null);
         const CAN_EDIT = @json(!empty($canEdit) || empty($editPengajuan));
@@ -875,6 +1036,89 @@
         const APPROVAL_STEPS = @json($editData['approval_steps'] ?? []);
         const TTD_BASE_URL = @json(asset('assets/ttd_png'));
         const IS_PUBLISHED = @json(!empty($editPengajuan) && (int) ($editPengajuan->is_draft ?? 0) === 1);
+
+        /*
+         * ============================================================
+         * WAREHOUSE SEARCH BERDASARKAN DIVISI
+         * ============================================================
+         * Hanya DIVISI PURCHASING yang mempunyai hubungan dengan
+         * inventory / warehouse.
+         *
+         * Alur:
+         * 1. Belum pilih divisi       -> search warehouse HIDDEN
+         * 2. Pilih PURCHASING         -> search warehouse SHOW
+         * 3. Pilih divisi selain itu  -> search warehouse HIDDEN
+         *
+         * Jadi divisi Produksi, QC, Finance, HR, dll tidak mempunyai
+         * akses/ketergantungan terhadap pencarian warehouse di form ini.
+         * ============================================================
+         */
+        function isPurchasingDepartment() {
+            const selectedOption = $('#department option:selected');
+
+            if (!selectedOption.length || !selectedOption.val()) {
+                return false;
+            }
+
+            const departmentName = String(
+                    selectedOption.data('department-name') ||
+                    selectedOption.text() ||
+                    ''
+                )
+                .trim()
+                .toUpperCase()
+                .replace(/\\s+/g, ' ');
+
+            return departmentName === 'PURCHASING';
+        }
+
+        function updateWarehouseSearchVisibility(clearWhenHidden = true) {
+            const $warehouseSection = $('#warehouseSearchSection');
+
+            if (!$warehouseSection.length) {
+                return;
+            }
+
+            const showWarehouse = isPurchasingDepartment();
+
+            if (showWarehouse) {
+                $warehouseSection.stop(true, true).slideDown(180);
+                return;
+            }
+
+            $warehouseSection.stop(true, true).slideUp(180);
+
+            /*
+             * Ketika pindah dari Purchasing ke divisi lain,
+             * seluruh state pencarian warehouse dibersihkan agar
+             * tidak ada barang warehouse yang terbawa ke divisi lain.
+             */
+            if (clearWhenHidden) {
+                selectedMaterial = null;
+
+                $('#materialSearch').val('');
+                $('#searchResult').removeClass('show').html('');
+                $('#selectedMaterial').removeClass('show');
+                $('#newMaterialForm').removeClass('show');
+
+                $('#requestQty').val('');
+                $('#requestReason').val('');
+                $('#warehouseStock').text('0');
+                $('#stockStatus')
+                    .text('Belum dicek')
+                    .removeClass('stock-danger stock-warning stock-success');
+            }
+        }
+
+        /*
+         * Jalankan saat divisi berubah.
+         */
+        $('#department').on('change', function() {
+            updateWarehouseSearchVisibility(true);
+            updateTableHeaderByDepartment();
+            renderTable();
+            scheduleDraftCache();
+        });
 
         function escapeHtml(value) {
             return $('<div>').text(value ?? '').html();
@@ -887,6 +1131,16 @@
         }
 
         function searchMaterial() {
+
+            /*
+             * Warehouse hanya untuk Purchasing.
+             * Guard ini mencegah AJAX search tetap berjalan jika
+             * fungsi terpanggil dari event lain.
+             */
+            if (!isPurchasingDepartment()) {
+                $('#searchResult').removeClass('show').html('');
+                return;
+            }
 
             let keyword = $('#materialSearch').val().trim();
 
@@ -1194,6 +1448,7 @@
                 keterangan: '',
                 unit_price: 0,
                 total: 0,
+                status: 'urgent',
                 is_new: true
             });
 
@@ -1325,6 +1580,7 @@
                 keterangan: '',
                 unit_price: selectedMaterial.price || 0,
                 total: (selectedMaterial.price || 0) * qty,
+                status: 'urgent',
                 is_new: false
             });
 
@@ -1345,182 +1601,315 @@
             selectedMaterial = null;
         });
 
+        /*
+         * ============================================================
+         * TABLE MODE BERDASARKAN DIVISI
+         * ============================================================
+         * PURCHASING:
+         *   No | Material | Supplier | PO | Payment | Description |
+         *   Keterangan | Warehouse | Qty | Sat | Unit Price | Total |
+         *   Status | Aksi
+         *
+         * NON-PURCHASING:
+         *   No | Material | Supplier | PO | Payment | Description |
+         *   Keterangan | Qty | Sat | Unit Price | Total | Status | Aksi
+         *
+         * Warehouse sama sekali tidak ditampilkan untuk divisi lain.
+         * Non-Purchasing juga dapat menggunakan Add Row.
+         * ============================================================
+         */
+
+        function updateTableHeaderByDepartment() {
+            const purchasing = isPurchasingDepartment();
+
+            $('#warehouseHeader').toggle(purchasing);
+
+            $('#grandTotalLabel')
+                .attr('colspan', purchasing ? 11 : 10);
+
+            $('#emptyRequestColspan')
+                .attr('colspan', purchasing ? 14 : 13);
+
+            // Teks tombol dibuat lebih jelas sesuai konteks.
+            $('#btnAddManualRow').html(
+                purchasing ?
+                '<i class="fa fa-plus"></i> Add Row' :
+                '<i class="fa fa-plus"></i> Add Row'
+            );
+        }
+
+        function renderMaterialCell(item, index) {
+            /*
+             * Row hasil Add Row pada divisi non-Purchasing dibuat
+             * langsung editable agar user tidak perlu melalui warehouse.
+             */
+            if (!isPurchasingDepartment() && item.manual_row) {
+                return `
+                    <input type="text"
+                           class="row-material-name"
+                           data-index="${index}"
+                           value="${escapeHtml(item.name || '')}"
+                           placeholder="Nama barang / kebutuhan"
+                           ${CAN_EDIT ? '' : 'disabled'}>
+                `;
+            }
+
+            if (item.is_new) {
+                return `
+                    <b>${escapeHtml(item.name || 'Barang Baru')}</b><br>                `;
+            }
+
+            return `
+                <b>${escapeHtml(item.code || '')}</b>
+                ${item.code ? '<br>' : ''}
+                ${escapeHtml(item.name || '-')}
+            `;
+        }
+
+        function renderQtyCell(item, index) {
+            if (!isPurchasingDepartment() && item.manual_row) {
+                return `
+                    <input type="number"
+                           min="0.01"
+                           step="0.01"
+                           class="row-qty"
+                           data-index="${index}"
+                           value="${Number(item.qty || 0) || ''}"
+                           placeholder="Qty"
+                           ${CAN_EDIT ? '' : 'disabled'}>
+                `;
+            }
+
+            return formatNumber(item.qty);
+        }
+
+        function renderUnitCell(item, index) {
+            if (!isPurchasingDepartment() && item.manual_row) {
+                return `
+                    <input type="text"
+                           class="row-unit"
+                           data-index="${index}"
+                           value="${escapeHtml(item.unit || '')}"
+                           placeholder="Sat"
+                           ${CAN_EDIT ? '' : 'disabled'}>
+                `;
+            }
+
+            return escapeHtml(item.unit || '-');
+        }
+
         function renderTable() {
-
             let tbody = $('#requestTableBody');
+            const purchasing = isPurchasingDepartment();
 
+            updateTableHeaderByDepartment();
             tbody.empty();
 
             if (requestItems.length === 0) {
-
                 tbody.html(`
-                <tr id="emptyRequestRow">
-                    <td colspan="12"
-                        class="empty-request">
-                        <i class="fa fa-cubes"></i>
-                        Belum ada barang yang ditambahkan
-                    </td>
-                </tr>
-            `);
+                    <tr id="emptyRequestRow">
+                        <td colspan="${purchasing ? 14 : 13}"
+                            id="emptyRequestColspan"
+                            class="empty-request">
+                            <i class="fa fa-cubes"></i>
+                            Belum ada barang yang ditambahkan
+                        </td>
+                    </tr>
+                `);
 
                 $('#grandTotal').text('0');
-
                 return;
             }
 
             requestItems.forEach(function(item, index) {
-
                 let statusHtml = '';
-                let materialHtml = '';
                 let rowClass = '';
 
-                if (item.is_new) {
-
+                if (item.manual_row || item.is_new) {
                     rowClass = 'new-item-row';
-
-                    statusHtml = `
-                    <span class="badge bg-info">
-                        Barang Baru
-                    </span>
-                `;
-
-                    materialHtml = `
-                    <b>${escapeHtml(item.name)}</b><br>
-                    <span class="new-item-label">
-                        Belum ada di inventory
-                    </span>
-                `;
-
-                } else {
-
-                    statusHtml =
-                        Number(item.stock) <= 0 ?
-                        `<span class="badge bg-danger">Stock Habis</span>` :
-                        `<span class="badge bg-warning text-dark">Tidak Cukup</span>`;
-
-                    materialHtml = `
-                    <b>${escapeHtml(item.code)}</b><br>
-                    ${escapeHtml(item.name)}
-                `;
                 }
 
+                const currentStatus = String(item.status || 'urgent').trim().toLowerCase();
+
+                statusHtml = `
+                    <select class="row-status"
+                            data-index="${index}"
+                            ${CAN_EDIT ? '' : 'disabled'}>
+                        <option value="urgent" ${currentStatus === 'urgent' ? 'selected' : ''}>
+                            urgent
+                        </option>
+                        <option value="non urgent" ${currentStatus === 'non urgent' ? 'selected' : ''}>
+                            non urgent
+                        </option>
+                        <option value="terjadwal" ${currentStatus === 'terjadwal' ? 'selected' : ''}>
+                            terjadwal
+                        </option>
+                    </select>
+                `;
+
+                const warehouseCell = purchasing ?
+                    `
+                        <td class="warehouse-cell">
+                            ${escapeHtml(item.warehouse || '-')}
+                        </td>
+                    ` :
+                    '';
+
                 tbody.append(`
-                <tr class="${rowClass}">
+                    <tr class="${rowClass}">
 
-                    <td class="text-center">
-                        ${index + 1}
-                    </td>
+                        <td class="text-center">
+                            ${index + 1}
+                        </td>
 
-                    <td>
-                        ${materialHtml}
-                    </td>
+                        <td>
+                            ${renderMaterialCell(item, index)}
+                        </td>
 
-                    <td>
-                        <input type="text"
-                               class="row-supplier"
-                               data-index="${index}"
-                               value="${escapeHtml(item.supplier)}"
-                               placeholder="Supplier / Vendor"
-                                ${CAN_EDIT ? '' : 'disabled'}>
-                    </td>
+                        <td>
+                            <input type="text"
+                                   class="row-supplier"
+                                   data-index="${index}"
+                                   value="${escapeHtml(item.supplier || '')}"
+                                   placeholder="Supplier / Vendor"
+                                   ${CAN_EDIT ? '' : 'disabled'}>
+                        </td>
 
-                    <td>
-                        <input type="text"
-                               class="row-po-no"
-                               data-index="${index}"
-                               value="${escapeHtml(item.po_no || '')}"
-                               placeholder="PO No"
-                                ${CAN_EDIT ? '' : 'disabled'}>
-                    </td>
+                        <td>
+                            <input type="text"
+                                   class="row-po-no"
+                                   data-index="${index}"
+                                   value="${escapeHtml(item.po_no || '')}"
+                                   placeholder="PO No"
+                                   ${CAN_EDIT ? '' : 'disabled'}>
+                        </td>
 
-                    <td>
-                        <select class="row-payment"
-                                data-index="${index}"
-                                 ${CAN_EDIT ? '' : 'disabled'}>
-                            <option value="">-</option>
-                            <option value="cash"
-                                ${item.payment === 'cash' ? 'selected' : ''}>
-                                Cash
-                            </option>
-                            <option value="transfer"
-                                ${item.payment === 'transfer' ? 'selected' : ''}>
-                                Transfer
-                            </option>
-                            <option value="tempo"
-                                ${item.payment === 'tempo' ? 'selected' : ''}>
-                                Tempo
-                            </option>
-                        </select>
-                    </td>
+                        <td>
+                            <select class="row-payment"
+                                    data-index="${index}"
+                                    ${CAN_EDIT ? '' : 'disabled'}>
+                                <option value="">-</option>
+                                <option value="cash"
+                                    ${item.payment === 'cash' ? 'selected' : ''}>
+                                    Cash
+                                </option>
+                                <option value="transfer"
+                                    ${item.payment === 'transfer' ? 'selected' : ''}>
+                                    Transfer
+                                </option>
+                                <option value="tempo"
+                                    ${item.payment === 'tempo' ? 'selected' : ''}>
+                                    Tempo
+                                </option>
+                            </select>
+                        </td>
 
-                    <td>
-                        <input type="text"
-                               class="row-description"
-                               data-index="${index}"
-                               value="${escapeHtml(item.description)}"
-                               placeholder="Description"
-                                ${CAN_EDIT ? '' : 'disabled'}>
-                    </td>
+                        <td>
+                            <input type="text"
+                                   class="row-description"
+                                   data-index="${index}"
+                                   value="${escapeHtml(item.description || '')}"
+                                   placeholder="Description"
+                                   ${CAN_EDIT ? '' : 'disabled'}>
+                        </td>
 
-                    <td>
-                        <input type="text"
-                               class="row-keterangan"
-                               data-index="${index}"
-                               value="${escapeHtml(item.keterangan || '')}"
-                               placeholder="Keterangan"
-                                ${CAN_EDIT ? '' : 'disabled'}>
-                    </td>
+                        <td>
+                            <input type="text"
+                                   class="row-keterangan"
+                                   data-index="${index}"
+                                   value="${escapeHtml(item.keterangan || '')}"
+                                   placeholder="Keterangan"
+                                   ${CAN_EDIT ? '' : 'disabled'}>
+                        </td>
 
-                    <td>
-                        ${escapeHtml(item.warehouse)}
-                    </td>
+                        ${warehouseCell}
 
-                    <td class="text-center">
-                        ${formatNumber(item.qty)}
-                    </td>
+                        <td class="text-center">
+                            ${renderQtyCell(item, index)}
+                        </td>
 
-                    <td class="text-center">
-                        ${escapeHtml(item.unit || '-')}
-                    </td>
+                        <td class="text-center">
+                            ${renderUnitCell(item, index)}
+                        </td>
 
-                    <td>
-                        <input type="number"
-                               min="0"
-                               step="0.01"
-                               class="unit-price"
-                               data-index="${index}"
-                               value="${Number(item.unit_price || 0)}"
-                                ${CAN_EDIT ? '' : 'disabled'}>
-                    </td>
+                        <td>
+                            <input type="number"
+                                   min="0"
+                                   step="0.01"
+                                   class="unit-price"
+                                   data-index="${index}"
+                                   value="${Number(item.unit_price || 0)}"
+                                   ${CAN_EDIT ? '' : 'disabled'}>
+                        </td>
 
-                    <td class="item-total"
-                        data-index="${index}">
-                        ${formatNumber(item.total)}
-                    </td>
+                        <td class="item-total"
+                            data-index="${index}">
+                            ${formatNumber(
+                                Number(item.qty || 0) * Number(item.unit_price || 0)
+                            )}
+                        </td>
 
-                    <td class="text-center">
-                        ${statusHtml}
-                    </td>
+                        <td class="text-center">
+                            ${statusHtml}
+                        </td>
 
-                    <td class="text-center">
-                        <button type="button"
-                                class="remove-row"
-                                data-index="${index}"
-                                title="${CAN_EDIT ? 'Hapus' : 'Tidak dapat diubah'}"
-                                 ${CAN_EDIT ? '' : 'disabled'}>
-                            <i class="fa fa-trash"></i>
-                        </button>
-                    </td>
+                        <td class="text-center">
+                            <button type="button"
+                                    class="remove-row"
+                                    data-index="${index}"
+                                    title="${CAN_EDIT ? 'Hapus' : 'Tidak dapat diubah'}"
+                                    ${CAN_EDIT ? '' : 'disabled'}>
+                                <i class="fa fa-trash"></i>
+                            </button>
+                        </td>
 
-                </tr>
-            `);
+                    </tr>
+                `);
             });
 
             calculateGrandTotal();
         }
 
-        $(document).on('input', '.row-supplier', function() {
+        $(document).on('input', '.row-material-name', function() {
+            let index = Number($(this).data('index'));
 
+            if (requestItems[index]) {
+                requestItems[index].name = $(this).val();
+                requestItems[index].is_new = true;
+                requestItems[index].manual_row = true;
+            }
+        });
+
+        $(document).on('input', '.row-qty', function() {
+            let index = Number($(this).data('index'));
+
+            if (!requestItems[index]) {
+                return;
+            }
+
+            let qty = Number($(this).val()) || 0;
+            let price = Number(requestItems[index].unit_price) || 0;
+
+            requestItems[index].qty = qty;
+            requestItems[index].total = qty * price;
+
+            $(this)
+                .closest('tr')
+                .find('.item-total')
+                .text(formatNumber(requestItems[index].total));
+
+            calculateGrandTotal();
+        });
+
+        $(document).on('input', '.row-unit', function() {
+            let index = Number($(this).data('index'));
+
+            if (requestItems[index]) {
+                requestItems[index].unit = $(this).val();
+            }
+        });
+
+        $(document).on('input', '.row-supplier', function() {
             let index = Number($(this).data('index'));
 
             if (requestItems[index]) {
@@ -1529,7 +1918,6 @@
         });
 
         $(document).on('input', '.row-po-no', function() {
-
             let index = Number($(this).data('index'));
 
             if (requestItems[index]) {
@@ -1538,7 +1926,6 @@
         });
 
         $(document).on('input', '.row-keterangan', function() {
-
             let index = Number($(this).data('index'));
 
             if (requestItems[index]) {
@@ -1547,7 +1934,6 @@
         });
 
         $(document).on('change', '.row-payment', function() {
-
             let index = Number($(this).data('index'));
 
             if (requestItems[index]) {
@@ -1555,8 +1941,15 @@
             }
         });
 
-        $(document).on('input', '.row-description', function() {
+        $(document).on('change', '.row-status', function() {
+            let index = Number($(this).data('index'));
 
+            if (requestItems[index]) {
+                requestItems[index].status = $(this).val();
+            }
+        });
+
+        $(document).on('input', '.row-description', function() {
             let index = Number($(this).data('index'));
 
             if (requestItems[index]) {
@@ -1565,7 +1958,6 @@
         });
 
         $(document).on('input', '.unit-price', function() {
-
             let index = Number($(this).data('index'));
 
             if (!requestItems[index]) {
@@ -1588,42 +1980,85 @@
         });
 
         function calculateGrandTotal() {
-
             let total = 0;
 
             requestItems.forEach(function(item) {
-                total += Number(item.total) || 0;
+                const qty = Number(item.qty) || 0;
+                const price = Number(item.unit_price) || 0;
+
+                /*
+                 * Total selalu dihitung ulang dari Qty x Unit Price.
+                 * Jangan mengandalkan value total lama dari cache/database.
+                 */
+                item.total = qty * price;
+                total += item.total;
             });
 
-            $('#grandTotal')
-                .text(formatNumber(total));
+            $('#grandTotal').text(formatNumber(total));
         }
 
         $(document).on('click', '.remove-row', function() {
-
             let index = Number($(this).data('index'));
 
             requestItems.splice(index, 1);
-
             renderTable();
         });
 
         $(document).on('click', function(e) {
-
             if (
                 !$(e.target).closest('.search-box').length &&
                 !$(e.target).closest('#searchResult').length
             ) {
-                $('#searchResult')
-                    .removeClass('show');
+                $('#searchResult').removeClass('show');
             }
         });
 
+        /*
+         * ADD ROW:
+         * - Purchasing       : tetap diarahkan ke search inventory.
+         * - Non-Purchasing    : langsung membuat row manual.
+         */
         $('#btnAddManualRow').on('click', function() {
+            if (!CAN_EDIT) {
+                return;
+            }
 
-            alert(
-                'Barang existing harus dipilih dari inventory. Jika barang belum ada, cari nama barang lalu pilih opsi "Tambahkan sebagai barang baru".'
-            );
+            if (isPurchasingDepartment()) {
+                alert(
+                    'Untuk divisi Purchasing, barang existing harus dipilih dari inventory. ' +
+                    'Jika barang belum ada, gunakan pencarian lalu pilih "Tambahkan sebagai barang baru".'
+                );
+                return;
+            }
+
+            requestItems.push({
+                id: null,
+                code: '',
+                name: '',
+                jenis: '',
+                warehouse: '',
+                stock: 0,
+                qty: 0,
+                unit: '',
+                reason: '',
+                supplier: '',
+                po_no: '',
+                payment: '',
+                description: '',
+                keterangan: '',
+                unit_price: 0,
+                total: 0,
+                status: 'urgent',
+                is_new: true,
+                manual_row: true
+            });
+
+            renderTable();
+
+            setTimeout(function() {
+                const index = requestItems.length - 1;
+                $('.row-material-name[data-index="' + index + '"]').focus();
+            }, 50);
         });
 
         // ============================================================
@@ -1990,6 +2425,84 @@
             );
         }
 
+        /*
+         * Sembunyikan slot approval yang memang TIDAK ADA / kosong.
+         *
+         * Contoh:
+         * step 2 ada
+         * step 3 kosong
+         * step 4 ada
+         * step 5 tidak ada
+         * finance ada
+         * approved ada
+         *
+         * Maka yang terlihat hanya:
+         * Made by | Checked by | Checked by | Finance | Approved
+         *
+         * Tidak ada kotak kosong berisi "-".
+         */
+        function syncApprovalSlotsVisibility() {
+            const stepToField = {
+                2: '#checked_by_1',
+                3: '#checked_by_2',
+                4: '#checked_by_3',
+                5: '#checked_by_4',
+                6: '#checked_by_finance',
+                7: '#approved_by'
+            };
+
+            Object.keys(stepToField).forEach(function(order) {
+                const field = $(stepToField[order]);
+
+                let step = null;
+
+                if (Array.isArray(APPROVAL_STEPS)) {
+                    step = APPROVAL_STEPS.find(function(item) {
+                        return String(item.step_order) === String(order);
+                    });
+                }
+
+                /*
+                 * Slot dianggap aktif hanya jika approval step-nya ada
+                 * DAN mempunyai user yang ditugaskan.
+                 */
+                const hasApprover = !!(
+                    step &&
+                    (
+                        Number(step.user_id || 0) > 0 ||
+                        String(step.user_name || '').trim() !== ''
+                    )
+                );
+
+                const $header = $('[data-approval-header="' + order + '"]');
+                const $roleCell = $('[data-approval-slot="' + order + '"]').first();
+                const $inputCell = $('[data-approval-slot="' + order + '"]').last();
+
+                $header.toggle(hasApprover);
+                $roleCell.toggle(hasApprover);
+                $inputCell.toggle(hasApprover);
+
+                /*
+                 * Kalau step tidak ada, pastikan tidak ada sisa tombol
+                 * atau pesan "Belum ada approver".
+                 */
+                if (!hasApprover && field.length) {
+                    field.val('');
+                    field.closest('td').find('.approval-tap-wrap, .approval-waiting').remove();
+                }
+            });
+
+            /*
+             * Made by selalu ditampilkan.
+             */
+            $('[data-approval-header="made"]').show();
+
+            /*
+             * Jika semua approver kosong, signature section tetap valid
+             * dengan Made by saja.
+             */
+        }
+
         function renderApprovalButtons() {
             if (!EDIT_MODE || !Array.isArray(APPROVAL_STEPS)) {
                 return;
@@ -2081,6 +2594,8 @@
                     );
                 }
             });
+
+            syncApprovalSlotsVisibility();
         }
 
         $(document).off('click.purchasingApproval', '.approval-tap-btn');
@@ -2254,6 +2769,7 @@
                 formData.append(`items[${index}][qty]`, item.qty || 0);
                 formData.append(`items[${index}][unit]`, item.unit || '');
                 formData.append(`items[${index}][price]`, item.unit_price || 0);
+                formData.append(`items[${index}][status]`, item.status || 'urgent');
             });
 
             formData.append('signature[checked_by_1]', $('#checked_by_1').val() || '');
@@ -2753,6 +3269,7 @@
                         keterangan: item.keterangan || '',
                         unit_price: Number(item.unit_price || 0),
                         total: Number(item.total || 0),
+                        status: item.status || 'urgent',
                         is_new: Boolean(item.is_new)
                     };
                 }) : [];
@@ -2777,6 +3294,15 @@
         if (!loadEditData()) {
             loadDraftCache();
         }
+
+        /*
+         * Sinkronkan tampilan warehouse setelah data edit/cache selesai
+         * dimuat. Ini penting karena $('#department').val(...)
+         * tidak otomatis memicu event change.
+         */
+        updateWarehouseSearchVisibility(false);
+        updateTableHeaderByDepartment();
+        syncApprovalSlotsVisibility();
 
         // Render tombol Tanda Tangan SETELAH data pengajuan
         // dan assignment approver selesai dimuat.
@@ -3284,6 +3810,41 @@
     .viewer-hide-search-section {
         display: none !important;
     }
+
+    /*
+     * Warehouse search hanya boleh tampil setelah divisi
+     * PURCHASING dipilih. Default dikontrol oleh JavaScript.
+     */
+    #warehouseSearchSection {
+        transition: opacity .18s ease, visibility .18s ease;
+    }
+
+    .request-table .row-material-name,
+    .request-table .row-qty,
+    .request-table .row-unit {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+
+    .request-table .row-qty {
+        text-align: center;
+    }
+
+    .request-table .row-unit {
+        text-align: center;
+    }
+
+    .request-table .row-status {
+        width: 100%;
+        min-width: 92px;
+        box-sizing: border-box;
+        padding: 4px 5px;
+        border: 1px solid #d8dee8;
+        border-radius: 4px;
+        background: #fff;
+        font-size: 12px;
+    }
 </style>
 
 <script>
@@ -3488,6 +4049,42 @@
         font-weight: 700;
     }
 
+    /*
+     * VIEW ONLY:
+     * Non-Purchasing tidak boleh memiliki kolom Warehouse maupun Aksi.
+     * Lebar kolom dibuat lebih proporsional agar tabel tidak melebar
+     * hanya karena kolom warehouse.
+     */
+    .vpr-table-non-purchasing {
+        min-width: 0;
+    }
+
+    .vpr-table-non-purchasing th:nth-child(1),
+    .vpr-table-non-purchasing td:nth-child(1) {
+        width: 42px;
+    }
+
+    .vpr-table-non-purchasing th:nth-child(2),
+    .vpr-table-non-purchasing td:nth-child(2) {
+        width: 70px;
+    }
+
+    .vpr-table-non-purchasing th:nth-child(7),
+    .vpr-table-non-purchasing td:nth-child(7),
+    .vpr-table-non-purchasing th:nth-child(8),
+    .vpr-table-non-purchasing td:nth-child(8) {
+        white-space: nowrap;
+    }
+
+    .vpr-table-purchasing .warehouse-action-cell {
+        min-width: 105px;
+    }
+
+    .vpr-table-purchasing th:last-child,
+    .vpr-table-purchasing td:last-child {
+        min-width: 85px;
+    }
+
     @media (max-width: 800px) {
         .viewer-purchase-request {
             margin: 8px;
@@ -3524,5 +4121,40 @@
             border-right: 0;
             border-bottom: 1px solid #222;
         }
+    }
+
+    /* Tombol hapus approver pada setiap slot TTD */
+    .approval-slot {
+        position: relative;
+    }
+
+    .approval-delete-btn {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        z-index: 30;
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        border: 1px solid #dc3545;
+        border-radius: 50%;
+        background: #fff;
+        color: #dc3545;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        cursor: pointer;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, .12);
+    }
+
+    .approval-delete-btn:hover {
+        background: #dc3545;
+        color: #fff;
+    }
+
+    .approval-delete-btn:disabled {
+        opacity: .45;
+        cursor: not-allowed;
     }
 </style>

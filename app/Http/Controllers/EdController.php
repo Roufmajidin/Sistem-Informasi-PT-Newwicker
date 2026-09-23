@@ -40,39 +40,139 @@ class EdController extends Controller
         return response()->json($rows);
     }
 
-    public function poItems($id)
-    {
-        $po = Po::with('detailPos')->findOrFail($id);
+public function poItems($id)
+{
+    $po = Po::with('detailPos')->findOrFail($id);
 
-        $items = [];
+    /*
+    |--------------------------------------------------------------------------
+    | QTY LOADED - SAMA DENGAN STOCK MONITORING
+    |--------------------------------------------------------------------------
+    | Hanya IPL yang sudah RELEASE yang dihitung sebagai loaded.
+    |
+    | Mapping:
+    | 1. detail_po_id
+    | 2. po_no + article_nr untuk data IPL lama
+    |--------------------------------------------------------------------------
+    */
 
-        foreach ($po->detailPos as $detailPo) {
+    $releasedItems = ExportIplItem::with('exportIpl')
+        ->whereHas('exportIpl', function ($query) {
+            $query->whereNotNull('released')
+                ->where('released', '!=', '');
+        })
+        ->select(
+            'id',
+            'export_ipl_id',
+            'po_id',
+            'detail_po_id',
+            'po_no',
+            'article_nr',
+            'qty_pcs'
+        )
+        ->orderBy('export_ipl_id')
+        ->get();
 
-            $detail = $detailPo->detail;
+    $loadedByDetail = $releasedItems
+        ->filter(function ($item) {
+            return !empty($item->detail_po_id);
+        })
+        ->groupBy('detail_po_id');
 
-            $items[] = [
-                'id' => $detailPo->id,
-                'article_nr' => $detail['article_nr_'] ?? '',
-                'order_no' => $po->order_no, // tambah ini
-                'po_id' => $po->id,
+    $loadedByPoArticle = $releasedItems
+        ->groupBy(function ($item) {
+            return trim((string) $item->po_no)
+                . '||'
+                . trim((string) $item->article_nr);
+        });
 
-                'description' => $detail['description'] ?? '',
-                'photo' => $detail['photo'] ?? '',
-                'qty' => $detail['qty'] ?? 0,
-                'cbm' => $detail['cbm'] ?? 0,
-                'total_cbm' => $detail['total_cbm'] ?? 0,
-                'pack_w' => $detail['pack_w'] ?? '',
-                'pack_d' => $detail['pack_d'] ?? '',
-                'pack_h' => $detail['pack_h'] ?? '',
-                // 'value' => $detail['fob_jakarta_in_usd']
-                //     ?? $detail['fob_jakarta_price_in_usd_pc']
-                //     ?? 0,            ];
-                'value' => $this->getPrice($detail),
-            ];
+    $items = [];
+
+    foreach ($po->detailPos as $detailPo) {
+
+        $detail = is_array($detailPo->detail)
+            ? $detailPo->detail
+            : json_decode($detailPo->detail, true);
+
+        $qtyPo = (float) ($detail['qty'] ?? 0);
+
+        $loadedQty = 0;
+
+        /*
+        |--------------------------------------------------------------------------
+        | PRIORITAS 1: detail_po_id
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            isset($loadedByDetail[$detailPo->id]) &&
+            $loadedByDetail[$detailPo->id]->count()
+        ) {
+            $loadedQty = $loadedByDetail[$detailPo->id]
+                ->sum(function ($load) {
+                    return (float) ($load->qty_pcs ?? 0);
+                });
         }
 
-        return response()->json($items);
+        /*
+        |--------------------------------------------------------------------------
+        | PRIORITAS 2: PO NO + ARTICLE
+        | Untuk IPL lama yang detail_po_id NULL
+        |--------------------------------------------------------------------------
+        */
+
+        if ($loadedQty == 0) {
+
+            $poNo = trim((string) $po->order_no);
+
+            $article = trim(
+                (string) ($detail['article_nr_'] ?? '')
+            );
+
+            if ($poNo !== '' && $article !== '') {
+
+                $key = $poNo . '||' . $article;
+
+                if (isset($loadedByPoArticle[$key])) {
+
+                    $loadedQty = $loadedByPoArticle[$key]
+                        ->sum(function ($load) {
+                            return (float) ($load->qty_pcs ?? 0);
+                        });
+                }
+            }
+        }
+
+        $availableQty = max(0, $qtyPo - $loadedQty);
+
+        $items[] = [
+            'id' => $detailPo->id,
+            'article_nr' => $detail['article_nr_'] ?? '',
+            'order_no' => $po->order_no,
+            'po_id' => $po->id,
+            'description' => $detail['description'] ?? '',
+            'photo' => $detail['photo'] ?? '',
+
+            // Qty PO
+            'qty' => $qtyPo,
+
+            // Qty yang sudah loaded/released
+            'used_qty' => $loadedQty,
+
+            // Qty yang masih boleh diambil
+            'available_qty' => $availableQty,
+
+            'cbm' => $detail['cbm'] ?? 0,
+            'total_cbm' => $detail['total_cbm'] ?? 0,
+            'pack_w' => $detail['pack_w'] ?? '',
+            'pack_d' => $detail['pack_d'] ?? '',
+            'pack_h' => $detail['pack_h'] ?? '',
+            'value' => $this->getPrice($detail),
+        ];
     }
+
+    return response()->json($items);
+}
 
     private function getPrice(array $detail)
     {
@@ -262,25 +362,84 @@ class EdController extends Controller
         );
     }
 
-    public function edit($id)
-    {
-        $ipl = ExportIpl::with([
+  public function edit($id)
+{
+    $ipl = ExportIpl::with([
+        'pos',
+        'items',
+    ])->findOrFail($id);
 
-            'pos',
+    /*
+    |--------------------------------------------------------------------------
+    | RECOVERY DATA IPL LAMA
+    |--------------------------------------------------------------------------
+    | Jika po_id kosong, cari berdasarkan po_no.
+    | Jika detail_po_id kosong, cari berdasarkan PO + article.
+    |--------------------------------------------------------------------------
+    */
 
-            'items',
+    foreach ($ipl->items as $item) {
 
-        ])->findOrFail($id);
-        // dd($ipl->items->toArray());
+        // ---------------------------------------------------------
+        // RECOVERY PO ID
+        // ---------------------------------------------------------
 
-        return view('pages.exports.index', [
+        if (empty($item->po_id) && !empty($item->po_no)) {
 
-            'mode' => 'edit',
+            $po = Po::where(
+                'order_no',
+                trim($item->po_no)
+            )->first();
 
-            'ipl' => $ipl,
+            if ($po) {
+                $item->po_id = $po->id;
+            }
+        }
 
-        ]);
+        // ---------------------------------------------------------
+        // RECOVERY DETAIL PO ID
+        // ---------------------------------------------------------
+
+        if (
+            empty($item->detail_po_id) &&
+            !empty($item->po_id) &&
+            !empty($item->article_nr)
+        ) {
+
+            $po = Po::with('detailPos')
+                ->find($item->po_id);
+
+            if ($po) {
+
+                foreach ($po->detailPos as $detailPo) {
+
+                    $detail = is_array($detailPo->detail)
+                        ? $detailPo->detail
+                        : json_decode($detailPo->detail, true);
+
+                    $article = trim(
+                        (string) ($detail['article_nr_'] ?? '')
+                    );
+
+                    if (
+                        $article !== '' &&
+                        $article === trim((string) $item->article_nr)
+                    ) {
+
+                        $item->detail_po_id = $detailPo->id;
+
+                        break;
+                    }
+                }
+            }
+        }
     }
+
+    return view('pages.exports.index', [
+        'mode' => 'edit',
+        'ipl' => $ipl,
+    ]);
+}
 
     public function updateIpl(Request $request, $id)
     {
@@ -459,7 +618,19 @@ class EdController extends Controller
 
         $qtyPo = (float) ($detail['qty'] ?? 0);
 
+        /*
+        |--------------------------------------------------------------------------
+        | Hanya IPL yang sudah RELEASE dianggap sudah loaded.
+        |--------------------------------------------------------------------------
+        | Jika EDIT, item yang sedang diedit dikecualikan.
+        |--------------------------------------------------------------------------
+        */
+
         $usedQty = ExportIplItem::where('detail_po_id', $detailPoId)
+            ->whereHas('exportIpl', function ($query) {
+                $query->whereNotNull('released')
+                    ->where('released', '!=', '');
+            })
             ->when($request->item_id, function ($q) use ($request) {
                 $q->where('id', '!=', $request->item_id);
             })
@@ -479,6 +650,12 @@ class EdController extends Controller
             ->orderBy('order_no')
             ->get();
 
+        /*
+        |--------------------------------------------------------------------------
+        | PREPARE DETAIL PO
+        |--------------------------------------------------------------------------
+        */
+
         foreach ($po as $itemPo) {
 
             foreach ($itemPo->detailPos as $detail) {
@@ -491,31 +668,214 @@ class EdController extends Controller
 
         }
 
+
         /*
         |--------------------------------------------------------------------------
-        | Qty Loaded per Export
+        | AMBIL IPL YANG SUDAH RELEASE SAJA
         |--------------------------------------------------------------------------
         */
 
-        $loadedItems = ExportIplItem::with('exportIpl')
+        $releasedItems = ExportIplItem::with('exportIpl')
+            ->whereHas('exportIpl', function ($query) {
+
+                $query->whereNotNull('released')
+                    ->where('released', '!=', '');
+
+            })
             ->select(
                 'id',
                 'export_ipl_id',
+                'po_id',
                 'detail_po_id',
+                'po_no',
+                'article_nr',
                 'qty_pcs'
             )
             ->orderBy('export_ipl_id')
-            ->get()
+            ->get();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | QTY LOADED
+        |--------------------------------------------------------------------------
+        |
+        | Kita buat 2 mapping:
+        |
+        | 1. detail_po_id
+        | 2. po_no + article_nr
+        |
+        | Supaya data IPL lama yang detail_po_id NULL
+        | tetap bisa terbaca.
+        |
+        */
+
+        $loadedByDetail = $releasedItems
+            ->filter(function ($item) {
+
+                return !empty($item->detail_po_id);
+
+            })
             ->groupBy('detail_po_id');
 
+
+        /*
+        |--------------------------------------------------------------------------
+        | FALLBACK UNTUK IPL LAMA
+        |--------------------------------------------------------------------------
+        */
+
+        $loadedByPoArticle = $releasedItems
+            ->groupBy(function ($item) {
+
+                return trim((string) $item->po_no)
+                    . '||'
+                    . trim((string) $item->article_nr);
+
+            });
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | HITUNG QTY LOADED PER DETAIL PO
+        |--------------------------------------------------------------------------
+        */
+
+        foreach ($po as $itemPo) {
+
+            foreach ($itemPo->detailPos as $detail) {
+
+                $item = $detail->item ?? [];
+
+                $loadedQty = 0;
+
+                /*
+                |--------------------------------------------------------------------------
+                | PRIORITAS 1
+                | detail_po_id
+                |--------------------------------------------------------------------------
+                */
+
+                if (
+                    isset($loadedByDetail[$detail->id]) &&
+                    $loadedByDetail[$detail->id]->count()
+                ) {
+
+                    $loadedQty = $loadedByDetail[$detail->id]
+                        ->sum(function ($load) {
+
+                            return (float) ($load->qty_pcs ?? 0);
+
+                        });
+
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | PRIORITAS 2
+                | PO NO + ARTICLE
+                |
+                | Untuk data IPL lama yang:
+                | po_id = NULL
+                | detail_po_id = NULL
+                |--------------------------------------------------------------------------
+                */
+
+                if ($loadedQty == 0) {
+
+                    $poNo = trim((string) $itemPo->order_no);
+
+                    $article = trim(
+                        (string) ($item['article_nr_'] ?? '')
+                    );
+
+                    if ($poNo !== '' && $article !== '') {
+
+                        $key = $poNo . '||' . $article;
+
+                        if (isset($loadedByPoArticle[$key])) {
+
+                            $loadedQty = $loadedByPoArticle[$key]
+                                ->sum(function ($load) {
+
+                                    return (float) ($load->qty_pcs ?? 0);
+
+                                });
+
+                        }
+
+                    }
+
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | SIMPAN HASIL KE DETAIL
+                |--------------------------------------------------------------------------
+                */
+
+                $detail->loaded_qty = $loadedQty;
+
+            }
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | VIEW
+        |--------------------------------------------------------------------------
+        */
+
         return view('pages.exports.so', compact(
-            'po',
-            'loadedItems'
+            'po'
         ));
     }
+    // public function stock()
+    // {
+    //     $po = Po::with('detailPos')
+    //         ->orderBy('order_no')
+    //         ->get();
+
+    //     foreach ($po as $itemPo) {
+
+    //         foreach ($itemPo->detailPos as $detail) {
+
+    //             $detail->item = is_array($detail->detail)
+    //                 ? $detail->detail
+    //                 : json_decode($detail->detail, true);
+
+    //         }
+
+    //     }
+
+    //     /*
+    //     |--------------------------------------------------------------------------
+    //     | Qty Loaded per Export
+    //     |--------------------------------------------------------------------------
+    //     */
+
+    //     $loadedItems = ExportIplItem::with('exportIpl')
+    //         ->select(
+    //             'id',
+    //             'export_ipl_id',
+    //             'detail_po_id',
+    //             'qty_pcs'
+    //         )
+    //         ->orderBy('export_ipl_id')
+    //         ->get()
+    //         ->groupBy('detail_po_id');
+
+    //     return view('pages.exports.so', compact(
+    //         'po',
+    //         'loadedItems'
+    //     ));
+    // }
     public function docExports()
     {
-            $document = null;
+        $document = null;
         return view('pages.exports.doc_form', compact('document'));
     }
     public function documentList(Request $request)
@@ -837,7 +1197,7 @@ class EdController extends Controller
             'packingList',
             'po',
         ])->findOrFail($id);
-            // dd($document);
+        // dd($document);
         return view(
             'pages.exports.doc_form',
             compact('document')
@@ -846,152 +1206,297 @@ class EdController extends Controller
     // update 
 
 
-public function update(Request $request, $id)
-{
-    DB::beginTransaction();
+    public function update(Request $request, $id)
+    {
+        DB::beginTransaction();
 
-    try {
+        try {
 
-        $doc = ExportDocument::findOrFail($id);
+            $doc = ExportDocument::findOrFail($id);
 
-        $doc->update([
-            'po_id'            => $request->po_id,
-            'buyer_name'       => $request->buyer_name,
-            'invoice_id'       => $request->invoice,
-            'packing_list_id'  => $request->packing_list,
-            'peb_no'           => $request->peb_no,
-        ]);
+            $doc->update([
+                'po_id' => $request->po_id,
+                'buyer_name' => $request->buyer_name,
+                'invoice_id' => $request->invoice,
+                'packing_list_id' => $request->packing_list,
+                'peb_no' => $request->peb_no,
+            ]);
 
-        /*
-        |--------------------------------------------------------------------------
-        | Hapus file yang dihapus user
-        |--------------------------------------------------------------------------
-        */
+            /*
+            |--------------------------------------------------------------------------
+            | Hapus file yang dihapus user
+            |--------------------------------------------------------------------------
+            */
 
-        $deleted = json_decode($request->deleted_files, true);
+            $deleted = json_decode($request->deleted_files, true);
 
-        if (!empty($deleted)) {
+            if (!empty($deleted)) {
 
-            $files = ExportDocumentFile::whereIn('id', $deleted)->get();
+                $files = ExportDocumentFile::whereIn('id', $deleted)->get();
 
-            foreach ($files as $file) {
+                foreach ($files as $file) {
 
-                if ($file->file_path && Storage::disk('public')->exists($file->file_path)) {
-                    Storage::disk('public')->delete($file->file_path);
-                }
-
-                $file->delete();
-            }
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Single File
-        |--------------------------------------------------------------------------
-        */
-
-        $singleFiles = [
-
-            'shipping_instruction',
-            'delivery_order',
-            'bl',
-            'coo',
-            'fumigation',
-            'v_legal',
-            'phyto',
-            'isf',
-            'lacey_plant',
-            'lacey_animal',
-
-        ];
-
-        foreach ($singleFiles as $type) {
-
-            if ($request->hasFile($type)) {
-
-                $old = ExportDocumentFile::where([
-                    'export_document_id' => $doc->id,
-                    'document_type'      => $type,
-                ])->first();
-
-                if ($old) {
-
-                    if ($old->file_path && Storage::disk('public')->exists($old->file_path)) {
-                        Storage::disk('public')->delete($old->file_path);
+                    if ($file->file_path && Storage::disk('public')->exists($file->file_path)) {
+                        Storage::disk('public')->delete($file->file_path);
                     }
 
-                    $old->delete();
+                    $file->delete();
                 }
-
-                $file = $request->file($type);
-
-                $path = $file->store('export_documents', 'public');
-
-                ExportDocumentFile::create([
-
-                    'export_document_id' => $doc->id,
-
-                    'document_type'      => $type,
-
-                    'original_name'      => $file->getClientOriginalName(),
-
-                    'file_path'          => $path,
-
-                    'mime_type'          => $file->getMimeType(),
-
-                    'file_size'          => $file->getSize(),
-
-                ]);
             }
-        }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Declaration (Multiple)
-        |--------------------------------------------------------------------------
-        */
+            /*
+            |--------------------------------------------------------------------------
+            | Single File
+            |--------------------------------------------------------------------------
+            */
 
-        if ($request->hasFile('declarations')) {
+            $singleFiles = [
 
-            foreach ($request->file('declarations') as $file) {
+                'shipping_instruction',
+                'delivery_order',
+                'bl',
+                'coo',
+                'fumigation',
+                'v_legal',
+                'phyto',
+                'isf',
+                'lacey_plant',
+                'lacey_animal',
 
-                $path = $file->store('export_documents', 'public');
+            ];
 
-                ExportDocumentFile::create([
+            foreach ($singleFiles as $type) {
 
-                    'export_document_id' => $doc->id,
+                if ($request->hasFile($type)) {
 
-                    'document_type'      => 'declaration',
+                    $old = ExportDocumentFile::where([
+                        'export_document_id' => $doc->id,
+                        'document_type' => $type,
+                    ])->first();
 
-                    'original_name'      => $file->getClientOriginalName(),
+                    if ($old) {
 
-                    'file_path'          => $path,
+                        if ($old->file_path && Storage::disk('public')->exists($old->file_path)) {
+                            Storage::disk('public')->delete($old->file_path);
+                        }
 
-                    'mime_type'          => $file->getMimeType(),
+                        $old->delete();
+                    }
 
-                    'file_size'          => $file->getSize(),
+                    $file = $request->file($type);
 
-                ]);
+                    $path = $file->store('export_documents', 'public');
+
+                    ExportDocumentFile::create([
+
+                        'export_document_id' => $doc->id,
+
+                        'document_type' => $type,
+
+                        'original_name' => $file->getClientOriginalName(),
+
+                        'file_path' => $path,
+
+                        'mime_type' => $file->getMimeType(),
+
+                        'file_size' => $file->getSize(),
+
+                    ]);
+                }
             }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Declaration (Multiple)
+            |--------------------------------------------------------------------------
+            */
+
+            if ($request->hasFile('declarations')) {
+
+                foreach ($request->file('declarations') as $file) {
+
+                    $path = $file->store('export_documents', 'public');
+
+                    ExportDocumentFile::create([
+
+                        'export_document_id' => $doc->id,
+
+                        'document_type' => 'declaration',
+
+                        'original_name' => $file->getClientOriginalName(),
+
+                        'file_path' => $path,
+
+                        'mime_type' => $file->getMimeType(),
+
+                        'file_size' => $file->getSize(),
+
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Document berhasil diupdate.'
+            ]);
+
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
         }
-
-        DB::commit();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Document berhasil diupdate.'
-        ]);
-
-    } catch (\Exception $e) {
-
-        DB::rollBack();
-
-        return response()->json([
-            'success' => false,
-            'message' => $e->getMessage()
-        ], 500);
     }
-}
+    public function releaseIpl(Request $request, $id)
+    {
+        DB::beginTransaction();
+
+        try {
+
+            $ipl = ExportIpl::findOrFail($id);
+
+            /*
+            |--------------------------------------------------------------------------
+            | CEK SUDAH RELEASE
+            |--------------------------------------------------------------------------
+            */
+
+            if (!empty($ipl->released)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'IPL ini sudah pernah di-release.'
+                ], 422);
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | CEK ETD
+            |--------------------------------------------------------------------------
+            */
+
+            if (empty($ipl->etd)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'ETD IPL belum diisi.'
+                ], 422);
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | 1. AMBIL PO ID DARI export_ipl_pos
+            |--------------------------------------------------------------------------
+            */
+
+            $poIds = ExportIplPo::where(
+                'export_ipl_id',
+                $ipl->id
+            )
+                ->pluck('po_id')
+                ->filter()
+                ->unique()
+                ->values();
+
+            /*
+            |--------------------------------------------------------------------------
+            | 2. JIKA PO ID TIDAK ADA
+            |    CARI BERDASARKAN PO NO
+            |--------------------------------------------------------------------------
+            */
+
+            if ($poIds->isEmpty()) {
+
+                $poNos = ExportIplItem::where(
+                    'export_ipl_id',
+                    $ipl->id
+                )
+                    ->pluck('po_no')
+                    ->filter()
+                    ->map(function ($value) {
+                        return trim($value);
+                    })
+                    ->unique()
+                    ->values();
+
+                if ($poNos->isNotEmpty()) {
+
+                    $poIds = Po::whereIn('order_no', $poNos)
+                        ->pluck('id')
+                        ->unique()
+                        ->values();
+                }
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | 3. JIKA MASIH TIDAK DITEMUKAN
+            |--------------------------------------------------------------------------
+            */
+
+            if ($poIds->isEmpty()) {
+
+                DB::rollBack();
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'PO tidak ditemukan berdasarkan PO ID maupun nomor PO.',
+                ], 422);
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | 4. UPDATE ETD KE PO
+            |--------------------------------------------------------------------------
+            */
+
+            $updatedPo = Po::whereIn('id', $poIds)
+                ->update([
+                    'etd' => $ipl->etd,
+                ]);
+
+            /*
+            |--------------------------------------------------------------------------
+            | 5. RELEASE IPL
+            |--------------------------------------------------------------------------
+            */
+
+            $releaseDate = now();
+
+            $ipl->released = $releaseDate;
+            $ipl->release_date = $releaseDate;
+            $ipl->save();
+
+            /*
+            |--------------------------------------------------------------------------
+            | 6. COMMIT
+            |--------------------------------------------------------------------------
+            */
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'IPL berhasil di-release dan ETD PO berhasil diperbarui.',
+                'release_date' => $releaseDate->format('d/m/Y'),
+                'etd' => \Carbon\Carbon::parse($ipl->etd)->format('d/m/Y'),
+                'po_ids' => $poIds->values(),
+                'updated_po' => $updatedPo,
+            ]);
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
     // EXPORT DOWNLOAD
     // ada di helpers
 

@@ -2068,7 +2068,11 @@
         }
     );
 
-    function renderDraft(draft) {
+    // Global compatibility: some existing handlers call renderDraft() directly.
+    // Keep both names available without changing the existing render logic.
+    var renderDraft;
+
+    window.renderDraft = function renderDraft(draft) {
         // isi pertama
         $('[name="item"]').val(draft.name || '');
 
@@ -2544,6 +2548,9 @@
         };
 
     }
+    // Expose the same function as a bare global for existing callbacks.
+    renderDraft = window.renderDraft;
+
     // init
     function initSortable() {
 
@@ -2574,9 +2581,282 @@
         }
         draft = JSON.parse(draft);
         // console.log('draft loaded', draft);
-        renderDraft(draft);
+        window.renderDraft(draft);
 
     });
+
+    /* =========================================================
+       AUTO SAVE BOM — EDIT MODE ONLY
+       - Tidak aktif saat CREATE BOM baru
+       - Save 5 detik setelah interaksi terakhir
+       - Menggunakan endpoint + payload UPDATE existing
+       - Tidak reload halaman
+       - Mencegah request bertumpuk
+       ========================================================= */
+
+    const autoSaveBomId = @json($bom->id ?? null);
+    const autoSaveEditMode = !!autoSaveBomId;
+
+    let autoSaveDirty = false;
+    let autoSaveChangeVersion = 0;
+    let autoSaveTimer = null;
+    let autoSaveInProgress = false;
+    let autoSaveQueued = false;
+
+    function initAutoSaveStatus() {
+        if (!autoSaveEditMode) return;
+        if ($('#bom-auto-save-status').length) return;
+
+        $('.bom-actions').append(`
+            <span
+                id="bom-auto-save-status"
+                class="ml-2"
+                style="
+                    display:inline-flex;
+                    align-items:center;
+                    gap:5px;
+                    font-size:9px;
+                    color:#667085;
+                    white-space:nowrap;
+                "
+            >
+                <i class="fa fa-check-circle"></i>
+                <span>Data tersimpan</span>
+            </span>
+        `);
+    }
+
+    function setAutoSaveStatus(type, message) {
+        if (!autoSaveEditMode) return;
+
+        initAutoSaveStatus();
+
+        const status = $('#bom-auto-save-status');
+        if (!status.length) return;
+
+        const icon = status.find('i');
+        const text = status.find('span');
+
+        let iconClass = 'fa-check-circle';
+
+        if (type === 'saving') {
+            iconClass = 'fa-spinner fa-spin';
+        } else if (type === 'dirty') {
+            iconClass = 'fa-clock-o';
+        } else if (type === 'error') {
+            iconClass = 'fa-exclamation-circle';
+        }
+
+        icon.attr('class', 'fa ' + iconClass);
+        text.text(message);
+
+        if (type === 'saving') {
+            status.css('color', '#d97706');
+        } else if (type === 'error') {
+            status.css('color', '#dc2626');
+        } else if (type === 'dirty') {
+            status.css('color', '#667085');
+        } else {
+            status.css('color', '#16a34a');
+        }
+    }
+
+    function markBomDirty() {
+        // CREATE MODE → autosave benar-benar tidak aktif.
+        if (!autoSaveEditMode) return;
+
+        autoSaveDirty = true;
+        autoSaveChangeVersion++;
+        autoSaveQueued = false;
+
+        setAutoSaveStatus('dirty', 'Perubahan belum disimpan');
+
+        clearTimeout(autoSaveTimer);
+
+        autoSaveTimer = setTimeout(function() {
+            autoSaveTimer = null;
+
+            if (!autoSaveDirty) return;
+
+            if (autoSaveInProgress) {
+                autoSaveQueued = true;
+                return;
+            }
+
+            autoSaveBOM();
+        }, 5000);
+    }
+
+    function scheduleAutoSaveAfterCurrentRequest() {
+        clearTimeout(autoSaveTimer);
+
+        autoSaveTimer = setTimeout(function() {
+            autoSaveTimer = null;
+
+            if (!autoSaveDirty) return;
+
+            if (autoSaveInProgress) {
+                autoSaveQueued = true;
+                return;
+            }
+
+            autoSaveBOM();
+        }, 5000);
+    }
+
+    function autoSaveBOM() {
+
+        // =====================================================
+        // SECURITY GUARD: EDIT ONLY
+        // =====================================================
+        if (!autoSaveEditMode || !autoSaveBomId) {
+            return;
+        }
+
+        if (!autoSaveDirty) {
+            return;
+        }
+
+        if (autoSaveInProgress) {
+            autoSaveQueued = true;
+            return;
+        }
+
+        autoSaveInProgress = true;
+        autoSaveQueued = false;
+
+        const requestChangeVersion = autoSaveChangeVersion;
+
+        setAutoSaveStatus('saving', 'Menyimpan...');
+
+        const formData = new FormData();
+
+        formData.append(
+            '_token',
+            '{{ csrf_token() }}'
+        );
+
+        formData.append(
+            'bom',
+            JSON.stringify(
+                collectBomData()
+            )
+        );
+
+        // Sama seperti UPDATE manual:
+        // kalau ada image baru, ikut dikirim.
+        const imageInput = $('#bom_image')[0];
+        const image = imageInput && imageInput.files
+            ? imageInput.files[0]
+            : null;
+
+        if (image) {
+            formData.append(
+                'image',
+                image
+            );
+        }
+
+        $.ajax({
+
+            url: '/bom-produksi/update/' + autoSaveBomId,
+
+            type: 'POST',
+
+            data: formData,
+
+            processData: false,
+
+            contentType: false,
+
+            success: function(res) {
+
+                // Hanya tandai clean jika tidak ada perubahan baru
+                // selama request berjalan.
+                if (autoSaveChangeVersion === requestChangeVersion) {
+                    autoSaveDirty = false;
+                }
+
+                setAutoSaveStatus(
+                    'success',
+                    'Tersimpan otomatis • ' +
+                    new Date().toLocaleTimeString('id-ID', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    })
+                );
+
+            },
+
+            error: function(xhr) {
+
+                console.error(
+                    'AUTO SAVE BOM ERROR:',
+                    xhr.responseText
+                );
+
+                // Jangan menganggap data sudah tersimpan.
+                autoSaveDirty = true;
+
+                setAutoSaveStatus(
+                    'error',
+                    'Gagal menyimpan — akan dicoba lagi'
+                );
+
+                // Retry tetap 5 detik setelah request selesai.
+                scheduleAutoSaveAfterCurrentRequest();
+
+            },
+
+            complete: function() {
+
+                autoSaveInProgress = false;
+
+                // Jika user mengubah data ketika request sedang berjalan,
+                // jangan kehilangan perubahan tersebut.
+                if (autoSaveDirty || autoSaveQueued) {
+                    autoSaveQueued = false;
+                    scheduleAutoSaveAfterCurrentRequest();
+                }
+            }
+        });
+    }
+
+    // =========================================================
+    // DETEKSI INTERAKSI BOM — EDIT ONLY
+    // =========================================================
+
+    $(document).on(
+        'input change',
+        '.bom-compact-page input:not([type="file"]), .bom-compact-page textarea, .bom-compact-page select',
+        function() {
+            markBomDirty();
+        }
+    );
+
+    // Perubahan yang terjadi melalui tombol / dynamic row.
+    $(document).on(
+        'click',
+        '#btn-add-header, .btn-add-child, .btn-add-sub-price, .btn-remove-header, .btn-remove-child, .btn-remove-sub-price, .btn-select-material',
+        function() {
+            markBomDirty();
+        }
+    );
+
+    // Upload / replace image juga dianggap perubahan BOM saat EDIT.
+    $(document).on(
+        'change',
+        '#bom_image',
+        function() {
+            markBomDirty();
+        }
+    );
+
+    // Inisialisasi status hanya jika benar-benar EDIT.
+    if (autoSaveEditMode) {
+        initAutoSaveStatus();
+    }
 
     // edit bom
     $(document).on(

@@ -629,6 +629,7 @@ public function searchArticle(Request $request)
             $results[] = [
                 'no_po' => $noPo,
                 'po_id' => $detailPo->po_id,
+                'po_qty' => $this->getDetailPoQty($detailPo),
                 'matched_by' => 'article',
             ];
         }
@@ -769,6 +770,7 @@ public function searchArticle(Request $request)
                 $results[] = [
                     'no_po' => $noPo,
                     'po_id' => $detailPo->po_id,
+                    'po_qty' => $this->getDetailPoQty($detailPo),
                     'matched_by' => 'description',
                 ];
             }
@@ -1187,6 +1189,287 @@ public function searchArticle(Request $request)
 
         return response()->json($results);
     }
+
+    /**
+     * Cari detail PO berdasarkan Article Code + No PO.
+     * detail_po.detail adalah JSON.
+     */
+    private function findDetailPoByArticleAndPo(string $article, ?string $noPo = null): ?DetailPo
+    {
+        $article = trim($article);
+        $noPo = trim((string) $noPo);
+
+        if ($article === '') {
+            return null;
+        }
+
+        $details = DetailPo::with('po')
+            ->whereNotNull('detail')
+            ->get();
+
+        $normalize = function ($value) {
+            return strtolower(
+                preg_replace('/\s+/', ' ', trim((string) $value))
+            );
+        };
+
+        $articleNormalized = $normalize($article);
+
+        foreach ($details as $detailPo) {
+            if ($noPo !== '') {
+                $poNo = trim((string) optional($detailPo->po)->order_no);
+
+                if ($normalize($poNo) !== $normalize($noPo)) {
+                    continue;
+                }
+            }
+
+            $detail = $detailPo->detail;
+
+            if (!is_array($detail)) {
+                continue;
+            }
+
+            $articleValues = [];
+
+            foreach ([
+                'article_code',
+                'article_code_',
+                'article_nr',
+                'article_nr_',
+                'article',
+                'article_no',
+                'article_number',
+                'sku',
+                'item_code',
+                'code',
+            ] as $key) {
+                if (
+                    array_key_exists($key, $detail) &&
+                    $detail[$key] !== null &&
+                    trim((string) $detail[$key]) !== ''
+                ) {
+                    $articleValues[] = trim((string) $detail[$key]);
+                }
+            }
+
+            foreach (array_unique($articleValues) as $articleCode) {
+                if ($normalize($articleCode) === $articleNormalized) {
+                    return $detailPo;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Ambil Qty PO dari detail JSON.
+     */
+    private function getDetailPoQty(?DetailPo $detailPo): float
+    {
+        if (!$detailPo || !is_array($detailPo->detail)) {
+            return 0;
+        }
+
+        $detail = $detailPo->detail;
+
+        $rawQty = null;
+
+        foreach ([
+            'qty',
+            'Qty',
+            'QTY',
+            'quantity',
+            'Quantity',
+            'order_qty',
+            'order_quantity',
+            'po_qty',
+            'po_quantity',
+        ] as $key) {
+            if (
+                array_key_exists($key, $detail) &&
+                $detail[$key] !== null &&
+                trim((string) $detail[$key]) !== ''
+            ) {
+                $rawQty = $detail[$key];
+                break;
+            }
+        }
+
+        if ($rawQty === null) {
+            return 0;
+        }
+
+        $rawQty = trim((string) $rawQty);
+
+        // Support 20, 20.5, 20,50 and Indonesian thousands.
+        if (str_contains($rawQty, ',') && str_contains($rawQty, '.')) {
+            $rawQty = str_replace('.', '', $rawQty);
+            $rawQty = str_replace(',', '.', $rawQty);
+        } elseif (str_contains($rawQty, ',')) {
+            $rawQty = str_replace(',', '.', $rawQty);
+        }
+
+        return max(0, (float) $rawQty);
+    }
+
+    /**
+     * Hitung qty yang sudah direkap untuk Article + PO + Jenis Pekerjaan.
+     * Tidak memakai detail_po_id di tabel upah.
+     */
+    private function getUsedUpahQty(
+        string $article,
+        ?string $noPo,
+        string $pekerjaan,
+        ?int $excludeId = null
+    ): float {
+        $query = Upah::query()
+            ->whereRaw('TRIM(article) = ?', [trim($article)])
+            ->whereRaw('LOWER(TRIM(pekerjaan)) = ?', [
+                strtolower(trim($pekerjaan))
+            ]);
+
+        if (trim((string) $noPo) === '') {
+            $query->where(function ($q) {
+                $q->whereNull('no_po')
+                    ->orWhere('no_po', '');
+            });
+        } else {
+            $query->whereRaw('TRIM(no_po) = ?', [trim($noPo)]);
+        }
+
+        if ($excludeId) {
+            $query->where('id', '<>', $excludeId);
+        }
+
+        return (float) $query->sum('qty');
+    }
+
+    /**
+     * Validasi kuota qty berdasarkan:
+     * Article Code + No PO + Jenis Pekerjaan.
+     */
+    private function validateUpahQtyLimit(
+        string $article,
+        ?string $noPo,
+        string $pekerjaan,
+        float $requestedQty,
+        ?int $excludeId = null
+    ): array {
+        $detailPo = $this->findDetailPoByArticleAndPo($article, $noPo);
+
+        if (!$detailPo) {
+            return [
+                'found' => false,
+                'valid' => false,
+                'qty_po' => 0,
+                'used_qty' => 0,
+                'used_qty_total' => 0,
+                'remaining_qty' => 0,
+                'message' => 'Detail PO untuk Article Code dan No PO tersebut tidak ditemukan.',
+            ];
+        }
+
+        $qtyPo = $this->getDetailPoQty($detailPo);
+
+        $usedQtyTotal = $this->getUsedUpahQty(
+            $article,
+            $noPo,
+            $pekerjaan,
+            null
+        );
+
+        $usedQty = $this->getUsedUpahQty(
+            $article,
+            $noPo,
+            $pekerjaan,
+            $excludeId
+        );
+
+        if ($qtyPo <= 0) {
+            return [
+                'found' => true,
+                'valid' => false,
+                'qty_po' => 0,
+                // used_qty = qty yang dipakai untuk validasi (transaksi edit dikecualikan)
+                'used_qty' => $usedQty,
+                // used_qty_total = seluruh qty yang sudah tercatat, termasuk transaksi yang sedang diedit
+                'used_qty_total' => $usedQtyTotal,
+                'remaining_qty' => 0,
+                'detail_po_id' => $detailPo->id,
+                'message' => 'Qty PO pada Detail PO tidak ditemukan atau bernilai 0.',
+            ];
+        }
+
+        $remainingQty = max(0, $qtyPo - $usedQty);
+
+        if (($usedQty + $requestedQty) > $qtyPo) {
+            return [
+                'found' => true,
+                'valid' => false,
+                'qty_po' => $qtyPo,
+                'used_qty' => $usedQty,
+                'used_qty_total' => $usedQtyTotal,
+                'remaining_qty' => $remainingQty,
+                'detail_po_id' => $detailPo->id,
+                'message' => sprintf(
+                    'Qty pekerjaan "%s" untuk Article "%s" pada PO "%s" sudah melebihi kuota. Qty PO: %s | Sudah direkap: %s | Sisa: %s.',
+                    $pekerjaan,
+                    $article,
+                    $noPo ?: '-',
+                    number_format($qtyPo, 2, ',', '.'),
+                    number_format($usedQty, 2, ',', '.'),
+                    number_format($remainingQty, 2, ',', '.')
+                ),
+            ];
+        }
+
+        return [
+            'found' => true,
+            'valid' => true,
+            'qty_po' => $qtyPo,
+            'used_qty' => $usedQty,
+            'used_qty_total' => $usedQtyTotal,
+            'remaining_qty' => $remainingQty,
+            'detail_po_id' => $detailPo->id,
+            'message' => null,
+        ];
+    }
+
+    /**
+     * Realtime check dari frontend.
+     * Tidak menyimpan detail_po_id ke tabel upah.
+     */
+    public function checkQtyUpah(Request $request)
+    {
+        $request->validate([
+            'article' => 'required|string|max:100',
+            'pekerjaan' => 'required|string|max:100',
+            'no_po' => 'nullable|string|max:100',
+            'qty' => 'required|numeric|min:0',
+            'exclude_id' => 'nullable|integer',
+        ]);
+
+        $result = $this->validateUpahQtyLimit(
+            $request->article,
+            $request->no_po,
+            $request->pekerjaan,
+            (float) $request->qty,
+            $request->exclude_id
+        );
+
+        return response()->json([
+            'success' => true,
+            ...$result,
+            'over' => !$result['valid'] || (
+                $result['remaining_qty'] !== null &&
+                (float) $request->qty > (float) $result['remaining_qty']
+            ),
+            'requested_qty' => (float) $request->qty,
+        ]);
+    }
+
     public function storeUpah(Request $request)
     {
         $validated = $request->validate([
@@ -1252,10 +1535,34 @@ public function searchArticle(Request $request)
                 'nullable',
                 'boolean',
             ],
+
+            'id' => [
+                'nullable',
+                'integer',
+            ],
         ]);
 
         try {
             $result = DB::transaction(function () use ($validated) {
+
+                /*
+                 * Qty limit:
+                 * Article + No PO + Pekerjaan.
+                 * Tidak menambah detail_po_id ke tabel upah.
+                 */
+                $qtyCheck = $this->validateUpahQtyLimit(
+                    $validated['article'],
+                    $validated['no_po'] ?? null,
+                    $validated['pekerjaan'],
+                    (float) $validated['qty'],
+                    !empty($validated['id']) ? (int) $validated['id'] : null
+                );
+
+                if (!$qtyCheck['valid']) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'qty' => $qtyCheck['message'],
+                    ]);
+                }
 
                 $article = trim($validated['article']);
                 $pekerjaan = trim($validated['pekerjaan']);
@@ -1478,6 +1785,19 @@ public function searchArticle(Request $request)
             $created = [];
 
             foreach ($request->rows as $row) {
+
+                $qtyCheck = $this->validateUpahQtyLimit(
+                    $row['article'],
+                    $row['no_po'] ?? null,
+                    $row['pekerjaan'],
+                    (float) $row['qty']
+                );
+
+                if (!$qtyCheck['valid']) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'rows' => $qtyCheck['message'],
+                    ]);
+                }
 
                 $created[] = Upah::create([
 
@@ -1868,4 +2188,3 @@ public function searchArticle(Request $request)
 }
 
 }
-

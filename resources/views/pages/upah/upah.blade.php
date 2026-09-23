@@ -349,6 +349,11 @@
 
                 <form id="formInsertUpah">
 
+                    {{-- ID transaksi yang sedang diedit.
+                         Dipakai oleh realtime qty check untuk mengecualikan
+                         transaksi ini dari total yang sudah terpakai. --}}
+                    <input type="hidden" id="insert_upah_id" name="id" value="">
+
 
                     <div class="modal-body">
 
@@ -508,6 +513,15 @@
 
                                     <input type="number" id="insert_qty" name="qty" class="form-control"
                                         value="1" min="0" step="0.01">
+<div id="insert_qty_limit_info" class="mt-2" style="display:none;">
+    <div class="small text-muted">
+        <span class="me-3">Qty PO: <strong id="insert_qty_po">0</strong></span>
+        <span class="me-3">Sudah Upah: <strong id="insert_qty_used">0</strong></span>
+        <span>Sisa: <strong id="insert_qty_remaining">0</strong></span>
+    </div>
+    <div id="insert_qty_limit_message" class="small mt-1"></div>
+</div>
+
 
                                 </div>
 
@@ -713,1071 +727,1419 @@
     </div>
 
 
-    <style>
-        /* =========================================================
-   UPAH - COMPACT ERP UI
-   UI ONLY
-   Tidak mengubah fungsi, AJAX, ID, atau Blade logic.
+   <style>
+/* =========================================================
+   UPAH - COMPACT & COMFORTABLE ERP UI
+   Chrome 100% friendly
    ========================================================= */
 
-        .upah-page {
-            padding: 8px !important;
-            font-size: 10px;
-            color: #172033;
-        }
+.upah-page {
+    padding: 8px !important;
+    font-size: 14px;
+    color: #172033;
+}
 
 
-        /* =========================================================
+/* =========================================================
    HEADER
    ========================================================= */
 
-        .upah-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            min-height: 56px;
-            margin-bottom: 10px;
-            padding: 10px 13px;
-            background: #fff;
-            border: 1px solid #e2e6eb;
-            border-radius: 8px;
-            box-shadow: 0 1px 4px rgba(16, 24, 40, .035);
-        }
+.upah-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 56px;
+    margin-bottom: 10px;
+    padding: 10px 13px;
+    background: #fff;
+    border: 1px solid #e2e6eb;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(16, 24, 40, .035);
+}
 
-        .upah-title {
-            margin: 0;
-            color: #172033;
-            font-size: 17px;
-            line-height: 1.2;
-            font-weight: 750;
-            letter-spacing: -.02em;
-        }
+.upah-title {
+    margin: 0;
+    color: #172033;
+    font-size: 18px;
+    line-height: 1.2;
+    font-weight: 750;
+    letter-spacing: -.02em;
+}
 
-        .upah-subtitle {
-            margin-top: 3px;
-            color: #98a2b3;
-            font-size: 9px;
-        }
+.upah-subtitle {
+    margin-top: 3px;
+    color: #98a2b3;
+    font-size: 11px;
+}
 
 
-        /* =========================================================
+/* =========================================================
    TOOLBAR
    ========================================================= */
 
-        .upah-page>.card-body {
-            padding: 8px 0 !important;
-        }
+.upah-page > .card-body {
+    padding: 8px 0 !important;
+}
 
-        .upah-page {
-            --upah-sticky-top: 0px;
-        }
+.upah-page {
+    --upah-sticky-top: 0px;
+}
 
-        .upah-page .card-body.py-2 {
-            padding: 8px 0 !important;
-        }
+.upah-page .card-body.py-2 {
+    padding: 8px 0 !important;
+}
 
-        .upah-page .card {
-            border: 1px solid #e2e6eb;
-            border-radius: 8px;
-            box-shadow: 0 1px 4px rgba(16, 24, 40, .035);
-        }
+.upah-page .card {
+    border: 1px solid #e2e6eb;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(16, 24, 40, .035);
+}
 
 
-        /* =========================================================
+/* =========================================================
    FORM CONTROL
    ========================================================= */
 
-        .upah-page .form-control {
-            min-height: 32px;
-            height: 32px;
-            padding: 4px 9px;
-            border: 1px solid #dfe3e8;
-            border-radius: 6px;
-            color: #344054;
-            font-size: 9.5px;
-            box-shadow: none !important;
-        }
+.upah-page .form-control,
+.upah-page .form-select {
+    min-height: 34px;
+    height: 34px;
+    padding: 5px 10px;
+    border: 1px solid #dfe3e8;
+    border-radius: 6px;
+    color: #344054;
+    font-size: 13px;
+    box-shadow: none !important;
+}
 
-        .upah-page .form-control:focus {
-            border-color: #93c5fd;
-            box-shadow: 0 0 0 2px rgba(37, 99, 235, .07) !important;
-        }
+.upah-page textarea.form-control {
+    height: auto;
+    min-height: 60px;
+}
+
+.upah-page .form-control:focus,
+.upah-page .form-select:focus {
+    border-color: #93c5fd;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, .07) !important;
+}
 
 
-        /* =========================================================
+/* =========================================================
    BUTTON
    ========================================================= */
 
-        .upah-page .btn {
-            min-height: 30px;
-            height: 30px;
-            padding: 0 10px;
-            border-radius: 6px;
-            font-size: 9px;
-            font-weight: 650;
-            line-height: 28px;
-            box-shadow: none !important;
-        }
+.upah-page .btn {
+    min-height: 32px;
+    height: 32px;
+    padding: 0 11px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 650;
+    line-height: 30px;
+    box-shadow: none !important;
+}
 
-        .upah-page .btn-sm {
-            min-height: 30px;
-            height: 30px;
-        }
+.upah-page .btn-sm {
+    min-height: 32px;
+    height: 32px;
+    font-size: 12px;
+}
 
-        .upah-page #btnAddUpahTransaksi,
-        .upah-page #btnExportUpah {
-            padding: 0 11px;
-        }
+.upah-page #btnAddUpahTransaksi,
+.upah-page #btnExportUpah {
+    padding: 0 12px;
+}
 
 
-        /* =========================================================
+/* =========================================================
    SEARCH
    ========================================================= */
 
-        .upah-page #searchUpahTable {
-            height: 32px !important;
-            min-height: 32px !important;
-            width: 240px !important;
-            padding-right: 30px !important;
-        }
+.upah-page #searchUpahTable {
+    height: 34px !important;
+    min-height: 34px !important;
+    width: 240px !important;
+    padding-right: 32px !important;
+    font-size: 13px !important;
+}
 
-        .upah-page #clearSearchUpah {
-            height: 27px !important;
-            min-height: 27px !important;
-            width: 27px;
-            padding: 0 !important;
-            top: 2px !important;
-            line-height: 25px !important;
-            color: #98a2b3;
-        }
+.upah-page #clearSearchUpah {
+    height: 29px !important;
+    min-height: 29px !important;
+    width: 29px;
+    padding: 0 !important;
+    top: 2px !important;
+    line-height: 27px !important;
+    color: #98a2b3;
+}
 
 
-        /* =========================================================
+/* =========================================================
    DATE INPUT
    ========================================================= */
 
-        .upah-page #filterDateFrom,
-        .upah-page #filterDateTo {
-            height: 32px !important;
-            min-height: 32px !important;
-            width: 135px !important;
-        }
+.upah-page #filterDateFrom,
+.upah-page #filterDateTo {
+    height: 34px !important;
+    min-height: 34px !important;
+    width: 135px !important;
+    font-size: 13px !important;
+}
 
-        .upah-page .text-muted {
-            color: #667085 !important;
-        }
-
-        .upah-page #upahAlert {
-            margin: 8px 0 0;
-            padding: 7px 9px;
-            border-radius: 6px;
-            font-size: 9px;
-        }
+.upah-page .text-muted {
+    color: #667085 !important;
+}
 
 
-        /* =========================================================
+/* =========================================================
+   ALERT
+   ========================================================= */
+
+.upah-page #upahAlert {
+    margin: 8px 0 0;
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+}
+
+
+/* =========================================================
+   MAIN TABLE WRAPPER
+   ========================================================= */
+
+.upah-table-wrapper {
+    width: 100%;
+    margin-top: 0 !important;
+    overflow-x: auto;
+    overflow-y: visible;
+    border: 0;
+    border-radius: 8px;
+    background: #fff;
+    scrollbar-width: thin;
+}
+
+.upah-table-wrapper::-webkit-scrollbar {
+    height: 6px;
+}
+
+.upah-table-wrapper::-webkit-scrollbar-track {
+    background: #f3f4f6;
+}
+
+.upah-table-wrapper::-webkit-scrollbar-thumb {
+    background: #cbd1d8;
+    border-radius: 20px;
+}
+
+
+/* =========================================================
    MAIN TABLE
    ========================================================= */
 
-        .upah-table-wrapper {
-            width: 100%;
-            margin-top: 0 !important;
-            overflow-x: auto;
-            overflow-y: visible;
-            border: 0;
-            border-radius: 8px;
-            background: #fff;
-            scrollbar-width: thin;
-        }
+.upah-table {
+    width: 100%;
+    min-width: 1050px;
+    margin: 0 !important;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: #fff;
 
-        .upah-table-wrapper::-webkit-scrollbar {
-            height: 6px;
-        }
-
-        .upah-table-wrapper::-webkit-scrollbar-track {
-            background: #f3f4f6;
-        }
-
-        .upah-table-wrapper::-webkit-scrollbar-thumb {
-            background: #cbd1d8;
-            border-radius: 20px;
-        }
-
-        .upah-table {
-            width: 100%;
-            min-width: 1050px;
-            margin: 0 !important;
-            border-collapse: separate;
-            border-spacing: 0;
-            background: #fff;
-            font-size: 9px;
-        }
+    /* FIX:
+       sebelumnya 4px */
+    font-size: 13px;
+}
 
 
-        /* =========================================================
+/* =========================================================
    TABLE HEADER
    ========================================================= */
 
-        .upah-table thead th {
-            position: sticky;
-            top: 0;
-            z-index: 10;
-            height: 34px;
-            padding: 7px 8px !important;
-            background: #f8f9fb !important;
-            color: #667085 !important;
-            border: 0 !important;
-            border-bottom: 1px solid #e4e7ec !important;
-            font-size: 8.5px !important;
-            font-weight: 700 !important;
-            line-height: 1.15;
-            letter-spacing: .01em;
-            white-space: nowrap;
-            vertical-align: middle !important;
-        }
+.upah-table thead {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 100 !important;
+}
 
-        .upah-table thead th+th {
-            border-left: 1px solid #eef0f3 !important;
-        }
+.upah-table thead th {
+    position: sticky !important;
+    top: var(--upah-sticky-top) !important;
+    z-index: 101 !important;
+
+    height: 38px;
+    padding: 8px 9px !important;
+
+    background: #f8f9fb !important;
+    color: #667085 !important;
+
+    border: 0 !important;
+    border-bottom: 1px solid #e4e7ec !important;
+
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    line-height: 1.2;
+
+    letter-spacing: .01em;
+    white-space: nowrap;
+    vertical-align: middle !important;
+
+    background-clip: padding-box !important;
+    box-shadow: 0 1px 0 #e4e7ec !important;
+}
+
+.upah-table thead th + th {
+    border-left: 1px solid #eef0f3 !important;
+}
+
+.upah-page .upah-table thead th::before {
+    content: "";
+
+    position: absolute;
+    inset: 0;
+
+    z-index: -1;
+
+    background: #f8f9fb;
+}
 
 
-        /* =========================================================
+/* =========================================================
    TABLE BODY
    ========================================================= */
 
-        .upah-table tbody tr {
-            height: 38px;
-            background: #fff;
-            transition: background .12s ease;
-        }
+.upah-table tbody tr {
+    height: 42px;
+    background: #fff;
+    transition: background .12s ease;
+}
 
-        .upah-table tbody tr:hover {
-            background: #f8fbff !important;
-        }
+.upah-table tbody tr:hover {
+    background: #f8fbff !important;
+}
 
-        .upah-table tbody td {
-            height: 38px;
-            padding: 5px 8px !important;
-            color: #344054;
-            background: transparent !important;
-            border: 0 !important;
-            border-bottom: 1px solid #edf0f2 !important;
-            font-size: 9px !important;
-            line-height: 1.2;
-            vertical-align: middle !important;
-        }
+.upah-table tbody td {
+    height: 42px;
+    padding: 7px 9px !important;
 
-        .upah-table tbody tr:last-child td {
-            border-bottom: 0 !important;
-        }
+    color: #344054;
+    background: transparent !important;
 
-        .upah-table tbody td:first-child {
-            width: 42px;
-            color: #667085;
-            text-align: center;
-            font-size: 8.5px !important;
-        }
+    border: 0 !important;
+    border-bottom: 1px solid #edf0f2 !important;
 
-        .upah-table tbody td:nth-child(2) {
-            color: #172033;
-            font-weight: 650;
-        }
+    font-size: 13px !important;
+    line-height: 1.3;
 
-        .upah-table tbody td:nth-child(3) {
-            color: #667085;
-        }
+    vertical-align: middle !important;
+}
 
-        .upah-table tbody td:nth-child(4),
-        .upah-table tbody td:nth-child(5),
-        .upah-table tbody td:nth-child(6),
-        .upah-table tbody td:nth-child(10),
-        .upah-table tbody td:nth-child(11) {
-            white-space: nowrap;
-        }
-
-        .upah-table tbody td:nth-child(7),
-        .upah-table tbody td:nth-child(8),
-        .upah-table tbody td:nth-child(9) {
-            white-space: nowrap;
-            font-variant-numeric: tabular-nums;
-        }
-
-        .upah-table tbody td:nth-child(8),
-        .upah-table tbody td:nth-child(9) {
-            color: #172033;
-            font-weight: 650;
-        }
+.upah-table tbody tr:last-child td {
+    border-bottom: 0 !important;
+}
 
 
-        /* =========================================================
+/* =========================================================
+   TABLE COLUMN STYLING
+   ========================================================= */
+
+.upah-table tbody td:first-child {
+    width: 42px;
+    color: #667085;
+    text-align: center;
+    font-size: 12px !important;
+}
+
+.upah-table tbody td:nth-child(2) {
+    color: #172033;
+    font-weight: 650;
+}
+
+.upah-table tbody td:nth-child(3) {
+    color: #667085;
+}
+
+.upah-table tbody td:nth-child(4),
+.upah-table tbody td:nth-child(5),
+.upah-table tbody td:nth-child(6),
+.upah-table tbody td:nth-child(10),
+.upah-table tbody td:nth-child(11) {
+    white-space: nowrap;
+}
+
+.upah-table tbody td:nth-child(7),
+.upah-table tbody td:nth-child(8),
+.upah-table tbody td:nth-child(9) {
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.upah-table tbody td:nth-child(8),
+.upah-table tbody td:nth-child(9) {
+    color: #172033;
+    font-weight: 650;
+}
+
+
+/* =========================================================
+   ACTION BUTTON
+   ========================================================= */
+
+.upah-table .btn {
+    font-size: 12px !important;
+}
+
+
+/* =========================================================
    EMPTY STATE
    ========================================================= */
 
-        .upah-table tbody tr td[colspan] {
-            height: 110px !important;
-            color: #98a2b3 !important;
-            font-size: 9.5px !important;
-            background: #fff !important;
-        }
+.upah-table tbody tr td[colspan] {
+    height: 110px !important;
+    color: #98a2b3 !important;
+    font-size: 13px !important;
+    background: #fff !important;
+}
 
 
-        /* =========================================================
+/* =========================================================
    PAGINATION
    ========================================================= */
 
-        .upah-page .pagination {
-            margin: 8px 0 0 !important;
-        }
+.upah-page .pagination {
+    margin: 8px 0 0 !important;
+}
 
-        .upah-page .pagination .page-link {
-            min-width: 29px;
-            height: 29px;
-            padding: 5px 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-color: #e2e6eb;
-            color: #475467;
-            font-size: 9px;
-            box-shadow: none !important;
-        }
+.upah-page .pagination .page-link {
+    min-width: 31px;
+    height: 31px;
 
-        .upah-page .pagination .active .page-link {
-            color: #fff;
-        }
+    padding: 5px 9px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-color: #e2e6eb;
+    color: #475467;
+
+    font-size: 12px;
+
+    box-shadow: none !important;
+}
 
 
-        /* =========================================================
+/* =========================================================
    ARTICLE SEARCH DROPDOWN
    ========================================================= */
 
-        .article-search-wrapper {
-            position: relative;
-        }
+.article-search-wrapper {
+    position: relative;
+}
 
-        .article-search-result {
-            position: absolute;
-            left: 0;
-            right: 0;
-            top: calc(100% + 3px);
-            z-index: 99999;
-            display: none;
-            background: #fff;
-            border: 1px solid #dfe3e8;
-            border-radius: 7px;
-            box-shadow: 0 10px 25px rgba(16, 24, 40, .12);
-            max-height: 250px;
-            overflow-y: auto;
-        }
+.article-search-result {
+    position: absolute;
 
-        .article-search-result.show {
-            display: block;
-        }
+    left: 0;
+    right: 0;
+    top: calc(100% + 3px);
 
-        .article-result-item {
-            padding: 8px 10px;
-            cursor: pointer;
-            border-bottom: 1px solid #edf0f2;
-            transition: background .12s ease;
-        }
+    z-index: 99999;
 
-        .article-result-item:last-child {
-            border-bottom: 0;
-        }
+    display: none;
 
-        .article-result-item:hover {
-            background: #f8fbff;
-        }
+    background: #fff;
 
-        .article-result-code {
-            color: #172033;
-            font-weight: 700;
-            font-size: 9.5px;
-        }
+    border: 1px solid #dfe3e8;
+    border-radius: 7px;
 
-        .article-result-description {
-            margin-top: 2px;
-            color: #667085;
-            font-size: 8.5px;
-        }
+    box-shadow: 0 10px 25px rgba(16, 24, 40, .12);
 
-        .article-result-type {
-            margin-top: 2px;
-            color: #475467;
-            font-size: 8.5px;
-        }
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.article-search-result.show {
+    display: block;
+}
+
+.article-result-item {
+    padding: 10px 11px;
+
+    cursor: pointer;
+
+    border-bottom: 1px solid #edf0f2;
+
+    transition: background .12s ease;
+}
+
+.article-result-item:last-child {
+    border-bottom: 0;
+}
+
+.article-result-item:hover {
+    background: #f8fbff;
+}
+
+.article-result-code {
+    color: #172033;
+    font-weight: 700;
+    font-size: 13px;
+}
+
+.article-result-description {
+    margin-top: 3px;
+    color: #667085;
+    font-size: 11px;
+}
+
+.article-result-type {
+    margin-top: 3px;
+    color: #475467;
+    font-size: 11px;
+}
 
 
-        /* =========================================================
-   MODAL - BASE
+/* =========================================================
+   MODAL BASE
    ========================================================= */
 
-        /*
- * Normal modal mengikuti isi form.
- *
- * Tidak menggunakan fixed height.
- * Tidak menggunakan min-height besar.
- */
+#modalInsertUpah .modal-dialog {
+    max-width: 700px !important;
+    width: calc(100% - 30px) !important;
 
-        #modalInsertUpah .modal-dialog {
-            max-width: 700px !important;
-            width: calc(100% - 30px) !important;
+    margin: 1rem auto !important;
 
-            margin: 1rem auto !important;
+    height: auto !important;
+    min-height: 0 !important;
 
-            height: auto !important;
-            min-height: 0 !important;
+    display: block !important;
+}
 
-            display: block !important;
-        }
+#modalInsertUpah .modal-content {
+    height: auto !important;
+    min-height: 0 !important;
 
-        #modalInsertUpah .modal-content {
-            height: auto !important;
-            min-height: 0 !important;
+    max-height: calc(100vh - 32px) !important;
 
-            max-height: calc(100vh - 32px) !important;
+    display: flex !important;
+    flex-direction: column !important;
 
-            display: flex !important;
-            flex-direction: column !important;
+    border: 0;
+    border-radius: 9px;
 
-            border: 0;
-            border-radius: 9px;
+    overflow: hidden !important;
 
-            overflow: hidden !important;
-
-            box-shadow: 0 18px 60px rgba(15, 23, 42, .18);
-        }
+    box-shadow: 0 18px 60px rgba(15, 23, 42, .18);
+}
 
 
-        /* =========================================================
+/* =========================================================
    MODAL HEADER
    ========================================================= */
 
-        #modalInsertUpah .modal-header {
-            min-height: 48px;
-            padding: 9px 13px;
+#modalInsertUpah .modal-header {
+    min-height: 52px;
+    padding: 10px 14px;
 
-            flex: 0 0 auto !important;
+    flex: 0 0 auto !important;
 
-            border-bottom: 1px solid #e8edf2;
-            background: #fff;
-        }
+    border-bottom: 1px solid #e8edf2;
+    background: #fff;
+}
 
-        #modalInsertUpah .modal-title {
-            color: #172033;
-            font-size: 12px;
-            font-weight: 750;
-        }
+#modalInsertUpah .modal-title {
+    color: #172033;
+    font-size: 15px;
+    font-weight: 750;
+}
 
 
-        /* =========================================================
-   MODAL NORMAL BODY
+/* =========================================================
+   NORMAL MODAL BODY
    ========================================================= */
 
-        #modalInsertUpah:not(.mass-mode) .modal-body {
-            height: auto !important;
-            min-height: 0 !important;
+#modalInsertUpah:not(.mass-mode) .modal-body {
+    height: auto !important;
+    min-height: 0 !important;
 
-            flex: 0 1 auto !important;
+    flex: 0 1 auto !important;
 
-            overflow-y: auto !important;
+    overflow-y: auto !important;
 
-            padding: 12px 13px !important;
-        }
+    padding: 14px !important;
+}
 
-
-        /*
- * Form tidak boleh memberikan tinggi kosong.
- */
-
-        #modalInsertUpah:not(.mass-mode) form {
-            height: auto !important;
-            min-height: 0 !important;
-        }
+#modalInsertUpah:not(.mass-mode) form {
+    height: auto !important;
+    min-height: 0 !important;
+}
 
 
-        /* =========================================================
+/* =========================================================
    FORM GROUP
    ========================================================= */
 
-        .upah-form-label {
-            margin-bottom: 4px;
-            color: #344054;
-            font-size: 9px;
-            font-weight: 700;
-        }
+.upah-form-label {
+    margin-bottom: 5px;
+    color: #344054;
+    font-size: 12px;
+    font-weight: 700;
+}
 
-        #modalInsertUpah:not(.mass-mode) .upah-form-group {
-            margin-bottom: 8px !important;
-        }
+#modalInsertUpah:not(.mass-mode) .upah-form-group {
+    margin-bottom: 10px !important;
+}
 
-        .required {
-            color: #dc2626;
-        }
+.required {
+    color: #dc2626;
+}
 
-        .total-input {
-            color: #172033 !important;
-            font-weight: 700 !important;
-            background: #f8fafc !important;
-        }
+.total-input {
+    color: #172033 !important;
+    font-weight: 700 !important;
+    background: #f8fafc !important;
+}
 
 
-        /* =========================================================
+/* =========================================================
+   QTY LIMIT INFO
+   ========================================================= */
+
+#insert_qty_limit_info {
+    margin-top: 5px !important;
+}
+
+#insert_qty_limit_info .small {
+    font-size: 11px !important;
+}
+
+#insert_qty_limit_message {
+    font-size: 11px !important;
+    line-height: 1.35;
+}
+
+
+/* =========================================================
    ARTICLE NOT FOUND
    ========================================================= */
 
-        .article-not-found {
-            display: none;
-            margin-top: 4px;
-            padding: 6px 8px;
-            color: #92400e;
-            background: #fffbeb;
-            border: 1px solid #fde68a;
-            border-radius: 5px;
-            font-size: 8.5px;
-        }
+.article-not-found {
+    display: none;
 
-        .article-not-found.show {
-            display: block;
-        }
+    margin-top: 5px;
+    padding: 7px 9px;
+
+    color: #92400e;
+    background: #fffbeb;
+
+    border: 1px solid #fde68a;
+    border-radius: 5px;
+
+    font-size: 11px;
+}
+
+.article-not-found.show {
+    display: block;
+}
 
 
-        /* =========================================================
+/* =========================================================
    NORMAL MODAL FOOTER
    ========================================================= */
 
-        #modalInsertUpah:not(.mass-mode) .modal-footer {
-            flex: 0 0 auto !important;
+#modalInsertUpah:not(.mass-mode) .modal-footer {
+    flex: 0 0 auto !important;
 
-            margin-top: 0 !important;
+    margin-top: 0 !important;
 
-            min-height: 47px !important;
+    min-height: 50px !important;
 
-            padding: 8px 13px !important;
+    padding: 9px 14px !important;
 
-            border-top: 1px solid #e8edf2;
-            background: #fbfcfd;
-        }
+    border-top: 1px solid #e8edf2;
+    background: #fbfcfd;
+}
 
 
-        /* =========================================================
+/* =========================================================
    MODAL BUTTONS
    ========================================================= */
 
-        #modalInsertUpah .btn {
-            height: 30px;
-            min-height: 30px;
-            padding: 0 10px;
-            border-radius: 6px;
-            font-size: 9px;
-        }
+#modalInsertUpah .btn {
+    height: 32px;
+    min-height: 32px;
+
+    padding: 0 11px;
+
+    border-radius: 6px;
+
+    font-size: 12px;
+}
 
 
-        /* =========================================================
+/* =========================================================
    MASS INPUT
    ========================================================= */
 
-        #modalInsertUpah.mass-mode .modal-dialog {
-            max-width: 1220px !important;
-            width: calc(100% - 24px) !important;
+#modalInsertUpah.mass-mode .modal-dialog {
+    max-width: 1220px !important;
+    width: calc(100% - 24px) !important;
 
-            margin: 1rem auto !important;
+    margin: 1rem auto !important;
 
-            height: auto !important;
-            min-height: 0 !important;
-        }
+    height: auto !important;
+    min-height: 0 !important;
+}
 
-        #modalInsertUpah.mass-mode .modal-content {
-            height: auto !important;
-            min-height: 0 !important;
+#modalInsertUpah.mass-mode .modal-content {
+    height: auto !important;
+    min-height: 0 !important;
 
-            max-height: calc(100vh - 32px) !important;
+    max-height: calc(100vh - 32px) !important;
 
-            display: flex !important;
-            flex-direction: column !important;
+    display: flex !important;
+    flex-direction: column !important;
 
-            overflow: hidden !important;
-        }
+    overflow: hidden !important;
+}
 
 
-        /* =========================================================
+/* =========================================================
    MASS MODE - HIDE NORMAL BODY
    ========================================================= */
 
-        #modalInsertUpah.mass-mode form>.modal-body:not(#massUpahBody) {
-            display: none !important;
-        }
+#modalInsertUpah.mass-mode form > .modal-body:not(#massUpahBody) {
+    display: none !important;
+}
 
 
-        /* =========================================================
+/* =========================================================
    MASS BODY
    ========================================================= */
 
-        #modalInsertUpah.mass-mode #massUpahBody {
-            display: block !important;
+#modalInsertUpah.mass-mode #massUpahBody {
+    display: block !important;
 
-            flex: 1 1 auto !important;
+    flex: 1 1 auto !important;
 
-            min-height: 0 !important;
+    min-height: 0 !important;
 
-            height: auto !important;
+    height: auto !important;
 
-            padding: 12px 13px !important;
+    padding: 14px !important;
 
-            overflow: hidden !important;
-        }
+    overflow: hidden !important;
+}
 
 
-        /* =========================================================
+/* =========================================================
    MASS TOOLBAR
    ========================================================= */
 
-        .mass-toolbar {
-            display: flex;
-            align-items: center;
-            justify-content: flex-start;
-            gap: 8px;
-            margin-bottom: 9px;
-            width: 100%;
-        }
+.mass-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
 
-        /* Judul tetap di kiri */
-        .mass-toolbar>div:first-child {
-            margin-right: auto;
-        }
+    gap: 8px;
 
-        /* Tombol berada di kanan dan berdampingan */
-        .mass-toolbar #btnAddMassRow,
-        .mass-toolbar #btnBackNormalUpah {
-            flex: 0 0 auto;
-        }
+    margin-bottom: 10px;
 
-        /* Jarak antar tombol */
-        .mass-toolbar #btnBackNormalUpah {
-            margin-left: 2px;
-        }
+    width: 100%;
+}
 
-        .mass-toolbar strong {
-            color: #172033;
-            font-size: 11px;
-        }
+.mass-toolbar > div:first-child {
+    margin-right: auto;
+}
 
-        .mass-toolbar .small {
-            color: #98a2b3 !important;
-            font-size: 8px !important;
-        }
+.mass-toolbar #btnAddMassRow,
+.mass-toolbar #btnBackNormalUpah {
+    flex: 0 0 auto;
+}
+
+.mass-toolbar #btnBackNormalUpah {
+    margin-left: 2px;
+}
+
+.mass-toolbar strong {
+    color: #172033;
+    font-size: 14px;
+}
+
+.mass-toolbar .small {
+    color: #98a2b3 !important;
+    font-size: 11px !important;
+}
 
 
-        /* =========================================================
+/* =========================================================
    MASS TABLE WRAPPER
    ========================================================= */
 
-        .mass-table-wrapper {
-            width: 100%;
+.mass-table-wrapper {
+    width: 100%;
 
-            overflow-x: auto;
-            overflow-y: auto;
+    overflow-x: auto;
+    overflow-y: auto;
 
-            border: 1px solid #e2e6eb;
-            border-radius: 7px;
+    border: 1px solid #e2e6eb;
+    border-radius: 7px;
 
-            background: #fff;
-        }
+    background: #fff;
+}
 
+#modalInsertUpah.mass-mode .mass-table-wrapper {
+    position: relative !important;
 
-        /*
- * Saat mass mode:
- * tabel menggunakan area viewport sendiri.
- */
+    overflow-x: auto !important;
+    overflow-y: auto !important;
 
-        #modalInsertUpah.mass-mode .mass-table-wrapper {
-            position: relative !important;
-
-            overflow-x: auto !important;
-            overflow-y: auto !important;
-
-            max-height: calc(100vh - 240px) !important;
-        }
+    max-height: calc(100vh - 240px) !important;
+}
 
 
-        /* =========================================================
+/* =========================================================
    MASS TABLE
    ========================================================= */
 
-        .mass-upah-table {
-            width: 100%;
-            min-width: 1450px;
+.mass-upah-table {
+    width: 100%;
+    min-width: 1450px;
 
-            border-collapse: separate;
-            border-spacing: 0;
+    border-collapse: separate;
+    border-spacing: 0;
 
-            background: #fff;
-            font-size: 9px;
-        }
+    background: #fff;
 
-        .mass-upah-table th {
-            position: sticky;
-            top: 0;
+    font-size: 12px;
+}
 
-            z-index: 5;
+.mass-upah-table th {
+    position: sticky;
+    top: 0;
 
-            height: 31px;
+    z-index: 30;
 
-            padding: 6px 7px !important;
+    height: 36px;
 
-            background: #f8f9fb !important;
-            color: #667085 !important;
+    padding: 7px 8px !important;
 
-            border: 0 !important;
-            border-bottom: 1px solid #e4e7ec !important;
+    background: #f8f9fb !important;
+    color: #667085 !important;
 
-            font-size: 8.5px !important;
-            font-weight: 700 !important;
+    border: 0 !important;
+    border-bottom: 1px solid #e4e7ec !important;
 
-            white-space: nowrap;
-        }
+    font-size: 11px !important;
+    font-weight: 700 !important;
 
-        .mass-upah-table td {
-            height: 38px;
+    white-space: nowrap;
 
-            padding: 5px 6px !important;
+    background-clip: padding-box !important;
+    box-shadow: 0 1px 0 #e4e7ec !important;
+}
 
-            border: 0 !important;
-            border-bottom: 1px solid #edf0f2 !important;
+.mass-upah-table td {
+    height: 42px;
 
-            vertical-align: middle;
+    padding: 6px 7px !important;
 
-            background: #fff;
-        }
+    border: 0 !important;
+    border-bottom: 1px solid #edf0f2 !important;
 
-        .mass-upah-table tbody tr:hover td {
-            background: #f8fbff;
-        }
+    vertical-align: middle;
+
+    background: #fff;
+
+    font-size: 12px;
+}
+
+.mass-upah-table tbody tr:hover td {
+    background: #f8fbff;
+}
 
 
-        /* =========================================================
+/* =========================================================
    MASS INPUT
    ========================================================= */
 
-        .mass-upah-table .form-control {
-            min-width: 105px;
+.mass-upah-table .form-control {
+    min-width: 105px;
 
-            height: 29px;
-            min-height: 29px;
+    height: 32px;
+    min-height: 32px;
 
-            padding: 3px 7px;
+    padding: 4px 8px;
 
-            font-size: 9px;
+    font-size: 12px;
 
-            border-radius: 5px;
-        }
+    border-radius: 5px;
+}
 
-        .mass-upah-table textarea.form-control {
-            min-width: 210px;
-            height: 29px;
+.mass-upah-table textarea.form-control {
+    min-width: 210px;
+    height: 32px;
 
-            resize: vertical;
-        }
+    resize: vertical;
+}
 
-        .mass-upah-table .mass-article {
-            min-width: 150px;
-        }
+.mass-upah-table .mass-article {
+    min-width: 150px;
+}
 
-        .mass-upah-table .mass-pekerjaan {
-            min-width: 150px;
-        }
+.mass-upah-table .mass-pekerjaan {
+    min-width: 150px;
+}
 
-        .mass-upah-table .mass-person {
-            min-width: 140px;
-        }
+.mass-upah-table .mass-person {
+    min-width: 140px;
+}
 
-        .mass-upah-table .mass-no-po,
-        .mass-upah-table .mass-no-spk {
-            min-width: 120px;
-        }
+.mass-upah-table .mass-no-po,
+.mass-upah-table .mass-no-spk {
+    min-width: 120px;
+}
 
-        .mass-total-input {
-            background: #f8fafc !important;
-            font-weight: 700 !important;
-        }
+.mass-total-input {
+    background: #f8fafc !important;
+    font-weight: 700 !important;
+}
 
 
-        /* =========================================================
+/* =========================================================
    MASS SEARCH
    ========================================================= */
 
-        .mass-search-wrapper {
-            position: relative;
-        }
+.mass-search-wrapper {
+    position: relative;
+}
 
-        .mass-search-result {
-            position: absolute;
+.mass-search-result {
+    position: absolute;
 
-            left: 0;
-            top: calc(100% + 2px);
+    left: 0;
+    top: calc(100% + 2px);
 
-            width: 300px;
+    width: 300px;
 
-            max-height: 210px;
+    max-height: 210px;
 
-            overflow-y: auto;
+    overflow-y: auto;
 
-            background: #fff;
+    background: #fff;
 
-            border: 1px solid #dfe3e8;
-            border-radius: 6px;
+    border: 1px solid #dfe3e8;
+    border-radius: 6px;
 
-            box-shadow: 0 10px 25px rgba(16, 24, 40, .12);
+    box-shadow: 0 10px 25px rgba(16, 24, 40, .12);
 
-            z-index: 99999;
+    z-index: 99999;
 
-            display: none;
-        }
+    display: none;
+}
 
-        .mass-search-result.show {
-            display: block;
-        }
+.mass-search-result.show {
+    display: block;
+}
 
-        .mass-search-item {
-            padding: 7px 9px;
+.mass-search-item {
+    padding: 9px 10px;
 
-            border-bottom: 1px solid #edf0f2;
+    border-bottom: 1px solid #edf0f2;
 
-            cursor: pointer;
+    cursor: pointer;
 
-            font-size: 9px;
-        }
+    font-size: 12px;
+}
 
-        .mass-search-item:hover {
-            background: #f8fbff;
-        }
+.mass-search-item:hover {
+    background: #f8fbff;
+}
 
-        .mass-search-code {
-            color: #172033;
-            font-weight: 700;
-        }
+.mass-search-code {
+    color: #172033;
+    font-weight: 700;
+}
 
-        .mass-search-desc {
-            color: #667085;
-            font-size: 8px;
-            margin-top: 2px;
-        }
+.mass-search-desc {
+    color: #667085;
+    font-size: 11px;
+    margin-top: 2px;
+}
 
-        .mass-required {
-            color: #dc2626;
-        }
+.mass-required {
+    color: #dc2626;
+}
 
 
-        /* =========================================================
+/* =========================================================
    MASS FOOTER
    ========================================================= */
 
-        #modalInsertUpah.mass-mode .modal-footer {
-            flex: 0 0 auto !important;
+#modalInsertUpah.mass-mode .modal-footer {
+    flex: 0 0 auto !important;
 
-            min-height: 47px !important;
+    min-height: 50px !important;
 
-            margin-top: 0 !important;
+    margin-top: 0 !important;
 
-            padding: 8px 13px !important;
+    padding: 9px 14px !important;
 
-            border-top: 1px solid #e8edf2;
-            background: #fbfcfd;
-        }
+    border-top: 1px solid #e8edf2;
+    background: #fbfcfd;
+}
 
 
-        /* =========================================================
-   MASS TABLE STICKY HEADER
+/* =========================================================
+   FINAL MODAL OVERRIDE
    ========================================================= */
 
-        #modalInsertUpah.mass-mode .mass-upah-table {
-            border-collapse: separate !important;
-            border-spacing: 0 !important;
-        }
+#modalInsertUpah:not(.mass-mode),
+#modalInsertUpah:not(.mass-mode) .modal-dialog,
+#modalInsertUpah:not(.mass-mode) .modal-content,
+#modalInsertUpah:not(.mass-mode) form {
+    height: auto !important;
+    min-height: 0 !important;
+}
 
-        #modalInsertUpah.mass-mode .mass-upah-table thead th {
-            position: sticky !important;
+#modalInsertUpah:not(.mass-mode) .modal-body {
+    flex-grow: 0 !important;
+}
 
-            top: 0 !important;
+#modalInsertUpah.mass-mode .modal-content {
+    min-height: 0 !important;
+}
 
-            z-index: 30 !important;
-
-            background: #f8f9fb !important;
-
-            background-clip: padding-box !important;
-
-            box-shadow: 0 1px 0 #e4e7ec !important;
-        }
-
-
-        /* =========================================================
-   MAIN TABLE STICKY HEADER
-   ========================================================= */
-
-        .upah-page .upah-table-wrapper {
-            position: relative !important;
-
-            overflow-x: auto !important;
-            overflow-y: visible !important;
-        }
-
-        .upah-page .upah-table {
-            border-collapse: separate !important;
-            border-spacing: 0 !important;
-        }
-
-        .upah-page .upah-table thead {
-            position: sticky !important;
-
-            top: 0 !important;
-
-            z-index: 100 !important;
-        }
-
-        .upah-page .upah-table thead th {
-            position: sticky !important;
-
-            top: var(--upah-sticky-top) !important;
-
-            z-index: 101 !important;
-
-            background: #f8f9fb !important;
-
-            background-clip: padding-box !important;
-
-            box-shadow: 0 1px 0 #e4e7ec !important;
-        }
+#modalInsertUpah.mass-mode #massUpahBody {
+    flex-grow: 1 !important;
+}
 
 
-        /*
- * Solid background.
- */
-
-        .upah-page .upah-table thead th::before {
-            content: "";
-
-            position: absolute;
-
-            inset: 0;
-
-            z-index: -1;
-
-            background: #f8f9fb;
-        }
-
-
-        /* =========================================================
-   MAIN TABLE SCROLLBAR
-   ========================================================= */
-
-        .upah-page .upah-table-wrapper::-webkit-scrollbar {
-            height: 6px;
-        }
-
-        .upah-page .upah-table-wrapper::-webkit-scrollbar-track {
-            background: #f3f4f6;
-        }
-
-        .upah-page .upah-table-wrapper::-webkit-scrollbar-thumb {
-            background: #cbd1d8;
-            border-radius: 20px;
-        }
-
-
-        /* =========================================================
+/* =========================================================
    RESPONSIVE
    ========================================================= */
 
-        @media (max-width: 800px) {
+@media (max-width: 800px) {
 
-            .upah-page {
-                padding: 5px !important;
-            }
+    .upah-page {
+        padding: 5px !important;
+    }
 
-            .upah-header {
-                align-items: flex-start;
-            }
+    .upah-header {
+        align-items: flex-start;
+    }
 
-            .upah-page #searchUpahTable {
-                width: 100% !important;
-            }
+    .upah-page #searchUpahTable {
+        width: 100% !important;
+    }
 
-            .upah-table {
-                min-width: 1050px;
-            }
+    .upah-table {
+        min-width: 1050px;
+    }
 
-            .upah-page .card-body.py-2>.d-flex {
-                align-items: stretch !important;
-            }
-
-
-            /* ---------------------------------------------
-       NORMAL MODAL MOBILE
-       --------------------------------------------- */
-
-            #modalInsertUpah:not(.mass-mode) .modal-dialog {
-                width: calc(100% - 16px) !important;
-                max-width: none !important;
-
-                margin: .5rem auto !important;
-            }
+    .upah-page .card-body.py-2 > .d-flex {
+        align-items: stretch !important;
+    }
 
 
-            /* ---------------------------------------------
-       MASS MODAL MOBILE
-       --------------------------------------------- */
+    /* NORMAL MODAL */
 
-            #modalInsertUpah.mass-mode .modal-dialog {
-                width: calc(100% - 12px) !important;
+    #modalInsertUpah:not(.mass-mode) .modal-dialog {
+        width: calc(100% - 16px) !important;
+        max-width: none !important;
 
-                margin: .5rem auto !important;
-            }
-
-
-            #modalInsertUpah.mass-mode .mass-table-wrapper {
-                max-height: calc(100vh - 220px) !important;
-            }
-        }
+        margin: .5rem auto !important;
+    }
 
 
-        /* =========================================================
-   FINAL MODAL OVERRIDE
-   Memastikan Bootstrap / CSS master tidak memberi
-   tinggi paksa pada modal normal.
-   ========================================================= */
+    /* MASS MODAL */
 
-        #modalInsertUpah:not(.mass-mode),
-        #modalInsertUpah:not(.mass-mode) .modal-dialog,
-        #modalInsertUpah:not(.mass-mode) .modal-content,
-        #modalInsertUpah:not(.mass-mode) form {
-            height: auto !important;
-            min-height: 0 !important;
-        }
+    #modalInsertUpah.mass-mode .modal-dialog {
+        width: calc(100% - 12px) !important;
+
+        margin: .5rem auto !important;
+    }
+
+    #modalInsertUpah.mass-mode .mass-table-wrapper {
+        max-height: calc(100vh - 220px) !important;
+    }
+}
+/* =========================================================
+   UPAH LIVE CHAT
+========================================================= */
+
+#upahChatModal {
+    position: fixed;
+    inset: 0;
+    z-index: 999999;
+
+    display: none;
+
+    align-items: center;
+    justify-content: center;
+
+    background: rgba(15, 23, 42, .15);
+}
+
+#upahChatModal.show {
+    display: flex;
+}
+
+.upah-chat-box {
+
+    width: 480px;
+    max-width: calc(100vw - 30px);
+
+    background: #fff;
+
+    border-radius: 12px;
+
+    overflow: hidden;
+
+    border: 1px solid #e2e8f0;
+
+    box-shadow:
+        0 20px 60px rgba(15, 23, 42, .20);
+}
+
+.upah-chat-header {
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 12px 14px;
+
+    border-bottom: 1px solid #edf0f3;
+}
+
+.upah-chat-header strong {
+    display: block;
+
+    font-size: 14px;
+    color: #172033;
+}
+
+.upah-chat-header small {
+    display: block;
+
+    margin-top: 2px;
+
+    color: #98a2b3;
+    font-size: 10px;
+}
+
+#upahChatClose {
+
+    width: 28px;
+    height: 28px;
+
+    border: 0;
+    border-radius: 6px;
+
+    background: #f5f7fa;
+
+    color: #64748b;
+
+    font-size: 18px;
+
+    cursor: pointer;
+}
+
+.upah-chat-body {
+    padding: 14px;
+}
+
+#upahChatInput {
+
+    width: 100%;
+    min-height: 120px;
+
+    resize: vertical;
+
+    padding: 10px;
+
+    border: 1px solid #dfe4ea;
+    border-radius: 8px;
+
+    outline: none;
+
+    font-family: inherit;
+    font-size: 13px;
+}
+
+#upahChatInput:focus {
+
+    border-color: #93c5fd;
+
+    box-shadow:
+        0 0 0 3px rgba(37, 99, 235, .08);
+}
+
+.upah-chat-footer {
+
+    display: flex;
+
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 9px 14px;
+
+    background: #fafbfc;
+
+    border-top: 1px solid #edf0f3;
+}
+
+.upah-chat-footer span {
+
+    color: #98a2b3;
+
+    font-size: 10px;
+}
+
+#upahChatSend {
+
+    border: 0;
+
+    border-radius: 7px;
+
+    padding: 7px 15px;
+
+    background: #2563eb;
+
+    color: #fff;
+
+    font-size: 11px;
+
+    font-weight: 700;
+
+    cursor: pointer;
+}
 
 
-        /*
- * Normal modal tidak boleh memiliki ruang kosong
- * akibat flex-grow dari CSS global.
- */
+/* =========================================================
+   INCOMING
+========================================================= */
 
-        #modalInsertUpah:not(.mass-mode) .modal-body {
-            flex-grow: 0 !important;
-        }
+#upahChatIncoming {
 
+    position: fixed;
 
-        /*
- * Mass modal boleh mengambil ruang yang tersedia.
- */
+    right: 20px;
+    bottom: 20px;
 
-        #modalInsertUpah.mass-mode .modal-content {
-            min-height: 0 !important;
-        }
+    width: 360px;
+    max-width: calc(100vw - 40px);
 
-        #modalInsertUpah.mass-mode #massUpahBody {
-            flex-grow: 1 !important;
-        }
-    </style>
+    display: none;
 
+    background: #fff;
+
+    border: 1px solid #dfe5ec;
+
+    border-radius: 10px;
+
+    box-shadow:
+        0 15px 40px rgba(15, 23, 42, .17);
+
+    overflow: hidden;
+
+    z-index: 999998;
+}
+
+#upahChatIncoming.show {
+    display: block;
+}
+
+.upah-chat-incoming-header {
+
+    display: flex;
+    align-items: center;
+
+    gap: 7px;
+
+    padding: 9px 11px;
+
+    border-bottom: 1px solid #edf0f3;
+}
+
+.upah-chat-dot {
+
+    width: 7px;
+    height: 7px;
+
+    border-radius: 50%;
+
+    background: #22c55e;
+}
+
+.upah-chat-incoming-header strong {
+
+    font-size: 11px;
+
+    color: #172033;
+}
+
+.upah-chat-incoming-header small {
+
+    margin-left: auto;
+
+    color: #98a2b3;
+
+    font-size: 9px;
+}
+
+#upahChatIncomingMessage {
+
+    padding: 11px;
+
+    color: #475569;
+
+    font-size: 12px;
+
+    line-height: 1.5;
+
+    white-space: pre-wrap;
+
+    word-break: break-word;
+}
+</style>
+<div id="upahChatModal" aria-hidden="true">
+
+    <div class="upah-chat-window">
+
+        <div class="upah-chat-header">
+
+            <div class="upah-chat-avatar">
+                <i class="fas fa-comments"></i>
+            </div>
+
+            <div class="upah-chat-title">
+                <strong>Transaksi Upah</strong>
+                <span class="upah-chat-status">
+                    Live Chat
+                </span>
+            </div>
+
+            <button
+                type="button"
+                id="upahChatClose"
+                class="upah-chat-close"
+                aria-label="Close"
+            >
+                &times;
+            </button>
+
+        </div>
+
+        <div
+            id="upahChatMessages"
+            class="upah-chat-messages"
+        >
+            <div class="upah-chat-empty">
+                Belum ada pesan.<br>
+                Mulai percakapan dengan user lain.
+            </div>
+        </div>
+
+        <div
+            id="upahChatTyping"
+            class="upah-chat-typing"
+            aria-live="polite"
+        ></div>
+
+        <div
+            id="upahChatImagePreview"
+            class="upah-chat-image-preview"
+        >
+            <img
+                id="upahChatImagePreviewImg"
+                src=""
+                alt="Preview"
+            >
+
+            <div
+                id="upahChatImagePreviewInfo"
+                class="upah-chat-image-preview-info"
+            >
+                Gambar siap dikirim
+            </div>
+
+            <button
+                type="button"
+                id="upahChatImageRemove"
+                class="upah-chat-image-remove"
+                title="Hapus gambar"
+            >
+                &times;
+            </button>
+        </div>
+
+        <div class="upah-chat-input-area">
+
+            <input
+                type="file"
+                id="upahChatImageInput"
+                accept="image/*"
+                style="display:none;"
+            >
+
+            <button
+                type="button"
+                id="upahChatAttach"
+                class="upah-chat-attach"
+                title="Kirim gambar"
+            >
+                <i class="fas fa-paperclip"></i>
+            </button>
+
+            <div class="upah-chat-input-wrap">
+
+                <textarea
+                    id="upahChatInput"
+                    rows="1"
+                    maxlength="1000"
+                    placeholder="Ketik pesan..."
+                    autocomplete="off"
+                ></textarea>
+
+            </div>
+
+            <button
+                type="button"
+                id="upahChatSend"
+                class="upah-chat-send"
+                title="Kirim"
+            >
+                <i class="fas fa-paper-plane"></i>
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+<div id="upahChatIncoming" class="upah-chat-incoming">
+
+    <div class="upah-chat-incoming-header">
+
+        <span class="upah-chat-dot"></span>
+
+        <strong id="upahChatIncomingName">
+            User
+        </strong>
+
+        <small>
+            mengirim pesan
+        </small>
+
+    </div>
+
+    <div id="upahChatIncomingMessage"></div>
+
+</div>
     @include('pages.upah.upah-script')
 
 @endsection
+
+<script>window.checkQtyUpahUrl = @json(route("upah.transaksi.check.qty"));</script>

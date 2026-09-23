@@ -24,7 +24,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -32,6 +31,10 @@ use App\Exports\ExportPengajuanSpk;
 use App\Exports\ExportAllPaymentRequest;
 use App\Models\Kredit;
 use App\Helpers\ExportSpks;
+use App\Models\ApprovalMagicLink;
+use Illuminate\Support\Str;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 class SpkController extends Controller
 {
     //
@@ -91,8 +94,7 @@ class SpkController extends Controller
 
         return view('spk.show', compact('spk'));
     }
-
-   public function index(Request $request, $id)
+public function index(Request $request, $id)
 {
     $viewOnly = $request->is('spk/views/*');
 
@@ -128,7 +130,6 @@ class SpkController extends Controller
         // =================================================
         $data = $spkModel->data ?? [];
 
-        // Pastikan data array
         if (!is_array($data)) {
             $data = [];
         }
@@ -163,7 +164,6 @@ class SpkController extends Controller
             $data['items'] ?? []
         )->map(function ($item) {
 
-            // Pastikan item array
             if (!is_array($item)) {
                 $item = [];
             }
@@ -185,31 +185,15 @@ class SpkController extends Controller
 
             // =================================================
             // QTY
-            //
-            // PENTING:
-            // Jangan lagi memaksa KG menjadi 0.
-            //
-            // Semua satuan selain SET menggunakan qty
-            // pada kolom quantity utama (.pcs) di Blade.
-            //
-            // Contoh:
-            // qty = 2.5
-            // satuan = kg
-            //
-            // maka:
-            // pcs = 2.5
-            // satuan = kg
             // =================================================
             $qty = $item['qty'] ?? 0;
 
-            // Handle string decimal Indonesia
             if (is_string($qty)) {
 
                 $qty = trim($qty);
 
                 if ($qty !== '') {
 
-                    // 2,5 -> 2.5
                     if (
                         str_contains($qty, ',') &&
                         !str_contains($qty, '.')
@@ -218,10 +202,14 @@ class SpkController extends Controller
                     }
 
                     $qty = (float) $qty;
+
                 } else {
+
                     $qty = 0;
                 }
+
             } else {
+
                 $qty = (float) $qty;
             }
 
@@ -235,15 +223,7 @@ class SpkController extends Controller
             }
 
             // =================================================
-            // PCS / KG / CUSTOM UNIT
-            //
-            // Quantity utama tetap dikirim melalui "pcs"
-            // karena Blade existing membaca:
-            //
-            // {{ $item['pcs'] }}
-            //
-            // dan JavaScript existing juga menggunakan
-            // .pcs sebagai quantity utama untuk selain SET.
+            // MAIN QTY
             // =================================================
             $mainQty = $satuan === 'set'
                 ? 0
@@ -279,7 +259,6 @@ class SpkController extends Controller
 
                 // =================================================
                 // QUANTITY UTAMA
-                // PCS / KG / CUSTOM UNIT
                 // =================================================
                 'pcs' =>
                     $mainQty,
@@ -291,7 +270,7 @@ class SpkController extends Controller
                     $setQty,
 
                 // =================================================
-                // SATUAN ASLI
+                // SATUAN
                 // =================================================
                 'satuan' =>
                     $item['satuan']
@@ -491,186 +470,344 @@ class SpkController extends Controller
         // =================================================
         // ITEMS DARI PO
         // =================================================
-    // =================================================
-// ITEMS DARI PO
-// =================================================
-$items = $po->details->map(function ($d) {
+        $items = $po->details->map(function ($d) {
 
-    $detail = $d->detail;
+            $detail = $d->detail;
 
-    if (!is_array($detail)) {
-        $detail = [];
-    }
+            if (!is_array($detail)) {
+                $detail = [];
+            }
 
-    // =================================================
-    // IMAGE
-    // =================================================
-    $images = [];
+            // =================================================
+            // NORMALISASI DIMENSI
+            //
+            // PENTING:
+            // Format normal item_w/item_d/item_h tetap
+            // menjadi prioritas pertama.
+            //
+            // Kalau Home Buyers menyimpan dimensi pada
+            // field lama / berbeda, baru fallback digunakan.
+            //
+            // Kalau item_w/item_d/item_h bernilai 0,
+            // dianggap belum memiliki dimensi valid.
+            // =================================================
 
-    if (!empty($detail['photo'])) {
-        $images[] = $detail['photo'];
-    }
+            // -------------------------------------------------
+            // P / WIDTH
+            // -------------------------------------------------
+            $dimensionW = null;
 
-    // =================================================
-    // SATUAN DEFAULT CREATE
-    // =================================================
-    $satuan = 'pcs';
+            $primaryW = $detail['item_w'] ?? null;
 
-    // =================================================
-    // QTY DARI PO
-    // =================================================
-    $qty = $detail['qty'] ?? 0;
-
-    if (is_string($qty)) {
-
-        $qty = trim($qty);
-
-        if ($qty === '') {
-
-            $qty = 0;
-
-        } elseif (
-            str_contains($qty, ',') &&
-            !str_contains($qty, '.')
-        ) {
-
-            // 56,5 -> 56.5
-            $qty = str_replace(
-                ',',
-                '.',
-                $qty
-            );
-
-        } elseif (
-            str_contains($qty, ',') &&
-            str_contains($qty, '.')
-        ) {
-
-            // 1.250,5 -> 1250.5
             if (
-                strrpos($qty, ',') >
-                strrpos($qty, '.')
+                $primaryW !== null &&
+                trim((string) $primaryW) !== '' &&
+                !(
+                    is_numeric($primaryW) &&
+                    (float) $primaryW == 0
+                )
             ) {
 
-                $qty = str_replace(
-                    '.',
-                    '',
-                    $qty
-                );
-
-                $qty = str_replace(
-                    ',',
-                    '.',
-                    $qty
-                );
+                $dimensionW = $primaryW;
 
             } else {
 
-                // 1,250.5 -> 1250.5
-                $qty = str_replace(
-                    ',',
-                    '',
-                    $qty
-                );
+                foreach ([
+                    'dimention_(cm)',
+                    'dimension_(cm)',
+                    'dimension',
+                    'w',
+                    'width',
+                ] as $key) {
+
+                    if (
+                        array_key_exists($key, $detail) &&
+                        $detail[$key] !== null &&
+                        trim((string) $detail[$key]) !== '' &&
+                        !(
+                            is_numeric($detail[$key]) &&
+                            (float) $detail[$key] == 0
+                        )
+                    ) {
+
+                        $dimensionW = $detail[$key];
+
+                        break;
+                    }
+                }
             }
 
-        } elseif (
-            substr_count($qty, '.') > 1
-        ) {
+            // -------------------------------------------------
+            // L / DEPTH
+            // -------------------------------------------------
+            $dimensionD = null;
 
-            // 1.250.000 -> 1250000
-            $qty = str_replace(
-                '.',
-                '',
-                $qty
-            );
-        }
+            $primaryD = $detail['item_d'] ?? null;
 
-        $qty = is_numeric($qty)
-            ? (float) $qty
-            : 0;
+            if (
+                $primaryD !== null &&
+                trim((string) $primaryD) !== '' &&
+                !(
+                    is_numeric($primaryD) &&
+                    (float) $primaryD == 0
+                )
+            ) {
 
-    } else {
+                $dimensionD = $primaryD;
 
-        $qty = is_numeric($qty)
-            ? (float) $qty
-            : 0;
-    }
+            } else {
 
-    // =================================================
-    // PCS / SET
-    // =================================================
-    $mainQty = $qty;
+                foreach ([
+                    'd',
+                    'depth',
+                    'lebar',
+                ] as $key) {
 
-    $setQty = 0;
+                    if (
+                        array_key_exists($key, $detail) &&
+                        $detail[$key] !== null &&
+                        trim((string) $detail[$key]) !== '' &&
+                        !(
+                            is_numeric($detail[$key]) &&
+                            (float) $detail[$key] == 0
+                        )
+                    ) {
 
-    // =================================================
-    // RETURN ITEM
-    // =================================================
-    return [
+                        $dimensionD = $detail[$key];
 
-        'detail_id' =>
-            $d->id ?? null,
+                        break;
+                    }
+                }
+            }
 
-        'kode' =>
-            $detail['article_nr_']
-            ?? '-',
+            // -------------------------------------------------
+            // T / HEIGHT
+            // -------------------------------------------------
+            $dimensionH = null;
 
-        'nama' =>
-            $detail['description']
-            ?? '-',
+            $primaryH = $detail['item_h'] ?? null;
 
-        'custom_columns' =>
-            [],
+            if (
+                $primaryH !== null &&
+                trim((string) $primaryH) !== '' &&
+                !(
+                    is_numeric($primaryH) &&
+                    (float) $primaryH == 0
+                )
+            ) {
 
-        // QTY ASLI
-        'qty' =>
-            $qty,
+                $dimensionH = $primaryH;
 
-        // QUANTITY UTAMA
-        'pcs' =>
-            $mainQty,
+            } else {
 
-        // SET
-        'set' =>
-            $setQty,
+                foreach ([
+                    'h',
+                    'height',
+                    'tinggi',
+                ] as $key) {
 
-        // SATUAN
-        'satuan' =>
-            $satuan,
+                    if (
+                        array_key_exists($key, $detail) &&
+                        $detail[$key] !== null &&
+                        trim((string) $detail[$key]) !== '' &&
+                        !(
+                            is_numeric($detail[$key]) &&
+                            (float) $detail[$key] == 0
+                        )
+                    ) {
 
-        'harga' =>
-            $detail['harga']
-            ?? 0,
+                        $dimensionH = $detail[$key];
 
-        'total' =>
-            0,
+                        break;
+                    }
+                }
+            }
 
-        'images' =>
-            $images,
+            // =================================================
+            // IMAGE
+            // =================================================
+            $images = [];
 
-        'catatan' =>
-            $d->remark_update
-            ?? '',
+            if (!empty($detail['photo'])) {
+                $images[] = $detail['photo'];
+            }
 
-        'p' =>
-            $detail['item_w']
-            ?? '-',
+            // =================================================
+            // SATUAN DEFAULT CREATE
+            // =================================================
+            $satuan = 'pcs';
 
-        'l' =>
-            $detail['item_d']
-            ?? '-',
+            // =================================================
+            // QTY DARI PO
+            // =================================================
+            $qty = $detail['qty'] ?? 0;
 
-        't' =>
-            $detail['item_h']
-            ?? '-',
+            if (is_string($qty)) {
 
-        'material' =>
-            $detail['composition']
-            ?? '-',
-    ];
+                $qty = trim($qty);
 
-})->values();
+                if ($qty === '') {
+
+                    $qty = 0;
+
+                } elseif (
+                    str_contains($qty, ',') &&
+                    !str_contains($qty, '.')
+                ) {
+
+                    // 56,5 -> 56.5
+                    $qty = str_replace(
+                        ',',
+                        '.',
+                        $qty
+                    );
+
+                } elseif (
+                    str_contains($qty, ',') &&
+                    str_contains($qty, '.')
+                ) {
+
+                    // 1.250,5 -> 1250.5
+                    if (
+                        strrpos($qty, ',') >
+                        strrpos($qty, '.')
+                    ) {
+
+                        $qty = str_replace(
+                            '.',
+                            '',
+                            $qty
+                        );
+
+                        $qty = str_replace(
+                            ',',
+                            '.',
+                            $qty
+                        );
+
+                    } else {
+
+                        // 1,250.5 -> 1250.5
+                        $qty = str_replace(
+                            ',',
+                            '',
+                            $qty
+                        );
+                    }
+
+                } elseif (
+                    substr_count($qty, '.') > 1
+                ) {
+
+                    // 1.250.000 -> 1250000
+                    $qty = str_replace(
+                        '.',
+                        '',
+                        $qty
+                    );
+                }
+
+                $qty = is_numeric($qty)
+                    ? (float) $qty
+                    : 0;
+
+            } else {
+
+                $qty = is_numeric($qty)
+                    ? (float) $qty
+                    : 0;
+            }
+
+            // =================================================
+            // PCS / SET
+            // =================================================
+            $mainQty = $qty;
+
+            $setQty = 0;
+
+            // =================================================
+            // RETURN ITEM
+            // =================================================
+            return [
+
+                'detail_id' =>
+                    $d->id ?? null,
+
+                'kode' =>
+                    $detail['article_nr_']
+                    ?? '-',
+
+                'nama' =>
+                    $detail['description']
+                    ?? '-',
+
+                'custom_columns' =>
+                    [],
+
+                // QTY ASLI
+                'qty' =>
+                    $qty,
+
+                // QUANTITY UTAMA
+                'pcs' =>
+                    $mainQty,
+
+                // SET
+                'set' =>
+                    $setQty,
+
+                // SATUAN
+                'satuan' =>
+                    $satuan,
+
+                // HARGA
+                'harga' =>
+                    $detail['harga']
+                    ?? 0,
+
+                // TOTAL
+                'total' =>
+                    0,
+
+                // IMAGE
+                'images' =>
+                    $images,
+
+                // CATATAN
+                'catatan' =>
+                    $d->remark_update
+                    ?? '',
+
+                // =================================================
+                // DIMENSI P
+                // =================================================
+                'p' =>
+                    $dimensionW
+                    ?? '-',
+
+                // =================================================
+                // DIMENSI L
+                // =================================================
+                'l' =>
+                    $dimensionD
+                    ?? '-',
+
+                // =================================================
+                // DIMENSI T
+                // =================================================
+                't' =>
+                    $dimensionH
+                    ?? '-',
+
+                // =================================================
+                // MATERIAL
+                // =================================================
+                'material' =>
+                    $detail['composition']
+                    ?? '-',
+            ];
+
+        })->values();
 
         // =====================================================
         // FINAL DATA CREATE
@@ -741,6 +878,676 @@ $items = $po->details->map(function ($d) {
         )
     );
 }
+//     public function index(Request $request, $id)
+//     {
+//         $viewOnly = $request->is('spk/views/*');
+
+//         $bahanBaku = collect();
+
+//         $mode = (
+//             $request->routeIs('spk.edit') ||
+//             $request->routeIs('spk.view')
+//         )
+//             ? 'edit'
+//             : 'create';
+
+//         $jenisSuppliers = JenisSupplier::orderBy('name')->get();
+
+//         // =====================================================
+//         // EDIT MODE
+//         // =====================================================
+//         if ($mode === 'edit') {
+
+//             $spkModel = Spk::findOrFail($id);
+
+//             // =================================================
+//             // BAHAN BAKU
+//             // =================================================
+//             $bahanBaku = TransaksiStok::with('stok')
+//                 ->where('spk_id', $spkModel->id)
+//                 ->where('tipe', 'out')
+//                 ->orderBy('tanggal')
+//                 ->get();
+
+//             // =================================================
+//             // DATA SPK
+//             // =================================================
+//             $data = $spkModel->data ?? [];
+
+//             // Pastikan data array
+//             if (!is_array($data)) {
+//                 $data = [];
+//             }
+
+//             // =================================================
+//             // SIGNATURE APPROVAL SPK
+//             // =================================================
+//             $signature = SignatureSpk::with([
+//                 'madeBy.karyawan.divisi',
+//                 'checkedBy.karyawan.divisi',
+//                 'checkedBy2.karyawan.divisi',
+//                 'approvedBy.karyawan.divisi',
+//                 'supplier',
+//             ])
+//                 ->where('spk_id', $spkModel->id)
+//                 ->first();
+
+//             // =================================================
+//             // PAYMENT REQUEST
+//             // =================================================
+//             $paymentRequest = PaymentRequest::where(
+//                 'spk_id',
+//                 $spkModel->id
+//             )
+//                 ->latest()
+//                 ->first();
+
+//             // =================================================
+//             // ITEMS
+//             // =================================================
+//             $items = collect(
+//                 $data['items'] ?? []
+//             )->map(function ($item) {
+
+//                 // Pastikan item array
+//                 if (!is_array($item)) {
+//                     $item = [];
+//                 }
+
+//                 // =================================================
+//                 // SATUAN
+//                 // =================================================
+//                 $satuan = strtolower(
+//                     trim(
+//                         (string) (
+//                             $item['satuan'] ?? 'pcs'
+//                         )
+//                     )
+//                 );
+
+//                 if ($satuan === '') {
+//                     $satuan = 'pcs';
+//                 }
+
+//                 // =================================================
+//                 // QTY
+//                 //
+//                 // PENTING:
+//                 // Jangan lagi memaksa KG menjadi 0.
+//                 //
+//                 // Semua satuan selain SET menggunakan qty
+//                 // pada kolom quantity utama (.pcs) di Blade.
+//                 //
+//                 // Contoh:
+//                 // qty = 2.5
+//                 // satuan = kg
+//                 //
+//                 // maka:
+//                 // pcs = 2.5
+//                 // satuan = kg
+//                 // =================================================
+//                 $qty = $item['qty'] ?? 0;
+
+//                 // Handle string decimal Indonesia
+//                 if (is_string($qty)) {
+
+//                     $qty = trim($qty);
+
+//                     if ($qty !== '') {
+
+//                         // 2,5 -> 2.5
+//                         if (
+//                             str_contains($qty, ',') &&
+//                             !str_contains($qty, '.')
+//                         ) {
+//                             $qty = str_replace(',', '.', $qty);
+//                         }
+
+//                         $qty = (float) $qty;
+//                     } else {
+//                         $qty = 0;
+//                     }
+//                 } else {
+//                     $qty = (float) $qty;
+//                 }
+
+//                 // =================================================
+//                 // SET
+//                 // =================================================
+//                 $setQty = 0;
+
+//                 if ($satuan === 'set') {
+//                     $setQty = $qty;
+//                 }
+
+//                 // =================================================
+//                 // PCS / KG / CUSTOM UNIT
+//                 //
+//                 // Quantity utama tetap dikirim melalui "pcs"
+//                 // karena Blade existing membaca:
+//                 //
+//                 // {{ $item['pcs'] }}
+//                 //
+//                 // dan JavaScript existing juga menggunakan
+//                 // .pcs sebagai quantity utama untuk selain SET.
+//                 // =================================================
+//                 $mainQty = $satuan === 'set'
+//                     ? 0
+//                     : $qty;
+
+//                 return [
+
+//                     // =================================================
+//                     // DETAIL PO
+//                     // =================================================
+//                     'detail_id' =>
+//                         $item['detail_po_id']
+//                         ?? $item['detail_id']
+//                         ?? null,
+
+//                     // =================================================
+//                     // IDENTITAS ITEM
+//                     // =================================================
+//                     'kode' =>
+//                         $item['kode']
+//                         ?? '-',
+
+//                     'nama' =>
+//                         $item['nama']
+//                         ?? '-',
+
+//                     // =================================================
+//                     // CUSTOM VALUE
+//                     // =================================================
+//                     'custom_columns' =>
+//                         $item['custom_columns']
+//                         ?? [],
+
+//                     // =================================================
+//                     // QUANTITY UTAMA
+//                     // PCS / KG / CUSTOM UNIT
+//                     // =================================================
+//                     'pcs' =>
+//                         $mainQty,
+
+//                     // =================================================
+//                     // SET
+//                     // =================================================
+//                     'set' =>
+//                         $setQty,
+
+//                     // =================================================
+//                     // SATUAN ASLI
+//                     // =================================================
+//                     'satuan' =>
+//                         $item['satuan']
+//                         ?? 'pcs',
+
+//                     // =================================================
+//                     // HARGA
+//                     // =================================================
+//                     'harga' =>
+//                         $item['harga']
+//                         ?? 0,
+
+//                     // =================================================
+//                     // TOTAL
+//                     // =================================================
+//                     'total' =>
+//                         $item['total']
+//                         ?? 0,
+
+//                     // =================================================
+//                     // IMAGE
+//                     // =================================================
+//                     'images' =>
+//                         $item['images']
+//                         ?? [],
+
+//                     // =================================================
+//                     // CATATAN
+//                     // =================================================
+//                     'catatan' =>
+//                         $item['catatan']
+//                         ?? [],
+
+//                     // =================================================
+//                     // DIMENSI
+//                     // =================================================
+//                     'p' =>
+//                         $item['p']
+//                         ?? '-',
+
+//                     'l' =>
+//                         $item['l']
+//                         ?? '-',
+
+//                     't' =>
+//                         $item['t']
+//                         ?? '-',
+
+//                     // =================================================
+//                     // MATERIAL
+//                     // =================================================
+//                     'material' =>
+//                         $item['material']
+//                         ?? '-',
+//                 ];
+//             })->values();
+
+//             // =====================================================
+//             // FINAL DATA EDIT
+//             // =====================================================
+//             $spk = [
+
+//                 // =================================================
+//                 // SIGNATURE
+//                 // =================================================
+//                 'signature' =>
+//                     $signature,
+
+//                 // =================================================
+//                 // ID
+//                 // =================================================
+//                 'id' =>
+//                     $spkModel->id,
+
+//                 // =================================================
+//                 // STATUS
+//                 // =================================================
+//                 'status' =>
+//                     $spkModel->status
+//                     ?? 'draft',
+
+//                 // =================================================
+//                 // PAYMENT REQUEST STATUS
+//                 // =================================================
+//                 'request_status' =>
+//                     $paymentRequest->status
+//                     ?? null,
+
+//                 // =================================================
+//                 // NO SPK
+//                 // =================================================
+//                 'no_spk' =>
+//                     $data['no_spk']
+//                     ?? '-',
+
+//                 // =================================================
+//                 // NO PO
+//                 // =================================================
+//                 'no_po' =>
+//                     $data['no_po']
+//                     ?? '-',
+
+//                 // =================================================
+//                 // SUPPLIER
+//                 // =================================================
+//                 'nama' =>
+//                     $data['sup']
+//                     ?? '-',
+
+//                 // =================================================
+//                 // TANGGAL TERIMA
+//                 // =================================================
+//                 'tgl_terima' =>
+//                     $data['tgl_terima']
+//                     ?? null,
+
+//                 // =================================================
+//                 // TANGGAL SELESAI
+//                 // =================================================
+//                 'tgl_selesai' =>
+//                     $data['tgl_selesai']
+//                     ?? null,
+
+//                 // =================================================
+//                 // KATEGORI
+//                 // =================================================
+//                 'type' =>
+//                     $data['kategori']
+//                     ?? '-',
+
+//                 // =================================================
+//                 // ITEMS
+//                 // =================================================
+//                 'items' =>
+//                     $items,
+
+//                 // =================================================
+//                 // MODE
+//                 // =================================================
+//                 'mode' =>
+//                     'edit',
+
+//                 // =================================================
+//                 // PAYMENTS
+//                 // =================================================
+//                 'payments' =>
+//                     $data['payments']
+//                     ?? [],
+
+//                 // =================================================
+//                 // CHECKED TYPES
+//                 // =================================================
+//                 'checked_types' =>
+//                     $data['checked_types']
+//                     ?? [],
+
+//                 // =================================================
+//                 // CUSTOM HEADERS
+//                 // =================================================
+//                 'custom_headers' =>
+//                     $data['custom_headers']
+//                     ?? [],
+
+//                 // =================================================
+//                 // PPN
+//                 // =================================================
+//                 'ppn_enabled' =>
+//                     (bool) (
+//                         $data['ppn_enabled']
+//                         ?? false
+//                     ),
+
+//                 'ppn_rate' =>
+//                     (float) (
+//                         $data['ppn_rate']
+//                         ?? 11
+//                     ),
+//             ];
+//         }
+
+//         // =====================================================
+//         // CREATE MODE
+//         // =====================================================
+//         else {
+
+//             $po = Po::with('details')
+//                 ->findOrFail($id);
+
+//             // =================================================
+//             // GENERATE NO SPK
+//             // =================================================
+//             $noSpk =
+//                 $this->generateNoSpk(
+//                     $po->order_no
+//                 );
+
+//             // =================================================
+//             // ITEMS DARI PO
+//             // =================================================
+//             // =================================================
+// // ITEMS DARI PO
+// // =================================================
+//             $items = $po->details->map(function ($d) {
+
+//                 $detail = $d->detail;
+
+//                 if (!is_array($detail)) {
+//                     $detail = [];
+//                 }
+
+//                 // =================================================
+//                 // IMAGE
+//                 // =================================================
+//                 $images = [];
+
+//                 if (!empty($detail['photo'])) {
+//                     $images[] = $detail['photo'];
+//                 }
+
+//                 // =================================================
+//                 // SATUAN DEFAULT CREATE
+//                 // =================================================
+//                 $satuan = 'pcs';
+
+//                 // =================================================
+//                 // QTY DARI PO
+//                 // =================================================
+//                 $qty = $detail['qty'] ?? 0;
+
+//                 if (is_string($qty)) {
+
+//                     $qty = trim($qty);
+
+//                     if ($qty === '') {
+
+//                         $qty = 0;
+
+//                     } elseif (
+//                         str_contains($qty, ',') &&
+//                         !str_contains($qty, '.')
+//                     ) {
+
+//                         // 56,5 -> 56.5
+//                         $qty = str_replace(
+//                             ',',
+//                             '.',
+//                             $qty
+//                         );
+
+//                     } elseif (
+//                         str_contains($qty, ',') &&
+//                         str_contains($qty, '.')
+//                     ) {
+
+//                         // 1.250,5 -> 1250.5
+//                         if (
+//                             strrpos($qty, ',') >
+//                             strrpos($qty, '.')
+//                         ) {
+
+//                             $qty = str_replace(
+//                                 '.',
+//                                 '',
+//                                 $qty
+//                             );
+
+//                             $qty = str_replace(
+//                                 ',',
+//                                 '.',
+//                                 $qty
+//                             );
+
+//                         } else {
+
+//                             // 1,250.5 -> 1250.5
+//                             $qty = str_replace(
+//                                 ',',
+//                                 '',
+//                                 $qty
+//                             );
+//                         }
+
+//                     } elseif (
+//                         substr_count($qty, '.') > 1
+//                     ) {
+
+//                         // 1.250.000 -> 1250000
+//                         $qty = str_replace(
+//                             '.',
+//                             '',
+//                             $qty
+//                         );
+//                     }
+
+//                     $qty = is_numeric($qty)
+//                         ? (float) $qty
+//                         : 0;
+
+//                 } else {
+
+//                     $qty = is_numeric($qty)
+//                         ? (float) $qty
+//                         : 0;
+//                 }
+
+//                 // =================================================
+//                 // PCS / SET
+//                 // =================================================
+//                 $mainQty = $qty;
+
+//                 $setQty = 0;
+
+//                 // =================================================
+//                 // RETURN ITEM
+//                 // =================================================
+//                 return [
+
+//                     'detail_id' =>
+//                         $d->id ?? null,
+
+//                     'kode' =>
+//                         $detail['article_nr_']
+//                         ?? '-',
+
+//                     'nama' =>
+//                         $detail['description']
+//                         ?? '-',
+
+//                     'custom_columns' =>
+//                         [],
+
+//                     // QTY ASLI
+//                     'qty' =>
+//                         $qty,
+
+//                     // QUANTITY UTAMA
+//                     'pcs' =>
+//                         $mainQty,
+
+//                     // SET
+//                     'set' =>
+//                         $setQty,
+
+//                     // SATUAN
+//                     'satuan' =>
+//                         $satuan,
+
+//                     'harga' =>
+//                         $detail['harga']
+//                         ?? 0,
+
+//                     'total' =>
+//                         0,
+
+//                     'images' =>
+//                         $images,
+
+//                     'catatan' =>
+//                         $d->remark_update
+//                         ?? '',
+
+//                     // 'p' =>
+//                     //     $detail['item_w']
+//                     //     ?? '-',
+
+//                     // 'l' =>
+//                     //     $detail['item_d']
+//                     //     ?? '-',
+
+//                     // 't' =>
+//                     //     $detail['item_h']
+//                     //     ?? '-',
+//                     'p' =>
+//     $detail['item_w']
+//     ?? $detail['dimention_(cm)']
+//     ?? $detail['dimension_(cm)']
+//     ?? $detail['dimension']
+//     ?? $detail['w']
+//     ?? $detail['width']
+//     ?? '-',
+
+// 'l' =>
+//     $detail['item_d']
+//     ?? $detail['d']
+//     ?? $detail['depth']
+//     ?? $detail['lebar']
+//     ?? '-',
+
+// 't' =>
+//     $detail['item_h']
+//     ?? $detail['h']
+//     ?? $detail['height']
+//     ?? $detail['tinggi']
+//     ?? '-',
+//                     'material' =>
+//                         $detail['composition']
+//                         ?? '-',
+//                 ];
+
+//             })->values();
+
+//             // =====================================================
+//             // FINAL DATA CREATE
+//             // =====================================================
+//             $spk = [
+
+//                 'id' =>
+//                     $po->id,
+
+//                 'status' =>
+//                     'draft',
+
+//                 'request_status' =>
+//                     null,
+
+//                 'no_spk' =>
+//                     $noSpk,
+
+//                 'no_po' =>
+//                     $po->order_no,
+
+//                 'nama' =>
+//                     $po->supplier_name
+//                     ?? '-',
+
+//                 'tgl_terima' =>
+//                     now()->format('Y-m-d'),
+
+//                 'tgl_selesai' =>
+//                     $request->tgl_selesai,
+
+//                 'type' =>
+//                     'rangka',
+
+//                 'items' =>
+//                     $items,
+
+//                 'payments' =>
+//                     [],
+
+//                 'mode' =>
+//                     'create',
+
+//                 'checked_types' =>
+//                     [],
+
+//                 'custom_headers' =>
+//                     [],
+
+//                 'ppn_enabled' =>
+//                     false,
+
+//                 'ppn_rate' =>
+//                     11,
+//             ];
+//         }
+
+//         // =====================================================
+//         // RETURN VIEW
+//         // =====================================================
+//         return view(
+//             'pages.spk.index',
+//             compact(
+//                 'spk',
+//                 'jenisSuppliers',
+//                 'viewOnly',
+//                 'bahanBaku'
+//             )
+//         );
+//     }
 
     /**
      * =========================================================
@@ -1090,7 +1897,7 @@ $items = $po->details->map(function ($d) {
                 collect($signatureStatus)
                     ->filter(
                         fn($item) =>
-                        $item['done'] === true
+                            $item['done'] === true
                     )
                     ->count();
 
@@ -1542,7 +2349,7 @@ $items = $po->details->map(function ($d) {
 
         return "{$year}-{$urut}/{$noPo}/{$tanggal}";
     }
-    
+
     // public function save(Request $request, $poId)
     // {
     //     $kategori = $request->input('spk_type');
@@ -2181,179 +2988,236 @@ $items = $po->details->map(function ($d) {
     //     ]);
     // }
 
-  
-  
-  public function save(Request $request, $poId)
-{
-    $kategori = $request->input('spk_type');
-    $items = $request->input('items', []);
-    $spkId = $request->input('spk_id');
 
-    // =====================================================
-    // VALIDASI DASAR
-    // =====================================================
-    if (!$kategori || empty($items)) {
 
-        return response()->json([
-            'success' => false,
-            'message' => 'Data tidak lengkap',
-        ], 422);
-    }
+    public function save(Request $request, $poId)
+    {
+        $kategori = $request->input('spk_type');
+        $items = $request->input('items', []);
+        $spkId = $request->input('spk_id');
 
-    // =====================================================
-    // MODE
-    // =====================================================
-    $mode = $spkId ? 'edit' : 'create';
+        // =====================================================
+        // VALIDASI DASAR
+        // =====================================================
+        if (!$kategori || empty($items)) {
 
-    $beforeData = [];
-    $spkModel = null;
-
-    // =====================================================
-    // EDIT MODE
-    // =====================================================
-    if ($mode === 'edit') {
-
-        $spkModel = Spk::findOrFail($spkId);
-
-        $beforeData = $spkModel->data ?? [];
-
-        if (!is_array($beforeData)) {
-            $beforeData = [];
+            return response()->json([
+                'success' => false,
+                'message' => 'Data tidak lengkap',
+            ], 422);
         }
-    }
 
-    // =====================================================
-    // PPN
-    // =====================================================
-    $ppnEnabled =
-        $request->boolean('ppn_enabled');
+        // =====================================================
+        // MODE
+        // =====================================================
+        $mode = $spkId ? 'edit' : 'create';
 
-    $ppnRate =
-        $request->input(
-            'ppn_rate',
-            11
+        $beforeData = [];
+        $spkModel = null;
+
+        // =====================================================
+        // EDIT MODE
+        // =====================================================
+        if ($mode === 'edit') {
+
+            $spkModel = Spk::findOrFail($spkId);
+
+            $beforeData = $spkModel->data ?? [];
+
+            if (!is_array($beforeData)) {
+                $beforeData = [];
+            }
+        }
+
+        // =====================================================
+        // PPN
+        // =====================================================
+        $ppnEnabled =
+            $request->boolean('ppn_enabled');
+
+        $ppnRate =
+            $request->input(
+                'ppn_rate',
+                11
+            );
+
+        if (!is_numeric($ppnRate)) {
+
+            $ppnRate = 11;
+        }
+
+        $ppnRate =
+            (float) $ppnRate;
+
+        if ($ppnRate < 0) {
+
+            $ppnRate = 0;
+        }
+
+        if (!$ppnEnabled) {
+
+            $ppnRate = 0;
+        }
+
+        // =====================================================
+        // NORMALISASI KATEGORI
+        // =====================================================
+        $kategoriCheck = trim(
+            strtolower($kategori)
         );
 
-    if (!is_numeric($ppnRate)) {
+        // =====================================================
+        // OLAH ITEMS
+        // =====================================================
+        $finalItems = [];
 
-        $ppnRate = 11;
-    }
+        foreach ($items as $item) {
 
-    $ppnRate =
-        (float) $ppnRate;
+            // =================================================
+            // DETAIL PO
+            // =================================================
+            if (empty($item['detail_id'])) {
 
-    if ($ppnRate < 0) {
+                continue;
+            }
 
-        $ppnRate = 0;
-    }
-
-    if (!$ppnEnabled) {
-
-        $ppnRate = 0;
-    }
-
-    // =====================================================
-    // NORMALISASI KATEGORI
-    // =====================================================
-    $kategoriCheck = trim(
-        strtolower($kategori)
-    );
-
-    // =====================================================
-    // OLAH ITEMS
-    // =====================================================
-    $finalItems = [];
-
-    foreach ($items as $item) {
-
-        // =================================================
-        // DETAIL PO
-        // =================================================
-        if (empty($item['detail_id'])) {
-
-            continue;
-        }
-
-        // =================================================
-        // HITUNG QTY
-        // =================================================
-        //
-        // PCS -> field pcs
-        // KG  -> field pcs
-        // SET -> field set
-        //
-        // Contoh:
-        // 2     -> 2
-        // 2,5   -> 2.5
-        // 56,5  -> 56.5
-        //
-        $satuanItem = strtolower(
-            trim(
-                (string) (
-                    $item['satuan'] ?? 'pcs'
+            // =================================================
+            // HITUNG QTY
+            // =================================================
+            //
+            // PCS -> field pcs
+            // KG  -> field pcs
+            // SET -> field set
+            //
+            // Contoh:
+            // 2     -> 2
+            // 2,5   -> 2.5
+            // 56,5  -> 56.5
+            //
+            $satuanItem = strtolower(
+                trim(
+                    (string) (
+                        $item['satuan'] ?? 'pcs'
+                    )
                 )
-            )
-        );
+            );
 
-        $qtyRaw = 0;
+            $qtyRaw = 0;
 
-        if ($satuanItem === 'set') {
+            if ($satuanItem === 'set') {
 
-            $qtyRaw =
-                $item['set'] ?? 0;
+                $qtyRaw =
+                    $item['set'] ?? 0;
 
-        } else {
+            } else {
 
-            /*
-             * PCS
-             * KG
-             * Custom
-             *
-             * menggunakan quantity utama
-             */
-            $qtyRaw =
-                $item['pcs'] ?? 0;
-        }
+                /*
+                 * PCS
+                 * KG
+                 * Custom
+                 *
+                 * menggunakan quantity utama
+                 */
+                $qtyRaw =
+                    $item['pcs'] ?? 0;
+            }
 
-        // =================================================
-        // NORMALISASI ANGKA
-        // =================================================
-        if (is_string($qtyRaw)) {
+            // =================================================
+            // NORMALISASI ANGKA
+            // =================================================
+            if (is_string($qtyRaw)) {
 
-            $qtyRaw =
-                trim($qtyRaw);
+                $qtyRaw =
+                    trim($qtyRaw);
 
-            $qtyRaw =
-                str_replace(
-                    ' ',
-                    '',
-                    $qtyRaw
-                );
+                $qtyRaw =
+                    str_replace(
+                        ' ',
+                        '',
+                        $qtyRaw
+                    );
 
-            /*
-             * 1.250,5
-             * menjadi 1250.5
-             */
-            if (
-                str_contains(
-                    $qtyRaw,
-                    '.'
-                ) &&
-                str_contains(
-                    $qtyRaw,
-                    ','
-                )
-            ) {
-
+                /*
+                 * 1.250,5
+                 * menjadi 1250.5
+                 */
                 if (
-                    strrpos(
-                        $qtyRaw,
-                        ','
-                    ) >
-                    strrpos(
+                    str_contains(
                         $qtyRaw,
                         '.'
+                    ) &&
+                    str_contains(
+                        $qtyRaw,
+                        ','
                     )
+                ) {
+
+                    if (
+                        strrpos(
+                            $qtyRaw,
+                            ','
+                        ) >
+                        strrpos(
+                            $qtyRaw,
+                            '.'
+                        )
+                    ) {
+
+                        $qtyRaw =
+                            str_replace(
+                                '.',
+                                '',
+                                $qtyRaw
+                            );
+
+                        $qtyRaw =
+                            str_replace(
+                                ',',
+                                '.',
+                                $qtyRaw
+                            );
+
+                    } else {
+
+                        /*
+                         * 1,250.5
+                         * menjadi 1250.5
+                         */
+                        $qtyRaw =
+                            str_replace(
+                                ',',
+                                '',
+                                $qtyRaw
+                            );
+                    }
+
+                    /*
+                     * 56,5
+                     * menjadi 56.5
+                     */
+                } elseif (
+                    str_contains(
+                        $qtyRaw,
+                        ','
+                    )
+                ) {
+
+                    $qtyRaw =
+                        str_replace(
+                            ',',
+                            '.',
+                            $qtyRaw
+                        );
+
+                    /*
+                     * 1.250.000
+                     * menjadi 1250000
+                     */
+                } elseif (
+                    substr_count(
+                        $qtyRaw,
+                        '.'
+                    ) > 1
                 ) {
 
                     $qtyRaw =
@@ -2362,682 +3226,625 @@ $items = $po->details->map(function ($d) {
                             '',
                             $qtyRaw
                         );
+                }
+            }
 
-                    $qtyRaw =
-                        str_replace(
-                            ',',
-                            '.',
-                            $qtyRaw
+            $qty =
+                is_numeric($qtyRaw)
+                ? (float) $qtyRaw
+                : 0;
+
+            if ($qty <= 0) {
+
+                continue;
+            }
+
+            // =================================================
+            // DETAIL PO
+            // =================================================
+            $detailPo =
+                DetailPo::find(
+                    $item['detail_id']
+                );
+
+            if (!$detailPo) {
+
+                return response()->json([
+                    'success' => false,
+                    'message' =>
+                        'Detail PO tidak ditemukan',
+                ], 422);
+            }
+
+            // =================================================
+            // QTY PO
+            // =================================================
+            $qtyPo = (int) (
+                $detailPo->detail['qty'] ?? 0
+            );
+
+            // =================================================
+            // HITUNG QTY SPK LAIN
+            // =================================================
+            //
+            // SPK yang sedang diedit TIDAK dihitung.
+            //
+            // Yang dihitung hanya:
+            // - SPK lain
+            // - kategori sama
+            // - detail_po_id sama
+            //
+            // =================================================
+            $qtySpkLain = 0;
+
+            $spkLain = Spk::query()
+                ->where(
+                    'id',
+                    '!=',
+                    $spkId ?: 0
+                )
+                ->get();
+
+            foreach ($spkLain as $otherSpk) {
+
+                $otherData =
+                    $otherSpk->data ?? [];
+
+                if (!is_array($otherData)) {
+
+                    continue;
+                }
+
+                // ---------------------------------------------
+                // KATEGORI
+                // ---------------------------------------------
+                $otherKategori =
+                    trim(
+                        strtolower(
+                            $otherData['kategori']
+                            ?? ''
+                        )
+                    );
+
+                if (
+                    $otherKategori !==
+                    $kategoriCheck
+                ) {
+
+                    continue;
+                }
+
+                // ---------------------------------------------
+                // ITEMS
+                // ---------------------------------------------
+                foreach (
+                    $otherData['items'] ?? []
+                    as $otherItem
+                ) {
+
+                    if (
+                        (string) (
+                            $otherItem['detail_po_id']
+                            ?? ''
+                        )
+                        !==
+                        (string) $detailPo->id
+                    ) {
+
+                        continue;
+                    }
+
+                    $otherQty =
+                        (int) (
+                            $otherItem['qty']
+                            ?? 0
+                        );
+
+                    $qtySpkLain +=
+                        $otherQty;
+                }
+            }
+
+            // =================================================
+            // QTY LAMA SPK YANG SEDANG DIEDIT
+            // =================================================
+            $qtyLama = 0;
+
+            if ($mode === 'edit') {
+
+                foreach (
+                    $beforeData['items'] ?? []
+                    as $oldItem
+                ) {
+
+                    if (
+                        (string) (
+                            $oldItem['detail_po_id']
+                            ?? ''
+                        )
+                        !==
+                        (string) $detailPo->id
+                    ) {
+
+                        continue;
+                    }
+
+                    $qtyLama +=
+                        (int) (
+                            $oldItem['qty']
+                            ?? 0
+                        );
+                }
+            }
+
+            // =================================================
+            // VALIDASI QTY SEMENTARA DIMATIKAN
+            // =================================================
+            //
+            // Untuk sementara qty SPK BOLEH
+            // melebihi Qty PO.
+            //
+            // Perhitungan:
+            // - $qtyPo
+            // - $qtySpkLain
+            // - $qtyLama
+            //
+            // tetap dipertahankan.
+            //
+            // =================================================
+
+            /*
+            $sisaQty =
+                $qtyPo -
+                $qtySpkLain;
+
+            if ($mode === 'edit') {
+
+                $sisaQty += $qtyLama;
+            }
+
+            if ($qty > $sisaQty) {
+
+                return response()->json([
+                    'success' => false,
+
+                    'message' =>
+                        'Qty SPK melebihi Qty PO ' .
+                        '(Sisa: ' .
+                        max(0, $sisaQty) .
+                        ')',
+
+                    'debug' => [
+                        'mode' =>
+                            $mode,
+
+                        'spk_id' =>
+                            $spkId,
+
+                        'detail_po_id' =>
+                            $detailPo->id,
+
+                        'qty_po' =>
+                            $qtyPo,
+
+                        'qty_spk_lain' =>
+                            $qtySpkLain,
+
+                        'qty_lama' =>
+                            $qtyLama,
+
+                        'qty_request' =>
+                            $qty,
+
+                        'sisa_qty' =>
+                            $sisaQty,
+                    ],
+                ], 422);
+            }
+            */
+
+            // =================================================
+            // IMAGE ITEM
+            // =================================================
+            $itemImages = [];
+
+            foreach (
+                $item['images'] ?? []
+                as $img
+            ) {
+
+                if (
+                    is_string($img) &&
+                    str_starts_with(
+                        $img,
+                        'data:image'
+                    )
+                ) {
+
+                    $itemImages[] =
+                        $this->saveBase64Image(
+                            $img,
+                            'spk/items'
                         );
 
                 } else {
 
-                    /*
-                     * 1,250.5
-                     * menjadi 1250.5
-                     */
-                    $qtyRaw =
-                        str_replace(
-                            ',',
-                            '',
-                            $qtyRaw
+                    $itemImages[] =
+                        $img;
+                }
+            }
+
+            // =================================================
+            // IMAGE CATATAN
+            // =================================================
+            $noteImages = [];
+
+            foreach (
+                $item['catatan']['images'] ?? []
+                as $img
+            ) {
+
+                if (
+                    is_string($img) &&
+                    str_starts_with(
+                        $img,
+                        'data:image'
+                    )
+                ) {
+
+                    $noteImages[] =
+                        $this->saveBase64Image(
+                            $img,
+                            'spk/notes'
                         );
+
+                } else {
+
+                    $noteImages[] =
+                        $img;
                 }
-
-            /*
-             * 56,5
-             * menjadi 56.5
-             */
-            } elseif (
-                str_contains(
-                    $qtyRaw,
-                    ','
-                )
-            ) {
-
-                $qtyRaw =
-                    str_replace(
-                        ',',
-                        '.',
-                        $qtyRaw
-                    );
-
-            /*
-             * 1.250.000
-             * menjadi 1250000
-             */
-            } elseif (
-                substr_count(
-                    $qtyRaw,
-                    '.'
-                ) > 1
-            ) {
-
-                $qtyRaw =
-                    str_replace(
-                        '.',
-                        '',
-                        $qtyRaw
-                    );
-            }
-        }
-
-        $qty =
-            is_numeric($qtyRaw)
-                ? (float) $qtyRaw
-                : 0;
-
-        if ($qty <= 0) {
-
-            continue;
-        }
-
-        // =================================================
-        // DETAIL PO
-        // =================================================
-        $detailPo =
-            DetailPo::find(
-                $item['detail_id']
-            );
-
-        if (!$detailPo) {
-
-            return response()->json([
-                'success' => false,
-                'message' =>
-                    'Detail PO tidak ditemukan',
-            ], 422);
-        }
-
-        // =================================================
-        // QTY PO
-        // =================================================
-        $qtyPo = (int) (
-            $detailPo->detail['qty'] ?? 0
-        );
-
-        // =================================================
-        // HITUNG QTY SPK LAIN
-        // =================================================
-        //
-        // SPK yang sedang diedit TIDAK dihitung.
-        //
-        // Yang dihitung hanya:
-        // - SPK lain
-        // - kategori sama
-        // - detail_po_id sama
-        //
-        // =================================================
-        $qtySpkLain = 0;
-
-        $spkLain = Spk::query()
-            ->where(
-                'id',
-                '!=',
-                $spkId ?: 0
-            )
-            ->get();
-
-        foreach ($spkLain as $otherSpk) {
-
-            $otherData =
-                $otherSpk->data ?? [];
-
-            if (!is_array($otherData)) {
-
-                continue;
             }
 
-            // ---------------------------------------------
-            // KATEGORI
-            // ---------------------------------------------
-            $otherKategori =
-                trim(
-                    strtolower(
-                        $otherData['kategori']
-                        ?? ''
-                    )
-                );
+            // =================================================
+            // ITEM FINAL
+            // =================================================
+            $finalItems[] = [
 
-            if (
-                $otherKategori !==
-                $kategoriCheck
-            ) {
+                'detail_po_id' =>
+                    $detailPo->id,
 
-                continue;
-            }
-
-            // ---------------------------------------------
-            // ITEMS
-            // ---------------------------------------------
-            foreach (
-                $otherData['items'] ?? []
-                as $otherItem
-            ) {
-
-                if (
+                'kode' =>
                     (string) (
-                        $otherItem['detail_po_id']
-                        ?? ''
-                    )
-                    !==
-                    (string) $detailPo->id
-                ) {
-
-                    continue;
-                }
-
-                $otherQty =
-                    (int) (
-                        $otherItem['qty']
-                        ?? 0
-                    );
-
-                $qtySpkLain +=
-                    $otherQty;
-            }
-        }
-
-        // =================================================
-        // QTY LAMA SPK YANG SEDANG DIEDIT
-        // =================================================
-        $qtyLama = 0;
-
-        if ($mode === 'edit') {
-
-            foreach (
-                $beforeData['items'] ?? []
-                as $oldItem
-            ) {
-
-                if (
-                    (string) (
-                        $oldItem['detail_po_id']
-                        ?? ''
-                    )
-                    !==
-                    (string) $detailPo->id
-                ) {
-
-                    continue;
-                }
-
-                $qtyLama +=
-                    (int) (
-                        $oldItem['qty']
-                        ?? 0
-                    );
-            }
-        }
-
-        // =================================================
-        // VALIDASI QTY SEMENTARA DIMATIKAN
-        // =================================================
-        //
-        // Untuk sementara qty SPK BOLEH
-        // melebihi Qty PO.
-        //
-        // Perhitungan:
-        // - $qtyPo
-        // - $qtySpkLain
-        // - $qtyLama
-        //
-        // tetap dipertahankan.
-        //
-        // =================================================
-
-        /*
-        $sisaQty =
-            $qtyPo -
-            $qtySpkLain;
-
-        if ($mode === 'edit') {
-
-            $sisaQty += $qtyLama;
-        }
-
-        if ($qty > $sisaQty) {
-
-            return response()->json([
-                'success' => false,
-
-                'message' =>
-                    'Qty SPK melebihi Qty PO ' .
-                    '(Sisa: ' .
-                    max(0, $sisaQty) .
-                    ')',
-
-                'debug' => [
-                    'mode' =>
-                        $mode,
-
-                    'spk_id' =>
-                        $spkId,
-
-                    'detail_po_id' =>
-                        $detailPo->id,
-
-                    'qty_po' =>
-                        $qtyPo,
-
-                    'qty_spk_lain' =>
-                        $qtySpkLain,
-
-                    'qty_lama' =>
-                        $qtyLama,
-
-                    'qty_request' =>
-                        $qty,
-
-                    'sisa_qty' =>
-                        $sisaQty,
-                ],
-            ], 422);
-        }
-        */
-
-        // =================================================
-        // IMAGE ITEM
-        // =================================================
-        $itemImages = [];
-
-        foreach (
-            $item['images'] ?? []
-            as $img
-        ) {
-
-            if (
-                is_string($img) &&
-                str_starts_with(
-                    $img,
-                    'data:image'
-                )
-            ) {
-
-                $itemImages[] =
-                    $this->saveBase64Image(
-                        $img,
-                        'spk/items'
-                    );
-
-            } else {
-
-                $itemImages[] =
-                    $img;
-            }
-        }
-
-        // =================================================
-        // IMAGE CATATAN
-        // =================================================
-        $noteImages = [];
-
-        foreach (
-            $item['catatan']['images'] ?? []
-            as $img
-        ) {
-
-            if (
-                is_string($img) &&
-                str_starts_with(
-                    $img,
-                    'data:image'
-                )
-            ) {
-
-                $noteImages[] =
-                    $this->saveBase64Image(
-                        $img,
-                        'spk/notes'
-                    );
-
-            } else {
-
-                $noteImages[] =
-                    $img;
-            }
-        }
-
-        // =================================================
-        // ITEM FINAL
-        // =================================================
-        $finalItems[] = [
-
-            'detail_po_id' =>
-                $detailPo->id,
-
-            'kode' =>
-                (string) (
-                    $item['kode'] ?? ''
-                ),
-
-            'nama' =>
-                (string) (
-                    $item['nama'] ?? ''
-                ),
-
-            'qty' =>
-                $qty,
-
-            'satuan' =>
-                $item['satuan'] ?? '',
-
-            'material' =>
-                (string) (
-                    $item['material'] ?? ''
-                ),
-
-            'p' =>
-                (string) (
-                    $item['p'] ?? ''
-                ),
-
-            'l' =>
-                (string) (
-                    $item['l'] ?? ''
-                ),
-
-            't' =>
-                (string) (
-                    $item['t'] ?? ''
-                ),
-
-            // =================================================
-            // HARGA DASAR TANPA PPN
-            // =================================================
-            'harga' =>
-                (float) (
-                    $item['harga'] ?? 0
-                ),
-
-            // =================================================
-            // TOTAL DASAR TANPA PPN
-            // =================================================
-            'total' =>
-                (float) (
-                    $item['total'] ?? 0
-                ),
-
-            // =================================================
-            // IMAGES
-            // =================================================
-            'images' =>
-                $itemImages,
-
-            // =================================================
-            // CATATAN
-            // =================================================
-            'catatan' => [
-
-                'remark' =>
-                    (string) (
-                        $item['catatan']['remark']
-                        ?? ''
+                        $item['kode'] ?? ''
                     ),
 
+                'nama' =>
+                    (string) (
+                        $item['nama'] ?? ''
+                    ),
+
+                'qty' =>
+                    $qty,
+
+                'satuan' =>
+                    $item['satuan'] ?? '',
+
+                'material' =>
+                    (string) (
+                        $item['material'] ?? ''
+                    ),
+
+                'p' =>
+                    (string) (
+                        $item['p'] ?? ''
+                    ),
+
+                'l' =>
+                    (string) (
+                        $item['l'] ?? ''
+                    ),
+
+                't' =>
+                    (string) (
+                        $item['t'] ?? ''
+                    ),
+
+                // =================================================
+                // HARGA DASAR TANPA PPN
+                // =================================================
+                'harga' =>
+                    (float) (
+                        $item['harga'] ?? 0
+                    ),
+
+                // =================================================
+                // TOTAL DASAR TANPA PPN
+                // =================================================
+                'total' =>
+                    (float) (
+                        $item['total'] ?? 0
+                    ),
+
+                // =================================================
+                // IMAGES
+                // =================================================
                 'images' =>
-                    $noteImages,
-            ],
+                    $itemImages,
+
+                // =================================================
+                // CATATAN
+                // =================================================
+                'catatan' => [
+
+                    'remark' =>
+                        (string) (
+                            $item['catatan']['remark']
+                            ?? ''
+                        ),
+
+                    'images' =>
+                        $noteImages,
+                ],
+
+                // =================================================
+                // CUSTOM COLUMNS
+                // =================================================
+                'custom_columns' =>
+                    $item['custom_columns']
+                    ?? [],
+            ];
+        }
+
+        // =====================================================
+        // VALIDASI FINAL
+        // =====================================================
+        if (empty($finalItems)) {
+
+            return response()->json([
+                'success' => false,
+                'message' =>
+                    'Tidak ada item valid',
+            ], 422);
+        }
+
+        // =====================================================
+        // DATA FINAL
+        // =====================================================
+        $afterData = [
+
+            'status' =>
+                $request->input(
+                    'status',
+                    'draft'
+                ),
+
+            'kategori' =>
+                $kategori,
+
+            'no_spk' =>
+                $request->input(
+                    'no_spk'
+                ),
+
+            'no_po' =>
+                $request->input(
+                    'no_po'
+                ),
+
+            'sup' =>
+                $request->input(
+                    'nama'
+                ),
+
+            'tgl_terima' =>
+                $request->input(
+                    'tgl_terima'
+                ),
+
+            'tgl_selesai' =>
+                $request->input(
+                    'tgl_selesai'
+                ),
 
             // =================================================
-            // CUSTOM COLUMNS
+            // PPN
             // =================================================
-            'custom_columns' =>
-                $item['custom_columns']
-                ?? [],
+            'ppn_enabled' =>
+                $ppnEnabled,
+
+            'ppn_rate' =>
+                $ppnRate,
+
+            // =================================================
+            // ITEMS
+            // =================================================
+            'items' =>
+                $finalItems,
+
+            // =================================================
+            // PAYMENTS
+            // =================================================
+            'payments' =>
+                $request->input(
+                    'payments',
+                    []
+                ),
+
+            // =================================================
+            // CHECKED TYPES
+            // =================================================
+            'checked_types' =>
+                $request->input(
+                    'checked_types',
+                    []
+                ),
+
+            // =================================================
+            // CUSTOM HEADERS
+            // =================================================
+            'custom_headers' =>
+                $request->input(
+                    'custom_headers',
+                    []
+                ),
         ];
-    }
 
-    // =====================================================
-    // VALIDASI FINAL
-    // =====================================================
-    if (empty($finalItems)) {
+        // =====================================================
+        // CREATE
+        // =====================================================
+        if ($mode === 'create') {
 
+            $spk = Spk::create([
+
+                'po_id' =>
+                    $poId,
+
+                'data' =>
+                    $afterData,
+                'status' => 'draft',
+                'created_by' =>
+                    auth()->id(),
+            ]);
+
+            // =================================================
+            // TIMELINE CREATE
+            // =================================================
+            SpkTimeline::create([
+
+                'spk_id' =>
+                    $spk->id,
+
+                'data' => [
+
+                    'type' =>
+                        'create',
+
+                    'user' =>
+                        auth()->user()->name,
+
+                    'time' =>
+                        now(),
+
+                    'after' =>
+                        $afterData,
+                ],
+            ]);
+
+        } else {
+
+            // =================================================
+            // UPDATE
+            // =================================================
+            $changes =
+                $this->diffRecursive(
+                    $beforeData,
+                    $afterData
+                );
+
+            /*
+            |--------------------------------------------------------------------------
+            | JANGAN menggunakan updated_by
+            |
+            | Karena tabel spk tidak memiliki kolom updated_by.
+            |--------------------------------------------------------------------------
+            */
+
+            $spkModel->update([
+
+                'data' =>
+                    $afterData,
+            ]);
+
+            // =================================================
+            // TIMELINE UPDATE
+            // =================================================
+            SpkTimeline::create([
+
+                'spk_id' =>
+                    $spkModel->id,
+
+                'data' => [
+
+                    'type' =>
+                        'update',
+
+                    'user' =>
+                        auth()->user()->name,
+
+                    'time' =>
+                        now(),
+
+                    'before' =>
+                        $beforeData,
+
+                    'after' =>
+                        $afterData,
+
+                    'changes' =>
+                        $changes,
+                ],
+            ]);
+
+            $spk =
+                $spkModel;
+        }
+
+        // =====================================================
+        // DATA TERSIMPAN
+        // =====================================================
+        $savedData =
+            $spk->data ?? [];
+
+        // =====================================================
+        // RESPONSE
+        // =====================================================
         return response()->json([
-            'success' => false,
+
+            'success' =>
+                true,
+
             'message' =>
-                'Tidak ada item valid',
-        ], 422);
-    }
-
-    // =====================================================
-    // DATA FINAL
-    // =====================================================
-    $afterData = [
-
-        'status' =>
-            $request->input(
-                'status',
-                'draft'
-            ),
-
-        'kategori' =>
-            $kategori,
-
-        'no_spk' =>
-            $request->input(
-                'no_spk'
-            ),
-
-        'no_po' =>
-            $request->input(
-                'no_po'
-            ),
-
-        'sup' =>
-            $request->input(
-                'nama'
-            ),
-
-        'tgl_terima' =>
-            $request->input(
-                'tgl_terima'
-            ),
-
-        'tgl_selesai' =>
-            $request->input(
-                'tgl_selesai'
-            ),
-
-        // =================================================
-        // PPN
-        // =================================================
-        'ppn_enabled' =>
-            $ppnEnabled,
-
-        'ppn_rate' =>
-            $ppnRate,
-
-        // =================================================
-        // ITEMS
-        // =================================================
-        'items' =>
-            $finalItems,
-
-        // =================================================
-        // PAYMENTS
-        // =================================================
-        'payments' =>
-            $request->input(
-                'payments',
-                []
-            ),
-
-        // =================================================
-        // CHECKED TYPES
-        // =================================================
-        'checked_types' =>
-            $request->input(
-                'checked_types',
-                []
-            ),
-
-        // =================================================
-        // CUSTOM HEADERS
-        // =================================================
-        'custom_headers' =>
-            $request->input(
-                'custom_headers',
-                []
-            ),
-    ];
-
-    // =====================================================
-    // CREATE
-    // =====================================================
-    if ($mode === 'create') {
-
-        $spk = Spk::create([
-
-            'po_id' =>
-                $poId,
-
-            'data' =>
-                $afterData,
-  'status' => 'draft',
-            'created_by' =>
-                auth()->id(),
-        ]);
-
-        // =================================================
-        // TIMELINE CREATE
-        // =================================================
-        SpkTimeline::create([
+                $mode === 'edit'
+                ? 'SPK berhasil diperbarui'
+                : 'SPK berhasil dibuat',
 
             'spk_id' =>
                 $spk->id,
 
-            'data' => [
+            'no_spk' =>
+                $savedData['no_spk']
+                ?? $request->input(
+                    'no_spk'
+                ),
 
-                'type' =>
-                    'create',
+            // =================================================
+            // PPN DEBUG
+            // =================================================
+            'ppn_debug' => [
 
-                'user' =>
-                    auth()->user()->name,
+                'request_enabled' =>
+                    $request->input(
+                        'ppn_enabled'
+                    ),
 
-                'time' =>
-                    now(),
+                'request_rate' =>
+                    $request->input(
+                        'ppn_rate'
+                    ),
 
-                'after' =>
-                    $afterData,
+                'saved_enabled' =>
+                    $savedData[
+                        'ppn_enabled'
+                    ] ?? null,
+
+                'saved_rate' =>
+                    $savedData[
+                        'ppn_rate'
+                    ] ?? null,
             ],
         ]);
-
-    } else {
-
-        // =================================================
-        // UPDATE
-        // =================================================
-        $changes =
-            $this->diffRecursive(
-                $beforeData,
-                $afterData
-            );
-
-        /*
-        |--------------------------------------------------------------------------
-        | JANGAN menggunakan updated_by
-        |
-        | Karena tabel spk tidak memiliki kolom updated_by.
-        |--------------------------------------------------------------------------
-        */
-
-        $spkModel->update([
-
-            'data' =>
-                $afterData,
-        ]);
-
-        // =================================================
-        // TIMELINE UPDATE
-        // =================================================
-        SpkTimeline::create([
-
-            'spk_id' =>
-                $spkModel->id,
-
-            'data' => [
-
-                'type' =>
-                    'update',
-
-                'user' =>
-                    auth()->user()->name,
-
-                'time' =>
-                    now(),
-
-                'before' =>
-                    $beforeData,
-
-                'after' =>
-                    $afterData,
-
-                'changes' =>
-                    $changes,
-            ],
-        ]);
-
-        $spk =
-            $spkModel;
     }
 
-    // =====================================================
-    // DATA TERSIMPAN
-    // =====================================================
-    $savedData =
-        $spk->data ?? [];
-
-    // =====================================================
-    // RESPONSE
-    // =====================================================
-    return response()->json([
-
-        'success' =>
-            true,
-
-        'message' =>
-            $mode === 'edit'
-                ? 'SPK berhasil diperbarui'
-                : 'SPK berhasil dibuat',
-
-        'spk_id' =>
-            $spk->id,
-
-        'no_spk' =>
-            $savedData['no_spk']
-            ?? $request->input(
-                'no_spk'
-            ),
-
-        // =================================================
-        // PPN DEBUG
-        // =================================================
-        'ppn_debug' => [
-
-            'request_enabled' =>
-                $request->input(
-                    'ppn_enabled'
-                ),
-
-            'request_rate' =>
-                $request->input(
-                    'ppn_rate'
-                ),
-
-            'saved_enabled' =>
-                $savedData[
-                    'ppn_enabled'
-                ] ?? null,
-
-            'saved_rate' =>
-                $savedData[
-                    'ppn_rate'
-                ] ?? null,
-        ],
-    ]);
-}
-  
     public function timeline($id)
     {
         $timelines = SpkTimeline::where('spk_id', $id)
@@ -3839,6 +4646,16 @@ $items = $po->details->map(function ($d) {
     {
         $authUser = auth()->user();
 
+        /*
+        |--------------------------------------------------------------------------
+        | MASTER APPROVER
+        |--------------------------------------------------------------------------
+        |
+        | Tetap dipertahankan karena kemungkinan masih digunakan
+        | oleh bagian Blade lain.
+        |
+        */
+
         $kepalaPurchasing = Karyawan::whereHas('divisi', function ($q) {
             $q->where('nama', 'KEPALA PURCHASING');
         })->first();
@@ -3867,11 +4684,13 @@ $items = $po->details->map(function ($d) {
             $q->where('nama', 'CO');
         })->first();
 
+
         /*
         |--------------------------------------------------------------------------
         | REQUEST DRAFT
         |--------------------------------------------------------------------------
         */
+
         $requests = PaymentRequest::with('spk')
             ->where('status', 'draft')
             ->latest()
@@ -3922,41 +4741,62 @@ $items = $po->details->map(function ($d) {
 
                 return [
                     'id' => $request->id,
+
                     'request_no' => $request->request_no,
                     'payment_id' => $request->payment_id,
+
                     'status' => $request->status,
+
                     'request_date' => $request->request_date,
                     'need_date' => $request->need_date,
 
                     'spk_id' => $request->spk_id,
                     'spk_no' => $spkData['no_spk'] ?? '-',
                     'no_po' => $spkData['no_po'] ?? '-',
+
                     'supplier' => $spkData['sup'] ?? '-',
                     'kategori' => $spkData['kategori'] ?? '-',
+
                     'tgl_terima' => $spkData['tgl_terima'] ?? '-',
                     'tgl_selesai' => $spkData['tgl_selesai'] ?? '-',
 
                     'payment_note' => $payment['note'] ?? '-',
+
                     'payment_amount' => $payment['amount'] ?? 0,
+
                     'payment_date' => $payment['date'] ?? null,
-                    'payment_is_request' => $payment['is_request'] ?? false,
-                    'note_tambahan' => $payment['note_tambahan'] ?? null,
+
+                    'payment_is_request' =>
+                        $payment['is_request'] ?? false,
+
+                    'note_tambahan' =>
+                        $payment['note_tambahan'] ?? null,
 
                     'items' => $items,
-                    'grand_total_spk' => $items->sum('total'),
+
+                    'grand_total_spk' =>
+                        $items->sum('total'),
                 ];
             })
             ->filter()
             ->values();
+
 
         /*
         |--------------------------------------------------------------------------
         | SAVED DRAFT
         |--------------------------------------------------------------------------
         */
+
         $draftRequests = PaymentRequestSaved::latest()
             ->get()
             ->map(function ($draft) {
+
+                /*
+                |--------------------------------------------------------------------------
+                | PAYMENT REQUEST DALAM DRAFT
+                |--------------------------------------------------------------------------
+                */
 
                 $paymentRequests = PaymentRequest::with('spk')
                     ->whereIn(
@@ -3968,16 +4808,25 @@ $items = $po->details->map(function ($d) {
 
                         if (!$request->spk) {
 
-                            Log::warning('SPK NOT FOUND IN DRAFT', [
-                                'payment_request_id' => $request->id,
-                                'spk_id' => $request->spk_id,
-                            ]);
+                            Log::warning(
+                                'SPK NOT FOUND IN DRAFT',
+                                [
+                                    'payment_request_id' =>
+                                        $request->id,
+
+                                    'spk_id' =>
+                                        $request->spk_id,
+                                ]
+                            );
 
                             return null;
                         }
 
                         $spkData = is_string($request->spk->data)
-                            ? json_decode($request->spk->data, true)
+                            ? json_decode(
+                                $request->spk->data,
+                                true
+                            )
                             : ($request->spk->data ?? []);
 
                         $payment = collect(
@@ -3989,40 +4838,287 @@ $items = $po->details->map(function ($d) {
 
                         return [
                             'id' => $request->id,
-                            'payment_id' => $request->payment_id,
-                            'request_no' => $request->request_no,
-                            'spk_no' => $spkData['no_spk'] ?? '-',
-                            'no_po' => $spkData['no_po'] ?? '-',
-                            'supplier' => $spkData['sup'] ?? '-',
-                            'kategori' => $spkData['kategori'] ?? '-',
-                            'payment_note' => $payment['note'] ?? '-',
-                            'payment_amount' => (float) ($payment['amount'] ?? 0),
+
+                            'payment_id' =>
+                                $request->payment_id,
+
+                            'request_no' =>
+                                $request->request_no,
+
+                            'spk_no' =>
+                                $spkData['no_spk'] ?? '-',
+
+                            'no_po' =>
+                                $spkData['no_po'] ?? '-',
+
+                            'supplier' =>
+                                $spkData['sup'] ?? '-',
+
+                            'kategori' =>
+                                $spkData['kategori'] ?? '-',
+
+                            'payment_note' =>
+                                $payment['note'] ?? '-',
+
+                            'payment_amount' =>
+                                (float) (
+                                    $payment['amount'] ?? 0
+                                ),
                         ];
                     })
                     ->filter()
                     ->values();
-                $approval = PaymentRequestApproval::where(
-                    'payment_request_saved_id',
-                    $draft->id
-                )
-                    ->where('status', 'Pending')
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | SEMUA APPROVAL MILIK DRAFT INI
+                |--------------------------------------------------------------------------
+                |
+                | PENTING:
+                |
+                | Jangan mengambil approver dari:
+                | $kepalaPurchasing
+                | $prodManager
+                | $ceo
+                | $finance
+                | dll.
+                |
+                | Magic Link harus menggunakan approval yang tersimpan
+                | pada payment_request_approvals untuk draft ini.
+                |
+                */
+
+                $approvals = PaymentRequestApproval::with([
+                    'user.karyawan.divisi'
+                ])
+                    ->where(
+                        'payment_request_saved_id',
+                        $draft->id
+                    )
                     ->orderBy('step')
+                    ->get();
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | PENDING APPROVAL
+                |--------------------------------------------------------------------------
+                |
+                | Tetap menggunakan approval pertama berdasarkan step
+                | yang statusnya Pending.
+                |
+                */
+
+                $pendingApproval = $approvals
+                    ->filter(function ($approval) {
+
+                        return strtolower(
+                            trim(
+                                (string) $approval->status
+                            )
+                        ) === 'pending';
+                    })
+                    ->sortBy('step')
                     ->first();
 
-                return [
-                    'id' => $draft->id,
-                    'request_no' => $draft->request_no,
-                    'request_date' => $draft->request_date,
-                    'need_date' => $draft->need_date,
-                    'status' => $draft->status,
-                    'grand_total' => $paymentRequests->sum('payment_amount'),
-                    'total_items' => $paymentRequests->count(),
-                    'items' => $paymentRequests,
-                    'pending_sign' => $approval->role ?? '-',
-                    'ainun_saved_recon' => $draft->ainun_saved_recon,
 
+                /*
+                |--------------------------------------------------------------------------
+                | FORMAT SEMUA APPROVER
+                |--------------------------------------------------------------------------
+                |
+                | Ambil USER langsung dari:
+                |
+                | payment_request_approvals.user_id
+                |
+                | BUKAN berdasarkan user_name.
+                |
+                */
+
+                $approvalList = $approvals
+                    ->map(function ($approval) {
+
+                        $user = $approval->user;
+
+                        return [
+
+                            /*
+                            | Approval ID
+                            */
+                            'id' =>
+                                $approval->id,
+
+                            /*
+                            | Urutan approval
+                            */
+                            'step' =>
+                                $approval->step,
+
+                            /*
+                            | Role / Divisi approval
+                            */
+                            'role' =>
+                                $approval->role ?? '-',
+
+                            /*
+                            | USER ID
+                            |
+                            | Ini yang nanti dikirim ke
+                            | generateMagicApprovalLink()
+                            */
+                            'user_id' =>
+                                $approval->user_id,
+
+                            /*
+                            | Nama user sebenarnya
+                            */
+                            'user_name' =>
+                                $user?->name ?? '-',
+
+                            /*
+                            | Email user
+                            */
+                            'email' =>
+                                $user?->email ?? null,
+
+                            /*
+                            | Status approval
+                            */
+                            'status' =>
+                                $approval->status ?? 'Pending',
+
+                            /*
+                            | Tanggal approval
+                            */
+                            'approved_at' =>
+                                $approval->approved_at ?? null,
+                        ];
+                    })
+                    ->values();
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | DEBUG OPTIONAL
+                |--------------------------------------------------------------------------
+                |
+                | Kalau sementara ingin memastikan datanya benar,
+                | bisa uncomment Log berikut.
+                |
+                */
+
+                Log::info(
+                    'PAYMENT REQUEST DRAFT APPROVERS',
+                    [
+                        'draft_id' =>
+                            $draft->id,
+
+                        'request_no' =>
+                            $draft->request_no,
+
+                        'approvals' =>
+                            $approvalList->toArray(),
+                    ]
+                );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | RETURN DRAFT
+                |--------------------------------------------------------------------------
+                */
+
+                return [
+
+                    /*
+                    |--------------------------------------------------------------
+                    | DRAFT
+                    |--------------------------------------------------------------
+                    */
+
+                    'id' =>
+                        $draft->id,
+
+                    'request_no' =>
+                        $draft->request_no,
+
+                    'request_date' =>
+                        $draft->request_date,
+
+                    'need_date' =>
+                        $draft->need_date,
+
+                    'status' =>
+                        $draft->status,
+
+
+                    /*
+                    |--------------------------------------------------------------
+                    | TOTAL
+                    |--------------------------------------------------------------
+                    */
+
+                    'grand_total' =>
+                        $paymentRequests->sum(
+                            'payment_amount'
+                        ),
+
+                    'total_items' =>
+                        $paymentRequests->count(),
+
+
+                    /*
+                    |--------------------------------------------------------------
+                    | ITEMS
+                    |--------------------------------------------------------------
+                    */
+
+                    'items' =>
+                        $paymentRequests,
+
+
+                    /*
+                    |--------------------------------------------------------------
+                    | PENDING SIGN
+                    |--------------------------------------------------------------
+                    */
+
+                    'pending_sign' =>
+                        $pendingApproval?->role ?? '-',
+
+
+                    /*
+                    |--------------------------------------------------------------
+                    | SEMUA APPROVER DRAFT
+                    |--------------------------------------------------------------
+                    |
+                    | INI YANG DIGUNAKAN MODAL MAGIC LINK.
+                    |
+                    */
+
+                    'approvals' =>
+                        $approvalList,
+
+
+                    /*
+                    |--------------------------------------------------------------
+                    | RECON
+                    |--------------------------------------------------------------
+                    */
+
+                    'ainun_saved_recon' =>
+                        $draft->ainun_saved_recon,
                 ];
-            });
+            })
+            ->values();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | VIEW
+        |--------------------------------------------------------------------------
+        */
 
         return view(
             'pages.payment_request.draft',
@@ -4030,6 +5126,11 @@ $items = $po->details->map(function ($d) {
                 'requests',
                 'draftRequests',
                 'authUser',
+
+                /*
+                | Master approver tetap dikirim agar
+                | Blade lama tidak error.
+                */
                 'kepalaPurchasing',
                 'prodManager',
                 'ceo',
@@ -4039,6 +5140,99 @@ $items = $po->details->map(function ($d) {
                 'coo'
             )
         );
+    }
+    // magic
+    public function magicApproval(string $token)
+    {
+        $magic = ApprovalMagicLink::where(
+            'token_hash',
+            hash('sha256', $token)
+        )->first();
+
+        if (!$magic) {
+            abort(404, 'Magic approval link tidak valid.');
+        }
+
+        if (
+            $magic->expires_at &&
+            now()->greaterThan($magic->expires_at)
+        ) {
+            abort(403, 'Magic approval link sudah expired.');
+        }
+
+        $user = User::find($magic->user_id);
+
+        if (!$user) {
+            abort(404, 'User approver tidak ditemukan.');
+        }
+
+        // LOGIN OTOMATIS
+        Auth::login($user);
+
+        // Masuk ke halaman approval yang sama
+        return redirect()->route('spk.draft', [
+            'request' => $magic->no_req,
+        ]);
+    }
+    public function generateMagicApprovalLink(Request $request)
+    {
+        $request->validate([
+            'no_req' => 'required|string',
+            'user_id' => 'required|integer',
+        ]);
+
+        $noReq = trim($request->no_req);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Pastikan user memang ada
+        |--------------------------------------------------------------------------
+        */
+
+        $user = User::findOrFail($request->user_id);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Token random
+        |--------------------------------------------------------------------------
+        */
+
+        $token = Str::random(64);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Simpan magic approval
+        |--------------------------------------------------------------------------
+        */
+
+        ApprovalMagicLink::create([
+            'no_req' => $noReq,
+            'user_id' => $user->id,
+            'token_hash' => hash('sha256', $token),
+
+            // misalnya berlaku 30 menit
+            'expires_at' => now()->addMinutes(30),
+
+            'created_by' => auth()->id(),
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | URL Magic
+        |--------------------------------------------------------------------------
+        */
+
+        $url = url('/approval/bypass_config/' . $token);
+
+        return response()->json([
+            'success' => true,
+            'url' => $url,
+            'message' => 'Magic approval link berhasil dibuat.',
+            'user' => $user->name,
+            'no_req' => $noReq,
+        ]);
     }
 
     public function changeStatus(
@@ -7262,26 +8456,26 @@ $items = $po->details->map(function ($d) {
             ], 500);
         }
     }
-   public function updateBahanBakuKeterangan(Request $request)
-{
-    $request->validate([
-        'id' => 'required|integer',
-        'keterangan' => 'nullable|string|max:1000',
-    ]);
+    public function updateBahanBakuKeterangan(Request $request)
+    {
+        $request->validate([
+            'id' => 'required|integer',
+            'keterangan' => 'nullable|string|max:1000',
+        ]);
 
-    $transaksi = TransaksiStok::where('id', $request->id)
-        ->where('tipe', 'out')
-        ->whereNotNull('spk_id')
-        ->firstOrFail();
+        $transaksi = TransaksiStok::where('id', $request->id)
+            ->where('tipe', 'out')
+            ->whereNotNull('spk_id')
+            ->firstOrFail();
 
-    $transaksi->keterangan = $request->keterangan;
-    $transaksi->save();
+        $transaksi->keterangan = $request->keterangan;
+        $transaksi->save();
 
-    return response()->json([
-        'success' => true,
-        'id' => $transaksi->id,
-        'spk_id' => $transaksi->spk_id,
-        'keterangan' => $transaksi->keterangan,
-    ]);
-}
+        return response()->json([
+            'success' => true,
+            'id' => $transaksi->id,
+            'spk_id' => $transaksi->spk_id,
+            'keterangan' => $transaksi->keterangan,
+        ]);
+    }
 }

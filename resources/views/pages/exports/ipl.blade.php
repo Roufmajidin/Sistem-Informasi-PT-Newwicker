@@ -83,7 +83,7 @@
 
                                 </td>
 
-                                
+
 
                                 <td class="text-center">
 
@@ -107,18 +107,28 @@
                                     {{ optional($data->creator)->name }}
 
                                 </td>
-<td class="">
-    @if(is_null($data->released))
-        <input type="checkbox"
-               name="selected[]"
-               value="{{ $data->id }}"
-               class="release-checkbox"> no yet
-    @else
-        <span class="badge badge-success">
-            {{ \Carbon\Carbon::parse($data->release_date)->format('d/m/Y') }}
-        </span>
-    @endif
-</td>
+                                <td class="text-center">
+
+                                    @if (empty($data->released))
+                                        <div class="d-flex align-items-center justify-content-center gap-2">
+
+                                            <input type="checkbox" value="{{ $data->id }}" class="release-checkbox"
+                                                data-id="{{ $data->id }}" data-invoice="{{ $data->invoice_no }}"
+                                                style="width:18px;height:18px;cursor:pointer;">
+
+                                            <span class="text-muted">
+                                                Not Yet
+                                            </span>
+
+                                        </div>
+                                    @else
+                                        <span class="badge badge-success px-3 py-2">
+                                            <i class="fa fa-check-circle mr-1"></i>
+                                            {{ \Carbon\Carbon::parse($data->release_date)->format('d/m/Y') }}
+                                        </span>
+                                    @endif
+
+                                </td>
 
                                 <td>
 
@@ -214,6 +224,160 @@
                 btn.find('.btn-text').text(' Download');
 
             }, 5000);
+
+        });
+    </script>
+    <script>
+        $(document).on('change', '.release-checkbox', function() {
+
+            const checkbox = $(this);
+
+            const id = checkbox.data('id');
+            const invoice = checkbox.data('invoice');
+
+            // Jika checkbox sedang dicentang
+            if (!checkbox.is(':checked')) {
+                return;
+            }
+
+            Swal.fire({
+                title: 'Yakin?',
+                html: `
+                <div style="font-size:15px;">
+                    Anda akan melakukan release IPL
+                    <br>
+                    <strong>${invoice}</strong>
+                </div>
+            `,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Ya, Release',
+                cancelButtonText: 'Batal',
+                reverseButtons: true,
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#6c757d'
+            }).then((result) => {
+
+                /*
+                |--------------------------------------------------------------------------
+                | CANCEL
+                |--------------------------------------------------------------------------
+                */
+
+                if (!result.isConfirmed) {
+
+                    checkbox.prop('checked', false);
+
+                    return;
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | LOADING
+                |--------------------------------------------------------------------------
+                */
+
+                Swal.fire({
+                    title: 'Processing...',
+                    html: 'Sedang melakukan release IPL dan update ETD PO.',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                checkbox.prop('disabled', true);
+
+                /*
+                |--------------------------------------------------------------------------
+                | AJAX
+                |--------------------------------------------------------------------------
+                */
+
+                $.ajax({
+
+                    url: "{{ url('/export') }}/" + id + "/release",
+
+                    type: "POST",
+
+                    data: {
+                        _token: "{{ csrf_token() }}"
+                    },
+
+                    success: function(response) {
+
+                        if (response.success) {
+
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Berhasil!',
+                                html: `
+                                <div>
+                                    IPL <strong>${invoice}</strong>
+                                    berhasil di-release.
+                                    <br><br>
+                                    <strong>ETD:</strong>
+                                    ${response.etd}
+                                    <br>
+                                    <strong>PO Updated:</strong>
+                                    ${response.updated_po}
+                                </div>
+                            `,
+                                confirmButtonText: 'OK',
+                                confirmButtonColor: '#28a745'
+                            }).then(() => {
+
+                                /*
+                                |--------------------------------------------------------------------------
+                                | Ubah checkbox menjadi badge
+                                |--------------------------------------------------------------------------
+                                */
+
+                                checkbox.closest('td').html(`
+                                <span class="badge badge-success px-3 py-2">
+                                    <i class="fa fa-check-circle mr-1"></i>
+                                    ${response.release_date}
+                                </span>
+                            `);
+
+                            });
+
+                        } else {
+
+                            checkbox.prop('checked', false);
+                            checkbox.prop('disabled', false);
+
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Gagal',
+                                text: response.message || 'Gagal melakukan release.'
+                            });
+                        }
+                    },
+
+                    error: function(xhr) {
+
+                        checkbox.prop('checked', false);
+                        checkbox.prop('disabled', false);
+
+                        let message = 'Terjadi kesalahan saat melakukan release.';
+
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            message = xhr.responseJSON.message;
+                        }
+
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal',
+                            text: message
+                        });
+
+                    }
+
+                });
+
+            });
 
         });
     </script>

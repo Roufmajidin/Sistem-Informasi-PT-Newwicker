@@ -26,7 +26,7 @@ class PackingListExport implements WithEvents
     public function registerEvents(): array
     {
         return [
-            AfterSheet::class => function(AfterSheet $event) {
+            AfterSheet::class => function (AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
                 $this->buildExcelSheet($sheet);
             },
@@ -54,31 +54,111 @@ class PackingListExport implements WithEvents
         $sheet->getColumnDimension('K')->setWidth(16);  // GROSS WEIGHT
         $sheet->getColumnDimension('L')->setWidth(14);  // TOTAL CBM
 
-        // --- COMPANY HEADER ---
-        $sheet->mergeCells('A1:L1');
-        $sheet->setCellValue('A1', 'PT. NEWWICKER INDONESIA');
-        $sheet->getStyle('A1')->getFont()->setBold(true)->setSize(16);
-        $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        // --- COMPANY HEADER WITH LOGO ---
 
-        $sheet->mergeCells('A2:L2');
-        $sheet->setCellValue('A2', 'JL. KISABA LANANG RT. 019 RW. 002,');
-        $sheet->getStyle('A2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        // Logo area
+        $sheet->mergeCells('A1:B5');
 
-        $sheet->mergeCells('A3:L3');
-        $sheet->setCellValue('A3', 'BODELOR, PLUMBON, CIREBON 45155');
-        $sheet->getStyle('A3')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        // Company information area
+        $sheet->mergeCells('C1:L1');
+        $sheet->setCellValue('C1', 'PT. NEWWICKER INDONESIA');
+        $sheet->getStyle('C1')->getFont()
+            ->setBold(true)
+            ->setSize(16);
 
-        $sheet->mergeCells('A4:L4');
-        $sheet->setCellValue('A4', 'INDONESIA');
-        $sheet->getStyle('A4')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $sheet->getStyle('C1')
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER);
 
-        $sheet->mergeCells('A5:L5');
-        $sheet->setCellValue('A5', 'PHONE : 0231 - 325880 - export@newwicker.com');
-        $sheet->getStyle('A5')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-        // Border line under company info
-        $sheet->getStyle('A5:L5')->getBorders()->getBottom()->setBorderStyle(Border::BORDER_MEDIUM);
+        // Address
+        $sheet->mergeCells('C2:L2');
+        $sheet->setCellValue(
+            'C2',
+            'JL. KISABA LANANG RT. 019 RW. 002,'
+        );
 
+        $sheet->getStyle('C2')
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER);
+
+
+        // City
+        $sheet->mergeCells('C3:L3');
+        $sheet->setCellValue(
+            'C3',
+            'BODELOR, PLUMBON, CIREBON 45155'
+        );
+
+        $sheet->getStyle('C3')
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER);
+
+
+        // Country
+        $sheet->mergeCells('C4:L4');
+        $sheet->setCellValue('C4', 'INDONESIA');
+
+        $sheet->getStyle('C4')
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER);
+
+
+        // Phone
+        $sheet->mergeCells('C5:L5');
+        $sheet->setCellValue(
+            'C5',
+            'PHONE : 0231 - 325880 - export@newwicker.com'
+        );
+
+        $sheet->getStyle('C5')
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+            ->setVertical(Alignment::VERTICAL_CENTER);
+
+
+        // ---------------------------------------------------------
+// LOGO
+// ---------------------------------------------------------
+
+        $logoPath = public_path('assets/images/logo.png');
+
+        if (file_exists($logoPath)) {
+
+            $logo = new Drawing();
+
+            $logo->setName('PT Newwicker Indonesia');
+            $logo->setDescription('PT Newwicker Indonesia Logo');
+
+            $logo->setPath($logoPath);
+
+            // Letakkan logo di kiri
+            $logo->setCoordinates('A1');
+
+            // Ukuran logo
+            $logo->setHeight(75);
+
+            // Posisi sedikit ke tengah
+            $logo->setOffsetX(12);
+            $logo->setOffsetY(5);
+
+            // Attach ke worksheet
+            $logo->setWorksheet($sheet);
+        }
+
+
+        // ---------------------------------------------------------
+// BORDER LINE
+// ---------------------------------------------------------
+
+        $sheet->getStyle('A5:L5')
+            ->getBorders()
+            ->getBottom()
+            ->setBorderStyle(Border::BORDER_MEDIUM);
         // --- TITLE ---
         $sheet->mergeCells('A6:L6');
         $sheet->setCellValue('A6', 'PACKING LIST');
@@ -134,7 +214,7 @@ class PackingListExport implements WithEvents
         $dateFormatted = $this->ipl->created_at ? date('d M Y', strtotime($this->ipl->created_at)) : '';
 
         $rightDetails = [
-            9  => ['Date', $dateFormatted],
+            9 => ['Date', $dateFormatted],
             10 => ['Vessel Name', $this->ipl->vessel_name ?? ''],
             11 => ['Connecting Vessel', ''],
             12 => ['Container Type', $this->ipl->container_type ?? ''],
@@ -214,8 +294,8 @@ class PackingListExport implements WithEvents
                     $sheet->setCellValue("E{$currentRow}", '-');
                 }
             }
-$netWeight = (float)$item->net_weight * (float)$item->qty_box;
-$grossWeight = (float)$item->gross_weight * (float)$item->qty_box;
+            $netWeight = (float) $item->net_weight * (float) $item->qty_box;
+            $grossWeight = (float) $item->gross_weight * (float) $item->qty_box;
             $sheet->setCellValue("F{$currentRow}", $item->description);
             $sheet->setCellValue("G{$currentRow}", $item->box_dimension);
             $sheet->setCellValue("H{$currentRow}", $item->qty_box ?? $item->qty_pcs);
@@ -228,10 +308,10 @@ $grossWeight = (float)$item->gross_weight * (float)$item->qty_box;
                 "K{$currentRow}",
                 "={$item->gross_weight}*H{$currentRow}"
             );
-                  $sheet->setCellValue(
-    "L{$currentRow}",
-    "={$item->cbm}*H{$currentRow}"
-);
+            $sheet->setCellValue(
+                "L{$currentRow}",
+                "={$item->cbm}*H{$currentRow}"
+            );
 
             // Alignments
             $sheet->getStyle("A{$currentRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER);
@@ -258,7 +338,97 @@ $grossWeight = (float)$item->gross_weight * (float)$item->qty_box;
 
             $currentRow++;
         }
+        /*
+        |--------------------------------------------------------------------------
+        | PREPARED BY
+        |--------------------------------------------------------------------------
+        */
 
+        $preparedStartRow = $currentRow + 2;
+
+        // Area Prepared By di sebelah kanan
+        $sheet->mergeCells("I{$preparedStartRow}:L{$preparedStartRow}");
+        $sheet->setCellValue(
+            "I{$preparedStartRow}",
+            'Prepared By,'
+        );
+
+        $sheet->getStyle("I{$preparedStartRow}")
+            ->getFont()
+            ->setBold(true);
+
+        $sheet->getStyle("I{$preparedStartRow}")
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+
+        // ------------------------------------------------------------------
+// TANDA TANGAN
+// ------------------------------------------------------------------
+
+        $signaturePath = public_path('assets/images/sofian.jpg');
+
+        if (file_exists($signaturePath)) {
+
+            $signature = new Drawing();
+
+            $signature->setName('Sofian Signature');
+            $signature->setDescription('Prepared By - Sofian');
+
+            $signature->setPath($signaturePath);
+
+            // Posisi tanda tangan
+            $signature->setCoordinates("J" . ($preparedStartRow + 1));
+
+            // Ukuran tanda tangan
+            $signature->setHeight(60);
+
+            // Posisi sedikit ke tengah
+            $signature->setOffsetX(15);
+            $signature->setOffsetY(5);
+
+            $signature->setWorksheet($sheet);
+        }
+
+
+        // ------------------------------------------------------------------
+// NAMA
+// ------------------------------------------------------------------
+
+        $nameRow = $preparedStartRow + 5;
+
+        $sheet->mergeCells("I{$nameRow}:L{$nameRow}");
+
+        $sheet->setCellValue(
+            "I{$nameRow}",
+            'Sofian'
+        );
+
+        $sheet->getStyle("I{$nameRow}")
+            ->getFont()
+            ->setBold(true);
+
+        $sheet->getStyle("I{$nameRow}")
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+
+        // ------------------------------------------------------------------
+// DEPARTMENT
+// ------------------------------------------------------------------
+
+        $departmentRow = $preparedStartRow + 6;
+
+        $sheet->mergeCells("I{$departmentRow}:L{$departmentRow}");
+
+        $sheet->setCellValue(
+            "I{$departmentRow}",
+            'Export Department'
+        );
+
+        $sheet->getStyle("I{$departmentRow}")
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_CENTER);
         // --- TOTAL ROW ---
         $sheet->getRowDimension($currentRow)->setRowHeight(24);
         $sheet->mergeCells("A{$currentRow}:G{$currentRow}");

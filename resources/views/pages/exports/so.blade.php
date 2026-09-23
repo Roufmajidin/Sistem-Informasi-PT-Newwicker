@@ -126,38 +126,21 @@
                                            {{ $item['qty'] ?? '-' }}
 
                                         </td>
-                                       <td>
+                       <td class="text-center">
 
-@if(isset($loadedItems[$detail->id]))
+    @if(($detail->loaded_qty ?? 0) > 0)
 
-    @foreach($loadedItems[$detail->id] as $load)
+        <strong class="text-success">
+            {{ number_format($detail->loaded_qty) }}
+        </strong>
 
-        <div class="mb-1">
+    @else
 
-            <a href="{{ url('export/'.$load->export_ipl_id.'/edit') }}"
-               class="fw-bold">
+        <span class="text-muted">-</span>
 
-                {{ number_format($load->qty_pcs) }}
-
-            </a>
-
-            <br>
-
-            <small class="text-muted">
-
-                Seal numb :
-                {{ $load->exportIpl->seal_no ?? '-' }}
-
-            </small>
-
-        </div>
-
-    @endforeach
-
-@endif
+    @endif
 
 </td>
-
                                        <td class="text-center">
                                             {{ rtrim(rtrim(number_format((float)($item['cbm'] ?? 0), 2, '.', ''), '0'), '.') }}
                                         </td>

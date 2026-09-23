@@ -31,7 +31,33 @@ class CommercialInvoiceExport implements WithTitle, WithEvents
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
                 $data = $this->invoice;
+                // ---------------------------------------------------------
+// LOGO NEWWICKER
+// ---------------------------------------------------------
+    
+                $logoPath = public_path('assets/images/logo.png');
 
+                if (file_exists($logoPath)) {
+
+                    $logo = new \PhpOffice\PhpSpreadsheet\Worksheet\Drawing();
+
+                    $logo->setName('NewWicker Logo');
+                    $logo->setDescription('PT Newwicker Indonesia');
+
+                    $logo->setPath($logoPath);
+
+                    // Posisi logo di kanan atas
+                    $logo->setCoordinates('I1');
+
+                    // Ukuran logo
+                    $logo->setHeight(65);
+
+                    // Posisi
+                    $logo->setOffsetX(5);
+                    $logo->setOffsetY(3);
+
+                    $logo->setWorksheet($sheet);
+                }
                 // Set column widths
                 $widths = [
                     'A' => 8,   // NO
@@ -60,10 +86,25 @@ class CommercialInvoiceExport implements WithTitle, WithEvents
                 $sheet->setCellValue('A9', 'DESA MEGU CILIK, KEC. WERU, CIREBON - INDONESIA');
                 $sheet->setCellValue('A10', 'PHONE: 0231-325880 - export@newwicker.com');
 
-                // Invoice Title
-                $sheet->setCellValue('H8', 'COMMERCIAL INVOICE');
-                $sheet->getStyle('H8')->getFont()->setSize(14);
-                $sheet->getStyle('H8')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                // ---------------------------------------------------------
+                // INVOICE TITLE
+                // ---------------------------------------------------------
+
+                $sheet->mergeCells('I8:J8');
+
+                $sheet->setCellValue(
+                    'I8',
+                    'COMMERCIAL INVOICE'
+                );
+
+                $sheet->getStyle('I8')
+                    ->getFont()
+                    ->setSize(14);
+
+                $sheet->getStyle('I8')
+                    ->getAlignment()
+                    ->setHorizontal(Alignment::HORIZONTAL_CENTER)
+                    ->setVertical(Alignment::VERTICAL_CENTER);
 
                 // Horizontal separator under header
                 $sheet->getStyle('A10:J10')->getBorders()->getBottom()->setBorderStyle(Border::BORDER_MEDIUM);
@@ -133,12 +174,12 @@ class CommercialInvoiceExport implements WithTitle, WithEvents
                     $sheet->setCellValue("B{$row}", $item->hs_code ?? '');
                     $sheet->setCellValue("C{$row}", $item->article_nr ?? '');
                     $sheet->setCellValue("D{$row}", $item->description ?? '');
-                    $sheet->setCellValue("E{$row}", (float)($item->qty_pcs ?? 0));
-                    $sheet->setCellValue("F{$row}", (float)($item->qty_box ?? 0));
-                    $sheet->setCellValue("G{$row}", (float)($item->unit_price ?? 0));
+                    $sheet->setCellValue("E{$row}", (float) ($item->qty_pcs ?? 0));
+                    $sheet->setCellValue("F{$row}", (float) ($item->qty_box ?? 0));
+                    $sheet->setCellValue("G{$row}", (float) ($item->unit_price ?? 0));
                     $sheet->setCellValue("H{$row}", "=E{$row}*G{$row}");
-                    $sheet->setCellValue("I{$row}", (float)($item->gross_weight ?? 0));
-                    $sheet->setCellValue("J{$row}", (float)($item->total_cbm ?? 0));
+                    $sheet->setCellValue("I{$row}", (float) ($item->gross_weight ?? 0));
+                    $sheet->setCellValue("J{$row}", (float) ($item->total_cbm ?? 0));
 
                     // Formatting & Alignment
                     $sheet->getStyle("A{$row}:C{$row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
@@ -258,8 +299,115 @@ class CommercialInvoiceExport implements WithTitle, WithEvents
                 $sheet->setCellValue("A" . ($bankRow + 5), "Account Number");
                 $sheet->setCellValue("C" . ($bankRow + 5), ": 134 001 110 1729");
 
-                $sheet->setCellValue("H" . ($bankRow - 1), "Authorized Signatured");
-                $sheet->getStyle("H" . ($bankRow - 1))->getFont()->setSize(11);
+                // ---------------------------------------------------------
+// AUTHORIZED SIGNATURE
+// ---------------------------------------------------------
+    
+                $signatureTitleRow = $bankRow - 1;
+
+                // Judul
+                $sheet->mergeCells(
+                    "I{$signatureTitleRow}:J{$signatureTitleRow}"
+                );
+
+                $sheet->setCellValue(
+                    "I{$signatureTitleRow}",
+                    "Authorized Signature"
+                );
+
+                $sheet->getStyle("H{$signatureTitleRow}")
+                    ->getFont()
+                    ->setBold(true)
+                    ->setSize(11);
+
+                $sheet->getStyle("H{$signatureTitleRow}")
+                    ->getAlignment()
+                    ->setHorizontal(
+                        Alignment::HORIZONTAL_CENTER
+                    );
+
+
+                // ---------------------------------------------------------
+// TANDA TANGAN
+// ---------------------------------------------------------
+    
+                $signaturePath = public_path(
+                    'assets/images/sofian.jpg'
+                );
+
+                if (file_exists($signaturePath)) {
+
+                    $signature = new \PhpOffice\PhpSpreadsheet\Worksheet\Drawing();
+
+                    $signature->setName('Sofian Signature');
+
+                    $signature->setDescription(
+                        'Authorized Signature - Sofian'
+                    );
+
+                    $signature->setPath($signaturePath);
+
+                    // Posisi tanda tangan
+                    $signature->setCoordinates(
+                        "I" . ($signatureTitleRow + 1)
+                    );
+
+                    // Ukuran tanda tangan
+                    $signature->setHeight(60);
+
+                    $signature->setOffsetX(10);
+                    $signature->setOffsetY(5);
+
+                    $signature->setWorksheet($sheet);
+                }
+
+
+                // ---------------------------------------------------------
+// NAMA
+// ---------------------------------------------------------
+    
+                $nameRow = $signatureTitleRow + 5;
+
+                $sheet->mergeCells(
+                    "H{$nameRow}:J{$nameRow}"
+                );
+
+                $sheet->setCellValue(
+                    "H{$nameRow}",
+                    "Sofian"
+                );
+
+                $sheet->getStyle("H{$nameRow}")
+                    ->getFont()
+                    ->setBold(true);
+
+                $sheet->getStyle("H{$nameRow}")
+                    ->getAlignment()
+                    ->setHorizontal(
+                        Alignment::HORIZONTAL_CENTER
+                    );
+
+
+                // ---------------------------------------------------------
+// DEPARTMENT
+// ---------------------------------------------------------
+    
+                $departmentRow = $nameRow + 1;
+
+                $sheet->mergeCells(
+                    "H{$departmentRow}:J{$departmentRow}"
+                );
+
+                $sheet->setCellValue(
+                    "H{$departmentRow}",
+                    "Export Department"
+                );
+
+                $sheet->getStyle("H{$departmentRow}")
+                    ->getAlignment()
+                    ->setHorizontal(
+                        Alignment::HORIZONTAL_CENTER
+                    );
             }
         ];
     }

@@ -331,20 +331,17 @@
 
 
                                             {{-- SALDO --}}
-                                            <td>
+                                          {{-- SALDO --}}
+<td>
 
-                                                <input
-                                                    type="number"
-                                                    step="0.001"
-                                                    class="form-control stok_awal"
-                                                    value="{{
-                                                        ($stok->stok_awal ?? 0)
-                                                        + ($stok->total_in ?? 0)
-                                                        - ($stok->total_out ?? 0)
-                                                    }}"
-                                                >
+    <input
+        type="number"
+        step="0.001"
+        class="form-control stok_awal"
+        value="{{ $stok->saldo ?? 0 }}"
+    >
 
-                                            </td>
+</td>
 
 
                                             {{-- STOK IN --}}

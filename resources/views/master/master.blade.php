@@ -169,7 +169,7 @@
                         text-align:center;
                         color:#333;
                     ">
-                    {{ auth()->user()->name }}
+                    {{ auth()->user()?->name ?? 'Approval Guest' }}
                 </small>
 
             </span>
@@ -211,11 +211,11 @@
                     class="drawer-avatar">
 
                 <h6 class="mb-1">
-                    {{ auth()->user()->name }}
+                    {{ auth()->user()?->name ?? 'Approval Guest' }}
                 </h6>
 
                 <small class="text-muted">
-                    {{ auth()->user()->email }}
+                    {{ auth()->user()?->email ?? '-' }}
                 </small>
 
             </div>
@@ -425,32 +425,32 @@
 
                     <tr>
                         <th>Nama</th>
-                        <td>{{ auth()->user()->karyawan->nama_lengkap ?? auth()->user()->name }}</td>
+                        <td>{{ auth()->user()?->karyawan?->nama_lengkap ?? auth()->user()?->name ?? 'Guest' }}</td>
                     </tr>
 
                     <tr>
                         <th>NIK</th>
-                        <td>{{ auth()->user()->karyawan->nik ?? '-' }}</td>
+                        <td>{{ auth()->user()?->karyawan?->nik ?? '-' }}</td>
                     </tr>
 
                     <tr>
                         <th>Divisi</th>
-                        <td>{{ auth()->user()->karyawan->divisi->nama ?? '-' }}</td>
+                        <td>{{ auth()->user()?->karyawan?->divisi?->nama ?? '-' }}</td>
                     </tr>
 
                     <tr>
                         <th>Status</th>
-                        <td>{{ auth()->user()->karyawan->status ?? '-' }}</td>
+                        <td>{{ auth()->user()?->karyawan?->status ?? '-' }}</td>
                     </tr>
 
                     <tr>
                         <th>Lokasi</th>
-                        <td>{{ auth()->user()->karyawan->lokasi ?? '-' }}</td>
+                        <td>{{ auth()->user()?->karyawan?->lokasi ?? '-' }}</td>
                     </tr>
 
                     <tr>
                         <th>Tanggal Join</th>
-                        <td>{{ auth()->user()->karyawan->tanggal_join ?? '-' }}</td>
+                        <td>{{ auth()->user()?->karyawan?->tanggal_join ?? '-' }}</td>
                     </tr>
 
                 </table>
@@ -692,26 +692,37 @@ function showPfiToast(items) {
     });
 
     html += `
-        <hr style="margin:8px 0">
-
-        <div
-            id="mutePfiBtn"
-            style="
-                color:#dc3545;
-                cursor:pointer;
-                font-weight:600;
-                text-align:center;
-            "
-        >
-            🔕 Bisukan Hari Ini
-        </div>
-    `;
+`;
 
     Swal.fire({
         toast: true,
         position: 'top-end',
         icon: 'info',
-        title: 'PFI Baru Release',
+        title: `PFI Baru Release <span style="
+                display:inline-flex;
+                align-items:center;
+                justify-content:center;
+                min-width:18px;
+                height:18px;
+                padding:0 5px;
+                margin-left:6px;
+                border-radius:999px;
+                background:#dc3545;
+                color:#fff;
+                font-size:10px;
+                font-weight:700;
+                line-height:1;
+            ">${items.length}</span>
+            <button type="button" id="mutePfiBtn" style="
+                border:0;
+                background:transparent;
+                color:#dc3545;
+                cursor:pointer;
+                font-size:11px;
+                font-weight:600;
+                padding:0;
+                margin-left:5px;
+            ">🔕 Bisukan</button>`, 
         html: html,
         showConfirmButton: false,
         timer: 15000,

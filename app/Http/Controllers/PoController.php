@@ -21,7 +21,6 @@ use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Worksheet\MemoryDrawing;
-use Carbon\Carbon;
 
 class PoController extends Controller
 {
@@ -108,7 +107,7 @@ class PoController extends Controller
     public function convert(Request $request)
     {
         $raw = trim($request->excel_data);
-        $raw = str_replace('Â', '', $raw);
+        $raw = str_replace('Ã‚', '', $raw);
 
         /*
     =====================================
@@ -266,7 +265,7 @@ class PoController extends Controller
                 copy($source, $path);
             }
 
-            // Mapping row-col → URL publik
+            // Mapping row-col â†’ URL publik
             $imagesData["$row-$col"] = asset('storage/' . $filename);
         }
 
@@ -309,7 +308,7 @@ class PoController extends Controller
         $orderNo     = $company['order_no_'] ?? null;
         $companyName = $company['company_name'] ?? null;
 
-        // ✅ VALIDASI DUPLIKAT PO
+        // âœ… VALIDASI DUPLIKAT PO
         $exists = Po::where('order_no', $orderNo)
             ->where('company_name', $companyName)
             ->exists();
@@ -392,17 +391,264 @@ class PoController extends Controller
             'po_id'  => $po->id,
         ]);
     }
-    public function getPoDetail($id)
-    {
-        $po = Po::findOrFail($id);
+    // public function getPoDetail($id)
+    // {
+    //     $po = Po::findOrFail($id);
 
-        $items = DetailPo::where('po_id', $id)->get();
+    //     $items = DetailPo::where('po_id', $id)->get();
+
+    //     return response()->json([
+    //         'po'    => $po,
+    //         'items' => $items,
+    //     ]);
+    // }
+    public function getPoDetail($id)
+{
+    $po = Po::findOrFail($id);
+
+    $items = DetailPo::where('po_id', $id)
+        ->get()
+        ->map(function ($item) {
+
+            $detail = $item->detail ?? [];
+
+            /*
+            |--------------------------------------------------------------------------
+            | NORMALISASI DIMENSION ITEM
+            |--------------------------------------------------------------------------
+            */
+
+            // -------------------------------------------------
+            // W
+            // DIMENTION / DIMENSION (CM) → item_w
+            // -------------------------------------------------
+
+            $dimensionKeys = [
+                'dimention_(cm)',
+                'dimension_(cm)',
+                'dimention',
+                'dimension',
+                'dimention_cm',
+                'dimension_cm',
+            ];
+
+            foreach ($dimensionKeys as $key) {
+
+                if (
+                    array_key_exists($key, $detail) &&
+                    !array_key_exists('item_w', $detail)
+                ) {
+                    $detail['item_w'] = $detail[$key];
+                    break;
+                }
+            }
+
+            // -------------------------------------------------
+            // D → item_d
+            // -------------------------------------------------
+
+            if (
+                array_key_exists('d', $detail) &&
+                !array_key_exists('item_d', $detail)
+            ) {
+                $detail['item_d'] = $detail['d'];
+            }
+
+            // -------------------------------------------------
+            // H → item_h
+            // -------------------------------------------------
+
+            if (
+                array_key_exists('h', $detail) &&
+                !array_key_exists('item_h', $detail)
+            ) {
+                $detail['item_h'] = $detail['h'];
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | HAPUS KEY LAMA
+            |--------------------------------------------------------------------------
+            */
+
+            foreach ($dimensionKeys as $key) {
+                unset($detail[$key]);
+            }
+
+            unset(
+                $detail['d'],
+                $detail['h']
+            );
+
+            /*
+            |--------------------------------------------------------------------------
+            | SET DETAIL HASIL NORMALISASI
+            |--------------------------------------------------------------------------
+            */
+
+            $item->detail = $detail;
+
+            return $item;
+        });
+
+    return response()->json([
+        'po'    => $po,
+        'items' => $items,
+    ]);
+}
+
+
+  public function addDetailItem(Request $request)
+    {
+        $user = auth()->user();
+
+        if (! $user || strtolower((string) $user->name) !== 'rodiyah') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tidak ada akses',
+            ], 403);
+        }
+
+        $request->validate([
+            'po_id'   => ['required', 'integer', 'exists:po,id'],
+            'detail'  => ['required', 'array'],
+        ]);
+
+        $normalizeKeys = function ($array) use (&$normalizeKeys) {
+            $result = [];
+
+            foreach ($array as $key => $value) {
+                $key = preg_replace('/[\s\.\-\/]+/', '_', $key);
+                $key = strtolower(preg_replace('/([a-z])([A-Z])/', '$1_$2', $key));
+
+                if ($key === 'act') {
+                    continue;
+                }
+
+                $result[$key] = is_array($value)
+                    ? $normalizeKeys($value)
+                    : $value;
+            }
+
+            return $result;
+        };
+
+        $detail = $normalizeKeys($request->input('detail', []));
+
+        if (empty($detail)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Detail item kosong',
+            ], 422);
+        }
+
+        DB::beginTransaction();
+
+        try {
+            $item = DetailPo::create([
+                'po_id' => $request->integer('po_id'),
+                'detail' => $detail,
+                'updated_by' => [[
+                    'user_id'   => Auth::id(),
+                    'timestamp' => now()->toDateTimeString(),
+                    'remark'    => 'Add PFI item',
+                ]],
+            ]);
+
+            Timeline::create([
+                'isi' => [
+                    'remark'     => 'Add PFI Item: ' . ($detail['description'] ?? ($detail['article_nr_'] ?? 'New Item')),
+                    'user_id'    => Auth::id(),
+                    'timestamp'  => now()->toDateTimeString(),
+                    'po_id'      => $item->po_id,
+                    'article_nr' => $detail['article_nr_'] ?? null,
+                    'detail_id'  => $item->id,
+                ],
+                'jenis' => 'add pfi item',
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Item berhasil ditambahkan',
+                'item' => $item,
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            Log::error('Gagal menambah PFI item', [
+                'user_id' => Auth::id(),
+                'po_id'   => $request->input('po_id'),
+                'error'   => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menambah item: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+    public function uploadDetailImage(Request $request)
+{
+    $user = auth()->user();
+
+    if (! $user || strtolower((string) $user->name) !== 'rodiyah') {
+        return response()->json([
+            'success' => false,
+            'message' => 'Tidak ada akses',
+        ], 403);
+    }
+
+    $request->validate([
+        'image' => [
+            'required',
+            'file',
+            'image',
+            'mimes:jpg,jpeg,png,gif,webp',
+            'max:10240',
+        ],
+    ]);
+
+    try {
+        $file = $request->file('image');
+
+        $extension = strtolower(
+            $file->getClientOriginalExtension() ?: 'png'
+        );
+
+        $filename = uniqid('excel_img_') . '.' . $extension;
+
+        // storage/app/public/
+        $file->move(
+            storage_path('app/public'),
+            $filename
+        );
 
         return response()->json([
-            'po'    => $po,
-            'items' => $items,
+            'success' => true,
+
+            // Contoh:
+            // https://newwicker.my.id/storage/excel_img_6a4627ecb0909.png
+            'url' => asset('storage/' . $filename),
+
+            'path' => $filename,
         ]);
+
+    } catch (\Throwable $e) {
+
+        Log::error('Gagal upload foto PFI item', [
+            'user_id' => Auth::id(),
+            'error'   => $e->getMessage(),
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Gagal upload gambar: ' . $e->getMessage(),
+        ], 500);
     }
+}
+
 // updaye row
     public function updateItemBulk(Request $request)
     {
@@ -442,7 +688,7 @@ class PoController extends Controller
 
                 $oldValue = $oldDetail[$key] ?? null;
                 if ($oldValue != $value) {
-                    $changedFields[] = "$key ($oldValue → $value)";
+                    $changedFields[] = "$key ($oldValue â†’ $value)";
                 }
 
                 $newDetail[$key] = $value;
@@ -551,20 +797,7 @@ class PoController extends Controller
     {
         $userId = auth()->id();
 
-        $pos = Po::with('details')>map(function($item){
-
-    $item->shipment_date_input =
-        $this->formatDateForInput($item->shipment_date);
-
-    $item->release_date_input =
-        $this->formatDateForInput($item->release_date);
-
-    $item->act_ship_input =
-        $this->formatDateForInput($item->act_ship);
-
-    return $item;
-
-});
+        $pos = Po::with('details')->get();
 
         $detailPoIds = $pos->pluck('details')->flatten()->pluck('id');
 
@@ -724,7 +957,7 @@ class PoController extends Controller
         }
 
         /* ===============================
-       HITUNG TOTAL INSPECT PER KATEGORI 🔥
+       HITUNG TOTAL INSPECT PER KATEGORI ðŸ”¥
     =============================== */
         $totalInspect = InspectSchedule::where('detail_po_id', $detail_po_id)
             ->where('kategori_id', $kategori->id)
@@ -745,7 +978,7 @@ class PoController extends Controller
         try {
 
             /* ===============================
-           BATCH KE (PER KATEGORI 🔥)
+           BATCH KE (PER KATEGORI ðŸ”¥)
         =============================== */
             $batchKe = InspectSchedule::where('detail_po_id', $detail_po_id)
                 ->where('kategori_id', $kategori->id)
@@ -976,7 +1209,7 @@ class PoController extends Controller
             ], 500);
         }
     }
-    // update
+     // update
     public function updatePoField(Request $request)
     {
         $request->validate([
@@ -1017,35 +1250,4 @@ class PoController extends Controller
             'message' => 'Data berhasil disimpan'
         ]);
     }
-    private function formatDateForInput($date)
-{
-    if (empty($date) || $date == '-') {
-        return null;
-    }
-
-    try {
-
-        // hilangkan keterangan dalam kurung
-        $date = preg_replace('/\(.*\)/', '', $date);
-
-        // rapikan spasi
-        $date = trim(preg_replace('/\s+/', ' ', strtoupper($date)));
-
-        return Carbon::createFromFormat('j F Y', $date)
-            ->format('Y-m-d');
-
-    } catch (\Exception $e) {
-
-        try {
-
-            return Carbon::parse($date)->format('Y-m-d');
-
-        } catch (\Exception $e) {
-
-            return null;
-
-        }
-
-    }
-}
 }

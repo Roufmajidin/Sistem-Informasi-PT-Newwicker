@@ -25,7 +25,7 @@
                     <!-- FILTER TYPE -->
                     <select id="filter-type" class="form-control" style="width:180px;">
                         <option value="">-- Semua --</option>
-                        <option value="Purchasing">Purchasing</option>
+                        {{-- <option value="Purchasing">Purchasing</option> --}}
 
                         <option value="All Divisi">All Divisi</option>
                         <option value="Finance">Finance</option>
@@ -133,8 +133,12 @@
 
             <div class="modal-header">
                 <h4>Detail Pengajuan</h4>
-                <button type="button" style="color: red;" class="btn-close close-modal" id="btn-close">✕</button>
-            </div>
+               <button type="button"
+        class="btn-close close-modal"
+        id="btn-close-detail"
+        aria-label="Close">
+    ✕
+</button>      </div>
 
             <div class="modal-body">
 
@@ -151,130 +155,159 @@
 
     {{-- ================= MODAL FULLSCREEN ================= --}}
     <div id="modal-pengajuan" class="modal-full">
-        <div class="modal-full-content">
+        <div class="modal-full-content nw-pengajuan-modal-content">
 
-            {{-- HEADER --}}
-            <div class="modal-header">
-                <h4>Tambah Pengajuan</h4>
-                <button type="button" class="btn-close close-modal" id="btn-close">✕</button>
+            <div class="modal-header nw-pengajuan-header">
+                <div class="nw-pengajuan-title-wrap">
+                    <div class="nw-pengajuan-icon">＋</div>
+                    <div>
+                        <h4>Tambah Pengajuan</h4>
+                        <small>Buat pengajuan baru dengan data yang lengkap</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close close-modal nw-pengajuan-close" aria-label="Tutup">✕</button>
             </div>
 
-            {{-- BODY --}}
-            <div class="modal-body">
-
+            <div class="modal-body nw-pengajuan-body">
                 <form id="form-pengajuan" onsubmit="return false;">
                     @csrf
                     <input type="hidden" name="meta_json" id="meta_json">
                     <input type="hidden" name="details_json" id="details_json">
                     <input type="hidden" name="approval_json" id="approval_json">
-                    {{-- TYPE --}}
-                    <input type="file" id="cameraUpload" accept="image/*" capture="environment" multiple
-                        style="display:none;">
-                    <div class="form-group mb-3">
-                        <label>Type Pengajuan</label>
-                        <select name="type_pengajuan" class="form-control" required>
-                            <option value="">-- pilih --</option>
-                            <option value="All Divisi">All Divisi</option>
-                            <option value="Finance">Finance</option>
-                        </select>
+                    <input type="file" id="cameraUpload" accept="image/*" capture="environment" multiple style="display:none;">
+
+                    <div class="nw-form-card">
+                        <div class="nw-card-heading">
+                            <span class="nw-heading-number">01</span>
+                            <div>
+                                <strong>Informasi Pengajuan</strong>
+                                <small>Pilih jenis pengajuan yang akan dibuat</small>
+                            </div>
+                        </div>
+
+                        <div class="form-group mb-0">
+                            <label class="nw-label">Type Pengajuan <span>*</span></label>
+                            <select name="type_pengajuan" class="form-control nw-control" required>
+                                <option value="">-- pilih --</option>
+                                <option value="All Divisi">All Divisi</option>
+                                <option value="Finance">Finance</option>
+                            </select>
+                        </div>
                     </div>
-                    <!-- utk finance -->
-                    <div id="finance-section" style="display:none;">
+
+                    {{-- FINANCE: struktur/ID dipertahankan agar JS lama tetap bekerja --}}
+                    <div id="finance-section" class="nw-form-card nw-finance-card" style="display:none;">
+                        <div class="nw-card-heading">
+                            <span class="nw-heading-number">02</span>
+                            <div>
+                                <strong>Dokumen Finance</strong>
+                                <small>Upload Excel untuk membaca detail pembayaran</small>
+                            </div>
+                        </div>
 
                         <div class="form-group mb-3">
-                            <label>Upload Excel</label>
-                            <input type="file" id="excelInput" accept=".xlsx,.xls" class="form-control">
-                        </div>
-                        <div id="excel-meta" style="margin-bottom:15px; display:none;">
-                            <div style="display:flex; gap:40px; flex-wrap:wrap;">
-
-                                <div>
-                                    <b>tanggal</b> : <span id="meta-tanggal">-</span>
+                            <label class="nw-label">Upload Excel <span>*</span></label>
+                            <div class="nw-upload-box">
+                                <div class="nw-upload-icon">↥</div>
+                                <div class="nw-upload-copy">
+                                    <strong>Pilih file Excel</strong>
+                                    <small>Format .xlsx atau .xls</small>
                                 </div>
-
-                                <div>
-                                    <b>nomor</b> : <span id="meta-nomor">-</span>
-                                </div>
-
-                                <div>
-                                    <b>type pembayaran</b> : <span id="meta-type">-</span>
-                                </div>
-
+                                <input type="file" id="excelInput" accept=".xlsx,.xls" class="form-control nw-file-input">
                             </div>
-
                         </div>
 
-                        <div id="excel-preview" class="excel-wrapper"
-                            style="overflow:auto; max-height:300px; border:1px solid #ddd;">
+                        <div id="excel-meta" class="nw-excel-meta" style="margin-bottom:15px; display:none;">
+                            <div class="nw-meta-item">
+                                <span>Tanggal</span>
+                                <strong id="meta-tanggal">-</strong>
+                            </div>
+                            <div class="nw-meta-item">
+                                <span>Nomor</span>
+                                <strong id="meta-nomor">-</strong>
+                            </div>
+                            <div class="nw-meta-item">
+                                <span>Type Pembayaran</span>
+                                <strong id="meta-type">-</strong>
+                            </div>
+                        </div>
+
+                        <div id="excel-preview" class="excel-wrapper nw-excel-preview" style="overflow:auto; max-height:360px; border:1px solid #ddd;">
                             <table id="excel-table" class="table table-bordered">
                                 <thead></thead>
                                 <tbody></tbody>
                             </table>
                         </div>
-
-                    </div>
-                    <div class="form-group mb-3" id="keterangan-section">
-                        <label>No. SPK</label>
-                        <textarea name="no_spk" class="form-control"></textarea>
-                    </div>
-                    {{-- DIVISI --}}
-                    <div class="form-group mb-3" id="divisi-section">
-                        <label>Divisi</label>
-                        <select name="divisi_id" class="form-control">
-                            <option value="">-- pilih divisi --</option>
-                            @foreach ($divisis as $divisi)
-                                <option value="{{ $divisi->id }}">{{ $divisi->nama }}</option>
-                            @endforeach
-                        </select>
                     </div>
 
-                    {{-- CAMERA + GALERI --}}
-                    <div class="form-group mb-3" id="camera-section">
+                    <div class="nw-form-card" id="normal-information-card">
+                        <div class="nw-card-heading">
+                            <span class="nw-heading-number">03</span>
+                            <div>
+                                <strong>Detail Pengajuan</strong>
+                                <small>Lengkapi informasi pendukung</small>
+                            </div>
+                        </div>
 
-                        <label>Ambil Foto</label>
+                        <div class="form-group mb-3" id="no-spk-section">
+                            <label class="nw-label">No. SPK</label>
+                            <textarea name="no_spk" class="form-control nw-control" rows="2" placeholder="Masukkan nomor SPK bila ada..."></textarea>
+                        </div>
 
-                        <!-- GALERI -->
-                        <input type="file" id="galleryInput" accept="image/*" multiple class="form-control">
+                        <div class="form-group mb-3" id="divisi-section">
+                            <label class="nw-label">Divisi</label>
+                            <select name="divisi_id" class="form-control nw-control">
+                                <option value="">-- pilih divisi --</option>
+                                @foreach ($divisis as $divisi)
+                                    <option value="{{ $divisi->id }}">{{ $divisi->nama }}</option>
+                                @endforeach
+                            </select>
+                        </div>
 
-                        <br>
+                        <div class="form-group mb-3" id="camera-section">
+                            <label class="nw-label">Lampiran Foto</label>
+                            <div class="nw-photo-actions">
+                                <label class="nw-photo-btn nw-photo-gallery">
+                                    <span>▧</span> Pilih dari Galeri
+                                    <input type="file" id="galleryInput" accept="image/*" multiple>
+                                </label>
+                                <button type="button" id="btn-camera" class="nw-photo-btn nw-photo-camera">
+                                    <span>📷</span> Ambil dari Kamera
+                                </button>
+                            </div>
+                            <small class="nw-help-text">Anda dapat memilih beberapa foto sekaligus.</small>
+                        </div>
 
-                        <!-- CAMERA -->
-                        <input type="file" id="cameraInput" accept="image/*" capture="environment" multiple
-                            style="display:none;">
+                        <div id="preview-container" class="nw-image-preview"></div>
 
-                        <button type="button" id="btn-camera" class="btn btn-primary btn-sm">
-                            📷 Ambil Dari Kamera
+                        <div class="form-group mb-3" id="keterangan-section">
+                            <label class="nw-label">Keterangan</label>
+                            <textarea name="keterangan" class="form-control nw-control" rows="3" placeholder="Tambahkan keterangan jika diperlukan..."></textarea>
+                        </div>
+
+                        <div class="form-group mb-0" id="urgent-section">
+                            <label class="nw-label">Prioritas</label>
+                            <div class="nw-radio-group">
+                                <label class="nw-radio-card">
+                                    <input type="radio" name="urgent" value="1">
+                                    <span class="nw-radio-dot"></span>
+                                    <span><strong>Urgent</strong><small>Perlu diproses segera</small></span>
+                                </label>
+                                <label class="nw-radio-card active">
+                                    <input type="radio" name="urgent" value="0" checked>
+                                    <span class="nw-radio-dot"></span>
+                                    <span><strong>Normal</strong><small>Proses sesuai antrean</small></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="nw-submit-area">
+                        <button type="button" id="btn-submit" class="btn btn-success nw-submit-btn">
+                            <span>✓</span> Simpan Pengajuan
                         </button>
-
                     </div>
-                    <div id="preview-container"
-                        style="
-        width:100%;
-        display:flex;
-        flex-wrap:wrap;
-        gap:10px;
-        margin-top:15px;
-        min-height:120px;
-    ">
-                    </div>
-                    {{-- KETERANGAN --}}
-                    <div class="form-group mb-3" id="keterangan-section">
-                        <label>Keterangan</label>
-                        <textarea name="keterangan" class="form-control"></textarea>
-                    </div>
-
-                    {{-- URGENT --}}
-                    <div class="form-group mb-3" id="urgent-section">
-                        <label>Urgent</label><br>
-                        <input type="radio" name="urgent" value="1"> Urgent
-                        <input type="radio" name="urgent" value="0" checked> Normal
-                    </div>
-
-                    <button type="button" id="btn-submit" class="btn btn-success w-100">
-                        Simpan
-                    </button>
                 </form>
-
             </div>
         </div>
     </div>
@@ -360,6 +393,62 @@
 
 
         {{-- ================= SCRIPT ================= --}}
+        <style>
+            /* ===== MODAL PENGAJUAN - MODERN UI ===== */
+            #modal-pengajuan { background:rgba(15,23,42,.58); backdrop-filter:blur(5px); }
+            #modal-pengajuan .nw-pengajuan-modal-content { background:#f6f8fb; }
+            #modal-pengajuan .nw-pengajuan-header { background:#fff; border-bottom:1px solid #e9edf3; padding:18px 26px; position:sticky; top:0; z-index:20; }
+            .nw-pengajuan-title-wrap { display:flex; align-items:center; gap:13px; }
+            .nw-pengajuan-icon { width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; background:#eaf2ff; color:#1769e0; font-size:25px; font-weight:700; }
+            .nw-pengajuan-title-wrap h4 { margin:0; font-size:19px; font-weight:700; color:#182230; }
+            .nw-pengajuan-title-wrap small { color:#7b8794; display:block; margin-top:3px; }
+            .nw-pengajuan-close { border:0; background:#f1f3f6; border-radius:10px; width:38px; height:38px; color:#667085; font-size:18px; cursor:pointer; }
+            .nw-pengajuan-close:hover { background:#feecec; color:#dc3545; }
+            .nw-pengajuan-body { padding:26px; background:#f6f8fb; }
+            .nw-form-card { max-width:1100px; margin:0 auto 16px; background:#fff; border:1px solid #e8edf3; border-radius:16px; padding:22px; box-shadow:0 4px 18px rgba(16,24,40,.04); }
+            .nw-card-heading { display:flex; align-items:center; gap:12px; margin-bottom:20px; }
+            .nw-heading-number { width:34px; height:34px; border-radius:10px; background:#f0f5ff; color:#246bdb; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; letter-spacing:.3px; }
+            .nw-card-heading strong { display:block; color:#202938; font-size:15px; }
+            .nw-card-heading small { display:block; color:#8a94a3; margin-top:2px; }
+            .nw-label { display:block; color:#344054; font-size:13px; font-weight:600; margin-bottom:8px; }
+            .nw-label span { color:#dc3545; }
+            .nw-control { border:1px solid #dfe5ec; border-radius:10px; min-height:44px; box-shadow:none!important; padding:10px 12px; }
+            .nw-control:focus { border-color:#7aa7ee; box-shadow:0 0 0 3px rgba(37,99,235,.08)!important; }
+            .nw-upload-box { position:relative; min-height:76px; border:1px dashed #b9c7da; border-radius:12px; background:#fafcff; display:flex; align-items:center; gap:12px; padding:12px 14px; overflow:hidden; }
+            .nw-upload-icon { width:40px; height:40px; border-radius:10px; background:#eaf2ff; color:#246bdb; display:flex; align-items:center; justify-content:center; font-size:22px; }
+            .nw-upload-copy strong { display:block; font-size:13px; color:#344054; }
+            .nw-upload-copy small { color:#98a2b3; }
+            .nw-file-input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+            .nw-excel-meta { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+            .nw-meta-item { background:#f8fafc; border:1px solid #edf0f4; border-radius:10px; padding:11px 13px; }
+            .nw-meta-item span { display:block; color:#98a2b3; font-size:11px; text-transform:uppercase; letter-spacing:.4px; }
+            .nw-meta-item strong { display:block; margin-top:3px; color:#344054; font-size:13px; }
+            .nw-excel-preview { border-radius:12px; background:#fff; }
+            .nw-excel-preview table { margin-bottom:0; white-space:nowrap; font-size:12px; }
+            .nw-excel-preview thead th { position:sticky; top:0; z-index:3; background:#1769e0!important; color:#fff!important; border-color:#1769e0!important; }
+            .nw-excel-preview td, .nw-excel-preview th { padding:9px 10px; vertical-align:middle; }
+            .nw-photo-actions { display:flex; gap:9px; flex-wrap:wrap; }
+            .nw-photo-btn { min-height:42px; border-radius:10px; padding:9px 14px; border:1px solid #dfe5ec; background:#fff; color:#344054; font-size:13px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:7px; margin:0; }
+            .nw-photo-btn input { display:none; }
+            .nw-photo-btn:hover { border-color:#9bb9e9; background:#f8fbff; }
+            .nw-photo-camera { background:#1769e0; color:#fff; border-color:#1769e0; }
+            .nw-photo-camera:hover { background:#125bc2; color:#fff; }
+            .nw-help-text { color:#98a2b3; display:block; margin-top:7px; }
+            .nw-image-preview { width:100%; display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; min-height:10px; }
+            .nw-radio-group { display:flex; gap:10px; flex-wrap:wrap; }
+            .nw-radio-card { flex:1; min-width:200px; border:1px solid #e1e7ef; border-radius:11px; padding:11px 13px; display:flex; align-items:center; gap:10px; cursor:pointer; margin:0; background:#fff; }
+            .nw-radio-card input { display:none; }
+            .nw-radio-dot { width:17px; height:17px; border:2px solid #c5ccd6; border-radius:50%; position:relative; flex:none; }
+            .nw-radio-card input:checked + .nw-radio-dot { border-color:#1769e0; }
+            .nw-radio-card input:checked + .nw-radio-dot:after { content:''; position:absolute; width:7px; height:7px; border-radius:50%; background:#1769e0; left:3px; top:3px; }
+            .nw-radio-card:has(input:checked) { border-color:#9bb9e9; background:#f8fbff; }
+            .nw-radio-card strong { display:block; font-size:13px; color:#344054; }
+            .nw-radio-card small { display:block; color:#98a2b3; font-size:11px; margin-top:2px; }
+            .nw-submit-area { max-width:1100px; margin:0 auto; padding:2px 0 10px; }
+            .nw-submit-btn { width:100%; min-height:48px; border:0; border-radius:12px; font-weight:700; box-shadow:0 5px 14px rgba(25,135,84,.15); }
+            .nw-submit-btn span { margin-right:5px; }
+            @media(max-width:700px) { .nw-pengajuan-body{padding:14px;} .nw-form-card{padding:16px;border-radius:13px;} .nw-excel-meta{grid-template-columns:1fr;} .nw-radio-card{min-width:100%;} .nw-pengajuan-header{padding:14px 16px;} }
+        </style>
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
         <script src="https://unpkg.com/html5-qrcode"></script>
         <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -368,6 +457,120 @@
         <script src="https://cdn.jsdelivr.net/npm/zoomist@1/dist/zoomist.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
         <script>
+            // ===== FINANCE EXCEL STATE =====
+            let excelMeta = {};
+            let excelDetails = [];
+            let excelApproval = {};
+            let transferValue = 0;
+            let grandTotalValue = 0;
+
+            // ===== TYPE PENGAJUAN =====
+            $(document).on('change', '[name="type_pengajuan"]', function () {
+                let val = $(this).val();
+                if (val === 'Finance') {
+                    $('#finance-section').show();
+                    $('#divisi-section, #no-spk-section, #camera-section, #keterangan-section, #urgent-section').hide();
+                } else {
+                    $('#finance-section').hide();
+                    $('#divisi-section, #no-spk-section, #camera-section, #keterangan-section, #urgent-section').show();
+                }
+            });
+
+            // ===== OPEN / CLOSE MODAL =====
+            $(document).on('click', '#btn-add', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                $('#modal-pengajuan').addClass('active');
+                $('[name="type_pengajuan"]').trigger('change');
+            });
+
+            $(document).on('click', '#modal-pengajuan .close-modal', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                $('#modal-pengajuan').removeClass('active');
+            });
+
+            // ===== EXCEL PREVIEW + PARSING =====
+            $(document).on('change', '#excelInput', function (e) {
+                let file = e.target.files[0];
+                if (!file) return;
+
+                let reader = new FileReader();
+                reader.onload = function (e) {
+                    try {
+                        let data = new Uint8Array(e.target.result);
+                        let workbook = XLSX.read(data, { type: 'array' });
+                        let sheet = workbook.Sheets[workbook.SheetNames[0]];
+                        let json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+                        let meta = extractMeta(json);
+                        let totals = extractTotals(json);
+
+                        if (!meta.nomor || !meta.tanggal) {
+                            Swal.fire({ icon:'warning', title:'Excel tidak valid', text:'Pastikan file memiliki data Nomor dan Tanggal.' });
+                            return;
+                        }
+
+                        $('#excel-meta').show();
+                        $('#meta-tanggal').text(meta.tanggal);
+                        $('#meta-nomor').text(meta.nomor);
+                        $('#meta-type').text(meta.type || '-');
+
+                        transferValue = totals.transfer;
+                        grandTotalValue = totals.grand;
+                        excelMeta = {
+                            tanggal: meta.tanggal,
+                            nomor: meta.nomor,
+                            type_pembayaran: meta.type,
+                            transfer: transferValue,
+                            grand_total: grandTotalValue
+                        };
+
+                        let headerIndex = findHeaderRow(json);
+                        excelDetails = [];
+
+                        for (let i = headerIndex + 1; i < json.length; i++) {
+                            let row = json[i];
+                            if (!row || row.length === 0) continue;
+                            if (typeof row[0] === 'string' && row[0].toLowerCase().includes('transfer')) break;
+                            if (!row[0] || isNaN(row[0])) continue;
+
+                            excelDetails.push({
+                                no: row[0],
+                                date: convertDate(row[1]),
+                                no_po: row[2],
+                                no_inv: row[3],
+                                type_biaya: row[4],
+                                nama_barang: row[5],
+                                qty: parseInt(row[6]) || 0,
+                                harga_satuan: parseNumber(row[7]),
+                                total_harga: parseNumber(row[8])
+                            });
+                        }
+
+                        excelApproval = {
+                            checked_by: "YANTI SUSANTI",
+                            knowing_by: "Mr Stanley",
+                            approve_by: "Mr Jan",
+                            record_and_cashied_1: "EKA WL",
+                            record_and_cashied_2: "AINUN"
+                        };
+
+                        $('#meta_json').val(JSON.stringify(excelMeta));
+                        $('#details_json').val(JSON.stringify(excelDetails));
+                        $('#approval_json').val(JSON.stringify(excelApproval));
+
+                        renderExcel(json);
+                    } catch (err) {
+                        console.error('Excel parse error:', err);
+                        Swal.fire({ icon:'error', title:'Gagal membaca Excel', text:'File tidak dapat diproses.' });
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            });
+
+            $('[name="type_pengajuan"]').trigger('change');
+
             let lastTap = 0;
 
             let lastData = [];
@@ -1262,6 +1465,102 @@
                 });
             }
 
+            function excelDateToJSDate(serial) {
+                let utc_days = Math.floor(serial - 25569);
+                let utc_value = utc_days * 86400;
+                let date_info = new Date(utc_value * 1000);
+                let day = String(date_info.getDate()).padStart(2, '0');
+                let month = String(date_info.getMonth() + 1).padStart(2, '0');
+                let year = date_info.getFullYear();
+                return `${day}/${month}/${year}`;
+            }
+
+            function isExcelDate(value) {
+                return typeof value === 'number' && value > 30000 && value < 60000;
+            }
+
+            function extractMeta(data) {
+                let tanggal = ''; let nomor = ''; let type = '';
+                function getNextValue(row, start) {
+                    for (let j = start + 1; j < row.length; j++) {
+                        let v = row[j];
+                        if (v && v !== ':' && v !== '') return v;
+                    }
+                    return '';
+                }
+                data.forEach(row => {
+                    row.forEach((cell, i) => {
+                        if (typeof cell !== 'string') return;
+                        let val = cell.toLowerCase().trim();
+                        if (val.includes('tanggal') && !tanggal) tanggal = getNextValue(row, i);
+                        if (val.includes('nomor') && !nomor) nomor = getNextValue(row, i);
+                        if (val.includes('type pembayaran') && !type) type = getNextValue(row, i);
+                    });
+                });
+                if (typeof tanggal === 'number') tanggal = excelDateToJSDate(tanggal);
+                return { tanggal, nomor, type };
+            }
+
+            function findHeaderRow(data) {
+                for (let i = 0; i < data.length; i++) {
+                    let row = data[i].join(' ').toLowerCase();
+                    if (row.includes('no') && row.includes('date')) return i;
+                }
+                return 0;
+            }
+
+            function renderExcel(data) {
+                let thead = $('#excel-table thead');
+                let tbody = $('#excel-table tbody');
+                thead.html(''); tbody.html('');
+                let headerIndex = findHeaderRow(data);
+                let headers = data[headerIndex] || [];
+                let headHtml = '<tr>';
+                headers.forEach(h => headHtml += `<th>${h ?? ''}</th>`);
+                headHtml += '</tr>';
+                thead.html(headHtml);
+                for (let i = headerIndex + 1; i < data.length; i++) {
+                    let row = data[i];
+                    if (!row || row.length === 0) continue;
+                    let tr = '<tr>';
+                    row.forEach(cell => {
+                        if (isExcelDate(cell)) cell = excelDateToJSDate(cell);
+                        tr += `<td>${cell ?? ''}</td>`;
+                    });
+                    tr += '</tr>';
+                    tbody.append(tr);
+                }
+            }
+
+            function extractTotals(data) {
+                let transfer = 0; let grand = 0;
+                data.forEach(row => {
+                    if (!row) return;
+                    row.forEach(cell => {
+                        if (typeof cell === 'string' && cell.toLowerCase().includes('transfer')) {
+                            let nums = row.filter(v => typeof v === 'number' || /\d/.test(v));
+                            if (nums.length >= 2) {
+                                transfer = parseNumber(nums[nums.length - 2]);
+                                grand = parseNumber(nums[nums.length - 1]);
+                            }
+                        }
+                    });
+                });
+                return { transfer, grand };
+            }
+
+            function parseNumber(val) {
+                if (!val) return 0;
+                return parseFloat(val.toString().replace(/[^0-9]/g, '')) || 0;
+            }
+
+            function convertDate(value) {
+                if (!value) return null;
+                if (typeof value === 'number') return excelDateToJSDate(value);
+                if (typeof value === 'string') return value;
+                return value;
+            }
+
             function formatRupiah(angka) {
                 if (!angka) return '0';
                 return Number(angka).toLocaleString('id-ID');
@@ -1378,6 +1677,7 @@
 
                 return `${day}/${month}/${year}`;
             }
+
         </script>
         <script>
             $(document).ready(function() {
@@ -2228,5 +2528,14 @@
                 }
 
             });
+            // =====================================================
+// CLOSE MODAL DETAIL PENGAJUAN
+// =====================================================
+$(document).on('click', '#btn-close-detail', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    $('#modal-view').removeClass('active');
+});
         </script>
     @endsection

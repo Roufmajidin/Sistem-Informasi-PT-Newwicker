@@ -584,11 +584,11 @@
 
                         const wrapper = $('.draft-wrapper')[0];
 
-if (wrapper) {
-    $(wrapper).animate({
-        scrollLeft: wrapper.clientWidth
-    }, 500);
-}
+                        if (wrapper) {
+                            $(wrapper).animate({
+                                scrollLeft: wrapper.clientWidth
+                            }, 500);
+                        }
 
                     }, 200);
                 }
@@ -597,52 +597,156 @@ if (wrapper) {
     );
     $(window).on('load', function() {
 
-        const noReq = new URLSearchParams(
-            window.location.search
-        ).get('no_req');
+        const params = new URLSearchParams(window.location.search);
 
-        if (!noReq) return;
+        // Ambil nomor request dari URL
+        const requestNo =
+            params.get('request') ||
+            params.get('no_req');
 
-        const draftTabBtn = $(
-            '[data-bs-target="#draft-request-tab"]'
-        );
+        // Bukan halaman Magic Link
+        if (!requestNo) {
+            return;
+        }
 
-        draftTabBtn.trigger('click');
+        console.log('Magic Link Request:', requestNo);
 
-        setTimeout(function() {
+        /*
+        |--------------------------------------------------------------------------
+        | 1. Pastikan tab Draft Request aktif
+        |--------------------------------------------------------------------------
+        */
 
-            const btn = $('.btn-detail-draft')
-                .filter(function() {
+        const draftTab =
+            document.querySelector(
+                '[data-bs-target="#draft-request-tab"]'
+            );
 
-                    return String(
-                        $(this).data('request')
-                    ).trim() === noReq.trim();
+        if (draftTab) {
+            draftTab.click();
+        }
 
-                });
+        /*
+        |--------------------------------------------------------------------------
+        | 2. Tunggu tabel draft selesai dirender
+        |--------------------------------------------------------------------------
+        */
 
-            if (!btn.length) return;
+        let attempts = 0;
+        const maxAttempts = 30;
 
-            btn.trigger('click');
+        const openDraftDetail = setInterval(function() {
 
-            setTimeout(function() {
+            attempts++;
 
-                const wrapper =
-                    document.querySelector(
-                        '.draft-wrapper'
-                    );
+            const buttons =
+                $('.btn-detail-draft');
 
-                if (wrapper) {
+            console.log(
+                'Cari request:',
+                requestNo,
+                '| Button:',
+                buttons.length,
+                '| Attempt:',
+                attempts
+            );
 
-                wrapper.scrollTo({
-    left: wrapper.clientWidth,
-    behavior: 'smooth'
-});
+            let target = null;
 
+            buttons.each(function() {
+
+                const btnRequest =
+                    String(
+                        $(this).attr('data-request') || ''
+                    ).trim();
+
+                if (
+                    btnRequest.toLowerCase() ===
+                    requestNo.trim().toLowerCase()
+                ) {
+                    target = this;
+                    return false;
                 }
+            });
 
-            }, 800);
+            /*
+            |--------------------------------------------------------------------------
+            | 3. Ketemu → buka Detail
+            |--------------------------------------------------------------------------
+            */
 
-        }, 800);
+            if (target) {
+
+                clearInterval(openDraftDetail);
+
+                console.log(
+                    'FOUND REQUEST:',
+                    requestNo
+                );
+
+                const $target =
+                    $(target);
+
+                /*
+                | Tandai row
+                */
+                $('.draft-row')
+                    .removeClass('active-row');
+
+                $target
+                    .closest('tr')
+                    .addClass('active-row');
+
+                /*
+                | Trigger handler Detail
+                */
+                $target.trigger('click');
+
+                /*
+                |--------------------------------------------------------------------------
+                | 4. Setelah detail muncul → scroll ke detail
+                |--------------------------------------------------------------------------
+                */
+
+                setTimeout(function() {
+
+                    const detail =
+                        document.getElementById(
+                            'draftDetailArea'
+                        );
+
+                    if (detail) {
+
+                        detail.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+
+                    }
+
+                }, 700);
+
+                return;
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | 5. Stop kalau sudah terlalu lama
+            |--------------------------------------------------------------------------
+            */
+
+            if (attempts >= maxAttempts) {
+
+                clearInterval(openDraftDetail);
+
+                console.warn(
+                    'Request tidak ditemukan:',
+                    requestNo
+                );
+
+            }
+
+        }, 300);
 
     });
 </script>
@@ -958,3 +1062,1050 @@ if (wrapper) {
         }
     }
 </style>
+<script>
+    $(document).ready(function() {
+
+        let currentMagicRequest = null;
+        let currentApprovals = [];
+        let selectedApproval = null;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | OPEN MAGIC APPROVAL MODAL
+        |--------------------------------------------------------------------------
+        */
+
+        $(document).on(
+            'click',
+            '.btn-magic-approval',
+            function(e) {
+
+                e.preventDefault();
+                e.stopPropagation();
+
+                const button = $(this);
+
+                /*
+                |--------------------------------------------------------------------------
+                | REQUEST NUMBER
+                |--------------------------------------------------------------------------
+                */
+
+                currentMagicRequest =
+                    String(button.attr('data-request') || '').trim();
+
+                $('#magicRequestNo')
+                    .text(currentMagicRequest || '-');
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | RESET MODAL
+                |--------------------------------------------------------------------------
+                */
+
+                currentApprovals = [];
+                selectedApproval = null;
+
+                $('#magicApproverList').html('');
+
+                $('#magicGeneratedArea')
+                    .hide();
+
+                $('#magicGeneratedUrl')
+                    .val('');
+
+                $('#btnGenerateMagicLink')
+                    .prop('disabled', true)
+                    .html(
+                        '<i class="fa fa-link"></i> Generate Link'
+                    );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | GET APPROVAL DATA
+                |--------------------------------------------------------------------------
+                */
+
+                let rawApprovals =
+                    button.attr('data-approvals') || '[]';
+
+                try {
+
+                    currentApprovals =
+                        JSON.parse(rawApprovals);
+
+                } catch (error) {
+
+                    console.error(
+                        'Gagal membaca data approvals:',
+                        error
+                    );
+
+                    currentApprovals = [];
+                }
+
+
+                console.log(
+                    'Magic Approval:',
+                    currentMagicRequest,
+                    currentApprovals
+                );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | RENDER APPROVER
+                |--------------------------------------------------------------------------
+                */
+
+                renderMagicApprovers();
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | OPEN MODAL
+                |--------------------------------------------------------------------------
+                */
+
+                const modalElement =
+                    document.getElementById(
+                        'magicApprovalModal'
+                    );
+
+                if (!modalElement) {
+
+                    console.error(
+                        'Element #magicApprovalModal tidak ditemukan.'
+                    );
+
+                    return;
+                }
+
+                const modal =
+                    bootstrap.Modal.getOrCreateInstance ?
+                    bootstrap.Modal.getOrCreateInstance(modalElement) :
+                    new bootstrap.Modal(modalElement);
+
+                modal.show();
+
+            }
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | RENDER APPROVERS
+        |--------------------------------------------------------------------------
+        */
+
+        function renderMagicApprovers() {
+
+            const container =
+                $('#magicApproverList');
+
+            container.empty();
+
+
+            if (
+                !Array.isArray(currentApprovals) ||
+                currentApprovals.length === 0
+            ) {
+
+                container.html(`
+                <div class="magic-empty-approver">
+                    <div class="magic-empty-icon">
+                        <i class="fa fa-users"></i>
+                    </div>
+
+                    <div class="magic-empty-title">
+                        Tidak ada approver
+                    </div>
+
+                    <div class="magic-empty-text">
+                        Draft ini belum memiliki data approval.
+                    </div>
+                </div>
+            `);
+
+                $('#btnGenerateMagicLink')
+                    .prop('disabled', true);
+
+                return;
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | SORT BY STEP
+            |--------------------------------------------------------------------------
+            */
+
+            currentApprovals.sort(function(a, b) {
+
+                return Number(a.step || 0) -
+                    Number(b.step || 0);
+
+            });
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | RENDER
+            |--------------------------------------------------------------------------
+            */
+
+            currentApprovals.forEach(function(
+                approval,
+                index
+            ) {
+
+                const approvalId =
+                    approval.id ?? '';
+
+                const userId =
+                    approval.user_id ?? '';
+
+                const role =
+                    approval.role ||
+                    'Approver';
+
+                const userName =
+                    approval.user_name ||
+                    approval.name ||
+                    '-';
+
+                const email =
+                    approval.email || '';
+
+                const status =
+                    String(
+                        approval.status || 'Pending'
+                    ).trim();
+
+                const normalizedStatus =
+                    status.toLowerCase();
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | STATUS
+                |--------------------------------------------------------------------------
+                */
+
+                let statusClass =
+                    'magic-status-pending';
+
+                let statusText =
+                    'Pending';
+
+                let disabled = false;
+
+
+                if (
+                    normalizedStatus === 'approved'
+                ) {
+
+                    statusClass =
+                        'magic-status-approved';
+
+                    statusText =
+                        'Approved';
+
+                    disabled = true;
+
+                } else if (
+                    normalizedStatus === 'rejected'
+                ) {
+
+                    statusClass =
+                        'magic-status-rejected';
+
+                    statusText =
+                        'Rejected';
+
+                    disabled = true;
+
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | USER ACCOUNT CHECK
+                |--------------------------------------------------------------------------
+                */
+
+                if (!userId) {
+                    disabled = true;
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | HTML
+                |--------------------------------------------------------------------------
+                */
+
+                const html = `
+
+                <div
+                    class="
+                        magic-approver-item
+                        ${disabled ? 'is-disabled' : ''}
+                    "
+                    data-approval-id="${escapeHtml(approvalId)}"
+                    data-user-id="${escapeHtml(userId)}"
+                    data-role="${escapeHtml(role)}"
+                    data-name="${escapeHtml(userName)}"
+                    data-status="${escapeHtml(status)}"
+                >
+
+                    <div class="magic-radio-wrap">
+
+                        <input
+                            type="radio"
+                            name="magicApprover"
+                            class="magic-approver-radio"
+                            value="${escapeHtml(approvalId)}"
+                            ${disabled ? 'disabled' : ''}
+                        >
+
+                    </div>
+
+
+                    <div class="magic-avatar">
+
+                        <i class="fa fa-user"></i>
+
+                    </div>
+
+
+                    <div class="magic-approver-info">
+
+                        <div class="magic-approver-name">
+
+                            ${escapeHtml(userName)}
+
+                        </div>
+
+
+                        <div class="magic-approver-role">
+
+                            ${escapeHtml(role)}
+
+                        </div>
+
+
+                        ${
+                            email
+                            ? `
+                                <div class="magic-approver-email">
+                                    ${escapeHtml(email)}
+                                </div>
+                            `
+                            : ''
+                        }
+
+                    </div>
+
+
+                    <div class="magic-approver-right">
+
+                        <span
+                            class="
+                                magic-status
+                                ${statusClass}
+                            "
+                        >
+                            ${escapeHtml(statusText)}
+                        </span>
+
+                    </div>
+
+                </div>
+
+            `;
+
+                container.append(html);
+
+            });
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | CHECK IF THERE IS SELECTABLE APPROVER
+            |--------------------------------------------------------------------------
+            */
+
+            const selectable =
+                container.find(
+                    '.magic-approver-radio:not(:disabled)'
+                );
+
+            if (!selectable.length) {
+
+                $('#btnGenerateMagicLink')
+                    .prop('disabled', true);
+
+            }
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SELECT APPROVER
+        |--------------------------------------------------------------------------
+        */
+
+        $(document).on(
+            'click',
+            '.magic-approver-item:not(.is-disabled)',
+            function(e) {
+
+                /*
+                |--------------------------------------------------------------------------
+                | Jangan trigger dua kali ketika click radio
+                |--------------------------------------------------------------------------
+                */
+
+                if (
+                    $(e.target).is(
+                        'input[type="radio"]'
+                    )
+                ) {
+                    return;
+                }
+
+
+                const item =
+                    $(this);
+
+                const radio =
+                    item.find(
+                        '.magic-approver-radio'
+                    );
+
+                radio.prop(
+                    'checked',
+                    true
+                );
+
+                selectApprover(item);
+
+            }
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | RADIO CHANGE
+        |--------------------------------------------------------------------------
+        */
+
+        $(document).on(
+            'change',
+            '.magic-approver-radio',
+            function() {
+
+                const item =
+                    $(this).closest(
+                        '.magic-approver-item'
+                    );
+
+                selectApprover(item);
+
+            }
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SELECT APPROVER FUNCTION
+        |--------------------------------------------------------------------------
+        */
+
+        function selectApprover(item) {
+
+            $('.magic-approver-item')
+                .removeClass(
+                    'is-selected'
+                );
+
+
+            item.addClass(
+                'is-selected'
+            );
+
+
+            selectedApproval = {
+
+                id: item.data('approval-id'),
+
+                user_id: item.data('user-id'),
+
+                role: item.data('role'),
+
+                name: item.data('name'),
+
+                status: item.data('status')
+
+            };
+
+
+            console.log(
+                'Selected approval:',
+                selectedApproval
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | ENABLE GENERATE
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                selectedApproval.user_id
+            ) {
+
+                $('#btnGenerateMagicLink')
+                    .prop(
+                        'disabled',
+                        false
+                    );
+
+            } else {
+
+                $('#btnGenerateMagicLink')
+                    .prop(
+                        'disabled',
+                        true
+                    );
+
+            }
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | GENERATE BUTTON
+        |--------------------------------------------------------------------------
+        */
+
+        $(document).on(
+            'click',
+            '#btnGenerateMagicLink',
+            function(e) {
+
+                e.preventDefault();
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | VALIDATE
+                |--------------------------------------------------------------------------
+                */
+
+                if (!currentMagicRequest) {
+
+                    Swal.fire({
+
+                        icon: 'warning',
+
+                        title: 'Request tidak ditemukan',
+
+                        text: 'Nomor request tidak tersedia.'
+
+                    });
+
+                    return;
+                }
+
+
+                if (
+                    !selectedApproval ||
+                    !selectedApproval.user_id
+                ) {
+
+                    Swal.fire({
+
+                        icon: 'warning',
+
+                        title: 'Pilih approver',
+
+                        text: 'Silakan pilih approver terlebih dahulu.'
+
+                    });
+
+                    return;
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | CONFIRM
+                |--------------------------------------------------------------------------
+                */
+
+                Swal.fire({
+
+                    title: 'Generate Magic Link?',
+
+                    html: `
+
+                    <div style="
+                        font-size:13px;
+                        line-height:1.7;
+                    ">
+
+                        Request:
+                        <strong>
+                            ${escapeHtml(
+                                currentMagicRequest
+                            )}
+                        </strong>
+
+                        <br>
+
+                        Approver:
+                        <strong>
+                            ${escapeHtml(
+                                selectedApproval.name
+                            )}
+                        </strong>
+
+                        <br>
+
+                        Role:
+                        <strong>
+                            ${escapeHtml(
+                                selectedApproval.role
+                            )}
+                        </strong>
+
+                    </div>
+
+                `,
+
+                    icon: 'question',
+
+                    showCancelButton: true,
+
+                    confirmButtonText: 'Generate Link',
+
+                    cancelButtonText: 'Batal',
+
+                    confirmButtonColor: '#0d6efd',
+
+                    cancelButtonColor: '#6c757d',
+
+                    reverseButtons: true
+
+                }).then(function(result) {
+
+                    if (!result.isConfirmed) {
+                        return;
+                    }
+
+
+                    generateMagicLink();
+
+                });
+
+            }
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | GENERATE MAGIC LINK AJAX
+        |--------------------------------------------------------------------------
+        */
+
+        function generateMagicLink() {
+
+            const button =
+                $('#btnGenerateMagicLink');
+
+
+            const originalHtml =
+                button.html();
+
+
+            button
+                .prop(
+                    'disabled',
+                    true
+                )
+                .html(`
+                <i class="fa fa-spinner fa-spin"></i>
+                Generating...
+            `);
+
+
+            $.ajax({
+
+                url: "{{ route('approval.magic.generate') }}",
+
+                type: 'POST',
+
+                data: {
+
+                    _token: $('meta[name="csrf-token"]')
+                        .attr('content'),
+
+                    no_req: currentMagicRequest,
+
+                    user_id: selectedApproval.user_id
+
+                },
+
+
+                success: function(res) {
+
+                    console.log(
+                        'Magic link response:',
+                        res
+                    );
+
+
+                    if (!res.success) {
+
+                        Swal.fire({
+
+                            icon: 'error',
+
+                            title: 'Gagal',
+
+                            text: res.message ||
+                                'Gagal membuat magic link.'
+
+                        });
+
+                        return;
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | HIDE APPROVER LIST
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $('#magicApproverList')
+                        .slideUp(
+                            150
+                        );
+
+
+                    $('.magic-section-title')
+                        .hide();
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | SHOW GENERATED LINK
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $('#magicGeneratedUrl')
+                        .val(
+                            res.url || ''
+                        );
+
+
+                    $('#magicGeneratedArea')
+                        .slideDown(
+                            200
+                        );
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | SUCCESS
+                    |--------------------------------------------------------------------------
+                    */
+
+                    Swal.fire({
+
+                        icon: 'success',
+
+                        title: 'Berhasil',
+
+                        html: `
+                        Magic link berhasil dibuat
+                        untuk
+                        <strong>
+                            ${escapeHtml(
+                                selectedApproval.name
+                            )}
+                        </strong>
+                    `,
+
+                        timer: 1400,
+
+                        showConfirmButton: false
+
+                    });
+
+                },
+
+
+                error: function(xhr) {
+
+                    console.error(
+                        'Magic link error:',
+                        xhr
+                    );
+
+
+                    Swal.fire({
+
+                        icon: 'error',
+
+                        title: 'Server Error',
+
+                        text: xhr.responseJSON?.message ||
+                            'Terjadi kesalahan server.'
+
+                    });
+
+                },
+
+
+                complete: function() {
+
+                    button
+                        .prop(
+                            'disabled',
+                            false
+                        )
+                        .html(
+                            originalHtml
+                        );
+
+                }
+
+            });
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | COPY LINK
+        |--------------------------------------------------------------------------
+        */
+
+        $(document).on(
+            'click',
+            '#btnCopyMagicLink',
+            function() {
+
+                const input =
+                    document.getElementById(
+                        'magicGeneratedUrl'
+                    );
+
+
+                if (!input) {
+                    return;
+                }
+
+
+                const url =
+                    input.value;
+
+
+                if (!url) {
+                    return;
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | MODERN CLIPBOARD
+                |--------------------------------------------------------------------------
+                */
+
+                if (
+                    navigator.clipboard &&
+                    window.isSecureContext
+                ) {
+
+                    navigator.clipboard
+                        .writeText(url)
+                        .then(function() {
+
+                            showCopied();
+
+                        })
+                        .catch(function() {
+
+                            fallbackCopy(input);
+
+                        });
+
+                } else {
+
+                    fallbackCopy(input);
+
+                }
+
+            }
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | FALLBACK COPY
+        |--------------------------------------------------------------------------
+        */
+
+        function fallbackCopy(input) {
+
+            input
+                .focus();
+
+            input
+                .select();
+
+            input
+                .setSelectionRange(
+                    0,
+                    99999
+                );
+
+
+            try {
+
+                document.execCommand(
+                    'copy'
+                );
+
+                showCopied();
+
+            } catch (error) {
+
+                Swal.fire({
+
+                    icon: 'warning',
+
+                    title: 'Tidak bisa copy',
+
+                    text: 'Silakan copy link secara manual.'
+
+                });
+
+            }
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | COPIED MESSAGE
+        |--------------------------------------------------------------------------
+        */
+
+        function showCopied() {
+
+            Swal.fire({
+
+                icon: 'success',
+
+                title: 'Copied',
+
+                text: 'Magic link berhasil disalin.',
+
+                timer: 1000,
+
+                showConfirmButton: false
+
+            });
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | RESET WHEN MODAL CLOSED
+        |--------------------------------------------------------------------------
+        */
+
+        $('#magicApprovalModal')
+            .on(
+                'hidden.bs.modal',
+                function() {
+
+                    currentMagicRequest =
+                        null;
+
+                    currentApprovals = [];
+
+                    selectedApproval =
+                        null;
+
+                    $('#magicApproverList')
+                        .show()
+                        .empty();
+
+                    $('.magic-section-title')
+                        .show();
+
+                    $('#magicGeneratedArea')
+                        .hide();
+
+                    $('#magicGeneratedUrl')
+                        .val('');
+
+                    $('#btnGenerateMagicLink')
+                        .prop(
+                            'disabled',
+                            true
+                        );
+
+                }
+            );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | HTML ESCAPE
+        |--------------------------------------------------------------------------
+        */
+
+        function escapeHtml(value) {
+
+            return String(
+                    value ?? ''
+                )
+                .replace(
+                    /&/g,
+                    '&amp;'
+                )
+                .replace(
+                    /</g,
+                    '&lt;'
+                )
+                .replace(
+                    />/g,
+                    '&gt;'
+                )
+                .replace(
+                    /"/g,
+                    '&quot;'
+                )
+                .replace(
+                    /'/g,
+                    '&#039;'
+                );
+
+        }
+
+    });
+</script>

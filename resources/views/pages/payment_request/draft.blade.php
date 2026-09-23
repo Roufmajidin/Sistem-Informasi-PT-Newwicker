@@ -229,8 +229,9 @@
                                         {{ $row['no_po'] }}
                                     </td>
                                     <td class="pr-td">
-                                        {{ \Carbon\Carbon::parse($row['request_date'])->format('d/m/Y') }}
-                                    </td>
+                                      {{ !empty($row['payment_date'])
+    ? \Carbon\Carbon::createFromFormat('d/m/Y', $row['payment_date'])->format('d/m/Y')
+    : '-' }}       </td>
                                     <td class="pr-td">
                                         {{ strtoupper($row['supplier']) }}
                                     </td>
@@ -556,7 +557,19 @@
 
                                                         {{-- Actions --}}
                                                         <div class="draft-actions">
+                                                            {{-- Magic Approval Link --}}
+                                                            {{-- Magic Approval Link --}}
+                                                            <button type="button"
+                                                                class="draft-action-btn draft-magic-btn btn-magic-approval"
+                                                                data-id="{{ $draft['id'] }}"
+                                                                data-request="{{ $draft['request_no'] }}"
+                                                                data-approvals='@json($draft['approvals'])'
+                                                                title="Generate Approval Link"
+                                                                aria-label="Generate Approval Link">
 
+                                                                <i class="fa fa-link"></i>
+
+                                                            </button>
                                                             {{-- Export --}}
                                                             <a href="{{ route('payment-request-saved.export', $draft['id']) }}"
                                                                 class="draft-action-btn draft-export-btn"
@@ -636,200 +649,406 @@
         </div>
     </div>
 </div>
+<!-- =========================================================
+     MODAL GENERATE MAGIC APPROVAL LINK
+     ========================================================= -->
 
+<div class="modal fade" id="magicApprovalModal" tabindex="-1" aria-labelledby="magicApprovalModalLabel"
+    aria-hidden="true">
+
+    <div class="modal-dialog modal-dialog-centered">
+
+        <div class="modal-content magic-modal-content">
+
+            <!-- HEADER -->
+            <div class="modal-header magic-modal-header">
+
+                <div>
+                    <h5 class="modal-title" id="magicApprovalModalLabel">
+
+                        <i class="fa fa-link me-1"></i>
+                        Generate Approval Link
+
+                    </h5>
+
+                    <div class="magic-request-label">
+
+                        Request:
+
+                        <strong id="magicRequestNo">
+                            -
+                        </strong>
+
+                    </div>
+                </div>
+
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">
+                </button>
+
+            </div>
+
+
+            <!-- BODY -->
+            <div class="modal-body">
+
+                <div class="magic-section-title">
+                    Pilih approver:
+                </div>
+
+
+                <!-- APPROVER LIST -->
+                <div id="magicApproverList" class="magic-approver-list">
+
+                    <!-- Diisi oleh Javascript -->
+
+                </div>
+
+
+                <!-- GENERATED LINK -->
+                <div id="magicGeneratedArea" class="magic-generated-area" style="display:none;">
+
+                    <div class="magic-generated-title">
+                        <i class="fa fa-check-circle"></i>
+                        Approval Link berhasil dibuat
+                    </div>
+
+                    <div class="magic-link-box">
+
+                        <input type="text" id="magicGeneratedUrl" class="form-control" readonly>
+
+                        <button type="button" id="btnCopyMagicLink" class="btn btn-copy-magic">
+
+                            <i class="fa fa-copy"></i>
+                            Copy
+
+                        </button>
+
+                        <a href="#" id="btnOpenMagicLink" class="btn btn-success" target="_blank"
+                            rel="noopener">
+
+                            <i class="fa fa-external-link"></i>
+                            Open
+
+                        </a>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- FOOTER -->
+            <div class="modal-footer magic-modal-footer">
+
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">
+
+                    Tutup
+
+                </button>
+
+                <button type="button" id="btnGenerateMagicLink" class="btn btn-primary">
+
+                    <i class="fa fa-link"></i>
+
+                    Generate Link
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
 <style>
+    /* =========================================================
+   MAGIC APPROVAL MODAL
+========================================================= */
+
+    .magic-approver-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .magic-approver-item {
+        width: 100%;
+        display: flex;
+        align-items: center;
+
+        border: 1px solid #e5e7eb;
+        background: #fff;
+
+        border-radius: 7px;
+
+        padding: 9px 10px;
+
+        text-align: left;
+
+        cursor: pointer;
+
+        transition: .15s ease;
+    }
+
+    .magic-approver-item:hover {
+        background: #f8fafc;
+        border-color: #0d6efd;
+    }
+
+    .magic-approver-item>i:first-child {
+        width: 30px;
+        height: 30px;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        margin-right: 9px;
+
+        border-radius: 50%;
+
+        background: #eff6ff;
+        color: #0d6efd;
+
+        font-size: 11px;
+    }
+
+    .magic-approver-item>div {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .magic-approver-item strong {
+        display: block;
+
+        font-size: 11px;
+        font-weight: 600;
+
+        color: #344054;
+    }
+
+    .magic-approver-item small {
+        display: block;
+
+        margin-top: 2px;
+
+        font-size: 8px;
+
+        color: #98a2b3;
+    }
+
+    .magic-approver-item .arrow {
+        width: auto;
+        height: auto;
+
+        margin: 0;
+
+        background: transparent;
+
+        color: #98a2b3;
+
+        font-size: 9px;
+    }
+
+    #magicLinkInput {
+        font-size: 10px;
+    }
+
     /* =========================================================
    DRAFT REQUEST / ACTION STYLE
    ========================================================= */
 
-.draft-request-cell {
-    display: flex;
-    align-items: center;
+    .draft-request-cell {
+        display: flex;
+        align-items: center;
 
-    gap: 10px;
+        gap: 10px;
 
-    min-width: 260px;
+        min-width: 260px;
 
-    white-space: nowrap;
-}
+        white-space: nowrap;
+    }
 
 
-/* =========================================================
+    /* =========================================================
    REQUEST NUMBER
    ========================================================= */
 
-.draft-request-no {
-    display: inline-block;
+    .draft-request-no {
+        display: inline-block;
 
-    min-width: 125px;
+        min-width: 125px;
 
-    color: #344054;
+        color: #344054;
 
-    font-size: 9px;
+        font-size: 9px;
 
-    font-weight: 600;
+        font-weight: 600;
 
-    line-height: 1.2;
+        line-height: 1.2;
 
-    white-space: nowrap;
-}
+        white-space: nowrap;
+    }
 
 
-/* =========================================================
+    /* =========================================================
    ACTION CONTAINER
    ========================================================= */
 
-.draft-actions {
-    display: inline-flex;
+    .draft-actions {
+        display: inline-flex;
 
-    align-items: center;
+        align-items: center;
 
-    gap: 6px;
+        gap: 6px;
 
-    margin-left: auto;
-}
+        margin-left: auto;
+    }
 
 
-/* =========================================================
+    /* =========================================================
    BASE ACTION BUTTON
    ========================================================= */
 
-.draft-action-btn {
-    display: inline-flex;
+    .draft-action-btn {
+        display: inline-flex;
 
-    align-items: center;
-    justify-content: center;
+        align-items: center;
+        justify-content: center;
 
-    height: 29px;
+        height: 29px;
 
-    min-height: 29px;
+        min-height: 29px;
 
-    border-radius: 5px;
+        border-radius: 5px;
 
-    font-size: 9px;
+        font-size: 9px;
 
-    font-weight: 600;
+        font-weight: 600;
 
-    line-height: 1;
+        line-height: 1;
 
-    text-decoration: none !important;
+        text-decoration: none !important;
 
-    cursor: pointer;
+        cursor: pointer;
 
-    transition:
-        background-color .15s ease,
-        border-color .15s ease,
-        color .15s ease,
-        box-shadow .15s ease,
-        transform .1s ease;
-}
+        transition:
+            background-color .15s ease,
+            border-color .15s ease,
+            color .15s ease,
+            box-shadow .15s ease,
+            transform .1s ease;
+    }
 
 
-/* =========================================================
+    /* =========================================================
    EXPORT
    ========================================================= */
 
-.draft-export-btn {
-    width: 29px;
+    .draft-export-btn {
+        width: 29px;
 
-    min-width: 29px;
+        min-width: 29px;
 
-    padding: 0;
+        padding: 0;
 
-    border: 1px solid #12b76a;
+        border: 1px solid #12b76a;
 
-    background: #ffffff;
+        background: #ffffff;
 
-    color: #12b76a;
-}
+        color: #12b76a;
+    }
 
-.draft-export-btn:hover {
-    background: #ecfdf3;
+    .draft-export-btn:hover {
+        background: #ecfdf3;
 
-    border-color: #039855;
+        border-color: #039855;
 
-    color: #039855;
+        color: #039855;
 
-    box-shadow: 0 1px 3px rgba(16, 24, 40, .08);
-}
+        box-shadow: 0 1px 3px rgba(16, 24, 40, .08);
+    }
 
-.draft-export-btn:active {
-    transform: translateY(1px);
-}
+    .draft-export-btn:active {
+        transform: translateY(1px);
+    }
 
 
-/* =========================================================
+    /* =========================================================
    DETAIL
    ========================================================= */
 
-.draft-detail-btn {
-    min-width: 52px;
+    .draft-detail-btn {
+        min-width: 52px;
 
-    padding: 0 11px;
+        padding: 0 11px;
 
-    border: 1px solid #0d6efd;
+        border: 1px solid #0d6efd;
 
-    background: #0d6efd;
+        background: #0d6efd;
 
-    color: #ffffff;
-}
+        color: #ffffff;
+    }
 
-.draft-detail-btn:hover {
-    background: #0b5ed7;
+    .draft-detail-btn:hover {
+        background: #0b5ed7;
 
-    border-color: #0b5ed7;
+        border-color: #0b5ed7;
 
-    color: #ffffff;
+        color: #ffffff;
 
-    box-shadow: 0 1px 3px rgba(13, 110, 253, .20);
-}
+        box-shadow: 0 1px 3px rgba(13, 110, 253, .20);
+    }
 
-.draft-detail-btn:active {
-    transform: translateY(1px);
-}
+    .draft-detail-btn:active {
+        transform: translateY(1px);
+    }
 
 
-/* =========================================================
+    /* =========================================================
    ICON
    ========================================================= */
 
-.draft-export-btn i {
-    font-size: 9px;
-}
+    .draft-export-btn i {
+        font-size: 9px;
+    }
 
 
-/* =========================================================
+    /* =========================================================
    ACTIVE ROW
    ========================================================= */
 
-.draft-row.active-row .draft-request-no {
-    color: #175cd3;
+    .draft-row.active-row .draft-request-no {
+        color: #175cd3;
 
-    font-weight: 700;
-}
+        font-weight: 700;
+    }
 
 
-/* =========================================================
+    /* =========================================================
    RESPONSIVE
    ========================================================= */
 
-@media (max-width: 768px) {
+    @media (max-width: 768px) {
 
-    .draft-request-cell {
-        min-width: 240px;
+        .draft-request-cell {
+            min-width: 240px;
 
-        gap: 8px;
+            gap: 8px;
+        }
+
+        .draft-request-no {
+            min-width: 115px;
+        }
+
+        .draft-actions {
+            gap: 5px;
+        }
+
     }
 
-    .draft-request-no {
-        min-width: 115px;
-    }
-
-    .draft-actions {
-        gap: 5px;
-    }
-
-}
     /* =========================================================
            PAYMENT REQUEST / DRAFT
            FULL UI FIX
@@ -1841,6 +2060,163 @@
             padding: 0 !important;
         }
 
+    }
+
+    /* =========================================================
+       FINAL UI OVERRIDE
+       - Sticky header benar-benar bekerja saat LIST di-scroll
+       - Font list dibuat lebih nyaman dibaca
+       - Tidak mengubah ID / class / JS / Blade
+       - Horizontal scroll tetap tersedia
+       ========================================================= */
+
+    /* LIST: jadikan panel list sebagai vertical scrolling container.
+       Sticky thead tidak akan bekerja jika parent hanya overflow-y:hidden. */
+    .draft-list {
+        max-height: calc(100vh - 250px) !important;
+        overflow-x: auto !important;
+        overflow-y: auto !important;
+        overscroll-behavior: contain;
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 #f8fafc;
+    }
+
+    .draft-list::-webkit-scrollbar {
+        width: 7px;
+        height: 7px;
+    }
+
+    .draft-list::-webkit-scrollbar-track {
+        background: #f8fafc;
+    }
+
+    .draft-list::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 20px;
+    }
+
+    .draft-list::-webkit-scrollbar-thumb:hover {
+        background: #98a2b3;
+    }
+
+    /* Sticky header list */
+    .draft-list table thead {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 50 !important;
+    }
+
+    .draft-list table thead th {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 51 !important;
+        background: #f8f9fb !important;
+        font-size: 10px !important;
+        min-height: 38px;
+        height: 38px !important;
+        padding: 8px 9px !important;
+        white-space: nowrap;
+        box-shadow: 0 1px 0 #dfe3e8;
+    }
+
+    /* Font tabel utama: sebelumnya 9px, terlalu kecil */
+    .draft-list table {
+        font-size: 11px !important;
+    }
+
+    .draft-list table tbody td {
+        font-size: 10px !important;
+        padding: 8px 9px !important;
+        height: 42px;
+        line-height: 1.35;
+    }
+
+    /* Nomor Draft */
+    .draft-request-no {
+        font-size: 11px !important;
+        line-height: 1.3;
+    }
+
+    /* Tombol action tetap compact tetapi teks/icon lebih terbaca */
+    .draft-list .btn,
+    .draft-list .btn-sm {
+        font-size: 10px !important;
+    }
+
+    .draft-action-btn {
+        font-size: 10px !important;
+    }
+
+    /* Badge Pending Sign */
+    .draft-list .badge {
+        font-size: 9px !important;
+        min-height: 20px;
+        padding: 4px 7px;
+    }
+
+    /* Kolom action tidak ikut mengecil */
+    .draft-actions {
+        gap: 6px;
+    }
+
+    /* Header card sedikit lebih nyaman */
+    #draft-request-tab>.card>.card-header h5 {
+        font-size: 16px !important;
+    }
+
+    #draft-request-tab>.card>.card-header small {
+        font-size: 11px !important;
+    }
+
+    /* Tablet */
+    @media (max-width: 992px) {
+        .draft-list {
+            max-height: calc(100vh - 235px) !important;
+        }
+
+        .draft-list table thead th {
+            font-size: 10px !important;
+        }
+
+        .draft-list table tbody td {
+            font-size: 10px !important;
+        }
+    }
+
+    /* Mobile */
+    @media (max-width: 768px) {
+        .draft-list {
+            max-height: calc(100vh - 220px) !important;
+        }
+
+        .draft-list table thead th {
+            font-size: 9px !important;
+            padding: 7px 8px !important;
+        }
+
+        .draft-list table tbody td {
+            font-size: 9px !important;
+            padding: 7px 8px !important;
+        }
+
+        .draft-request-no {
+            font-size: 10px !important;
+        }
+    }
+
+    /* Very small screen */
+    @media (max-width: 480px) {
+        .draft-list {
+            max-height: calc(100vh - 205px) !important;
+        }
+
+        .draft-list table thead th {
+            font-size: 9px !important;
+        }
+
+        .draft-list table tbody td {
+            font-size: 9px !important;
+        }
     }
 </style>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>

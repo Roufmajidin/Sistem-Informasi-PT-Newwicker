@@ -22,6 +22,11 @@ use Illuminate\Support\Str;
 use App\Models\Karyawan;
 use Carbon\Carbon;
 
+use App\Models\InspectScheduleTest;
+use App\Models\QcReportTest;
+
+use App\Models\ReportPhotoTest;
+
 
 // aa
 class QcController extends Controller
@@ -57,59 +62,491 @@ class QcController extends Controller
      * Display the specified resource.
      */
 
+    // public function convert(Request $request)
+    // {
+    //     $raw   = trim($request->excel_data);
+    //     $lines = preg_split("/\r\n|\n|\r/", $raw);
+    //     // =========================
+    //     // HEADER
+    //     // =========================
+    //     $headerLine   = array_map('trim', explode("\t", $lines[0]));
+    //     $headers      = [];
+    //     $wdhCount     = 0;
+    //     $headerRepeat = []; // untuk Remark Remark dll
+    //     foreach ($headerLine as $col) {
+    //         // ===== HANDLE W D H =====
+    //         if (in_array($col, ['W', 'D', 'H'])) {
+    //             $wdhCount++;
+    //             if ($wdhCount <= 3) {
+    //                 $headers[] = 'item_' . strtolower($col);
+    //             } else {
+    //                 $headers[] = 'packing_' . strtolower($col);
+    //             }
+    //             continue;
+    //         }
+    //         // ===== NORMAL HEADER =====
+    //         $key = strtolower(str_replace([' ', '.', "\n"], '_', $col));
+    //         // ===== DUPLICATE HEADER (Remark Remark, dll) =====
+    //         if (isset($headerRepeat[$key])) {
+    //             $headerRepeat[$key]++;
+    //             $key .= '_' . $headerRepeat[$key];
+    //         } else {
+    //             $headerRepeat[$key] = 1;
+    //             // suffix _1 hanya jika nanti ada duplikat
+    //             // remark pertama tetap "remark"
+    //         }
+    //         $headers[] = $key;
+    //     }
+    //     // =========================
+    //     // DATA
+    //     // =========================
+    //     $items = [];
+    //     for ($i = 1; $i < count($lines); $i++) {
+    //         $cols = array_map('trim', explode("\t", $lines[$i]));
+    //         // skip baris bukan item
+    //         if (! isset($cols[0]) || ! is_numeric($cols[0])) {
+    //             continue;
+    //         }
+    //         $row = [];
+    //         foreach ($headers as $idx => $key) {
+    //             $row[$key] = $cols[$idx] ?? null;
+    //         }
+    //         $items[] = $row;
+    //     }
+    //     return response()->json([
+    //         // 'headers' => $headers,
+    //         'items' => $items,
+    //     ]);
+    // }
     public function convert(Request $request)
     {
         $raw = trim($request->excel_data);
+
+        if ($raw === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data Excel kosong.'
+            ], 422);
+        }
+
         $lines = preg_split("/\r\n|\n|\r/", $raw);
-        // =========================
+
+        // =====================================================
         // HEADER
-        // =========================
-        $headerLine = array_map('trim', explode("\t", $lines[0]));
+        // =====================================================
+
+        $headerLine = array_map(
+            'trim',
+            explode("\t", $lines[0])
+        );
+
         $headers = [];
         $wdhCount = 0;
-        $headerRepeat = []; // untuk Remark Remark dll
+        $headerRepeat = [];
+
         foreach ($headerLine as $col) {
-            // ===== HANDLE W D H =====
-            if (in_array($col, ['W', 'D', 'H'])) {
+
+            $originalCol = trim($col);
+
+            // =================================================
+            // NORMALIZE HEADER
+            // =================================================
+
+            $normalizedCol = strtoupper(
+                preg_replace(
+                    '/\s+/',
+                    ' ',
+                    $originalCol
+                )
+            );
+
+            // =================================================
+            // DIMENSION / W-D-H
+            // =================================================
+
+            /*
+            |--------------------------------------------------------------------------
+            | CASE 1
+            |--------------------------------------------------------------------------
+            |
+            | W | D | H
+            |
+            | menjadi:
+            |
+            | item_w | item_d | item_h
+            |
+            */
+
+            if (
+                in_array(
+                    $normalizedCol,
+                    ['W', 'D', 'H'],
+                    true
+                )
+            ) {
+
                 $wdhCount++;
+
                 if ($wdhCount <= 3) {
-                    $headers[] = 'item_' . strtolower($col);
+
+                    $headers[] =
+                        'item_' .
+                        strtolower($normalizedCol);
+
                 } else {
-                    $headers[] = 'packing_' . strtolower($col);
+
+                    $headers[] =
+                        'packing_' .
+                        strtolower($normalizedCol);
+
                 }
+
                 continue;
             }
-            // ===== NORMAL HEADER =====
-            $key = strtolower(str_replace([' ', '.', "\n"], '_', $col));
-            // ===== DUPLICATE HEADER (Remark Remark, dll) =====
-            if (isset($headerRepeat[$key])) {
-                $headerRepeat[$key]++;
-                $key .= '_' . $headerRepeat[$key];
-            } else {
-                $headerRepeat[$key] = 1;
-                // suffix _1 hanya jika nanti ada duplikat
-                // remark pertama tetap "remark"
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | CASE 2
+            |--------------------------------------------------------------------------
+            |
+            | DIMENSION (CM)
+            |
+            | D
+            | H
+            |
+            | menjadi:
+            |
+            | item_w
+            | item_d
+            | item_h
+            |
+            */
+
+            if (
+                in_array(
+                    $normalizedCol,
+                    [
+                        'DIMENSION (CM)',
+                        'DIMENTION (CM)',
+                        'DIMENSION',
+                        'DIMENTION'
+                    ],
+                    true
+                )
+            ) {
+
+                /*
+                |--------------------------------------------------------------------------
+                | DIMENSION (CM) dianggap sebagai WIDTH
+                |--------------------------------------------------------------------------
+                */
+
+                $wdhCount = 1;
+
+                $headers[] = 'item_w';
+
+                continue;
             }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | CASE 3
+            |--------------------------------------------------------------------------
+            |
+            | ITEM W
+            | ITEM D
+            | ITEM H
+            |
+            */
+
+            if (
+                in_array(
+                    $normalizedCol,
+                    [
+                        'ITEM W',
+                        'ITEM_W'
+                    ],
+                    true
+                )
+            ) {
+
+                $headers[] = 'item_w';
+
+                continue;
+            }
+
+            if (
+                in_array(
+                    $normalizedCol,
+                    [
+                        'ITEM D',
+                        'ITEM_D'
+                    ],
+                    true
+                )
+            ) {
+
+                $headers[] = 'item_d';
+
+                continue;
+            }
+
+            if (
+                in_array(
+                    $normalizedCol,
+                    [
+                        'ITEM H',
+                        'ITEM_H'
+                    ],
+                    true
+                )
+            ) {
+
+                $headers[] = 'item_h';
+
+                continue;
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | CASE 4
+            |--------------------------------------------------------------------------
+            |
+            | PACK W / PACK D / PACK H
+            |
+            */
+
+            if (
+                in_array(
+                    $normalizedCol,
+                    [
+                        'PACK W',
+                        'PACK_W',
+                        'PACKING W',
+                        'PACKING_W'
+                    ],
+                    true
+                )
+            ) {
+
+                $headers[] = 'packing_w';
+
+                continue;
+            }
+
+            if (
+                in_array(
+                    $normalizedCol,
+                    [
+                        'PACK D',
+                        'PACK_D',
+                        'PACKING D',
+                        'PACKING_D'
+                    ],
+                    true
+                )
+            ) {
+
+                $headers[] = 'packing_d';
+
+                continue;
+            }
+
+            if (
+                in_array(
+                    $normalizedCol,
+                    [
+                        'PACK H',
+                        'PACK_H',
+                        'PACKING H',
+                        'PACKING_H'
+                    ],
+                    true
+                )
+            ) {
+
+                $headers[] = 'packing_h';
+
+                continue;
+            }
+
+
+            // =================================================
+            // NORMAL HEADER
+            // =================================================
+
+            $key = strtolower(
+                str_replace(
+                    [
+                        ' ',
+                        '.',
+                        "\n"
+                    ],
+                    '_',
+                    $originalCol
+                )
+            );
+
+
+            // =================================================
+            // DUPLICATE HEADER
+            // =================================================
+
+            if (
+                isset(
+                $headerRepeat[$key]
+            )
+            ) {
+
+                $headerRepeat[$key]++;
+
+                $key .= '_' .
+                    $headerRepeat[$key];
+
+            } else {
+
+                $headerRepeat[$key] = 1;
+
+            }
+
             $headers[] = $key;
         }
-        // =========================
+
+
+        // =====================================================
         // DATA
-        // =========================
+        // =====================================================
+
         $items = [];
-        for ($i = 1; $i < count($lines); $i++) {
-            $cols = array_map('trim', explode("\t", $lines[$i]));
-            // skip baris bukan item
-            if (!isset($cols[0]) || !is_numeric($cols[0])) {
+
+        for (
+            $i = 1;
+            $i < count($lines);
+            $i++
+        ) {
+
+            $cols = array_map(
+                'trim',
+                explode("\t", $lines[$i])
+            );
+
+
+            // =================================================
+            // SKIP BARIS BUKAN ITEM
+            // =================================================
+
+            if (
+                !isset($cols[0]) ||
+                !is_numeric($cols[0])
+            ) {
+
                 continue;
             }
+
+
             $row = [];
-            foreach ($headers as $idx => $key) {
-                $row[$key] = $cols[$idx] ?? null;
+
+
+            // =================================================
+            // MAP DATA KE HEADER
+            // =================================================
+
+            foreach (
+                $headers as $idx => $key
+            ) {
+
+                $row[$key] =
+                    $cols[$idx] ?? '';
             }
+
+
+            // =================================================
+            // OPTIONAL: NORMALIZE LEGACY DATA
+            // =================================================
+
+            /*
+            |--------------------------------------------------------------------------
+            | Kalau somehow masih ada data:
+            |
+            | dimension_(cm)
+            |
+            | kita pindahkan ke item_w
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                (
+                    !isset($row['item_w']) ||
+                    $row['item_w'] === ''
+                ) &&
+                isset($row['dimension_(cm)'])
+            ) {
+
+                $row['item_w'] =
+                    $row['dimension_(cm)'];
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Legacy D / H
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                (
+                    !isset($row['item_d']) ||
+                    $row['item_d'] === ''
+                ) &&
+                isset($row['d'])
+            ) {
+
+                $row['item_d'] =
+                    $row['d'];
+            }
+
+
+            if (
+                (
+                    !isset($row['item_h']) ||
+                    $row['item_h'] === ''
+                ) &&
+                isset($row['h'])
+            ) {
+
+                $row['item_h'] =
+                    $row['h'];
+            }
+
+
+            // =================================================
+            // REMOVE LEGACY FIELD
+            // =================================================
+
+            unset(
+                $row['dimension_(cm)'],
+                $row['dimention_(cm)']
+            );
+
+
+            // =================================================
+            // ADD ITEM
+            // =================================================
+
             $items[] = $row;
         }
+
+
+        // =====================================================
+        // RESPONSE
+        // =====================================================
+
         return response()->json([
-            // 'headers' => $headers,
+            'success' => true,
+            'headers' => $headers,
             'items' => $items,
         ]);
     }
@@ -244,7 +681,7 @@ class QcController extends Controller
     }
     // public function cek($id)
     // {
-    //     $report = QcReport::create([
+    //     $report = $qcReportModel::create([
     //         'check_point_id' => 1,
     //         'remark'         => 'OK',
     //         'po_id'          => $id,
@@ -294,7 +731,7 @@ class QcController extends Controller
     //         });
     //     });
     //     // ðŸ”¥ schedule
-    //     $inspectionSchedules = InspectSchedule::with('kategori')
+    //     $inspectionSchedules = $inspectionModel::with('kategori')
     //         ->whereIn('detail_po_id', $detailPoIds)
     //         ->where('user_id', $userId)
     //         ->get();
@@ -383,6 +820,13 @@ class QcController extends Controller
         }
         return $items;
     }
+        public function getDate()
+    {
+        return response()->json([
+            'success' => true,
+            'rejected_start' => '2026-09-21',
+        ]);
+    }
     // public function getDataApi(string $kategoriName, string $detailPoId, string $poId)
     // {
     //     $kategori = Kategori::where('kategori', $kategoriName)
@@ -400,7 +844,7 @@ class QcController extends Controller
 
     //     $checkpointIds = $checkpoints->pluck('id');
 
-    //     $qcReports = QcReport::with([
+    //     $qcReports = $qcReportModel::with([
     //         'inspectSchedule:id,po_id,detail_po_id,batch,jumlah_inspect,tanggal_inspect,user_id,passed,rejected',
     //         'photos:id,qc_report_id,keterangan,path',
     //         'checkpoint:id,name',
@@ -431,7 +875,7 @@ class QcController extends Controller
     //             /// TEMUAN GLOBAL
     //             /// qc_report_id = NULL
     //             /// ===============================================
-    //             $temuan = ReportPhoto::where(
+    //             $temuan = $reportPhotoModel::where(
     //                 'inspect_schedule_id',
     //                 $schedule->id
     //             )
@@ -529,6 +973,12 @@ class QcController extends Controller
     // }
     public function getDataApi(string $kategoriName, string $detailPoId, string $poId)
     {
+        $qcReportModel = $this->qcReportModel();
+        $reportPhotoModel = $this->reportPhotoModel();
+
+        $qcReportModel = $this->qcReportModel();
+        $reportPhotoModel = $this->reportPhotoModel();
+
         $kategori = Kategori::where('kategori', $kategoriName)
             ->firstOrFail();
 
@@ -544,7 +994,7 @@ class QcController extends Controller
 
         $checkpointIds = $checkpoints->pluck('id');
 
-        $qcReports = QcReport::with([
+        $qcReports = $qcReportModel::with([
             'inspectSchedule:id,po_id,detail_po_id,spk_id,batch,jumlah_inspect,tanggal_inspect,user_id,passed,rejected',
             'inspectSchedule.spk',
             'photos:id,qc_report_id,keterangan,path',
@@ -579,7 +1029,7 @@ class QcController extends Controller
 
             if (!isset($batches[$batchKey])) {
 
-                $temuan = ReportPhoto::where(
+                $temuan = $reportPhotoModel::where(
                     'inspect_schedule_id',
                     $schedule->id
                 )
@@ -661,6 +1111,10 @@ class QcController extends Controller
     }
     public function insertDummy(string $kategoriName, Request $request)
     {
+        $inspectionModel = $this->inspectionScheduleModel();
+        $qcReportModel = $this->qcReportModel();
+        $reportPhotoModel = $this->reportPhotoModel();
+
         $po_id = $request->po_id;
         $detail_po_id = $request->detail_po_id;
         /* ===============================
@@ -692,7 +1146,7 @@ class QcController extends Controller
         /* ===============================
        HITUNG TOTAL INSPECT PER KATEGORI ðŸ”¥
     =============================== */
-        $totalInspect = InspectSchedule::where('detail_po_id', $detail_po_id)
+        $totalInspect = $inspectionModel::where('detail_po_id', $detail_po_id)
             ->where('kategori_id', $kategori->id)
             ->sum('jumlah_inspect');
         if ($totalInspect >= $qtyDetail) {
@@ -708,13 +1162,13 @@ class QcController extends Controller
             /* ===============================
            BATCH KE (PER KATEGORI ðŸ”¥)
         =============================== */
-            $batchKe = InspectSchedule::where('detail_po_id', $detail_po_id)
+            $batchKe = $inspectionModel::where('detail_po_id', $detail_po_id)
                 ->where('kategori_id', $kategori->id)
                 ->count() + 1;
             /* ===============================
            INSPECT SCHEDULE
         =============================== */
-            $inspectSchedule = InspectSchedule::create([
+            $inspectSchedule = $inspectionModel::create([
                 'po_id' => $po_id,
                 'detail_po_id' => $detail_po_id,
                 'kategori_id' => $kategori->id,
@@ -727,7 +1181,7 @@ class QcController extends Controller
            QC REPORT + PHOTO
         =============================== */
             foreach ($checkpoints as $checkpointId) {
-                $qcReport = QcReport::create([
+                $qcReport = $qcReportModel::create([
                     'inspect_schedule_id' => $inspectSchedule->id,
                     'check_point_id' => $checkpointId,
                     'po_id' => $po_id,
@@ -737,7 +1191,7 @@ class QcController extends Controller
                 ]);
                 // request dari form foto upload
                 foreach (range(1, rand(1, 3)) as $i) {
-                    ReportPhoto::create([
+                    $reportPhotoModel::create([
                         'qc_report_id' => $qcReport->id,
                         'keterangan' => "Foto {$kategoriName} batch {$batchKe}",
                         'path' => 'uploads/qc/' . Str::random(12) . '.jpg',
@@ -764,13 +1218,15 @@ class QcController extends Controller
     }
 
     //
-    private function saveTimelineQC(InspectSchedule $inspectSchedule)
+    private function saveTimelineQC($inspectSchedule)
     {
+        $inspectionModel = $this->inspectionScheduleModel();
+
         try {
             /* ===============================
            CEK APAKAH LANJUTAN
         =============================== */
-            $previous = InspectSchedule::where('detail_po_id', $inspectSchedule->detail_po_id)
+            $previous = $inspectionModel::where('detail_po_id', $inspectSchedule->detail_po_id)
                 ->where('kategori_id', $inspectSchedule->kategori_id)
                 ->where('id', '!=', $inspectSchedule->id)
                 ->exists();
@@ -838,7 +1294,9 @@ class QcController extends Controller
     }
     public function laporan()
     {
-        $inspection = InspectSchedule::with(['kategori', 'user', 'spk', 'detailPo', 'po'])
+        $inspectionModel = $this->inspectionScheduleModel();
+
+        $inspection = $inspectionModel::with(['kategori', 'user', 'spk', 'detailPo', 'po'])
             ->orderBy('tanggal_inspect', 'desc')
             ->get();
         // dd($inspection);
@@ -881,6 +1339,8 @@ class QcController extends Controller
     }
     public function getData(string $kategoriName, string $detailPoId, string $poId)
     {
+        $qcReportModel = $this->qcReportModel();
+
         /* ===============================
        KATEGORI
     =============================== */
@@ -900,7 +1360,7 @@ class QcController extends Controller
         /* ===============================
        QC REPORT
     =============================== */
-        $qcReports = QcReport::with([
+        $qcReports = $qcReportModel::with([
             'inspectSchedule:id,po_id,detail_po_id,batch,jumlah_inspect,tanggal_inspect,user_id,passed,rejected',
             'checkpoint:id,name',
             'photos:id,qc_report_id,inspect_schedule_id,keterangan,path',
@@ -1044,79 +1504,179 @@ class QcController extends Controller
         ]);
     }
 
+    private const USE_TEST_INSPECTION = true;
+    //  helpers
 
+    private function inspectionScheduleModel(): string
+    {
+        return self::USE_TEST_INSPECTION
+            ? InspectScheduleTest::class
+            : InspectSchedule::class;
+    }
+
+    private function qcReportModel(): string
+    {
+        return self::USE_TEST_INSPECTION
+            ? QcReportTest::class
+            : QcReport::class;
+    }
+
+    private function reportPhotoModel(): string
+    {
+        return self::USE_TEST_INSPECTION
+            ? ReportPhotoTest::class
+            : ReportPhoto::class;
+    }
     public function insertInspection(
         string $kategoriName,
         Request $request
     ) {
+        $inspectionModel = $this->inspectionScheduleModel();
+        $qcReportModel = $this->qcReportModel();
+        $reportPhotoModel = $this->reportPhotoModel();
 
         DB::beginTransaction();
+
         try {
+
             /*
-        |--------------------------------------------------------------------------
-        | KATEGORI
-        |--------------------------------------------------------------------------
-        */
+            |--------------------------------------------------------------------------
+            | MODEL / MODE
+            |--------------------------------------------------------------------------
+            |
+            | Semua query inspection di function ini akan otomatis
+            | menggunakan tabel TEST atau PRODUCTION berdasarkan
+            | USE_TEST_INSPECTION.
+            |
+            */
+
+            $inspectionModel = $this->inspectionScheduleModel();
+            $qcReportModel = $this->qcReportModel();
+            $reportPhotoModel = $this->reportPhotoModel();
+
+            Log::info('========== QC MODE ==========', [
+                'mode' => self::USE_TEST_INSPECTION
+                    ? 'TEST'
+                    : 'PRODUCTION',
+                'inspect_schedule_model' => $inspectionModel,
+                'qc_report_model' => $qcReportModel,
+                'report_photo_model' => $reportPhotoModel,
+            ]);
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | KATEGORI
+            |--------------------------------------------------------------------------
+            */
+
             $kategoriName = strtolower(
                 trim($kategoriName)
             );
+
             $kategoriName = str_replace(
                 'qc ',
                 '',
                 $kategoriName
             );
+
             $kategori = Kategori::whereRaw(
                 'LOWER(kategori) = ?',
                 [$kategoriName]
             )->first();
-            $kategoriTanpaSpk = ['unfinish', 'final', 'packaging'];
 
-            $useSpk = !in_array($kategoriName, $kategoriTanpaSpk);
+            $kategoriTanpaSpk = [
+                'unfinish',
+                'final',
+                'packaging'
+            ];
+
+            $useSpk = !in_array(
+                $kategoriName,
+                $kategoriTanpaSpk
+            );
+
             if (!$kategori) {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'Kategori tidak ditemukan',
                 ], 404);
             }
+
+
             /*
-        |--------------------------------------------------------------------------
-        | DATA
-        |--------------------------------------------------------------------------
-        */
+            |--------------------------------------------------------------------------
+            | DATA
+            |--------------------------------------------------------------------------
+            */
+
             $po_id =
                 $request->po_id;
+
             $detail_po_id =
                 $request->detail_po_id;
+
             $spk_id =
                 $request->spk_id;
+
             $reports =
                 $request->reports ?? [];
+
             $findings =
                 $request->findings ?? [];
+
             $qtyInspection =
-                (int) $request
-                    ->qty_inspection;
+                (int) $request->qty_inspection;
+
             $passed =
-                (int) $request
-                    ->passed;
+                (int) $request->passed;
+
             $rejected =
-                (int) $request
-                    ->rejected;
+                (int) $request->rejected;
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | FLAG INSPECTION
+            |--------------------------------------------------------------------------
+            */
+
             $isReinspect =
                 $request->boolean('is_reinspect');
-            Log::info('================ QC INSERT =================');
+
+            $isService =
+                $request->boolean('is_service');
+
+            $nwService =
+                $request->boolean('nw_service');
+
+
+            Log::info(
+                '================ QC INSERT ================='
+            );
 
             Log::info('QC REQUEST', [
                 'po' => $po_id,
                 'detail_po' => $detail_po_id,
                 'spk' => $spk_id,
                 'kategori' => $kategoriName,
+
+                'is_reinspect' => $isReinspect,
+                'is_service' => $isService,
+                'nw_service' => $nwService,
+
+                'mode' => self::USE_TEST_INSPECTION
+                    ? 'TEST'
+                    : 'PRODUCTION',
             ]);
+
+
             /*
-        |--------------------------------------------------------------------------
-        | VALIDASI
-        |--------------------------------------------------------------------------
-        */
+            |--------------------------------------------------------------------------
+            | VALIDASI PASSED + REJECTED
+            |--------------------------------------------------------------------------
+            */
+
             if (
                 ($passed + $rejected)
                 != $qtyInspection
@@ -1126,269 +1686,1544 @@ class QcController extends Controller
                     'message' => 'Passed + Rejected tidak sesuai',
                 ], 400);
             }
-            /*
-        |--------------------------------------------------------------------------
-        | BATCH
-        |--------------------------------------------------------------------------
-        */
-            if ($useSpk) {
 
-                $batchKe = InspectSchedule::where('spk_id', $spk_id)
-                    ->where('kategori_id', $kategori->id)
-                    ->count() + 1;
 
-            } else {
-
-                $batchKe = InspectSchedule::where('detail_po_id', $detail_po_id)
-                    ->where('kategori_id', $kategori->id)
-                    ->count() + 1;
-
-            }
-
-            //
             /*
             |--------------------------------------------------------------------------
-            | VALIDASI QTY
+            | BATCH
             |--------------------------------------------------------------------------
             */
 
             if ($useSpk) {
 
-                $batchKe = InspectSchedule::where('spk_id', $spk_id)
-                    ->where('kategori_id', $kategori->id)
+                $batchKe = $inspectionModel::where(
+                    'spk_id',
+                    $spk_id
+                )
+                    ->where(
+                        'kategori_id',
+                        $kategori->id
+                    )
                     ->count() + 1;
 
             } else {
 
-                $batchKe = InspectSchedule::where('detail_po_id', $detail_po_id)
-                    ->where('kategori_id', $kategori->id)
+                $batchKe = $inspectionModel::where(
+                    'detail_po_id',
+                    $detail_po_id
+                )
+                    ->where(
+                        'kategori_id',
+                        $kategori->id
+                    )
                     ->count() + 1;
-
             }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | QTY SPK / INSPECTION
+            |--------------------------------------------------------------------------
+            */
 
             if ($useSpk) {
 
-                $spk = \App\Models\Spk::findOrFail($spk_id);
-                $spkData = is_array($spk->data) ? $spk->data : json_decode($spk->data, true);
+                $spk = \App\Models\Spk::findOrFail(
+                    $spk_id
+                );
 
-                $item = collect($spkData['items'] ?? [])->first(function ($i) use ($detail_po_id) {
-                    return ($i['detail_po_id'] ?? null) == $detail_po_id;
-                });
+                $spkData = is_array($spk->data)
+                    ? $spk->data
+                    : json_decode(
+                        $spk->data,
+                        true
+                    );
+
+                $item = collect(
+                    $spkData['items'] ?? []
+                )->first(
+                        function ($i) use ($detail_po_id) {
+
+                            return (
+                                $i['detail_po_id'] ?? null
+                            ) == $detail_po_id;
+                        }
+                    );
 
                 if (!$item) {
-                    throw new \Exception('Item SPK tidak ditemukan');
+                    throw new \Exception(
+                        'Item SPK tidak ditemukan'
+                    );
                 }
 
-                $qtyPo = (int) ($item['qty'] ?? 0);
+                $qtyPo = (int) (
+                    $item['qty'] ?? 0
+                );
 
-                $totalInspect = InspectSchedule::where('spk_id', $spk_id)
-                    ->where('detail_po_id', $detail_po_id)
-                    ->where('kategori_id', $kategori->id)
-                    ->sum('jumlah_inspect');
 
-                $totalRejected = InspectSchedule::where('spk_id', $spk_id)
-                    ->where('kategori_id', $kategori->id)
-                    ->sum('rejected');
+                /*
+                |--------------------------------------------------------------------------
+                | TOTAL INSPECT
+                |--------------------------------------------------------------------------
+                */
+
+                $totalInspect = $inspectionModel::where(
+                    'spk_id',
+                    $spk_id
+                )
+                    ->where(
+                        'detail_po_id',
+                        $detail_po_id
+                    )
+                    ->where(
+                        'kategori_id',
+                        $kategori->id
+                    )
+                    ->sum(
+                        'jumlah_inspect'
+                    );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | TOTAL REJECTED
+                |--------------------------------------------------------------------------
+                */
+
+                $totalRejected = $inspectionModel::where(
+                    'spk_id',
+                    $spk_id
+                )
+                    ->where(
+                        'kategori_id',
+                        $kategori->id
+                    )
+                    ->sum(
+                        'rejected'
+                    );
 
             } else {
 
-                $detailPo = DetailPo::findOrFail($detail_po_id);
-                $qtyPo = (int) ($detailPo->detail['qty'] ?? 0);
+                /*
+                |--------------------------------------------------------------------------
+                | DETAIL PO
+                |--------------------------------------------------------------------------
+                */
 
-                $totalInspect = InspectSchedule::where('detail_po_id', $detail_po_id)
-                    ->where('kategori_id', $kategori->id)
-                    ->sum('jumlah_inspect');
+                $detailPo = DetailPo::findOrFail(
+                    $detail_po_id
+                );
 
-                $totalRejected = InspectSchedule::where('detail_po_id', $detail_po_id)
-                    ->where('kategori_id', $kategori->id)
-                    ->sum('rejected');
+                $qtyPo = (int) (
+                    $detailPo->detail['qty'] ?? 0
+                );
 
+
+                /*
+                |--------------------------------------------------------------------------
+                | TOTAL INSPECT
+                |--------------------------------------------------------------------------
+                */
+
+                $totalInspect = $inspectionModel::where(
+                    'detail_po_id',
+                    $detail_po_id
+                )
+                    ->where(
+                        'kategori_id',
+                        $kategori->id
+                    )
+                    ->sum(
+                        'jumlah_inspect'
+                    );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | TOTAL REJECTED
+                |--------------------------------------------------------------------------
+                */
+
+                $totalRejected = $inspectionModel::where(
+                    'detail_po_id',
+                    $detail_po_id
+                )
+                    ->where(
+                        'kategori_id',
+                        $kategori->id
+                    )
+                    ->sum(
+                        'rejected'
+                    );
             }
 
-            $inspectSchedule =
-                InspectSchedule::create([
-                    'po_id' => $po_id,
-                    'detail_po_id' => $detail_po_id,
-                    'kategori_id' => $kategori->id,
-                    'batch' => $batchKe,
-                    'jumlah_inspect' => $qtyInspection,
-                    'passed' => $passed,
-                    'rejected' => $rejected,
-                    'tanggal_inspect' => now()
-                        ->toDateString(),
-                    'user_id' => auth()->id() ?? 1,
-                    'spk_id' => $useSpk ? $spk_id : null,
-                ]);
+
             /*
-        |--------------------------------------------------------------------------
-        | SAVE TIMELINE
-        |--------------------------------------------------------------------------
-        */
+            |--------------------------------------------------------------------------
+            | INSERT INSPECT SCHEDULE
+            |--------------------------------------------------------------------------
+            */
+
+            $inspectSchedule =
+                $inspectionModel::create([
+
+                    'po_id' =>
+                        $po_id,
+
+                    'detail_po_id' =>
+                        $detail_po_id,
+
+                    'kategori_id' =>
+                        $kategori->id,
+
+                    'batch' =>
+                        $batchKe,
+
+                    'jumlah_inspect' =>
+                        $qtyInspection,
+
+                    'passed' =>
+                        $passed,
+
+                    'rejected' =>
+                        $rejected,
+
+                    'tanggal_inspect' =>
+                        now()->toDateString(),
+
+                    'user_id' =>
+                        auth()->id() ?? 1,
+
+                    'spk_id' =>
+                        $useSpk
+                        ? $spk_id
+                        : null,
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | FLAG
+                    |--------------------------------------------------------------------------
+                    */
+
+                    'is_reinspect' =>
+                        $isReinspect,
+
+                    'is_service' =>
+                        $isService,
+
+                    'nw_service' =>
+                        $nwService,
+                ]);
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | SAVE TIMELINE
+            |--------------------------------------------------------------------------
+            */
+
             $this->saveTimelineQC(
                 $inspectSchedule
             );
+
+
             /*
-        |--------------------------------------------------------------------------
-        | REPORTS
-        |--------------------------------------------------------------------------
-        */
+            |--------------------------------------------------------------------------
+            | REPORTS
+            |--------------------------------------------------------------------------
+            */
+
+            $qcReportMap = [];
+
             foreach ($reports as $report) {
+
                 $checkpointName = strtolower(
                     trim(
                         $report['checkpoint_name']
                     )
                 );
+
                 $value =
                     $report['value'];
+
+
                 /*
-            |--------------------------------------------------------------------------
-            | KEY
-            |--------------------------------------------------------------------------
-            */
+                |--------------------------------------------------------------------------
+                | KEY
+                |--------------------------------------------------------------------------
+                */
+
                 $key = str_replace(
                     ' ',
                     '_',
                     $checkpointName
                 );
+
+
                 /*
-            |--------------------------------------------------------------------------
-            | JSON CHECK
-            |--------------------------------------------------------------------------
-            */
+                |--------------------------------------------------------------------------
+                | JSON CHECK
+                |--------------------------------------------------------------------------
+                */
+
                 $decoded =
                     json_decode(
                         $value,
                         true
                     );
+
+
                 /*
-            |--------------------------------------------------------------------------
-            | REMARK FORMAT
-            |--------------------------------------------------------------------------
-            */
+                |--------------------------------------------------------------------------
+                | REMARK FORMAT
+                |--------------------------------------------------------------------------
+                */
+
                 if (
                     json_last_error()
                     === JSON_ERROR_NONE
                 ) {
+
                     $remark = [
                         $key => $decoded,
                     ];
+
                 } else {
+
                     $remark = [
                         $key => $value,
                     ];
                 }
+
+
                 /*
-            |--------------------------------------------------------------------------
-            | INSERT REPORT
-            |--------------------------------------------------------------------------
-            */
-                $qcReport = QcReport::create([
-                    'inspect_schedule_id' => $inspectSchedule->id,
-                    'check_point_id' => $report['checkpoint_id'],
-                    'po_id' => $po_id,
-                    'detail_po_id' => $detail_po_id,
-                    'remark' => json_encode(
-                        $remark
-                    ),
+                |--------------------------------------------------------------------------
+                | INSERT QC REPORT
+                |--------------------------------------------------------------------------
+                */
+
+                $qcReport = $qcReportModel::create([
+
+                    'inspect_schedule_id' =>
+                        $inspectSchedule->id,
+
+                    'check_point_id' =>
+                        $report['checkpoint_id'],
+
+                    'po_id' =>
+                        $po_id,
+
+                    'detail_po_id' =>
+                        $detail_po_id,
+
+                    'remark' =>
+                        json_encode(
+                            $remark
+                        ),
                 ]);
+
+
                 $qcReportMap[
                     $report['checkpoint_id']
                 ] = $qcReport;
             }
+
+
             /*
-        |--------------------------------------------------------------------------
-        | FINDING PHOTOS
-        |--------------------------------------------------------------------------
-        */
-            if ($request->hasFile('finding_images')) {
-                foreach ($request->file('finding_images') as $index => $file) {
+            |--------------------------------------------------------------------------
+            | FINDING PHOTOS
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                $request->hasFile(
+                    'finding_images'
+                )
+            ) {
+
+                foreach (
+                    $request->file(
+                        'finding_images'
+                    ) as $index => $file
+                ) {
+
                     $filename =
-                        Str::uuid() . '.' .
-                        $file->getClientOriginalExtension();
+                        Str::uuid()
+                        . '.'
+                        . $file
+                            ->getClientOriginalExtension();
+
+
                     $path = $file->storeAs(
                         'uploads/qc',
                         $filename,
                         'public'
                     );
-                    ReportPhoto::create([
-                        // ✅ TEMUAN GLOBAL
-                        // 'qc_report_id'        => $qcReport->id,
-                        'inspect_schedule_id' => $inspectSchedule->id,
-                        'keterangan' => $findings[$index]['remark'] ?? null,
-                        'path' => $path,
+
+
+                    $reportPhotoModel::create([
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | TEMUAN GLOBAL
+                        |--------------------------------------------------------------------------
+                        */
+
+                        'inspect_schedule_id' =>
+                            $inspectSchedule->id,
+
+                        'keterangan' =>
+                            $findings[$index]['remark']
+                            ?? null,
+
+                        'path' =>
+                            $path,
                     ]);
                 }
             }
-            if ($request->has('checkpoint_photos')) {
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | CHECKPOINT PHOTOS
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                $request->has(
+                    'checkpoint_photos'
+                )
+            ) {
+
                 foreach (
-                    $request->checkpoint_photos as $checkpointId => $photos
+                    $request->checkpoint_photos
+                    as $checkpointId => $photos
                 ) {
-                    // ✅ AMBIL QC REPORT SESUAI CHECKPOINT
-                    $checkpointReport = QcReport::where(
-                        'inspect_schedule_id',
-                        $inspectSchedule->id
-                    )
-                        ->where(
-                            'check_point_id',
-                            $checkpointId
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | AMBIL QC REPORT SESUAI CHECKPOINT
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $checkpointReport =
+                        $qcReportModel::where(
+                            'inspect_schedule_id',
+                            $inspectSchedule->id
                         )
-                        ->first();
+                            ->where(
+                                'check_point_id',
+                                $checkpointId
+                            )
+                            ->first();
+
+
                     if (!$checkpointReport) {
                         continue;
                     }
-                    foreach ($photos as $index => $file) {
+
+
+                    foreach (
+                        $photos as $index => $file
+                    ) {
+
                         if (
-                            !$file instanceof \Illuminate\Http\UploadedFile
+                            !$file instanceof
+                            \Illuminate\Http\UploadedFile
                         ) {
                             continue;
                         }
+
+
                         $filename =
-                            Str::uuid() . '.' .
-                            $file->getClientOriginalExtension();
+                            Str::uuid()
+                            . '.'
+                            . $file
+                                ->getClientOriginalExtension();
+
+
                         $path = $file->storeAs(
                             'uploads/qc',
                             $filename,
                             'public'
                         );
-                        ReportPhoto::create([
-                            // ✅ QC REPORT YANG BENAR
-                            'qc_report_id' => $checkpointReport->id,
-                            'inspect_schedule_id' => $inspectSchedule->id,
-                            'keterangan' => $request
-                                ->checkpoint_photo_remarks[$checkpointId][$index] ?? null,
-                            'path' => $path,
+
+
+                        $reportPhotoModel::create([
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | QC REPORT YANG BENAR
+                            |--------------------------------------------------------------------------
+                            */
+
+                            'qc_report_id' =>
+                                $checkpointReport->id,
+
+                            'inspect_schedule_id' =>
+                                $inspectSchedule->id,
+
+                            'keterangan' =>
+                                $request
+                                    ->checkpoint_photo_remarks[
+                                    $checkpointId
+                                ][$index]
+                                ?? null,
+
+                            'path' =>
+                                $path,
                         ]);
                     }
                 }
             }
-            DB::commit();
-            Log::info(
-                '===== QC INSERT SUCCESS ====='
-            );
 
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Inspection berhasil',
-                'batch' => $batchKe,
-                'inspect_schedule_id' => $inspectSchedule->id,
-            ]);
-        } catch (\Throwable $e) {
-            DB::rollBack();
-            Log::error(
-                'QC ERROR',
+
+            /*
+            |--------------------------------------------------------------------------
+            | COMMIT
+            |--------------------------------------------------------------------------
+            */
+
+            DB::commit();
+
+
+            Log::info(
+                '===== QC INSERT SUCCESS =====',
                 [
-                    'msg' => $e->getMessage(),
-                    'line' => $e->getLine(),
-                    'file' => $e->getFile(),
+                    'mode' =>
+                        self::USE_TEST_INSPECTION
+                        ? 'TEST'
+                        : 'PRODUCTION',
+
+                    'inspect_schedule_id' =>
+                        $inspectSchedule->id,
+
+                    'batch' =>
+                        $batchKe,
                 ]
             );
 
+
             return response()->json([
-                'status' => 'error',
-                'message' => $e->getMessage(),
+
+                'status' =>
+                    'success',
+
+                'message' =>
+                    'Inspection berhasil',
+
+                'batch' =>
+                    $batchKe,
+
+                'inspect_schedule_id' =>
+                    $inspectSchedule->id,
+
+                /*
+                |--------------------------------------------------------------------------
+                | DEBUG MODE
+                |--------------------------------------------------------------------------
+                */
+
+                'mode' =>
+                    self::USE_TEST_INSPECTION
+                    ? 'TEST'
+                    : 'PRODUCTION',
+            ]);
+
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+
+            Log::error(
+                'QC ERROR',
+                [
+                    'msg' =>
+                        $e->getMessage(),
+
+                    'line' =>
+                        $e->getLine(),
+
+                    'file' =>
+                        $e->getFile(),
+
+                    'mode' =>
+                        self::USE_TEST_INSPECTION
+                        ? 'TEST'
+                        : 'PRODUCTION',
+                ]
+            );
+
+
+            return response()->json([
+                'status' =>
+                    'error',
+
+                'message' =>
+                    $e->getMessage(),
             ], 500);
         }
     }
+    //   public function insertInspection(
+//     string $kategoriName,
+//     Request $request
+// ) {
+//     DB::beginTransaction();
+
+    //     try {
+//         /*
+//         |--------------------------------------------------------------------------
+//         | KATEGORI
+//         |--------------------------------------------------------------------------
+//         */
+//         $kategoriName = strtolower(
+//             trim($kategoriName)
+//         );
+
+    //         $kategoriName = str_replace(
+//             'qc ',
+//             '',
+//             $kategoriName
+//         );
+
+    //         $kategori = Kategori::whereRaw(
+//             'LOWER(kategori) = ?',
+//             [$kategoriName]
+//         )->first();
+
+    //         $kategoriTanpaSpk = [
+//             'unfinish',
+//             'final',
+//             'packaging'
+//         ];
+
+    //         $useSpk = ! in_array(
+//             $kategoriName,
+//             $kategoriTanpaSpk
+//         );
+
+    //         if (! $kategori) {
+//             return response()->json([
+//                 'status' => 'error',
+//                 'message' => 'Kategori tidak ditemukan',
+//             ], 404);
+//         }
+
+    //         /*
+//         |--------------------------------------------------------------------------
+//         | DATA
+//         |--------------------------------------------------------------------------
+//         */
+//         $po_id =
+//             $request->po_id;
+
+    //         $detail_po_id =
+//             $request->detail_po_id;
+
+    //         $spk_id =
+//             $request->spk_id;
+
+    //         $reports =
+//             $request->reports ?? [];
+
+    //         $findings =
+//             $request->findings ?? [];
+
+    //         $qtyInspection =
+//             (int) $request
+//                 ->qty_inspection;
+
+    //         $passed =
+//             (int) $request
+//                 ->passed;
+
+    //         $rejected =
+//             (int) $request
+//                 ->rejected;
+
+    //         // ============================================================
+//         // TAMBAHAN FLAG INSPECTION
+//         // ============================================================
+//         $isReinspect =
+//             $request->boolean('is_reinspect');
+
+    //         $isService =
+//             $request->boolean('is_service');
+
+    //         $nwService =
+//             $request->boolean('nw_service');
+
+    //         Log::info(
+//             '================ QC INSERT ================='
+//         );
+
+    //         Log::info('QC REQUEST', [
+//             'po' => $po_id,
+//             'detail_po' => $detail_po_id,
+//             'spk' => $spk_id,
+//             'kategori' => $kategoriName,
+
+    //             // debug flag
+//             'is_reinspect' => $isReinspect,
+//             'is_service' => $isService,
+//             'nw_service' => $nwService,
+//         ]);
+
+    //         /*
+//         |--------------------------------------------------------------------------
+//         | VALIDASI
+//         |--------------------------------------------------------------------------
+//         */
+//         if (
+//             ($passed + $rejected)
+//             != $qtyInspection
+//         ) {
+//             return response()->json([
+//                 'status' => 'error',
+//                 'message' => 'Passed + Rejected tidak sesuai',
+//             ], 400);
+//         }
+
+    //         /*
+//         |--------------------------------------------------------------------------
+//         | BATCH
+//         |--------------------------------------------------------------------------
+//         */
+//         if ($useSpk) {
+
+    //             $batchKe = $inspectionModel::where(
+//                 'spk_id',
+//                 $spk_id
+//             )
+//                 ->where(
+//                     'kategori_id',
+//                     $kategori->id
+//                 )
+//                 ->count() + 1;
+
+    //         } else {
+
+    //             $batchKe = $inspectionModel::where(
+//                 'detail_po_id',
+//                 $detail_po_id
+//             )
+//                 ->where(
+//                     'kategori_id',
+//                     $kategori->id
+//                 )
+//                 ->count() + 1;
+//         }
+
+    //         /*
+//         |--------------------------------------------------------------------------
+//         | VALIDASI QTY
+//         |--------------------------------------------------------------------------
+//         */
+
+    //         if ($useSpk) {
+
+    //             $batchKe = $inspectionModel::where(
+//                 'spk_id',
+//                 $spk_id
+//             )
+//                 ->where(
+//                     'kategori_id',
+//                     $kategori->id
+//                 )
+//                 ->count() + 1;
+
+    //         } else {
+
+    //             $batchKe = $inspectionModel::where(
+//                 'detail_po_id',
+//                 $detail_po_id
+//             )
+//                 ->where(
+//                     'kategori_id',
+//                     $kategori->id
+//                 )
+//                 ->count() + 1;
+//         }
+
+    //         /*
+//         |--------------------------------------------------------------------------
+//         | QTY SPK / INSPECTION
+//         |--------------------------------------------------------------------------
+//         */
+//         if ($useSpk) {
+
+    //             $spk = \App\Models\Spk::findOrFail(
+//                 $spk_id
+//             );
+
+    //             $spkData = is_array($spk->data)
+//                 ? $spk->data
+//                 : json_decode(
+//                     $spk->data,
+//                     true
+//                 );
+
+    //             $item = collect(
+//                 $spkData['items'] ?? []
+//             )->first(
+//                 function ($i) use ($detail_po_id) {
+
+    //                     return (
+//                         $i['detail_po_id'] ?? null
+//                     ) == $detail_po_id;
+//                 }
+//             );
+
+    //             if (! $item) {
+//                 throw new \Exception(
+//                     'Item SPK tidak ditemukan'
+//                 );
+//             }
+
+    //             $qtyPo = (int) (
+//                 $item['qty'] ?? 0
+//             );
+
+    //             $totalInspect = $inspectionModel::where(
+//                 'spk_id',
+//                 $spk_id
+//             )
+//                 ->where(
+//                     'detail_po_id',
+//                     $detail_po_id
+//                 )
+//                 ->where(
+//                     'kategori_id',
+//                     $kategori->id
+//                 )
+//                 ->sum(
+//                     'jumlah_inspect'
+//                 );
+
+    //             $totalRejected = $inspectionModel::where(
+//                 'spk_id',
+//                 $spk_id
+//             )
+//                 ->where(
+//                     'kategori_id',
+//                     $kategori->id
+//                 )
+//                 ->sum(
+//                     'rejected'
+//                 );
+
+    //         } else {
+
+    //             $detailPo = DetailPo::findOrFail(
+//                 $detail_po_id
+//             );
+
+    //             $qtyPo = (int) (
+//                 $detailPo->detail['qty'] ?? 0
+//             );
+
+    //             $totalInspect = $inspectionModel::where(
+//                 'detail_po_id',
+//                 $detail_po_id
+//             )
+//                 ->where(
+//                     'kategori_id',
+//                     $kategori->id
+//                 )
+//                 ->sum(
+//                     'jumlah_inspect'
+//                 );
+
+    //             $totalRejected = $inspectionModel::where(
+//                 'detail_po_id',
+//                 $detail_po_id
+//             )
+//                 ->where(
+//                     'kategori_id',
+//                     $kategori->id
+//                 )
+//                 ->sum(
+//                     'rejected'
+//                 );
+//         }
+
+    //         /*
+//         |--------------------------------------------------------------------------
+//         | INSERT INSPECT SCHEDULE
+//         |--------------------------------------------------------------------------
+//         */
+//         $inspectSchedule =
+//             $inspectionModel::create([
+
+    //                 'po_id' =>
+//                     $po_id,
+
+    //                 'detail_po_id' =>
+//                     $detail_po_id,
+
+    //                 'kategori_id' =>
+//                     $kategori->id,
+
+    //                 'batch' =>
+//                     $batchKe,
+
+    //                 'jumlah_inspect' =>
+//                     $qtyInspection,
+
+    //                 'passed' =>
+//                     $passed,
+
+    //                 'rejected' =>
+//                     $rejected,
+
+    //                 'tanggal_inspect' =>
+//                     now()->toDateString(),
+
+    //                 'user_id' =>
+//                     auth()->id() ?? 1,
+
+    //                 'spk_id' =>
+//                     $useSpk
+//                         ? $spk_id
+//                         : null,
+
+    //                 // ====================================================
+//                 // TAMBAHAN FLAG
+//                 // ====================================================
+//                 'is_reinspect' =>
+//                     $isReinspect,
+
+    //                 'is_service' =>
+//                     $isService,
+
+    //                 'nw_service' =>
+//                     $nwService,
+//             ]);
+
+    //         /*
+//         |--------------------------------------------------------------------------
+//         | SAVE TIMELINE
+//         |--------------------------------------------------------------------------
+//         */
+//         $this->saveTimelineQC(
+//             $inspectSchedule
+//         );
+
+    //         /*
+//         |--------------------------------------------------------------------------
+//         | REPORTS
+//         |--------------------------------------------------------------------------
+//         */
+//         foreach ($reports as $report) {
+
+    //             $checkpointName = strtolower(
+//                 trim(
+//                     $report['checkpoint_name']
+//                 )
+//             );
+
+    //             $value =
+//                 $report['value'];
+
+    //             /*
+//             |--------------------------------------------------------------------------
+//             | KEY
+//             |--------------------------------------------------------------------------
+//             */
+//             $key = str_replace(
+//                 ' ',
+//                 '_',
+//                 $checkpointName
+//             );
+
+    //             /*
+//             |--------------------------------------------------------------------------
+//             | JSON CHECK
+//             |--------------------------------------------------------------------------
+//             */
+//             $decoded =
+//                 json_decode(
+//                     $value,
+//                     true
+//                 );
+
+    //             /*
+//             |--------------------------------------------------------------------------
+//             | REMARK FORMAT
+//             |--------------------------------------------------------------------------
+//             */
+//             if (
+//                 json_last_error()
+//                 === JSON_ERROR_NONE
+//             ) {
+
+    //                 $remark = [
+//                     $key => $decoded,
+//                 ];
+
+    //             } else {
+
+    //                 $remark = [
+//                     $key => $value,
+//                 ];
+//             }
+
+    //             /*
+//             |--------------------------------------------------------------------------
+//             | INSERT REPORT
+//             |--------------------------------------------------------------------------
+//             */
+//             $qcReport = $qcReportModel::create([
+
+    //                 'inspect_schedule_id' =>
+//                     $inspectSchedule->id,
+
+    //                 'check_point_id' =>
+//                     $report['checkpoint_id'],
+
+    //                 'po_id' =>
+//                     $po_id,
+
+    //                 'detail_po_id' =>
+//                     $detail_po_id,
+
+    //                 'remark' =>
+//                     json_encode(
+//                         $remark
+//                     ),
+//             ]);
+
+    //             $qcReportMap[
+//                 $report['checkpoint_id']
+//             ] = $qcReport;
+//         }
+
+    //         /*
+//         |--------------------------------------------------------------------------
+//         | FINDING PHOTOS
+//         |--------------------------------------------------------------------------
+//         */
+//         if (
+//             $request->hasFile(
+//                 'finding_images'
+//             )
+//         ) {
+
+    //             foreach (
+//                 $request->file(
+//                     'finding_images'
+//                 ) as $index => $file
+//             ) {
+
+    //                 $filename =
+//                     Str::uuid()
+//                     . '.'
+//                     . $file
+//                         ->getClientOriginalExtension();
+
+    //                 $path = $file->storeAs(
+//                     'uploads/qc',
+//                     $filename,
+//                     'public'
+//                 );
+
+    //                 $reportPhotoModel::create([
+
+    //                     // TEMUAN GLOBAL
+//                     // 'qc_report_id' => $qcReport->id,
+
+    //                     'inspect_schedule_id' =>
+//                         $inspectSchedule->id,
+
+    //                     'keterangan' =>
+//                         $findings[$index]['remark']
+//                         ?? null,
+
+    //                     'path' =>
+//                         $path,
+//                 ]);
+//             }
+//         }
+
+    //         /*
+//         |--------------------------------------------------------------------------
+//         | CHECKPOINT PHOTOS
+//         |--------------------------------------------------------------------------
+//         */
+//         if (
+//             $request->has(
+//                 'checkpoint_photos'
+//             )
+//         ) {
+
+    //             foreach (
+//                 $request->checkpoint_photos
+//                 as $checkpointId => $photos
+//             ) {
+
+    //                 /*
+//                 |--------------------------------------------------------------------------
+//                 | AMBIL QC REPORT SESUAI CHECKPOINT
+//                 |--------------------------------------------------------------------------
+//                 */
+//                 $checkpointReport =
+//                     $qcReportModel::where(
+//                         'inspect_schedule_id',
+//                         $inspectSchedule->id
+//                     )
+//                         ->where(
+//                             'check_point_id',
+//                             $checkpointId
+//                         )
+//                         ->first();
+
+    //                 if (! $checkpointReport) {
+//                     continue;
+//                 }
+
+    //                 foreach (
+//                     $photos as $index => $file
+//                 ) {
+
+    //                     if (
+//                         ! $file instanceof
+//                         \Illuminate\Http\UploadedFile
+//                     ) {
+//                         continue;
+//                     }
+
+    //                     $filename =
+//                         Str::uuid()
+//                         . '.'
+//                         . $file
+//                             ->getClientOriginalExtension();
+
+    //                     $path = $file->storeAs(
+//                         'uploads/qc',
+//                         $filename,
+//                         'public'
+//                     );
+
+    //                     $reportPhotoModel::create([
+
+    //                         // QC REPORT YANG BENAR
+//                         'qc_report_id' =>
+//                             $checkpointReport->id,
+
+    //                         'inspect_schedule_id' =>
+//                             $inspectSchedule->id,
+
+    //                         'keterangan' =>
+//                             $request
+//                                 ->checkpoint_photo_remarks[
+//                                     $checkpointId
+//                                 ][$index]
+//                             ?? null,
+
+    //                         'path' =>
+//                             $path,
+//                     ]);
+//                 }
+//             }
+//         }
+
+    //         /*
+//         |--------------------------------------------------------------------------
+//         | COMMIT
+//         |--------------------------------------------------------------------------
+//         */
+//         DB::commit();
+
+    //         Log::info(
+//             '===== QC INSERT SUCCESS ====='
+//         );
+
+    //         return response()->json([
+//             'status' =>
+//                 'success',
+
+    //             'message' =>
+//                 'Inspection berhasil',
+
+    //             'batch' =>
+//                 $batchKe,
+
+    //             'inspect_schedule_id' =>
+//                 $inspectSchedule->id,
+//         ]);
+
+    //     } catch (\Throwable $e) {
+
+    //         DB::rollBack();
+
+    //         Log::error(
+//             'QC ERROR',
+//             [
+//                 'msg' =>
+//                     $e->getMessage(),
+
+    //                 'line' =>
+//                     $e->getLine(),
+
+    //                 'file' =>
+//                     $e->getFile(),
+//             ]
+//         );
+
+    //         return response()->json([
+//             'status' =>
+//                 'error',
+
+    //             'message' =>
+//                 $e->getMessage(),
+//         ], 500);
+//     }
+// }
+//   public function insertInspection(
+//         string $kategoriName,
+//         Request $request
+//     ) {
+
+    //         DB::beginTransaction();
+//         try {
+//             /*
+//         |--------------------------------------------------------------------------
+//         | KATEGORI
+//         |--------------------------------------------------------------------------
+//         */
+//             $kategoriName = strtolower(
+//                 trim($kategoriName)
+//             );
+//             $kategoriName = str_replace(
+//                 'qc ',
+//                 '',
+//                 $kategoriName
+//             );
+//             $kategori = Kategori::whereRaw(
+//                 'LOWER(kategori) = ?',
+//                 [$kategoriName]
+//             )->first();
+//             $kategoriTanpaSpk = ['unfinish', 'final', 'packaging'];
+
+    //             $useSpk = ! in_array($kategoriName, $kategoriTanpaSpk);
+//             if (! $kategori) {
+//                 return response()->json([
+//                     'status' => 'error',
+//                     'message' => 'Kategori tidak ditemukan',
+//                 ], 404);
+//             }
+//             /*
+//         |--------------------------------------------------------------------------
+//         | DATA
+//         |--------------------------------------------------------------------------
+//         */
+//             $po_id =
+//             $request->po_id;
+//             $detail_po_id =
+//             $request->detail_po_id;
+//             $spk_id =
+//             $request->spk_id;
+//             $reports =
+//             $request->reports ?? [];
+//             $findings =
+//             $request->findings ?? [];
+//             $qtyInspection =
+//             (int) $request
+//                 ->qty_inspection;
+//             $passed =
+//             (int) $request
+//                 ->passed;
+//             $rejected =
+//             (int) $request
+//                 ->rejected;
+//             $isReinspect =
+//             $request->boolean('is_reinspect');
+//             Log::info('================ QC INSERT =================');
+
+    //             Log::info('QC REQUEST', [
+//                 'po' => $po_id,
+//                 'detail_po' => $detail_po_id,
+//                 'spk' => $spk_id,
+//                 'kategori' => $kategoriName,
+//             ]);
+//             /*
+//         |--------------------------------------------------------------------------
+//         | VALIDASI
+//         |--------------------------------------------------------------------------
+//         */
+//             if (
+//                 ($passed + $rejected)
+//                 != $qtyInspection
+//             ) {
+//                 return response()->json([
+//                     'status' => 'error',
+//                     'message' => 'Passed + Rejected tidak sesuai',
+//                 ], 400);
+//             }
+//             /*
+//         |--------------------------------------------------------------------------
+//         | BATCH
+//         |--------------------------------------------------------------------------
+//         */
+//             if ($useSpk) {
+
+    //                 $batchKe = $inspectionModel::where('spk_id', $spk_id)
+//                     ->where('kategori_id', $kategori->id)
+//                     ->count() + 1;
+
+    //             } else {
+
+    //                 $batchKe = $inspectionModel::where('detail_po_id', $detail_po_id)
+//                     ->where('kategori_id', $kategori->id)
+//                     ->count() + 1;
+
+    //             }
+
+    //             //
+//             /*
+//             |--------------------------------------------------------------------------
+//             | VALIDASI QTY
+//             |--------------------------------------------------------------------------
+//             */
+
+    //             if ($useSpk) {
+
+    //                 $batchKe = $inspectionModel::where('spk_id', $spk_id)
+//                     ->where('kategori_id', $kategori->id)
+//                     ->count() + 1;
+
+    //             } else {
+
+    //                 $batchKe = $inspectionModel::where('detail_po_id', $detail_po_id)
+//                     ->where('kategori_id', $kategori->id)
+//                     ->count() + 1;
+
+    //             }
+
+    //             if ($useSpk) {
+
+    //                 $spk = \App\Models\Spk::findOrFail($spk_id);
+//                 $spkData = is_array($spk->data) ? $spk->data : json_decode($spk->data, true);
+
+    //                 $item = collect($spkData['items'] ?? [])->first(function ($i) use ($detail_po_id) {
+//                     return ($i['detail_po_id'] ?? null) == $detail_po_id;
+//                 });
+
+    //                 if (! $item) {
+//                     throw new \Exception('Item SPK tidak ditemukan');
+//                 }
+
+    //                 $qtyPo = (int) ($item['qty'] ?? 0);
+
+    //                 $totalInspect = $inspectionModel::where('spk_id', $spk_id)
+//                     ->where('detail_po_id', $detail_po_id)
+//                     ->where('kategori_id', $kategori->id)
+//                     ->sum('jumlah_inspect');
+
+    //                 $totalRejected = $inspectionModel::where('spk_id', $spk_id)
+//                     ->where('kategori_id', $kategori->id)
+//                     ->sum('rejected');
+
+    //             } else {
+
+    //                 $detailPo = DetailPo::findOrFail($detail_po_id);
+//                 $qtyPo = (int) ($detailPo->detail['qty'] ?? 0);
+
+    //                 $totalInspect = $inspectionModel::where('detail_po_id', $detail_po_id)
+//                     ->where('kategori_id', $kategori->id)
+//                     ->sum('jumlah_inspect');
+
+    //                 $totalRejected = $inspectionModel::where('detail_po_id', $detail_po_id)
+//                     ->where('kategori_id', $kategori->id)
+//                     ->sum('rejected');
+
+    //             }
+
+    //             $inspectSchedule =
+//             $inspectionModel::create([
+//                 'po_id' => $po_id,
+//                 'detail_po_id' => $detail_po_id,
+//                 'kategori_id' => $kategori->id,
+//                 'batch' => $batchKe,
+//                 'jumlah_inspect' => $qtyInspection,
+//                 'passed' => $passed,
+//                 'rejected' => $rejected,
+//                 'tanggal_inspect' => now()
+//                     ->toDateString(),
+//                 'user_id' => auth()->id() ?? 1,
+//                 'spk_id' => $useSpk ? $spk_id : null,
+//             ]);
+//             /*
+//         |--------------------------------------------------------------------------
+//         | SAVE TIMELINE
+//         |--------------------------------------------------------------------------
+//         */
+//             $this->saveTimelineQC(
+//                 $inspectSchedule
+//             );
+//             /*
+//         |--------------------------------------------------------------------------
+//         | REPORTS
+//         |--------------------------------------------------------------------------
+//         */
+//             foreach ($reports as $report) {
+//                 $checkpointName = strtolower(
+//                     trim(
+//                         $report['checkpoint_name']
+//                     )
+//                 );
+//                 $value =
+//                     $report['value'];
+//                 /*
+//             |--------------------------------------------------------------------------
+//             | KEY
+//             |--------------------------------------------------------------------------
+//             */
+//                 $key = str_replace(
+//                     ' ',
+//                     '_',
+//                     $checkpointName
+//                 );
+//                 /*
+//             |--------------------------------------------------------------------------
+//             | JSON CHECK
+//             |--------------------------------------------------------------------------
+//             */
+//                 $decoded =
+//                     json_decode(
+//                         $value,
+//                         true
+//                     );
+//                 /*
+//             |--------------------------------------------------------------------------
+//             | REMARK FORMAT
+//             |--------------------------------------------------------------------------
+//             */
+//                 if (
+//                     json_last_error()
+//                     === JSON_ERROR_NONE
+//                 ) {
+//                     $remark = [
+//                         $key => $decoded,
+//                     ];
+//                 } else {
+//                     $remark = [
+//                         $key => $value,
+//                     ];
+//                 }
+//                 /*
+//             |--------------------------------------------------------------------------
+//             | INSERT REPORT
+//             |--------------------------------------------------------------------------
+//             */
+//                 $qcReport = $qcReportModel::create([
+//                     'inspect_schedule_id' => $inspectSchedule->id,
+//                     'check_point_id' => $report['checkpoint_id'],
+//                     'po_id' => $po_id,
+//                     'detail_po_id' => $detail_po_id,
+//                     'remark' => json_encode(
+//                         $remark
+//                     ),
+//                 ]);
+//                 $qcReportMap[
+//                     $report['checkpoint_id']
+//                 ] = $qcReport;
+//             }
+//             /*
+//         |--------------------------------------------------------------------------
+//         | FINDING PHOTOS
+//         |--------------------------------------------------------------------------
+//         */
+//             if ($request->hasFile('finding_images')) {
+//                 foreach ($request->file('finding_images') as $index => $file) {
+//                     $filename =
+//                     Str::uuid().'.'.
+//                     $file->getClientOriginalExtension();
+//                     $path = $file->storeAs(
+//                         'uploads/qc',
+//                         $filename,
+//                         'public'
+//                     );
+//                     $reportPhotoModel::create([
+//                         // ✅ TEMUAN GLOBAL
+//                         // 'qc_report_id'        => $qcReport->id,
+//                         'inspect_schedule_id' => $inspectSchedule->id,
+//                         'keterangan' => $findings[$index]['remark'] ?? null,
+//                         'path' => $path,
+//                     ]);
+//                 }
+//             }
+//             if ($request->has('checkpoint_photos')) {
+//                 foreach (
+//                     $request->checkpoint_photos as $checkpointId => $photos
+//                 ) {
+//                     // ✅ AMBIL QC REPORT SESUAI CHECKPOINT
+//                     $checkpointReport = $qcReportModel::where(
+//                         'inspect_schedule_id',
+//                         $inspectSchedule->id
+//                     )
+//                         ->where(
+//                             'check_point_id',
+//                             $checkpointId
+//                         )
+//                         ->first();
+//                     if (! $checkpointReport) {
+//                         continue;
+//                     }
+//                     foreach ($photos as $index => $file) {
+//                         if (
+//                             ! $file instanceof \Illuminate\Http\UploadedFile
+//                         ) {
+//                             continue;
+//                         }
+//                         $filename =
+//                         Str::uuid().'.'.
+//                         $file->getClientOriginalExtension();
+//                         $path = $file->storeAs(
+//                             'uploads/qc',
+//                             $filename,
+//                             'public'
+//                         );
+//                         $reportPhotoModel::create([
+//                             // ✅ QC REPORT YANG BENAR
+//                             'qc_report_id' => $checkpointReport->id,
+//                             'inspect_schedule_id' => $inspectSchedule->id,
+//                             'keterangan' => $request
+//                                 ->checkpoint_photo_remarks[$checkpointId][$index] ?? null,
+//                             'path' => $path,
+//                         ]);
+//                     }
+//                 }
+//             }
+//             DB::commit();
+//             Log::info(
+//                 '===== QC INSERT SUCCESS ====='
+//             );
+
+    //             return response()->json([
+//                 'status' => 'success',
+//                 'message' => 'Inspection berhasil',
+//                 'batch' => $batchKe,
+//                 'inspect_schedule_id' => $inspectSchedule->id,
+//             ]);
+//         } catch (\Throwable $e) {
+//             DB::rollBack();
+//             Log::error(
+//                 'QC ERROR',
+//                 [
+//                     'msg' => $e->getMessage(),
+//                     'line' => $e->getLine(),
+//                     'file' => $e->getFile(),
+//                 ]
+//             );
+
+    //             return response()->json([
+//                 'status' => 'error',
+//                 'message' => $e->getMessage(),
+//             ], 500);
+//         }
+//     }
 
     public function show(string $id)
     {
@@ -1400,332 +3235,3236 @@ class QcController extends Controller
         return view('pages.qc.detail', compact('data', 'detailP', 'jenis'));
     }
 
-    // public function getPo()
-    // {
-    //     $userId = auth()->id();
-    //     $user = auth()->user();
+    //      public function getPo()
+//     {
+//         $userId = auth()->id();
+//         $user = auth()->user();
+
+    //         $user->load('karyawan.divisi');
+
+    //         // divisi dari request (khusus Sobana)
+//         $requestDivisi = request('divisi');
+
+    //         // kalau tidak ada, pakai divisi user login
+//         $divisiQc = strtoupper(
+//             $requestDivisi
+//                 ?: ($user->karyawan?->divisi?->nama ?? '')
+//         );
+//           Log::info('hallo', [
+//                 'schedule_id' => $divisiQc,
+//             ]);
+//         /*
+//     |--------------------------------------------------------------------------
+//     | GET PO
+//     |--------------------------------------------------------------------------
+//     */
+
+    //         $pos = Po::with([
+//             'details',
+//             'spks',
+//         ])->get();
+
+    //         $detailPoIds = $pos
+//             ->pluck('details')
+//             ->flatten()
+//             ->pluck('id');
+
+    //         /*
+//     |--------------------------------------------------------------------------
+//     | ARTICLE
+//     |--------------------------------------------------------------------------
+//     */
+
+    //       $articleNumbers = $pos
+//             ->pluck('details')
+//             ->flatten()
+//             ->map(function ($detail) {
+//                 $articleNr = $detail->detail['article_nr_'] ?? null;
+//                 $nwCode = $detail->detail['nw_code'] ?? null;
+
+    //                 return $nwCode === null
+//                     ? $articleNr
+//                     : ($articleNr ?? $nwCode);
+//             })
+//             ->filter()
+//             ->unique()
+//             ->values();
+
+    //         /*
+//     |--------------------------------------------------------------------------
+//     | BOM
+//     |--------------------------------------------------------------------------
+//     */
+
+    //         $boms = Bom::with([
+//             'groups.items',
+//         ])
+//             ->whereIn(
+//                 'article_number',
+//                 $articleNumbers
+//             )
+//             ->get();
+
+    //         $bomMap = $boms->keyBy(
+//             'article_number'
+//         );
+
+    //         /*
+//     |--------------------------------------------------------------------------
+//     | CAD
+//     |--------------------------------------------------------------------------
+//     */
+
+    //         $cads = CadModel::whereIn(
+//             'article_code',
+//             $articleNumbers
+//         )
+//             ->orderByDesc('version')
+//             ->get()
+//             ->groupBy(function ($item) {
+
+    //                 return (string)
+//                 $item->article_code;
+
+    //             });
+
+    //         /*
+//     |--------------------------------------------------------------------------
+//     | INSPECTION
+//     |--------------------------------------------------------------------------
+//     */
+
+    //         $inspectionSchedules =
+//         $inspectionModel::with([
+//             'kategori',
+//             'user',
+//         ])
+//             ->whereIn(
+//                 'detail_po_id',
+//                 $detailPoIds
+//             )
+//             ->get();
+
+    //         /*
+//     |--------------------------------------------------------------------------
+//     | MAPPING
+//     |--------------------------------------------------------------------------
+//     */
+
+    //         $pos->each(function ($po) use (
+
+    //         $bomMap,
+//         $cads,
+//         $inspectionSchedules,
+//           $divisiQc
+
+
+
+
+    //         ) {
+
+    //             $po->details->each(function ($detail) use (
+
+    //                 $po,
+//                 $bomMap,
+//                 $cads,
+//                 $inspectionSchedules,
+//           $divisiQc
+
+    //             ) {
+
+    //                 /*
+//             |--------------------------------------------------------------------------
+//             | ARTICLE
+//             |--------------------------------------------------------------------------
+//             */
+
+    //                 $article = (string) (
+
+    //                     $detail->detail['article_nr_'] ?? ''
+
+    //                 );
+
+    //                 /*
+//             |--------------------------------------------------------------------------
+//             | BOM
+//             |--------------------------------------------------------------------------
+//             */
+
+    //                 $detail->bom = (
+
+    //                     $article &&
+//                     isset($bomMap[$article])
+
+    //                 )
+//                     ? $bomMap[$article]
+//                     : null;
+
+    //                 /*
+//             |--------------------------------------------------------------------------
+//             | CAD
+//             |--------------------------------------------------------------------------
+//             */
+
+    //                 $detail->cad = (
+
+    //                     $article &&
+//                     isset($cads[$article])
+
+    //                 )
+//                     ? $cads[$article]->first()
+//                     : null;
+
+    //                 /*
+//             |--------------------------------------------------------------------------
+//             | INSPECTION
+//             |--------------------------------------------------------------------------
+//             */
+
+    //                 $detail->inspection_schedules =
+//                 $inspectionSchedules
+//                     ->where(
+//                         'detail_po_id',
+//                         $detail->id
+//                     )
+//                     ->values();
+
+    //                 /*
+//             |--------------------------------------------------------------------------
+//             | SPK TERKAIT
+//             |--------------------------------------------------------------------------
+//             */
+
+    //                 $relatedSpks = [];
+
+    //                 foreach ($po->spks as $spk) {
+
+    //                     $spkData = $spk->data;
+// // each baru
+//             $kategoriSpk = strtoupper(
+//                 $spkData['kategori'] ?? ''
+//             );
+
+    //             if (
+//                 !$this->matchDivisi(
+//                     $divisiQc,
+//                     $kategoriSpk
+//                 )
+//             ) {
+//                 continue;
+//             }
+//                     if (
+//                         is_string($spkData)
+//                     ) {
+
+    //                         $spkData = json_decode(
+//                             $spkData,
+//                             true
+//                         );
+
+    //                     }
+
+    //                     $items =
+//                     $spkData['items'] ?? [];
+
+    //                     foreach ($items as $item) {
+
+    //                         if (
+
+    //                             ($item['detail_po_id'] ?? null)
+
+    //                             ==
+
+    //                             $detail->id
+
+    //                         ) {
+//                             $inspect = $inspectionSchedules
+//                                 ->where('detail_po_id', $detail->id)
+//                                 ->where('spk_id', $spk->id);
+
+    //                             $passed = $inspect->sum('passed');
+
+    //                             $rejected = $inspect->sum('rejected');
+
+    //                             $relatedSpks[] = [
+//                             // TAMBAHAN
+
+
+
+
+
+    //                                 'passed'      => $passed,
+
+    //                                 'rejected'    => $rejected,
+//                                 'id'          =>
+//                                 $spk->id,
+
+    //                                 'supplier'    =>
+//                                 $spkData['sup'] ?? null,
+
+    //                                 'kategori'    =>
+//                                 $spkData['kategori'] ?? null,
+
+    //                                 'status'      =>
+//                                 $spkData['status'] ?? null,
+
+    //                                 'no_spk'      =>
+//                                 $spkData['no_spk'] ?? null,
+
+    //                                 'tgl_terima'  =>
+//                                 $spkData['tgl_terima'] ?? null,
+
+    //                                 'tgl_selesai' =>
+//                                 $spkData['tgl_selesai'] ?? null,
+
+    //                                 'material'    =>
+//                                 $item['material'] ?? '',
+
+    //                                 'qty'         =>
+//                                 $item['qty'] ?? 0,
+
+    //                                 'harga'       =>
+//                                 $item['harga'] ?? 0,
+
+    //                                 'total'       =>
+//                                 $item['total'] ?? 0,
+
+    //                             ];
+
+    //                         }
+
+    //                     }
+
+    //                 }
+
+    //                 $detail->spks =
+//                     $relatedSpks;
+
+    //             });
+
+    //         });
+
+    //         /*
+//     |--------------------------------------------------------------------------
+//     | RETURN
+//     |--------------------------------------------------------------------------
+//     */
+
+    //         return response()->json([
+
+    //             'status' => 'success',
+
+    //             'data'   => $pos,
+
+    //         ]);
+//     }
+// public function getPo()
+// {
+//     $userId = auth()->id();
+//     $user = auth()->user();
 
     //     $user->load('karyawan.divisi');
 
     //     // divisi dari request (khusus Sobana)
-    //     $requestDivisi = request('divisi');
+//     $requestDivisi = request('divisi');
 
     //     // kalau tidak ada, pakai divisi user login
-    //     $divisiQc = strtoupper(
-    //         $requestDivisi
-    //         ?: ($user->karyawan?->divisi?->nama ?? '')
-    //     );
+//     $divisiQc = strtoupper(
+//         $requestDivisi
+//         ?: ($user->karyawan?->divisi?->nama ?? '')
+//     );
+
     //     Log::info('hallo', [
-    //         'schedule_id' => $divisiQc,
-    //     ]);
+//         'schedule_id' => $divisiQc,
+//     ]);
+
     //     /*
-    // |--------------------------------------------------------------------------
-    // | GET PO
-    // |--------------------------------------------------------------------------
-    // */
+//     |--------------------------------------------------------------------------
+//     | HELPER PEMBULATAN NUMERIC
+//     |--------------------------------------------------------------------------
+//     |
+//     | Hanya bekerja pada response API.
+//     | Tidak mengubah database.
+//     |
+//     | Contoh:
+//     |
+//     | 56       -> 56
+//     | 56.4     -> 56
+//     | 56.5     -> 57
+//     | "56,5"   -> 57
+//     | "56.5"   -> 57
+//     |
+//     |--------------------------------------------------------------------------
+//     */
+//     $roundNumeric = function ($value) {
+
+    //         if ($value === null || $value === '') {
+//             return $value;
+//         }
+
+    //         if (is_int($value)) {
+//             return $value;
+//         }
+
+    //         if (is_float($value)) {
+//             return (int) round($value);
+//         }
+
+    //         if (is_string($value)) {
+
+    //             $value = trim($value);
+
+    //             if ($value === '') {
+//                 return $value;
+//             }
+
+    //             /*
+//             |--------------------------------------------------------------------------
+//             | HANYA PROSES STRING YANG MEMANG ANGKA
+//             |--------------------------------------------------------------------------
+//             */
+
+    //             $normalized = $value;
+
+    //             // 56,5 -> 56.5
+//             if (
+//                 str_contains($normalized, ',') &&
+//                 !str_contains($normalized, '.')
+//             ) {
+
+    //                 $normalized = str_replace(
+//                     ',',
+//                     '.',
+//                     $normalized
+//                 );
+//             }
+
+    //             /*
+//             |--------------------------------------------------------------------------
+//             | FORMAT 1.250,5
+//             |--------------------------------------------------------------------------
+//             */
+
+    //             elseif (
+//                 str_contains($normalized, ',') &&
+//                 str_contains($normalized, '.')
+//             ) {
+
+    //                 $lastComma =
+//                     strrpos($normalized, ',');
+
+    //                 $lastDot =
+//                     strrpos($normalized, '.');
+
+    //                 if ($lastComma > $lastDot) {
+
+    //                     // 1.250,5 -> 1250.5
+
+    //                     $normalized =
+//                         str_replace(
+//                             '.',
+//                             '',
+//                             $normalized
+//                         );
+
+    //                     $normalized =
+//                         str_replace(
+//                             ',',
+//                             '.',
+//                             $normalized
+//                         );
+//                 }
+
+    //                 /*
+//                 |--------------------------------------------------------------------------
+//                 | FORMAT 1,250.5
+//                 |--------------------------------------------------------------------------
+//                 */
+
+    //                 else {
+
+    //                     $normalized =
+//                         str_replace(
+//                             ',',
+//                             '',
+//                             $normalized
+//                         );
+//                 }
+//             }
+
+    //             if (is_numeric($normalized)) {
+
+    //                 return (int) round(
+//                     (float) $normalized
+//                 );
+//             }
+
+    //             /*
+//             |--------------------------------------------------------------------------
+//             | BUKAN ANGKA
+//             |--------------------------------------------------------------------------
+//             |
+//             | Misalnya:
+//             | "ZIVANA CHAIR"
+//             | "56 KG"
+//             | "RANGKA BESI"
+//             |
+//             | Jangan disentuh.
+//             |--------------------------------------------------------------------------
+//             */
+
+    //             return $value;
+//         }
+
+    //         return $value;
+//     };
+
+    //     /*
+//     |--------------------------------------------------------------------------
+//     | RECURSIVE NORMALIZATION
+//     |--------------------------------------------------------------------------
+//     |
+//     | Collection / Model / Array akan dibaca sampai nested paling dalam.
+//     |
+//     | Tetapi ID integer tetap integer.
+//     |
+//     |--------------------------------------------------------------------------
+//     */
+
+    //     $normalizeResponse = function ($value) use (
+//         &$normalizeResponse,
+//         $roundNumeric
+//     ) {
+
+    //         /*
+//         |--------------------------------------------------------------------------
+//         | COLLECTION
+//         |--------------------------------------------------------------------------
+//         */
+
+    //         if ($value instanceof \Illuminate\Support\Collection) {
+
+    //             return $value
+//                 ->map(function ($item) use (
+//                     $normalizeResponse
+//                 ) {
+
+    //                     return $normalizeResponse(
+//                         $item
+//                     );
+//                 })
+//                 ->values()
+//                 ->all();
+//         }
+
+    //         /*
+//         |--------------------------------------------------------------------------
+//         | ELOQUENT MODEL
+//         |--------------------------------------------------------------------------
+//         */
+
+    //         if (
+//             $value instanceof
+//             \Illuminate\Database\Eloquent\Model
+//         ) {
+
+    //             return $normalizeResponse(
+//                 $value->toArray()
+//             );
+//         }
+
+    //         /*
+//         |--------------------------------------------------------------------------
+//         | ARRAY
+//         |--------------------------------------------------------------------------
+//         */
+
+    //         if (is_array($value)) {
+
+    //             $result = [];
+
+    //             foreach (
+//                 $value as $key => $item
+//             ) {
+
+    //                 /*
+//                 |--------------------------------------------------------------------------
+//                 | BOOLEAN
+//                 |--------------------------------------------------------------------------
+//                 */
+
+    //                 if (is_bool($item)) {
+
+    //                     $result[$key] = $item;
+
+    //                     continue;
+//                 }
+
+    //                 /*
+//                 |--------------------------------------------------------------------------
+//                 | ARRAY / OBJECT / COLLECTION
+//                 |--------------------------------------------------------------------------
+//                 */
+
+    //                 if (
+//                     is_array($item) ||
+//                     $item instanceof
+//                         \Illuminate\Support\Collection ||
+//                     $item instanceof
+//                         \Illuminate\Database\Eloquent\Model
+//                 ) {
+
+    //                     $result[$key] =
+//                         $normalizeResponse(
+//                             $item
+//                         );
+
+    //                     continue;
+//                 }
+
+    //                 /*
+//                 |--------------------------------------------------------------------------
+//                 | NUMERIC
+//                 |--------------------------------------------------------------------------
+//                 */
+
+    //                 if (
+//                     is_int($item) ||
+//                     is_float($item) ||
+//                     (
+//                         is_string($item) &&
+//                         is_numeric(
+//                             str_replace(
+//                                 ',',
+//                                 '.',
+//                                 trim($item)
+//                             )
+//                         )
+//                     )
+//                 ) {
+
+    //                     /*
+//                     |--------------------------------------------------------------------------
+//                     | JANGAN UBAH FIELD TEXT TERTENTU
+//                     |--------------------------------------------------------------------------
+//                     |
+//                     | Contoh:
+//                     | article number
+//                     | kode
+//                     | no_spk
+//                     | no_po
+//                     | phone
+//                     | tanggal
+//                     |
+//                     |--------------------------------------------------------------------------
+//                     */
+
+    //                     $protectedKeys = [
+
+    //                         'id',
+//                         'po_id',
+//                         'spk_id',
+//                         'detail_po_id',
+//                         'user_id',
+//                         'kategori_id',
+//                         'batch',
+//                         'version',
+
+    //                         'kode',
+//                         'article_code',
+//                         'article_number',
+//                         'article_nr_',
+//                         'nw_code',
+
+    //                         'no_spk',
+//                         'no_po',
+//                         'nomor_invoice',
+
+    //                         'tanggal',
+//                         'tanggal_invoice',
+//                         'tanggal_inspect',
+//                         'tgl_terima',
+//                         'tgl_selesai',
+
+    //                         'status',
+//                         'kategori',
+//                         'supplier',
+//                         'material',
+//                         'nama',
+//                         'description',
+//                     ];
+
+    //                     if (
+//                         in_array(
+//                             $key,
+//                             $protectedKeys,
+//                             true
+//                         )
+//                     ) {
+
+    //                         $result[$key] = $item;
+
+    //                     } else {
+
+    //                         $result[$key] =
+//                             $roundNumeric(
+//                                 $item
+//                             );
+//                     }
+
+    //                     continue;
+//                 }
+
+    //                 /*
+//                 |--------------------------------------------------------------------------
+//                 | VALUE LAIN
+//                 |--------------------------------------------------------------------------
+//                 */
+
+    //                 $result[$key] = $item;
+//             }
+
+    //             return $result;
+//         }
+
+    //         /*
+//         |--------------------------------------------------------------------------
+//         | NUMERIC LANGSUNG
+//         |--------------------------------------------------------------------------
+//         */
+
+    //         if (
+//             is_int($value) ||
+//             is_float($value)
+//         ) {
+
+    //             return $roundNumeric(
+//                 $value
+//             );
+//         }
+
+    //         return $value;
+//     };
+
+    //     /*
+//     |--------------------------------------------------------------------------
+//     | GET PO
+//     |--------------------------------------------------------------------------
+//     */
 
     //     $pos = Po::with([
-    //         'details',
-    //         'spks',
-    //     ])->get();
+//         'details',
+//         'spks',
+//     ])->get();
 
     //     $detailPoIds = $pos
-    //         ->pluck('details')
-    //         ->flatten()
-    //         ->pluck('id');
+//         ->pluck('details')
+//         ->flatten()
+//         ->pluck('id');
 
     //     /*
-    // |--------------------------------------------------------------------------
-    // | ARTICLE
-    // |--------------------------------------------------------------------------
-    // */
+//     |--------------------------------------------------------------------------
+//     | ARTICLE
+//     |--------------------------------------------------------------------------
+//     */
 
     //     $articleNumbers = $pos
-    //         ->pluck('details')
-    //         ->flatten()
-    //         ->map(function ($detail) {
-    //             $articleNr = $detail->detail['article_nr_'] ?? null;
-    //             $nwCode = $detail->detail['nw_code'] ?? null;
+//         ->pluck('details')
+//         ->flatten()
+//         ->map(function ($detail) {
+
+    //             $articleNr =
+//                 $detail->detail['article_nr_']
+//                 ?? null;
+
+    //             $nwCode =
+//                 $detail->detail['nw_code']
+//                 ?? null;
 
     //             return $nwCode === null
-    //                 ? $articleNr
-    //                 : ($articleNr ?? $nwCode);
-    //         })
-    //         ->filter()
-    //         ->unique()
-    //         ->values();
+//                 ? $articleNr
+//                 : ($articleNr ?? $nwCode);
+//         })
+//         ->filter()
+//         ->unique()
+//         ->values();
 
     //     /*
-    // |--------------------------------------------------------------------------
-    // | BOM
-    // |--------------------------------------------------------------------------
-    // */
+//     |--------------------------------------------------------------------------
+//     | BOM
+//     |--------------------------------------------------------------------------
+//     */
 
     //     $boms = Bom::with([
-    //         'groups.items',
-    //     ])
-    //         ->whereIn(
-    //             'article_number',
-    //             $articleNumbers
-    //         )
-    //         ->get();
+//         'groups.items',
+//     ])
+//         ->whereIn(
+//             'article_number',
+//             $articleNumbers
+//         )
+//         ->get();
 
     //     $bomMap = $boms->keyBy(
-    //         'article_number'
-    //     );
+//         'article_number'
+//     );
 
     //     /*
-    // |--------------------------------------------------------------------------
-    // | CAD
-    // |--------------------------------------------------------------------------
-    // */
+//     |--------------------------------------------------------------------------
+//     | CAD
+//     |--------------------------------------------------------------------------
+//     */
 
     //     $cads = CadModel::whereIn(
-    //         'article_code',
-    //         $articleNumbers
-    //     )
-    //         ->orderByDesc('version')
-    //         ->get()
-    //         ->groupBy(function ($item) {
+//         'article_code',
+//         $articleNumbers
+//     )
+//         ->orderByDesc('version')
+//         ->get()
+//         ->groupBy(function ($item) {
 
-    //             return (string) 
-    //                 $item->article_code;
-
-    //         });
+    //             return (string)
+//                 $item->article_code;
+//         });
 
     //     /*
-    // |--------------------------------------------------------------------------
-    // | INSPECTION
-    // |--------------------------------------------------------------------------
-    // */
+//     |--------------------------------------------------------------------------
+//     | INSPECTION
+//     |--------------------------------------------------------------------------
+//     */
 
     //     $inspectionSchedules =
-    //         InspectSchedule::with([
-    //             'kategori',
-    //             'user',
-    //         ])
-    //             ->whereIn(
-    //                 'detail_po_id',
-    //                 $detailPoIds
-    //             )
-    //             ->get();
+//         $inspectionModel::with([
+//             'kategori',
+//             'user',
+//         ])
+//             ->whereIn(
+//                 'detail_po_id',
+//                 $detailPoIds
+//             )
+//             ->get();
 
     //     /*
-    // |--------------------------------------------------------------------------
-    // | MAPPING
-    // |--------------------------------------------------------------------------
-    // */
+//     |--------------------------------------------------------------------------
+//     | MAPPING
+//     |--------------------------------------------------------------------------
+//     */
 
-    //     $pos->each(function ($po) use ($bomMap, $cads, $inspectionSchedules, $divisiQc) {
+    //     $pos->each(function ($po) use (
+//         $bomMap,
+//         $cads,
+//         $inspectionSchedules,
+//         $divisiQc,
+//         $roundNumeric
+//     ) {
 
-    //         $po->details->each(function ($detail) use ($po, $bomMap, $cads, $inspectionSchedules, $divisiQc) {
+    //         $po->details->each(function ($detail) use (
+//             $po,
+//             $bomMap,
+//             $cads,
+//             $inspectionSchedules,
+//             $divisiQc,
+//             $roundNumeric
+//         ) {
 
     //             /*
-    //         |--------------------------------------------------------------------------
-    //         | ARTICLE
-    //         |--------------------------------------------------------------------------
-    //         */
+//             |--------------------------------------------------------------------------
+//             | ARTICLE
+//             |--------------------------------------------------------------------------
+//             */
 
     //             $article = (string) (
-
-    //                 $detail->detail['article_nr_'] ?? ''
-
-    //             );
+//                 $detail->detail['article_nr_']
+//                 ?? ''
+//             );
 
     //             /*
-    //         |--------------------------------------------------------------------------
-    //         | BOM
-    //         |--------------------------------------------------------------------------
-    //         */
+//             |--------------------------------------------------------------------------
+//             | BOM
+//             |--------------------------------------------------------------------------
+//             */
 
     //             $detail->bom = (
 
     //                 $article &&
-    //                 isset($bomMap[$article])
+//                 isset($bomMap[$article])
 
     //             )
-    //                 ? $bomMap[$article]
-    //                 : null;
+//                 ? $bomMap[$article]
+//                 : null;
 
     //             /*
-    //         |--------------------------------------------------------------------------
-    //         | CAD
-    //         |--------------------------------------------------------------------------
-    //         */
+//             |--------------------------------------------------------------------------
+//             | CAD
+//             |--------------------------------------------------------------------------
+//             */
 
     //             $detail->cad = (
 
     //                 $article &&
-    //                 isset($cads[$article])
+//                 isset($cads[$article])
 
     //             )
-    //                 ? $cads[$article]->first()
-    //                 : null;
+//                 ? $cads[$article]->first()
+//                 : null;
 
     //             /*
-    //         |--------------------------------------------------------------------------
-    //         | INSPECTION
-    //         |--------------------------------------------------------------------------
-    //         */
+//             |--------------------------------------------------------------------------
+//             | INSPECTION
+//             |--------------------------------------------------------------------------
+//             */
 
     //             $detail->inspection_schedules =
-    //                 $inspectionSchedules
-    //                     ->where(
-    //                         'detail_po_id',
-    //                         $detail->id
-    //                     )
-    //                     ->values();
+//                 $inspectionSchedules
+//                     ->where(
+//                         'detail_po_id',
+//                         $detail->id
+//                     )
+//                     ->values();
 
     //             /*
-    //         |--------------------------------------------------------------------------
-    //         | SPK TERKAIT
-    //         |--------------------------------------------------------------------------
-    //         */
+//             |--------------------------------------------------------------------------
+//             | SPK TERKAIT
+//             |--------------------------------------------------------------------------
+//             */
 
     //             $relatedSpks = [];
 
     //             foreach ($po->spks as $spk) {
 
     //                 $spkData = $spk->data;
-    //                 // each baru
-    //                 $kategoriSpk = strtoupper(
-    //                     $spkData['kategori'] ?? ''
-    //                 );
+
+    //                 /*
+//                 |--------------------------------------------------------------------------
+//                 | KATEGORI SPK
+//                 |--------------------------------------------------------------------------
+//                 */
+
+    //                 $kategoriSpk = '';
+
+    //                 if (is_array($spkData)) {
+
+    //                     $kategoriSpk = strtoupper(
+//                         $spkData['kategori']
+//                         ?? ''
+//                     );
+//                 }
+
+    //                 /*
+//                 |--------------------------------------------------------------------------
+//                 | FILTER DIVISI
+//                 |--------------------------------------------------------------------------
+//                 */
 
     //                 if (
-    //                     !$this->matchDivisi(
-    //                         $divisiQc,
-    //                         $kategoriSpk
-    //                     )
-    //                 ) {
-    //                     continue;
-    //                 }
-    //                 if (
-    //                     is_string($spkData)
-    //                 ) {
+//                     !$this->matchDivisi(
+//                         $divisiQc,
+//                         $kategoriSpk
+//                     )
+//                 ) {
+//                     continue;
+//                 }
 
-    //                     $spkData = json_decode(
-    //                         $spkData,
-    //                         true
-    //                     );
+    //                 /*
+//                 |--------------------------------------------------------------------------
+//                 | DECODE DATA JIKA STRING
+//                 |--------------------------------------------------------------------------
+//                 */
 
-    //                 }
+    //                 if (is_string($spkData)) {
+
+    //                     $spkData =
+//                         json_decode(
+//                             $spkData,
+//                             true
+//                         );
+
+    //                     if (!is_array($spkData)) {
+//                         $spkData = [];
+//                     }
+//                 }
 
     //                 $items =
-    //                     $spkData['items'] ?? [];
+//                     $spkData['items']
+//                     ?? [];
 
     //                 foreach ($items as $item) {
 
+    //                     /*
+//                     |--------------------------------------------------------------------------
+//                     | DETAIL PO
+//                     |--------------------------------------------------------------------------
+//                     */
+
     //                     if (
+//                         ($item['detail_po_id'] ?? null)
+//                         !=
+//                         $detail->id
+//                     ) {
+//                         continue;
+//                     }
 
-    //                         ($item['detail_po_id'] ?? null)
+    //                     /*
+//                     |--------------------------------------------------------------------------
+//                     | INSPECTION SPK
+//                     |--------------------------------------------------------------------------
+//                     */
 
-    //                         ==
+    //                     $inspect =
+//                         $inspectionSchedules
+//                             ->where(
+//                                 'detail_po_id',
+//                                 $detail->id
+//                             )
+//                             ->where(
+//                                 'spk_id',
+//                                 $spk->id
+//                             );
 
-    //                         $detail->id
+    //                     /*
+//                     |--------------------------------------------------------------------------
+//                     | PASSED
+//                     |--------------------------------------------------------------------------
+//                     */
 
-    //                     ) {
-    //                         $inspect = $inspectionSchedules
-    //                             ->where('detail_po_id', $detail->id)
-    //                             ->where('spk_id', $spk->id);
+    //                     $passed =
+//                         $roundNumeric(
+//                             $inspect->sum(
+//                                 'passed'
+//                             )
+//                         );
 
-    //                         $passed = $inspect->sum('passed');
+    //                     /*
+//                     |--------------------------------------------------------------------------
+//                     | REJECTED
+//                     |--------------------------------------------------------------------------
+//                     */
 
-    //                         $rejected = $inspect->sum('rejected');
+    //                     $rejected =
+//                         $roundNumeric(
+//                             $inspect->sum(
+//                                 'rejected'
+//                             )
+//                         );
 
-    //                         $relatedSpks[] = [
-    //                             // TAMBAHAN
+    //                     /*
+//                     |--------------------------------------------------------------------------
+//                     | QTY
+//                     |--------------------------------------------------------------------------
+//                     */
 
+    //                     $qty =
+//                         $roundNumeric(
+//                             $item['qty']
+//                             ?? 0
+//                         );
 
+    //                     /*
+//                     |--------------------------------------------------------------------------
+//                     | HARGA
+//                     |--------------------------------------------------------------------------
+//                     */
 
+    //                     $harga =
+//                         $roundNumeric(
+//                             $item['harga']
+//                             ?? 0
+//                         );
 
+    //                     /*
+//                     |--------------------------------------------------------------------------
+//                     | TOTAL
+//                     |--------------------------------------------------------------------------
+//                     */
 
-    //                             'passed' => $passed,
+    //                     $total =
+//                         $roundNumeric(
+//                             $item['total']
+//                             ?? 0
+//                         );
 
-    //                             'rejected' => $rejected,
-    //                             'id' =>
-    //                                 $spk->id,
+    //                     /*
+//                     |--------------------------------------------------------------------------
+//                     | RELATED SPK
+//                     |--------------------------------------------------------------------------
+//                     */
 
-    //                             'supplier' =>
-    //                                 $spkData['sup'] ?? null,
+    //                     $relatedSpks[] = [
 
-    //                             'kategori' =>
-    //                                 $spkData['kategori'] ?? null,
+    //                         'passed' =>
+//                             $passed,
 
-    //                             'status' =>
-    //                                 $spkData['status'] ?? null,
+    //                         'rejected' =>
+//                             $rejected,
 
-    //                             'no_spk' =>
-    //                                 $spkData['no_spk'] ?? null,
+    //                         'id' =>
+//                             $spk->id,
 
-    //                             'tgl_terima' =>
-    //                                 $spkData['tgl_terima'] ?? null,
+    //                         'supplier' =>
+//                             $spkData['sup']
+//                             ?? null,
 
-    //                             'tgl_selesai' =>
-    //                                 $spkData['tgl_selesai'] ?? null,
+    //                         'kategori' =>
+//                             $spkData['kategori']
+//                             ?? null,
 
-    //                             'material' =>
-    //                                 $item['material'] ?? '',
+    //                         'status' =>
+//                             $spkData['status']
+//                             ?? null,
 
-    //                             'qty' =>
-    //                                 $item['qty'] ?? 0,
+    //                         'no_spk' =>
+//                             $spkData['no_spk']
+//                             ?? null,
 
-    //                             'harga' =>
-    //                                 $item['harga'] ?? 0,
+    //                         'tgl_terima' =>
+//                             $spkData['tgl_terima']
+//                             ?? null,
 
-    //                             'total' =>
-    //                                 $item['total'] ?? 0,
+    //                         'tgl_selesai' =>
+//                             $spkData['tgl_selesai']
+//                             ?? null,
 
-    //                         ];
+    //                         'material' =>
+//                             $item['material']
+//                             ?? '',
 
-    //                     }
+    //                         'qty' =>
+//                             $qty,
 
-    //                 }
+    //                         'harga' =>
+//                             $harga,
 
-    //             }
+    //                         'total' =>
+//                             $total,
+//                     ];
+//                 }
+//             }
+
+    //             /*
+//             |--------------------------------------------------------------------------
+//             | SIMPAN SPK KE DETAIL
+//             |--------------------------------------------------------------------------
+//             */
 
     //             $detail->spks =
-    //                 $relatedSpks;
-
-    //         });
-
-    //     });
+//                 $relatedSpks;
+//         });
+//     });
 
     //     /*
-    // |--------------------------------------------------------------------------
-    // | RETURN
-    // |--------------------------------------------------------------------------
-    // */
+//     |--------------------------------------------------------------------------
+//     | NORMALISASI FINAL RESPONSE
+//     |--------------------------------------------------------------------------
+//     |
+//     | Ini bagian penting.
+//     |
+//     | Sebelumnya kita hanya membulatkan relatedSpks.
+//     | Sekarang seluruh nested $pos diproses.
+//     |
+//     |--------------------------------------------------------------------------
+//     */
+
+    //     $responseData =
+//         $normalizeResponse($pos);
+
+    //     /*
+//     |--------------------------------------------------------------------------
+//     | RETURN
+//     |--------------------------------------------------------------------------
+//     */
 
     //     return response()->json([
 
     //         'status' => 'success',
 
-    //         'data' => $pos,
+    //         'data' =>
+//             $responseData,
 
     //     ]);
-    // }
+// }
+// public function getPo()
+// {
+//     $user = auth()->user();
+
+    //     // ============================================================
+//     // USER / DIVISI
+//     // ============================================================
+
+    //     $user->loadMissing('karyawan.divisi');
+
+    //     $requestDivisi = request('divisi');
+
+    //     $divisiQc = strtoupper(
+//         $requestDivisi
+//         ?: ($user->karyawan?->divisi?->nama ?? '')
+//     );
+
+
+    //     // ============================================================
+//     // HELPER ROUND NUMERIC
+//     // ============================================================
+
+    //     $roundNumeric = static function ($value) {
+
+    //         if ($value === null || $value === '') {
+//             return $value;
+//         }
+
+    //         if (is_int($value)) {
+//             return $value;
+//         }
+
+    //         if (is_float($value)) {
+//             return (int) round($value);
+//         }
+
+    //         if (!is_string($value)) {
+//             return $value;
+//         }
+
+    //         $value = trim($value);
+
+    //         if ($value === '') {
+//             return $value;
+//         }
+
+    //         $normalized = $value;
+
+    //         /*
+//          * 56,5
+//          */
+//         if (
+//             str_contains($normalized, ',') &&
+//             !str_contains($normalized, '.')
+//         ) {
+
+    //             $normalized = str_replace(
+//                 ',',
+//                 '.',
+//                 $normalized
+//             );
+//         }
+
+    //         /*
+//          * 1.250,5
+//          * 1,250.5
+//          */
+//         elseif (
+//             str_contains($normalized, ',') &&
+//             str_contains($normalized, '.')
+//         ) {
+
+    //             $lastComma = strrpos(
+//                 $normalized,
+//                 ','
+//             );
+
+    //             $lastDot = strrpos(
+//                 $normalized,
+//                 '.'
+//             );
+
+    //             /*
+//              * Indonesia:
+//              * 1.250,5
+//              */
+//             if ($lastComma > $lastDot) {
+
+    //                 $normalized = str_replace(
+//                     '.',
+//                     '',
+//                     $normalized
+//                 );
+
+    //                 $normalized = str_replace(
+//                     ',',
+//                     '.',
+//                     $normalized
+//                 );
+//             }
+
+    //             /*
+//              * English:
+//              * 1,250.5
+//              */
+//             else {
+
+    //                 $normalized = str_replace(
+//                     ',',
+//                     '',
+//                     $normalized
+//                 );
+//             }
+//         }
+
+    //         if (is_numeric($normalized)) {
+
+    //             return (int) round(
+//                 (float) $normalized
+//             );
+//         }
+
+    //         return $value;
+//     };
+
+
+    //     // ============================================================
+//     // PROTECTED NUMERIC KEYS
+//     // ============================================================
+
+    //     $protectedKeys = [
+
+    //         'id',
+//         'po_id',
+//         'spk_id',
+//         'detail_po_id',
+//         'user_id',
+//         'kategori_id',
+//         'batch',
+//         'version',
+
+    //         'kode',
+//         'article_code',
+//         'article_number',
+//         'article_nr_',
+//         'nw_code',
+
+    //         'no_spk',
+//         'no_po',
+//         'nomor_invoice',
+
+    //         'tanggal',
+//         'tanggal_invoice',
+//         'tanggal_inspect',
+//         'tgl_terima',
+//         'tgl_selesai',
+
+    //         'status',
+//         'kategori',
+//         'supplier',
+//         'material',
+//         'nama',
+//         'description',
+//     ];
+
+
+    //     // ============================================================
+//     // NORMALIZE ARRAY
+//     // ============================================================
+//     //
+//     // PENTING:
+//     // Model hanya di-convert ke array SATU KALI di bagian akhir.
+//     //
+//     // ============================================================
+
+    //     $normalizeArray = static function (
+//         array $data
+//     ) use (
+//         &$normalizeArray,
+//         $roundNumeric,
+//         $protectedKeys
+//     ) {
+
+    //         foreach ($data as $key => $value) {
+
+    //             // ----------------------------------------------------
+//             // ARRAY
+//             // ----------------------------------------------------
+
+    //             if (is_array($value)) {
+
+    //                 $data[$key] =
+//                     $normalizeArray($value);
+
+    //                 continue;
+//             }
+
+
+    //             // ----------------------------------------------------
+//             // INTEGER / FLOAT
+//             // ----------------------------------------------------
+
+    //             if (
+//                 is_int($value) ||
+//                 is_float($value)
+//             ) {
+
+    //                 if (
+//                     !in_array(
+//                         $key,
+//                         $protectedKeys,
+//                         true
+//                     )
+//                 ) {
+
+    //                     $data[$key] =
+//                         $roundNumeric($value);
+//                 }
+
+    //                 continue;
+//             }
+
+
+    //             // ----------------------------------------------------
+//             // STRING NUMERIC
+//             // ----------------------------------------------------
+
+    //             if (
+//                 is_string($value) &&
+//                 !in_array(
+//                     $key,
+//                     $protectedKeys,
+//                     true
+//                 )
+//             ) {
+
+    //                 $trimmed = trim($value);
+
+    //                 if (
+//                     $trimmed !== '' &&
+//                     is_numeric(
+//                         str_replace(
+//                             ',',
+//                             '.',
+//                             $trimmed
+//                         )
+//                     )
+//                 ) {
+
+    //                     $data[$key] =
+//                         $roundNumeric($value);
+//                 }
+//             }
+//         }
+
+    //         return $data;
+//     };
+
+
+    //     // ============================================================
+//     // 1. GET PO + RELATION
+//     // ============================================================
+
+    //     $pos = Po::with([
+//         'details',
+//         'spks',
+//     ])->get();
+
+
+    //     // ============================================================
+//     // 2. FLATTEN DETAILS SEKALI
+//     // ============================================================
+
+    //     $details = $pos
+//         ->pluck('details')
+//         ->flatten();
+
+
+    //     $detailPoIds = $details
+//         ->pluck('id')
+//         ->filter()
+//         ->unique()
+//         ->values();
+
+
+    //     // ============================================================
+//     // 3. ARTICLE NUMBERS
+//     // ============================================================
+
+    //     $articleNumbers = $details
+//         ->map(
+//             static function ($detail) {
+
+    //                 $detailData =
+//                     is_array($detail->detail)
+//                         ? $detail->detail
+//                         : [];
+
+    //                 $articleNr =
+//                     $detailData['article_nr_']
+//                     ?? null;
+
+    //                 $nwCode =
+//                     $detailData['nw_code']
+//                     ?? null;
+
+    //                 return $nwCode === null
+//                     ? $articleNr
+//                     : ($articleNr ?? $nwCode);
+//             }
+//         )
+//         ->filter()
+//         ->unique()
+//         ->values();
+
+
+    //     // ============================================================
+//     // 4. BOM
+//     // ============================================================
+
+    //     $bomMap = collect();
+
+    //     if ($articleNumbers->isNotEmpty()) {
+
+    //         $bomMap = Bom::with([
+//             'groups.items',
+//         ])
+//             ->whereIn(
+//                 'article_number',
+//                 $articleNumbers
+//             )
+//             ->get()
+//             ->keyBy('article_number');
+//     }
+
+
+    //     // ============================================================
+//     // 5. CAD
+//     // ============================================================
+
+    //     $cadMap = collect();
+
+    //     if ($articleNumbers->isNotEmpty()) {
+
+    //         $cadMap = CadModel::whereIn(
+//             'article_code',
+//             $articleNumbers
+//         )
+//             ->orderByDesc('version')
+//             ->get()
+//             ->groupBy(
+//                 static function ($item) {
+
+    //                     return (string)
+//                         $item->article_code;
+//                 }
+//             )
+//             ->map(
+//                 static function ($items) {
+
+    //                     return $items->first();
+//                 }
+//             );
+//     }
+
+
+    //     // ============================================================
+//     // 6. INSPECTION
+//     // ============================================================
+
+    //     $inspectionByDetail = [];
+
+    //     $inspectionByDetailSpk = [];
+
+
+    //     if ($detailPoIds->isNotEmpty()) {
+
+    //         $inspectionSchedules =
+//             $inspectionModel::with([
+//                 'kategori',
+//                 'user',
+//             ])
+//                 ->whereIn(
+//                     'detail_po_id',
+//                     $detailPoIds
+//                 )
+//                 ->get();
+
+
+    //         // --------------------------------------------------------
+//         // INDEX INSPECTION
+//         // --------------------------------------------------------
+
+    //         foreach (
+//             $inspectionSchedules
+//             as $inspection
+//         ) {
+
+    //             $detailId =
+//                 $inspection->detail_po_id;
+
+    //             $spkId =
+//                 $inspection->spk_id;
+
+
+    //             // ================================================
+//             // BY DETAIL
+//             // ================================================
+
+    //             if (
+//                 !isset(
+//                     $inspectionByDetail[
+//                         $detailId
+//                     ]
+//                 )
+//             ) {
+
+    //                 $inspectionByDetail[
+//                     $detailId
+//                 ] = [];
+//             }
+
+    //             $inspectionByDetail[
+//                 $detailId
+//             ][] = $inspection;
+
+
+    //             // ================================================
+//             // BY DETAIL + SPK
+//             // ================================================
+
+    //             $key =
+//                 $detailId
+//                 . ':'
+//                 . ($spkId ?? 'null');
+
+
+    //             if (
+//                 !isset(
+//                     $inspectionByDetailSpk[
+//                         $key
+//                     ]
+//                 )
+//             ) {
+
+    //                 $inspectionByDetailSpk[
+//                     $key
+//                 ] = [
+//                     'passed'   => 0,
+//                     'rejected' => 0,
+//                 ];
+//             }
+
+
+    //             $inspectionByDetailSpk[
+//                 $key
+//             ]['passed'] +=
+//                 (float) (
+//                     $inspection->passed
+//                     ?? 0
+//                 );
+
+
+    //             $inspectionByDetailSpk[
+//                 $key
+//             ]['rejected'] +=
+//                 (float) (
+//                     $inspection->rejected
+//                     ?? 0
+//                 );
+//         }
+//     }
+
+
+    //     // ============================================================
+//     // 7. PROCESS PO
+//     // ============================================================
+
+    //     $pos->each(
+//         function ($po) use (
+//             $bomMap,
+//             $cadMap,
+//             $inspectionByDetail,
+//             $inspectionByDetailSpk,
+//             $divisiQc,
+//             $roundNumeric
+//         ) {
+
+    //             // ====================================================
+//             // INDEX SPK BY DETAIL
+//             // ====================================================
+
+    //             $spksByDetail = [];
+
+
+    //             foreach ($po->spks as $spk) {
+
+    //                 // ------------------------------------------------
+//                 // DECODE DATA HANYA SEKALI
+//                 // ------------------------------------------------
+
+    //                 $spkData = $spk->data;
+
+
+    //                 if (is_string($spkData)) {
+
+    //                     $decoded =
+//                         json_decode(
+//                             $spkData,
+//                             true
+//                         );
+
+    //                     $spkData =
+//                         is_array($decoded)
+//                             ? $decoded
+//                             : [];
+//                 }
+
+
+    //                 if (!is_array($spkData)) {
+//                     $spkData = [];
+//                 }
+
+
+    //                 // ------------------------------------------------
+//                 // KATEGORI
+//                 // ------------------------------------------------
+
+    //                 $kategoriSpk =
+//                     strtoupper(
+//                         $spkData['kategori']
+//                         ?? ''
+//                     );
+
+
+    //                 // ------------------------------------------------
+//                 // FILTER DIVISI
+//                 // ------------------------------------------------
+
+    //                 if (
+//                     !$this->matchDivisi(
+//                         $divisiQc,
+//                         $kategoriSpk
+//                     )
+//                 ) {
+
+    //                     continue;
+//                 }
+
+
+    //                 // ------------------------------------------------
+//                 // ITEMS
+//                 // ------------------------------------------------
+
+    //                 $items =
+//                     $spkData['items']
+//                     ?? [];
+
+
+    //                 if (!is_array($items)) {
+//                     continue;
+//                 }
+
+
+    //                 // ------------------------------------------------
+//                 // INDEX ITEM
+//                 // ------------------------------------------------
+
+    //                 foreach ($items as $item) {
+
+    //                     $detailId =
+//                         $item['detail_po_id']
+//                         ?? null;
+
+
+    //                     if (!$detailId) {
+//                         continue;
+//                     }
+
+
+    //                     $spksByDetail[
+//                         $detailId
+//                     ][] = [
+
+    //                         'spk' =>
+//                             $spk,
+
+    //                         'spkData' =>
+//                             $spkData,
+
+    //                         'item' =>
+//                             $item,
+//                     ];
+//                 }
+//             }
+
+
+    //             // ====================================================
+//             // PROCESS DETAILS
+//             // ====================================================
+
+    //             foreach (
+//                 $po->details
+//                 as $detail
+//             ) {
+
+    //                 // ================================================
+//                 // ARTICLE
+//                 // ================================================
+
+    //                 $detailData =
+//                     is_array($detail->detail)
+//                         ? $detail->detail
+//                         : [];
+
+
+    //                 $article =
+//                     (string) (
+//                         $detailData['article_nr_']
+//                         ?? ''
+//                     );
+
+
+    //                 // ================================================
+//                 // BOM
+//                 // ================================================
+
+    //                 $detail->bom =
+//                     (
+//                         $article &&
+//                         isset(
+//                             $bomMap[$article]
+//                         )
+//                     )
+//                         ? $bomMap[$article]
+//                         : null;
+
+
+    //                 // ================================================
+//                 // CAD
+//                 // ================================================
+
+    //                 $detail->cad =
+//                     (
+//                         $article &&
+//                         isset(
+//                             $cadMap[$article]
+//                         )
+//                     )
+//                         ? $cadMap[$article]
+//                         : null;
+
+
+    //                 // ================================================
+//                 // INSPECTION SCHEDULE
+//                 // ================================================
+
+    //                 $detail->inspection_schedules =
+//                     $inspectionByDetail[
+//                         $detail->id
+//                     ] ?? [];
+
+
+    //                 // ================================================
+//                 // RELATED SPK
+//                 // ================================================
+
+    //                 $relatedSpks = [];
+
+
+    //                 $detailSpks =
+//                     $spksByDetail[
+//                         $detail->id
+//                     ] ?? [];
+
+
+    //                 foreach (
+//                     $detailSpks
+//                     as $entry
+//                 ) {
+
+    //                     $spk =
+//                         $entry['spk'];
+
+    //                     $spkData =
+//                         $entry['spkData'];
+
+    //                     $item =
+//                         $entry['item'];
+
+
+    //                     // ============================================
+//                     // INSPECTION SUMMARY
+//                     // ============================================
+
+    //                     $inspectionKey =
+//                         $detail->id
+//                         . ':'
+//                         . $spk->id;
+
+
+    //                     $inspectionSummary =
+//                         $inspectionByDetailSpk[
+//                             $inspectionKey
+//                         ]
+//                         ?? [
+//                             'passed'   => 0,
+//                             'rejected' => 0,
+//                         ];
+
+
+    //                     $passed =
+//                         $roundNumeric(
+//                             $inspectionSummary[
+//                                 'passed'
+//                             ]
+//                         );
+
+
+    //                     $rejected =
+//                         $roundNumeric(
+//                             $inspectionSummary[
+//                                 'rejected'
+//                             ]
+//                         );
+
+
+    //                     // ============================================
+//                     // QTY
+//                     // ============================================
+
+    //                     $qty =
+//                         $roundNumeric(
+//                             $item['qty']
+//                             ?? 0
+//                         );
+
+
+    //                     // ============================================
+//                     // HARGA
+//                     // ============================================
+
+    //                     $harga =
+//                         $roundNumeric(
+//                             $item['harga']
+//                             ?? 0
+//                         );
+
+
+    //                     // ============================================
+//                     // TOTAL
+//                     // ============================================
+
+    //                     $total =
+//                         $roundNumeric(
+//                             $item['total']
+//                             ?? 0
+//                         );
+
+
+    //                     // ============================================
+//                     // RELATED SPK
+//                     // ============================================
+
+    //                     $relatedSpks[] = [
+
+    //                         'passed' =>
+//                             $passed,
+
+    //                         'rejected' =>
+//                             $rejected,
+
+    //                         'id' =>
+//                             $spk->id,
+
+    //                         'supplier' =>
+//                             $spkData['sup']
+//                             ?? null,
+
+    //                         'kategori' =>
+//                             $spkData['kategori']
+//                             ?? null,
+
+    //                         'status' =>
+//                             $spkData['status']
+//                             ?? null,
+
+    //                         'no_spk' =>
+//                             $spkData['no_spk']
+//                             ?? null,
+
+    //                         'tgl_terima' =>
+//                             $spkData['tgl_terima']
+//                             ?? null,
+
+    //                         'tgl_selesai' =>
+//                             $spkData['tgl_selesai']
+//                             ?? null,
+
+    //                         'material' =>
+//                             $item['material']
+//                             ?? '',
+
+    //                         'qty' =>
+//                             $qty,
+
+    //                         'harga' =>
+//                             $harga,
+
+    //                         'total' =>
+//                             $total,
+//                     ];
+//                 }
+
+
+    //                 // ================================================
+//                 // SIMPAN
+//                 // ================================================
+
+    //                 $detail->spks =
+//                     $relatedSpks;
+//             }
+//         }
+//     );
+
+
+    //     // ============================================================
+//     // 8. CONVERT ELOQUENT → ARRAY SEKALI
+//     // ============================================================
+
+    //     $responseData =
+//         $pos->toArray();
+
+
+    //     // ============================================================
+//     // 9. NORMALIZE
+//     // ============================================================
+
+    //     $responseData =
+//         $normalizeArray(
+//             $responseData
+//         );
+
+
+    //     // ============================================================
+//     // 10. RESPONSE
+//     // ============================================================
+
+    //     return response()->json([
+
+    //         'status' =>
+//             'success',
+
+    //         'data' =>
+//             $responseData,
+
+    //     ]);
+// }
+// public function getPo()
+// {
+//     /*
+//     |--------------------------------------------------------------------------
+//     | START
+//     |--------------------------------------------------------------------------
+//     */
+
+    //     $requestStart = microtime(true);
+
+
+    //     /*
+//     |--------------------------------------------------------------------------
+//     | USER / DIVISI
+//     |--------------------------------------------------------------------------
+//     */
+
+    //     $user = auth()->user();
+
+    //     $user->loadMissing('karyawan.divisi');
+
+    //     $requestDivisi = request('divisi');
+
+    //     $divisiQc = strtoupper(
+//         trim(
+//             $requestDivisi
+//                 ?: ($user->karyawan?->divisi?->nama ?? '')
+//         )
+//     );
+
+
+    //     /*
+//     |--------------------------------------------------------------------------
+//     | ROUND NUMERIC
+//     |--------------------------------------------------------------------------
+//     */
+
+    //     $roundNumeric = static function ($value) {
+
+    //         if ($value === null || $value === '') {
+//             return $value;
+//         }
+
+    //         if (is_int($value)) {
+//             return $value;
+//         }
+
+    //         if (is_float($value)) {
+//             return (int) round($value);
+//         }
+
+    //         if (!is_string($value)) {
+//             return $value;
+//         }
+
+    //         $value = trim($value);
+
+    //         if ($value === '') {
+//             return $value;
+//         }
+
+    //         $normalized = $value;
+
+
+    //         if (
+//             str_contains($normalized, ',') &&
+//             !str_contains($normalized, '.')
+//         ) {
+
+    //             $normalized = str_replace(
+//                 ',',
+//                 '.',
+//                 $normalized
+//             );
+//         }
+
+    //         elseif (
+//             str_contains($normalized, ',') &&
+//             str_contains($normalized, '.')
+//         ) {
+
+    //             $lastComma =
+//                 strrpos(
+//                     $normalized,
+//                     ','
+//                 );
+
+    //             $lastDot =
+//                 strrpos(
+//                     $normalized,
+//                     '.'
+//                 );
+
+
+    //             if ($lastComma > $lastDot) {
+
+    //                 $normalized =
+//                     str_replace(
+//                         '.',
+//                         '',
+//                         $normalized
+//                     );
+
+    //                 $normalized =
+//                     str_replace(
+//                         ',',
+//                         '.',
+//                         $normalized
+//                     );
+//             }
+
+    //             else {
+
+    //                 $normalized =
+//                     str_replace(
+//                         ',',
+//                         '',
+//                         $normalized
+//                     );
+//             }
+//         }
+
+
+    //         if (is_numeric($normalized)) {
+
+    //             return (int) round(
+//                 (float) $normalized
+//             );
+//         }
+
+    //         return $value;
+//     };
+
+
+    //     /*
+//     |--------------------------------------------------------------------------
+//     | PROTECTED KEYS
+//     |--------------------------------------------------------------------------
+//     */
+
+    //     $protectedKeys = array_fill_keys([
+
+    //         'id',
+//         'po_id',
+//         'spk_id',
+//         'detail_po_id',
+//         'user_id',
+//         'kategori_id',
+//         'batch',
+//         'version',
+
+    //         'kode',
+//         'article_code',
+//         'article_number',
+//         'article_nr_',
+//         'nw_code',
+
+    //         'no_spk',
+//         'no_po',
+//         'nomor_invoice',
+
+    //         'tanggal',
+//         'tanggal_invoice',
+//         'tanggal_inspect',
+//         'tgl_terima',
+//         'tgl_selesai',
+
+    //         'status',
+//         'kategori',
+//         'supplier',
+//         'material',
+//         'nama',
+//         'description',
+
+    //     ], true);
+
+
+    //     /*
+//     |--------------------------------------------------------------------------
+//     | NORMALIZE
+//     |--------------------------------------------------------------------------
+//     */
+
+    //     $normalizeArray = static function (
+//         array $data
+//     ) use (
+//         &$normalizeArray,
+//         $roundNumeric,
+//         $protectedKeys
+//     ) {
+
+    //         foreach ($data as $key => $value) {
+
+    //             /*
+//             |--------------------------------------------------------------------------
+//             | ARRAY
+//             |--------------------------------------------------------------------------
+//             */
+
+    //             if (is_array($value)) {
+
+    //                 $data[$key] =
+//                     $normalizeArray(
+//                         $value
+//                     );
+
+    //                 continue;
+//             }
+
+
+    //             /*
+//             |--------------------------------------------------------------------------
+//             | INTEGER / FLOAT
+//             |--------------------------------------------------------------------------
+//             */
+
+    //             if (
+//                 is_int($value) ||
+//                 is_float($value)
+//             ) {
+
+    //                 if (
+//                     !isset(
+//                         $protectedKeys[$key]
+//                     )
+//                 ) {
+
+    //                     $data[$key] =
+//                         $roundNumeric(
+//                             $value
+//                         );
+//                 }
+
+    //                 continue;
+//             }
+
+
+    //             /*
+//             |--------------------------------------------------------------------------
+//             | STRING NUMERIC
+//             |--------------------------------------------------------------------------
+//             */
+
+    //             if (
+//                 is_string($value) &&
+//                 !isset(
+//                     $protectedKeys[$key]
+//                 )
+//             ) {
+
+    //                 $trimmed =
+//                     trim($value);
+
+
+    //                 if ($trimmed === '') {
+//                     continue;
+//                 }
+
+
+    //                 /*
+//                 |--------------------------------------------------------------------------
+//                 | Hanya proses string yang terlihat numeric
+//                 |--------------------------------------------------------------------------
+//                 */
+
+    //                 if (
+//                     preg_match(
+//                         '/^-?[0-9.,]+$/',
+//                         $trimmed
+//                     )
+//                 ) {
+
+    //                     $candidate =
+//                         str_replace(
+//                             ',',
+//                             '.',
+//                             $trimmed
+//                         );
+
+
+    //                     if (
+//                         is_numeric(
+//                             $candidate
+//                         )
+//                     ) {
+
+    //                         $data[$key] =
+//                             $roundNumeric(
+//                                 $value
+//                             );
+//                     }
+//                 }
+//             }
+//         }
+
+    //         return $data;
+//     };
+
+
+    //     /*
+//     |--------------------------------------------------------------------------
+//     | 1. PO
+//     |--------------------------------------------------------------------------
+//     */
+
+    //     $t1 = microtime(true);
+
+    //     $pos = Po::with([
+//         'details',
+//         'spks',
+//     ])->get();
+
+    //     $queryTime =
+//         microtime(true) - $t1;
+
+
+    //     /*
+//     |--------------------------------------------------------------------------
+//     | 2. DETAILS
+//     |--------------------------------------------------------------------------
+//     */
+
+    //     $details = $pos
+//         ->pluck('details')
+//         ->flatten();
+
+
+    //     $detailPoIds = $details
+//         ->pluck('id')
+//         ->filter()
+//         ->unique()
+//         ->values();
+
+
+    //     /*
+//     |--------------------------------------------------------------------------
+//     | 3. ARTICLE
+//     |--------------------------------------------------------------------------
+//     */
+
+    //     $articleNumbers = $details
+//         ->map(
+//             static function ($detail) {
+
+    //                 $detailData =
+//                     is_array(
+//                         $detail->detail
+//                     )
+//                         ? $detail->detail
+//                         : [];
+
+
+    //                 $articleNr =
+//                     $detailData[
+//                         'article_nr_'
+//                     ]
+//                     ?? null;
+
+
+    //                 $nwCode =
+//                     $detailData[
+//                         'nw_code'
+//                     ]
+//                     ?? null;
+
+
+    //                 return $nwCode === null
+//                     ? $articleNr
+//                     : (
+//                         $articleNr
+//                         ?? $nwCode
+//                     );
+//             }
+//         )
+//         ->filter()
+//         ->unique()
+//         ->values();
+
+
+    //     /*
+//     |--------------------------------------------------------------------------
+//     | 4. BOM
+//     |--------------------------------------------------------------------------
+//     */
+
+    //     $tBom = microtime(true);
+
+    //     $bomMap = collect();
+
+    //     if (
+//         $articleNumbers->isNotEmpty()
+//     ) {
+
+    //         $bomMap =
+//             Bom::with([
+//                 'groups.items',
+//             ])
+//                 ->whereIn(
+//                     'article_number',
+//                     $articleNumbers
+//                 )
+//                 ->get()
+//                 ->keyBy(
+//                     'article_number'
+//                 );
+//     }
+
+    //     $bomTime =
+//         microtime(true) - $tBom;
+
+
+    //     /*
+//     |--------------------------------------------------------------------------
+//     | 5. CAD
+//     |--------------------------------------------------------------------------
+//     */
+
+    //     $tCad = microtime(true);
+
+    //     $cadMap = collect();
+
+    //     if (
+//         $articleNumbers->isNotEmpty()
+//     ) {
+
+    //         $cadMap =
+//             CadModel::whereIn(
+//                 'article_code',
+//                 $articleNumbers
+//             )
+//                 ->orderByDesc(
+//                     'version'
+//                 )
+//                 ->get()
+//                 ->groupBy(
+//                     static function ($item) {
+
+    //                         return (string)
+//                             $item->article_code;
+//                     }
+//                 )
+//                 ->map(
+//                     static function ($items) {
+
+    //                         return $items->first();
+//                     }
+//                 );
+//     }
+
+    //     $cadTime =
+//         microtime(true) - $tCad;
+
+
+    //     /*
+//     |--------------------------------------------------------------------------
+//     | 6. INSPECTION
+//     |--------------------------------------------------------------------------
+//     */
+
+    //     $tInspection = microtime(true);
+
+    //     $inspectionByDetail = [];
+
+    //     $inspectionByDetailSpk = [];
+
+
+    //     if (
+//         $detailPoIds->isNotEmpty()
+//     ) {
+
+    //         $inspectionSchedules =
+//             $inspectionModel::with([
+//                 'kategori',
+//                 'user',
+//             ])
+//                 ->whereIn(
+//                     'detail_po_id',
+//                     $detailPoIds
+//                 )
+//                 ->get();
+
+
+    //         foreach (
+//             $inspectionSchedules
+//             as $inspection
+//         ) {
+
+    //             $detailId =
+//                 $inspection->detail_po_id;
+
+    //             $spkId =
+//                 $inspection->spk_id;
+
+
+    //             /*
+//             |--------------------------------------------------------------------------
+//             | Convert sekali
+//             |--------------------------------------------------------------------------
+//             */
+
+    //             $inspectionData =
+//                 $inspection->toArray();
+
+
+    //             /*
+//             |--------------------------------------------------------------------------
+//             | BY DETAIL
+//             |--------------------------------------------------------------------------
+//             */
+
+    //             $inspectionByDetail[
+//                 $detailId
+//             ][] =
+//                 $inspectionData;
+
+
+    //             /*
+//             |--------------------------------------------------------------------------
+//             | BY DETAIL + SPK
+//             |--------------------------------------------------------------------------
+//             */
+
+    //             $key =
+//                 $detailId .
+//                 ':' .
+//                 ($spkId ?? 'null');
+
+
+    //             if (
+//                 !isset(
+//                     $inspectionByDetailSpk[
+//                         $key
+//                     ]
+//                 )
+//             ) {
+
+    //                 $inspectionByDetailSpk[
+//                     $key
+//                 ] = [
+
+    //                     'passed'   => 0,
+//                     'rejected' => 0,
+
+    //                 ];
+//             }
+
+
+    //             $inspectionByDetailSpk[
+//                 $key
+//             ]['passed'] +=
+//                 (float) (
+//                     $inspection->passed
+//                     ?? 0
+//                 );
+
+
+    //             $inspectionByDetailSpk[
+//                 $key
+//             ]['rejected'] +=
+//                 (float) (
+//                     $inspection->rejected
+//                     ?? 0
+//                 );
+//         }
+//     }
+
+
+    //     $inspectionTime =
+//         microtime(true) -
+//         $tInspection;
+
+
+    //     /*
+//     |--------------------------------------------------------------------------
+//     | 7. PROCESS
+//     |--------------------------------------------------------------------------
+//     */
+
+    //     $tProcess = microtime(true);
+
+
+    //     $pos->each(
+//         function ($po) use (
+//             $bomMap,
+//             $cadMap,
+//             $inspectionByDetail,
+//             $inspectionByDetailSpk,
+//             $divisiQc,
+//             $roundNumeric
+//         ) {
+
+    //             /*
+//             |--------------------------------------------------------------------------
+//             | SPK INDEX
+//             |--------------------------------------------------------------------------
+//             */
+
+    //             $spksByDetail = [];
+
+    //             $spkMeta = [];
+
+
+    //             /*
+//             |--------------------------------------------------------------------------
+//             | SPK
+//             |--------------------------------------------------------------------------
+//             */
+
+    //             foreach (
+//                 $po->spks
+//                 as $spk
+//             ) {
+
+    //                 /*
+//                 |--------------------------------------------------------------------------
+//                 | Decode JSON sekali
+//                 |--------------------------------------------------------------------------
+//                 */
+
+    //                 $spkData =
+//                     $spk->data;
+
+
+    //                 if (
+//                     is_string(
+//                         $spkData
+//                     )
+//                 ) {
+
+    //                     $decoded =
+//                         json_decode(
+//                             $spkData,
+//                             true
+//                         );
+
+
+    //                     $spkData =
+//                         is_array(
+//                             $decoded
+//                         )
+//                             ? $decoded
+//                             : [];
+//                 }
+
+
+    //                 if (
+//                     !is_array(
+//                         $spkData
+//                     )
+//                 ) {
+
+    //                     $spkData = [];
+//                 }
+
+
+    //                 /*
+//                 |--------------------------------------------------------------------------
+//                 | KATEGORI
+//                 |--------------------------------------------------------------------------
+//                 */
+
+    //                 $kategoriSpk =
+//                     strtoupper(
+//                         trim(
+//                             (string) (
+//                                 $spkData[
+//                                     'kategori'
+//                                 ]
+//                                 ?? ''
+//                             )
+//                         )
+//                     );
+
+
+    //                 /*
+//                 |--------------------------------------------------------------------------
+//                 | FILTER DIVISI
+//                 |--------------------------------------------------------------------------
+//                 */
+
+    //                 if (
+//                     !$this->matchDivisi(
+//                         $divisiQc,
+//                         $kategoriSpk
+//                     )
+//                 ) {
+
+    //                     continue;
+//                 }
+
+
+    //                 /*
+//                 |--------------------------------------------------------------------------
+//                 | ITEMS
+//                 |--------------------------------------------------------------------------
+//                 */
+
+    //                 $items =
+//                     $spkData[
+//                         'items'
+//                     ]
+//                     ?? [];
+
+
+    //                 if (
+//                     !is_array(
+//                         $items
+//                     )
+//                 ) {
+
+    //                     continue;
+//                 }
+
+
+    //                 /*
+//                 |--------------------------------------------------------------------------
+//                 | SPK META
+//                 |--------------------------------------------------------------------------
+//                 */
+
+    //                 $spkId =
+//                     $spk->id;
+
+
+    //                 $spkMeta[
+//                     $spkId
+//                 ] = [
+
+    //                     'supplier' =>
+//                         $spkData[
+//                             'sup'
+//                         ] ?? null,
+
+    //                     'kategori' =>
+//                         $spkData[
+//                             'kategori'
+//                         ] ?? null,
+
+    //                     'status' =>
+//                         $spkData[
+//                             'status'
+//                         ] ?? null,
+
+    //                     'no_spk' =>
+//                         $spkData[
+//                             'no_spk'
+//                         ] ?? null,
+
+    //                     'tgl_terima' =>
+//                         $spkData[
+//                             'tgl_terima'
+//                         ] ?? null,
+
+    //                     'tgl_selesai' =>
+//                         $spkData[
+//                             'tgl_selesai'
+//                         ] ?? null,
+
+    //                 ];
+
+
+    //                 /*
+//                 |--------------------------------------------------------------------------
+//                 | INDEX ITEM
+//                 |--------------------------------------------------------------------------
+//                 */
+
+    //                 foreach (
+//                     $items
+//                     as $item
+//                 ) {
+
+    //                     $detailId =
+//                         $item[
+//                             'detail_po_id'
+//                         ]
+//                         ?? null;
+
+
+    //                     if (
+//                         !$detailId
+//                     ) {
+//                         continue;
+//                     }
+
+
+    //                     $spksByDetail[
+//                         $detailId
+//                     ][] = [
+
+    //                         'spk' =>
+//                             $spk,
+
+    //                         'spk_id' =>
+//                             $spkId,
+
+    //                         'item' =>
+//                             $item,
+
+    //                     ];
+//                 }
+//             }
+
+
+    //             /*
+//             |--------------------------------------------------------------------------
+//             | DETAILS
+//             |--------------------------------------------------------------------------
+//             */
+
+    //             foreach (
+//                 $po->details
+//                 as $detail
+//             ) {
+
+    //                 $detailData =
+//                     is_array(
+//                         $detail->detail
+//                     )
+//                         ? $detail->detail
+//                         : [];
+
+
+    //                 $article =
+//                     (string) (
+//                         $detailData[
+//                             'article_nr_'
+//                         ]
+//                         ?? ''
+//                     );
+
+
+    //                 /*
+//                 |--------------------------------------------------------------------------
+//                 | BOM
+//                 |--------------------------------------------------------------------------
+//                 */
+
+    //                 $detail->bom =
+//                     (
+//                         $article !== '' &&
+//                         isset(
+//                             $bomMap[
+//                                 $article
+//                             ]
+//                         )
+//                     )
+//                         ? $bomMap[
+//                             $article
+//                         ]
+//                         : null;
+
+
+    //                 /*
+//                 |--------------------------------------------------------------------------
+//                 | CAD
+//                 |--------------------------------------------------------------------------
+//                 */
+
+    //                 $detail->cad =
+//                     (
+//                         $article !== '' &&
+//                         isset(
+//                             $cadMap[
+//                                 $article
+//                             ]
+//                         )
+//                     )
+//                         ? $cadMap[
+//                             $article
+//                         ]
+//                         : null;
+
+
+    //                 /*
+//                 |--------------------------------------------------------------------------
+//                 | INSPECTION
+//                 |--------------------------------------------------------------------------
+//                 */
+
+    //                 $detail->inspection_schedules =
+//                     $inspectionByDetail[
+//                         $detail->id
+//                     ]
+//                     ?? [];
+
+
+    //                 /*
+//                 |--------------------------------------------------------------------------
+//                 | RELATED SPK
+//                 |--------------------------------------------------------------------------
+//                 */
+
+    //                 $relatedSpks = [];
+
+
+    //                 $detailSpks =
+//                     $spksByDetail[
+//                         $detail->id
+//                     ]
+//                     ?? [];
+
+
+    //                 foreach (
+//                     $detailSpks
+//                     as $entry
+//                 ) {
+
+    //                     $spkId =
+//                         $entry[
+//                             'spk_id'
+//                         ];
+
+
+    //                     $item =
+//                         $entry[
+//                             'item'
+//                         ];
+
+
+    //                     $meta =
+//                         $spkMeta[
+//                             $spkId
+//                         ]
+//                         ?? [];
+
+
+    //                     /*
+//                     |--------------------------------------------------------------------------
+//                     | INSPECTION SUMMARY
+//                     |--------------------------------------------------------------------------
+//                     */
+
+    //                     $inspectionKey =
+//                         $detail->id .
+//                         ':' .
+//                         $spkId;
+
+
+    //                     $summary =
+//                         $inspectionByDetailSpk[
+//                             $inspectionKey
+//                         ]
+//                         ?? [
+
+    //                             'passed'   => 0,
+//                             'rejected' => 0,
+
+    //                         ];
+
+
+    //                     /*
+//                     |--------------------------------------------------------------------------
+//                     | DATA
+//                     |--------------------------------------------------------------------------
+//                     */
+
+    //                     $relatedSpks[] = [
+
+    //                         'passed' =>
+//                             $roundNumeric(
+//                                 $summary[
+//                                     'passed'
+//                                 ]
+//                             ),
+
+    //                         'rejected' =>
+//                             $roundNumeric(
+//                                 $summary[
+//                                     'rejected'
+//                                 ]
+//                             ),
+
+    //                         'id' =>
+//                             $spkId,
+
+    //                         'supplier' =>
+//                             $meta[
+//                                 'supplier'
+//                             ] ?? null,
+
+    //                         'kategori' =>
+//                             $meta[
+//                                 'kategori'
+//                             ] ?? null,
+
+    //                         'status' =>
+//                             $meta[
+//                                 'status'
+//                             ] ?? null,
+
+    //                         'no_spk' =>
+//                             $meta[
+//                                 'no_spk'
+//                             ] ?? null,
+
+    //                         'tgl_terima' =>
+//                             $meta[
+//                                 'tgl_terima'
+//                             ] ?? null,
+
+    //                         'tgl_selesai' =>
+//                             $meta[
+//                                 'tgl_selesai'
+//                             ] ?? null,
+
+    //                         'material' =>
+//                             $item[
+//                                 'material'
+//                             ] ?? '',
+
+    //                         'qty' =>
+//                             $roundNumeric(
+//                                 $item[
+//                                     'qty'
+//                                 ] ?? 0
+//                             ),
+
+    //                         'harga' =>
+//                             $roundNumeric(
+//                                 $item[
+//                                     'harga'
+//                                 ] ?? 0
+//                             ),
+
+    //                         'total' =>
+//                             $roundNumeric(
+//                                 $item[
+//                                     'total'
+//                                 ] ?? 0
+//                             ),
+
+    //                     ];
+//                 }
+
+
+    //                 $detail->spks =
+//                     $relatedSpks;
+//             }
+//         }
+//     );
+
+
+    //     $processTime =
+//         microtime(true) -
+//         $tProcess;
+
+
+    //     /*
+//     |--------------------------------------------------------------------------
+//     | 8. ELOQUENT → ARRAY
+//     |--------------------------------------------------------------------------
+//     */
+
+    //     $tArray = microtime(true);
+
+    //     $responseData =
+//         $pos->toArray();
+
+    //     $toArrayTime =
+//         microtime(true) -
+//         $tArray;
+
+
+    //     /*
+//     |--------------------------------------------------------------------------
+//     | 9. NORMALIZE
+//     |--------------------------------------------------------------------------
+//     */
+
+    //     $tNormalize = microtime(true);
+
+    //     $responseData =
+//         $normalizeArray(
+//             $responseData
+//         );
+
+    //     $normalizeTime =
+//         microtime(true) -
+//         $tNormalize;
+
+
+    //     /*
+//     |--------------------------------------------------------------------------
+//     | 10. PREPARE PAYLOAD
+//     |--------------------------------------------------------------------------
+//     */
+
+    //     $payload = [
+
+    //         'status' =>
+//             'success',
+
+    //         'data' =>
+//             $responseData,
+
+    //     ];
+
+
+    //     /*
+//     |--------------------------------------------------------------------------
+//     | 11. JSON ENCODE
+//     |--------------------------------------------------------------------------
+//     |
+//     | INI YANG SEBELUMNYA BELUM KITA UKUR.
+//     |
+//     */
+
+    //     $tJson = microtime(true);
+
+
+    //     $json = json_encode(
+//         $payload,
+//         JSON_UNESCAPED_UNICODE |
+//         JSON_UNESCAPED_SLASHES
+//     );
+
+
+    //     $jsonTime =
+//         microtime(true) -
+//         $tJson;
+
+
+    //     /*
+//     |--------------------------------------------------------------------------
+//     | JSON ERROR CHECK
+//     |--------------------------------------------------------------------------
+//     */
+
+    //     if (
+//         $json === false
+//     ) {
+
+    //         return response()->json([
+
+    //             'status' =>
+//                 'error',
+
+    //             'message' =>
+//                 json_last_error_msg(),
+
+    //         ], 500);
+//     }
+
+
+    //     /*
+//     |--------------------------------------------------------------------------
+//     | TOTAL SERVER PROCESS
+//     |--------------------------------------------------------------------------
+//     */
+
+    //     $totalTime =
+//         microtime(true) -
+//         $requestStart;
+
+
+    //     /*
+//     |--------------------------------------------------------------------------
+//     | RESPONSE
+//     |--------------------------------------------------------------------------
+//     |
+//     | JSON SUDAH DI-ENCODE.
+//     |
+//     | Jadi Laravel tidak perlu encode payload sekali lagi.
+//     |
+//     */
+
+    //     return response(
+//         $json,
+//         200
+//     )
+//         ->header(
+//             'Content-Type',
+//             'application/json; charset=UTF-8'
+//         )
+//         ->header(
+//             'Cache-Control',
+//             'no-cache, no-store, must-revalidate'
+//         )
+//         ->header(
+//             'Pragma',
+//             'no-cache'
+//         )
+//         ->header(
+//             'Expires',
+//             '0'
+//         );
+// }
     public function getPo()
     {
-        $user = auth()->user();
+        $inspectionModel = $this->inspectionScheduleModel();
 
-        // ============================================================
-        // USER / DIVISI
-        // ============================================================
+        /*
+        |--------------------------------------------------------------------------
+        | START TIMER
+        |--------------------------------------------------------------------------
+        */
+
+        $requestStart = microtime(true);
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | USER / DIVISI
+        |--------------------------------------------------------------------------
+        */
+
+        $user = auth()->user();
 
         $user->loadMissing('karyawan.divisi');
 
         $requestDivisi = request('divisi');
 
         $divisiQc = strtoupper(
-            $requestDivisi
-            ?: ($user->karyawan?->divisi?->nama ?? '')
+            trim(
+                $requestDivisi
+                ?: ($user->karyawan?->divisi?->nama ?? '')
+            )
         );
 
 
-        // ============================================================
-        // HELPER ROUND NUMERIC
-        // ============================================================
+        /*
+        |--------------------------------------------------------------------------
+        | HELPER ROUND NUMERIC
+        |--------------------------------------------------------------------------
+        */
 
         $roundNumeric = static function ($value) {
 
@@ -1753,9 +6492,13 @@ class QcController extends Controller
 
             $normalized = $value;
 
+
             /*
-             * 56,5
-             */
+            |--------------------------------------------------------------------------
+            | 56,5
+            |--------------------------------------------------------------------------
+            */
+
             if (
                 str_contains($normalized, ',') &&
                 !str_contains($normalized, '.')
@@ -1768,55 +6511,75 @@ class QcController extends Controller
                 );
             }
 
+
             /*
-             * 1.250,5
-             * 1,250.5
-             */ elseif (
+            |--------------------------------------------------------------------------
+            | 1.250,5
+            | 1,250.5
+            |--------------------------------------------------------------------------
+            */ elseif (
                 str_contains($normalized, ',') &&
                 str_contains($normalized, '.')
             ) {
 
-                $lastComma = strrpos(
-                    $normalized,
-                    ','
-                );
+                $lastComma =
+                    strrpos(
+                        $normalized,
+                        ','
+                    );
 
-                $lastDot = strrpos(
-                    $normalized,
-                    '.'
-                );
+                $lastDot =
+                    strrpos(
+                        $normalized,
+                        '.'
+                    );
+
 
                 /*
-                 * Indonesia:
-                 * 1.250,5
-                 */
+                |--------------------------------------------------------------------------
+                | Indonesia
+                |--------------------------------------------------------------------------
+                */
+
                 if ($lastComma > $lastDot) {
 
-                    $normalized = str_replace(
-                        '.',
-                        '',
-                        $normalized
-                    );
+                    $normalized =
+                        str_replace(
+                            '.',
+                            '',
+                            $normalized
+                        );
 
-                    $normalized = str_replace(
-                        ',',
-                        '.',
-                        $normalized
-                    );
+                    $normalized =
+                        str_replace(
+                            ',',
+                            '.',
+                            $normalized
+                        );
                 }
+
 
                 /*
-                 * English:
-                 * 1,250.5
-                 */ else {
+                |--------------------------------------------------------------------------
+                | English
+                |--------------------------------------------------------------------------
+                */ else {
 
-                    $normalized = str_replace(
-                        ',',
-                        '',
-                        $normalized
-                    );
+                    $normalized =
+                        str_replace(
+                            ',',
+                            '',
+                            $normalized
+                        );
                 }
             }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | ROUND
+            |--------------------------------------------------------------------------
+            */
 
             if (is_numeric($normalized)) {
 
@@ -1829,11 +6592,16 @@ class QcController extends Controller
         };
 
 
-        // ============================================================
-        // PROTECTED NUMERIC KEYS
-        // ============================================================
+        /*
+        |--------------------------------------------------------------------------
+        | PROTECTED NUMERIC KEYS
+        |--------------------------------------------------------------------------
+        |
+        | Associative lookup lebih cepat daripada in_array()
+        |--------------------------------------------------------------------------
+        */
 
-        $protectedKeys = [
+        $protectedKeys = array_fill_keys([
 
             'id',
             'po_id',
@@ -1866,38 +6634,42 @@ class QcController extends Controller
             'material',
             'nama',
             'description',
-        ];
+
+        ], true);
 
 
-        // ============================================================
-        // NORMALIZE ARRAY
-        // ============================================================
-        //
-        // PENTING:
-        // Model hanya di-convert ke array SATU KALI di bagian akhir.
-        //
-        // ============================================================
+        /*
+        |--------------------------------------------------------------------------
+        | NORMALIZE ARRAY
+        |--------------------------------------------------------------------------
+        */
 
         $normalizeArray = static function (array $data) use (&$normalizeArray, $roundNumeric, $protectedKeys) {
 
             foreach ($data as $key => $value) {
 
-                // ----------------------------------------------------
-                // ARRAY
-                // ----------------------------------------------------
+                /*
+                |--------------------------------------------------------------------------
+                | ARRAY
+                |--------------------------------------------------------------------------
+                */
 
                 if (is_array($value)) {
 
                     $data[$key] =
-                        $normalizeArray($value);
+                        $normalizeArray(
+                            $value
+                        );
 
                     continue;
                 }
 
 
-                // ----------------------------------------------------
-                // INTEGER / FLOAT
-                // ----------------------------------------------------
+                /*
+                |--------------------------------------------------------------------------
+                | INTEGER / FLOAT
+                |--------------------------------------------------------------------------
+                */
 
                 if (
                     is_int($value) ||
@@ -1905,49 +6677,75 @@ class QcController extends Controller
                 ) {
 
                     if (
-                        !in_array(
-                            $key,
-                            $protectedKeys,
-                            true
-                        )
+                        !isset(
+                        $protectedKeys[$key]
+                    )
                     ) {
 
                         $data[$key] =
-                            $roundNumeric($value);
+                            $roundNumeric(
+                                $value
+                            );
                     }
 
                     continue;
                 }
 
 
-                // ----------------------------------------------------
-                // STRING NUMERIC
-                // ----------------------------------------------------
+                /*
+                |--------------------------------------------------------------------------
+                | STRING NUMERIC
+                |--------------------------------------------------------------------------
+                */
 
                 if (
                     is_string($value) &&
-                    !in_array(
-                        $key,
-                        $protectedKeys,
-                        true
-                    )
+                    !isset(
+                    $protectedKeys[$key]
+                )
                 ) {
 
-                    $trimmed = trim($value);
+                    $trimmed =
+                        trim($value);
+
+
+                    if ($trimmed === '') {
+                        continue;
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Hindari is_numeric() terhadap string biasa
+                    |--------------------------------------------------------------------------
+                    */
 
                     if (
-                        $trimmed !== '' &&
-                        is_numeric(
+                        preg_match(
+                            '/^-?[0-9.,]+$/',
+                            $trimmed
+                        )
+                    ) {
+
+                        $candidate =
                             str_replace(
                                 ',',
                                 '.',
                                 $trimmed
-                            )
-                        )
-                    ) {
+                            );
 
-                        $data[$key] =
-                            $roundNumeric($value);
+
+                        if (
+                            is_numeric(
+                                $candidate
+                            )
+                        ) {
+
+                            $data[$key] =
+                                $roundNumeric(
+                                    $value
+                                );
+                        }
                     }
                 }
             }
@@ -1956,24 +6754,39 @@ class QcController extends Controller
         };
 
 
-        // ============================================================
-        // 1. GET PO + RELATION
-        // ============================================================
+        /*
+        |--------------------------------------------------------------------------
+        | 1. GET PO + RELATION
+        |--------------------------------------------------------------------------
+        */
+
+        $tQuery = microtime(true);
 
         $pos = Po::with([
             'details',
             'spks',
         ])->get();
 
+        $queryTime =
+            microtime(true) - $tQuery;
 
-        // ============================================================
-        // 2. FLATTEN DETAILS SEKALI
-        // ============================================================
+
+        /*
+        |--------------------------------------------------------------------------
+        | 2. FLATTEN DETAILS SEKALI
+        |--------------------------------------------------------------------------
+        */
 
         $details = $pos
             ->pluck('details')
             ->flatten();
 
+
+        /*
+        |--------------------------------------------------------------------------
+        | 3. DETAIL PO IDS
+        |--------------------------------------------------------------------------
+        */
 
         $detailPoIds = $details
             ->pluck('id')
@@ -1982,9 +6795,11 @@ class QcController extends Controller
             ->values();
 
 
-        // ============================================================
-        // 3. ARTICLE NUMBERS
-        // ============================================================
+        /*
+        |--------------------------------------------------------------------------
+        | 4. ARTICLE NUMBERS
+        |--------------------------------------------------------------------------
+        */
 
         $articleNumbers = $details
             ->map(
@@ -1995,17 +6810,27 @@ class QcController extends Controller
                         ? $detail->detail
                         : [];
 
+
                     $articleNr =
-                        $detailData['article_nr_']
+                        $detailData[
+                            'article_nr_'
+                        ]
                         ?? null;
 
+
                     $nwCode =
-                        $detailData['nw_code']
+                        $detailData[
+                            'nw_code'
+                        ]
                         ?? null;
+
 
                     return $nwCode === null
                         ? $articleNr
-                        : ($articleNr ?? $nwCode);
+                        : (
+                            $articleNr
+                            ?? $nwCode
+                        );
                 }
             )
             ->filter()
@@ -2013,69 +6838,133 @@ class QcController extends Controller
             ->values();
 
 
-        // ============================================================
-        // 4. BOM
-        // ============================================================
+        /*
+        |--------------------------------------------------------------------------
+        | 5. BOM
+        |--------------------------------------------------------------------------
+        */
+
+        $tBom = microtime(true);
 
         $bomMap = collect();
 
-        if ($articleNumbers->isNotEmpty()) {
+        if (
+            $articleNumbers->isNotEmpty()
+        ) {
 
-            $bomMap = Bom::with([
-                'groups.items',
-            ])
-                ->whereIn(
-                    'article_number',
-                    $articleNumbers
-                )
-                ->get()
-                ->keyBy('article_number');
-        }
+            $bomMap =
+                Bom::with([
+                    'groups.items',
+                ])
+                    ->whereIn(
+                        'article_number',
+                        $articleNumbers
+                    )
+                    ->get()
+                    ->keyBy(
+                        'article_number'
+                    );
 
 
-        // ============================================================
-        // 5. CAD
-        // ============================================================
+            /*
+            |--------------------------------------------------------------------------
+            | IMPORTANT
+            |--------------------------------------------------------------------------
+            |
+            | Convert BOM ke array SEKALI.
+            |
+            | Struktur tetap sama.
+            |
+            |--------------------------------------------------------------------------
+            */
 
-        $cadMap = collect();
+            $bomMap =
+                $bomMap->map(
+                    static function ($bom) {
 
-        if ($articleNumbers->isNotEmpty()) {
-
-            $cadMap = CadModel::whereIn(
-                'article_code',
-                $articleNumbers
-            )
-                ->orderByDesc('version')
-                ->get()
-                ->groupBy(
-                    static function ($item) {
-
-                        return (string) 
-                            $item->article_code;
-                    }
-                )
-                ->map(
-                    static function ($items) {
-
-                        return $items->first();
+                        return $bom->toArray();
                     }
                 );
         }
 
+        $bomTime =
+            microtime(true) - $tBom;
 
-        // ============================================================
-        // 6. INSPECTION
-        // ============================================================
+
+        /*
+        |--------------------------------------------------------------------------
+        | 6. CAD
+        |--------------------------------------------------------------------------
+        */
+
+        $tCad = microtime(true);
+
+        $cadMap = collect();
+
+        if (
+            $articleNumbers->isNotEmpty()
+        ) {
+
+            $cadMap =
+                CadModel::whereIn(
+                    'article_code',
+                    $articleNumbers
+                )
+                    ->orderByDesc(
+                        'version'
+                    )
+                    ->get()
+                    ->groupBy(
+                        static function ($item) {
+
+                            return (string) 
+                                $item->article_code;
+                        }
+                    )
+                    ->map(
+                        static function ($items) {
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | Karena sudah ORDER BY version DESC,
+                            | first = version terbaru.
+                            |--------------------------------------------------------------------------
+                            */
+
+                            $item =
+                                $items->first();
+
+
+                            return $item
+                                ? $item->toArray()
+                                : null;
+                        }
+                    );
+        }
+
+        $cadTime =
+            microtime(true) - $tCad;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 7. INSPECTION
+        |--------------------------------------------------------------------------
+        */
+
+        $tInspection = microtime(true);
 
         $inspectionByDetail = [];
 
         $inspectionByDetailSpk = [];
 
 
-        if ($detailPoIds->isNotEmpty()) {
+        if (
+            $detailPoIds->isNotEmpty()
+        ) {
 
             $inspectionSchedules =
-                InspectSchedule::with([
+                $inspectionModel::with([
                     'kategori',
                     'user',
                 ])
@@ -2086,9 +6975,11 @@ class QcController extends Controller
                     ->get();
 
 
-            // --------------------------------------------------------
-            // INDEX INSPECTION
-            // --------------------------------------------------------
+            /*
+            |--------------------------------------------------------------------------
+            | INDEX INSPECTION
+            |--------------------------------------------------------------------------
+            */
 
             foreach (
                 $inspectionSchedules
@@ -2102,9 +6993,21 @@ class QcController extends Controller
                     $inspection->spk_id;
 
 
-                // ================================================
-                // BY DETAIL
-                // ================================================
+                /*
+                |--------------------------------------------------------------------------
+                | Convert Eloquent → Array SEKALI
+                |--------------------------------------------------------------------------
+                */
+
+                $inspectionData =
+                    $inspection->toArray();
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | BY DETAIL
+                |--------------------------------------------------------------------------
+                */
 
                 if (
                     !isset(
@@ -2119,19 +7022,23 @@ class QcController extends Controller
                     ] = [];
                 }
 
+
                 $inspectionByDetail[
                     $detailId
-                ][] = $inspection;
+                ][] =
+                    $inspectionData;
 
 
-                // ================================================
-                // BY DETAIL + SPK
-                // ================================================
+                /*
+                |--------------------------------------------------------------------------
+                | BY DETAIL + SPK
+                |--------------------------------------------------------------------------
+                */
 
                 $key =
-                    $detailId
-                    . ':'
-                    . ($spkId ?? 'null');
+                    $detailId .
+                    ':' .
+                    ($spkId ?? 'null');
 
 
                 if (
@@ -2145,8 +7052,10 @@ class QcController extends Controller
                     $inspectionByDetailSpk[
                         $key
                     ] = [
+
                         'passed' => 0,
                         'rejected' => 0,
+
                     ];
                 }
 
@@ -2171,30 +7080,66 @@ class QcController extends Controller
         }
 
 
-        // ============================================================
-        // 7. PROCESS PO
-        // ============================================================
+        $inspectionTime =
+            microtime(true) -
+            $tInspection;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 8. PROCESS PO
+        |--------------------------------------------------------------------------
+        */
+
+        $tProcess = microtime(true);
+
 
         $pos->each(
             function ($po) use ($bomMap, $cadMap, $inspectionByDetail, $inspectionByDetailSpk, $divisiQc, $roundNumeric) {
 
-                // ====================================================
-                // INDEX SPK BY DETAIL
-                // ====================================================
-    
+                /*
+                |--------------------------------------------------------------------------
+                | INDEX SPK BY DETAIL
+                |--------------------------------------------------------------------------
+                */
+
                 $spksByDetail = [];
 
+                /*
+                |--------------------------------------------------------------------------
+                | META SPK
+                |--------------------------------------------------------------------------
+                */
 
-                foreach ($po->spks as $spk) {
-
-                    // ------------------------------------------------
-                    // DECODE DATA HANYA SEKALI
-                    // ------------------------------------------------
-    
-                    $spkData = $spk->data;
+                $spkMeta = [];
 
 
-                    if (is_string($spkData)) {
+                /*
+                |--------------------------------------------------------------------------
+                | PROCESS SPK
+                |--------------------------------------------------------------------------
+                */
+
+                foreach (
+                    $po->spks
+                    as $spk
+                ) {
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | DATA
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $spkData =
+                        $spk->data;
+
+
+                    if (
+                        is_string(
+                            $spkData
+                        )
+                    ) {
 
                         $decoded =
                             json_decode(
@@ -2202,33 +7147,51 @@ class QcController extends Controller
                                 true
                             );
 
+
                         $spkData =
-                            is_array($decoded)
+                            is_array(
+                                $decoded
+                            )
                             ? $decoded
                             : [];
                     }
 
 
-                    if (!is_array($spkData)) {
+                    if (
+                        !is_array(
+                            $spkData
+                        )
+                    ) {
+
                         $spkData = [];
                     }
 
 
-                    // ------------------------------------------------
-                    // KATEGORI
-                    // ------------------------------------------------
-    
+                    /*
+                    |--------------------------------------------------------------------------
+                    | KATEGORI
+                    |--------------------------------------------------------------------------
+                    */
+
                     $kategoriSpk =
                         strtoupper(
-                            $spkData['kategori']
-                            ?? ''
+                            trim(
+                                (string) (
+                                    $spkData[
+                                        'kategori'
+                                    ]
+                                    ?? ''
+                                )
+                            )
                         );
 
 
-                    // ------------------------------------------------
-                    // FILTER DIVISI
-                    // ------------------------------------------------
-    
+                    /*
+                    |--------------------------------------------------------------------------
+                    | FILTER DIVISI
+                    |--------------------------------------------------------------------------
+                    */
+
                     if (
                         !$this->matchDivisi(
                             $divisiQc,
@@ -2240,32 +7203,104 @@ class QcController extends Controller
                     }
 
 
-                    // ------------------------------------------------
-                    // ITEMS
-                    // ------------------------------------------------
-    
+                    /*
+                    |--------------------------------------------------------------------------
+                    | ITEMS
+                    |--------------------------------------------------------------------------
+                    */
+
                     $items =
-                        $spkData['items']
+                        $spkData[
+                            'items'
+                        ]
                         ?? [];
 
 
-                    if (!is_array($items)) {
+                    if (
+                        !is_array(
+                            $items
+                        )
+                    ) {
+
                         continue;
                     }
 
 
-                    // ------------------------------------------------
-                    // INDEX ITEM
-                    // ------------------------------------------------
-    
-                    foreach ($items as $item) {
+                    /*
+                    |--------------------------------------------------------------------------
+                    | SPK ID
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $spkId =
+                        $spk->id;
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | CACHE META
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $spkMeta[
+                        $spkId
+                    ] = [
+
+                        'supplier' =>
+                            $spkData[
+                                'sup'
+                            ] ?? null,
+
+                        'kategori' =>
+                            $spkData[
+                                'kategori'
+                            ] ?? null,
+
+                        'status' =>
+                            $spkData[
+                                'status'
+                            ] ?? null,
+
+                        'no_spk' =>
+                            $spkData[
+                                'no_spk'
+                            ] ?? null,
+
+                        'tgl_terima' =>
+                            $spkData[
+                                'tgl_terima'
+                            ] ?? null,
+
+                        'tgl_selesai' =>
+                            $spkData[
+                                'tgl_selesai'
+                            ] ?? null,
+
+                    ];
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | INDEX ITEM
+                    |--------------------------------------------------------------------------
+                    */
+
+                    foreach (
+                        $items
+                        as $item
+                    ) {
 
                         $detailId =
-                            $item['detail_po_id']
+                            $item[
+                                'detail_po_id'
+                            ]
                             ?? null;
 
 
-                        if (!$detailId) {
+                        if (
+                            !$detailId
+                        ) {
+
                             continue;
                         }
 
@@ -2277,129 +7312,199 @@ class QcController extends Controller
                             'spk' =>
                                 $spk,
 
-                            'spkData' =>
-                                $spkData,
+                            'spk_id' =>
+                                $spkId,
 
                             'item' =>
                                 $item,
+
                         ];
                     }
                 }
 
 
-                // ====================================================
-                // PROCESS DETAILS
-                // ====================================================
-    
+                /*
+                |--------------------------------------------------------------------------
+                | PROCESS DETAILS
+                |--------------------------------------------------------------------------
+                */
+
                 foreach (
                     $po->details
                     as $detail
                 ) {
 
-                    // ================================================
-                    // ARTICLE
-                    // ================================================
-    
+                    /*
+                    |--------------------------------------------------------------------------
+                    | DETAIL DATA
+                    |--------------------------------------------------------------------------
+                    */
+
                     $detailData =
-                        is_array($detail->detail)
+                        is_array(
+                            $detail->detail
+                        )
                         ? $detail->detail
                         : [];
 
 
+                    /*
+                    |--------------------------------------------------------------------------
+                    | ARTICLE
+                    |--------------------------------------------------------------------------
+                    */
+
                     $article =
                         (string) (
-                            $detailData['article_nr_']
+                            $detailData[
+                                'article_nr_'
+                            ]
                             ?? ''
                         );
 
 
-                    // ================================================
-                    // BOM
-                    // ================================================
-    
+                    /*
+                    |--------------------------------------------------------------------------
+                    | BOM
+                    |--------------------------------------------------------------------------
+                    */
+
                     $detail->bom =
                         (
-                            $article &&
+                            $article !== '' &&
                             isset(
-                            $bomMap[$article]
+                            $bomMap[
+                                $article
+                            ]
                         )
                         )
-                        ? $bomMap[$article]
+                        ? $bomMap[
+                            $article
+                        ]
                         : null;
 
 
-                    // ================================================
-                    // CAD
-                    // ================================================
-    
+                    /*
+                    |--------------------------------------------------------------------------
+                    | CAD
+                    |--------------------------------------------------------------------------
+                    */
+
                     $detail->cad =
                         (
-                            $article &&
+                            $article !== '' &&
                             isset(
-                            $cadMap[$article]
+                            $cadMap[
+                                $article
+                            ]
                         )
                         )
-                        ? $cadMap[$article]
+                        ? $cadMap[
+                            $article
+                        ]
                         : null;
 
 
-                    // ================================================
-                    // INSPECTION SCHEDULE
-                    // ================================================
-    
+                    /*
+                    |--------------------------------------------------------------------------
+                    | INSPECTION
+                    |--------------------------------------------------------------------------
+                    */
+
                     $detail->inspection_schedules =
                         $inspectionByDetail[
                             $detail->id
-                        ] ?? [];
+                        ]
+                        ?? [];
 
 
-                    // ================================================
-                    // RELATED SPK
-                    // ================================================
-    
+                    /*
+                    |--------------------------------------------------------------------------
+                    | RELATED SPK
+                    |--------------------------------------------------------------------------
+                    */
+
                     $relatedSpks = [];
 
 
                     $detailSpks =
                         $spksByDetail[
                             $detail->id
-                        ] ?? [];
+                        ]
+                        ?? [];
 
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | RELATED SPK LOOP
+                    |--------------------------------------------------------------------------
+                    */
 
                     foreach (
                         $detailSpks
                         as $entry
                     ) {
 
-                        $spk =
-                            $entry['spk'];
+                        $spkId =
+                            $entry[
+                                'spk_id'
+                            ];
 
-                        $spkData =
-                            $entry['spkData'];
 
                         $item =
-                            $entry['item'];
+                            $entry[
+                                'item'
+                            ];
 
 
-                        // ============================================
-                        // INSPECTION SUMMARY
-                        // ============================================
-    
+                        /*
+                        |--------------------------------------------------------------------------
+                        | META
+                        |--------------------------------------------------------------------------
+                        */
+
+                        $meta =
+                            $spkMeta[
+                                $spkId
+                            ]
+                            ?? [];
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | INSPECTION KEY
+                        |--------------------------------------------------------------------------
+                        */
+
                         $inspectionKey =
-                            $detail->id
-                            . ':'
-                            . $spk->id;
+                            $detail->id .
+                            ':' .
+                            $spkId;
 
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | INSPECTION SUMMARY
+                        |--------------------------------------------------------------------------
+                        */
 
                         $inspectionSummary =
                             $inspectionByDetailSpk[
                                 $inspectionKey
                             ]
                             ?? [
+
                                 'passed' => 0,
                                 'rejected' => 0,
+
                             ];
 
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | PASSED
+                        |--------------------------------------------------------------------------
+                        */
 
                         $passed =
                             $roundNumeric(
@@ -2409,6 +7514,12 @@ class QcController extends Controller
                             );
 
 
+                        /*
+                        |--------------------------------------------------------------------------
+                        | REJECTED
+                        |--------------------------------------------------------------------------
+                        */
+
                         $rejected =
                             $roundNumeric(
                                 $inspectionSummary[
@@ -2417,43 +7528,57 @@ class QcController extends Controller
                             );
 
 
-                        // ============================================
-                        // QTY
-                        // ============================================
-    
+                        /*
+                        |--------------------------------------------------------------------------
+                        | QTY
+                        |--------------------------------------------------------------------------
+                        */
+
                         $qty =
                             $roundNumeric(
-                                $item['qty']
+                                $item[
+                                    'qty'
+                                ]
                                 ?? 0
                             );
 
 
-                        // ============================================
-                        // HARGA
-                        // ============================================
-    
+                        /*
+                        |--------------------------------------------------------------------------
+                        | HARGA
+                        |--------------------------------------------------------------------------
+                        */
+
                         $harga =
                             $roundNumeric(
-                                $item['harga']
+                                $item[
+                                    'harga'
+                                ]
                                 ?? 0
                             );
 
 
-                        // ============================================
-                        // TOTAL
-                        // ============================================
-    
+                        /*
+                        |--------------------------------------------------------------------------
+                        | TOTAL
+                        |--------------------------------------------------------------------------
+                        */
+
                         $total =
                             $roundNumeric(
-                                $item['total']
+                                $item[
+                                    'total'
+                                ]
                                 ?? 0
                             );
 
 
-                        // ============================================
-                        // RELATED SPK
-                        // ============================================
-    
+                        /*
+                        |--------------------------------------------------------------------------
+                        | RELATED SPK
+                        |--------------------------------------------------------------------------
+                        */
+
                         $relatedSpks[] = [
 
                             'passed' =>
@@ -2463,34 +7588,48 @@ class QcController extends Controller
                                 $rejected,
 
                             'id' =>
-                                $spk->id,
+                                $spkId,
 
                             'supplier' =>
-                                $spkData['sup']
+                                $meta[
+                                    'supplier'
+                                ]
                                 ?? null,
 
                             'kategori' =>
-                                $spkData['kategori']
+                                $meta[
+                                    'kategori'
+                                ]
                                 ?? null,
 
                             'status' =>
-                                $spkData['status']
+                                $meta[
+                                    'status'
+                                ]
                                 ?? null,
 
                             'no_spk' =>
-                                $spkData['no_spk']
+                                $meta[
+                                    'no_spk'
+                                ]
                                 ?? null,
 
                             'tgl_terima' =>
-                                $spkData['tgl_terima']
+                                $meta[
+                                    'tgl_terima'
+                                ]
                                 ?? null,
 
                             'tgl_selesai' =>
-                                $spkData['tgl_selesai']
+                                $meta[
+                                    'tgl_selesai'
+                                ]
                                 ?? null,
 
                             'material' =>
-                                $item['material']
+                                $item[
+                                    'material'
+                                ]
                                 ?? '',
 
                             'qty' =>
@@ -2501,14 +7640,17 @@ class QcController extends Controller
 
                             'total' =>
                                 $total,
+
                         ];
                     }
 
 
-                    // ================================================
-                    // SIMPAN
-                    // ================================================
-    
+                    /*
+                    |--------------------------------------------------------------------------
+                    | SET RELATED SPK
+                    |--------------------------------------------------------------------------
+                    */
+
                     $detail->spks =
                         $relatedSpks;
                 }
@@ -2516,41 +7658,238 @@ class QcController extends Controller
         );
 
 
-        // ============================================================
-        // 8. CONVERT ELOQUENT → ARRAY SEKALI
-        // ============================================================
+        $processTime =
+            microtime(true) -
+            $tProcess;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 9. ELOQUENT → ARRAY
+        |--------------------------------------------------------------------------
+        |
+        | Tetap menggunakan toArray()
+        | agar field bawaan model + struktur relation tidak berubah.
+        |
+        */
+
+        $tArray = microtime(true);
 
         $responseData =
             $pos->toArray();
 
+        $toArrayTime =
+            microtime(true) -
+            $tArray;
 
-        // ============================================================
-        // 9. NORMALIZE
-        // ============================================================
+
+        /*
+        |--------------------------------------------------------------------------
+        | 10. NORMALIZE
+        |--------------------------------------------------------------------------
+        */
+
+        $tNormalize = microtime(true);
 
         $responseData =
             $normalizeArray(
                 $responseData
             );
 
+        $normalizeTime =
+            microtime(true) -
+            $tNormalize;
 
-        // ============================================================
-        // 10. RESPONSE
-        // ============================================================
 
-        return response()->json([
+        /*
+        |--------------------------------------------------------------------------
+        | 11. JSON ENCODE
+        |--------------------------------------------------------------------------
+        |
+        | Ukur JSON encoding secara terpisah.
+        |--------------------------------------------------------------------------
+        */
 
-            'status' =>
-                'success',
+        $tJson = microtime(true);
 
-            'data' =>
-                $responseData,
+        $json =
+            json_encode(
+                [
+                    'status' =>
+                        'success',
 
-        ]);
+                    'data' =>
+                        $responseData,
+                ],
+                JSON_UNESCAPED_UNICODE |
+                JSON_UNESCAPED_SLASHES
+            );
+
+        $jsonTime =
+            microtime(true) -
+            $tJson;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | JSON ERROR
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $json === false
+        ) {
+
+            return response()->json([
+
+                'status' =>
+                    'error',
+
+                'message' =>
+                    json_last_error_msg(),
+
+            ], 500);
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | TOTAL SERVER TIME
+        |--------------------------------------------------------------------------
+        */
+
+        $totalTime =
+            microtime(true) -
+            $requestStart;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | OPTIONAL LOG
+        |--------------------------------------------------------------------------
+        |
+        | Tidak masuk response API.
+        |
+        | Bisa dihapus setelah selesai testing.
+        |--------------------------------------------------------------------------
+        */
+
+        Log::info(
+            'QC PO API PERFORMANCE',
+            [
+
+                'divisi' =>
+                    $divisiQc,
+
+                'query' =>
+                    round(
+                        $queryTime,
+                        4
+                    ),
+
+                'bom' =>
+                    round(
+                        $bomTime,
+                        4
+                    ),
+
+                'cad' =>
+                    round(
+                        $cadTime,
+                        4
+                    ),
+
+                'inspection' =>
+                    round(
+                        $inspectionTime,
+                        4
+                    ),
+
+                'process' =>
+                    round(
+                        $processTime,
+                        4
+                    ),
+
+                'to_array' =>
+                    round(
+                        $toArrayTime,
+                        4
+                    ),
+
+                'normalize' =>
+                    round(
+                        $normalizeTime,
+                        4
+                    ),
+
+                'json' =>
+                    round(
+                        $jsonTime,
+                        4
+                    ),
+
+                'total' =>
+                    round(
+                        $totalTime,
+                        4
+                    ),
+
+                'json_bytes' =>
+                    strlen($json),
+
+                'po_count' =>
+                    $pos->count(),
+
+                'detail_count' =>
+                    $details->count(),
+
+                'article_count' =>
+                    $articleNumbers->count(),
+
+                'detail_po_id_count' =>
+                    $detailPoIds->count(),
+
+            ]
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 12. RESPONSE
+        |--------------------------------------------------------------------------
+        |
+        | JSON sudah di-encode sehingga Laravel tidak perlu
+        | melakukan json_encode() lagi pada payload.
+        |--------------------------------------------------------------------------
+        */
+
+        return response(
+            $json,
+            200
+        )
+            ->header(
+                'Content-Type',
+                'application/json; charset=UTF-8'
+            )
+            ->header(
+                'Cache-Control',
+                'no-cache, no-store, must-revalidate'
+            )
+            ->header(
+                'Pragma',
+                'no-cache'
+            )
+            ->header(
+                'Expires',
+                '0'
+            );
     }
     public function detailPoReports($detailPoId)
     {
-        $inspectSchedules = InspectSchedule::with([
+        $inspectionModel = $this->inspectionScheduleModel();
+
+        $inspectSchedules = $inspectionModel::with([
             'user',
             'kategori',
             'qcReports',
@@ -2578,11 +7917,13 @@ class QcController extends Controller
             'QC RANGKA' => [
                 'RANGKA',
                 'LASIO',
+                'BASE SWIVEL',
                 'PLAT BESI',
                 'ACCESSORIES',
-                'BASE SWIVEL',
                 'AKSESORIES',
                 'AKESOSORIS',
+                'TRIPLEK',
+                'POWDER COATING'
             ],
 
             'QC ANYAM' => [
@@ -2621,7 +7962,11 @@ class QcController extends Controller
 
     public function laporanQc(Request $request)
     {
-        $query = InspectSchedule::with([
+        $inspectionModel = $this->inspectionScheduleModel();
+
+        $inspectionModel = $this->inspectionScheduleModel();
+
+        $query = $inspectionModel::with([
             'po',
             'detailPo',
             'user.karyawan',
@@ -2669,6 +8014,8 @@ class QcController extends Controller
                     'RANGKA ROTAN',
                     'RANGKA ALUMUNIUN',
                     'RANGKA TRIPLEK',
+                    'TRIPLEK',
+
                     'PLAT BESI',
                 ],
 
@@ -2784,7 +8131,7 @@ class QcController extends Controller
             |--------------------------------------------------------------------------
             */
 
-            $batchHistory = InspectSchedule::select(
+            $batchHistory = $inspectionModel::select(
                 'id',
                 'batch',
                 'passed',
@@ -2834,7 +8181,9 @@ class QcController extends Controller
     }
     public function filterInspection(Request $request)
     {
-        $query = InspectSchedule::with([
+        $inspectionModel = $this->inspectionScheduleModel();
+
+        $query = $inspectionModel::with([
             'po',
             'spk',
             'user'
