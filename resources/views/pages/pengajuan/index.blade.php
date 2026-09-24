@@ -133,12 +133,10 @@
 
             <div class="modal-header">
                 <h4>Detail Pengajuan</h4>
-               <button type="button"
-        class="btn-close close-modal"
-        id="btn-close-detail"
-        aria-label="Close">
-    ✕
-</button>      </div>
+                <button type="button" class="btn-close close-modal" id="btn-close-detail" aria-label="Close">
+                    ✕
+                </button>
+            </div>
 
             <div class="modal-body">
 
@@ -174,7 +172,8 @@
                     <input type="hidden" name="meta_json" id="meta_json">
                     <input type="hidden" name="details_json" id="details_json">
                     <input type="hidden" name="approval_json" id="approval_json">
-                    <input type="file" id="cameraUpload" accept="image/*" capture="environment" multiple style="display:none;">
+                    <input type="file" id="cameraUpload" accept="image/*" capture="environment" multiple
+                        style="display:none;">
 
                     <div class="nw-form-card">
                         <div class="nw-card-heading">
@@ -213,7 +212,8 @@
                                     <strong>Pilih file Excel</strong>
                                     <small>Format .xlsx atau .xls</small>
                                 </div>
-                                <input type="file" id="excelInput" accept=".xlsx,.xls" class="form-control nw-file-input">
+                                <input type="file" id="excelInput" accept=".xlsx,.xls"
+                                    class="form-control nw-file-input">
                             </div>
                         </div>
 
@@ -232,7 +232,8 @@
                             </div>
                         </div>
 
-                        <div id="excel-preview" class="excel-wrapper nw-excel-preview" style="overflow:auto; max-height:360px; border:1px solid #ddd;">
+                        <div id="excel-preview" class="excel-wrapper nw-excel-preview"
+                            style="overflow:auto; max-height:360px; border:1px solid #ddd;">
                             <table id="excel-table" class="table table-bordered">
                                 <thead></thead>
                                 <tbody></tbody>
@@ -251,7 +252,8 @@
 
                         <div class="form-group mb-3" id="no-spk-section">
                             <label class="nw-label">No. SPK</label>
-                            <textarea name="no_spk" class="form-control nw-control" rows="2" placeholder="Masukkan nomor SPK bila ada..."></textarea>
+                            <textarea name="no_spk" class="form-control nw-control" rows="2"
+                                placeholder="Masukkan nomor SPK bila ada..."></textarea>
                         </div>
 
                         <div class="form-group mb-3" id="divisi-section">
@@ -282,7 +284,8 @@
 
                         <div class="form-group mb-3" id="keterangan-section">
                             <label class="nw-label">Keterangan</label>
-                            <textarea name="keterangan" class="form-control nw-control" rows="3" placeholder="Tambahkan keterangan jika diperlukan..."></textarea>
+                            <textarea name="keterangan" class="form-control nw-control" rows="3"
+                                placeholder="Tambahkan keterangan jika diperlukan..."></textarea>
                         </div>
 
                         <div class="form-group mb-0" id="urgent-section">
@@ -395,59 +398,407 @@
         {{-- ================= SCRIPT ================= --}}
         <style>
             /* ===== MODAL PENGAJUAN - MODERN UI ===== */
-            #modal-pengajuan { background:rgba(15,23,42,.58); backdrop-filter:blur(5px); }
-            #modal-pengajuan .nw-pengajuan-modal-content { background:#f6f8fb; }
-            #modal-pengajuan .nw-pengajuan-header { background:#fff; border-bottom:1px solid #e9edf3; padding:18px 26px; position:sticky; top:0; z-index:20; }
-            .nw-pengajuan-title-wrap { display:flex; align-items:center; gap:13px; }
-            .nw-pengajuan-icon { width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; background:#eaf2ff; color:#1769e0; font-size:25px; font-weight:700; }
-            .nw-pengajuan-title-wrap h4 { margin:0; font-size:19px; font-weight:700; color:#182230; }
-            .nw-pengajuan-title-wrap small { color:#7b8794; display:block; margin-top:3px; }
-            .nw-pengajuan-close { border:0; background:#f1f3f6; border-radius:10px; width:38px; height:38px; color:#667085; font-size:18px; cursor:pointer; }
-            .nw-pengajuan-close:hover { background:#feecec; color:#dc3545; }
-            .nw-pengajuan-body { padding:26px; background:#f6f8fb; }
-            .nw-form-card { max-width:1100px; margin:0 auto 16px; background:#fff; border:1px solid #e8edf3; border-radius:16px; padding:22px; box-shadow:0 4px 18px rgba(16,24,40,.04); }
-            .nw-card-heading { display:flex; align-items:center; gap:12px; margin-bottom:20px; }
-            .nw-heading-number { width:34px; height:34px; border-radius:10px; background:#f0f5ff; color:#246bdb; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; letter-spacing:.3px; }
-            .nw-card-heading strong { display:block; color:#202938; font-size:15px; }
-            .nw-card-heading small { display:block; color:#8a94a3; margin-top:2px; }
-            .nw-label { display:block; color:#344054; font-size:13px; font-weight:600; margin-bottom:8px; }
-            .nw-label span { color:#dc3545; }
-            .nw-control { border:1px solid #dfe5ec; border-radius:10px; min-height:44px; box-shadow:none!important; padding:10px 12px; }
-            .nw-control:focus { border-color:#7aa7ee; box-shadow:0 0 0 3px rgba(37,99,235,.08)!important; }
-            .nw-upload-box { position:relative; min-height:76px; border:1px dashed #b9c7da; border-radius:12px; background:#fafcff; display:flex; align-items:center; gap:12px; padding:12px 14px; overflow:hidden; }
-            .nw-upload-icon { width:40px; height:40px; border-radius:10px; background:#eaf2ff; color:#246bdb; display:flex; align-items:center; justify-content:center; font-size:22px; }
-            .nw-upload-copy strong { display:block; font-size:13px; color:#344054; }
-            .nw-upload-copy small { color:#98a2b3; }
-            .nw-file-input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
-            .nw-excel-meta { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
-            .nw-meta-item { background:#f8fafc; border:1px solid #edf0f4; border-radius:10px; padding:11px 13px; }
-            .nw-meta-item span { display:block; color:#98a2b3; font-size:11px; text-transform:uppercase; letter-spacing:.4px; }
-            .nw-meta-item strong { display:block; margin-top:3px; color:#344054; font-size:13px; }
-            .nw-excel-preview { border-radius:12px; background:#fff; }
-            .nw-excel-preview table { margin-bottom:0; white-space:nowrap; font-size:12px; }
-            .nw-excel-preview thead th { position:sticky; top:0; z-index:3; background:#1769e0!important; color:#fff!important; border-color:#1769e0!important; }
-            .nw-excel-preview td, .nw-excel-preview th { padding:9px 10px; vertical-align:middle; }
-            .nw-photo-actions { display:flex; gap:9px; flex-wrap:wrap; }
-            .nw-photo-btn { min-height:42px; border-radius:10px; padding:9px 14px; border:1px solid #dfe5ec; background:#fff; color:#344054; font-size:13px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:7px; margin:0; }
-            .nw-photo-btn input { display:none; }
-            .nw-photo-btn:hover { border-color:#9bb9e9; background:#f8fbff; }
-            .nw-photo-camera { background:#1769e0; color:#fff; border-color:#1769e0; }
-            .nw-photo-camera:hover { background:#125bc2; color:#fff; }
-            .nw-help-text { color:#98a2b3; display:block; margin-top:7px; }
-            .nw-image-preview { width:100%; display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; min-height:10px; }
-            .nw-radio-group { display:flex; gap:10px; flex-wrap:wrap; }
-            .nw-radio-card { flex:1; min-width:200px; border:1px solid #e1e7ef; border-radius:11px; padding:11px 13px; display:flex; align-items:center; gap:10px; cursor:pointer; margin:0; background:#fff; }
-            .nw-radio-card input { display:none; }
-            .nw-radio-dot { width:17px; height:17px; border:2px solid #c5ccd6; border-radius:50%; position:relative; flex:none; }
-            .nw-radio-card input:checked + .nw-radio-dot { border-color:#1769e0; }
-            .nw-radio-card input:checked + .nw-radio-dot:after { content:''; position:absolute; width:7px; height:7px; border-radius:50%; background:#1769e0; left:3px; top:3px; }
-            .nw-radio-card:has(input:checked) { border-color:#9bb9e9; background:#f8fbff; }
-            .nw-radio-card strong { display:block; font-size:13px; color:#344054; }
-            .nw-radio-card small { display:block; color:#98a2b3; font-size:11px; margin-top:2px; }
-            .nw-submit-area { max-width:1100px; margin:0 auto; padding:2px 0 10px; }
-            .nw-submit-btn { width:100%; min-height:48px; border:0; border-radius:12px; font-weight:700; box-shadow:0 5px 14px rgba(25,135,84,.15); }
-            .nw-submit-btn span { margin-right:5px; }
-            @media(max-width:700px) { .nw-pengajuan-body{padding:14px;} .nw-form-card{padding:16px;border-radius:13px;} .nw-excel-meta{grid-template-columns:1fr;} .nw-radio-card{min-width:100%;} .nw-pengajuan-header{padding:14px 16px;} }
+            #modal-pengajuan {
+                background: rgba(15, 23, 42, .58);
+                backdrop-filter: blur(5px);
+            }
+
+            #modal-pengajuan .nw-pengajuan-modal-content {
+                background: #f6f8fb;
+            }
+
+            #modal-pengajuan .nw-pengajuan-header {
+                background: #fff;
+                border-bottom: 1px solid #e9edf3;
+                padding: 18px 26px;
+                position: sticky;
+                top: 0;
+                z-index: 20;
+            }
+
+            .nw-pengajuan-title-wrap {
+                display: flex;
+                align-items: center;
+                gap: 13px;
+            }
+
+            .nw-pengajuan-icon {
+                width: 42px;
+                height: 42px;
+                border-radius: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: #eaf2ff;
+                color: #1769e0;
+                font-size: 25px;
+                font-weight: 700;
+            }
+
+            .nw-pengajuan-title-wrap h4 {
+                margin: 0;
+                font-size: 19px;
+                font-weight: 700;
+                color: #182230;
+            }
+
+            .nw-pengajuan-title-wrap small {
+                color: #7b8794;
+                display: block;
+                margin-top: 3px;
+            }
+
+            .nw-pengajuan-close {
+                border: 0;
+                background: #f1f3f6;
+                border-radius: 10px;
+                width: 38px;
+                height: 38px;
+                color: #667085;
+                font-size: 18px;
+                cursor: pointer;
+            }
+
+            .nw-pengajuan-close:hover {
+                background: #feecec;
+                color: #dc3545;
+            }
+
+            .nw-pengajuan-body {
+                padding: 26px;
+                background: #f6f8fb;
+            }
+
+            .nw-form-card {
+                max-width: 1100px;
+                margin: 0 auto 16px;
+                background: #fff;
+                border: 1px solid #e8edf3;
+                border-radius: 16px;
+                padding: 22px;
+                box-shadow: 0 4px 18px rgba(16, 24, 40, .04);
+            }
+
+            .nw-card-heading {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                margin-bottom: 20px;
+            }
+
+            .nw-heading-number {
+                width: 34px;
+                height: 34px;
+                border-radius: 10px;
+                background: #f0f5ff;
+                color: #246bdb;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 11px;
+                font-weight: 800;
+                letter-spacing: .3px;
+            }
+
+            .nw-card-heading strong {
+                display: block;
+                color: #202938;
+                font-size: 15px;
+            }
+
+            .nw-card-heading small {
+                display: block;
+                color: #8a94a3;
+                margin-top: 2px;
+            }
+
+            .nw-label {
+                display: block;
+                color: #344054;
+                font-size: 13px;
+                font-weight: 600;
+                margin-bottom: 8px;
+            }
+
+            .nw-label span {
+                color: #dc3545;
+            }
+
+            .nw-control {
+                border: 1px solid #dfe5ec;
+                border-radius: 10px;
+                min-height: 44px;
+                box-shadow: none !important;
+                padding: 10px 12px;
+            }
+
+            .nw-control:focus {
+                border-color: #7aa7ee;
+                box-shadow: 0 0 0 3px rgba(37, 99, 235, .08) !important;
+            }
+
+            .nw-upload-box {
+                position: relative;
+                min-height: 76px;
+                border: 1px dashed #b9c7da;
+                border-radius: 12px;
+                background: #fafcff;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 12px 14px;
+                overflow: hidden;
+            }
+
+            .nw-upload-icon {
+                width: 40px;
+                height: 40px;
+                border-radius: 10px;
+                background: #eaf2ff;
+                color: #246bdb;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 22px;
+            }
+
+            .nw-upload-copy strong {
+                display: block;
+                font-size: 13px;
+                color: #344054;
+            }
+
+            .nw-upload-copy small {
+                color: #98a2b3;
+            }
+
+            .nw-file-input {
+                position: absolute;
+                inset: 0;
+                opacity: 0;
+                cursor: pointer;
+                width: 100%;
+                height: 100%;
+            }
+
+            .nw-excel-meta {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 10px;
+            }
+
+            .nw-meta-item {
+                background: #f8fafc;
+                border: 1px solid #edf0f4;
+                border-radius: 10px;
+                padding: 11px 13px;
+            }
+
+            .nw-meta-item span {
+                display: block;
+                color: #98a2b3;
+                font-size: 11px;
+                text-transform: uppercase;
+                letter-spacing: .4px;
+            }
+
+            .nw-meta-item strong {
+                display: block;
+                margin-top: 3px;
+                color: #344054;
+                font-size: 13px;
+            }
+
+            .nw-excel-preview {
+                border-radius: 12px;
+                background: #fff;
+            }
+
+            .nw-excel-preview table {
+                margin-bottom: 0;
+                white-space: nowrap;
+                font-size: 12px;
+            }
+
+            .nw-excel-preview thead th {
+                position: sticky;
+                top: 0;
+                z-index: 3;
+                background: #1769e0 !important;
+                color: #fff !important;
+                border-color: #1769e0 !important;
+            }
+
+            .nw-excel-preview td,
+            .nw-excel-preview th {
+                padding: 9px 10px;
+                vertical-align: middle;
+            }
+
+            .nw-photo-actions {
+                display: flex;
+                gap: 9px;
+                flex-wrap: wrap;
+            }
+
+            .nw-photo-btn {
+                min-height: 42px;
+                border-radius: 10px;
+                padding: 9px 14px;
+                border: 1px solid #dfe5ec;
+                background: #fff;
+                color: #344054;
+                font-size: 13px;
+                font-weight: 600;
+                cursor: pointer;
+                display: inline-flex;
+                align-items: center;
+                gap: 7px;
+                margin: 0;
+            }
+
+            .nw-photo-btn input {
+                display: none;
+            }
+
+            .nw-photo-btn:hover {
+                border-color: #9bb9e9;
+                background: #f8fbff;
+            }
+
+            .nw-photo-camera {
+                background: #1769e0;
+                color: #fff;
+                border-color: #1769e0;
+            }
+
+            .nw-photo-camera:hover {
+                background: #125bc2;
+                color: #fff;
+            }
+
+            .nw-help-text {
+                color: #98a2b3;
+                display: block;
+                margin-top: 7px;
+            }
+
+            .nw-image-preview {
+                width: 100%;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+                margin-top: 12px;
+                min-height: 10px;
+            }
+
+            .nw-radio-group {
+                display: flex;
+                gap: 10px;
+                flex-wrap: wrap;
+            }
+
+            .nw-radio-card {
+                flex: 1;
+                min-width: 200px;
+                border: 1px solid #e1e7ef;
+                border-radius: 11px;
+                padding: 11px 13px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                cursor: pointer;
+                margin: 0;
+                background: #fff;
+            }
+
+            .nw-radio-card input {
+                display: none;
+            }
+
+            .nw-radio-dot {
+                width: 17px;
+                height: 17px;
+                border: 2px solid #c5ccd6;
+                border-radius: 50%;
+                position: relative;
+                flex: none;
+            }
+
+            .nw-radio-card input:checked+.nw-radio-dot {
+                border-color: #1769e0;
+            }
+
+            .nw-radio-card input:checked+.nw-radio-dot:after {
+                content: '';
+                position: absolute;
+                width: 7px;
+                height: 7px;
+                border-radius: 50%;
+                background: #1769e0;
+                left: 3px;
+                top: 3px;
+            }
+
+            .nw-radio-card:has(input:checked) {
+                border-color: #9bb9e9;
+                background: #f8fbff;
+            }
+
+            .nw-radio-card strong {
+                display: block;
+                font-size: 13px;
+                color: #344054;
+            }
+
+            .nw-radio-card small {
+                display: block;
+                color: #98a2b3;
+                font-size: 11px;
+                margin-top: 2px;
+            }
+
+            .nw-submit-area {
+                max-width: 1100px;
+                margin: 0 auto;
+                padding: 2px 0 10px;
+            }
+
+            .nw-submit-btn {
+                width: 100%;
+                min-height: 48px;
+                border: 0;
+                border-radius: 12px;
+                font-weight: 700;
+                box-shadow: 0 5px 14px rgba(25, 135, 84, .15);
+            }
+
+            .nw-submit-btn span {
+                margin-right: 5px;
+            }
+
+            @media(max-width:700px) {
+                .nw-pengajuan-body {
+                    padding: 14px;
+                }
+
+                .nw-form-card {
+                    padding: 16px;
+                    border-radius: 13px;
+                }
+
+                .nw-excel-meta {
+                    grid-template-columns: 1fr;
+                }
+
+                .nw-radio-card {
+                    min-width: 100%;
+                }
+
+                .nw-pengajuan-header {
+                    padding: 14px 16px;
+                }
+            }
         </style>
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
         <script src="https://unpkg.com/html5-qrcode"></script>
@@ -465,7 +816,7 @@
             let grandTotalValue = 0;
 
             // ===== TYPE PENGAJUAN =====
-            $(document).on('change', '[name="type_pengajuan"]', function () {
+            $(document).on('change', '[name="type_pengajuan"]', function() {
                 let val = $(this).val();
                 if (val === 'Finance') {
                     $('#finance-section').show();
@@ -491,23 +842,31 @@
             });
 
             // ===== EXCEL PREVIEW + PARSING =====
-            $(document).on('change', '#excelInput', function (e) {
+            $(document).on('change', '#excelInput', function(e) {
                 let file = e.target.files[0];
                 if (!file) return;
 
                 let reader = new FileReader();
-                reader.onload = function (e) {
+                reader.onload = function(e) {
                     try {
                         let data = new Uint8Array(e.target.result);
-                        let workbook = XLSX.read(data, { type: 'array' });
+                        let workbook = XLSX.read(data, {
+                            type: 'array'
+                        });
                         let sheet = workbook.Sheets[workbook.SheetNames[0]];
-                        let json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                        let json = XLSX.utils.sheet_to_json(sheet, {
+                            header: 1
+                        });
 
                         let meta = extractMeta(json);
                         let totals = extractTotals(json);
 
                         if (!meta.nomor || !meta.tanggal) {
-                            Swal.fire({ icon:'warning', title:'Excel tidak valid', text:'Pastikan file memiliki data Nomor dan Tanggal.' });
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'Excel tidak valid',
+                                text: 'Pastikan file memiliki data Nomor dan Tanggal.'
+                            });
                             return;
                         }
 
@@ -563,7 +922,11 @@
                         renderExcel(json);
                     } catch (err) {
                         console.error('Excel parse error:', err);
-                        Swal.fire({ icon:'error', title:'Gagal membaca Excel', text:'File tidak dapat diproses.' });
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal membaca Excel',
+                            text: 'File tidak dapat diproses.'
+                        });
                     }
                 };
                 reader.readAsArrayBuffer(file);
@@ -825,10 +1188,10 @@
 
                 let type = $(this).val();
                 // jumping to the purchasing tab
-                  if (type === 'Purchasing') {
-                window.location.href = '/pengajuan_purchasing?published=true';
-                return;
-            }
+                if (type === 'Purchasing') {
+                    window.location.href = '/pengajuan_purchasing?published=true';
+                    return;
+                }
                 $.ajax({
                     url: '/pengajuan/list',
                     data: {
@@ -901,7 +1264,7 @@
 
                                 if (item.status === 'approved') {
                                     statusHtml =
-                                    '<span class="badge badge-success">Approved</span>';
+                                        '<span class="badge badge-success">Approved</span>';
                                 } else {
 
                                     // 🔥 cari step yang masih pending
@@ -1480,7 +1843,10 @@
             }
 
             function extractMeta(data) {
-                let tanggal = ''; let nomor = ''; let type = '';
+                let tanggal = '';
+                let nomor = '';
+                let type = '';
+
                 function getNextValue(row, start) {
                     for (let j = start + 1; j < row.length; j++) {
                         let v = row[j];
@@ -1498,7 +1864,11 @@
                     });
                 });
                 if (typeof tanggal === 'number') tanggal = excelDateToJSDate(tanggal);
-                return { tanggal, nomor, type };
+                return {
+                    tanggal,
+                    nomor,
+                    type
+                };
             }
 
             function findHeaderRow(data) {
@@ -1512,7 +1882,8 @@
             function renderExcel(data) {
                 let thead = $('#excel-table thead');
                 let tbody = $('#excel-table tbody');
-                thead.html(''); tbody.html('');
+                thead.html('');
+                tbody.html('');
                 let headerIndex = findHeaderRow(data);
                 let headers = data[headerIndex] || [];
                 let headHtml = '<tr>';
@@ -1533,7 +1904,8 @@
             }
 
             function extractTotals(data) {
-                let transfer = 0; let grand = 0;
+                let transfer = 0;
+                let grand = 0;
                 data.forEach(row => {
                     if (!row) return;
                     row.forEach(cell => {
@@ -1546,7 +1918,10 @@
                         }
                     });
                 });
-                return { transfer, grand };
+                return {
+                    transfer,
+                    grand
+                };
             }
 
             function parseNumber(val) {
@@ -1677,7 +2052,6 @@
 
                 return `${day}/${month}/${year}`;
             }
-
         </script>
         <script>
             $(document).ready(function() {
@@ -2529,13 +2903,13 @@
 
             });
             // =====================================================
-// CLOSE MODAL DETAIL PENGAJUAN
-// =====================================================
-$(document).on('click', '#btn-close-detail', function (e) {
-    e.preventDefault();
-    e.stopPropagation();
+            // CLOSE MODAL DETAIL PENGAJUAN
+            // =====================================================
+            $(document).on('click', '#btn-close-detail', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
 
-    $('#modal-view').removeClass('active');
-});
+                $('#modal-view').removeClass('active');
+            });
         </script>
     @endsection

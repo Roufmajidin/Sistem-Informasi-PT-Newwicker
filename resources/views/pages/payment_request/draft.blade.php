@@ -229,9 +229,10 @@
                                         {{ $row['no_po'] }}
                                     </td>
                                     <td class="pr-td">
-                                      {{ !empty($row['payment_date'])
-    ? \Carbon\Carbon::createFromFormat('d/m/Y', $row['payment_date'])->format('d/m/Y')
-    : '-' }}       </td>
+                                        {{ !empty($row['payment_date'])
+                                            ? \Carbon\Carbon::createFromFormat('d/m/Y', $row['payment_date'])->format('d/m/Y')
+                                            : '-' }}
+                                    </td>
                                     <td class="pr-td">
                                         {{ strtoupper($row['supplier']) }}
                                     </td>
