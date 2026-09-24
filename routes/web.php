@@ -34,7 +34,9 @@ use Illuminate\Http\Request;
 use Pusher\Pusher;
 use App\Http\Controllers\SofianController;
 use App\Http\Controllers\EdController;
-
+use App\Http\Controllers\PurchasingController;
+use App\Http\Controllers\VendorController;
+use App\Http\Controllers\FinanceController;
 // ==========================================================
 // MAGIC APPROVAL LINK - PUBLIC ENTRY POINT
 // ==========================================================
@@ -47,6 +49,93 @@ Route::get('/approval/bypass_config/{token}', [
 // AUTH PROTECTION - ALL INTERNAL ROUTES
 // ==========================================================
 Route::middleware('auth')->group(function () {
+    // finance
+     Route::get('/finance', [FinanceController::class, 'index'])
+        ->name('finance.index');
+    Route::post(
+    '/payment-request-saved/{id}/add-to-finance',
+    [SpkController::class, 'addToFinance']
+)->name('payment-request-saved.add-to-finance');
+    // end fin
+    Route::get('/finance/{id}', [FinanceController::class, 'show'])
+        ->name('finance.show');
+    // vendor
+    Route::prefix('vendor_list')->name('vendor.')->group(function () {
+
+    Route::get('/', [
+        VendorController::class,
+        'index'
+    ])->name('index');
+
+    Route::post('/store', [
+        VendorController::class,
+        'store'
+    ])->name('store');
+
+    Route::put('/update/{id}', [
+        VendorController::class,
+        'update'
+    ])->name('update');
+
+    Route::delete('/delete/{id}', [
+        VendorController::class,
+        'destroy'
+    ])->name('destroy');
+
+    Route::post('/mass-store', [
+        VendorController::class,
+        'massStore'
+    ])->name('massStore');
+});
+    //pengajuan
+    
+// routes/web.php - route purchasing
+Route::get('/pengajuan_purchasing', [PurchasingController::class, 'index'])
+    ->name('pengajuan_purchasing');
+
+Route::get('/pengajuan_purchasing/search', [PurchasingController::class, 'searchBarang'])
+    ->name('pengajuan_purchasing.search');
+
+Route::get('/pengajuan_purchasing/barang/{id}', [PurchasingController::class, 'detailBarang'])
+    ->name('pengajuan_purchasing.barang');
+
+Route::post('/pengajuan_purchasing/save', [PurchasingController::class, 'saveDraft'])
+    ->name('pengajuan_purchasing.save');
+
+Route::get('/pengajuan_purchasing/edit/{id}', [PurchasingController::class, 'edit'])
+    ->name('pengajuan_purchasing.edit');
+Route::post(
+    '/pengajuan_purchasing/{id}/attachments',
+    [PurchasingController::class, 'uploadAttachments']
+)->name('pengajuan_purchasing.attachments');
+
+Route::delete(
+    '/pengajuan_purchasing/{id}/attachments/{fileId}',
+    [PurchasingController::class, 'deleteAttachment']
+)->name('pengajuan_purchasing.attachments.delete');
+
+Route::post(
+    '/pengajuan_purchasing/{id}/publish',
+    [PurchasingController::class, 'publish']
+)->name('pengajuan_purchasing.publish');
+Route::post(
+    '/pengajuan_purchasing/{id}/approve-step',
+    [PurchasingController::class, 'approveStep']
+)->name('pengajuan_purchasing.approve_step');
+
+Route::get(
+    '/laporan/warehouse-purchasing/pending-count',
+    [LaporanController::class, 'warehousePurchasingPendingCount']
+)->name('warehouse.purchasing.pending.count');
+Route::post(
+    '/pengajuan_purchasing/detail/{id}/add-to-warehouse',
+    [PurchasingController::class, 'addToWarehouse']
+)->name('pengajuan_purchasing.add_to_warehouse');
+Route::get(
+    '/pengajuan_purchasing/{id}/export',
+    [PurchasingController::class, 'exportpurchasing']
+)->name('pengajuan_purchasing.export');
+
 // sofian
 
 // exports

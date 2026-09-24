@@ -35,6 +35,8 @@ use App\Models\ApprovalMagicLink;
 use Illuminate\Support\Str;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Pengajuan;
+use App\Models\PengajuanDetail;
 class SpkController extends Controller
 {
     //
@@ -8478,4 +8480,299 @@ public function index(Request $request, $id)
             'keterangan' => $transaksi->keterangan,
         ]);
     }
+    // add to finance
+    public function addToFinance($id)
+{
+    DB::beginTransaction();
+
+    try {
+
+        /*
+        |--------------------------------------------------------------------------
+        | 1. AMBIL PAYMENT REQUEST SAVED
+        |--------------------------------------------------------------------------
+        */
+
+        $saved = PaymentRequestSaved::findOrFail($id);
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 2. CEGAH DUPLIKAT
+        |--------------------------------------------------------------------------
+        |
+        | Kalau payment list ini sudah pernah dimasukkan ke Finance,
+        | jangan membuat Pengajuan baru lagi.
+        |
+        */
+
+        $existing = Pengajuan::where('type_pengajuan', 'Finance')
+            ->where('remark', 'PaymentRequestSaved:' . $saved->id)
+            ->first();
+
+        if ($existing) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Payment ini sudah pernah ditambahkan ke Draft Finance.',
+                'pengajuan_id' => $existing->id,
+            ], 422);
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 3. AMBIL PAYMENT REQUEST
+        |--------------------------------------------------------------------------
+        */
+
+        $paymentRequestIds = $saved->payment_request_ids ?? [];
+
+        if (is_string($paymentRequestIds)) {
+            $paymentRequestIds = json_decode(
+                $paymentRequestIds,
+                true
+            ) ?? [];
+        }
+
+        if (!is_array($paymentRequestIds)) {
+            $paymentRequestIds = [];
+        }
+
+        $paymentRequests = PaymentRequest::with('spk')
+            ->whereIn('id', $paymentRequestIds)
+            ->get();
+
+
+        if ($paymentRequests->isEmpty()) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Payment Request tidak ditemukan.',
+            ], 404);
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 4. BUAT PENGAJUAN FINANCE
+        |--------------------------------------------------------------------------
+        */
+
+       $pengajuan = Pengajuan::create([
+    'type_pengajuan' => 'Finance',
+    'file' => null,
+    'user_id' => auth()->id(),
+
+    // gunakan status yang memang sudah valid di sistem
+    'status' => 'pending',
+
+    'keterangan' =>
+        'Payment Finance dari Payment Request Saved #' .
+        $saved->id,
+
+    'approved_date' => null,
+
+    'remark' =>
+        'PaymentRequestSaved:' . $saved->id,
+
+    'divisi_id' => null,
+
+    'no_spk' => null,
+
+    'urgent' => 0,
+
+    // penanda Draft
+    'is_draft' => 1,
+
+    'need_date' => $saved->need_date,
+]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | 5. BUAT PENGAJUAN DETAIL
+        |--------------------------------------------------------------------------
+        */
+
+        $detailNo = 1;
+
+        foreach ($paymentRequests as $paymentRequest) {
+
+            /*
+            |--------------------------------------------------------------------------
+            | DATA SPK
+            |--------------------------------------------------------------------------
+            */
+
+            $spkData = [];
+
+            if ($paymentRequest->spk) {
+
+                $spkData = $paymentRequest->spk->data;
+
+                if (is_string($spkData)) {
+
+                    $spkData = json_decode(
+                        $spkData,
+                        true
+                    ) ?? [];
+                }
+
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | CARI DATA PAYMENT
+            |--------------------------------------------------------------------------
+            */
+
+            $payment = collect(
+                $spkData['payments'] ?? []
+            )->firstWhere(
+                'payment_id',
+                $paymentRequest->payment_id
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | NOMINAL PAYMENT
+            |--------------------------------------------------------------------------
+            */
+
+            $amount = !empty($payment['adjustment'])
+                ? (float) $payment['adjustment']
+                : (float) ($payment['amount'] ?? 0);
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | NO PO
+            |--------------------------------------------------------------------------
+            */
+
+            $noPo = $spkData['no_po'] ?? '-';
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | NO SPK
+            |--------------------------------------------------------------------------
+            */
+
+            $noSpk = $spkData['no_spk'] ?? '-';
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | NAMA PAYMENT
+            |--------------------------------------------------------------------------
+            */
+
+            $namaBarang =
+                $payment['note']
+                ?? $paymentRequest->request_no
+                ?? 'Payment';
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | BUAT DETAIL
+            |--------------------------------------------------------------------------
+            |
+            | Untuk tahap pertama:
+            |
+            | QTY          = 1
+            | Harga satuan = nominal payment
+            | Total harga   = nominal payment
+            |
+            | Karena PaymentRequest adalah payment,
+            | bukan detail barang SPK.
+            |
+            */
+
+            PengajuanDetail::create([
+
+                'pengajuan_id' =>
+                    $pengajuan->id,
+
+                'no' =>
+                    $detailNo++,
+
+                'date' =>
+                    $paymentRequest->request_date
+                    ?? $saved->request_date,
+
+                'no_po' =>
+                    $noPo,
+
+                'no_inv' =>
+                    $noSpk,
+
+                'type_biaya' =>
+                    '-',
+
+                'nama_barang' =>
+                    $namaBarang,
+
+                'qty' =>
+                    1,
+
+                'harga_satuan' =>
+                    $amount,
+
+                'total_harga' =>
+                    $amount,
+            ]);
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 6. COMMIT
+        |--------------------------------------------------------------------------
+        */
+
+        DB::commit();
+
+
+        return response()->json([
+
+            'success' => true,
+
+            'message' =>
+                'Payment berhasil ditambahkan ke Draft Finance.',
+
+            'pengajuan_id' =>
+                $pengajuan->id,
+
+        ]);
+
+
+    } catch (\Throwable $e) {
+
+        DB::rollBack();
+
+        report($e);
+
+        return response()->json([
+
+            'success' => false,
+
+            'message' =>
+                'Gagal menambahkan payment ke Draft Finance.',
+
+            'error' =>
+                config('app.debug')
+                    ? $e->getMessage()
+                    : null,
+
+        ], 500);
+    }
+}
 }

@@ -2076,6 +2076,7 @@
         const PURCHASING_CACHE_KEY = 'pengajuan_purchasing_draft_v1';
 
         let cacheSaveTimer = null;
+        let suppressNextDraftCacheSave = false;
 
         function getDraftCacheData() {
 
@@ -2299,7 +2300,7 @@
         }
 
 
-        function clearDraftCache() {
+        function clearDraftCache(skipConfirm = false) {
 
             const hasData =
                 localStorage.getItem(
@@ -2308,6 +2309,7 @@
 
             if (
                 hasData &&
+                !skipConfirm &&
                 !confirm(
                     'Hapus draft cache ini? Semua data barang dan isian form yang tersimpan di browser akan dihapus.'
                 )
@@ -2335,6 +2337,8 @@
             // Reset barang
             requestItems = [];
 
+            // Jangan biarkan renderTable() otomatis membuat cache kosong lagi.
+            suppressNextDraftCacheSave = true;
             renderTable();
 
 
@@ -2388,6 +2392,14 @@
                 'cleared'
             );
         }
+
+
+        // Dipakai oleh tab utama Purchasing untuk membuat Draft Form baru.
+        // Tetap menggunakan clearDraftCache() yang sama agar seluruh state
+        // internal form (requestItems, attachment, signature, dll) ikut reset.
+        window.clearPurchasingDraftCache = function(skipConfirm) {
+            clearDraftCache(Boolean(skipConfirm));
+        };
 
 
         /*
@@ -2918,6 +2930,11 @@
 
             originalRenderTable();
 
+            if (suppressNextDraftCacheSave) {
+                suppressNextDraftCacheSave = false;
+                return;
+            }
+
             scheduleDraftCache();
 
         };
@@ -3348,19 +3365,9 @@
                 $(this).toggle(text.indexOf(keyword) !== -1);
             });
         });
-
-        // Klik Lihat/Edit: buka data yang benar berdasarkan ID pada URL.
-        $(document).off('click.purchasingDetail', '.btn-view-submission');
-        $(document).on('click.purchasingDetail', '.btn-view-submission', function() {
-            const id = $(this).data('id');
-            if (!id) return;
-
-            let url = "{{ url('/pengajuan_purchasing/edit') }}/" + id;
-            if (String($(this).data('view-only')) === '1') {
-                url += '?view_only=1';
-            }
-            window.location.href = url;
-        });
+        // Klik Detail/Edit ditangani oleh handler global di list.blade
+        // dan capture handler pada index.blade. Jangan pasang handler kedua
+        // di sini karena dapat memicu navigasi ganda.
 
         // ============================================================
         // WAREHOUSE - ADD TO WAREHOUSE

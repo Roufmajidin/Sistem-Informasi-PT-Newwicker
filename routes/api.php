@@ -39,6 +39,7 @@ Route::prefix('qc')->middleware('auth:sanctum')->group(function () {
 
     Route::get('/detail/{id}', [QcController::class, 'show']);
     Route::get('/timeline', [QcController::class, 'timeline']);
+    Route::get('/date', [QcController::class, 'getDate']);
 });
 
 // new route

@@ -1912,7 +1912,7 @@ Belum ada item
 
             }
             $(document).on('change', '.qty_pcs', function() {
-
+                
                 let row = $(this).closest('tr');
 
                 let detailPoId = row.find('input[name$="[detail_po_id]"]').val();

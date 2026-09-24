@@ -1379,12 +1379,11 @@
 /* =========================================================
    MASS INPUT
    ========================================================= */
-
 #modalInsertUpah.mass-mode .modal-dialog {
-    max-width: 1220px !important;
-    width: calc(100% - 24px) !important;
+    width: calc(100vw - 24px) !important;
+    max-width: 1500px !important;
 
-    margin: 1rem auto !important;
+    margin: .75rem auto !important;
 
     height: auto !important;
     min-height: 0 !important;
@@ -1502,12 +1501,12 @@
    ========================================================= */
 
 .mass-upah-table {
-    width: 100%;
-    min-width: 1450px;
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: fixed;
 
     border-collapse: separate;
     border-spacing: 0;
-
     background: #fff;
 
     font-size: 12px;

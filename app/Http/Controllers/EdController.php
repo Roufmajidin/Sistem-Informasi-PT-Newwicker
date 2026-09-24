@@ -6,11 +6,13 @@ use App\Models\DetailPo;
 use App\Models\ExportIpl;
 use App\Models\ExportIplItem;
 use App\Models\ExportIplPo;
+use App\Models\ExportDocument;
+use App\Models\ExportDocumentFile;
+
 use App\Models\Po;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use App\Models\ExportDocument;
-use App\Models\ExportDocumentFile;
+
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 class EdController extends Controller
@@ -40,219 +42,219 @@ class EdController extends Controller
         return response()->json($rows);
     }
 
-public function poItems($id)
-{
-    $po = Po::with('detailPos')->findOrFail($id);
+    public function poItems($id)
+    {
+        $po = Po::with('detailPos')->findOrFail($id);
 
-    /*
-    |--------------------------------------------------------------------------
-    | AMBIL IPL YANG SUDAH RELEASE
-    |--------------------------------------------------------------------------
-    */
+        /*
+        |--------------------------------------------------------------------------
+        | AMBIL IPL YANG SUDAH RELEASE
+        |--------------------------------------------------------------------------
+        */
 
-    $releasedItems = ExportIplItem::with('exportIpl')
-        ->whereHas('exportIpl', function ($query) {
+        $releasedItems = ExportIplItem::with('exportIpl')
+            ->whereHas('exportIpl', function ($query) {
 
-            $query->whereNotNull('released')
-                ->where('released', '!=', '');
+                $query->whereNotNull('released')
+                    ->where('released', '!=', '');
 
-        })
-        ->select(
-            'id',
-            'export_ipl_id',
-            'po_id',
-            'detail_po_id',
-            'po_no',
-            'article_nr',
-            'qty_pcs'
-        )
-        ->orderBy('export_ipl_id')
-        ->get();
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | GROUP BERDASARKAN PO + ARTICLE
-    |--------------------------------------------------------------------------
-    |
-    | HARUS SAMA DENGAN STOCK MONITORING
-    |
-    */
-
-    $loadedByPoArticle = $releasedItems
-        ->groupBy(function ($item) {
-
-            return trim((string) $item->po_no)
-                . '||'
-                . trim((string) $item->article_nr);
-
-        });
-
-
-    $items = [];
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | LOOP DETAIL PO
-    |--------------------------------------------------------------------------
-    */
-
-    foreach ($po->detailPos as $detailPo) {
-
-        $detail = is_array($detailPo->detail)
-            ? $detailPo->detail
-            : json_decode($detailPo->detail, true);
+            })
+            ->select(
+                'id',
+                'export_ipl_id',
+                'po_id',
+                'detail_po_id',
+                'po_no',
+                'article_nr',
+                'qty_pcs'
+            )
+            ->orderBy('export_ipl_id')
+            ->get();
 
 
         /*
         |--------------------------------------------------------------------------
-        | QTY PO
+        | GROUP BERDASARKAN PO + ARTICLE
         |--------------------------------------------------------------------------
+        |
+        | HARUS SAMA DENGAN STOCK MONITORING
+        |
         */
 
-        $qtyPo = (float) ($detail['qty'] ?? 0);
+        $loadedByPoArticle = $releasedItems
+            ->groupBy(function ($item) {
+
+                return trim((string) $item->po_no)
+                    . '||'
+                    . trim((string) $item->article_nr);
+
+            });
+
+
+        $items = [];
 
 
         /*
         |--------------------------------------------------------------------------
-        | PO NUMBER
+        | LOOP DETAIL PO
         |--------------------------------------------------------------------------
         */
 
-        $poNo = trim(
-            (string) $po->order_no
-        );
+        foreach ($po->detailPos as $detailPo) {
+
+            $detail = is_array($detailPo->detail)
+                ? $detailPo->detail
+                : json_decode($detailPo->detail, true);
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | ARTICLE
-        |--------------------------------------------------------------------------
-        */
+            /*
+            |--------------------------------------------------------------------------
+            | QTY PO
+            |--------------------------------------------------------------------------
+            */
 
-        $article = trim(
-            (string) ($detail['article_nr_'] ?? '')
-        );
+            $qtyPo = (float) ($detail['qty'] ?? 0);
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | DEFAULT LOADED
-        |--------------------------------------------------------------------------
-        */
+            /*
+            |--------------------------------------------------------------------------
+            | PO NUMBER
+            |--------------------------------------------------------------------------
+            */
 
-        $loadedQty = 0;
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | CARI SEMUA IPL RELEASED
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            $poNo !== '' &&
-            $article !== ''
-        ) {
-
-            $key = $poNo . '||' . $article;
+            $poNo = trim(
+                (string) $po->order_no
+            );
 
 
-            if (isset($loadedByPoArticle[$key])) {
+            /*
+            |--------------------------------------------------------------------------
+            | ARTICLE
+            |--------------------------------------------------------------------------
+            */
 
-                $loadedQty = $loadedByPoArticle[$key]
-                    ->sum(function ($load) {
+            $article = trim(
+                (string) ($detail['article_nr_'] ?? '')
+            );
 
-                        return (float) (
-                            $load->qty_pcs ?? 0
-                        );
 
-                    });
+            /*
+            |--------------------------------------------------------------------------
+            | DEFAULT LOADED
+            |--------------------------------------------------------------------------
+            */
+
+            $loadedQty = 0;
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | CARI SEMUA IPL RELEASED
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                $poNo !== '' &&
+                $article !== ''
+            ) {
+
+                $key = $poNo . '||' . $article;
+
+
+                if (isset($loadedByPoArticle[$key])) {
+
+                    $loadedQty = $loadedByPoArticle[$key]
+                        ->sum(function ($load) {
+
+                            return (float) (
+                                $load->qty_pcs ?? 0
+                            );
+
+                        });
+
+                }
 
             }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | QTY SISA
+            |--------------------------------------------------------------------------
+            */
+
+            $availableQty = max(
+                0,
+                $qtyPo - $loadedQty
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | RETURN DATA
+            |--------------------------------------------------------------------------
+            */
+
+            $items[] = [
+
+                'id' => $detailPo->id,
+
+                'article_nr' =>
+                    $detail['article_nr_'] ?? '',
+
+                'order_no' =>
+                    $po->order_no,
+
+                'po_id' =>
+                    $po->id,
+
+                'description' =>
+                    $detail['description'] ?? '',
+
+                'photo' =>
+                    $detail['photo'] ?? '',
+
+
+                // Qty PO
+                'qty' =>
+                    $qtyPo,
+
+
+                // Qty seluruh IPL RELEASE
+                'used_qty' =>
+                    $loadedQty,
+
+
+                // Qty yang masih bisa diambil
+                'available_qty' =>
+                    $availableQty,
+
+
+                'cbm' =>
+                    $detail['cbm'] ?? 0,
+
+                'total_cbm' =>
+                    $detail['total_cbm'] ?? 0,
+
+                'pack_w' =>
+                    $detail['pack_w'] ?? '',
+
+                'pack_d' =>
+                    $detail['pack_d'] ?? '',
+
+                'pack_h' =>
+                    $detail['pack_h'] ?? '',
+
+                'value' =>
+                    $this->getPrice($detail),
+
+            ];
 
         }
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | QTY SISA
-        |--------------------------------------------------------------------------
-        */
-
-        $availableQty = max(
-            0,
-            $qtyPo - $loadedQty
-        );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | RETURN DATA
-        |--------------------------------------------------------------------------
-        */
-
-        $items[] = [
-
-            'id' => $detailPo->id,
-
-            'article_nr' =>
-                $detail['article_nr_'] ?? '',
-
-            'order_no' =>
-                $po->order_no,
-
-            'po_id' =>
-                $po->id,
-
-            'description' =>
-                $detail['description'] ?? '',
-
-            'photo' =>
-                $detail['photo'] ?? '',
-
-
-            // Qty PO
-            'qty' =>
-                $qtyPo,
-
-
-            // Qty seluruh IPL RELEASE
-            'used_qty' =>
-                $loadedQty,
-
-
-            // Qty yang masih bisa diambil
-            'available_qty' =>
-                $availableQty,
-
-
-            'cbm' =>
-                $detail['cbm'] ?? 0,
-
-            'total_cbm' =>
-                $detail['total_cbm'] ?? 0,
-
-            'pack_w' =>
-                $detail['pack_w'] ?? '',
-
-            'pack_d' =>
-                $detail['pack_d'] ?? '',
-
-            'pack_h' =>
-                $detail['pack_h'] ?? '',
-
-            'value' =>
-                $this->getPrice($detail),
-
-        ];
-
+        return response()->json($items);
     }
-
-
-    return response()->json($items);
-}
 
     private function getPrice(array $detail)
     {
@@ -442,84 +444,84 @@ public function poItems($id)
         );
     }
 
-  public function edit($id)
-{
-    $ipl = ExportIpl::with([
-        'pos',
-        'items',
-    ])->findOrFail($id);
+    public function edit($id)
+    {
+        $ipl = ExportIpl::with([
+            'pos',
+            'items',
+        ])->findOrFail($id);
 
-    /*
-    |--------------------------------------------------------------------------
-    | RECOVERY DATA IPL LAMA
-    |--------------------------------------------------------------------------
-    | Jika po_id kosong, cari berdasarkan po_no.
-    | Jika detail_po_id kosong, cari berdasarkan PO + article.
-    |--------------------------------------------------------------------------
-    */
+        /*
+        |--------------------------------------------------------------------------
+        | RECOVERY DATA IPL LAMA
+        |--------------------------------------------------------------------------
+        | Jika po_id kosong, cari berdasarkan po_no.
+        | Jika detail_po_id kosong, cari berdasarkan PO + article.
+        |--------------------------------------------------------------------------
+        */
 
-    foreach ($ipl->items as $item) {
+        foreach ($ipl->items as $item) {
 
-        // ---------------------------------------------------------
-        // RECOVERY PO ID
-        // ---------------------------------------------------------
+            // ---------------------------------------------------------
+            // RECOVERY PO ID
+            // ---------------------------------------------------------
 
-        if (empty($item->po_id) && !empty($item->po_no)) {
+            if (empty($item->po_id) && !empty($item->po_no)) {
 
-            $po = Po::where(
-                'order_no',
-                trim($item->po_no)
-            )->first();
+                $po = Po::where(
+                    'order_no',
+                    trim($item->po_no)
+                )->first();
 
-            if ($po) {
-                $item->po_id = $po->id;
+                if ($po) {
+                    $item->po_id = $po->id;
+                }
             }
-        }
 
-        // ---------------------------------------------------------
-        // RECOVERY DETAIL PO ID
-        // ---------------------------------------------------------
+            // ---------------------------------------------------------
+            // RECOVERY DETAIL PO ID
+            // ---------------------------------------------------------
 
-        if (
-            empty($item->detail_po_id) &&
-            !empty($item->po_id) &&
-            !empty($item->article_nr)
-        ) {
+            if (
+                empty($item->detail_po_id) &&
+                !empty($item->po_id) &&
+                !empty($item->article_nr)
+            ) {
 
-            $po = Po::with('detailPos')
-                ->find($item->po_id);
+                $po = Po::with('detailPos')
+                    ->find($item->po_id);
 
-            if ($po) {
+                if ($po) {
 
-                foreach ($po->detailPos as $detailPo) {
+                    foreach ($po->detailPos as $detailPo) {
 
-                    $detail = is_array($detailPo->detail)
-                        ? $detailPo->detail
-                        : json_decode($detailPo->detail, true);
+                        $detail = is_array($detailPo->detail)
+                            ? $detailPo->detail
+                            : json_decode($detailPo->detail, true);
 
-                    $article = trim(
-                        (string) ($detail['article_nr_'] ?? '')
-                    );
+                        $article = trim(
+                            (string) ($detail['article_nr_'] ?? '')
+                        );
 
-                    if (
-                        $article !== '' &&
-                        $article === trim((string) $item->article_nr)
-                    ) {
+                        if (
+                            $article !== '' &&
+                            $article === trim((string) $item->article_nr)
+                        ) {
 
-                        $item->detail_po_id = $detailPo->id;
+                            $item->detail_po_id = $detailPo->id;
 
-                        break;
+                            break;
+                        }
                     }
                 }
             }
         }
-    }
 
-    return view('pages.exports.index', [
-        'mode' => 'edit',
-        'ipl' => $ipl,
-    ]);
-}
+        return view('pages.exports.index', [
+            'mode' => 'edit',
+            'ipl' => $ipl,
+        ]);
+    }
 
     public function updateIpl(Request $request, $id)
     {
@@ -724,182 +726,182 @@ public function poItems($id)
         ]);
     }
 
-   public function stock()
-{
-    $po = Po::with('detailPos')
-        ->orderBy('order_no')
-        ->get();
+    public function stock()
+    {
+        $po = Po::with('detailPos')
+            ->orderBy('order_no')
+            ->get();
 
-    /*
-    |--------------------------------------------------------------------------
-    | PREPARE DETAIL PO
-    |--------------------------------------------------------------------------
-    */
+        /*
+        |--------------------------------------------------------------------------
+        | PREPARE DETAIL PO
+        |--------------------------------------------------------------------------
+        */
 
-    foreach ($po as $itemPo) {
+        foreach ($po as $itemPo) {
 
-        foreach ($itemPo->detailPos as $detail) {
+            foreach ($itemPo->detailPos as $detail) {
 
-            $detail->item = is_array($detail->detail)
-                ? $detail->detail
-                : json_decode($detail->detail, true);
-
-        }
-
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | AMBIL SEMUA IPL YANG SUDAH RELEASE
-    |--------------------------------------------------------------------------
-    */
-
-    $releasedItems = ExportIplItem::with('exportIpl')
-        ->whereHas('exportIpl', function ($query) {
-
-            $query->whereNotNull('released')
-                ->where('released', '!=', '');
-
-        })
-        ->select(
-            'id',
-            'export_ipl_id',
-            'po_id',
-            'detail_po_id',
-            'po_no',
-            'article_nr',
-            'qty_pcs'
-        )
-        ->orderBy('export_ipl_id')
-        ->get();
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | GROUP QTY LOADED BERDASARKAN
-    |
-    | PO NO + ARTICLE
-    |
-    | INI YANG MENJADI SUMBER UTAMA MONITORING
-    |--------------------------------------------------------------------------
-    |
-    | Contoh:
-    |
-    | NW 26 - 38 || ERYN001-4348
-    |
-    | IPL #6 = 90
-    | IPL #9 = 6
-    |
-    | Total = 96
-    |
-    */
-
-    $loadedByPoArticle = $releasedItems
-        ->groupBy(function ($item) {
-
-            return trim((string) $item->po_no)
-                . '||'
-                . trim((string) $item->article_nr);
-
-        });
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | HITUNG QTY LOADED
-    |--------------------------------------------------------------------------
-    */
-
-    foreach ($po as $itemPo) {
-
-        foreach ($itemPo->detailPos as $detail) {
-
-            $item = $detail->item ?? [];
-
-            /*
-            |--------------------------------------------------------------------------
-            | PO NUMBER
-            |--------------------------------------------------------------------------
-            */
-
-            $poNo = trim(
-                (string) $itemPo->order_no
-            );
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | ARTICLE
-            |--------------------------------------------------------------------------
-            */
-
-            $article = trim(
-                (string) ($item['article_nr_'] ?? '')
-            );
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | DEFAULT
-            |--------------------------------------------------------------------------
-            */
-
-            $loadedQty = 0;
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | CARI SEMUA IPL BERDASARKAN PO + ARTICLE
-            |--------------------------------------------------------------------------
-            */
-
-            if (
-                $poNo !== '' &&
-                $article !== ''
-            ) {
-
-                $key = $poNo . '||' . $article;
-
-                if (isset($loadedByPoArticle[$key])) {
-
-                    $loadedQty = $loadedByPoArticle[$key]
-                        ->sum(function ($load) {
-
-                            return (float) (
-                                $load->qty_pcs ?? 0
-                            );
-
-                        });
-
-                }
+                $detail->item = is_array($detail->detail)
+                    ? $detail->detail
+                    : json_decode($detail->detail, true);
 
             }
 
+        }
 
-            /*
-            |--------------------------------------------------------------------------
-            | SIMPAN HASIL KE DETAIL PO
-            |--------------------------------------------------------------------------
-            */
 
-            $detail->loaded_qty = $loadedQty;
+        /*
+        |--------------------------------------------------------------------------
+        | AMBIL SEMUA IPL YANG SUDAH RELEASE
+        |--------------------------------------------------------------------------
+        */
+
+        $releasedItems = ExportIplItem::with('exportIpl')
+            ->whereHas('exportIpl', function ($query) {
+
+                $query->whereNotNull('released')
+                    ->where('released', '!=', '');
+
+            })
+            ->select(
+                'id',
+                'export_ipl_id',
+                'po_id',
+                'detail_po_id',
+                'po_no',
+                'article_nr',
+                'qty_pcs'
+            )
+            ->orderBy('export_ipl_id')
+            ->get();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | GROUP QTY LOADED BERDASARKAN
+        |
+        | PO NO + ARTICLE
+        |
+        | INI YANG MENJADI SUMBER UTAMA MONITORING
+        |--------------------------------------------------------------------------
+        |
+        | Contoh:
+        |
+        | NW 26 - 38 || ERYN001-4348
+        |
+        | IPL #6 = 90
+        | IPL #9 = 6
+        |
+        | Total = 96
+        |
+        */
+
+        $loadedByPoArticle = $releasedItems
+            ->groupBy(function ($item) {
+
+                return trim((string) $item->po_no)
+                    . '||'
+                    . trim((string) $item->article_nr);
+
+            });
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | HITUNG QTY LOADED
+        |--------------------------------------------------------------------------
+        */
+
+        foreach ($po as $itemPo) {
+
+            foreach ($itemPo->detailPos as $detail) {
+
+                $item = $detail->item ?? [];
+
+                /*
+                |--------------------------------------------------------------------------
+                | PO NUMBER
+                |--------------------------------------------------------------------------
+                */
+
+                $poNo = trim(
+                    (string) $itemPo->order_no
+                );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | ARTICLE
+                |--------------------------------------------------------------------------
+                */
+
+                $article = trim(
+                    (string) ($item['article_nr_'] ?? '')
+                );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | DEFAULT
+                |--------------------------------------------------------------------------
+                */
+
+                $loadedQty = 0;
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | CARI SEMUA IPL BERDASARKAN PO + ARTICLE
+                |--------------------------------------------------------------------------
+                */
+
+                if (
+                    $poNo !== '' &&
+                    $article !== ''
+                ) {
+
+                    $key = $poNo . '||' . $article;
+
+                    if (isset($loadedByPoArticle[$key])) {
+
+                        $loadedQty = $loadedByPoArticle[$key]
+                            ->sum(function ($load) {
+
+                                return (float) (
+                                    $load->qty_pcs ?? 0
+                                );
+
+                            });
+
+                    }
+
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | SIMPAN HASIL KE DETAIL PO
+                |--------------------------------------------------------------------------
+                */
+
+                $detail->loaded_qty = $loadedQty;
+
+            }
 
         }
 
+
+        /*
+        |--------------------------------------------------------------------------
+        | VIEW
+        |--------------------------------------------------------------------------
+        */
+
+        return view('pages.exports.so', compact(
+            'po'
+        ));
     }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | VIEW
-    |--------------------------------------------------------------------------
-    */
-
-    return view('pages.exports.so', compact(
-        'po'
-    ));
-}
     // public function stock()
     // {
     //     $po = Po::with('detailPos')
@@ -1533,10 +1535,9 @@ public function poItems($id)
 
             $releaseDate = now();
 
-            $ipl->released = $releaseDate;
-            $ipl->release_date = $releaseDate;
+            $ipl->released = 1;
+            $ipl->release_date = $releaseDate->toDateString();
             $ipl->save();
-
             /*
             |--------------------------------------------------------------------------
             | 6. COMMIT

@@ -578,6 +578,33 @@
     `;
 
                     });
+
+                    // =========================================================
+                    // ADD TO DRAFT FINANCE
+                    // =========================================================
+                    html += `
+                        <div
+                            class="no-print"
+                            style="
+                                margin-top:20px;
+                                padding:15px;
+                                border:1px solid #dbe3ec;
+                                border-radius:8px;
+                                background:#f8fafc;
+                                text-align:right;
+                            "
+                        >
+                            <button
+                                type="button"
+                                class="btn btn-primary btn-add-finance-draft"
+                                data-id="${draftId}"
+                            >
+                                <i class="fa fa-plus-circle"></i>
+                                Add to Draft Finance
+                            </button>
+                        </div>
+                    `;
+
                     $('#draftDetailArea').html(html);
 
                     setTimeout(function() {
@@ -749,6 +776,104 @@
         }, 300);
 
     });
+</script>
+<script>
+    // =========================================================
+    // ADD PAYMENT LIST TO DRAFT FINANCE
+    // =========================================================
+    $(document).on(
+        'click',
+        '.btn-add-finance-draft',
+        function() {
+
+            const button = $(this);
+            const id = button.data('id');
+
+            if (!id) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal',
+                    text: 'ID payment request tidak ditemukan.'
+                });
+
+                return;
+            }
+
+            Swal.fire({
+                title: 'Add to Draft Finance?',
+                text: 'Anda akan menambahkan list payment ini ke draft finance, sudah selesai recons?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Ya',
+                cancelButtonText: 'Tidak',
+                confirmButtonColor: '#198754',
+                cancelButtonColor: '#6c757d',
+                reverseButtons: true
+            }).then(function(result) {
+
+                if (!result.isConfirmed) {
+                    return;
+                }
+
+                $.ajax({
+                    url: `/payment-request-saved/${id}/add-to-finance`,
+                    type: 'POST',
+                    data: {
+                        _token: $('meta[name="csrf-token"]').attr('content')
+                    },
+                    beforeSend: function() {
+
+                        button
+                            .prop('disabled', true)
+                            .html('<i class="fa fa-spinner fa-spin"></i> Processing...');
+
+                    },
+                    success: function(res) {
+
+                        if (!res.success) {
+                            button
+                                .prop('disabled', false)
+                                .html('<i class="fa fa-plus-circle"></i> Add to Draft Finance');
+
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Gagal',
+                                text: res.message || 'Gagal menambahkan payment ke Draft Finance.'
+                            });
+
+                            return;
+                        }
+
+                        button
+                            .prop('disabled', true)
+                            .removeClass('btn-primary')
+                            .addClass('btn-success')
+                            .html('<i class="fa fa-check"></i> Added to Draft Finance');
+
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Berhasil',
+                            text: res.message || 'Payment berhasil ditambahkan ke Draft Finance.',
+                            timer: 1500,
+                            showConfirmButton: false
+                        });
+                    },
+                    error: function(xhr) {
+
+                        button
+                            .prop('disabled', false)
+                            .html('<i class="fa fa-plus-circle"></i> Add to Draft Finance');
+
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Server Error',
+                            text: xhr.responseJSON?.message || 'Terjadi kesalahan saat menambahkan payment ke Draft Finance.'
+                        });
+                    }
+                });
+            });
+        }
+    );
 </script>
 <script>
     // adjustment finance

@@ -274,27 +274,186 @@ class PackingListExport implements WithEvents
             $sheet->setCellValue("C{$currentRow}", $item->hs_code);
             $sheet->setCellValue("D{$currentRow}", $item->article_nr);
 
-            // Download & attach product image
-            if (!empty($item->photo)) {
-                try {
-                    $imgContent = @file_get_contents($item->photo);
-                    if ($imgContent !== false) {
-                        $tempPath = sys_get_temp_dir() . '/item_img_' . $item->id . '.png';
-                        file_put_contents($tempPath, $imgContent);
+        // =========================================================
+// PRODUCT PHOTO - OPTIMIZED
+// =========================================================
 
-                        $drawing = new Drawing();
-                        $drawing->setName($item->description ?? 'Photo');
-                        $drawing->setPath($tempPath);
-                        $drawing->setCoordinates("E{$currentRow}");
-                        $drawing->setHeight(50);
-                        $drawing->setOffsetX(10);
-                        $drawing->setOffsetY(5);
-                        $drawing->setWorksheet($sheet);
-                    }
-                } catch (Exception $e) {
-                    $sheet->setCellValue("E{$currentRow}", '-');
+if (!empty($item->photo)) {
+
+    try {
+
+        $photo = trim($item->photo);
+
+        /*
+        |--------------------------------------------------------------------------
+        | CACHE TEMP
+        |--------------------------------------------------------------------------
+        */
+
+        $cacheKey = md5($photo);
+
+        $tempPath = sys_get_temp_dir()
+            . DIRECTORY_SEPARATOR
+            . 'packing_list_img_' . $cacheKey . '.png';
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 1. CARI FILE LOCAL TERLEBIH DAHULU
+        |--------------------------------------------------------------------------
+        */
+
+        $localPath = null;
+
+        // Ambil path dari URL
+        $photoPath = parse_url($photo, PHP_URL_PATH);
+
+        if ($photoPath) {
+
+            // Contoh:
+            // /storage/excel_img_xxxxx.png
+
+            if (str_starts_with($photoPath, '/storage/')) {
+
+                $relativePath = ltrim(
+                    substr($photoPath, strlen('/storage/')),
+                    '/'
+                );
+
+                $possiblePath = storage_path(
+                    'app/public/' . $relativePath
+                );
+
+                if (file_exists($possiblePath)) {
+                    $localPath = $possiblePath;
                 }
             }
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 2. JIKA LOCAL TIDAK ADA → DOWNLOAD
+        |--------------------------------------------------------------------------
+        */
+
+        if (!$localPath) {
+
+            // Jika belum berupa URL lengkap
+            if (!filter_var($photo, FILTER_VALIDATE_URL)) {
+
+                if (str_starts_with($photo, '/storage/')) {
+
+                    $photoUrl = url($photo);
+
+                } elseif (str_starts_with($photo, 'storage/')) {
+
+                    $photoUrl = url('/' . $photo);
+
+                } else {
+
+                    $photoUrl = url(
+                        '/storage/' . ltrim($photo, '/')
+                    );
+                }
+
+            } else {
+
+                $photoUrl = $photo;
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | DOWNLOAD HANYA JIKA BELUM ADA CACHE
+            |--------------------------------------------------------------------------
+            */
+
+            if (!file_exists($tempPath)) {
+
+                $response = Http::timeout(10)
+                    ->connectTimeout(5)
+                    ->withHeaders([
+                        'User-Agent' => 'Mozilla/5.0',
+                    ])
+                    ->get($photoUrl);
+
+
+                if ($response->successful()) {
+
+                    file_put_contents(
+                        $tempPath,
+                        $response->body()
+                    );
+
+                    $localPath = $tempPath;
+
+                }
+
+            } else {
+
+                $localPath = $tempPath;
+            }
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 3. MASUKKAN IMAGE KE EXCEL
+        |--------------------------------------------------------------------------
+        */
+
+        if ($localPath && file_exists($localPath)) {
+
+            $drawing = new Drawing();
+
+            $drawing->setName(
+                $item->description ?? 'Product Photo'
+            );
+
+            $drawing->setDescription(
+                $item->description ?? 'Product Photo'
+            );
+
+            $drawing->setPath($localPath);
+
+            $drawing->setCoordinates(
+                "E{$currentRow}"
+            );
+
+            // Tampilan tetap 50px
+            $drawing->setHeight(50);
+
+            $drawing->setOffsetX(10);
+            $drawing->setOffsetY(5);
+
+            $drawing->setWorksheet($sheet);
+
+        } else {
+
+            $sheet->setCellValue(
+                "E{$currentRow}",
+                '-'
+            );
+        }
+
+    } catch (\Throwable $e) {
+
+        $sheet->setCellValue(
+            "E{$currentRow}",
+            '-'
+        );
+
+        Log::warning(
+            'Packing List Photo Error',
+            [
+                'item_id' => $item->id,
+                'photo' => $item->photo,
+                'error' => $e->getMessage(),
+            ]
+        );
+    }
+}
             $netWeight = (float) $item->net_weight * (float) $item->qty_box;
             $grossWeight = (float) $item->gross_weight * (float) $item->qty_box;
             $sheet->setCellValue("F{$currentRow}", $item->description);

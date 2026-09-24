@@ -254,7 +254,7 @@
                      Pembuat = Edit.
                      User lain / penanda tangan = View. --}}
                 <button type="button"
-                        class="btn-view-submission"
+                        class="btn-open-purchasing-detail"
                         data-id="{{ $pengajuan->id }}"
                         data-view-only="{{ $rowCanEdit ? '0' : '1' }}"
                         title="{{ $rowCanEdit
@@ -305,7 +305,7 @@
             </div>
 
 <style>
-    .btn-view-submission,
+    .btn-open-purchasing-detail,
     .btn-publish-submission {
         border: 1px solid #d7dee8;
         background: #fff;
@@ -317,7 +317,7 @@
         white-space: nowrap;
     }
 
-    .btn-view-submission:hover,
+    .btn-open-purchasing-detail:hover,
     .btn-publish-submission:hover {
         background: #f5f8fb;
     }
@@ -376,13 +376,13 @@
 
 <script>
 (function () {
-
     // SEMUA USER BOLEH MEMBUKA DETAIL.
-    $(document).off('click.purchasingView', '.btn-view-submission');
+    // Detail sekarang WAJIB dibuka sebagai tab pada halaman utama.
+    $(document).off('click.purchasingView', '.btn-open-purchasing-detail');
 
-    $(document).on('click.purchasingView', '.btn-view-submission', function (e) {
+    $(document).on('click.purchasingView', '.btn-open-purchasing-detail', function (e) {
         e.preventDefault();
-        e.stopPropagation();
+        e.stopImmediatePropagation();
 
         const id = $(this).data('id');
         const viewOnly = String($(this).data('view-only')) === '1';
@@ -392,14 +392,13 @@
             return;
         }
 
-        let url = "{{ url('/pengajuan_purchasing/edit') }}/" + id;
-
-        // User selain pembuat masuk sebagai detail/view untuk proses tanda tangan.
-        if (viewOnly) {
-            url += '?view_only=1';
+        if (typeof window.openPurchasingDetailTab !== 'function') {
+            console.error('openPurchasingDetailTab belum tersedia.');
+            alert('Fungsi Detail Purchasing belum siap. Silakan refresh halaman.');
+            return;
         }
 
-        window.location.href = url;
+        window.openPurchasingDetailTab(id, viewOnly);
     });
 
 

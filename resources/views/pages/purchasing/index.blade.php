@@ -740,7 +740,7 @@
             color: #842029;
         }
 
-        .btn-view-submission {
+        .btn-open-purchasing-detail {
             border: 1px solid #1f4e78;
             background: #fff;
             color: #1f4e78;
@@ -750,7 +750,7 @@
             cursor: pointer;
         }
 
-        .btn-view-submission:hover {
+        .btn-open-purchasing-detail:hover {
             background: #1f4e78;
             color: #fff;
         }
@@ -771,12 +771,54 @@
             font-size: 11px;
         }
 
-        .btn-view-submission:disabled {
+        .btn-open-purchasing-detail:disabled {
             opacity: .5;
             cursor: not-allowed;
             background: #f3f4f6;
             color: #9ca3af;
             border-color: #d1d5db;
+        }
+
+
+        /* ============================================================
+           DETAIL TAB DINAMIS
+           ============================================================ */
+        .purchasing-detail-tab {
+            position: relative;
+            padding-right: 30px;
+        }
+
+        .purchasing-detail-close {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            border: 0;
+            background: transparent;
+            color: inherit;
+            opacity: .75;
+            cursor: pointer;
+            font-size: 12px;
+            line-height: 1;
+        }
+
+        .purchasing-detail-close:hover {
+            opacity: 1;
+        }
+
+        .purchasing-detail-frame-wrap {
+            width: 100%;
+            min-height: calc(100vh - 150px);
+            background: #f5f7fa;
+        }
+
+        .purchasing-detail-frame {
+            display: block;
+            width: 100%;
+            min-height: calc(100vh - 150px);
+            height: calc(100vh - 150px);
+            border: 0;
+            background: #f5f7fa;
         }
     </style>
       @section('btn')
@@ -791,7 +833,7 @@
 
             <div class="purchasing-tabs">
                 <button type="button" class="purchasing-tab" data-tab="draftFormTab"
-                    onclick="showPurchasingTab('draftFormTab', this)">
+                    onclick="showPurchasingTab('draftFormTab', this, true)">
                     <i class="fa fa-edit"></i> Draft Form
                 </button>
 
@@ -813,7 +855,7 @@
     </div>
 
     <script>
-        function showPurchasingTab(tabId, button) {
+        function showPurchasingTab(tabId, button, userRequestedDraft) {
             var tabs = document.querySelectorAll('.purchasing-tab-content');
             var buttons = document.querySelectorAll('.purchasing-tab');
 
@@ -836,7 +878,237 @@
             if (button) {
                 button.classList.add('active');
             }
+
+            // Draft Form dibersihkan HANYA saat user benar-benar klik tab Draft Form.
+            // Saat halaman pertama kali dibuka, jangan reset mode edit/detail.
+            if (tabId === 'draftFormTab' && userRequestedDraft === true) {
+                if (typeof window.clearPurchasingDraftCache === 'function') {
+                    window.clearPurchasingDraftCache(true);
+                } else {
+                    // Fallback jika partial form belum selesai dimuat.
+                    localStorage.removeItem('pengajuan_purchasing_draft_v1');
+                    localStorage.removeItem('pengajuan_purchasing_id');
+                }
+            }
         }
+
+        // ============================================================
+        // DETAIL PENGAJUAN -> TAB BARU DI SEBELAH LIST PENGAJUAN
+        // ============================================================
+        function openPurchasingDetailTab(id, viewOnly) {
+            if (!id) return;
+
+            var tabId = 'purchasingDetailTab_' + id;
+            var contentId = 'purchasingDetailContent_' + id;
+
+            var existingTab = document.getElementById(tabId);
+            var existingContent = document.getElementById(contentId);
+
+            if (existingTab && existingContent) {
+                showPurchasingTab(contentId, existingTab);
+                return;
+            }
+
+            var tabsBar = document.querySelector('.purchasing-tabs');
+            var listTab = document.querySelector(
+                '.purchasing-tab[data-tab="listPengajuanTab"]'
+            );
+
+            if (!tabsBar || !listTab) {
+                console.error('Container tab Purchasing tidak ditemukan.');
+                alert('Tab Purchasing belum siap. Silakan refresh halaman.');
+                return;
+            }
+
+            var tabButton = document.createElement('button');
+            tabButton.type = 'button';
+            tabButton.id = tabId;
+            tabButton.className = 'purchasing-tab purchasing-detail-tab';
+            tabButton.setAttribute('data-tab', contentId);
+            tabButton.innerHTML =
+                '<i class="fa fa-file-text-o"></i> Detail #' + id +
+                '<button type="button" class="purchasing-detail-close" title="Tutup">&times;</button>';
+
+            // Tab detail selalu ditempatkan tepat setelah List Pengajuan.
+            tabsBar.insertBefore(tabButton, listTab.nextSibling);
+
+            var content = document.createElement('div');
+            content.id = contentId;
+            content.className = 'purchasing-tab-content purchasing-detail-content';
+            content.innerHTML =
+                '<div class="purchasing-detail-frame-wrap">' +
+                    '<iframe class="purchasing-detail-frame" style="visibility:hidden;" ' +
+                        'src="{{ url('/pengajuan_purchasing/edit') }}/' + id +
+                        (viewOnly ? '?view_only=1&iframe_detail=1' : '?iframe_detail=1') + '" ' +
+                        'title="Detail Pengajuan #' + id + '"></iframe>' +
+                '</div>';
+
+            var card = document.querySelector('.purchasing-card');
+            card.appendChild(content);
+
+            // Karena route edit mengembalikan halaman Purchasing lengkap,
+            // sembunyikan navigasi/tab bagian dalam iframe agar yang terlihat
+            // hanya form detail pengajuan.
+            var iframe = content.querySelector('.purchasing-detail-frame');
+            if (iframe) {
+                iframe.addEventListener('load', function() {
+                    try {
+                        var doc = iframe.contentDocument || iframe.contentWindow.document;
+                        /*
+                         * Route /edit mengembalikan halaman Purchasing lengkap
+                         * karena view detail memakai view yang sama.
+                         *
+                         * Jangan hanya menyembunyikan tab Purchasing di dalam
+                         * iframe. Layout MASTER juga harus dilepas, yaitu:
+                         *   - sidebar #aside
+                         *   - header .app-header
+                         *   - footer .app-footer
+                         *   - profile drawer / overlay
+                         *   - margin kiri #content
+                         *
+                         * Dengan begitu iframe hanya menampilkan isi detail.
+                         */
+                        var innerTabs = doc.querySelector('.purchasing-tabs');
+                        var innerList = doc.getElementById('listPengajuanTab');
+                        var innerPage = doc.querySelector('.purchasing-page');
+                        var innerCard = doc.querySelector('.purchasing-card');
+
+                        if (innerTabs) innerTabs.style.display = 'none';
+                        if (innerList) innerList.style.display = 'none';
+
+                        if (innerPage) {
+                            innerPage.style.padding = '0';
+                            innerPage.style.margin = '0';
+                            innerPage.style.minHeight = 'auto';
+                            innerPage.style.background = '#fff';
+                        }
+
+                        if (innerCard) {
+                            innerCard.style.border = '0';
+                            innerCard.style.borderRadius = '0';
+                            innerCard.style.boxShadow = 'none';
+                            innerCard.style.overflow = 'visible';
+                        }
+
+                        var innerHead = doc.querySelector('#aside');
+                        var innerHeader = doc.querySelector('#content .app-header');
+                        var innerFooter = doc.querySelector('#content .app-footer');
+                        var innerOverlay = doc.querySelector('#drawerOverlay');
+                        var innerDrawer = doc.querySelector('#profileDrawer');
+                        var innerContent = doc.querySelector('#content');
+                        var innerView = doc.querySelector('#view');
+
+                        if (innerHead) innerHead.style.display = 'none';
+                        if (innerHeader) innerHeader.style.display = 'none';
+                        if (innerFooter) innerFooter.style.display = 'none';
+                        if (innerOverlay) innerOverlay.style.display = 'none';
+                        if (innerDrawer) innerDrawer.style.display = 'none';
+
+                        if (innerContent) {
+                            innerContent.style.marginLeft = '0';
+                            innerContent.style.width = '100%';
+                            innerContent.style.padding = '0';
+                            innerContent.style.minHeight = '0';
+                        }
+
+                        if (innerView) {
+                            innerView.style.margin = '0';
+                            innerView.style.padding = '0';
+                            innerView.style.width = '100%';
+                        }
+
+                        if (doc.body) {
+                            doc.body.style.margin = '0';
+                            doc.body.style.padding = '0';
+                            doc.body.style.overflowX = 'hidden';
+                        }
+
+                        /*
+                         * CSS override tambahan agar aturan CSS dari master
+                         * yang lebih spesifik tidak mengembalikan sidebar/header.
+                         */
+                        var cleanStyle = doc.getElementById('purchasingDetailCleanLayout');
+                        if (!cleanStyle) {
+                            cleanStyle = doc.createElement('style');
+                            cleanStyle.id = 'purchasingDetailCleanLayout';
+                            cleanStyle.textContent = `
+                                html, body { margin:0 !important; padding:0 !important; }
+                                #aside { display:none !important; width:0 !important; }
+                                #content { margin-left:0 !important; width:100% !important; padding:0 !important; }
+                                #content > .app-header,
+                                #content > .app-footer,
+                                #drawerOverlay,
+                                #profileDrawer { display:none !important; }
+                                #view { margin:0 !important; padding:0 !important; width:100% !important; }
+                                .purchasing-page { padding:0 !important; margin:0 !important; min-height:auto !important; }
+                                .purchasing-card { border:0 !important; border-radius:0 !important; box-shadow:none !important; }
+                            `;
+                            (doc.head || doc.documentElement).appendChild(cleanStyle);
+                        }
+
+                        // Jangan tampilkan iframe sebelum layout internal selesai dibersihkan.
+                        // Ini mencegah sidebar/header terlihat sepersekian detik saat iframe pertama kali load.
+                        iframe.style.visibility = 'visible';
+                    } catch (error) {
+                        console.warn('Tidak dapat merapikan iframe detail:', error);
+                        // Fallback: tetap tampilkan iframe jika ada error agar detail tidak blank.
+                        iframe.style.visibility = 'visible';
+                    }
+                });
+            }
+
+            // Tombol close detail.
+            tabButton.querySelector('.purchasing-detail-close').addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                var detailContent = document.getElementById(contentId);
+                if (detailContent) detailContent.remove();
+                if (tabButton) tabButton.remove();
+
+                showPurchasingTab(
+                    'listPengajuanTab',
+                    document.querySelector('.purchasing-tab[data-tab="listPengajuanTab"]')
+                );
+            });
+
+            // Klik area tab selain tombol close -> aktifkan detail.
+            tabButton.addEventListener('click', function(e) {
+                if (e.target.closest('.purchasing-detail-close')) return;
+                showPurchasingTab(contentId, tabButton);
+            });
+
+            showPurchasingTab(contentId, tabButton);
+        }
+
+        window.openPurchasingDetailTab = openPurchasingDetailTab;
+
+        // ============================================================
+        // GLOBAL DETAIL CLICK GUARD
+        // ============================================================
+        // Capture phase berjalan sebelum delegated click handler dari
+        // partial form/list. Ini mencegah handler lama melakukan
+        // window.location.href dan menghilangkan tab detail.
+        document.addEventListener('click', function (e) {
+            const button = e.target.closest('.btn-open-purchasing-detail');
+            if (!button) return;
+
+            const id = button.getAttribute('data-id');
+            const viewOnly = String(button.getAttribute('data-view-only')) === '1';
+
+            if (!id) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                alert('ID pengajuan tidak ditemukan.');
+                return;
+            }
+
+            if (typeof window.openPurchasingDetailTab === 'function') {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                window.openPurchasingDetailTab(id, viewOnly);
+            }
+        }, true);
 
       document.addEventListener('DOMContentLoaded', function() {
     const params = new URLSearchParams(window.location.search);

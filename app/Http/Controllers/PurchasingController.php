@@ -22,6 +22,47 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 class PurchasingController extends Controller
 {
+
+    /**
+     * Hak melihat seluruh pengajuan purchasing.
+     *
+     * Semua user hanya melihat pengajuan miliknya sendiri,
+     * kecuali:
+     * - marketing@newicker.com
+     * - info@newwicker.com
+     * - user dengan role = finance
+     */
+    private function canViewAllPurchasing(): bool
+    {
+        $user = auth()->user();
+
+        if (!$user) {
+            return false;
+        }
+
+        $email = strtolower(trim((string) $user->email));
+        $role = strtolower(trim((string) $user->role));
+
+        return in_array($email, [
+            'marketing@newicker.com',
+            'info@newwicker.com',
+        ], true) || $role === 'finance';
+    }
+
+    /**
+     * Query pengajuan purchasing sesuai hak akses user yang sedang login.
+     */
+    private function purchasingQueryForAuth()
+    {
+        $query = Pengajuan::where('type_pengajuan', 'purchasing');
+
+        if (!$this->canViewAllPurchasing()) {
+            $query->where('user_id', auth()->id());
+        }
+
+        return $query;
+    }
+
     /**
      * Halaman Pengajuan Barang Inventory
      */
@@ -35,15 +76,14 @@ class PurchasingController extends Controller
             ->keyBy('id');
         $divisis = Divisi::orderBy('nama')->get();
 
-        $pengajuans = Pengajuan::with([
-            'user',
-            'divisi',
-            'meta',
-            'divisiItems',
-            'files'
-
-        ])
-            ->where('type_pengajuan', 'purchasing')
+        $pengajuans = $this->purchasingQueryForAuth()
+            ->with([
+                'user',
+                'divisi',
+                'meta',
+                'divisiItems',
+                'files'
+            ])
             ->orderByDesc('id')
             ->get();
 
@@ -1023,15 +1063,14 @@ class PurchasingController extends Controller
 
         $divisis = Divisi::orderBy('nama')->get();
 
-        $pengajuans = Pengajuan::with([
-            'user',
-            'divisi',
-            'meta',
-            'divisiItems.stok',
-            'files'
-
-        ])
-            ->where('type_pengajuan', 'purchasing')
+        $pengajuans = $this->purchasingQueryForAuth()
+            ->with([
+                'user',
+                'divisi',
+                'meta',
+                'divisiItems.stok',
+                'files'
+            ])
             ->orderByDesc('id')
             ->get();
 
@@ -1045,6 +1084,16 @@ class PurchasingController extends Controller
         ])
             ->where('type_pengajuan', 'purchasing')
             ->findOrFail($id);
+
+        // Detail juga wajib mengikuti hak akses list.
+        // User biasa hanya boleh membuka pengajuan miliknya sendiri.
+        if (
+            !$this->canViewAllPurchasing()
+            && (int) $editPengajuan->user_id !== (int) auth()->id()
+        ) {
+            abort(403, 'Anda tidak memiliki akses untuk melihat pengajuan purchasing ini.');
+        }
+
         $canEdit = (int) $editPengajuan->user_id === (int) auth()->id();
         $editData = [
             'id' => $editPengajuan->id,
@@ -1325,6 +1374,14 @@ class PurchasingController extends Controller
             ])
                 ->where('type_pengajuan', 'purchasing')
                 ->findOrFail($id);
+
+            // Export mengikuti hak akses pengajuan purchasing.
+            if (
+                !$this->canViewAllPurchasing()
+                && (int) $pengajuan->user_id !== (int) auth()->id()
+            ) {
+                abort(403, 'Anda tidak memiliki akses untuk export pengajuan purchasing ini.');
+            }
 
             $templatePath = storage_path(
                 'app/templates/templates-pengajuan-approver.xlsx'
