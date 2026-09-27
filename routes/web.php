@@ -52,6 +52,14 @@ Route::middleware('auth')->group(function () {
     // finance
      Route::get('/finance', [FinanceController::class, 'index'])
         ->name('finance.index');
+    Route::get(
+    '/finance/pengajuan-finance/{id}',
+    [FinanceController::class, 'detailPengajuan']
+)->name('finance.pengajuan.detail');
+Route::put(
+    '/finance/pengajuan-finance/detail/{detail}',
+    [FinanceController::class, 'updateDetailPengajuan']
+)->name('finance.pengajuan.detail.update');
     Route::post(
     '/payment-request-saved/{id}/add-to-finance',
     [SpkController::class, 'addToFinance']
