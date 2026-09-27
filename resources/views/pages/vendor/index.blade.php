@@ -54,6 +54,144 @@
 
 
 /* =========================================================
+   SEARCH
+========================================================= */
+
+.vendor-search-wrapper {
+    padding: 14px 20px;
+    border-bottom: 1px solid #edf0f2;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 12px;
+}
+
+.vendor-search-form {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    width: 100%;
+}
+
+.vendor-search-box {
+    position: relative;
+    width: 100%;
+    max-width: 550px;
+}
+
+.vendor-search-box > i {
+    position: absolute;
+
+    left: 13px;
+    top: 50%;
+
+    transform: translateY(-50%);
+
+    color: #94a3b8;
+    font-size: 13px;
+
+    pointer-events: none;
+}
+
+.vendor-search-box input {
+    width: 100%;
+    height: 38px;
+
+    padding: 0 38px 0 36px;
+
+    border: 1px solid #dbe2ea;
+    border-radius: 8px;
+
+    outline: none;
+
+    font-size: 13px;
+    color: #334155;
+
+    background: #fff;
+
+    transition: .2s;
+}
+
+.vendor-search-box input::placeholder {
+    color: #94a3b8;
+}
+
+.vendor-search-box input:focus {
+    border-color: #2563eb;
+
+    box-shadow: 0 0 0 3px rgba(37,99,235,.08);
+}
+
+.vendor-search-clear {
+    position: absolute;
+
+    right: 11px;
+    top: 50%;
+
+    transform: translateY(-50%);
+
+    color: #94a3b8;
+
+    text-decoration: none;
+
+    font-size: 13px;
+}
+
+.vendor-search-clear:hover {
+    color: #dc2626;
+    text-decoration: none;
+}
+
+.btn-search {
+    height: 38px;
+
+    background: #2563eb;
+    color: #fff;
+
+    white-space: nowrap;
+}
+
+.btn-search:hover {
+    background: #1d4ed8;
+}
+
+.vendor-search-result {
+    font-size: 12px;
+    color: #64748b;
+
+    white-space: nowrap;
+}
+
+.vendor-search-result strong {
+    color: #334155;
+}
+
+@media(max-width:700px) {
+
+    .vendor-search-wrapper {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .vendor-search-form {
+        width: 100%;
+    }
+
+    .vendor-search-box {
+        max-width: none;
+    }
+
+    .vendor-search-result {
+        white-space: normal;
+    }
+
+}
+
+
+/* =========================================================
    BUTTON
 ========================================================= */
 
@@ -983,6 +1121,82 @@ HEADER
 TABLE
 ========================================================= --}}
 
+{{-- =========================================================
+SEARCH
+========================================================= --}}
+
+<div class="vendor-search-wrapper">
+
+    <form
+        method="GET"
+        action="{{ url('/vendor_list') }}"
+        class="vendor-search-form"
+    >
+
+        <div class="vendor-search-box">
+
+            <i class="fas fa-search"></i>
+
+            <input
+                type="text"
+                name="search"
+                value="{{ $search ?? request('search') }}"
+                placeholder="Cari nama vendor, UNIQ, alamat, rekening, bank, NPWP, type..."
+                autocomplete="off"
+            >
+
+            @if(request('search'))
+
+                <a
+                    href="{{ url('/vendor_list') }}"
+                    class="vendor-search-clear"
+                    title="Reset pencarian"
+                >
+
+                    <i class="fas fa-times"></i>
+
+                </a>
+
+            @endif
+
+        </div>
+
+        <button
+            type="submit"
+            class="btn-vendor btn-search"
+        >
+
+            <i class="fas fa-search"></i>
+
+            Cari
+
+        </button>
+
+    </form>
+
+    @if(request('search'))
+
+        <div class="vendor-search-result">
+
+            Menampilkan
+
+            <strong>
+                {{ $vendors->total() }}
+            </strong>
+
+            hasil untuk
+
+            <strong>
+                "{{ request('search') }}"
+            </strong>
+
+        </div>
+
+    @endif
+
+</div>
+
+
 <div class="vendor-table-wrapper">
 
 <table class="vendor-table">
@@ -1220,7 +1434,7 @@ PAGINATION
 
 
     <div>
-        {{ $vendors->links() }}
+        {{ $vendors->appends(request()->query())->links() }}
     </div>
 
 </div>

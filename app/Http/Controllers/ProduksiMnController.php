@@ -1524,15 +1524,136 @@ class ProduksiMnController extends Controller
 
     public function index(Request $request)
     {
-        $datas = $this->buildMonitoringData($request);
+        $poList = $this->getMonitoringPoList($request);
 
-        return view(
-            'pages.management.index',
-            compact('datas')
-        );
+        $datas = [];
+
+        if ($poList->isNotEmpty()) {
+            $firstPoId = $poList->first()->id;
+
+            $firstRequest = clone $request;
+            $firstRequest->merge(['po_id' => $firstPoId]);
+
+            $datas = $this->buildMonitoringData($firstRequest);
+        }
+
+        return view('pages.management.index', [
+            'datas' => $datas,
+            'poList' => $poList,
+        ]);
     }
 
- public function buildMonitoringData(Request $request)
+    /**
+     * Daftar PO ringan untuk lazy loading.
+     * Tidak mengambil detail PO / SPK.
+     */
+    private function getMonitoringPoList(Request $request)
+    {
+        $search = trim((string) $request->input('search_po', ''));
+        $brand = strtolower(trim((string) $request->input('brand', 'all')));
+        $sort = strtolower(trim((string) $request->input('sort', 'desc')));
+
+        if (
+            !in_array($brand, [
+                'all',
+                'nw',
+                'nws',
+                'nwr',
+                'nwd'
+            ], true)
+        ) {
+            $brand = 'all';
+        }
+
+        if (!in_array($sort, ['asc', 'desc'], true)) {
+            $sort = 'desc';
+        }
+
+        $query = Po::query()
+            ->select([
+                'id',
+                'order_no',
+                'company_name',
+            ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | SEARCH
+        |--------------------------------------------------------------------------
+        */
+
+        if ($search !== '') {
+
+            $query->where(function ($q) use ($search) {
+
+                $q->where(
+                    'order_no',
+                    'like',
+                    "%{$search}%"
+                )
+                    ->orWhere(
+                        'company_name',
+                        'like',
+                        "%{$search}%"
+                    );
+
+            });
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | BRAND
+        |--------------------------------------------------------------------------
+        */
+
+        if ($brand === 'nw') {
+
+            $query
+                ->where('order_no', 'like', 'NW%')
+                ->where('order_no', 'not like', 'NWS%');
+
+        } elseif ($brand !== 'all') {
+
+            $query->where(
+                'order_no',
+                'like',
+                strtoupper($brand) . '%'
+            );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | SORT NO PO
+        |--------------------------------------------------------------------------
+        |
+        | Contoh:
+        |
+        | NW 26 - 30
+        | NW 26 - 32
+        | NW 26 - 35
+        |
+        */
+
+        $direction = $sort === 'asc'
+            ? 'asc'
+            : 'desc';
+
+        $query
+            ->orderByRaw(
+                "CAST(
+                REGEXP_SUBSTR(order_no, '[0-9]+$')
+                AS UNSIGNED
+            ) {$direction}"
+            )
+            ->orderBy(
+                'order_no',
+                $direction
+            );
+
+        return $query->get();
+    }
+
+    public function buildMonitoringData(Request $request)
     {
         $start = microtime(true);
 
@@ -1541,7 +1662,32 @@ class ProduksiMnController extends Controller
         | LOAD PO
         |--------------------------------------------------------------------------
         */
-        $pos = Po::with(['detailPos', 'spks'])->get();
+        $poId = $request->input('po_id');
+
+        $pos = Po::with(['detailPos', 'spks'])
+            ->when($poId, function ($query) use ($poId) {
+                $query->where('id', $poId);
+            })
+            ->get();
+
+        // Karena sekarang monitoring diload per PO, semua aggregate di bawah
+        // juga dibatasi hanya ke SPK/detail PO milik PO yang sedang dibuka.
+        // Logic hasil monitoring tidak berubah; yang berubah hanya scope query.
+        $detailPoIds = $pos
+            ->flatMap(function ($po) {
+                return $po->detailPos->pluck('id');
+            })
+            ->filter()
+            ->unique()
+            ->values();
+
+        $spkIds = $pos
+            ->flatMap(function ($po) {
+                return $po->spks->pluck('id');
+            })
+            ->filter()
+            ->unique()
+            ->values();
 
         /*
         |--------------------------------------------------------------------------
@@ -1556,6 +1702,8 @@ class ProduksiMnController extends Controller
             SUM(rejected) as total_rejected
         ')
             ->whereNotNull('spk_id')
+            ->whereIn('spk_id', $spkIds)
+            ->whereIn('detail_po_id', $detailPoIds)
             ->groupBy('spk_id', 'detail_po_id')
             ->get()
             ->keyBy(fn($row) => $row->spk_id . '_' . $row->detail_po_id);
@@ -1574,6 +1722,7 @@ class ProduksiMnController extends Controller
         ')
             ->whereNull('spk_id')
             ->whereIn('kategori_id', [6, 7])
+            ->whereIn('detail_po_id', $detailPoIds)
             ->groupBy('detail_po_id', 'kategori_id')
             ->get()
             ->groupBy('detail_po_id');
@@ -1596,6 +1745,8 @@ class ProduksiMnController extends Controller
             ) as total_in
         ')
             ->whereNotNull('spk_id')
+            ->whereIn('spk_id', $spkIds)
+            ->whereIn('detail_po_id', $detailPoIds)
             ->groupBy('spk_id', 'detail_po_id')
             ->get()
             ->keyBy(fn($row) => $row->spk_id . '_' . $row->detail_po_id);
@@ -1621,6 +1772,8 @@ class ProduksiMnController extends Controller
         ')
             ->whereNotNull('spk_id')
             ->whereNotNull('detail_po_id')
+            ->whereIn('spk_id', $spkIds)
+            ->whereIn('detail_po_id', $detailPoIds)
             ->groupBy('spk_id', 'detail_po_id', 'type', 'remark')
             ->get();
 
@@ -2387,9 +2540,9 @@ class ProduksiMnController extends Controller
                                 $packagingQtyIn = (float) (
                                     collect($components)
                                         ->pluck('qty_in')
-                                        ->filter(fn ($value) => (float) $value > 0)
+                                        ->filter(fn($value) => (float) $value > 0)
                                         ->first()
-                                    );
+                                );
                             }
 
                             if ($packagingQtyIn <= 0) {
@@ -2398,11 +2551,11 @@ class ProduksiMnController extends Controller
 
                             $componentQtyIn = $packagingQtyIn;
 
-                        /*
-                            |--------------------------------------------------------------------------
-                            | SPK BIASA
-                            |--------------------------------------------------------------------------
-                            */
+                            /*
+                                |--------------------------------------------------------------------------
+                                | SPK BIASA
+                                |--------------------------------------------------------------------------
+                                */
                         } else {
                             $componentQtyIn = $componentCount > 1
                                 ? floor($totalIn / $componentCount)
@@ -2625,14 +2778,25 @@ class ProduksiMnController extends Controller
     // end
     public function data(Request $request)
     {
-        $datas = $this->buildMonitoringData($request);
+        $poId = $request->input('po_id');
 
-        return response()->json(
-            $datas,
-            200,
-            [],
-            JSON_PRETTY_PRINT |
-            JSON_UNESCAPED_UNICODE
+        if (!$poId) {
+            return response('', 204);
+        }
+
+        $datas = $this->buildMonitoringData($request);
+        $po = $datas[0] ?? null;
+
+        if (!$po) {
+            return response('', 204);
+        }
+
+        return response()->view(
+            'pages.management.partials.monitoring-po',
+            [
+                'po' => $po,
+                'poIndex' => (int) $request->input('render_index', 0),
+            ]
         );
     }
 
@@ -2723,11 +2887,11 @@ class ProduksiMnController extends Controller
                 $tglSelesai = $this->parseDate(
                     $data['tgl_selesai'] ?? null
                 );
-                Log::info([
-                    'raw_tgl_terima' => $data['tgl_terima'] ?? null,
-                    'raw_tgl_selesai' => $data['tgl_selesai'] ?? null,
-                ]);
-
+                // Log::info([
+                //     'raw_tgl_terima' => $data['tgl_terima'] ?? null,
+                //     'raw_tgl_selesai' => $data['tgl_selesai'] ?? null,
+                // ]);
+    
                 if ($tglTerima && $tglSelesai) {
 
                     $today = now();

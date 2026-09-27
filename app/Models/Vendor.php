@@ -22,4 +22,11 @@ class Vendor extends Model
         'vendor_type2',
         'uniq'
     ];
+    public function suppliers()
+    {
+        return $this->hasMany(
+            Supplier::class,
+            'vendor_id'
+        );
+    }
 }

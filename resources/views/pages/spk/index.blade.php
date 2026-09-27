@@ -2605,6 +2605,12 @@
                     <div contenteditable="true" class="editable spk-meta-value" id="supplierInput">
                         {{ $spk['nama'] }}
                     </div>
+
+                    <input type="hidden"
+                           id="supplier_id"
+                           name="supplier_id"
+                           value="{{ $spk['sup_id'] ?? '' }}">
+
                     <div id="supplierSuggest" class="suggest-box"></div>
                 </div>
             </div>
@@ -5293,431 +5299,108 @@
     })();
 
     /* =========================================
-    /* =========================================
-   SUPPLIER AUTOCOMPLETE
-   ========================================= */
+       SUPPLIER AUTOCOMPLETE
+       ========================================= */
 
-    const supInput =
-        document.getElementById('supplierInput');
-
-    const supSuggest =
-        document.getElementById('supplierSuggest');
+    const supInput = document.getElementById('supplierInput');
+    const supSuggest = document.getElementById('supplierSuggest');
 
     let supTimer = null;
-
     let supRequest = null;
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | LOADING
-    |--------------------------------------------------------------------------
-    */
-
     function showSupplierLoading() {
-
-        if (!supSuggest) {
-            return;
-        }
-
-        supSuggest.innerHTML = `
-        <div class="supplier-loading">
-
-            <span class="supplier-loading-spinner"></span>
-
-            <span class="supplier-loading-text">
-                Mencari supplier...
-            </span>
-
-        </div>
-    `;
-
+        if (!supSuggest) return;
+        supSuggest.innerHTML = `<div class="supplier-loading"><span class="supplier-loading-spinner"></span><span class="supplier-loading-text">Mencari supplier...</span></div>`;
         supSuggest.style.display = 'block';
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | HIDE
-    |--------------------------------------------------------------------------
-    */
-
     function hideSupplierSuggest() {
-
-        if (!supSuggest) {
-            return;
-        }
-
+        if (!supSuggest) return;
         supSuggest.innerHTML = '';
-
         supSuggest.style.display = 'none';
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | SUPPLIER INPUT
-    |--------------------------------------------------------------------------
-    */
-
-    supInput?.addEventListener(
-        'input',
-        function() {
-
-            const keyword =
-                supInput.innerText
-                .replace(/\u00a0/g, ' ')
-                .trim();
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | CANCEL TIMER
-            |--------------------------------------------------------------------------
-            */
-
-            clearTimeout(
-                supTimer
-            );
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | CANCEL REQUEST SEBELUMNYA
-            |--------------------------------------------------------------------------
-            */
-
-            if (supRequest) {
-
-                supRequest.abort();
-
-                supRequest = null;
-            }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | KURANG DARI 2 KARAKTER
-            |--------------------------------------------------------------------------
-            */
-
-            if (
-                keyword.length < 2
-            ) {
-
-                hideSupplierSuggest();
-
-                return;
-            }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | TAMPILKAN LOADING LANGSUNG
-            |--------------------------------------------------------------------------
-            */
-
-            showSupplierLoading();
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | DEBOUNCE 300ms
-            |--------------------------------------------------------------------------
-            */
-
-            supTimer =
-                setTimeout(
-                    async function() {
-
-                            /*
-                            |--------------------------------------------------------------------------
-                            | ABORT CONTROLLER
-                            |--------------------------------------------------------------------------
-                            */
-
-                            supRequest =
-                                new AbortController();
-
-
-                            try {
-
-                                /*
-                                |--------------------------------------------------------------------------
-                                | REQUEST
-                                |--------------------------------------------------------------------------
-                                */
-
-                                const response =
-                                    await fetch(
-                                        `/supplier/search?q=${encodeURIComponent(keyword)}`, {
-                                            signal: supRequest.signal,
-
-                                            headers: {
-                                                'X-Requested-With': 'XMLHttpRequest',
-
-                                                'Accept': 'application/json'
-                                            }
-                                        }
-                                    );
-
-
-                                /*
-                                |--------------------------------------------------------------------------
-                                | CEK HTTP
-                                |--------------------------------------------------------------------------
-                                */
-
-                                if (
-                                    !response.ok
-                                ) {
-
-                                    throw new Error(
-                                        `HTTP ${response.status}`
-                                    );
-                                }
-
-
-                                /*
-                                |--------------------------------------------------------------------------
-                                | JSON
-                                |--------------------------------------------------------------------------
-                                */
-
-                                const data =
-                                    await response.json();
-
-
-                                /*
-                                |--------------------------------------------------------------------------
-                                | BERSIHKAN LOADING
-                                |--------------------------------------------------------------------------
-                                */
-
-                                supSuggest.innerHTML =
-                                    '';
-
-
-                                /*
-                                |--------------------------------------------------------------------------
-                                | TIDAK ADA DATA
-                                |--------------------------------------------------------------------------
-                                */
-
-                                if (
-                                    !data ||
-                                    data.length === 0
-                                ) {
-
-                                    supSuggest.innerHTML = `
-                                <div class="supplier-loading">
-                                    Supplier tidak ditemukan
-                                </div>
-                            `;
-
-                                    supSuggest.style.display =
-                                        'block';
-
-                                    return;
-                                }
-
-
-                                /*
-                                |--------------------------------------------------------------------------
-                                | RENDER RESULT
-                                |--------------------------------------------------------------------------
-                                */
-
-                                data.forEach(
-                                    function(item) {
-
-                                        const div =
-                                            document.createElement(
-                                                'div'
-                                            );
-
-
-                                        div.className =
-                                            'suggest-item';
-
-
-                                        div.textContent =
-                                            item.name;
-
-
-                                        /*
-                                        |--------------------------------------------------------------------------
-                                        | CLICK SUPPLIER
-                                        |--------------------------------------------------------------------------
-                                        */
-
-                                        div.onclick =
-                                            function() {
-
-                                                supInput.innerText =
-                                                    item.name;
-
-
-                                                /*
-                                                |--------------------------------------------------------------------------
-                                                | SET JENIS SUPPLIER
-                                                |--------------------------------------------------------------------------
-                                                */
-
-                                                if (
-                                                    item.jenis
-                                                ) {
-
-                                                    const type =
-                                                        document.getElementById(
-                                                            'spk_type'
-                                                        );
-
-
-                                                    if (type) {
-
-                                                        type.value =
-                                                            item.jenis;
-                                                    }
-                                                }
-
-
-                                                /*
-                                                |--------------------------------------------------------------------------
-                                                | HIDE RESULT
-                                                |--------------------------------------------------------------------------
-                                                */
-
-                                                hideSupplierSuggest();
-
-
-                                                /*
-                                                |--------------------------------------------------------------------------
-                                                | FOCUS
-                                                |--------------------------------------------------------------------------
-                                                */
-
-                                                supInput.focus();
-                                            };
-
-
-                                        supSuggest.appendChild(
-                                            div
-                                        );
-                                    }
-                                );
-
-
-                                supSuggest.style.display =
-                                    'block';
-
-
-                            } catch (error) {
-
-                                /*
-                                |--------------------------------------------------------------------------
-                                | ABORT = ABAIKAN
-                                |--------------------------------------------------------------------------
-                                */
-
-                                if (
-                                    error.name ===
-                                    'AbortError'
-                                ) {
-
-                                    return;
-                                }
-
-
-                                console.error(
-                                    'Supplier search:',
-                                    error
-                                );
-
-
-                                /*
-                                |--------------------------------------------------------------------------
-                                | ERROR MESSAGE
-                                |--------------------------------------------------------------------------
-                                */
-
-                                supSuggest.innerHTML = `
-                            <div class="supplier-loading"
-                                 style="color:#dc2626;">
-
-                                Gagal mencari supplier
-
-                            </div>
-                        `;
-
-
-                                supSuggest.style.display =
-                                    'block';
-
-
-                                /*
-                                |--------------------------------------------------------------------------
-                                | HILANGKAN ERROR SETELAH 2 DETIK
-                                |--------------------------------------------------------------------------
-                                */
-
-                                setTimeout(
-                                    function() {
-
-                                        /*
-                                        | Jangan menghilangkan
-                                        | hasil request baru.
-                                        */
-                                        if (
-                                            supSuggest &&
-                                            supSuggest.innerText
-                                            .includes(
-                                                'Gagal mencari supplier'
-                                            )
-                                        ) {
-
-                                            hideSupplierSuggest();
-                                        }
-
-                                    },
-                                    2000
-                                );
-
-
-                            } finally {
-
-                                supRequest =
-                                    null;
+    supInput?.addEventListener('input', function () {
+        const keyword = supInput.innerText.replace(/\u00a0/g, ' ').trim();
+        clearTimeout(supTimer);
+        if (supRequest) { supRequest.abort(); supRequest = null; }
+        if (keyword.length < 2) { hideSupplierSuggest(); return; }
+        showSupplierLoading();
+
+        supTimer = setTimeout(async function () {
+            supRequest = new AbortController();
+            try {
+                const response = await fetch(`/supplier/search?q=${encodeURIComponent(keyword)}`, {
+                    signal: supRequest.signal,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+                });
+
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+
+                const responseData = await response.json();
+                const data = Array.isArray(responseData)
+                    ? responseData
+                    : (responseData && Array.isArray(responseData.data) ? responseData.data : []);
+
+                supSuggest.innerHTML = '';
+                if (data.length === 0) {
+                    supSuggest.innerHTML = `<div class="supplier-loading">Supplier tidak ditemukan</div>`;
+                    supSuggest.style.display = 'block';
+                    return;
+                }
+
+                data.forEach(function (item) {
+                    const div = document.createElement('div');
+                    div.className = 'suggest-item';
+                    div.textContent = item.name || '';
+
+                    div.onclick = function () {
+                        supInput.innerText = item.name || '';
+
+                        const supplierIdInput = document.getElementById('supplier_id');
+                        if (supplierIdInput) supplierIdInput.value = item.id ?? '';
+
+                        if (item.jenis) {
+                            const type = document.getElementById('spk_type');
+
+                            if (type) {
+                                // Value option spk_type menggunakan lowercase,
+                                // sedangkan API supplier dapat mengirim "ANYAM", "RANGKA", dll.
+                                const jenisSupplier = String(item.jenis)
+                                    .trim()
+                                    .toLowerCase();
+
+                                type.value = jenisSupplier;
+
+                                // Jalankan event change agar logic lain yang
+                                // bergantung pada perubahan kategori tetap berjalan.
+                                type.dispatchEvent(new Event('change', {
+                                    bubbles: true
+                                }));
                             }
+                        }
 
-                        },
-                        300
-                );
-        }
-    );
+                        hideSupplierSuggest();
+                        supInput.focus();
+                    };
 
+                    supSuggest.appendChild(div);
+                });
 
-    /*
-    |--------------------------------------------------------------------------
-    | CLICK DI LUAR SUPPLIER
-    |--------------------------------------------------------------------------
-    */
-
-    document.addEventListener(
-        'click',
-        function(e) {
-
-            if (
-                supInput &&
-                !supInput.contains(e.target) &&
-                supSuggest &&
-                !supSuggest.contains(e.target)
-            ) {
-
-                hideSupplierSuggest();
+                supSuggest.style.display = 'block';
+            } catch (error) {
+                if (error && error.name === 'AbortError') return;
+                console.error('Supplier search:', error);
             }
+        }, 300);
+    });
+
+    document.addEventListener('click', function (e) {
+        if (supInput && !supInput.contains(e.target) && supSuggest && !supSuggest.contains(e.target)) {
+            hideSupplierSuggest();
         }
-    );
+    });
+
     /* =========================================
       ITEM SEARCH & ADD ROW
       ========================================= */
@@ -7058,6 +6741,7 @@
             no_spk: document.querySelector('.no-spk')?.innerText.trim() || '',
             no_po: document.querySelector('.no-po')?.innerText.trim() || '',
             nama: document.getElementById('supplierInput')?.innerText.trim() || '',
+            supplier_id: document.getElementById('supplier_id')?.value || '',
             tgl_terima: getSpkDateValue('.tgl-terima'),
             tgl_selesai: getSpkDateValue('.tgl-selesai'),
 
@@ -10508,7 +10192,7 @@
         | User lain sudah melihatnya realtime saat mengetik.
         */
         liveMessageSend?.addEventListener('click', function() {
-            sendLiveMessageTyping(true);
+            sendLiveMessageTyping(true);q
             sendLiveMessageStopped();
             closeLiveMessage();
         });

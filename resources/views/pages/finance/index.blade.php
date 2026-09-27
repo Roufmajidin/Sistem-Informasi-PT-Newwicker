@@ -15,6 +15,7 @@
             Draft Payment
         </button>
 
+
         <button
             type="button"
             class="finance-tab"
@@ -23,12 +24,24 @@
             On Going
         </button>
 
+
+        <button
+            type="button"
+            class="finance-tab"
+            data-target="all-divisi">
+            <i class="fas fa-building"></i>
+            All Divisi
+        </button>
+
     </div>
 
 
     {{-- TAB CONTENT --}}
     <div class="finance-tab-content">
 
+        {{-- =========================================================
+             DRAFT PAYMENT
+             ========================================================= --}}
         <div
             id="tab-draft-payment"
             class="finance-tab-pane active">
@@ -38,11 +51,28 @@
         </div>
 
 
+        {{-- =========================================================
+             ON GOING
+             ========================================================= --}}
         <div
             id="tab-on-going"
             class="finance-tab-pane">
 
             @include('pages.finance.on-going')
+
+        </div>
+
+
+        {{-- =========================================================
+             ALL DIVISI
+             ========================================================= --}}
+        <div
+            id="tab-all-divisi"
+            class="finance-tab-pane">
+
+            @include('pages.finance.all-divisi', [
+                'allDivisi' => $allDivisi
+            ])
 
         </div>
 
@@ -57,7 +87,6 @@
     display: flex;
     align-items: flex-end;
     gap: 4px;
-
     border-bottom: 1px solid #d9dee5;
 }
 
@@ -112,6 +141,81 @@
     display: block;
 }
 
+
+/* =========================================================
+   ALL DIVISI
+   ========================================================= */
+
+.all-divisi-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.all-divisi-table {
+    width: 100%;
+    min-width: 1200px;
+    border-collapse: collapse;
+}
+
+.all-divisi-table th,
+.all-divisi-table td {
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.all-divisi-table thead th {
+    background: #263b4d;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 10px 8px;
+}
+
+.all-divisi-table tbody td {
+    font-size: 12px;
+    padding: 9px 8px;
+}
+
+.all-divisi-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+.all-divisi-id {
+    font-weight: 600;
+    color: #263b4d;
+}
+
+.all-divisi-total {
+    font-weight: 600;
+}
+
+.approver-list {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.approver-badge {
+    display: block;
+
+    width: 120px;
+    max-width: 120px;
+
+    padding: 3px 7px;
+
+    border-radius: 4px;
+
+    background: #eef2f6;
+    color: #34495e;
+
+    font-size: 11px;
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    cursor: default;
+}
 </style>
 
 

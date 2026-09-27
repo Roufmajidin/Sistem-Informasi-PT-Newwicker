@@ -56,9 +56,54 @@ class PurchasingController extends Controller
     {
         $query = Pengajuan::where('type_pengajuan', 'purchasing');
 
-        if (!$this->canViewAllPurchasing()) {
-            $query->where('user_id', auth()->id());
+        /*
+         * User dengan akses penuh tetap melihat semua pengajuan.
+         */
+        if ($this->canViewAllPurchasing()) {
+            return $query;
         }
+
+        /*
+         * User biasa dapat melihat pengajuan jika:
+         *
+         * 1. Dia adalah pembuat pengajuan; ATAU
+         * 2. Dia ditugaskan sebagai approver pada salah satu approval step.
+         *
+         * user_id diprioritaskan untuk data baru.
+         * user_name tetap dipakai sebagai fallback untuk data lama.
+         */
+        $currentUserId = (int) auth()->id();
+        $currentUserName = trim((string) optional(auth()->user())->name);
+
+        $query->where(function ($q) use ($currentUserId, $currentUserName) {
+
+            // Pengajuan yang dibuat sendiri.
+            $q->where('user_id', $currentUserId)
+
+                // Atau pengajuan yang menugaskan user ini sebagai approver.
+                ->orWhereHas('approvalSteps', function ($approvalQuery) use (
+                    $currentUserId,
+                    $currentUserName
+                ) {
+                    $approvalQuery
+                        ->whereBetween('step_order', [2, 7])
+                        ->where(function ($stepQuery) use (
+                            $currentUserId,
+                            $currentUserName
+                        ) {
+                            // Data baru: cocokkan berdasarkan user_id.
+                            $stepQuery->where('user_id', $currentUserId);
+
+                            // Data lama: fallback berdasarkan user_name.
+                            if ($currentUserName !== '') {
+                                $stepQuery->orWhere(
+                                    'user_name',
+                                    $currentUserName
+                                );
+                            }
+                        });
+                });
+        });
 
         return $query;
     }
@@ -82,6 +127,7 @@ class PurchasingController extends Controller
                 'divisi',
                 'meta',
                 'divisiItems',
+                'approvalSteps',
                 'files'
             ])
             ->orderByDesc('id')
@@ -588,6 +634,10 @@ class PurchasingController extends Controller
                     'step_name' =>
                         'Made by',
 
+                    // Simpan ID user pembuat agar TTD dapat diambil langsung.
+                    'user_id' =>
+                        auth()->id(),
+
                     'user_name' =>
                         auth()->user()->name,
 
@@ -826,12 +876,19 @@ class PurchasingController extends Controller
                 ], 404);
             }
 
-            // Identitas approver HARUS sama dengan nama yang sudah ditentukan
-            // pada step. User tidak boleh memilih nama lain.
+            // Identitas approver HARUS sama dengan user yang ditentukan pada step.
+            // user_id dipakai untuk data baru; fallback nama dipertahankan untuk
+            // data lama yang belum mempunyai user_id.
+            $currentUserId = (int) auth()->id();
             $currentUserName = (string) auth()->user()->name;
+            $assignedUserId = (int) ($step->user_id ?? 0);
             $assignedUserName = (string) ($step->user_name ?? '');
 
-            if ($assignedUserName === '' || $assignedUserName !== $currentUserName) {
+            $isAuthorized = $assignedUserId > 0
+                ? $assignedUserId === $currentUserId
+                : ($assignedUserName !== '' && $assignedUserName === $currentUserName);
+
+            if (!$isAuthorized) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Anda tidak memiliki hak untuk melakukan tanda tangan pada step ini. Tanda tangan hanya dapat dilakukan oleh "' .
@@ -909,6 +966,10 @@ class PurchasingController extends Controller
 
             'step_name' =>
                 $stepName,
+
+            // Simpan user_id yang dipilih agar TTD tidak bergantung pada nama.
+            'user_id' =>
+                $userId ?: null,
 
             'user_name' =>
                 $userName,
@@ -1069,6 +1130,7 @@ class PurchasingController extends Controller
                 'divisi',
                 'meta',
                 'divisiItems.stok',
+                'approvalSteps',
                 'files'
             ])
             ->orderByDesc('id')
@@ -1085,16 +1147,40 @@ class PurchasingController extends Controller
             ->where('type_pengajuan', 'purchasing')
             ->findOrFail($id);
 
-        // Detail juga wajib mengikuti hak akses list.
-        // User biasa hanya boleh membuka pengajuan miliknya sendiri.
+        // Detail mengikuti hak akses list.
+        // User dapat membuka detail jika dia adalah:
+        // - pembuat pengajuan; atau
+        // - approver yang ditugaskan pada approval step; atau
+        // - user dengan akses penuh.
+        $isCreator = (int) $editPengajuan->user_id === (int) auth()->id();
+
+        $currentUserId = (int) auth()->id();
+        $currentUserName = trim((string) optional(auth()->user())->name);
+
+        $isAssignedApprover = $editPengajuan->approvalSteps
+            ->whereBetween('step_order', [2, 7])
+            ->contains(function ($step) use ($currentUserId, $currentUserName) {
+                $assignedUserId = (int) ($step->user_id ?? 0);
+
+                if ($assignedUserId > 0) {
+                    return $assignedUserId === $currentUserId;
+                }
+
+                // Fallback untuk approval step lama yang belum mempunyai user_id.
+                return $currentUserName !== ''
+                    && trim((string) ($step->user_name ?? '')) === $currentUserName;
+            });
+
         if (
             !$this->canViewAllPurchasing()
-            && (int) $editPengajuan->user_id !== (int) auth()->id()
+            && !$isCreator
+            && !$isAssignedApprover
         ) {
             abort(403, 'Anda tidak memiliki akses untuk melihat pengajuan purchasing ini.');
         }
 
-        $canEdit = (int) $editPengajuan->user_id === (int) auth()->id();
+        // Approver boleh VIEW dan SIGN, tetapi hanya creator yang boleh EDIT.
+        $canEdit = $isCreator;
         $editData = [
             'id' => $editPengajuan->id,
             'tanggal' => optional($editPengajuan->meta)->tanggal
@@ -1185,15 +1271,22 @@ class PurchasingController extends Controller
                 7 => 'approved_by',
             ];
 
-            if (isset($keyMap[$order]) && $step->user_name) {
+            $user = null;
+
+            if (!empty($step->user_id)) {
+                $user = $users->firstWhere('id', (int) $step->user_id);
+            }
+
+            // Fallback untuk data approval lama yang belum menyimpan user_id.
+            if (!$user && $step->user_name) {
                 $user = $users->firstWhere('name', $step->user_name);
-                $editData['signature'][$keyMap[$order]] = $user?->id;
+            }
+
+            if (isset($keyMap[$order]) && $user) {
+                $editData['signature'][$keyMap[$order]] = $user->id;
             }
 
             if ($order >= 2 && $order <= 7) {
-                $user = $step->user_name
-                    ? $users->firstWhere('name', $step->user_name)
-                    : null;
 
                 $editData['approval_steps'][] = [
                     'id' => $step->id,
@@ -1375,10 +1468,29 @@ class PurchasingController extends Controller
                 ->where('type_pengajuan', 'purchasing')
                 ->findOrFail($id);
 
-            // Export mengikuti hak akses pengajuan purchasing.
+            // Export mengikuti hak akses VIEW pengajuan purchasing.
+            // Creator, approver, dan user dengan akses penuh boleh export.
+            $isCreator = (int) $pengajuan->user_id === (int) auth()->id();
+            $currentUserId = (int) auth()->id();
+            $currentUserName = trim((string) optional(auth()->user())->name);
+
+            $isAssignedApprover = $pengajuan->approvalSteps
+                ->whereBetween('step_order', [2, 7])
+                ->contains(function ($step) use ($currentUserId, $currentUserName) {
+                    $assignedUserId = (int) ($step->user_id ?? 0);
+
+                    if ($assignedUserId > 0) {
+                        return $assignedUserId === $currentUserId;
+                    }
+
+                    return $currentUserName !== ''
+                        && trim((string) ($step->user_name ?? '')) === $currentUserName;
+                });
+
             if (
                 !$this->canViewAllPurchasing()
-                && (int) $pengajuan->user_id !== (int) auth()->id()
+                && !$isCreator
+                && !$isAssignedApprover
             ) {
                 abort(403, 'Anda tidak memiliki akses untuk export pengajuan purchasing ini.');
             }

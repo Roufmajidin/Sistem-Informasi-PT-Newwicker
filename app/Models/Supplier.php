@@ -6,24 +6,38 @@ use Illuminate\Database\Eloquent\Model;
 
 class Supplier extends Model
 {
-    //
-     protected $fillable = [
-        'name',
-        'alamat',
-        'jenis_supplier_id',
-        'updated_by'
+    protected $fillable = [
+        'name','alamat','jenis_supplier_id','updated_by','vendor_id',
     ];
 
     protected $casts = [
-        'updated_by' => 'array'
+        'updated_by' => 'array',
     ];
 
     public function jenis()
     {
-        return $this->belongsTo(JenisSupplier::class, 'jenis_supplier_id');
+        return $this->belongsTo(
+            JenisSupplier::class,
+            'jenis_supplier_id'
+        );
     }
+
     public function supKontrak()
-{
-    return $this->hasMany(SupKontrak::class, 'supplier_id');
-}
+    {
+        return $this->hasMany(
+            SupKontrak::class,
+            'supplier_id'
+        );
+    }
+
+    /**
+     * Supplier terhubung ke Master Vendor
+     */
+    public function vendor()
+    {
+        return $this->belongsTo(
+            Vendor::class,
+            'vendor_id'
+        );
+    }
 }

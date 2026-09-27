@@ -16,7 +16,9 @@ class PengajuanDetail extends Model
         'nama_barang',
         'qty',
         'harga_satuan',
-        'total_harga'
+        'total_harga',
+        'ids_id',
+        'uniq',
     ];
 
     public function pengajuan(){

@@ -581,12 +581,17 @@ Route::delete(
 
 Route::get('/qc/export/{kategori}/{po_id}', [QcController::class, 'exportPdf']);
 
+// neww routing 
 Route::get('/supplier', [SupplierController::class, 'index']);
 Route::post('/supplier/store', [SupplierController::class, 'storeSupplier']);
 Route::post('/supplier/update/{id}', [SupplierController::class, 'updateSupplier']);
 Route::post('/jenis/store', [SupplierController::class, 'storeJenis']);
 Route::post('/jenis/update/{id}', [SupplierController::class, 'updateJenis']);
 Route::get('/supplier/search', [SupplierController::class, 'search']);
+Route::get('/supplier/vendor-search', [SupplierController::class, 'searchVendor']);
+Route::post('/supplier/{id}/link-vendor', [SupplierController::class, 'linkVendor']);
+Route::post('/supplier/{id}/unlink-vendor', [SupplierController::class, 'unlinkVendor']);
+
 
 Route::get('/qc/export-all/{po_id}', [SpkController::class, 'exportAll']);
 

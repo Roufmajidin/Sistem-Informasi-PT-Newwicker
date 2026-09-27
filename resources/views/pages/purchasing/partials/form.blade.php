@@ -2453,68 +2453,142 @@
          *
          * Tidak ada kotak kosong berisi "-".
          */
-        function syncApprovalSlotsVisibility() {
-            const stepToField = {
-                2: '#checked_by_1',
-                3: '#checked_by_2',
-                4: '#checked_by_3',
-                5: '#checked_by_4',
-                6: '#checked_by_finance',
-                7: '#approved_by'
-            };
+      function syncApprovalSlotsVisibility() {
+    const stepToField = {
+        2: '#checked_by_1',
+        3: '#checked_by_2',
+        4: '#checked_by_3',
+        5: '#checked_by_4',
+        6: '#checked_by_finance',
+        7: '#approved_by'
+    };
 
-            Object.keys(stepToField).forEach(function(order) {
-                const field = $(stepToField[order]);
+    /*
+     * ============================================================
+     * CREATE MODE
+     * ============================================================
+     *
+     * Saat membuat pengajuan baru, belum ada approval_steps
+     * di database.
+     *
+     * Jadi SEMUA slot approver harus tetap ditampilkan agar
+     * creator bisa memilih:
+     *
+     * Checked by 1
+     * Checked by 2
+     * Checked by 3
+     * Checked by 4
+     * Finance
+     * Approved by
+     */
+    if (!EDIT_MODE) {
 
-                let step = null;
+        Object.keys(stepToField).forEach(function(order) {
 
-                if (Array.isArray(APPROVAL_STEPS)) {
-                    step = APPROVAL_STEPS.find(function(item) {
-                        return String(item.step_order) === String(order);
-                    });
-                }
+            const field = $(stepToField[order]);
 
-                /*
-                 * Slot dianggap aktif hanya jika approval step-nya ada
-                 * DAN mempunyai user yang ditugaskan.
-                 */
-                const hasApprover = !!(
-                    step &&
-                    (
-                        Number(step.user_id || 0) > 0 ||
-                        String(step.user_name || '').trim() !== ''
-                    )
-                );
+            if (!field.length) {
+                return;
+            }
 
-                const $header = $('[data-approval-header="' + order + '"]');
-                const $roleCell = $('[data-approval-slot="' + order + '"]').first();
-                const $inputCell = $('[data-approval-slot="' + order + '"]').last();
+            const $header = $('[data-approval-header="' + order + '"]');
 
-                $header.toggle(hasApprover);
-                $roleCell.toggle(hasApprover);
-                $inputCell.toggle(hasApprover);
+            /*
+             * Ada dua cell dengan data-approval-slot yang sama:
+             *
+             * 1. role/division
+             * 2. select
+             *
+             * Keduanya harus ditampilkan.
+             */
+            const $cells = $('[data-approval-slot="' + order + '"]');
 
-                /*
-                 * Kalau step tidak ada, pastikan tidak ada sisa tombol
-                 * atau pesan "Belum ada approver".
-                 */
-                if (!hasApprover && field.length) {
-                    field.val('');
-                    field.closest('td').find('.approval-tap-wrap, .approval-waiting').remove();
-                }
+            $header.show();
+            $cells.show();
+
+            /*
+             * Jangan menampilkan:
+             * - approval-waiting
+             * - approval-tap-wrap
+             *
+             * karena CREATE belum mempunyai approval step database.
+             */
+            field
+                .closest('td')
+                .find('.approval-tap-wrap, .approval-waiting')
+                .remove();
+        });
+
+        /*
+         * Made by selalu tampil.
+         */
+        $('[data-approval-header="made"]').show();
+
+        return;
+    }
+
+    /*
+     * ============================================================
+     * EDIT / VIEW MODE
+     * ============================================================
+     *
+     * Untuk pengajuan yang sudah tersimpan:
+     * hanya slot yang mempunyai approver yang ditampilkan.
+     */
+    Object.keys(stepToField).forEach(function(order) {
+
+        const field = $(stepToField[order]);
+
+        let step = null;
+
+        if (Array.isArray(APPROVAL_STEPS)) {
+            step = APPROVAL_STEPS.find(function(item) {
+                return String(item.step_order) === String(order);
             });
-
-            /*
-             * Made by selalu ditampilkan.
-             */
-            $('[data-approval-header="made"]').show();
-
-            /*
-             * Jika semua approver kosong, signature section tetap valid
-             * dengan Made by saja.
-             */
         }
 
+        /*
+         * Step dianggap aktif kalau:
+         *
+         * - ada record approval step
+         * - dan ada user_id
+         *
+         * Untuk data lama yang belum punya user_id,
+         * user_name tetap digunakan sebagai fallback.
+         */
+        const hasApprover = !!(
+            step &&
+            (
+                Number(step.user_id || 0) > 0 ||
+                String(step.user_name || '').trim() !== ''
+            )
+        );
+
+        const $header = $('[data-approval-header="' + order + '"]');
+        const $cells = $('[data-approval-slot="' + order + '"]');
+
+        $header.toggle(hasApprover);
+        $cells.toggle(hasApprover);
+
+        /*
+         * Kalau step tidak ada, bersihkan isi select.
+         */
+        if (!hasApprover && field.length) {
+
+            field.val('');
+
+            field
+                .closest('td')
+                .find('.approval-tap-wrap, .approval-waiting')
+                .remove();
+        }
+    });
+
+    /*
+     * Made by selalu tampil.
+     */
+    $('[data-approval-header="made"]').show();
+}
         function renderApprovalButtons() {
             if (!EDIT_MODE || !Array.isArray(APPROVAL_STEPS)) {
                 return;

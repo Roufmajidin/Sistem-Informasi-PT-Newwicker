@@ -205,6 +205,52 @@
     border: 2px solid #f1f4f8;
 }
 
+/* =========================================================
+   TOP HORIZONTAL SCROLL INDICATOR
+   Scrollbar tambahan yang selalu terlihat tepat di bawah
+   2 baris header ketika tabel mempunyai banyak kolom.
+   Posisi ini disinkronkan dengan .freeze-wrapper.
+   ========================================================= */
+.detail-scroll-top {
+    position: sticky;
+    top: 68px;
+    left: 1px;
+    right: 1px;
+    height: 13px;
+    margin-bottom: -13px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    z-index: 35;
+    background: rgba(255,255,255,.96);
+    border-bottom: 1px solid #dfe5ef;
+    scrollbar-width: thin;
+    scrollbar-color: #7f8da8 #eef2f7;
+}
+
+.detail-scroll-top::-webkit-scrollbar {
+    height: 10px;
+}
+
+.detail-scroll-top::-webkit-scrollbar-track {
+    background: #eef2f7;
+}
+
+.detail-scroll-top::-webkit-scrollbar-thumb {
+    background: #7f8da8;
+    border-radius: 10px;
+    border: 2px solid #eef2f7;
+}
+
+.detail-scroll-top-inner {
+    height: 1px;
+}
+
+@media (max-width: 768px) {
+    .detail-scroll-top {
+        top: 62px;
+    }
+}
+
 #detail-table {
     margin: 0;
     width: max-content;
@@ -565,6 +611,9 @@
                             @endif
                         </div>
                         <div class="freeze-wrapper">
+                            <div class="detail-scroll-top" id="detail-scroll-top" aria-label="Horizontal table scroll">
+                                <div class="detail-scroll-top-inner" id="detail-scroll-top-inner"></div>
+                            </div>
                             <table class="table table-bordered table-striped" id="detail-table">
                                 <thead id="detail-table-head"></thead>
                                 <tbody id="detail-item-table"></tbody>
@@ -648,6 +697,7 @@ window.currentUsername = currentUsername;
             }
             /* ===== LOAD TABLE ===== */
             loadPoTable();
+            initDetailTopScroll();
             $('#search-qc')
                 .off('keyup')
                 .on('keyup', function() {
@@ -676,6 +726,44 @@ window.currentUsername = currentUsername;
 
                 });
         }
+        /* =====================================================
+           TOP HORIZONTAL SCROLL SYNC
+           Menampilkan indicator/scrollbar horizontal tepat di
+           bawah header dan menyinkronkannya dengan tabel utama.
+        ===================================================== */
+        function initDetailTopScroll() {
+            const wrapper = document.querySelector('.freeze-wrapper');
+            const topScroll = document.getElementById('detail-scroll-top');
+            const topInner = document.getElementById('detail-scroll-top-inner');
+            const table = document.getElementById('detail-table');
+
+            if (!wrapper || !topScroll || !topInner || !table) return;
+
+            const syncWidth = () => {
+                topInner.style.width = table.scrollWidth + 'px';
+                topScroll.scrollLeft = wrapper.scrollLeft;
+            };
+
+            topScroll.onscroll = function() {
+                wrapper.scrollLeft = topScroll.scrollLeft;
+            };
+
+            wrapper.addEventListener('scroll', function() {
+                if (Math.abs(topScroll.scrollLeft - wrapper.scrollLeft) > 1) {
+                    topScroll.scrollLeft = wrapper.scrollLeft;
+                }
+            });
+
+            requestAnimationFrame(syncWidth);
+            setTimeout(syncWidth, 250);
+            setTimeout(syncWidth, 700);
+
+            if (window.ResizeObserver) {
+                const ro = new ResizeObserver(syncWidth);
+                ro.observe(table);
+            }
+        }
+
         /* =====================================================
            LOAD TABLE
         ===================================================== */
@@ -1370,20 +1458,33 @@ window.currentUsername = currentUsername;
                     // =========================
                     // FOOTER
                     // =========================
-                    foot.html(`
+                    // TOTAL CBM harus tampil untuk SEMUA ROLE.
+                    // TOTAL FOB PRICE tetap khusus marketing.
+                    // Sebelumnya priceIndex = -1 pada role non-marketing
+                    // menyebabkan emptyTds(-1) dan footer gagal dirender.
+                    let footerHtml = '';
+
+                    if (cbmIndex >= 0) {
+                        footerHtml += `
                 <tr style="font-weight:bold;background:#f4f6f9">
                     ${emptyTds(cbmIndex)}
                     <td>TOTAL CBM</td>
                     <td>${isNaN(totalCbm) ? '0.00' : totalCbm.toFixed(2)}</td>
-                    ${emptyTds(keys.length - cbmIndex - 2)}
-                </tr>
+                    ${emptyTds(Math.max(0, keys.length - cbmIndex - 2))}
+                </tr>`;
+                    }
+
+                    if (role === 'marketing' && priceIndex >= 0) {
+                        footerHtml += `
                 <tr style="font-weight:bold;background:#e8f5e9">
                     ${emptyTds(priceIndex)}
                     <td>TOTAL FOB PRICE</td>
                     <td>${totalPrice.toLocaleString('id-ID')}</td>
-                    ${emptyTds(keys.length - priceIndex - 2)}
-                </tr>
-            `);
+                    ${emptyTds(Math.max(0, keys.length - priceIndex - 2))}
+                </tr>`;
+                    }
+
+                    foot.html(footerHtml);
                 });
         });
         /* =====================================================

@@ -608,64 +608,121 @@ class QcController extends Controller
         return response()->json($pos);
     }
     public function ajaxPoList(Request $request)
-    {
-        $q = $request->q;
-        $type = $request->type;
-        $sort = $request->sort ?? 'desc'; // default terbaru
+{
+    $q = trim($request->q ?? '');
+    $type = $request->type;
+    $sort = $request->sort === 'asc' ? 'asc' : 'desc';
 
-        $query = Po::with('details')
+    $query = Po::query()
+        ->select([
+            'id',
+            'order_no',
+            'company_name',
+            'country',
+            'release_date',
+            'shipment_date',
+            'act_ship',
+            'value',
+            'cont_numb',
+            'do_released',
+        ]);
 
-            // =========================
-            // SEARCH
-            // =========================
-            ->when($q, function ($query) use ($q) {
-
-                $query->where(function ($sub) use ($q) {
-
-                    $sub->where('order_no', 'like', "%{$q}%")
-                        ->orWhere('company_name', 'like', "%{$q}%");
-
-                });
-
-            })
-
-            // =========================
-            // FILTER TYPE
-            // =========================
-            ->when($type, function ($query) use ($type) {
-
-                if ($type === 'NWS') {
-
-                    $query->where('order_no', 'like', 'NWS%');
-
-                }
-
-                if ($type === 'NW') {
-
-                    $query->where('order_no', 'like', 'NW%')
-                        ->where('order_no', 'not like', 'NWS%');
-
-                }
-
-            });
-
-        // =========================
-        // SORT ORDER NO
-        // =========================
-        if ($sort == 'asc') {
-
-            $query->orderBy('order_no', 'asc');
-
-        } else {
-
-            $query->orderBy('order_no', 'desc');
-
-        }
-
-        $pos = $query->get();
-
-        return response()->json($pos);
+    // =========================
+    // SEARCH
+    // =========================
+    if ($q !== '') {
+        $query->where(function ($sub) use ($q) {
+            $sub->where('order_no', 'like', "%{$q}%")
+                ->orWhere('company_name', 'like', "%{$q}%");
+        });
     }
+
+    // =========================
+    // FILTER TYPE
+    // =========================
+    if ($type === 'NWS') {
+
+        $query->where('order_no', 'like', 'NWS%');
+
+    } elseif ($type === 'NW') {
+
+        $query->where('order_no', 'like', 'NW%')
+              ->where('order_no', 'not like', 'NWS%');
+    }
+
+    // =========================
+    // SORT
+    // =========================
+    $query->orderBy('order_no', $sort);
+
+    // =========================
+    // LIMIT
+    // =========================
+    $pos = $query
+        ->limit(100)
+        ->get();
+
+    return response()->json($pos);
+}
+    // public function ajaxPoList(Request $request)
+    // {
+    //     $q = $request->q;
+    //     $type = $request->type;
+    //     $sort = $request->sort ?? 'desc'; // default terbaru
+
+    //     $query = Po::with('details')
+
+    //         // =========================
+    //         // SEARCH
+    //         // =========================
+    //         ->when($q, function ($query) use ($q) {
+
+    //             $query->where(function ($sub) use ($q) {
+
+    //                 $sub->where('order_no', 'like', "%{$q}%")
+    //                     ->orWhere('company_name', 'like', "%{$q}%");
+
+    //             });
+
+    //         })
+
+    //         // =========================
+    //         // FILTER TYPE
+    //         // =========================
+    //         ->when($type, function ($query) use ($type) {
+
+    //             if ($type === 'NWS') {
+
+    //                 $query->where('order_no', 'like', 'NWS%');
+
+    //             }
+
+    //             if ($type === 'NW') {
+
+    //                 $query->where('order_no', 'like', 'NW%')
+    //                     ->where('order_no', 'not like', 'NWS%');
+
+    //             }
+
+    //         });
+
+    //     // =========================
+    //     // SORT ORDER NO
+    //     // =========================
+    //     if ($sort == 'asc') {
+
+    //         $query->orderBy('order_no', 'asc');
+
+    //     } else {
+
+    //         $query->orderBy('order_no', 'desc');
+
+    //     }
+
+    //     $pos = $query->get();
+
+    //     return response()->json($pos);
+    // }
     public function ajaxPo(Request $request)
     {
         $q = $request->q;

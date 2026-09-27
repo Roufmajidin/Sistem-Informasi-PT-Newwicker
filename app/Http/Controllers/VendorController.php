@@ -16,19 +16,51 @@ class VendorController extends Controller
     |--------------------------------------------------------------------------
     */
 
-    public function index()
-    {
-        /*
-         * ID ASC
-         *
-         * Vendor lama di atas
-         * Vendor baru di bawah
-         */
-        $vendors = Vendor::orderBy('id', 'asc')
-            ->paginate(20);
+  public function index(Request $request)
+{
+    $search = trim($request->get('search', ''));
 
-        return view('pages.vendor.index', compact('vendors'));
+    $query = Vendor::query();
+
+    /*
+    |--------------------------------------------------------------------------
+    | SEARCH SEMUA DATA VENDOR
+    |--------------------------------------------------------------------------
+    */
+    if ($search !== '') {
+
+        $like = '%' . $search . '%';
+
+        $query->where(function ($q) use ($like) {
+
+            $q->where('nama_vendor', 'like', $like)
+                ->orWhere('uniq', 'like', $like)
+                ->orWhere('alamat', 'like', $like)
+                ->orWhere('nomor_rekening', 'like', $like)
+                ->orWhere('nama_rekening', 'like', $like)
+                ->orWhere('bank', 'like', $like)
+                ->orWhere('npwp', 'like', $like)
+                ->orWhere('vendor_type', 'like', $like)
+                ->orWhere('vendor_type2', 'like', $like);
+
+        });
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | PAGINATION
+    |--------------------------------------------------------------------------
+    */
+    $vendors = $query
+        ->orderBy('id', 'asc')
+        ->paginate(20)
+        ->withQueryString();
+
+    return view('pages.vendor.index', compact(
+        'vendors',
+        'search'
+    ));
+}
 
 
     /*
