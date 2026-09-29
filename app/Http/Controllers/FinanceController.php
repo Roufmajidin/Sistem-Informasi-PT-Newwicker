@@ -349,27 +349,27 @@ class FinanceController extends Controller
                 collect(
                     $paymentRequestIds
                 )
-                ->filter(function ($id) {
+                    ->filter(function ($id) {
 
-                    return
-                        $id !== null &&
-                        $id !== '';
+                        return
+                            $id !== null &&
+                            $id !== '';
 
-                })
-                ->map(function ($id) {
+                    })
+                    ->map(function ($id) {
 
-                    return (int) $id;
+                        return (int) $id;
 
-                })
-                ->unique()
-                ->values()
-                ->all();
+                    })
+                    ->unique()
+                    ->values()
+                    ->all();
 
 
             if (
                 empty(
-                    $paymentRequestIds
-                )
+                $paymentRequestIds
+            )
             ) {
 
                 throw new \Exception(
@@ -699,8 +699,8 @@ class FinanceController extends Controller
 
             if (
                 empty(
-                    $paymentId
-                )
+                $paymentId
+            )
             ) {
 
                 throw new \Exception(
@@ -1090,9 +1090,9 @@ class FinanceController extends Controller
                     'pengajuan_id',
                     $detailData->pengajuan_id
                 )
-                ->sum(
-                    'total_harga'
-                );
+                    ->sum(
+                        'total_harga'
+                    );
 
 
             /*
@@ -1176,12 +1176,12 @@ class FinanceController extends Controller
 
                     'date' =>
                         $detailData->date
-                            ? \Carbon\Carbon::parse(
-                                $detailData->date
-                            )->format(
+                        ? \Carbon\Carbon::parse(
+                            $detailData->date
+                        )->format(
                                 'd/m/Y'
                             )
-                            : '-',
+                        : '-',
 
                     'no_po' =>
                         $detailData->no_po,
@@ -1228,8 +1228,8 @@ class FinanceController extends Controller
 
                 'error' =>
                     config('app.debug')
-                        ? $e->getMessage()
-                        : null,
+                    ? $e->getMessage()
+                    : null,
 
             ], 500);
 

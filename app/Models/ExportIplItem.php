@@ -9,39 +9,23 @@ class ExportIplItem extends Model
     protected $fillable = [
 
         'export_ipl_id',
-
+        'desc_custome',
         'po_id',
-
         'detail_po_id',
-
         'po_no',
-
         'hs_code',
-
         'article_nr',
-
         'description',
-
         'photo',
-
         'box_dimension',
-
         'qty_pcs',
-
         'qty_box',
-
         'cbm',
-
         'total_cbm',
-
         'unit_price',
-
         'total_price',
-
         'net_weight',
-
         'gross_weight',
-
         'remark',
     ];
 

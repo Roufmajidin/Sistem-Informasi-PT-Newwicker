@@ -49,7 +49,7 @@
 
                             <th>DO</th>
 
-                            <th>Invoice</th>
+                            <th>Invoice No</th>
 
                             <th>PL</th>
 
@@ -131,9 +131,23 @@
                                 </td>
 
                                 {{-- Invoice --}}
-                                <td>
-                                    {{ optional($row->invoice)->invoice_no ?? '-' }}
-                                </td>
+                               {{-- Invoice --}}
+<td>
+    @if (!empty(optional($row->invoice)->invoice_no))
+
+        <a
+            href="{{ url('/export/ipl') }}?ref={{ urlencode($row->invoice->invoice_no) }}"
+            class="invoice-link"
+        >
+            {{ $row->invoice->invoice_no }}
+        </a>
+
+    @else
+
+        -
+
+    @endif
+</td>
 
                                 {{-- Packing List --}}
                                 <td>

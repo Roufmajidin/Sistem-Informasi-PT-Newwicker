@@ -8,7 +8,7 @@ use App\Models\ExportIplItem;
 use App\Models\ExportIplPo;
 use App\Models\ExportDocument;
 use App\Models\ExportDocumentFile;
-
+use App\Models\ExportAr;
 use App\Models\Po;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -429,7 +429,7 @@ class EdController extends Controller
         }
     }
 
-    public function ipl()
+    public function ipl(Request $request)
     {
         $datas = ExportIpl::withCount([
             'items',
@@ -438,9 +438,27 @@ class EdController extends Controller
             ->latest()
             ->paginate(20);
 
+        /*
+        |--------------------------------------------------------------------------
+        | INVOICE YANG AKTIF DARI PARAMETER URL
+        |--------------------------------------------------------------------------
+        |
+        | Contoh:
+        |
+        | /export/ipl?ref=INV002-NW20-07-263
+        |
+        */
+
+        $activeRef = trim(
+            (string) $request->query('ref', '')
+        );
+
         return view(
             'pages.exports.ipl',
-            compact('datas')
+            compact(
+                'datas',
+                'activeRef'
+            )
         );
     }
 
@@ -728,9 +746,16 @@ class EdController extends Controller
 
     public function stock()
     {
+        /*
+        |--------------------------------------------------------------------------
+        | AMBIL SEMUA PO
+        |--------------------------------------------------------------------------
+        */
+
         $po = Po::with('detailPos')
             ->orderBy('order_no')
             ->get();
+
 
         /*
         |--------------------------------------------------------------------------
@@ -755,6 +780,14 @@ class EdController extends Controller
         |--------------------------------------------------------------------------
         | AMBIL SEMUA IPL YANG SUDAH RELEASE
         |--------------------------------------------------------------------------
+        |
+        | Kita tidak hanya mengambil qty.
+        | Kita juga mengambil data IPL supaya nanti bisa mendapatkan:
+        |
+        | - release_date
+        | - invoice_no
+        | - container_no
+        |
         */
 
         $releasedItems = ExportIplItem::with('exportIpl')
@@ -779,22 +812,10 @@ class EdController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | GROUP QTY LOADED BERDASARKAN
+        | GROUP BERDASARKAN
         |
         | PO NO + ARTICLE
-        |
-        | INI YANG MENJADI SUMBER UTAMA MONITORING
         |--------------------------------------------------------------------------
-        |
-        | Contoh:
-        |
-        | NW 26 - 38 || ERYN001-4348
-        |
-        | IPL #6 = 90
-        | IPL #9 = 6
-        |
-        | Total = 96
-        |
         */
 
         $loadedByPoArticle = $releasedItems
@@ -809,7 +830,7 @@ class EdController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | HITUNG QTY LOADED
+        | HITUNG LOADED QTY + LOADING HISTORY
         |--------------------------------------------------------------------------
         */
 
@@ -818,6 +839,7 @@ class EdController extends Controller
             foreach ($itemPo->detailPos as $detail) {
 
                 $item = $detail->item ?? [];
+
 
                 /*
                 |--------------------------------------------------------------------------
@@ -849,10 +871,12 @@ class EdController extends Controller
 
                 $loadedQty = 0;
 
+                $loadingHistory = [];
+
 
                 /*
                 |--------------------------------------------------------------------------
-                | CARI SEMUA IPL BERDASARKAN PO + ARTICLE
+                | CARI IPL BERDASARKAN PO + ARTICLE
                 |--------------------------------------------------------------------------
                 */
 
@@ -863,16 +887,63 @@ class EdController extends Controller
 
                     $key = $poNo . '||' . $article;
 
+
                     if (isset($loadedByPoArticle[$key])) {
 
-                        $loadedQty = $loadedByPoArticle[$key]
-                            ->sum(function ($load) {
+                        $loads = $loadedByPoArticle[$key];
 
-                                return (float) (
-                                    $load->qty_pcs ?? 0
-                                );
 
-                            });
+                        /*
+                        |--------------------------------------------------------------------------
+                        | TOTAL LOADED
+                        |--------------------------------------------------------------------------
+                        */
+
+                        $loadedQty = $loads->sum(function ($load) {
+
+                            return (float) (
+                                $load->qty_pcs ?? 0
+                            );
+
+                        });
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | HISTORY LOADING
+                        |--------------------------------------------------------------------------
+                        |
+                        | Satu IPL = satu history.
+                        |
+                        */
+
+                        $loadingHistory = $loads
+                            ->map(function ($load) {
+
+                                $ipl = $load->exportIpl;
+
+                                return [
+
+                                    'ipl_id' =>
+                                        $load->export_ipl_id,
+
+                                    'qty' =>
+                                        (float) ($load->qty_pcs ?? 0),
+
+                                    'release_date' =>
+                                        optional($ipl)->release_date,
+
+                                    'invoice_no' =>
+                                        optional($ipl)->invoice_no,
+
+                                    'container_no' =>
+                                        optional($ipl)->container_no,
+
+                                ];
+
+                            })
+                            ->values()
+                            ->toArray();
 
                     }
 
@@ -881,15 +952,103 @@ class EdController extends Controller
 
                 /*
                 |--------------------------------------------------------------------------
-                | SIMPAN HASIL KE DETAIL PO
+                | QTY PO
+                |--------------------------------------------------------------------------
+                */
+
+                $qtyPo = (float) (
+                    $item['qty'] ?? 0
+                );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | QTY SISA
+                |--------------------------------------------------------------------------
+                */
+
+                $availableQty = max(
+                    0,
+                    $qtyPo - $loadedQty
+                );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | SIMPAN KE DETAIL
                 |--------------------------------------------------------------------------
                 */
 
                 $detail->loaded_qty = $loadedQty;
 
+                $detail->available_qty = $availableQty;
+
+                $detail->loading_history = $loadingHistory;
+
+                /*
+                |--------------------------------------------------------------------------
+                | STATUS DETAIL
+                |--------------------------------------------------------------------------
+                */
+
+                $detail->is_loaded =
+                    $loadedQty >= $qtyPo;
+
             }
 
+
+            /*
+            |--------------------------------------------------------------------------
+            | STATUS PO
+            |--------------------------------------------------------------------------
+            |
+            | PO masuk HISTORY jika semua detail sudah loaded.
+            |
+            */
+
+            $hasDetails =
+                $itemPo->detailPos->count() > 0;
+
+
+            $itemPo->is_fully_loaded =
+                $hasDetails &&
+                $itemPo->detailPos->every(function ($detail) {
+
+                    return $detail->is_loaded;
+
+                });
+
         }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | ON PROGRESS
+        |--------------------------------------------------------------------------
+        */
+
+        $onProgress = $po
+            ->filter(function ($itemPo) {
+
+                return !$itemPo->is_fully_loaded;
+
+            })
+            ->values();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | HISTORY
+        |--------------------------------------------------------------------------
+        */
+
+        $history = $po
+            ->filter(function ($itemPo) {
+
+                return $itemPo->is_fully_loaded;
+
+            })
+            ->values();
 
 
         /*
@@ -899,7 +1058,8 @@ class EdController extends Controller
         */
 
         return view('pages.exports.so', compact(
-            'po'
+            'onProgress',
+            'history'
         ));
     }
     // public function stock()
@@ -1427,37 +1587,52 @@ class EdController extends Controller
 
         try {
 
+            /*
+            |--------------------------------------------------------------------------
+            | 1. AMBIL IPL
+            |--------------------------------------------------------------------------
+            */
+
             $ipl = ExportIpl::findOrFail($id);
+
 
             /*
             |--------------------------------------------------------------------------
-            | CEK SUDAH RELEASE
+            | 2. CEK SUDAH RELEASE
             |--------------------------------------------------------------------------
             */
 
             if (!empty($ipl->released)) {
+
+                DB::rollBack();
+
                 return response()->json([
                     'success' => false,
                     'message' => 'IPL ini sudah pernah di-release.'
                 ], 422);
             }
 
+
             /*
             |--------------------------------------------------------------------------
-            | CEK ETD
+            | 3. CEK ETD
             |--------------------------------------------------------------------------
             */
 
             if (empty($ipl->etd)) {
+
+                DB::rollBack();
+
                 return response()->json([
                     'success' => false,
                     'message' => 'ETD IPL belum diisi.'
                 ], 422);
             }
 
+
             /*
             |--------------------------------------------------------------------------
-            | 1. AMBIL PO ID DARI export_ipl_pos
+            | 4. AMBIL PO ID DARI export_ipl_pos
             |--------------------------------------------------------------------------
             */
 
@@ -1470,9 +1645,10 @@ class EdController extends Controller
                 ->unique()
                 ->values();
 
+
             /*
             |--------------------------------------------------------------------------
-            | 2. JIKA PO ID TIDAK ADA
+            | 5. JIKA PO ID TIDAK ADA
             |    CARI BERDASARKAN PO NO
             |--------------------------------------------------------------------------
             */
@@ -1486,23 +1662,31 @@ class EdController extends Controller
                     ->pluck('po_no')
                     ->filter()
                     ->map(function ($value) {
+
                         return trim($value);
+
                     })
                     ->unique()
                     ->values();
 
+
                 if ($poNos->isNotEmpty()) {
 
-                    $poIds = Po::whereIn('order_no', $poNos)
+                    $poIds = Po::whereIn(
+                        'order_no',
+                        $poNos
+                    )
                         ->pluck('id')
                         ->unique()
                         ->values();
+
                 }
             }
 
+
             /*
             |--------------------------------------------------------------------------
-            | 3. JIKA MASIH TIDAK DITEMUKAN
+            | 6. JIKA PO MASIH TIDAK DITEMUKAN
             |--------------------------------------------------------------------------
             */
 
@@ -1512,58 +1696,489 @@ class EdController extends Controller
 
                 return response()->json([
                     'success' => false,
-                    'message' => 'PO tidak ditemukan berdasarkan PO ID maupun nomor PO.',
+                    'message' => 'PO tidak ditemukan berdasarkan PO ID maupun nomor PO.'
                 ], 422);
             }
 
+
             /*
             |--------------------------------------------------------------------------
-            | 4. UPDATE ETD KE PO
+            | 7. UPDATE ETD KE PO
             |--------------------------------------------------------------------------
             */
 
-            $updatedPo = Po::whereIn('id', $poIds)
+            $updatedPo = Po::whereIn(
+                'id',
+                $poIds
+            )
                 ->update([
                     'etd' => $ipl->etd,
                 ]);
 
+
             /*
             |--------------------------------------------------------------------------
-            | 5. RELEASE IPL
+            | 8. RELEASE IPL
             |--------------------------------------------------------------------------
             */
 
             $releaseDate = now();
 
             $ipl->released = 1;
+
             $ipl->release_date = $releaseDate->toDateString();
+
             $ipl->save();
+
+
             /*
             |--------------------------------------------------------------------------
-            | 6. COMMIT
+            | 9. HITUNG FOB USD DARI ITEM IPL
+            |--------------------------------------------------------------------------
+            */
+
+            $fobUsd = ExportIplItem::where(
+                'export_ipl_id',
+                $ipl->id
+            )
+                ->sum('total_price');
+
+            $fobUsd = (float) $fobUsd;
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | 10. JUMLAH CONTAINER
+            |--------------------------------------------------------------------------
+            |
+            | Untuk 1 IPL = 1 container.
+            |
+            | Jika nanti 1 IPL bisa memiliki beberapa container,
+            | bagian ini bisa kita ubah.
+            |
+            */
+
+            $jumlahContainer = 1;
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | 11. BUAT AR BUYER
+            |--------------------------------------------------------------------------
+            |
+            | Satu IPL hanya boleh mempunyai satu AR.
+            |
+            | firstOrCreate digunakan supaya apabila request release
+            | terkirim dua kali tidak membuat AR duplicate.
+            |
+            */
+
+            $ar = ExportAr::firstOrCreate(
+                [
+                    'export_ipl_id' => $ipl->id,
+                ],
+                [
+                    'tanggal_invoice' => $releaseDate->toDateString(),
+
+                    /*
+                    |--------------------------------------------------------------
+                    | Jatuh tempo
+                    |--------------------------------------------------------------
+                    |
+                    | Untuk sekarang kosong.
+                    | Nanti bisa diisi berdasarkan payment term buyer.
+                    |
+                    */
+
+                    'jatuh_tempo' => null,
+
+
+                    /*
+                    |--------------------------------------------------------------
+                    | FOB USD
+                    |--------------------------------------------------------------
+                    */
+
+                    'fob_usd' => $fobUsd,
+
+
+                    /*
+                    |--------------------------------------------------------------
+                    | FOB PEB USD
+                    |--------------------------------------------------------------
+                    |
+                    | Belum ada data PEB pada saat Release.
+                    |
+                    */
+
+                    'fob_peb_usd' => 0,
+
+
+                    /*
+                    |--------------------------------------------------------------
+                    | Kurs Kemenkeu
+                    |--------------------------------------------------------------
+                    |
+                    | Belum tersedia pada IPL.
+                    |
+                    */
+
+                    'kurs_kemenkeu' => 0,
+
+
+                    /*
+                    |--------------------------------------------------------------
+                    | Jumlah Rupiah
+                    |--------------------------------------------------------------
+                    |
+                    | Belum dihitung karena kurs Kemenkeu belum tersedia.
+                    |
+                    */
+
+                    'jumlah_rupiah' => 0,
+
+
+                    /*
+                    |--------------------------------------------------------------
+                    | Jumlah Container
+                    |--------------------------------------------------------------
+                    */
+
+                    'jumlah_container' => $jumlahContainer,
+
+
+                    /*
+                    |--------------------------------------------------------------
+                    | PEB
+                    |--------------------------------------------------------------
+                    */
+
+                    'no_pengajuan_peb' => null,
+
+                    'no_peb' => null,
+
+
+                    /*
+                    |--------------------------------------------------------------
+                    | STATUS AR
+                    |--------------------------------------------------------------
+                    */
+
+                    'status_ar' => 'belum_dibayar',
+
+
+                    /*
+                    |--------------------------------------------------------------
+                    | KETERANGAN
+                    |--------------------------------------------------------------
+                    */
+
+                    'keterangan' => null,
+
+                    'remark' => null,
+
+
+                    /*
+                    |--------------------------------------------------------------
+                    | USER
+                    |--------------------------------------------------------------
+                    */
+
+                    'created_by' => auth()->id(),
+                ]
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | 12. COMMIT
             |--------------------------------------------------------------------------
             */
 
             DB::commit();
 
+
+            /*
+            |--------------------------------------------------------------------------
+            | 13. RESPONSE
+            |--------------------------------------------------------------------------
+            */
+
             return response()->json([
+
                 'success' => true,
-                'message' => 'IPL berhasil di-release dan ETD PO berhasil diperbarui.',
-                'release_date' => $releaseDate->format('d/m/Y'),
-                'etd' => \Carbon\Carbon::parse($ipl->etd)->format('d/m/Y'),
-                'po_ids' => $poIds->values(),
-                'updated_po' => $updatedPo,
+
+                'message' =>
+                    'IPL berhasil di-release, ETD PO berhasil diperbarui, dan AR Buyer berhasil dibuat.',
+
+                'release_date' =>
+                    $releaseDate->format('d/m/Y'),
+
+                'etd' =>
+                    \Carbon\Carbon::parse($ipl->etd)
+                        ->format('d/m/Y'),
+
+                'po_ids' =>
+                    $poIds->values(),
+
+                'updated_po' =>
+                    $updatedPo,
+
+                'ar_id' =>
+                    $ar->id,
+
+                'fob_usd' =>
+                    $fobUsd,
+
             ]);
 
         } catch (\Throwable $e) {
 
+            /*
+            |--------------------------------------------------------------------------
+            | ROLLBACK
+            |--------------------------------------------------------------------------
+            */
+
             DB::rollBack();
 
+
+            /*
+            |--------------------------------------------------------------------------
+            | ERROR RESPONSE
+            |--------------------------------------------------------------------------
+            */
+
             return response()->json([
+
                 'success' => false,
+
                 'message' => $e->getMessage(),
+
             ], 500);
         }
+    }
+    public function customInvoiceData($id)
+    {
+        $ipl = ExportIpl::with([
+            'pos',
+            'items',
+        ])->findOrFail($id);
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | RECOVERY DATA IPL LAMA
+        |--------------------------------------------------------------------------
+        | Jika po_id kosong, cari berdasarkan po_no.
+        | Jika detail_po_id kosong, cari berdasarkan PO + article.
+        |--------------------------------------------------------------------------
+        */
+
+        foreach ($ipl->items as $item) {
+
+            /*
+            |--------------------------------------------------------------------------
+            | RECOVERY PO ID
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                empty($item->po_id) &&
+                !empty($item->po_no)
+            ) {
+
+                $po = Po::where(
+                    'order_no',
+                    trim($item->po_no)
+                )->first();
+
+                if ($po) {
+                    $item->po_id = $po->id;
+                }
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | RECOVERY DETAIL PO ID
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                empty($item->detail_po_id) &&
+                !empty($item->po_id) &&
+                !empty($item->article_nr)
+            ) {
+
+                $po = Po::with('detailPos')
+                    ->find($item->po_id);
+
+                if ($po) {
+
+                    foreach ($po->detailPos as $detailPo) {
+
+                        $detail = is_array(
+                            $detailPo->detail
+                        )
+                            ? $detailPo->detail
+                            : json_decode(
+                                $detailPo->detail,
+                                true
+                            );
+
+                        $article = trim(
+                            (string) (
+                                $detail['article_nr_'] ?? ''
+                            )
+                        );
+
+                        if (
+                            $article !== '' &&
+                            $article === trim(
+                                (string) $item->article_nr
+                            )
+                        ) {
+
+                            $item->detail_po_id =
+                                $detailPo->id;
+
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | RETURN JSON
+        |--------------------------------------------------------------------------
+        */
+
+        return response()->json([
+
+            'success' => true,
+
+            'data' => [
+
+                'id' =>
+                    $ipl->id,
+
+                'invoice_no' =>
+                    $ipl->invoice_no,
+
+                'sales_order' =>
+                    $ipl->sales_order,
+
+                'buyer' =>
+                    $ipl->buyer,
+
+                'container_type' =>
+                    $ipl->container_type,
+
+                'etd' =>
+                    $ipl->etd
+                    ? \Carbon\Carbon::parse(
+                        $ipl->etd
+                    )->format('Y-m-d')
+                    : null,
+
+                'items' =>
+                    $ipl->items
+                        ->map(function ($item) {
+
+                            return [
+
+                                /*
+                                |--------------------------------------------------------------------------
+                                | SOURCE ITEM ID
+                                |--------------------------------------------------------------------------
+                                */
+
+                                'id' =>
+                                    $item->id,
+
+                                'po_id' =>
+                                    $item->po_id,
+
+                                'detail_po_id' =>
+                                    $item->detail_po_id,
+
+                                'po_no' =>
+                                    $item->po_no,
+
+                                'hs_code' =>
+                                    $item->hs_code,
+
+                                'article_nr' =>
+                                    $item->article_nr,
+
+                                'description' =>
+                                    $item->description,
+
+                                /*
+                                |--------------------------------------------------------------------------
+                                | CUSTOM DESCRIPTION
+                                |--------------------------------------------------------------------------
+                                */
+
+                                'desc_custome' =>
+                                    $item->desc_custome,
+
+                                'qty_pcs' =>
+                                    (float) (
+                                        $item->qty_pcs ?? 0
+                                    ),
+
+                                'qty_box' =>
+                                    (float) (
+                                        $item->qty_box ?? 0
+                                    ),
+
+                                'unit_price' =>
+                                    (float) (
+                                        $item->unit_price ?? 0
+                                    ),
+
+                                'total_price' =>
+                                    (float) (
+                                        $item->total_price ?? 0
+                                    ),
+
+                                'cbm' =>
+                                    (float) (
+                                        $item->cbm ?? 0
+                                    ),
+
+                                'total_cbm' =>
+                                    (float) (
+                                        $item->total_cbm ?? 0
+                                    ),
+
+                                'net_weight' =>
+                                    (float) (
+                                        $item->net_weight ?? 0
+                                    ),
+
+                                'gross_weight' =>
+                                    (float) (
+                                        $item->gross_weight ?? 0
+                                    ),
+
+                                'remark' =>
+                                    $item->remark,
+                                // INI WAJIB
+                
+                            ];
+
+                        })
+                        ->values(),
+
+            ],
+
+        ]);
     }
     // EXPORT DOWNLOAD
     // ada di helpers

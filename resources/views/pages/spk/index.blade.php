@@ -3829,16 +3829,36 @@
     function hitungTotal(row) {
         if (!row) return;
 
-        const unit = getQtyUnit();
+        /*
+         * PENTING:
+         * Setiap row sudah mempunyai data-satuan dari item/controller.
+         * Sebelumnya hitungTotal() hanya membaca qtyUnit global.
+         * Akibatnya jika row adalah SET tetapi qtyUnit global masih PCS,
+         * row SET dibaca dari .pcs (= 0), sehingga Total menjadi 0.
+         *
+         * Gunakan satuan row terlebih dahulu. Jika belum ada, fallback
+         * ke qtyUnit global agar behavior lama tetap berjalan.
+         */
+        const rowUnit = String(row.dataset.satuan || '').trim().toUpperCase();
+        const unit = rowUnit || getQtyUnit();
+
         const pcs = getQuantityNumber(row.querySelector('.pcs'));
         const set = getQuantityNumber(row.querySelector('.set'));
         const hargaCell = row.querySelector('.harga');
 
         if (!hargaCell) return;
 
-        // PCS dan KG menggunakan kolom quantity utama (.pcs).
-        // SET tetap menggunakan kolom .set seperti behavior existing.
-        const qty = unit === 'SET' ? set : pcs;
+        // PCS/KG memakai kolom .pcs, sedangkan SET memakai kolom .set.
+        // Jika row memiliki nilai SET dan PCS kosong/0, gunakan SET
+        // meskipun selector global masih berada di PCS.
+        // Ini penting untuk data existing yang memang tersimpan sebagai SET.
+        let qty;
+
+        if (set > 0 && pcs === 0) {
+            qty = set;
+        } else {
+            qty = unit === 'SET' ? set : pcs;
+        }
 
         // Harga dasar PER PCS/SET tetap menjadi harga yang disimpan.
         let baseHarga = Number(row.dataset.baseHarga || 0);
@@ -10192,7 +10212,7 @@
         | User lain sudah melihatnya realtime saat mengetik.
         */
         liveMessageSend?.addEventListener('click', function() {
-            sendLiveMessageTyping(true);q
+            sendLiveMessageTyping(true);
             sendLiveMessageStopped();
             closeLiveMessage();
         });
