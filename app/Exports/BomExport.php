@@ -17,7 +17,7 @@
 
         public function __construct($bom)
         {
-            // Mengubah array dari controller menjadi full nested object secara rekursif
+          
             $this->bom = json_decode(json_encode($bom));
         }
 

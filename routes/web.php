@@ -371,6 +371,16 @@ Route::get(
     '/export/po-detail/{id}',
     [EdController::class, 'poDetail']
 )->name('export.po.detail');
+Route::get('/test/insert-ar-legacy', [SofianController::class, 'insertDummyArLegacy'])
+    ->name('test.insert.ar.legacy');
+// AR LAMA — NEW
+Route::post('/ar_buyer/legacy/mass', [SofianController::class, 'addArLegacyMass'])
+    ->name('ar_buyer.legacy.mass');
+Route::put(
+    '/ar_buyer/legacy/{id}',
+    [SofianController::class, 'updateArLegacyField']
+)->name('ar.buyer.legacy.update');
+
     // end
     // pusher
     Route::post('/pusher/auth', function (Request $request) {

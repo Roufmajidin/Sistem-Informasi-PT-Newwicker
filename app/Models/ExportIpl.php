@@ -35,6 +35,7 @@ class ExportIpl extends Model
         'eta',
 
         'created_by',
+        'date'
     ];
 
     protected $casts = [

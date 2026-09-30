@@ -133,11 +133,7 @@ class ProduksiMnController extends Controller
                 $detailPo->detail,
                 true
             );
-            /*
-        |--------------------------------------------------------------------------
-        | ITEM INFO
-        |--------------------------------------------------------------------------
-        */
+        
             $itemName =
                 $detailData['description'] ?? $detailData['nama'] ?? $detailData['item'] ?? '-';
             $articleCode =

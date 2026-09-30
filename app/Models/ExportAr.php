@@ -39,9 +39,6 @@ class ExportAr extends Model
         'jumlah_container' => 'integer',
     ];
 
-    /**
-     * AR berasal dari 1 Export IPL / Invoice.
-     */
     public function exportIpl(): BelongsTo
     {
         return $this->belongsTo(
@@ -50,9 +47,6 @@ class ExportAr extends Model
         );
     }
 
-    /**
-     * Satu AR dapat memiliki banyak pembayaran.
-     */
     public function payments(): HasMany
     {
         return $this->hasMany(
@@ -61,9 +55,6 @@ class ExportAr extends Model
         );
     }
 
-    /**
-     * Total deposit.
-     */
     public function getTotalDepositAttribute()
     {
         return $this->payments()
@@ -71,9 +62,6 @@ class ExportAr extends Model
             ->sum('amount');
     }
 
-    /**
-     * Total pelunasan.
-     */
     public function getTotalPelunasanAttribute()
     {
         return $this->payments()
@@ -81,9 +69,6 @@ class ExportAr extends Model
             ->sum('amount');
     }
 
-    /**
-     * Total surcharge.
-     */
     public function getTotalSurchargeAttribute()
     {
         return $this->payments()
@@ -92,25 +77,38 @@ class ExportAr extends Model
     }
 
     /**
-     * Total pembayaran.
-     *
-     * Surcharge TIDAK dihitung sebagai pembayaran.
+     * Jumlah penjualan berdasarkan FOB PEB USD x Kurs Kemenkeu.
      */
-    public function getTotalDibayarAttribute()
+    public function getJumlahRpCalculatedAttribute()
     {
-        return $this->total_deposit + $this->total_pelunasan;
+        return (float) $this->fob_peb_usd
+            * (float) $this->kurs_kemenkeu;
     }
 
     /**
-     * Sisa piutang.
+     * Total pembayaran.
      *
-     * Jumlah Rp + Surcharge - Deposit - Pelunasan
+     * Surcharge bukan pembayaran.
+     */
+    public function getTotalDibayarAttribute()
+    {
+        return (float) $this->total_deposit
+            + (float) $this->total_pelunasan;
+    }
+
+    /**
+     * Sisa piutang:
+     *
+     * Jumlah Rp
+     * + Surcharge
+     * - Deposit
+     * - Pelunasan
      */
     public function getSisaPiutangAttribute()
     {
-        return $this->jumlah_rupiah
-            + $this->total_surcharge
-            - $this->total_dibayar;
+        return $this->jumlah_rp_calculated
+            + (float) $this->total_surcharge
+            - (float) $this->total_dibayar;
     }
 
     /**

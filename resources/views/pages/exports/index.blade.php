@@ -826,63 +826,63 @@
             // save ipl
             function saveIpl(payload) {
 
-    $.ajax({
+                $.ajax({
 
-        url: "{{ route('export.saveIpl') }}",
+                    url: "{{ route('export.saveIpl') }}",
 
-        type: "POST",
+                    type: "POST",
 
-        data: JSON.stringify(payload),
+                    data: JSON.stringify(payload),
 
-        contentType: "application/json",
+                    contentType: "application/json",
 
-        headers: {
-            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-        },
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
 
-        success: function(res) {
+                    success: function(res) {
 
-            if (res.success) {
+                        if (res.success) {
 
-                toastr.success(
-                    res.message || 'IPL berhasil disimpan.',
-                    'Berhasil'
-                );
+                            toastr.success(
+                                res.message || 'IPL berhasil disimpan.',
+                                'Berhasil'
+                            );
 
-                setTimeout(function() {
+                            setTimeout(function() {
 
-                    window.location.href =
-                        "{{ route('export.ipl') }}";
+                                window.location.href =
+                                    "{{ route('export.ipl') }}";
 
-                }, 1200);
+                            }, 1200);
 
-            } else {
+                        } else {
 
-                toastr.error(
-                    res.message || 'IPL gagal disimpan.',
-                    'Gagal'
-                );
+                            toastr.error(
+                                res.message || 'IPL gagal disimpan.',
+                                'Gagal'
+                            );
+
+                        }
+
+                    },
+
+                    error: function(xhr) {
+
+                        let message =
+                            xhr.responseJSON?.message ||
+                            'Terjadi kesalahan saat menyimpan IPL.';
+
+                        toastr.error(
+                            message,
+                            'Gagal'
+                        );
+
+                    }
+
+                });
 
             }
-
-        },
-
-        error: function(xhr) {
-
-            let message =
-                xhr.responseJSON?.message ||
-                'Terjadi kesalahan saat menyimpan IPL.';
-
-            toastr.error(
-                message,
-                'Gagal'
-            );
-
-        }
-
-    });
-
-}
 
             $(document).on('click', '.combine-po-item', function(e) {
 
@@ -1672,8 +1672,7 @@ Belum ada item
                                 item.po_id !== 'null' &&
                                 item.po_id !== 'undefined'
                             ) ?
-                            item.po_id :
-                            '',
+                            item.po_id : '',
 
                         order_no: item.po_no,
 
@@ -1748,69 +1747,70 @@ Belum ada item
             // edit
 
 
-           function updateIpl(payload) {
+            function updateIpl(payload) {
 
-    console.log(payload);
+                console.log(payload);
 
-    $.ajax({
+                $.ajax({
 
-        url: "/export/" + IPL.id,
+                    url: "/export/" + IPL.id,
 
-        type: "PUT",
+                    type: "PUT",
 
-        data: JSON.stringify(payload),
+                    data: JSON.stringify(payload),
 
-        contentType: "application/json",
+                    contentType: "application/json",
 
-        headers: {
-            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-        },
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
 
-        success: function(res) {
+                    success: function(res) {
 
-            if (res.success) {
+                        if (res.success) {
 
-                toastr.success(
-                    res.message || 'IPL berhasil diperbarui.',
-                    'Berhasil'
-                );
+                            toastr.success(
+                                res.message || 'IPL berhasil diperbarui.',
+                                'Berhasil'
+                            );
 
-                setTimeout(function() {
+                            setTimeout(function() {
 
-                    window.location.href =
-                        "{{ route('export.ipl') }}";
+                                window.location.href =
+                                    "{{ route('export.ipl') }}";
 
-                }, 1200);
+                            }, 1200);
 
-            } else {
+                        } else {
 
-                toastr.error(
-                    res.message || 'IPL gagal diperbarui.',
-                    'Gagal'
-                );
+                            toastr.error(
+                                res.message || 'IPL gagal diperbarui.',
+                                'Gagal'
+                            );
+
+                        }
+
+                    },
+
+                    error: function(xhr) {
+
+                        console.error(xhr);
+
+                        let message =
+                            xhr.responseJSON?.message ||
+                            'Terjadi kesalahan saat memperbarui IPL.';
+
+                        toastr.error(
+                            message,
+                            'Gagal'
+                        );
+
+                    }
+
+                });
 
             }
 
-        },
-
-        error: function(xhr) {
-
-            console.error(xhr);
-
-            let message =
-                xhr.responseJSON?.message ||
-                'Terjadi kesalahan saat memperbarui IPL.';
-
-            toastr.error(
-                message,
-                'Gagal'
-            );
-
-        }
-
-    });
-
-}
             function buildPayload() {
 
                 let payload = {
@@ -1823,6 +1823,11 @@ Belum ada item
                     sales_order: $('#sales_order').val(),
 
                     buyer: $('#buyer_name').val(),
+
+                    // =====================================================
+                    // DATE IPL
+                    // =====================================================
+                    date: $('#date').val(),
 
                     shipment: {
 
@@ -1878,11 +1883,17 @@ Belum ada item
 
                         hs_code: row.find('input[name$="[hs_code]"]').val(),
 
-                        description: row.find('textarea[name$="[description]"]').val(),
+                        description: row.find(
+                            'textarea[name$="[description]"]'
+                        ).val(),
 
-                        article_nr: row.find('input[name$="[article_nr]"]').val(),
+                        article_nr: row.find(
+                            'input[name$="[article_nr]"]'
+                        ).val(),
 
-                        photo: row.find('input[name$="[photo]"]').val(),
+                        photo: row.find(
+                            'input[name$="[photo]"]'
+                        ).val(),
 
                         qty_pcs: row.find('.qty_pcs').val(),
 
@@ -1890,29 +1901,42 @@ Belum ada item
 
                         box_dimension: row.find('.box_dimension').val(),
 
-                        cbm: parseFloat((row.find('.cbm').val() || '0').replace(/,/g, '')),
+                        cbm: parseFloat(
+                            (
+                                row.find('.cbm').val() || '0'
+                            ).replace(/,/g, '')
+                        ),
 
-                        total_cbm: parseFloat((row.find('.total_cbm').val() || '0').replace(/,/g, '')),
+                        total_cbm: parseFloat(
+                            (
+                                row.find('.total_cbm').val() || '0'
+                            ).replace(/,/g, '')
+                        ),
 
-                        unit_price: parseCurrency(row.find('.unit_price').val()),
+                        unit_price: parseCurrency(
+                            row.find('.unit_price').val()
+                        ),
 
-                        total_price: parseCurrency(row.find('.total_price').val()),
+                        total_price: parseCurrency(
+                            row.find('.total_price').val()
+                        ),
 
                         net_weight: row.find('.net_weight').val(),
 
                         gross_weight: row.find('.gross_weight').val(),
 
-                        remark: row.find('input[name$="[remark]"]').val()
+                        remark: row.find(
+                            'input[name$="[remark]"]'
+                        ).val()
 
                     });
 
                 });
 
                 return payload;
-
             }
             $(document).on('change', '.qty_pcs', function() {
-                
+
                 let row = $(this).closest('tr');
 
                 let detailPoId = row.find('input[name$="[detail_po_id]"]').val();

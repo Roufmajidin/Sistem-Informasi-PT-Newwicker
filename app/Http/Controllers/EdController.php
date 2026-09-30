@@ -295,6 +295,7 @@ class EdController extends Controller
             $ipl = ExportIpl::create([
 
                 'invoice_no' => $request->invoice_no,
+                'date' => $request->date ?? null,
 
                 'sales_order' => $request->sales_order,
 
@@ -562,6 +563,7 @@ class EdController extends Controller
                 'invoice_no' => $request->invoice_no,
 
                 'sales_order' => $request->sales_order,
+                'date' => $request->date ?? null,
 
                 'buyer' => $request->buyer,
 
@@ -1773,7 +1775,7 @@ class EdController extends Controller
             |
             */
 
-            $ar = ExportAr::firstOrCreate(
+            $ar = ExportAr::updateOrCreate(
                 [
                     'export_ipl_id' => $ipl->id,
                 ],
@@ -1784,106 +1786,85 @@ class EdController extends Controller
                     |--------------------------------------------------------------
                     | Jatuh tempo
                     |--------------------------------------------------------------
-                    |
-                    | Untuk sekarang kosong.
-                    | Nanti bisa diisi berdasarkan payment term buyer.
-                    |
                     */
-
                     'jatuh_tempo' => null,
-
 
                     /*
                     |--------------------------------------------------------------
                     | FOB USD
                     |--------------------------------------------------------------
+                    |
+                    | Diambil dari total_price seluruh item IPL.
+                    |
                     */
-
                     'fob_usd' => $fobUsd,
-
 
                     /*
                     |--------------------------------------------------------------
                     | FOB PEB USD
                     |--------------------------------------------------------------
                     |
-                    | Belum ada data PEB pada saat Release.
+                    | Saat Release, FOB PEB mengikuti FOB USD IPL.
                     |
                     */
-
-                    'fob_peb_usd' => 0,
-
+                    'fob_peb_usd' => $fobUsd,
 
                     /*
                     |--------------------------------------------------------------
                     | Kurs Kemenkeu
                     |--------------------------------------------------------------
                     |
-                    | Belum tersedia pada IPL.
+                    | Belum tersedia pada saat Release.
                     |
                     */
-
                     'kurs_kemenkeu' => 0,
-
 
                     /*
                     |--------------------------------------------------------------
                     | Jumlah Rupiah
                     |--------------------------------------------------------------
                     |
-                    | Belum dihitung karena kurs Kemenkeu belum tersedia.
+                    | Akan dihitung dari:
+                    | FOB PEB USD × Kurs Kemenkeu
                     |
                     */
-
                     'jumlah_rupiah' => 0,
-
 
                     /*
                     |--------------------------------------------------------------
                     | Jumlah Container
                     |--------------------------------------------------------------
                     */
-
                     'jumlah_container' => $jumlahContainer,
-
 
                     /*
                     |--------------------------------------------------------------
                     | PEB
                     |--------------------------------------------------------------
                     */
-
                     'no_pengajuan_peb' => null,
-
                     'no_peb' => null,
-
 
                     /*
                     |--------------------------------------------------------------
                     | STATUS AR
                     |--------------------------------------------------------------
                     */
-
                     'status_ar' => 'belum_dibayar',
-
 
                     /*
                     |--------------------------------------------------------------
                     | KETERANGAN
                     |--------------------------------------------------------------
                     */
-
                     'keterangan' => null,
-
                     'remark' => null,
-
 
                     /*
                     |--------------------------------------------------------------
                     | USER
                     |--------------------------------------------------------------
                     */
-
                     'created_by' => auth()->id(),
                 ]
             );
