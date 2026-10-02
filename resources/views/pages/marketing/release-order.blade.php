@@ -6,8 +6,8 @@
 
     <style>
         /* =========================================================
-               RELEASE ORDER - DETAIL TABLE UI
-               ========================================================= */
+                   RELEASE ORDER - DETAIL TABLE UI
+                   ========================================================= */
         #detail-view .box-body {
             padding-bottom: 12px;
         }
@@ -176,7 +176,7 @@
         }
 
         /* Horizontal + vertical scroll area.
-               Sticky THEAD tetap bekerja saat body table discroll. */
+                   Sticky THEAD tetap bekerja saat body table discroll. */
         .freeze-wrapper {
             position: relative;
             width: 100%;
@@ -206,11 +206,11 @@
         }
 
         /* =========================================================
-               TOP HORIZONTAL SCROLL INDICATOR
-               Scrollbar tambahan yang selalu terlihat tepat di bawah
-               2 baris header ketika tabel mempunyai banyak kolom.
-               Posisi ini disinkronkan dengan .freeze-wrapper.
-               ========================================================= */
+                   TOP HORIZONTAL SCROLL INDICATOR
+                   Scrollbar tambahan yang selalu terlihat tepat di bawah
+                   2 baris header ketika tabel mempunyai banyak kolom.
+                   Posisi ini disinkronkan dengan .freeze-wrapper.
+                   ========================================================= */
         .detail-scroll-top {
             position: sticky;
             top: 68px;
@@ -410,7 +410,7 @@
         }
 
         /* Keep first visible detail column readable on horizontal scroll.
-               This does not alter the existing horizontal scrolling behavior. */
+                   This does not alter the existing horizontal scrolling behavior. */
         #detail-table .sticky-col {
             position: sticky;
             left: 0;
@@ -665,8 +665,8 @@
             @push('scripts')
                 <script>
                     /* =====================================================
-                                                   INIT PAGE (WAJIB UNTUK PJAX)
-                                                ===================================================== */
+                                                                   INIT PAGE (WAJIB UNTUK PJAX)
+                                                                ===================================================== */
                     /* ===== ROLE ===== */
                     const role = ($('#role').val() || '').toLowerCase();
                     const canEdit = ['marketing', 'sales', 'export', 'finance'].includes(role);

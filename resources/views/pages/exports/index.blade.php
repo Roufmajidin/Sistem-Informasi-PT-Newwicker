@@ -497,14 +497,16 @@
                         type="number"
                         class="form-control form-control-sm text-center qty_box"
                         name="items[${index}][qty_box]"
-                        value="1">
+                        value="${item.qty ?? 0}">
                 </td>
 
                 <td>
                     <input
                         readonly
                         class="form-control form-control-sm text-end cbm"
-                        name="items[${index}][cbm]">
+                        name="items[${index}][cbm]"
+                        data-source-cbm="${item.cbm ?? ''}"
+                        data-manual="0">
                 </td>
 
                 <td>
@@ -543,7 +545,8 @@
                     <input
                         readonly
                         class="form-control form-control-sm text-end total_cbm"
-                        name="items[${index}][total_cbm]">
+                        name="items[${index}][total_cbm]"
+                        value="${item.total_cbm ?? ''}">
                 </td>
 
                 <td>
@@ -577,12 +580,30 @@
 
                     $('#itemTableBody').html(html);
 
-                    // Hitung semua baris setelah tabel dibuat
-                    $('#itemTableBody tr').each(function() {
-                        calculateRow($(this));
-                        calculateFooter();
-                        refreshSalesOrder();
+                    // Source CBM / Total CBM berasal langsung dari detail_po.
+                    // Qty Box default mengikuti Qty PCS.
+                    $('#itemTableBody tr').each(function(i) {
+                        let row = $(this);
+                        let item = items[i];
+
+                        let qtyPcs = parseFloat(item.qty) || 0;
+                        row.find('.qty_box').val(qtyPcs);
+
+                        row.find('.cbm')
+                            .attr('data-source-cbm', item.cbm ?? '')
+                            .attr('data-manual', '0');
+
+                        if (item.total_cbm !== undefined && item.total_cbm !== null && item.total_cbm !== '') {
+                            row.find('.total_cbm').val(
+                                formatNumber(parseFloat(item.total_cbm) || 0, 2)
+                            );
+                        }
+
+                        calculateRow(row);
                     });
+
+                    calculateFooter();
+                    refreshSalesOrder();
 
                 });
 
@@ -590,64 +611,173 @@
             // load po items details
             function calculateRow(row) {
 
-                let input = row.find('.box_dimension');
+                let qtyPcs = parseFloat(
+                    String(row.find('.qty_pcs').val()).replace(/,/g, '')
+                ) || 0;
 
-                if (!input.length) {
-                    return;
-                }
+                let qtyBox = parseFloat(
+                    String(row.find('.qty_box').val()).replace(/,/g, '')
+                ) || 0;
 
-                let dimension = (input.val() || '').trim();
-
-                if (dimension === '') {
-                    return;
-                }
-
-
-                dimension = dimension
-                    .replace(/×/g, 'x')
-                    .replace(/X/g, 'x')
-                    .replace(/\*/g, 'x')
-                    .replace(/\s+/g, '');
-
-                let parts = dimension.split('x');
-
-                if (parts.length !== 3) {
-
-                    row.find('.cbm').val('');
-                    row.find('.total_cbm').val('');
-                    return;
-
-                }
-
-                let p = parseFloat(parts[0]) || 0;
-                let l = parseFloat(parts[1]) || 0;
-                let t = parseFloat(parts[2]) || 0;
-
-                let qtyBox = parseFloat(row.find('.qty_box').val()) || 0;
-                let qtyPcs = parseFloat(row.find('.qty_pcs').val()) || 0;
                 let unitPrice = parseCurrency(
                     row.find('.unit_price').val()
                 );
-                let cbm = (p * l * t) / 1000000;
 
-                // CBM / Box
-                row.find('.cbm').val(cbm.toFixed(3));
-                // Total CBM
-                row.find('.total_cbm').val(formatNumber(cbm * qtyBox, 2));
+                // CBM WAJIB mengikuti detail_po.cbm.
+                // Jangan hitung ulang dari box_dimension karena nilainya
+                // bisa berbeda dengan CBM source di PO.
+                let cbmInput = row.find('.cbm');
+                let sourceCbm = parseFloat(cbmInput.attr('data-source-cbm'));
+
+                if (isNaN(sourceCbm)) {
+                    sourceCbm = parseFloat(
+                        String(cbmInput.val()).replace(/,/g, '')
+                    ) || 0;
+                }
+
+                cbmInput.val(
+                    sourceCbm > 0 ? sourceCbm.toFixed(2) : ''
+                );
+
+                // Jangan membulatkan CBM source sebelum perkalian.
+                // Total awal mengikuti total_cbm dari detail_po.
+                let currentTotal = parseFloat(
+                    String(row.find('.total_cbm').val()).replace(/,/g, '')
+                );
+
+                if (isNaN(currentTotal) || currentTotal <= 0) {
+                    row.find('.total_cbm').val(
+                        formatNumber(sourceCbm * qtyBox, 2)
+                    );
+                } else {
+                    row.find('.total_cbm').val(
+                        formatNumber(currentTotal, 2)
+                    );
+                }
 
                 row.find('.total_price').val(
                     formatCurrency(qtyPcs * unitPrice)
                 );
+
                 calculateFooter();
             }
+            // =====================================================
+            // EDITABLE CBM / QTY BEHAVIOR
+            // =====================================================
+            // - CBM / Box editable
+            // - CBM change => Total CBM = CBM x Qty Box
+            // - Qty PCS change => Qty Box follows Qty PCS
+            // - Qty Box change => Total CBM recalculates
+            // - Existing EDIT rows never recalculate CBM from dimensions
+            // =====================================================
+
+            $(document).on(
+                'input',
+                '.cbm,.total_cbm',
+                function() {
+
+                    let row = $(this).closest('tr');
+
+                    if ($(this).hasClass('cbm')) {
+
+                        // User mengubah CBM => jadikan nilai manual.
+                        $(this).attr('data-manual', '1');
+
+                        let cbm = parseFloat(
+                            String($(this).val()).replace(/,/g, '')
+                        ) || 0;
+
+                        let qtyBox = parseFloat(
+                            String(row.find('.qty_box').val()).replace(/,/g, '')
+                        ) || 0;
+
+                        row.find('.total_cbm').val(
+                            formatNumber(cbm * qtyBox, 2)
+                        );
+                    }
+
+                    calculateFooter();
+                }
+            );
+
             $(document).on(
                 'input',
                 '.box_dimension,.qty_box,.qty_pcs,.unit_price,.net_weight,.gross_weight',
-
                 function() {
 
-                    calculateRow($(this).closest('tr'));
+                    let row = $(this).closest('tr');
 
+                    // Qty PCS -> Qty BOX
+                    if ($(this).hasClass('qty_pcs')) {
+
+                        let qtyPcs = parseFloat(
+                            String($(this).val()).replace(/,/g, '')
+                        ) || 0;
+
+                        row.find('.qty_box').val(qtyPcs);
+                    }
+
+                    // Qty change -> Total CBM
+                    if (
+                        $(this).hasClass('qty_pcs') ||
+                        $(this).hasClass('qty_box')
+                    ) {
+
+                        let cbmInput = row.find('.cbm');
+
+                        let cbm;
+
+                        if (cbmInput.attr('data-manual') === '1') {
+
+                            cbm = parseFloat(
+                                String(cbmInput.val()).replace(/,/g, '')
+                            ) || 0;
+
+                        } else {
+
+                            cbm = parseFloat(
+                                cbmInput.attr('data-source-cbm')
+                            );
+
+                            if (isNaN(cbm)) {
+                                cbm = parseFloat(
+                                    String(cbmInput.val()).replace(/,/g, '')
+                                ) || 0;
+                            }
+                        }
+
+                        let qtyBox = parseFloat(
+                            String(row.find('.qty_box').val()).replace(/,/g, '')
+                        ) || 0;
+
+                        row.find('.total_cbm').val(
+                            formatNumber(cbm * qtyBox, 2)
+                        );
+                    }
+
+                    // Existing EDIT item:
+                    // jangan panggil calculateRow(), karena dimension bisa
+                    // tampil dalam inch dan akan menimpa CBM manual.
+                    if (MODE === 'edit' && row.data('id')) {
+
+                        let qtyPcs = parseFloat(
+                            String(row.find('.qty_pcs').val()).replace(/,/g, '')
+                        ) || 0;
+
+                        let unitPrice = parseCurrency(
+                            row.find('.unit_price').val()
+                        );
+
+                        row.find('.total_price').val(
+                            formatCurrency(qtyPcs * unitPrice)
+                        );
+
+                        calculateFooter();
+                        return;
+                    }
+
+                    // CREATE / ADD PO tetap menggunakan logic lama.
+                    calculateRow(row);
                 }
             );
 
@@ -755,7 +885,7 @@
 
                 $('#totalQtyBox').text(formatNumber(totalQtyBox, 0));
 
-                $('#totalCbmBox').text(formatNumber(totalCbmBox, 3));
+                $('#totalCbmBox').text(formatNumber(totalCbmBox, 2));
 
                 $('#grandTotalPrice').text(formatCurrency(grandPrice));
 
@@ -763,7 +893,7 @@
 
                 $('#totalGrossWeight').text(formatNumber(totalGross, 2));
 
-                $('#grandTotalCbm').text(formatNumber(totalCbm, 3));
+                $('#grandTotalCbm').text(formatNumber(totalCbm, 1));
 
             }
             //remove
@@ -1295,6 +1425,16 @@
 
     <input
         type="hidden"
+        class="combine-cbm"
+        value="${item.cbm ?? ''}">
+
+    <input
+        type="hidden"
+        class="combine-total-cbm"
+        value="${item.total_cbm ?? ''}">
+
+    <input
+        type="hidden"
         class="combine-po-no"
         value="${po.order_no}">
 
@@ -1348,6 +1488,8 @@
                         pack_h: $(this).find('.combine-packh').val(),
 
                         value: $(this).find('.combine-value').val(),
+                        cbm: $(this).find('.combine-cbm').val(),
+                        total_cbm: $(this).find('.combine-total-cbm').val(),
                         order_no: $(this).find('.combine-po-no').val()
 
                     };
@@ -1451,16 +1593,19 @@
                     type="number"
                     class="form-control form-control-sm qty_box"
                     name="items[${index}][qty_box]"
-                    value="${item.qty_box ?? 1}">
+                    value="${item.qty_box !== undefined && item.qty_box !== null && item.qty_box !== '' ? item.qty_box : (item.qty ?? 0)}">
 
                     </td>
 
                     <td>
 
                     <input
-                    readonly
+                    type="number"
+                    step="0.01"
                     class="form-control form-control-sm cbm"
-                    name="items[${index}][cbm]">
+                    name="items[${index}][cbm]"
+                    data-source-cbm="${item.cbm ?? ''}"
+                    data-manual="0">
 
                     </td>
 
@@ -1505,9 +1650,11 @@
                     <td>
 
                     <input
-                    readonly
+                    type="number"
+                    step="0.01"
                     class="form-control form-control-sm total_cbm"
-                    name="items[${index}][total_cbm]">
+                    name="items[${index}][total_cbm]"
+                    value="${item.total_cbm ?? ''}">
 
                     </td>
 
@@ -1548,7 +1695,86 @@
 
                 let row = $('#itemTableBody tr:last');
 
-                calculateRow(row);
+                // =====================================================
+                // DEFAULT QTY BOX
+                // =====================================================
+                // Saat item pertama kali masuk ke tabel:
+                // Qty Box otomatis mengikuti Qty PCS.
+                // Setelah itu field Qty Box tetap editable.
+                // Jika backend memang mengirim qty_box yang valid,
+                // nilai tersebut tetap dipakai.
+                // =====================================================
+                let qtyPcsInitial = parseFloat(
+                    String(item.qty ?? '').replace(/,/g, '')
+                ) || 0;
+
+                let qtyBoxInitial = parseFloat(
+                    String(item.qty_box ?? '').replace(/,/g, '')
+                );
+
+                if (
+                    isNaN(qtyBoxInitial) ||
+                    qtyBoxInitial <= 0
+                ) {
+                    row.find('.qty_box').val(qtyPcsInitial);
+                }
+
+                // =====================================================
+                // SOURCE CBM
+                // =====================================================
+                // Existing EDIT item:
+                // CBM / Total CBM mengikuti nilai dari detail_po/backend.
+                // CREATE / ADD PO:
+                // tetap menggunakan calculateRow() seperti sebelumnya.
+                // =====================================================
+                let isEditItem =
+                    MODE === 'edit' &&
+                    item.item_id !== undefined &&
+                    item.item_id !== null &&
+                    item.item_id !== '';
+
+                if (isEditItem) {
+
+                    let sourceCbm =
+                        item.cbm !== undefined &&
+                        item.cbm !== null &&
+                        item.cbm !== ''
+                            ? Number(item.cbm)
+                            : 0;
+
+                    let sourceTotalCbm =
+                        item.total_cbm !== undefined &&
+                        item.total_cbm !== null &&
+                        item.total_cbm !== ''
+                            ? Number(item.total_cbm)
+                            : 0;
+
+                    row.find('.cbm')
+                        .val(sourceCbm > 0 ? sourceCbm.toFixed(2) : '')
+                        .attr('data-source-cbm', sourceCbm)
+                        .attr('data-manual', '0');
+
+                    // Jangan hitung ulang total awal dari CBM yang sudah dibulatkan.
+                    row.find('.total_cbm').val(
+                        sourceTotalCbm > 0
+                            ? sourceTotalCbm.toFixed(2)
+                            : ''
+                    );
+
+                    let qtyPcs = parseFloat(row.find('.qty_pcs').val()) || 0;
+                    let unitPrice = parseCurrency(
+                        row.find('.unit_price').val()
+                    );
+
+                    row.find('.total_price').val(
+                        formatCurrency(qtyPcs * unitPrice)
+                    );
+
+                } else {
+
+                    calculateRow(row);
+
+                }
 
                 calculateFooter();
                 refreshSalesOrder();
@@ -1664,51 +1890,96 @@ Belum ada item
                     appendItemRow({
                         item_id: item.id,
                         id: item.detail_po_id,
+                        detail_po_id: item.detail_po_id,
 
-                        // Jika po_id lama NULL, sementara gunakan null.
-                        // Backend akan memulihkan berdasarkan po_no.
                         po_id: (
-                                item.po_id &&
+                                item.po_id !== null &&
+                                item.po_id !== undefined &&
                                 item.po_id !== 'null' &&
                                 item.po_id !== 'undefined'
                             ) ?
                             item.po_id : '',
 
-                        order_no: item.po_no,
+                        order_no: item.po_no ?? '',
 
-                        article_nr: item.article_nr,
-                        description: item.description,
+                        article_nr: item.article_nr ?? '',
+                        description: item.description ?? '',
+                        photo: item.photo ?? '',
 
-                        photo: item.photo,
-
-                        qty: item.qty_pcs,
+                        qty: item.qty_pcs ?? 0,
+                        qty_box: (
+                            item.qty_box !== undefined &&
+                            item.qty_box !== null &&
+                            item.qty_box !== ''
+                        )
+                            ? item.qty_box
+                            : (item.qty_pcs ?? 0),
 
                         pack_w: getDimension(item.box_dimension, 0),
-
                         pack_d: getDimension(item.box_dimension, 1),
-
                         pack_h: getDimension(item.box_dimension, 2),
 
-                        value: item.unit_price,
+                        value: item.unit_price ?? 0,
 
-                        cbm: item.cbm,
+                        // Source CBM dari controller/detail_po
+                        cbm: item.cbm ?? 0,
+                        total_cbm: item.total_cbm ?? 0,
 
-                        total_cbm: item.total_cbm,
-
-                        remark: item.remark,
-
-                        hs_code: item.hs_code,
-
-                        net_weight: item.net_weight,
-
-                        gross_weight: item.gross_weight,
-
-                        qty_box: item.qty_box
-
+                        remark: item.remark ?? '',
+                        hs_code: item.hs_code ?? '',
+                        net_weight: item.net_weight ?? '',
+                        gross_weight: item.gross_weight ?? ''
                     });
 
                 });
 
+                // =====================================================
+                // INITIAL QTY BOX = QTY PCS
+                // =====================================================
+                // Hanya mengisi otomatis bila Qty Box belum punya nilai.
+                // Setelah halaman tampil, Qty Box tetap bebas diedit.
+                $('#itemTableBody tr').each(function() {
+
+                    let row = $(this);
+
+                    let qtyPcs = parseFloat(
+                        String(row.find('.qty_pcs').val()).replace(/,/g, '')
+                    ) || 0;
+
+                    let qtyBox = parseFloat(
+                        String(row.find('.qty_box').val()).replace(/,/g, '')
+                    ) || 0;
+
+                    if (qtyBox <= 0) {
+                        row.find('.qty_box').val(qtyPcs);
+                        qtyBox = qtyPcs;
+                    }
+
+                    // Total awal sudah berasal dari detail_po.
+                    // Hanya fallback jika kosong.
+                    let totalCbm = parseFloat(
+                        String(row.find('.total_cbm').val()).replace(/,/g, '')
+                    ) || 0;
+
+                    if (totalCbm <= 0) {
+
+                        let sourceCbm = parseFloat(
+                            row.find('.cbm').attr('data-source-cbm')
+                        );
+
+                        if (isNaN(sourceCbm)) {
+                            sourceCbm = parseFloat(
+                                String(row.find('.cbm').val()).replace(/,/g, '')
+                            ) || 0;
+                        }
+
+                        row.find('.total_cbm').val(
+                            formatNumber(sourceCbm * qtyBox, 2)
+                        );
+                    }
+                });
+
+                calculateFooter();
                 refreshSalesOrder();
 
             }
@@ -1935,6 +2206,36 @@ Belum ada item
 
                 return payload;
             }
+            // =====================================================
+            // QTY BOX CHANGE
+            // =====================================================
+            // Qty Box tetap editable.
+            // Setiap perubahan Qty Box langsung mengubah Total CBM.
+            $(document).on('input change', '.qty_box', function() {
+
+                let row = $(this).closest('tr');
+
+                let cbm = parseFloat(
+                    row.find('.cbm').attr('data-source-cbm')
+                );
+
+                if (isNaN(cbm)) {
+                    cbm = parseFloat(
+                        String(row.find('.cbm').val()).replace(/,/g, '')
+                    ) || 0;
+                }
+
+                let qtyBox = parseFloat(
+                    String($(this).val()).replace(/,/g, '')
+                ) || 0;
+
+                row.find('.total_cbm').val(
+                    formatNumber(cbm * qtyBox, 2)
+                );
+
+                calculateFooter();
+            });
+
             $(document).on('change', '.qty_pcs', function() {
 
                 let row = $(this).closest('tr');
@@ -1979,7 +2280,58 @@ Sisa : ${res.available_qty}`
 
                     }
 
-                    calculateRow(row);
+                    if (MODE === 'edit' && row.data('id')) {
+
+                        let cbmInput = row.find('.cbm');
+
+                        let cbm;
+
+                        if (cbmInput.attr('data-manual') === '1') {
+
+                            cbm = parseFloat(
+                                String(cbmInput.val()).replace(/,/g, '')
+                            ) || 0;
+
+                        } else {
+
+                            cbm = parseFloat(
+                                cbmInput.attr('data-source-cbm')
+                            );
+
+                            if (isNaN(cbm)) {
+                                cbm = parseFloat(
+                                    String(cbmInput.val()).replace(/,/g, '')
+                                ) || 0;
+                            }
+                        }
+
+                        let qtyBox = parseFloat(
+                            String(row.find('.qty_box').val()).replace(/,/g, '')
+                        ) || 0;
+
+                        row.find('.total_cbm').val(
+                            formatNumber(cbm * qtyBox, 2)
+                        );
+
+                        let qtyPcs = parseFloat(
+                            String(row.find('.qty_pcs').val()).replace(/,/g, '')
+                        ) || 0;
+
+                        let unitPrice = parseCurrency(
+                            row.find('.unit_price').val()
+                        );
+
+                        row.find('.total_price').val(
+                            formatCurrency(qtyPcs * unitPrice)
+                        );
+
+                        calculateFooter();
+
+                    } else {
+
+                        calculateRow(row);
+
+                    }
 
                 });
 

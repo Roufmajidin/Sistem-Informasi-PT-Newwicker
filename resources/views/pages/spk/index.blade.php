@@ -151,12 +151,12 @@
 
         .spk-excel-image {
             width: 1123px !important;
-            height: 794px !important;
+            height: auto !important;
 
             min-width: 1123px !important;
             max-width: 1123px !important;
-            min-height: 794px !important;
-            max-height: 794px !important;
+            min-height: 0 !important;
+            max-height: none !important;
 
             padding: 12px 14px !important;
             margin: 0 !important;
@@ -168,7 +168,7 @@
             font-size: 8px !important;
             line-height: 1.2 !important;
 
-            overflow: hidden !important;
+            overflow: visible !important;
             box-sizing: border-box !important;
         }
 
@@ -330,7 +330,7 @@
             height: auto !important;
             min-height: 0 !important;
 
-            overflow: hidden !important;
+            overflow: visible !important;
 
             border-radius: 4px !important;
         }
@@ -650,7 +650,8 @@
         .spk-excel-bottom {
             width: 100% !important;
 
-            height: 116px !important;
+            height: auto !important;
+            min-height: 116px !important;
 
             display: grid !important;
 
@@ -660,7 +661,7 @@
 
             margin-top: 6px !important;
 
-            overflow: hidden !important;
+            overflow: visible !important;
         }
 
         /* =========================================================
@@ -670,12 +671,12 @@
         .spk-excel-terms {
             padding: 2px 10px 0 2px !important;
 
-            font-size: 7px !important;
-            line-height: 1.4 !important;
+            font-size: 12px !important;
+            line-height: 1.35 !important;
 
             color: #536174 !important;
 
-            overflow: hidden !important;
+            overflow: visible !important;
         }
 
         .spk-excel-terms div {
@@ -698,7 +699,7 @@
         .spk-excel-payment {
             padding-left: 0 !important;
 
-            overflow: hidden !important;
+            overflow: visible !important;
 
             border: 1px solid #d5dce5 !important;
 
@@ -707,7 +708,7 @@
 
         .spk-excel-payment table {
             width: 100% !important;
-            height: 100% !important;
+            height: auto !important;
 
             border-collapse: collapse !important;
 
@@ -748,7 +749,7 @@
         }
 
         .spk-excel-payment .excel-money {
-            text-align: right !important;
+            text-align: left !important;
 
             font-weight: 600 !important;
         }
@@ -772,13 +773,29 @@
         .spk-excel-signature {
             width: 100% !important;
 
-            height: 64px !important;
+            height: 96px !important;
 
-            margin: 3px 0 0 0 !important;
+            margin: 14px 0 0 0 !important;
 
             border-collapse: separate !important;
 
             table-layout: fixed !important;
+        }
+
+        .spk-excel-signature td.ex-sign-space {
+            padding: 0 3px !important;
+        }
+
+        .ex-sign-person {
+            width: 100% !important;
+            text-align: center !important;
+        }
+
+        .ex-sign-image {
+            height: 48px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
         }
 
         .spk-excel-signature td {
@@ -806,7 +823,7 @@
         }
 
         .spk-excel-signature .ex-sign-space {
-            height: 29px !important;
+            height: 48px !important;
         }
 
         .spk-excel-signature .ex-sign-name {
@@ -7636,61 +7653,114 @@
         >`;
     }
 
-    function getSignatureName(type) {
-        const approval = document.querySelector('.card-header + .card-body table');
-        if (!approval) return '-';
+    function getApprovalSignatureData() {
+        const card = document.querySelector('.spk-signature-card');
+        const result = {
+            made: { name: '-', date: '', image: '' },
+            checked1: { name: '-', date: '', image: '' },
+            checked2: { name: '-', date: '', image: '' },
+            approved: { name: '-', date: '', image: '', approved: false },
+            supplier: '-'
+        };
 
-        const rows = approval.querySelectorAll('tr');
-        if (rows.length < 3) return '-';
+        if (!card) return result;
 
-        const cells = rows[2].querySelectorAll('td');
-        if (!cells.length) return '-';
+        const table = card.querySelector('table');
+        if (!table) return result;
 
-        const index =
-            type === 'made' ? 0 :
-            type === 'checked' ? 1 :
-            type === 'approved' ? 2 : -1;
+        const rows = table.querySelectorAll('tbody tr');
+        if (rows.length < 2) return result;
 
-        if (index < 0) return '-';
+        const signCells = rows[0].querySelectorAll('td');
+        const infoCells = rows[1].querySelectorAll('td');
 
-        return cells[index]
-            ?.innerText
-            ?.split('\n')
-            ?.map(cleanText)
-            ?.filter(Boolean)[0] || '-';
+        const clean = value => String(value || '')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        const getImage = cell => cell?.querySelector('img')?.src || '';
+        const getName = cell => {
+            if (!cell) return '-';
+            const bold = cell.querySelector('b');
+            return clean(bold?.innerText || cell.innerText.split('\\n')[0]) || '-';
+        };
+        const getDate = cell => {
+            if (!cell) return '';
+            const text = clean(cell.innerText);
+            const match = text.match(/Approved On\s*(?:\n|\s)*([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{2,4}(?:\s+[0-9]{1,2}:[0-9]{2})?)/i);
+            return match ? match[1] : '';
+        };
+
+        // Made By
+        result.made.image = getImage(signCells[0]);
+        result.made.name = getName(infoCells[0]);
+        result.made.date = getDate(infoCells[0]);
+
+        // Checked By berisi SATU container flex yang di dalamnya ada
+        // dua container checker: Checker 1 dan Checker 2.
+        // Jadi jangan mengambil direct-child dari cell, karena direct-child
+        // pertama adalah container pembungkus keduanya.
+        const checkedSignWrapper = signCells[1]?.firstElementChild || null;
+        const checkedInfoWrapper = infoCells[1]?.firstElementChild || null;
+
+        const checkedSignParts = checkedSignWrapper
+            ? checkedSignWrapper.querySelectorAll(':scope > div')
+            : [];
+
+        const checkedInfoParts = checkedInfoWrapper
+            ? checkedInfoWrapper.querySelectorAll(':scope > div')
+            : [];
+
+        const checkedSign1 = checkedSignParts[0] || signCells[1];
+        const checkedSign2 = checkedSignParts[1] || null;
+        const checkedInfo1 = checkedInfoParts[0] || infoCells[1];
+        const checkedInfo2 = checkedInfoParts[1] || null;
+
+        result.checked1.image = getImage(checkedSign1);
+        result.checked1.name = getName(checkedInfo1);
+        result.checked1.date = getDate(checkedInfo1);
+
+        if (checkedSign2 || checkedInfo2) {
+            result.checked2.image = getImage(checkedSign2);
+            result.checked2.name = getName(checkedInfo2);
+            result.checked2.date = getDate(checkedInfo2);
+        }
+
+        // Approved By
+        result.approved.image = getImage(signCells[2]);
+        result.approved.name = getName(infoCells[2]);
+        result.approved.date = getDate(infoCells[2]);
+        result.approved.approved = !!result.approved.image || /Approved On/i.test(infoCells[2]?.innerText || '');
+
+        return result;
+    }
+
+    function signatureImg(src) {
+        if (!src) return '';
+        return `<img src="${excelEscape(src)}" crossorigin="anonymous" alt="signature" style="max-width:90px;max-height:42px;width:auto;height:auto;object-fit:contain;display:inline-block;">`;
+    }
+
+    function signaturePersonHtml(person, approvedFallback = false) {
+        const approvedText = approvedFallback && !person.image
+            ? `<div style="font-size:7px;color:#16a34a;font-weight:800;margin-top:1px;">APPROVED</div>`
+            : '';
+        const date = person.date
+            ? `<div class="ex-sign-date">Approved On<br>${excelEscape(person.date)}</div>`
+            : (approvedFallback && !person.image ? `<div class="ex-sign-date" style="color:#16a34a;font-weight:800;">APPROVED</div>` : '');
+
+        return `
+            <div class="ex-sign-person">
+                <div class="ex-sign-image">${signatureImg(person.image)}${approvedText}</div>
+                <div class="ex-sign-name">${excelEscape(person.name || '-')}</div>
+                ${date}
+            </div>
+        `;
     }
 
     function buildExcelLikeSpk(data) {
         const logo = 'https://newwicker.my.id/assets/images/NEWWICKER%20WHITE.png';
 
-        /*
-         * Hitung tinggi area item SEBELUM template HTML dibuat.
-         * Ini penting karena itemAreaHeight dipakai di template literal.
-         */
-        const ITEM_AREA_MAX_HEIGHT = 438;
-        const ITEM_HEADER_HEIGHT = 33;
-        const ITEM_TOTAL_HEIGHT = 23;
-
-        let estimatedRowsHeight = 0;
-        let totalDetailRows = 0;
-
-        data.items.forEach(item => {
-            item.rows.forEach((detail, index) => {
-                totalDetailRows++;
-                estimatedRowsHeight += index === 0 ? 62 : 48;
-            });
-        });
-
-        const calculatedItemAreaHeight =
-            ITEM_HEADER_HEIGHT +
-            estimatedRowsHeight +
-            ITEM_TOTAL_HEIGHT;
-
-        const itemAreaHeight = Math.min(
-            ITEM_AREA_MAX_HEIGHT,
-            Math.max(90, calculatedItemAreaHeight)
-        );
-
+        const approvalSignatures = getApprovalSignatureData();
         const spacerHeight = 0;
 
         let grandTotal = 0;
@@ -7743,7 +7813,7 @@
                     </tr>
                 </table>
 
-                <div class="spk-excel-item-area" style="height:${itemAreaHeight}px !important;">
+                <div class="spk-excel-item-area">
                     <table class="spk-excel-items">
                         <colgroup>
                             <col class="c-code">
@@ -7897,21 +7967,29 @@
                 <table class="spk-excel-signature">
                     <tr>
                         <td class="ex-sign-title">Made by :</td>
-                        <td class="ex-sign-title">Checked By:</td>
+                        <td class="ex-sign-title" colspan="2">Checked By:</td>
                         <td class="ex-sign-title">Approved by:</td>
                         <td class="ex-sign-title">Know by:</td>
                     </tr>
                     <tr>
-                        <td class="ex-sign-space"></td>
-                        <td class="ex-sign-space"></td>
-                        <td class="ex-sign-space"></td>
-                        <td class="ex-sign-space"></td>
-                    </tr>
-                    <tr>
-                        <td class="ex-sign-name">${excelEscape(getSignatureName('made'))}</td>
-                        <td class="ex-sign-name">${excelEscape(getSignatureName('checked'))}</td>
-                        <td class="ex-sign-name">${excelEscape(getSignatureName('approved'))}</td>
-                        <td class="ex-sign-name">${excelEscape(data.supplier.nama_supplier || '-')}</td>
+                        <td class="ex-sign-space">
+                            ${signaturePersonHtml(approvalSignatures.made)}
+                        </td>
+                        <td class="ex-sign-space" style="width:16.66%;">
+                            ${signaturePersonHtml(approvalSignatures.checked1)}
+                        </td>
+                        <td class="ex-sign-space" style="width:16.66%;">
+                            ${signaturePersonHtml(approvalSignatures.checked2)}
+                        </td>
+                        <td class="ex-sign-space">
+                            ${signaturePersonHtml(approvalSignatures.approved, true)}
+                        </td>
+                        <td class="ex-sign-space">
+                            <div class="ex-sign-person">
+                                <div class="ex-sign-image"></div>
+                                <div class="ex-sign-name">${excelEscape(data.supplier.nama_supplier || '-')}</div>
+                            </div>
+                        </td>
                     </tr>
                 </table>
             </div>
@@ -7926,28 +8004,44 @@
         }
 
         const wrapper = document.createElement('div');
+        const content = document.createElement('div');
 
         /*
-         * Jangan menggunakan scrollWidth / scrollHeight.
-         * Output harus selalu tepat A4 landscape.
+         * SCREENSHOT 1 GAMBAR PANJANG
+         * ---------------------------
+         * JPEG tidak memiliki konsep halaman seperti PDF.
+         * Jadi seluruh SPK dirender dalam SATU canvas dengan:
+         * - lebar tetap A4 landscape (1123px)
+         * - tinggi mengikuti isi secara natural
+         * - tidak dipaksa 794px
+         *
+         * Dengan begitu item banyak akan memanjang ke bawah,
+         * bukan mengecil atau dipotong menjadi beberapa file.
          */
         Object.assign(wrapper.style, {
             position: 'fixed',
             left: '-10000px',
             top: '0px',
             width: `${SPK_EXPORT_WIDTH}px`,
-            height: `${SPK_EXPORT_HEIGHT}px`,
             minWidth: `${SPK_EXPORT_WIDTH}px`,
-            maxWidth: `${SPK_EXPORT_WIDTH}px`,
-            minHeight: `${SPK_EXPORT_HEIGHT}px`,
-            maxHeight: `${SPK_EXPORT_HEIGHT}px`,
-            overflow: 'hidden',
             background: '#ffffff',
             zIndex: '999999',
-            pointerEvents: 'none'
+            pointerEvents: 'none',
+            overflow: 'visible'
         });
 
-        wrapper.innerHTML = buildExcelLikeSpk(getExcelSpkData());
+        Object.assign(content.style, {
+            width: `${SPK_EXPORT_WIDTH}px`,
+            minWidth: `${SPK_EXPORT_WIDTH}px`,
+            height: 'auto',
+            minHeight: '0',
+            background: '#ffffff',
+            transform: 'none',
+            overflow: 'visible'
+        });
+
+        content.innerHTML = buildExcelLikeSpk(getExcelSpkData());
+        wrapper.appendChild(content);
         document.body.appendChild(wrapper);
 
         try {
@@ -7966,30 +8060,43 @@
 
                     img.onload = finish;
                     img.onerror = finish;
-
-                    /* Jangan biarkan satu gambar menggantung selamanya. */
                     setTimeout(finish, 2500);
                 });
             }));
 
-            /* Beri browser satu frame untuk menyelesaikan layout gambar/font. */
             await new Promise(resolve => {
                 requestAnimationFrame(() => requestAnimationFrame(resolve));
             });
 
-            return await html2canvas(wrapper, {
+            const naturalHeight = Math.ceil(Math.max(
+                content.scrollHeight,
+                content.offsetHeight,
+                content.getBoundingClientRect().height
+            ));
+
+            if (!naturalHeight || naturalHeight < 1) {
+                throw new Error('Tinggi SPK tidak dapat dihitung.');
+            }
+
+            /*
+             * SATU canvas panjang.
+             * Lebar tetap 1123px, tinggi mengikuti isi SPK.
+             */
+            const canvas = await html2canvas(content, {
                 backgroundColor: '#ffffff',
                 scale: 2,
                 useCORS: true,
                 allowTaint: false,
                 logging: false,
                 width: SPK_EXPORT_WIDTH,
-                height: SPK_EXPORT_HEIGHT,
+                height: naturalHeight,
                 windowWidth: SPK_EXPORT_WIDTH,
-                windowHeight: SPK_EXPORT_HEIGHT,
+                windowHeight: naturalHeight,
                 scrollX: 0,
                 scrollY: 0
             });
+
+            return [canvas];
         } finally {
             wrapper.remove();
         }
@@ -8007,9 +8114,11 @@
             btn.disabled = true;
             btn.innerHTML = '⏳ Menyiapkan...';
 
-            const canvas = await captureExcelSpk();
+            const pages = await captureExcelSpk();
+
+            /* Clipboard menerima satu gambar panjang penuh. */
             const blob = await new Promise(resolve =>
-                canvas.toBlob(resolve, 'image/png')
+                pages[0].toBlob(resolve, 'image/png')
             );
 
             if (!blob) {
@@ -8050,36 +8159,44 @@
             btn.disabled = true;
             btn.innerHTML = '⏳ Membuat...';
 
-            const canvas = await captureExcelSpk();
-            const blob = await new Promise(resolve =>
-                canvas.toBlob(resolve, 'image/png')
-            );
-
-            if (!blob) {
-                throw new Error('Screenshot gagal dibuat.');
-            }
+            const pages = await captureExcelSpk();
 
             const noSpk = cleanText(
                 document.querySelector('.no-spk')?.innerText
             ).replace(/[\\/:*?"<>|]/g, '-') || 'SPK';
 
+            /*
+             * Screenshot selalu dibuat sebagai SATU JPEG panjang.
+             * Tinggi mengikuti seluruh isi SPK sehingga payment,
+             * terms, total, dan signature tetap terbaca.
+             */
+            const canvas = pages[0];
+            const blob = await new Promise(resolve =>
+                canvas.toBlob(resolve, 'image/jpeg', 0.95)
+            );
+
+            if (!blob) {
+                throw new Error('Gambar gagal dibuat.');
+            }
+
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
 
             a.href = url;
-            a.download = `SPK-${noSpk}.png`;
+            a.download = `SPK-${noSpk}.jpg`;
+
             document.body.appendChild(a);
             a.click();
             a.remove();
 
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            setTimeout(() => URL.revokeObjectURL(url), 1500);
 
             btn.innerHTML = '✅ Selesai';
 
             setTimeout(() => {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
-            }, 1500);
+            }, 1800);
         } catch (error) {
             console.error('Screenshot SPK:', error);
 

@@ -292,146 +292,146 @@ class UpahController extends Controller
             ], 500);
         }
     }
-public function searchArticle(Request $request)
-{
-    $search = trim($request->get('q', ''));
+    public function searchArticle(Request $request)
+    {
+        $search = trim($request->get('q', ''));
 
-    if ($search === '') {
-        return response()->json([]);
-    }
-
-    $details = DetailPo::query()
-        ->whereNotNull('detail')
-        ->get();
-
-    $results = [];
-
-    foreach ($details as $detailPo) {
-
-        $detail = $detailPo->detail;
-
-        if (!is_array($detail)) {
-            continue;
+        if ($search === '') {
+            return response()->json([]);
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | ARTICLE
-        |--------------------------------------------------------------------------
-        */
+        $details = DetailPo::query()
+            ->whereNotNull('detail')
+            ->get();
 
-        $article =
-            $detail['article_nr_']
-            ?? $detail['article_code']
-            ?? $detail['article_nr']
-            ?? $detail['article']
-            ?? null;
+        $results = [];
 
-        /*
-        |--------------------------------------------------------------------------
-        | DESCRIPTION / BUYER DESCRIPTION
-        |--------------------------------------------------------------------------
-        |
-        | Mendukung beberapa format field dari JSON Detail PO
-        |
-        */
+        foreach ($details as $detailPo) {
 
-        $description = '';
+            $detail = $detailPo->detail;
 
-        foreach ([
-            'buyer desc',
-            "buyer's_desc_",
-            'buyers_desc',
-            'buyer_desc',
-            'description',
-        ] as $key) {
+            if (!is_array($detail)) {
+                continue;
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | ARTICLE
+            |--------------------------------------------------------------------------
+            */
+
+            $article =
+                $detail['article_nr_']
+                ?? $detail['article_code']
+                ?? $detail['article_nr']
+                ?? $detail['article']
+                ?? null;
+
+            /*
+            |--------------------------------------------------------------------------
+            | DESCRIPTION / BUYER DESCRIPTION
+            |--------------------------------------------------------------------------
+            |
+            | Mendukung beberapa format field dari JSON Detail PO
+            |
+            */
+
+            $description = '';
+
+            foreach ([
+                'buyer desc',
+                "buyer's_desc_",
+                'buyers_desc',
+                'buyer_desc',
+                'description',
+            ] as $key) {
+
+                if (
+                    isset($detail[$key]) &&
+                    trim((string) $detail[$key]) !== ''
+                ) {
+                    $description = trim(
+                        (string) $detail[$key]
+                    );
+
+                    break;
+                }
+            }
+
+            if (!$article) {
+                continue;
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | SEARCH ARTICLE CODE ATAU NAMA BARANG
+            |--------------------------------------------------------------------------
+            */
+
+            $matchArticle = stripos(
+                (string) $article,
+                $search
+            ) !== false;
+
+            $matchDescription = stripos(
+                (string) $description,
+                $search
+            ) !== false;
+
+            /*
+            |--------------------------------------------------------------------------
+            | KALAU TIDAK COCOK KEDUANYA
+            |--------------------------------------------------------------------------
+            */
 
             if (
-                isset($detail[$key]) &&
-                trim((string) $detail[$key]) !== ''
+                !$matchArticle &&
+                !$matchDescription
             ) {
-                $description = trim(
-                    (string) $detail[$key]
-                );
+                continue;
+            }
 
+            /*
+            |--------------------------------------------------------------------------
+            | HINDARI DUPLICATE ARTICLE
+            |--------------------------------------------------------------------------
+            */
+
+            $alreadyExists = false;
+
+            foreach ($results as $existing) {
+
+                if (
+                    (string) $existing['article'] ===
+                    (string) $article
+                ) {
+                    $alreadyExists = true;
+                    break;
+                }
+            }
+
+            if ($alreadyExists) {
+                continue;
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | RESULT
+            |--------------------------------------------------------------------------
+            */
+
+            $results[] = [
+                'article' => $article,
+                'description' => $description,
+            ];
+
+            if (count($results) >= 20) {
                 break;
             }
         }
 
-        if (!$article) {
-            continue;
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | SEARCH ARTICLE CODE ATAU NAMA BARANG
-        |--------------------------------------------------------------------------
-        */
-
-        $matchArticle = stripos(
-            (string) $article,
-            $search
-        ) !== false;
-
-        $matchDescription = stripos(
-            (string) $description,
-            $search
-        ) !== false;
-
-        /*
-        |--------------------------------------------------------------------------
-        | KALAU TIDAK COCOK KEDUANYA
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            !$matchArticle &&
-            !$matchDescription
-        ) {
-            continue;
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | HINDARI DUPLICATE ARTICLE
-        |--------------------------------------------------------------------------
-        */
-
-        $alreadyExists = false;
-
-        foreach ($results as $existing) {
-
-            if (
-                (string) $existing['article'] ===
-                (string) $article
-            ) {
-                $alreadyExists = true;
-                break;
-            }
-        }
-
-        if ($alreadyExists) {
-            continue;
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | RESULT
-        |--------------------------------------------------------------------------
-        */
-
-        $results[] = [
-            'article' => $article,
-            'description' => $description,
-        ];
-
-        if (count($results) >= 20) {
-            break;
-        }
+        return response()->json($results);
     }
-
-    return response()->json($results);
-}
     public function searchPoByArticle(Request $request)
     {
         $article = trim((string) $request->get('article', ''));
@@ -693,7 +693,7 @@ public function searchArticle(Request $request)
                 $detailDescription = '';
 
                 $descriptionKeys = [
-                      'Buyer Desc.',
+                    'Buyer Desc.',
                     'description',
                     'Description',
                     'desc',
@@ -859,7 +859,7 @@ public function searchArticle(Request $request)
             ], 500);
         }
     }
-      public function updateUpah(Request $request, $id)
+    public function updateUpah(Request $request, $id)
     {
         $validated = $request->validate([
             'article' => [
@@ -990,15 +990,37 @@ public function searchArticle(Request $request)
             ], 500);
         }
     }
-    public function upah()
+    public function upah(Request $request)
     {
-        $data = Upah::orderByDesc('tanggal')
+        $search = trim($request->input('search', ''));
+
+        $query = Upah::query();
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+
+                $q->where('article', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhere('pekerjaan', 'like', "%{$search}%")
+                    ->orWhere('person', 'like', "%{$search}%")
+                    ->orWhere('qty', 'like', "%{$search}%")
+                    ->orWhere('harga', 'like', "%{$search}%")
+                    ->orWhere('total', 'like', "%{$search}%")
+                    ->orWhere('no_po', 'like', "%{$search}%")
+                    ->orWhere('no_spk', 'like', "%{$search}%");
+
+            });
+        }
+
+        $data = $query
+            ->orderByDesc('tanggal')
             ->orderByDesc('id')
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString();
 
         return view(
             'pages.upah.upah',
-            compact('data')
+            compact('data', 'search')
         );
     }
     public function searchUpahArticle(Request $request)
@@ -2130,61 +2152,61 @@ public function searchArticle(Request $request)
 
         );
     }
-   public function destroyT($id)
-{
-    try {
+    public function destroyT($id)
+    {
+        try {
 
-        $upah = Upah::find($id);
+            $upah = Upah::find($id);
 
-        if (!$upah) {
+            if (!$upah) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Data upah dengan ID ' . $id . ' tidak ditemukan.'
+                ], 404);
+            }
+
+            $deleted = $upah->delete();
+
+            if (!$deleted) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Data gagal dihapus dari database.'
+                ], 500);
+            }
+
+            /*
+             * Pastikan benar-benar sudah tidak ditemukan.
+             */
+            $stillExists = Upah::find($id);
+
+            if ($stillExists) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Delete dijalankan tetapi data masih ditemukan.'
+                ], 500);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Transaksi upah berhasil dihapus.',
+                'id' => $id
+            ]);
+
+        } catch (\Throwable $e) {
+
+            \Log::error('DELETE UPAH ERROR', [
+                'id' => $id,
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+            ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Data upah dengan ID ' . $id . ' tidak ditemukan.'
-            ], 404);
-        }
-
-        $deleted = $upah->delete();
-
-        if (!$deleted) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Data gagal dihapus dari database.'
+                'message' => 'Gagal menghapus transaksi upah.',
+                'error' => $e->getMessage()
             ], 500);
         }
-
-        /*
-         * Pastikan benar-benar sudah tidak ditemukan.
-         */
-        $stillExists = Upah::find($id);
-
-        if ($stillExists) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Delete dijalankan tetapi data masih ditemukan.'
-            ], 500);
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Transaksi upah berhasil dihapus.',
-            'id'      => $id
-        ]);
-
-    } catch (\Throwable $e) {
-
-        \Log::error('DELETE UPAH ERROR', [
-            'id'    => $id,
-            'error' => $e->getMessage(),
-            'line'  => $e->getLine(),
-            'file'  => $e->getFile(),
-        ]);
-
-        return response()->json([
-            'success' => false,
-            'message' => 'Gagal menghapus transaksi upah.',
-            'error'   => $e->getMessage()
-        ], 500);
     }
-}
 
 }

@@ -38,6 +38,7 @@ use App\Http\Controllers\EdController;
 use App\Http\Controllers\PurchasingController;
 use App\Http\Controllers\VendorController;
 use App\Http\Controllers\FinanceController;
+use App\Http\Controllers\LobController;
 // ==========================================================
 // MAGIC APPROVAL LINK - PUBLIC ENTRY POINT
 // ==========================================================
@@ -151,7 +152,25 @@ Route::middleware('auth')->group(function () {
 // ==========================================================
 // EXPORT
 // ==========================================================
+Route::get(
+        '/loberon',
+        [LobController::class, 'index']
+    )->name('loberon.index');
 
+    Route::post(
+        '/loberon',
+        [LobController::class, 'store']
+    )->name('loberon.store');
+
+    Route::patch(
+        '/loberon/{id}',
+        [LobController::class, 'update']
+    )->name('loberon.update');
+
+    Route::delete(
+        '/loberon/{id}',
+        [LobController::class, 'destroy']
+    )->name('loberon.destroy');
 // Download Packing List
 Route::get(
     '/export/{id}/IPLEX',

@@ -472,37 +472,35 @@ class EdController extends Controller
 
         /*
         |--------------------------------------------------------------------------
-        | RECOVERY DATA IPL LAMA
+        | EDIT IPL - SOURCE CBM DARI DETAIL PO
         |--------------------------------------------------------------------------
-        | Jika po_id kosong, cari berdasarkan po_no.
-        | Jika detail_po_id kosong, cari berdasarkan PO + article.
+        | Prioritas:
+        | 1. detail_po_id yang tersimpan pada ExportIplItem
+        | 2. PO + article_nr sebagai fallback
+        |
+        | CBM dan TOTAL CBM tidak dihitung ulang dari box_dimension.
         |--------------------------------------------------------------------------
         */
 
         foreach ($ipl->items as $item) {
 
+            $detailPo = null;
+
             // ---------------------------------------------------------
-            // RECOVERY PO ID
+            // 1. DETAIL PO ID YANG SUDAH TERSIMPAN
             // ---------------------------------------------------------
+            if (!empty($item->detail_po_id)) {
 
-            if (empty($item->po_id) && !empty($item->po_no)) {
-
-                $po = Po::where(
-                    'order_no',
-                    trim($item->po_no)
-                )->first();
-
-                if ($po) {
-                    $item->po_id = $po->id;
-                }
+                $detailPo = DetailPo::find(
+                    $item->detail_po_id
+                );
             }
 
             // ---------------------------------------------------------
-            // RECOVERY DETAIL PO ID
+            // 2. FALLBACK PO + ARTICLE
             // ---------------------------------------------------------
-
             if (
-                empty($item->detail_po_id) &&
+                !$detailPo &&
                 !empty($item->po_id) &&
                 !empty($item->article_nr)
             ) {
@@ -512,27 +510,114 @@ class EdController extends Controller
 
                 if ($po) {
 
-                    foreach ($po->detailPos as $detailPo) {
+                    $articleTarget = trim(
+                        (string) $item->article_nr
+                    );
 
-                        $detail = is_array($detailPo->detail)
-                            ? $detailPo->detail
-                            : json_decode($detailPo->detail, true);
+                    foreach ($po->detailPos as $candidate) {
 
-                        $article = trim(
-                            (string) ($detail['article_nr_'] ?? '')
+                        $detailCandidate = is_array($candidate->detail)
+                            ? $candidate->detail
+                            : json_decode($candidate->detail, true);
+
+                        $articleCandidate = trim(
+                            (string) (
+                                $detailCandidate['article_nr_'] ?? ''
+                            )
                         );
 
                         if (
-                            $article !== '' &&
-                            $article === trim((string) $item->article_nr)
+                            $articleCandidate !== '' &&
+                            $articleCandidate === $articleTarget
                         ) {
 
-                            $item->detail_po_id = $detailPo->id;
+                            $detailPo = $candidate;
 
                             break;
                         }
                     }
                 }
+            }
+
+            // ---------------------------------------------------------
+            // RECOVERY PO ID JIKA KOSONG
+            // ---------------------------------------------------------
+            if (
+                empty($item->po_id) &&
+                !empty($item->po_no)
+            ) {
+
+                $po = Po::with('detailPos')
+                    ->where(
+                        'order_no',
+                        trim($item->po_no)
+                    )
+                    ->first();
+
+                if ($po) {
+
+                    $item->po_id = $po->id;
+
+                    if (
+                        !$detailPo &&
+                        !empty($item->article_nr)
+                    ) {
+
+                        $articleTarget = trim(
+                            (string) $item->article_nr
+                        );
+
+                        foreach ($po->detailPos as $candidate) {
+
+                            $detailCandidate = is_array($candidate->detail)
+                                ? $candidate->detail
+                                : json_decode($candidate->detail, true);
+
+                            $articleCandidate = trim(
+                                (string) (
+                                    $detailCandidate['article_nr_'] ?? ''
+                                )
+                            );
+
+                            if (
+                                $articleCandidate !== '' &&
+                                $articleCandidate === $articleTarget
+                            ) {
+
+                                $detailPo = $candidate;
+
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ---------------------------------------------------------
+            // DETAIL PO MENJADI SOURCE UTAMA
+            // ---------------------------------------------------------
+            if ($detailPo) {
+
+                $detail = is_array($detailPo->detail)
+                    ? $detailPo->detail
+                    : json_decode($detailPo->detail, true);
+
+                $item->detail_po_id = $detailPo->id;
+
+                // Source asli dari Release Order / detail_po.
+                $item->cbm = (float) (
+                    $detail['cbm'] ?? 0
+                );
+
+                $item->total_cbm = (float) (
+                    $detail['total_cbm'] ?? 0
+                );
+
+                // Dimensi packing juga tetap sinkron dengan detail_po.
+                $item->box_dimension =
+                    ($detail['pack_w'] ?? '') . ' x ' .
+                    ($detail['pack_d'] ?? '') . ' x ' .
+                    ($detail['pack_h'] ?? '');
             }
         }
 

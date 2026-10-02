@@ -49,55 +49,68 @@
      ROLE: EXPORT
      ========================================================= --}}
                      @auth
-                         @if (Auth::user()->role === 'export')
-                             <li>
-                                 <a href="/marketing-release-order">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
-                                     <span class="nav-text">Release PFI</span>
-                                 </a>
-                             <li></li>
-                             <li>
-                                 <a>
-                                     <span class="nav-caret">
-                                         <i class="fa fa-caret-down"></i>
-                                     </span>
+                        @if (Auth::user()->role === 'export')
+    <li>
+        <a href="/marketing-release-order">
+            <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+            <span class="nav-text">Release PFI</span>
+        </a>
+    </li>
 
-                                     <span class="nav-icon">
-                                         <i class="material-icons">&#xe85e;</i>
-                                     </span>
+    <li>
+        <a>
+            <span class="nav-caret">
+                <i class="fa fa-caret-down"></i>
+            </span>
 
-                                     <span class="nav-text">Export</span>
-                                 </a>
+            <span class="nav-icon">
+                <i class="material-icons">&#xe85e;</i>
+            </span>
 
-                                 <ul class="nav-sub">
+            <span class="nav-text">Export</span>
+        </a>
 
-                                     <li>
-                                         <a href="/export/index">
-                                             <span class="nav-text">Generate</span>
-                                         </a>
-                                     </li>
+        <ul class="nav-sub">
 
-                                     <li>
-                                         <a href="/export/ipl">
-                                             <span class="nav-text">INV/UPL</span>
-                                         </a>
-                                     </li>
-                                     <li>
-                                         <a href="/export/stock">
-                                             <span class="nav-text">Monitoring</span>
-                                         </a>
-                                     </li>
-                                     <li>
-                                         <a href="/export/history">
-                                             <span class="nav-text">Doc Pendukung</span>
-                                         </a>
-                                     </li>
+            <li>
+                <a href="/export/index">
+                    <span class="nav-text">• Generate</span>
+                </a>
+            </li>
 
+            <li>
+                <a href="/export/ipl">
+                    <span class="nav-text">• INV/UPL</span>
+                </a>
+            </li>
 
+            <li>
+                <a href="/export/stock">
+                    <span class="nav-text">• Monitoring Stok</span>
+                </a>
+            </li>
 
-                                 </ul>
-                             </li>
-                         @endif
+            <li>
+                <a href="/export/history">
+                    <span class="nav-text">• Doc Pendukung</span>
+                </a>
+            </li>
+
+            <li>
+                <a href="/ar_buyer">
+                    <span class="nav-text">• AR Buyer</span>
+                </a>
+            </li>
+
+            <li>
+                <a href="/loberon">
+                    <span class="nav-text">• Database Loberon</span>
+                </a>
+            </li>
+
+        </ul>
+    </li>
+@endif
 
                          @if (auth()->user()->role == 'finance')
                              <li>

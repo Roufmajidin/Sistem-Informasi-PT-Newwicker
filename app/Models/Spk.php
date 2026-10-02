@@ -6,9 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 class Spk extends Model
 {
     //
-    protected $table    = 'spk';
+    protected $table = 'spk';
     protected $fillable = ['po_id', 'detail_po_id', 'data', 'created_by', 'status'];
-    protected $casts    = [
+    protected $casts = [
         'data' => 'array',
     ];
     public function po()
@@ -34,7 +34,7 @@ class Spk extends Model
         );
     }
     // apptoval signature spk
-        public function madeBy()
+    public function madeBy()
     {
         return $this->belongsTo(User::class, 'made_by');
     }
@@ -53,7 +53,7 @@ class Spk extends Model
     {
         return $this->belongsTo(Supplier::class, 'supplier_id');
     }
-        public function transaksiStoks()
+    public function transaksiStoks()
     {
         return $this->hasMany(TransaksiStok::class);
     }
