@@ -171,6 +171,10 @@ Route::get(
         '/loberon/{id}',
         [LobController::class, 'destroy']
     )->name('loberon.destroy');
+    Route::put(
+    '/export/loberon/update',
+    [EdController::class, 'updateLoberon']
+)->name('export.loberon.update');
 // Download Packing List
 Route::get(
     '/export/{id}/IPLEX',

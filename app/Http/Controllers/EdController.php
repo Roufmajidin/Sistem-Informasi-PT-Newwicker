@@ -16,6 +16,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Loberon;
+use App\Models\ExportArPayment;
+
 class EdController extends Controller
 {
     //
@@ -293,50 +295,69 @@ class EdController extends Controller
 
             $shipment = $request->shipment ?? [];
 
+
+            // =====================================================
+            // CREATE EXPORT IPL
+            // =====================================================
+
             $ipl = ExportIpl::create([
 
                 'invoice_no' => $request->invoice_no,
+
                 'date' => $request->date ?? null,
 
                 'sales_order' => $request->sales_order,
 
                 'buyer' => $request->buyer,
 
-                'buyer_address' => $shipment['buyer_address'] ?? null,
+                'buyer_address' =>
+                    $shipment['buyer_address'] ?? null,
 
-                'customer_code' => $shipment['customer_code'] ?? null,
+                'customer_code' =>
+                    $shipment['customer_code'] ?? null,
 
-                'customer_po_no' => $shipment['customer_po_no'] ?? null,
+                'customer_po_no' =>
+                    $shipment['customer_po_no'] ?? null,
 
-                'container_type' => $shipment['container_type'] ?? null,
+                'container_type' =>
+                    $shipment['container_type'] ?? null,
 
-                'container_no' => $shipment['container_no'] ?? null,
+                'container_no' =>
+                    $shipment['container_no'] ?? null,
 
-                'seal_no' => $shipment['seal_no'] ?? null,
+                'seal_no' =>
+                    $shipment['seal_no'] ?? null,
 
-                'vessel_name' => $shipment['vessel_name'] ?? null,
+                'vessel_name' =>
+                    $shipment['vessel_name'] ?? null,
 
-                'port_loading' => $shipment['port_loading'] ?? null,
+                'port_loading' =>
+                    $shipment['port_loading'] ?? null,
 
-                'port_discharge' => $shipment['port_discharge'] ?? null,
+                'port_discharge' =>
+                    $shipment['port_discharge'] ?? null,
 
-                'commodity' => $shipment['commodity'] ?? null,
+                'commodity' =>
+                    $shipment['commodity'] ?? null,
 
-                'fumigation' => $shipment['fumigation'] ?? null,
+                'fumigation' =>
+                    $shipment['fumigation'] ?? null,
 
-                'etd' => $shipment['etd'] ?? null,
+                'etd' =>
+                    $shipment['etd'] ?? null,
 
-                'eta' => $shipment['eta'] ?? null,
+                'eta' =>
+                    $shipment['eta'] ?? null,
 
-                'created_by' => auth()->id(),
+                'created_by' =>
+                    auth()->id(),
 
             ]);
 
-            /*
-            |--------------------------------------------------------------------------
-            | Save PO
-            |--------------------------------------------------------------------------
-            */
+
+            // =====================================================
+            // SAVE PO
+            // =====================================================
 
             collect($request->items)
                 ->unique('po_id')
@@ -344,77 +365,200 @@ class EdController extends Controller
 
                     ExportIplPo::create([
 
-                        'export_ipl_id' => $ipl->id,
+                        'export_ipl_id' =>
+                            $ipl->id,
 
-                        'po_id' => $item['po_id'],
+                        'po_id' =>
+                            $item['po_id'],
 
-                        'po_no' => $item['po_no'],
+                        'po_no' =>
+                            $item['po_no'],
 
                     ]);
 
                 });
 
-            /*
-            |--------------------------------------------------------------------------
-            | Save Items
-            |--------------------------------------------------------------------------
-            */
+
+            // =====================================================
+            // SAVE ITEMS
+            // =====================================================
 
             foreach ($request->items as $item) {
 
                 ExportIplItem::create([
 
-                    'export_ipl_id' => $ipl->id,
+                    'export_ipl_id' =>
+                        $ipl->id,
 
-                    'po_id' => $item['po_id'],
+                    'po_id' =>
+                        $item['po_id'],
 
-                    'detail_po_id' => $item['detail_po_id'],
+                    'detail_po_id' =>
+                        $item['detail_po_id'],
 
-                    'po_no' => $item['po_no'],
+                    'po_no' =>
+                        $item['po_no'],
 
-                    'hs_code' => $item['hs_code'],
+                    'hs_code' =>
+                        $item['hs_code'],
 
-                    'article_nr' => $item['article_nr'],
+                    'article_nr' =>
+                        $item['article_nr'],
 
-                    'description' => $item['description'],
+                    'description' =>
+                        $item['description'],
 
-                    'photo' => $item['photo'],
+                    'photo' =>
+                        $item['photo'],
 
-                    'box_dimension' => $item['box_dimension'],
+                    'box_dimension' =>
+                        $item['box_dimension'],
 
-                    'qty_pcs' => $item['qty_pcs'],
+                    'qty_pcs' =>
+                        $item['qty_pcs'],
 
-                    'qty_box' => $item['qty_box'],
+                    'qty_box' =>
+                        $item['qty_box'],
 
-                    'cbm' => $item['cbm'],
+                    'cbm' =>
+                        $item['cbm'],
 
-                    'total_cbm' => $item['total_cbm'],
+                    'total_cbm' =>
+                        $item['total_cbm'],
 
-                    'unit_price' => $item['unit_price'],
+                    'unit_price' =>
+                        $item['unit_price'],
 
-                    'total_price' => $item['total_price'],
+                    'total_price' =>
+                        $item['total_price'],
 
-                    'net_weight' => $item['net_weight'],
+                    'net_weight' =>
+                        $item['net_weight'],
 
-                    'gross_weight' => $item['gross_weight'],
+                    'gross_weight' =>
+                        $item['gross_weight'],
 
-                    'remark' => $item['remark'],
+                    'remark' =>
+                        $item['remark'],
 
                 ]);
 
             }
 
+
+            // =====================================================
+            // HITUNG FOB USD
+            // =====================================================
+            //
+            // Sumber utama:
+            // export_ipl_items.total_price
+            //
+            // Contoh:
+            //
+            // 1050
+            // 575
+            // 350
+            // ...
+            // = 56,686
+            //
+
+            $fobUsd = ExportIplItem::where(
+                'export_ipl_id',
+                $ipl->id
+            )->sum('total_price');
+
+            $fobUsd = (float) $fobUsd;
+
+
+            // =====================================================
+            // CREATE EXPORT AR
+            // =====================================================
+            //
+            // Setiap IPL yang dibuat langsung mempunyai AR.
+            //
+            // status:
+            // 0 = Draft / belum release
+            //
+
+            $exportAr = ExportAr::firstOrCreate(
+
+                [
+                    'export_ipl_id' =>
+                        $ipl->id,
+                ],
+
+                [
+                    'status' =>
+                        0,
+
+                    'tanggal_invoice' =>
+                        $request->date ?? null,
+
+                    'fob_usd' =>
+                        $fobUsd,
+
+                    'created_by' =>
+                        auth()->id(),
+                ]
+
+            );
+
+
+            // =====================================================
+            // PASTIKAN FOB SELALU SAMA DENGAN TOTAL ITEM
+            // =====================================================
+
+            $exportAr->fob_usd =
+                $fobUsd;
+
+
+            // Kalau belum ada jumlah container,
+            // IPL dianggap 1 container.
+
+            if (
+                empty($exportAr->jumlah_container)
+            ) {
+
+                $exportAr->jumlah_container =
+                    1;
+            }
+
+
+            $exportAr->save();
+
+
+            // =====================================================
+            // COMMIT
+            // =====================================================
+
             DB::commit();
+
+
+            // =====================================================
+            // RESPONSE
+            // =====================================================
 
             return response()->json([
 
                 'success' => true,
 
-                'message' => 'IPL berhasil disimpan.',
+                'message' =>
+                    'IPL berhasil disimpan.',
 
-                'id' => $ipl->id,
+                'id' =>
+                    $ipl->id,
+
+                'export_ar_id' =>
+                    $exportAr->id,
+
+                'fob_usd' =>
+                    $exportAr->fob_usd,
+
+                'ar_status' =>
+                    $exportAr->status,
 
             ]);
+
 
         } catch (\Exception $e) {
 
@@ -424,7 +568,8 @@ class EdController extends Controller
 
                 'success' => false,
 
-                'message' => $e->getMessage(),
+                'message' =>
+                    $e->getMessage(),
 
             ], 500);
 
@@ -641,129 +786,355 @@ class EdController extends Controller
 
         try {
 
+            // =====================================================
+            // CARI IPL
+            // =====================================================
+
             $ipl = ExportIpl::findOrFail($id);
 
-            $shipment = $request->shipment ?? [];
+            $shipment =
+                $request->shipment ?? [];
 
-            /*
-            |--------------------------------------------------------------------------
-            | Header
-            |--------------------------------------------------------------------------
-            */
+
+            // =====================================================
+            // UPDATE HEADER
+            // =====================================================
 
             $ipl->update([
 
-                'invoice_no' => $request->invoice_no,
+                'invoice_no' =>
+                    $request->invoice_no,
 
-                'sales_order' => $request->sales_order,
-                'date' => $request->date ?? null,
+                'sales_order' =>
+                    $request->sales_order,
 
-                'buyer' => $request->buyer,
+                'date' =>
+                    $request->date ?? null,
 
-                'buyer_address' => $shipment['buyer_address'] ?? null,
+                'buyer' =>
+                    $request->buyer,
 
-                'customer_code' => $shipment['customer_code'] ?? null,
+                'buyer_address' =>
+                    $shipment['buyer_address'] ?? null,
 
-                'customer_po_no' => $shipment['customer_po_no'] ?? null,
+                'customer_code' =>
+                    $shipment['customer_code'] ?? null,
 
-                'container_type' => $shipment['container_type'] ?? null,
+                'customer_po_no' =>
+                    $shipment['customer_po_no'] ?? null,
 
-                'container_no' => $shipment['container_no'] ?? null,
+                'container_type' =>
+                    $shipment['container_type'] ?? null,
 
-                'seal_no' => $shipment['seal_no'] ?? null,
+                'container_no' =>
+                    $shipment['container_no'] ?? null,
 
-                'vessel_name' => $shipment['vessel_name'] ?? null,
+                'seal_no' =>
+                    $shipment['seal_no'] ?? null,
 
-                'port_loading' => $shipment['port_loading'] ?? null,
+                'vessel_name' =>
+                    $shipment['vessel_name'] ?? null,
 
-                'port_discharge' => $shipment['port_discharge'] ?? null,
+                'port_loading' =>
+                    $shipment['port_loading'] ?? null,
 
-                'commodity' => $shipment['commodity'] ?? null,
+                'port_discharge' =>
+                    $shipment['port_discharge'] ?? null,
 
-                'fumigation' => $shipment['fumigation'] ?? null,
+                'commodity' =>
+                    $shipment['commodity'] ?? null,
 
-                'etd' => $shipment['etd'] ?? null,
+                'fumigation' =>
+                    $shipment['fumigation'] ?? null,
 
-                'eta' => $shipment['eta'] ?? null,
+                'etd' =>
+                    $shipment['etd'] ?? null,
+
+                'eta' =>
+                    $shipment['eta'] ?? null,
 
             ]);
 
-            /*
-            |--------------------------------------------------------------------------
-            | Delete Old
-            |--------------------------------------------------------------------------
-            */
-            // dd($request->items);
+
+            // =====================================================
+            // DELETE OLD PO
+            // =====================================================
+
             $ipl->pos()->delete();
+
+
+            // =====================================================
+            // DELETE OLD ITEMS
+            // =====================================================
 
             $ipl->items()->delete();
 
-            /*
-            |--------------------------------------------------------------------------
-            | Save PO
-            |--------------------------------------------------------------------------
-            */
+
+            // =====================================================
+            // SAVE PO
+            // =====================================================
 
             collect($request->items)
                 ->unique('po_id')
                 ->each(function ($item) use ($ipl) {
 
-                    if (empty($item['po_id'])) {
+                    if (
+                        empty($item['po_id'])
+                    ) {
                         return;
                     }
 
                     $ipl->pos()->create([
 
-                        'po_id' => $item['po_id'] ?? null,
+                        'po_id' =>
+                            $item['po_id'] ?? null,
 
-                        'po_no' => $item['po_no'],
+                        'po_no' =>
+                            $item['po_no'],
 
                     ]);
 
                 });
 
-            /*
-            |--------------------------------------------------------------------------
-            | Save Items
-            |--------------------------------------------------------------------------
-            */
+
+            // =====================================================
+            // SAVE ITEMS
+            // =====================================================
 
             foreach ($request->items as $item) {
 
-                if (!isset($item['po_id'])) {
+                if (
+                    !isset($item['po_id'])
+                ) {
                     continue;
                 }
 
+
                 $ipl->items()->create([
-                    'po_id' => $item['po_id'],
-                    'detail_po_id' => $item['detail_po_id'] ?? null,
-                    'po_no' => $item['po_no'] ?? null,
-                    'hs_code' => $item['hs_code'] ?? null,
-                    'article_nr' => $item['article_nr'] ?? null,
-                    'description' => $item['description'] ?? null,
-                    'photo' => $item['photo'] ?? null,
-                    'box_dimension' => $item['box_dimension'] ?? null,
-                    'qty_pcs' => $item['qty_pcs'] ?? 0,
-                    'qty_box' => $item['qty_box'] ?? 0,
-                    'cbm' => $item['cbm'] ?? 0,
-                    'total_cbm' => $item['total_cbm'] ?? 0,
-                    'unit_price' => $item['unit_price'] ?? 0,
-                    'total_price' => $item['total_price'] ?? 0,
-                    'net_weight' => $item['net_weight'] ?? 0,
-                    'gross_weight' => $item['gross_weight'] ?? 0,
-                    'remark' => $item['remark'] ?? null,
+
+                    'po_id' =>
+                        $item['po_id'],
+
+                    'detail_po_id' =>
+                        $item['detail_po_id'] ?? null,
+
+                    'po_no' =>
+                        $item['po_no'] ?? null,
+
+
+                    // =================================================
+                    // KHUSUS LOBERON
+                    // =================================================
+
+                    'blde' =>
+                        $item['blde']
+                        ?? ($item['po_no'] ?? null),
+
+
+                    'hs_code' =>
+                        $item['hs_code'] ?? null,
+
+                    'article_nr' =>
+                        $item['article_nr'] ?? null,
+
+                    'description' =>
+                        $item['description'] ?? null,
+
+                    'photo' =>
+                        $item['photo'] ?? null,
+
+                    'box_dimension' =>
+                        $item['box_dimension'] ?? null,
+
+                    'qty_pcs' =>
+                        $item['qty_pcs'] ?? 0,
+
+                    'qty_box' =>
+                        $item['qty_box'] ?? 0,
+
+                    'cbm' =>
+                        $item['cbm'] ?? 0,
+
+                    'total_cbm' =>
+                        $item['total_cbm'] ?? 0,
+
+                    'unit_price' =>
+                        $item['unit_price'] ?? 0,
+
+                    'total_price' =>
+                        $item['total_price'] ?? 0,
+
+                    'net_weight' =>
+                        $item['net_weight'] ?? 0,
+
+                    'gross_weight' =>
+                        $item['gross_weight'] ?? 0,
+
+                    'remark' =>
+                        $item['remark'] ?? null,
+
                 ]);
+
             }
+
+
+            // =====================================================
+            // HITUNG ULANG FOB USD
+            // =====================================================
+            //
+            // WAJIB dilakukan setelah item selesai dibuat.
+            //
+            // Jadi kalau user mengubah:
+            //
+            // Qty
+            // Price
+            // Total Price
+            //
+            // maka FOB AR ikut berubah.
+            //
+
+            $fobUsd = ExportIplItem::where(
+                'export_ipl_id',
+                $ipl->id
+            )->sum('total_price');
+
+            $fobUsd = (float) $fobUsd;
+
+
+            // =====================================================
+            // CARI / CREATE EXPORT AR
+            // =====================================================
+            //
+            // Tidak menggunakan invoice_no.
+            //
+            // Relasi:
+            //
+            // export_ipls.id
+            //        ↓
+            // export_ars.export_ipl_id
+            //
+
+            $exportAr = ExportAr::firstOrCreate(
+
+                [
+                    'export_ipl_id' =>
+                        $ipl->id,
+                ],
+
+                [
+                    // AR baru selalu Draft
+                    'status' =>
+                        0,
+
+                    'tanggal_invoice' =>
+                        $request->date ?? null,
+
+                    'fob_usd' =>
+                        $fobUsd,
+
+                    'created_by' =>
+                        auth()->id(),
+                ]
+
+            );
+
+
+            // =====================================================
+            // UPDATE FOB AR
+            // =====================================================
+            //
+            // Jangan hanya update saat AR baru.
+            //
+            // Kalau AR sudah ada:
+            //
+            // fob_usd harus mengikuti TOTAL ITEM TERBARU.
+            //
+
+            $exportAr->fob_usd =
+                $fobUsd;
+
+
+            // =====================================================
+            // UPDATE TANGGAL INVOICE
+            // =====================================================
+
+            if (
+                !empty($request->date)
+            ) {
+
+                $exportAr->tanggal_invoice =
+                    $request->date;
+            }
+
+
+            // =====================================================
+            // DEFAULT CONTAINER
+            // =====================================================
+
+            if (
+                empty($exportAr->jumlah_container)
+            ) {
+
+                $exportAr->jumlah_container =
+                    1;
+            }
+
+
+            // =====================================================
+            // JANGAN RESET STATUS AR LAMA
+            // =====================================================
+            //
+            // Kalau AR sudah:
+            //
+            // status = 1
+            //
+            // maka edit IPL tidak mengubahnya kembali ke 0.
+            //
+            // Kalau AR baru, firstOrCreate di atas sudah
+            // memberikan status = 0.
+            //
+
+
+            // =====================================================
+            // SAVE AR
+            // =====================================================
+
+            $exportAr->save();
+
+
+            // =====================================================
+            // COMMIT
+            // =====================================================
 
             DB::commit();
 
+
+            // =====================================================
+            // RESPONSE
+            // =====================================================
+
             return response()->json([
 
-                'success' => true,
+                'success' =>
+                    true,
 
-                'message' => 'IPL berhasil diperbarui.',
+                'message' =>
+                    'IPL berhasil diperbarui.',
+
+                'id' =>
+                    $ipl->id,
+
+                'export_ar_id' =>
+                    $exportAr->id,
+
+                'fob_usd' =>
+                    $exportAr->fob_usd,
+
+                'ar_status' =>
+                    $exportAr->status,
 
             ]);
+
 
         } catch (\Throwable $e) {
 
@@ -771,9 +1142,11 @@ class EdController extends Controller
 
             return response()->json([
 
-                'success' => false,
+                'success' =>
+                    false,
 
-                'message' => $e->getMessage(),
+                'message' =>
+                    $e->getMessage(),
 
             ], 500);
 
@@ -2183,6 +2556,9 @@ class EdController extends Controller
                                 'po_no' =>
                                     $item->po_no,
 
+                                'blde' =>
+                                    $item->blde,
+
                                 'hs_code' =>
                                     $item->hs_code,
 
@@ -2254,7 +2630,7 @@ class EdController extends Controller
 
         ]);
     }
-    public function lobIndex(Request $request)
+   public function lobIndex(Request $request)
 {
     $invoiceNo = trim(
         (string) $request->query('ref', '')
@@ -2264,9 +2640,10 @@ class EdController extends Controller
         abort(404, 'Invoice tidak ditemukan.');
     }
 
+
     /*
     |--------------------------------------------------------------------------
-    | Ambil IPL berdasarkan invoice_no
+    | AMBIL IPL
     |--------------------------------------------------------------------------
     */
     $ipl = ExportIpl::with([
@@ -2285,7 +2662,7 @@ class EdController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | Ambil semua article_nr dari IPL
+    | AMBIL SEMUA ARTICLE
     |--------------------------------------------------------------------------
     */
     $articleNrs = $ipl->items
@@ -2300,8 +2677,15 @@ class EdController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | Cari data Loberon berdasarkan article_code
+    | DATA LOBERON
     |--------------------------------------------------------------------------
+    |
+    | article_nr dari ExportIplItem
+    |          ↓
+    | Loberon.article_code
+    |          ↓
+    | $item->loberon
+    |
     */
     $loberons = Loberon::whereIn(
         'article_code',
@@ -2317,7 +2701,7 @@ class EdController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | Gabungkan data IPL + Loberon
+    | GABUNGKAN DATA IPL + LOBERON
     |--------------------------------------------------------------------------
     */
     foreach ($ipl->items as $item) {
@@ -2326,17 +2710,19 @@ class EdController extends Controller
             (string) $item->article_nr
         );
 
+
         /*
         |--------------------------------------------------------------------------
-        | Data Loberon
+        | DATA LOBERON
         |--------------------------------------------------------------------------
         */
-        $item->loberon = $loberons->get($articleNr);
+        $item->loberon =
+            $loberons->get($articleNr);
 
 
         /*
         |--------------------------------------------------------------------------
-        | Detail PO
+        | DETAIL PO
         |--------------------------------------------------------------------------
         */
         $detail = null;
@@ -2353,20 +2739,1045 @@ class EdController extends Controller
                 );
         }
 
-        $item->detail_data = is_array($detail)
-            ? $detail
-            : [];
+
+        $item->detail_data =
+            is_array($detail)
+                ? $detail
+                : [];
     }
 
 
+    /*
+    |--------------------------------------------------------------------------
+    | NORMALIZE REF PO / BLDE
+    |--------------------------------------------------------------------------
+    |
+    | Menghilangkan karakter invisible seperti:
+    | BLDE­25170
+    | menjadi:
+    | BLDE25170
+    |
+    */
+    $normalizeRefPo = function ($value) {
+
+        $value = (string) ($value ?? '');
+
+        $value = preg_replace(
+            '/[\x{00AD}\x{200B}-\x{200D}\x{FEFF}]/u',
+            '',
+            $value
+        );
+
+        $value = preg_replace(
+            '/\s+/u',
+            ' ',
+            $value
+        );
+
+        return trim($value);
+    };
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | AMBIL EXPORT AR MILIK IPL INI
+    |--------------------------------------------------------------------------
+    |
+    | Ambil SEMUA payment:
+    | - deposit
+    | - pelunasan
+    | - surcharge
+    |
+    | Jangan difilter deposit saja, karena widget surcharge
+    | membutuhkan data surcharge dari database.
+    |
+    */
+    $exportAr = ExportAr::with([
+        'payments' => function ($query) {
+
+            $query
+                ->orderBy('payment_date')
+                ->orderBy('id');
+
+        },
+    ])
+        ->where(
+            'export_ipl_id',
+            $ipl->id
+        )
+        ->first();
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | SEMUA PAYMENT
+    |--------------------------------------------------------------------------
+    */
+    $lobPayments = collect();
+
+    if ($exportAr) {
+
+        $lobPayments = $exportAr->payments;
+
+        /*
+        |--------------------------------------------------------------------------
+        | NORMALIZE REF PO
+        |--------------------------------------------------------------------------
+        */
+        $lobPayments->each(function ($payment) use (
+            $normalizeRefPo
+        ) {
+
+            $payment->ref_po_normalized =
+                $normalizeRefPo(
+                    $payment->ref_po
+                );
+
+        });
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | DEPOSIT BERDASARKAN REF PO / BLDE
+    |--------------------------------------------------------------------------
+    |
+    | Satu BLDE boleh mempunyai beberapa deposit.
+    | Semuanya dijumlahkan.
+    |
+    */
+    $depositByPo = collect();
+
+
+    if ($lobPayments->isNotEmpty()) {
+
+        $depositByPo = $lobPayments
+            ->filter(function ($payment) {
+
+                return
+                    strtolower(
+                        (string) $payment->payment_type
+                    ) === 'deposit'
+                    &&
+                    trim(
+                        (string) $payment->ref_po_normalized
+                    ) !== '';
+
+            })
+            ->groupBy(function ($payment) {
+
+                return $payment->ref_po_normalized;
+
+            })
+            ->map(function ($payments) {
+
+                return $payments->sum(
+                    function ($payment) {
+
+                        return (float) (
+                            $payment->amount ?? 0
+                        );
+
+                    }
+                );
+
+            });
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | AMBIL BLDE YANG MEMANG ADA DI INVOICE
+    |--------------------------------------------------------------------------
+    */
+    $bldeNumbers = $ipl->items
+        ->map(function ($item) use (
+            $normalizeRefPo
+        ) {
+
+            return $normalizeRefPo(
+                $item->blde ?? ''
+            );
+
+        })
+        ->filter()
+        ->unique()
+        ->values();
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | PASTIKAN SEMUA BLDE ADA DI DEPOSIT MAP
+    |--------------------------------------------------------------------------
+    |
+    | Kalau belum ada deposit:
+    |
+    | BLDE25170 => 0
+    | BLDE25171 => 0
+    |
+    */
+    foreach ($bldeNumbers as $blde) {
+
+        if (!$depositByPo->has($blde)) {
+
+            $depositByPo->put(
+                $blde,
+                0
+            );
+        }
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | ORDER DEPOSIT SESUAI URUTAN ITEM INVOICE
+    |--------------------------------------------------------------------------
+    */
+    $orderedDepositByPo = collect();
+
+    foreach ($bldeNumbers as $blde) {
+
+        $orderedDepositByPo->put(
+            $blde,
+            (float) $depositByPo->get(
+                $blde,
+                0
+            )
+        );
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | EXPORT AR ID + STATUS
+    |--------------------------------------------------------------------------
+    */
+    $exportArId = $exportAr
+        ? $exportAr->id
+        : null;
+
+    $arStatus = $exportAr
+        ? $exportAr->status
+        : 0;
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | KIRIM KE BLADE
+    |--------------------------------------------------------------------------
+    |
+    | $lobPayments penting untuk:
+    | - existing payment
+    | - surcharge 1/2/3
+    | - modal payment
+    |
+    | $ipl tetap membawa:
+    | - Loberon data
+    | - detail PO
+    | - item data
+    |
+    */
     return view(
         'pages.exports.lobindex',
         compact(
             'ipl',
-            'invoiceNo'
+            'invoiceNo',
+            'bldeNumbers',
+            'depositByPo',
+            'orderedDepositByPo',
+            'lobPayments',
+            'exportAr',
+            'exportArId',
+            'arStatus'
         )
     );
 }
+
+    public function updateLoberon(Request $request)
+    {
+        DB::beginTransaction();
+
+        try {
+
+            // =====================================================
+            // 1. INVOICE
+            // =====================================================
+
+            $invoiceNo = $request->input('invoice_no');
+
+            if (!$invoiceNo) {
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invoice number tidak ditemukan.'
+                ], 422);
+            }
+
+
+            // =====================================================
+            // 2. CARI EXPORT IPL
+            // =====================================================
+
+            $ipl = ExportIpl::where(
+                'invoice_no',
+                $invoiceNo
+            )->first();
+
+            if (!$ipl) {
+
+                DB::rollBack();
+
+                return response()->json([
+                    'success' => false,
+                    'message' => "Invoice {$invoiceNo} tidak ditemukan."
+                ], 404);
+            }
+
+
+            // =====================================================
+            // 3. RELEASE STATUS
+            // =====================================================
+
+            $releaseInvoice =
+                $request->boolean('release_invoice');
+
+
+            // =====================================================
+            // 4. UPDATE HEADER EXPORT IPL
+            // =====================================================
+
+            $header =
+                $request->input('header', []);
+
+            $iplUpdate = [];
+
+
+            if (
+                array_key_exists(
+                    'consignee_name',
+                    $header
+                )
+            ) {
+
+                $iplUpdate['buyer'] =
+                    $header['consignee_name'];
+            }
+
+
+            if (
+                array_key_exists(
+                    'consignee_address',
+                    $header
+                )
+            ) {
+
+                $iplUpdate['buyer_address'] =
+                    $header['consignee_address'];
+            }
+
+
+            if (
+                array_key_exists(
+                    'destination_name',
+                    $header
+                )
+            ) {
+
+                $iplUpdate['final_destination'] =
+                    $header['destination_name'];
+            }
+
+
+            if (
+                array_key_exists(
+                    'destination_address',
+                    $header
+                )
+            ) {
+
+                $iplUpdate['final_destination_address'] =
+                    $header['destination_address'];
+            }
+
+
+            if (
+                array_key_exists(
+                    'eori',
+                    $header
+                )
+            ) {
+
+                $iplUpdate['eori'] =
+                    $header['eori'];
+            }
+
+
+            if (
+                array_key_exists(
+                    'incoterm',
+                    $header
+                )
+            ) {
+
+                $iplUpdate['incoterm'] =
+                    $header['incoterm'];
+            }
+
+
+            if (
+                array_key_exists(
+                    'country_origin',
+                    $header
+                )
+            ) {
+
+                $iplUpdate['country_of_origin'] =
+                    $header['country_origin'];
+            }
+
+
+            if (
+                array_key_exists(
+                    'port_loading',
+                    $header
+                )
+            ) {
+
+                $iplUpdate['port_loading'] =
+                    $header['port_loading'];
+            }
+
+
+            if (
+                array_key_exists(
+                    'port_discharge',
+                    $header
+                )
+            ) {
+
+                $iplUpdate['port_discharge'] =
+                    $header['port_discharge'];
+            }
+
+
+            if (
+                array_key_exists(
+                    'rex',
+                    $header
+                )
+            ) {
+
+                $iplUpdate['rex'] =
+                    $header['rex'];
+            }
+
+
+            if (
+                array_key_exists(
+                    'igst_no',
+                    $header
+                )
+            ) {
+
+                $iplUpdate['igst_no'] =
+                    $header['igst_no'];
+            }
+
+
+            if (
+                array_key_exists(
+                    'invoice_date',
+                    $header
+                )
+                &&
+                !empty($header['invoice_date'])
+            ) {
+
+                $iplUpdate['date'] =
+                    $header['invoice_date'];
+            }
+
+
+            if (
+                array_key_exists(
+                    'vessel_name',
+                    $header
+                )
+            ) {
+
+                $iplUpdate['vessel_name'] =
+                    $header['vessel_name'];
+            }
+
+
+            if (
+                array_key_exists(
+                    'container_no',
+                    $header
+                )
+            ) {
+
+                $iplUpdate['container_no'] =
+                    $header['container_no'];
+            }
+
+
+            if (
+                array_key_exists(
+                    'container_type',
+                    $header
+                )
+            ) {
+
+                $iplUpdate['container_type'] =
+                    $header['container_type'];
+            }
+
+
+            // =====================================================
+            // 5. RELEASE EXPORT IPL
+            // =====================================================
+
+            if ($releaseInvoice) {
+
+                $iplUpdate['released'] = 1;
+                $iplUpdate['release_date'] = now();
+
+            } else {
+
+                $iplUpdate['released'] = 0;
+                $iplUpdate['release_date'] = null;
+            }
+
+
+            // =====================================================
+            // 6. SIMPAN EXPORT IPL
+            // =====================================================
+
+            if (!empty($iplUpdate)) {
+
+                $ipl->update($iplUpdate);
+            }
+
+
+            // =====================================================
+            // 7. UPDATE ITEMS
+            // =====================================================
+
+            $items =
+                $request->input('items', []);
+
+            foreach ($items as $itemData) {
+
+                if (empty($itemData['id'])) {
+                    continue;
+                }
+
+
+                $item = ExportIplItem::where(
+                    'id',
+                    $itemData['id']
+                )
+                    ->where(
+                        'export_ipl_id',
+                        $ipl->id
+                    )
+                    ->first();
+
+
+                if (!$item) {
+                    continue;
+                }
+
+
+                $itemUpdate = [];
+
+
+                if (
+                    array_key_exists(
+                        'po_number',
+                        $itemData
+                    )
+                ) {
+
+                    $itemUpdate['blde'] =
+                        $itemData['po_number'];
+                }
+
+
+                if (
+                    array_key_exists(
+                        'article_code',
+                        $itemData
+                    )
+                ) {
+
+                    $itemUpdate['article_nr'] =
+                        $itemData['article_code'];
+                }
+
+
+                if (
+                    array_key_exists(
+                        'description',
+                        $itemData
+                    )
+                ) {
+
+                    $itemUpdate['desc_custome'] =
+                        $itemData['description'];
+                }
+
+
+                if (
+                    array_key_exists(
+                        'hts_code',
+                        $itemData
+                    )
+                ) {
+
+                    $itemUpdate['hs_code'] =
+                        $itemData['hts_code'];
+                }
+
+
+                if (
+                    array_key_exists(
+                        'qty',
+                        $itemData
+                    )
+                ) {
+
+                    $itemUpdate['qty_pcs'] =
+                        $itemData['qty'];
+                }
+
+
+                if (
+                    array_key_exists(
+                        'price',
+                        $itemData
+                    )
+                ) {
+
+                    $itemUpdate['unit_price'] =
+                        $itemData['price'];
+                }
+
+
+                if (
+                    array_key_exists(
+                        'net_weight',
+                        $itemData
+                    )
+                ) {
+
+                    $itemUpdate['net_weight'] =
+                        $itemData['net_weight'];
+                }
+
+
+                if (
+                    array_key_exists(
+                        'gross_weight',
+                        $itemData
+                    )
+                ) {
+
+                    $itemUpdate['gross_weight'] =
+                        $itemData['gross_weight'];
+                }
+
+
+                if (
+                    array_key_exists(
+                        'marks_1',
+                        $itemData
+                    )
+                ) {
+
+                    $itemUpdate['remark'] =
+                        $itemData['marks_1'];
+                }
+
+
+                // TOTAL PRICE
+                if (
+                    array_key_exists('qty', $itemData)
+                    &&
+                    array_key_exists('price', $itemData)
+                ) {
+
+                    $qty =
+                        (float) $itemData['qty'];
+
+                    $price =
+                        (float) $itemData['price'];
+
+                    $itemUpdate['total_price'] =
+                        $qty * $price;
+                }
+
+
+                if (!empty($itemUpdate)) {
+
+                    $item->update(
+                        $itemUpdate
+                    );
+                }
+            }
+
+
+            // =====================================================
+            // 8. CARI EXPORT AR
+            // =====================================================
+
+            $ar = ExportAr::where(
+                'export_ipl_id',
+                $ipl->id
+            )->first();
+
+
+            // =====================================================
+            // 9. CREATE EXPORT AR JIKA BELUM ADA
+            // =====================================================
+
+            if (!$ar) {
+
+                $ar = ExportAr::create([
+
+                    'export_ipl_id' =>
+                        $ipl->id,
+
+                    'status' => 0,
+
+                    'tanggal_invoice' =>
+                        !empty($header['invoice_date'])
+                        ? $header['invoice_date']
+                        : null,
+
+                    'created_by' =>
+                        auth()->id(),
+                ]);
+            }
+
+
+            // =====================================================
+            // 10. UPDATE STATUS AR
+            // =====================================================
+
+            $ar->status =
+                $releaseInvoice ? 1 : 0;
+
+
+            // =====================================================
+            // 11. UPDATE DATA AR
+            // =====================================================
+
+            $arData = [];
+
+
+            $arFields = [
+
+                'tanggal_invoice',
+                'jatuh_tempo',
+                'fob_usd',
+                'fob_peb_usd',
+                'kurs_kemenkeu',
+                'jumlah_rupiah',
+                'jumlah_container',
+                'no_pengajuan_peb',
+                'no_peb',
+                'keterangan',
+                'remark',
+
+            ];
+
+
+            foreach ($arFields as $field) {
+
+                if (
+                    $request->has(
+                        'ar.' . $field
+                    )
+                ) {
+
+                    $arData[$field] =
+                        $request->input(
+                            'ar.' . $field
+                        );
+                }
+            }
+
+
+            if (!empty($arData)) {
+
+                $ar->fill($arData);
+            }
+
+
+            // =====================================================
+            // 12. SIMPAN EXPORT AR
+            // =====================================================
+
+            $ar->save();
+
+
+            // =====================================================
+            // 13. PAYMENT
+            // =====================================================
+
+            $payments =
+                $request->input(
+                    'payments',
+                    []
+                );
+
+
+            foreach ($payments as $paymentData) {
+
+
+                // =================================================
+                // PAYMENT EXISTING
+                // =================================================
+
+                if (
+                    !empty(
+                    $paymentData['id']
+                )
+                ) {
+
+                    $payment =
+                        ExportArPayment::where(
+                            'id',
+                            $paymentData['id']
+                        )
+                            ->where(
+                                'export_ar_id',
+                                $ar->id
+                            )
+                            ->first();
+
+
+                    if (!$payment) {
+                        continue;
+                    }
+
+
+                    $paymentUpdate = [];
+
+
+                    if (
+                        array_key_exists(
+                            'payment_type',
+                            $paymentData
+                        )
+                    ) {
+
+                        $paymentUpdate['payment_type'] =
+                            $paymentData['payment_type'];
+                    }
+
+
+                    if (
+                        array_key_exists(
+                            'payment_date',
+                            $paymentData
+                        )
+                    ) {
+
+                        $paymentUpdate['payment_date'] =
+                            !empty(
+                            $paymentData['payment_date']
+                        )
+                            ? $paymentData['payment_date']
+                            : null;
+                    }
+
+
+                    if (
+                        array_key_exists(
+                            'ref_po',
+                            $paymentData
+                        )
+                    ) {
+
+                        $paymentUpdate['ref_po'] =
+                            $paymentData['ref_po'];
+                    }
+
+
+                    if (
+                        array_key_exists(
+                            'amount',
+                            $paymentData
+                        )
+                    ) {
+
+                        $paymentUpdate['amount'] =
+                            $paymentData['amount'];
+                    }
+
+
+                    if (
+                        array_key_exists(
+                            'reference',
+                            $paymentData
+                        )
+                    ) {
+
+                        $paymentUpdate['reference'] =
+                            $paymentData['reference'];
+                    }
+
+
+                    if (
+                        array_key_exists(
+                            'keterangan',
+                            $paymentData
+                        )
+                    ) {
+
+                        $paymentUpdate['keterangan'] =
+                            $paymentData['keterangan'];
+                    }
+
+
+                    if (!empty($paymentUpdate)) {
+
+                        $payment->update(
+                            $paymentUpdate
+                        );
+                    }
+
+
+                    continue;
+                }
+
+
+                // =================================================
+                // PAYMENT BARU
+                // =================================================
+
+                $paymentType =
+                    $paymentData['payment_type']
+                    ?? null;
+
+                $amount =
+                    $paymentData['amount']
+                    ?? null;
+
+
+                /*
+                 * Payment kosong jangan dibuat.
+                 */
+
+                if (
+                    empty($paymentType)
+                    ||
+                    $amount === null
+                    ||
+                    (float) $amount <= 0
+                ) {
+
+                    continue;
+                }
+
+
+                ExportArPayment::create([
+
+                    'export_ar_id' =>
+                        $ar->id,
+
+                    'payment_type' =>
+                        $paymentType,
+
+                    'payment_date' =>
+                        !empty(
+                        $paymentData['payment_date']
+                    )
+                        ? $paymentData['payment_date']
+                        : null,
+
+                    'ref_po' =>
+                        $paymentData['ref_po']
+                        ?? null,
+
+                    'amount' =>
+                        $amount,
+
+                    'reference' =>
+                        $paymentData['reference']
+                        ?? null,
+
+                    'keterangan' =>
+                        $paymentData['keterangan']
+                        ?? null,
+
+                    'created_by' =>
+                        auth()->id(),
+
+                ]);
+            }
+
+
+            // =====================================================
+            // 14. COMMIT
+            // =====================================================
+
+            DB::commit();
+
+
+            // =====================================================
+            // 15. RESPONSE
+            // =====================================================
+
+            return response()->json([
+
+                'success' => true,
+
+                'message' => $releaseInvoice
+                    ? 'Loberon berhasil diupdate dan invoice berhasil di-release.'
+                    : 'Loberon berhasil diupdate sebagai draft.',
+
+                'invoice_no' =>
+                    $ipl->invoice_no,
+
+                'export_ipl_id' =>
+                    $ipl->id,
+
+                'export_ar_id' =>
+                    $ar->id,
+
+                'ar_status' =>
+                    $ar->status,
+
+                'released' =>
+                    $ipl->released,
+            ]);
+
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+
+            return response()->json([
+
+                'success' => false,
+
+                'message' =>
+                    $e->getMessage(),
+
+                'line' =>
+                    $e->getLine(),
+
+                'file' =>
+                    basename($e->getFile()),
+
+            ], 500);
+        }
+    }
     // EXPORT DOWNLOAD
     // ada di helpers
 

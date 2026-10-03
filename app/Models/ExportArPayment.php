@@ -13,6 +13,8 @@ class ExportArPayment extends Model
         'export_ar_id',
         'payment_type',
         'payment_date',
+        'ref_po',
+
         'amount',
         'reference',
         'keterangan',

@@ -12,6 +12,7 @@ class ExportAr extends Model
 
     protected $fillable = [
         'export_ipl_id',
+        'status',
         'tanggal_invoice',
         'jatuh_tempo',
         'fob_usd',
@@ -30,6 +31,7 @@ class ExportAr extends Model
     protected $casts = [
         'tanggal_invoice' => 'date',
         'jatuh_tempo' => 'date',
+        'status' => 'integer',
 
         'fob_usd' => 'decimal:2',
         'fob_peb_usd' => 'decimal:2',

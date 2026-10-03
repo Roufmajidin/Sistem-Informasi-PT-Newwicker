@@ -9,6 +9,7 @@ class ExportIplItem extends Model
     protected $fillable = [
 
         'export_ipl_id',
+        'blde',
         'desc_custome',
         'po_id',
         'detail_po_id',

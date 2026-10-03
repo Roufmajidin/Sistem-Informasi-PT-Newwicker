@@ -3,11 +3,267 @@
 @section('title', 'Export View')
 
 @section('content')
-    @include('pages.exports.partials.style')
-    <div style="zoom:80%;">
+    @php
+        /*
+        |--------------------------------------------------------------------------
+        | LOBERON
+        |--------------------------------------------------------------------------
+        | BLDE hanya ditampilkan/disimpan untuk invoice LOBERON.
+        | PO No tetap menggunakan po_no seperti IPL normal.
+        |--------------------------------------------------------------------------
+        */
+        $isLoberon = str_contains(
+            strtolower(trim((string) data_get($ipl, 'buyer', ''))),
+            'loberon'
+        );
+    @endphp
 
-        {{-- semua isi halaman --}}
-        <div class="container-fluid py-4">
+    @include('pages.exports.partials.style')
+
+    {{-- =========================================================
+         FULL WIDTH + COLLAPSIBLE SIDEBAR
+         Dibuat mengikuti pola sidebar pada AR Blade.
+         Default: sidebar disembunyikan agar area kerja IPL maksimal.
+         ========================================================= --}}
+    <style>
+        /* =========================================================
+           PAGE WIDTH
+           ========================================================= */
+        html,
+        body {
+            width: 100% !important;
+            max-width: 100% !important;
+            overflow-x: hidden;
+        }
+
+        #content {
+            margin-left: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            transition: margin-left .2s ease, width .2s ease;
+        }
+
+        .ipl-page {
+            width: 100% !important;
+            max-width: none !important;
+            padding: 12px 14px 24px !important;
+            margin: 0 !important;
+        }
+
+        .ipl-page .card {
+            width: 100%;
+            max-width: none;
+        }
+
+        /* Hilangkan pembatas lebar Bootstrap/master bila ada */
+        .ipl-page .container,
+        .ipl-page .container-fluid {
+            width: 100% !important;
+            max-width: none !important;
+        }
+
+        /* =========================================================
+           SIDEBAR
+           ========================================================= */
+        #aside {
+            display: none !important;
+        }
+
+        #iplSidebarToggle {
+            position: fixed !important;
+            left: 0 !important;
+            top: 70px !important;
+
+            width: 36px !important;
+            height: 38px !important;
+
+            margin: 0 !important;
+            padding: 0 !important;
+
+            border: 0 !important;
+            border-radius: 0 6px 6px 0 !important;
+
+            background: #26364a !important;
+            color: #fff !important;
+
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+
+            cursor: pointer !important;
+
+            z-index: 2147483647 !important;
+            pointer-events: auto !important;
+
+            box-shadow: 2px 2px 8px rgba(0, 0, 0, .25);
+            transition: left .2s ease, width .15s ease;
+        }
+
+        #iplSidebarToggle:hover {
+            width: 42px !important;
+            background: #304783 !important;
+        }
+
+        #iplSidebarToggle i {
+            pointer-events: none !important;
+            font-size: 17px !important;
+            color: #fff !important;
+        }
+
+        body.ipl-sidebar-open #aside {
+            display: block !important;
+
+            width: 230px !important;
+            min-width: 230px !important;
+            max-width: 230px !important;
+
+            z-index: 2147483000 !important;
+        }
+
+        body.ipl-sidebar-open #aside .left.navside {
+            width: 230px !important;
+            min-width: 230px !important;
+            max-width: 230px !important;
+        }
+
+        body.ipl-sidebar-open #content {
+            margin-left: 230px !important;
+            width: calc(100% - 230px) !important;
+            max-width: calc(100% - 230px) !important;
+        }
+
+        body.ipl-sidebar-open #iplSidebarToggle {
+            left: 230px !important;
+        }
+
+        /* =========================================================
+           IPL TABLE - MAKSIMALKAN AREA
+           ========================================================= */
+        .ipl-table-scroll {
+            width: 100%;
+            max-width: 100%;
+            overflow-x: auto;
+            overflow-y: visible;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .ipl-table-scroll > table {
+            min-width: 1750px;
+            width: max-content;
+            margin-bottom: 0;
+        }
+
+        .ipl-table-scroll thead th {
+            white-space: nowrap;
+            vertical-align: middle;
+        }
+
+        .ipl-table-scroll tbody td {
+            vertical-align: middle;
+        }
+
+        /* Jangan biarkan input mengecil terlalu ekstrem */
+        .ipl-table-scroll input.form-control,
+        .ipl-table-scroll select.form-control {
+            min-width: 70px;
+        }
+
+        /* Shipment section juga full width */
+        .ipl-page > .container-fluid,
+        .ipl-page > .container,
+        .ipl-page .shipment-information,
+        .ipl-page .shipper-wrapper {
+            max-width: none !important;
+            width: 100% !important;
+        }
+
+        @media (max-width: 992px) {
+            .ipl-page {
+                padding-left: 8px !important;
+                padding-right: 8px !important;
+            }
+
+            body.ipl-sidebar-open #content {
+                margin-left: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+
+            body.ipl-sidebar-open #aside {
+                position: fixed !important;
+                left: 0 !important;
+                top: 0 !important;
+                bottom: 0 !important;
+                overflow-y: auto !important;
+            }
+
+            body.ipl-sidebar-open #iplSidebarToggle {
+                left: 230px !important;
+            }
+        }
+    </style>
+
+    <button
+        type="button"
+        id="iplSidebarToggle"
+        aria-label="Toggle Sidebar"
+        title="Buka menu">
+        <i class="fa fa-bars"></i>
+    </button>
+
+    <script>
+        (function () {
+            function initIplSidebar() {
+                const button = document.getElementById('iplSidebarToggle');
+
+                if (!button) {
+                    return;
+                }
+
+                button.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    const isOpen =
+                        document.body.classList.toggle('ipl-sidebar-open');
+
+                    if (isOpen) {
+                        button.innerHTML =
+                            '<i class="fa fa-times"></i>';
+
+                        button.setAttribute(
+                            'title',
+                            'Tutup menu'
+                        );
+                    } else {
+                        button.innerHTML =
+                            '<i class="fa fa-bars"></i>';
+
+                        button.setAttribute(
+                            'title',
+                            'Buka menu'
+                        );
+                    }
+                }, true);
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener(
+                    'DOMContentLoaded',
+                    initIplSidebar
+                );
+            } else {
+                initIplSidebar();
+            }
+        })();
+    </script>
+
+    {{-- =========================================================
+         CONTENT IPL
+         ========================================================= --}}
+    <div class="ipl-page">
+        <div class="container-fluid py-2">
             @if ($mode == 'create')
                 <h4>Create Export IPL</h4>
             @else
@@ -26,16 +282,16 @@
                     <h5 class="mb-0">
                         Invoice Packing List (IPL)
                     </h5>
-                    <div class="d-flex gap-2">
+                    <div class="d-flex align-items-center flex-wrap gap-2">
 
-                        <button type="button" class="btn btn-primary" id="btnAddPo">
+                        <button type="button" class="btn btn-light btn-sm" id="btnAddPo">
 
                             <i class="fa fa-plus"></i>
                             Add PO
 
                         </button>
 
-                        <button type="button" class="btn btn-success" id="btnSaveExport">
+                        <button type="button" class="btn btn-success btn-sm" id="btnSaveExport">
 
                             <i class="fa fa-save"></i>
                             Save IPL
@@ -45,7 +301,7 @@
                     </div>
                 </div>
 
-                <div class="table-responsive">
+                <div class="table-responsive ipl-table-scroll">
 
                     <table class="table table-bordered table-hover table-sm align-middle text-center">
 
@@ -58,6 +314,10 @@
                                 <th rowspan="2">Photo</th>
                                 <th rowspan="2">Description</th>
                                 <th rowspan="2">Item Code</th>
+                                <th rowspan="2">PO No</th>
+                                @if ($isLoberon)
+                                    <th rowspan="2">BLDE</th>
+                                @endif
 
                                 <th colspan="4" class="table-secondary">
                                     Packing Information
@@ -87,7 +347,6 @@
                                 <th>Gross Weight</th>
                                 <th>Total CBM</th>
                                 <th>Remarks</th>
-                                <th>PO No</th>
 
                                 <th>act</th>
 
@@ -99,7 +358,7 @@
 
                             <tr>
 
-                                <td colspan="14" class="text-center text-muted">
+                                <td colspan="{{ $isLoberon ? 18 : 17 }}" class="text-center text-muted">
 
                                     Belum ada Sales Order dipilih
 
@@ -273,6 +532,7 @@
             </div>
 
         </div>
+    </div>
     @endsection
 
     @push('scripts')
@@ -479,6 +739,23 @@
                 <td>
                     <input
                         type="text"
+                        class="form-control form-control-sm"
+                        name="items[${index}][po_no]"
+                        value="${item.order_no ?? ''}"
+                        readonly>
+                </td>
+                ${IS_LOBERON ? `
+                <td>
+                    <input
+                        type="text"
+                        class="form-control form-control-sm"
+                        name="items[${index}][blde]"
+                        value="${item.blde ?? ''}">
+                </td>
+                ` : ''}
+                <td>
+                    <input
+                        type="text"
                         class="form-control form-control-sm box_dimension"
                         name="items[${index}][box_dimension]"
                         value="${item.pack_w} x ${item.pack_d} x ${item.pack_h}">
@@ -553,14 +830,6 @@
                     <input
                         class="form-control form-control-sm"
                         name="items[${index}][remark]">
-                </td>
-                <td>
-                    <input
-                        type="text"
-                        class="form-control form-control-sm"
-                        name="items[${index}][po_no]"
-                        value="${item.order_no ?? ''}"
-                        readonly>
                 </td>
                 <td class="text-center">
 
@@ -1571,6 +1840,29 @@
 
                     <input
                     type="text"
+                    class="form-control form-control-sm"
+                    name="items[${index}][po_no]"
+                    value="${item.order_no ?? ''}"
+                    readonly>
+
+                    </td>
+
+                    ${IS_LOBERON ? `
+                    <td>
+
+                    <input
+                    type="text"
+                    class="form-control form-control-sm"
+                    name="items[${index}][blde]"
+                    value="${item.blde ?? ''}">
+
+                    </td>
+                    ` : ''}
+
+                    <td>
+
+                    <input
+                    type="text"
                     class="form-control form-control-sm box_dimension"
                     name="items[${index}][box_dimension]"
                     value="${item.pack_w} x ${item.pack_d} x ${item.pack_h}">
@@ -1663,16 +1955,6 @@
                     <input
                     class="form-control form-control-sm" value="${item.remark ?? ''}"
                     name="items[${index}][remark]">
-
-                    </td>
-                    <td>
-
-                    <input
-                    type="text"
-                    class="form-control form-control-sm"
-                    name="items[${index}][po_no]"
-                    value="${item.order_no ?? ''}"
-                    readonly>
 
                     </td>
                     <td>
@@ -1901,6 +2183,7 @@ Belum ada item
                             item.po_id : '',
 
                         order_no: item.po_no ?? '',
+                        blde: item.blde ?? '',
 
                         article_nr: item.article_nr ?? '',
                         description: item.description ?? '',
@@ -2152,6 +2435,11 @@ Belum ada item
 
                         po_no: row.find('input[name$="[po_no]"]').val(),
 
+                        // BLDE hanya dikirim untuk LOBERON.
+                        blde: IS_LOBERON
+                            ? row.find('input[name$="[blde]"]').val()
+                            : null,
+
                         hs_code: row.find('input[name$="[hs_code]"]').val(),
 
                         description: row.find(
@@ -2342,6 +2630,8 @@ Sisa : ${res.available_qty}`
             const MODE = "{{ $mode }}";
 
             const IPL = @json($ipl);
+
+            const IS_LOBERON = @json($isLoberon);
         </script>
 
     </div>

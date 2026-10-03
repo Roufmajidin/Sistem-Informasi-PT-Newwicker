@@ -34,6 +34,36 @@
         $items = collect(data_get($ipl, 'items', []));
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | BLDE UNTUK PAYMENT
+    |--------------------------------------------------------------------------
+    | Ambil langsung dari ExportIplItem.blde pada invoice ini.
+    | Hanya BLDE yang benar-benar ada di item invoice yang ditampilkan.
+    |--------------------------------------------------------------------------
+    */
+    $bldeNumbers = $items
+        ->map(function ($item) {
+            return trim((string) data_get($item, 'blde', ''));
+        })
+        ->filter()
+        ->unique()
+        ->values();
+
+    /*
+    |--------------------------------------------------------------------------
+    | DEPOSIT DARI EXPORT AR PAYMENT
+    |--------------------------------------------------------------------------
+    | Controller lobIndex() mengirim $depositByPo.
+    | Key  = ref_po / BLDE
+    | Value = total payment_type=deposit untuk BLDE tersebut.
+    |
+    | Fallback collect() membuat Blade tetap aman jika controller belum
+    | mengirim variable ini.
+    |--------------------------------------------------------------------------
+    */
+    $depositByPo = collect($depositByPo ?? []);
+
 
     /*
     |--------------------------------------------------------------------------
@@ -463,6 +493,51 @@
 
 
     /* =========================================================
+       EDIT MODE
+    ========================================================= */
+
+    .lob-edit-control {
+        margin-left: 4px;
+    }
+
+    .lob-page.lob-editing .lob-input,
+    .lob-page.lob-editing .lob-body-table input,
+    .lob-page.lob-editing .lob-body-table textarea {
+        background: #fffbea !important;
+        border-bottom-color: #f0ad4e;
+    }
+
+    .lob-page:not(.lob-editing) .lob-body-table input,
+    .lob-page:not(.lob-editing) .lob-body-table textarea {
+        pointer-events: none;
+    }
+
+    .lob-page:not(.lob-editing) .lob-input {
+        pointer-events: none;
+    }
+
+    .lob-payment-row-new td {
+        padding: 3px 4px;
+    }
+
+    .lob-payment-row-new select,
+    .lob-payment-row-new input {
+        width: 100%;
+        border: 0;
+        border-bottom: 1px dotted #999;
+        outline: none;
+        font-size: 10px;
+        background: #fffbea;
+    }
+
+    .lob-payment-remove {
+        border: 0;
+        background: transparent;
+        color: #dc3545;
+        cursor: pointer;
+    }
+
+    /* =========================================================
        PRINT
     ========================================================= */
 
@@ -562,20 +637,47 @@
             <div>
 
                 <button type="button"
+                        id="btnLobEdit"
+                        class="btn btn-sm btn-warning">
+                    <i class="fa fa-edit"></i>
+                    Edit
+                </button>
+
+                <button type="button"
+                        id="btnLobAddPayment"
+                        class="btn btn-sm btn-success lob-edit-control"
+                        style="display:none;">
+                    <i class="fa fa-plus"></i>
+                    Payment
+                </button>
+
+                <button type="button"
+                        id="btnLobSave"
+                        class="btn btn-sm btn-primary lob-edit-control"
+                        style="display:none;">
+                    <i class="fa fa-save"></i>
+                    Update
+                </button>
+
+                <button type="button"
+                        id="btnLobCancel"
+                        class="btn btn-sm btn-secondary lob-edit-control"
+                        style="display:none;">
+                    <i class="fa fa-times"></i>
+                    Cancel
+                </button>
+
+                <button type="button"
                         class="btn btn-sm btn-primary"
                         onclick="window.print()">
-
                     <i class="fa fa-print"></i>
                     Print
-
                 </button>
 
                 <a href="{{ url('/export/ipl') }}"
                    class="btn btn-sm btn-secondary">
-
                     <i class="fa fa-arrow-left"></i>
                     Back
-
                 </a>
 
             </div>
@@ -1131,8 +1233,12 @@
                                     $detail = [];
                                 }
 
-                                // PO NUMBER sengaja dikosongkan untuk LOBERON.
-                                $poNumber = '';
+                                // PO NUMBER langsung menggunakan BLDE
+                                // yang sudah tersimpan pada ExportIplItem.
+                                $poNumber =
+                                    data_get($item, 'blde')
+                                    ?? data_get($item, 'po_no')
+                                    ?? '';
 
                                 $articleCode =
                                     data_get($loberon, 'article_code')
@@ -1235,7 +1341,7 @@
                             @endphp
 
 
-                            <tr class="lob-item-row">
+                            <tr class="lob-item-row" data-item-id="{{ data_get($item, 'id') }}">
 
                                 <td class="lob-center row-number">
                                     {{ $index + 1 }}
@@ -1404,7 +1510,7 @@
 
                         @empty
 
-                            <tr class="lob-item-row">
+                            <tr class="lob-item-row" data-item-id="">
 
                                 <td class="lob-center row-number">
                                     1
@@ -1680,85 +1786,357 @@ Swift Code : BMRIIDJAXXX
                             </td>
                         </tr>
 
-                        <tr>
-                            <td>
-                                ./. Deposit BLDE-25170
-                            </td>
+                        @php
+                            /*
+                            |--------------------------------------------------------------------------
+                            | PAYMENT SOURCE
+                            |--------------------------------------------------------------------------
+                            | Payment record tetap disimpan di DOM secara hidden agar JS
+                            | bisa mengambil ID/detail payment existing.
+                            |
+                            | Yang ditampilkan ke user hanya:
+                            |   1. satu baris Deposit per BLDE
+                            |   2. satu baris total Surcharge 1/2/3
+                            |
+                            | Jadi payment record tidak akan menumpuk di index.
+                            |--------------------------------------------------------------------------
+                            */
+                            $lobPayments = collect($lobPayments ?? []);
 
-                            <td class="lob-payment-value">
+                            /*
+                             * Normalize BLDE / ref_po agar karakter invisible tidak
+                             * membuat payment terlihat seperti payment yang berbeda.
+                             */
+                            $normalizeRefPoBlade = function ($value) {
+                                $value = preg_replace(
+                                    '/[\x{00AD}\x{200B}-\x{200D}\x{FEFF}]/u',
+                                    '',
+                                    (string) $value
+                                );
 
-                                <input type="number"
-                                       step="0.01"
-                                       class="lob-input"
-                                       id="deposit25170"
-                                       value="0">
+                                $value = preg_replace('/\s+/u', ' ', $value);
 
-                            </td>
-                        </tr>
+                                return trim($value);
+                            };
 
-                        <tr>
-                            <td>
-                                ./. Deposit BLDE-25171
-                            </td>
+                            /*
+                             * Deposit total per BLDE.
+                             */
+                            $depositByPo = [];
+                            $depositMetaByPo = [];
 
-                            <td class="lob-payment-value">
+                            foreach ($lobPayments as $payment) {
 
-                                <input type="number"
-                                       step="0.01"
-                                       class="lob-input"
-                                       id="deposit25171"
-                                       value="0">
+                                if (
+                                    strtolower((string) data_get($payment, 'payment_type'))
+                                    !== 'deposit'
+                                ) {
+                                    continue;
+                                }
 
-                            </td>
-                        </tr>
+                                $refPo = $normalizeRefPoBlade(
+                                    data_get($payment, 'ref_po', '')
+                                );
 
-                        <tr>
-                            <td>
-                                ./. Deposit BLDE-25718
-                            </td>
+                                if ($refPo === '') {
+                                    continue;
+                                }
 
-                            <td class="lob-payment-value">
+                                $depositByPo[$refPo] =
+                                    ($depositByPo[$refPo] ?? 0)
+                                    + (float) data_get($payment, 'amount', 0);
 
-                                <input type="number"
-                                       step="0.01"
-                                       class="lob-input"
-                                       id="deposit25718"
-                                       value="0">
+                                /*
+                                 * Ambil payment pertama sebagai metadata row.
+                                 * ID ini dipakai supaya existing payment tetap di-update,
+                                 * bukan dibuat ulang setiap kali Save.
+                                 */
+                                if (!isset($depositMetaByPo[$refPo])) {
 
-                            </td>
-                        </tr>
+                                    $depositMetaByPo[$refPo] = [
+                                        'id' => data_get($payment, 'id'),
+                                        'payment_date' => data_get($payment, 'payment_date')
+                                            ? \Carbon\Carbon::parse(
+                                                data_get($payment, 'payment_date')
+                                            )->format('Y-m-d')
+                                            : '',
+                                        'reference' => data_get($payment, 'reference', ''),
+                                        'keterangan' => data_get($payment, 'keterangan', ''),
+                                    ];
+                                }
+                            }
 
-                        <tr>
-                            <td>
-                                ./. Deposit BLDE-25719
-                            </td>
+                            /*
+                             * Surcharge total per slot.
+                             */
+                            $surchargeTotals = [
+    1 => 0,
+    2 => 0,
+    3 => 0,
+];
 
-                            <td class="lob-payment-value">
+foreach ($lobPayments as $payment) {
 
-                                <input type="number"
-                                       step="0.01"
-                                       class="lob-input"
-                                       id="deposit25719"
-                                       value="0">
+    if (
+        strtolower(
+            (string) data_get(
+                $payment,
+                'payment_type',
+                ''
+            )
+        ) !== 'surcharge'
+    ) {
+        continue;
+    }
 
-                            </td>
-                        </tr>
+    $amount = (float) data_get(
+        $payment,
+        'amount',
+        0
+    );
 
-                        <tr>
-                            <td>
-                                ./. Deposit BLDE-25458
-                            </td>
+    $keterangan = trim(
+        (string) data_get(
+            $payment,
+            'keterangan',
+            ''
+        )
+    );
 
-                            <td class="lob-payment-value">
+    $slot = null;
 
-                                <input type="number"
-                                       step="0.01"
-                                       class="lob-input"
-                                       id="deposit25458"
-                                       value="0">
+    if (
+        preg_match(
+            '/surcharge\s*([123])/i',
+            $keterangan,
+            $match
+        )
+    ) {
+        $slot = (int) $match[1];
+    }
 
-                            </td>
-                        </tr>
+    // Data surcharge lama tanpa marker dianggap Surcharge 1.
+    if (
+        $slot === null
+        && $amount > 0
+    ) {
+        $slot = 1;
+    }
+
+    if (
+        $slot !== null
+        && isset($surchargeTotals[$slot])
+    ) {
+        $surchargeTotals[$slot] += $amount;
+    }
+}
+
+@endphp
+
+                        {{-- =====================================================
+                             DEPOSIT
+                             SATU BARIS PER BLDE
+                        ====================================================== --}}
+
+                        @foreach ($bldeNumbers as $blde)
+
+                            @php
+                                $blde = $normalizeRefPoBlade($blde);
+
+                                $depositId =
+                                    'deposit_' .
+                                    preg_replace(
+                                        '/[^A-Za-z0-9_-]/',
+                                        '_',
+                                        $blde
+                                    );
+
+                                $depositAmount =
+                                    (float) ($depositByPo[$blde] ?? 0);
+
+                                $depositMeta =
+                                    $depositMetaByPo[$blde] ?? [];
+
+                                $depositPaymentId =
+                                    $depositMeta['id'] ?? '';
+
+                                $depositPaymentDate =
+                                    $depositMeta['payment_date'] ?? '';
+
+                                $depositPaymentReference =
+                                    $depositMeta['reference'] ?? '';
+
+                                $depositPaymentKeterangan =
+                                    $depositMeta['keterangan'] ?? '';
+                            @endphp
+
+                            <tr
+                                class="deposit-row"
+                                data-blde="{{ $blde }}"
+                                data-payment-id="{{ $depositPaymentId }}"
+                                data-payment-date="{{ $depositPaymentDate }}"
+                                data-payment-reference="{{ $depositPaymentReference }}"
+                                data-payment-keterangan="{{ $depositPaymentKeterangan }}"
+                                title="Klik untuk mengisi detail deposit"
+                            >
+
+                                <td class="lob-payment-label">
+                                    ./. Deposit {{ $blde }}
+                                </td>
+
+                                <td class="lob-payment-value">
+
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        class="lob-input deposit-value"
+                                        id="{{ $depositId }}"
+                                        value="{{ number_format($depositAmount, 2, '.', '') }}"
+                                        readonly
+                                    >
+
+                                </td>
+
+                            </tr>
+
+                        @endforeach
+
+                        {{-- =====================================================
+                             HIDDEN EXISTING PAYMENT RECORDS
+
+                             Jangan dihapus.
+                             Dipakai JavaScript untuk mengambil:
+                             - ID payment
+                             - tanggal
+                             - reference
+                             - keterangan
+                             - surcharge per BLDE
+
+                             Tidak terlihat di index sehingga tidak menumpuk.
+                        ====================================================== --}}
+
+                        @foreach ($lobPayments as $payment)
+
+                            @php
+                                $paymentId =
+                                    data_get($payment, 'id');
+
+                                $paymentType =
+                                    strtolower(
+                                        (string) data_get(
+                                            $payment,
+                                            'payment_type',
+                                            ''
+                                        )
+                                    );
+
+                                $refPo =
+                                    $normalizeRefPoBlade(
+                                        data_get(
+                                            $payment,
+                                            'ref_po',
+                                            ''
+                                        )
+                                    );
+
+                                $paymentDate =
+                                    data_get($payment, 'payment_date')
+                                        ? \Carbon\Carbon::parse(
+                                            data_get(
+                                                $payment,
+                                                'payment_date'
+                                            )
+                                        )->format('Y-m-d')
+                                        : '';
+
+                                $paymentAmount =
+                                    (float) data_get(
+                                        $payment,
+                                        'amount',
+                                        0
+                                    );
+
+                                $reference =
+                                    data_get(
+                                        $payment,
+                                        'reference',
+                                        ''
+                                    );
+
+                                $keterangan =
+                                    data_get(
+                                        $payment,
+                                        'keterangan',
+                                        ''
+                                    );
+
+                                $surchargeSlot = '';
+
+                                if (
+                                    $paymentType === 'surcharge'
+                                    && preg_match(
+                                        '/surcharge\s*([123])/i',
+                                        $keterangan,
+                                        $m
+                                    )
+                                ) {
+                                    $surchargeSlot = (int) $m[1];
+                                }
+                            @endphp
+
+                            <tr
+                                class="payment-existing-row"
+                                data-payment-id="{{ $paymentId }}"
+                                data-payment-type="{{ $paymentType }}"
+                                data-surcharge-slot="{{ $surchargeSlot }}"
+                                style="display:none;"
+                            >
+
+                                <td>
+
+                                    <input
+                                        type="hidden"
+                                        class="payment-type"
+                                        value="{{ $paymentType }}"
+                                    >
+
+                                    <input
+                                        type="hidden"
+                                        class="payment-ref-po"
+                                        value="{{ $refPo }}"
+                                    >
+
+                                    <input
+                                        type="hidden"
+                                        class="payment-date"
+                                        value="{{ $paymentDate }}"
+                                    >
+
+                                    <input
+                                        type="hidden"
+                                        class="payment-reference"
+                                        value="{{ $reference }}"
+                                    >
+
+                                    <input
+                                        type="hidden"
+                                        class="payment-keterangan"
+                                        value="{{ $keterangan }}"
+                                    >
+
+                                    <input
+                                        type="hidden"
+                                        class="payment-amount"
+                                        value="{{ number_format($paymentAmount, 2, '.', '') }}"
+                                    >
+
+                                </td>
+
+                            </tr>
+
+                        @endforeach
+
+                        <tbody id="lobNewPaymentsBody"></tbody>
 
                         <tr>
                             <td>
@@ -1836,8 +2214,10 @@ Swift Code : BMRIIDJAXXX
                             <input type="number"
                                    step="0.01"
                                    id="surcharge1"
-                                   class="lob-input"
-                                   value="0">
+                                   class="lob-input surcharge-trigger"
+                                   value="{{ number_format((float) ($surchargeTotals[1] ?? 0), 2, '.', '') }}"
+                                   readonly
+                                   title="Klik untuk mengatur Surcharge 1 per BLDE">
 
                         </td>
 
@@ -1854,8 +2234,10 @@ Swift Code : BMRIIDJAXXX
                             <input type="number"
                                    step="0.01"
                                    id="surcharge2"
-                                   class="lob-input"
-                                   value="0">
+                                   class="lob-input surcharge-trigger"
+                                   value="{{ number_format((float) ($surchargeTotals[2] ?? 0), 2, '.', '') }}"
+                                   readonly
+                                   title="Klik untuk mengatur Surcharge 2 per BLDE">
 
                         </td>
 
@@ -1872,8 +2254,10 @@ Swift Code : BMRIIDJAXXX
                             <input type="number"
                                    step="0.01"
                                    id="surcharge3"
-                                   class="lob-input"
-                                   value="0">
+                                   class="lob-input surcharge-trigger"
+                                   value="{{ number_format((float) ($surchargeTotals[3] ?? 0), 2, '.', '') }}"
+                                   readonly
+                                   title="Klik untuk mengatur Surcharge 3 per BLDE">
 
                         </td>
 
@@ -1975,6 +2359,21 @@ Swift Code : BMRIIDJAXXX
 
 </div>
 
+
+<style>
+    .lob-payment-clickable { cursor: pointer; }
+    .lob-payment-clickable:hover { background: #fff8e1 !important; }
+    .lob-modal-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; text-align:left; }
+    .lob-modal-grid .full { grid-column:1 / -1; }
+    .lob-modal-grid label { display:block; font-size:12px; font-weight:600; margin-bottom:4px; }
+    .lob-modal-grid input, .lob-modal-grid select, .lob-modal-grid textarea { width:100%; box-sizing:border-box; padding:7px 8px; border:1px solid #ced4da; border-radius:4px; }
+    .lob-surcharge-grid { max-height:430px; overflow:auto; text-align:left; }
+    .lob-surcharge-grid table { width:100%; border-collapse:collapse; font-size:12px; }
+    .lob-surcharge-grid th, .lob-surcharge-grid td { border:1px solid #ddd; padding:5px; vertical-align:middle; }
+    .lob-surcharge-grid th { background:#f5f5f5; position:sticky; top:0; z-index:1; }
+    .lob-surcharge-grid input { width:100%; min-width:90px; box-sizing:border-box; padding:5px; border:1px solid #ced4da; border-radius:3px; }
+    @media (max-width:700px) { .lob-modal-grid { grid-template-columns:1fr; } .lob-modal-grid .full { grid-column:auto; } }
+</style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
@@ -2561,137 +2960,48 @@ document.addEventListener('DOMContentLoaded', function () {
 
     /* =========================================================
        DEPOSIT
-       
-       Mengikuti Excel:
-       
-       BLDE-25170 = 40% Z16:Z18
-       BLDE-25171 = 40% Z20:Z22
-       BLDE-25718 = 40% Z23:Z28
-       BLDE-25719 = 40% Z29
-       BLDE-25458 = 40% Z30:Z37
+
+       Deposit TIDAK lagi dihitung 40% dari nilai item.
+       Nilai deposit berasal langsung dari ExportArPayment
+       berdasarkan ref_po / BLDE.
     ========================================================= */
 
     function calculateDeposit() {
 
-        let values = {};
+        let totalPaid = 0;
 
+        // Deposit visible per BLDE. Jangan ikut hidden payment-existing-row
+        // agar payment tidak terhitung dua kali.
+        document.querySelectorAll(
+            '.deposit-row .deposit-value'
+        ).forEach(function (input) {
 
-        tbody.querySelectorAll(
-            '.lob-item-row'
-        ).forEach(function (row) {
-
-            const po =
-                String(
-                    row.querySelector(
-                        '[name*="[po_number]"]'
-                    )?.value || ''
-                ).trim();
-
-
-            const qty =
-                number(
-                    row.querySelector(
-                        '.item-qty'
-                    )?.value
-                );
-
-
-            const price =
-                number(
-                    row.querySelector(
-                        '.item-price'
-                    )?.value
-                );
-
-
-            const amount =
-                qty * price;
-
-
-            if (!values[po]) {
-                values[po] = 0;
-            }
-
-
-            values[po] += amount;
+            totalPaid += number(input.value);
 
         });
 
+        // Payment baru umum.
+        document.querySelectorAll(
+            '.lob-new-payment-amount'
+        ).forEach(function (input) {
 
-        const deposit25170 =
-            (values['BLDE-25170'] || 0) * .40;
+            totalPaid += number(input.value);
 
+        });
 
-        const deposit25171 =
-            (values['BLDE-25171'] || 0) * .40;
+        const finalInvoice = number(
+            document.getElementById('finalInvoiceAmount')?.value
+        );
 
+        const finalPayment = finalInvoice - totalPaid;
 
-        const deposit25718 =
-            (values['BLDE-25718'] || 0) * .40;
+        const finalAmountPaid =
+            document.getElementById('finalAmountPaid');
 
-
-        const deposit25719 =
-            (values['BLDE-25719'] || 0) * .40;
-
-
-        const deposit25458 =
-            (values['BLDE-25458'] || 0) * .40;
-
-
-        document.getElementById(
-            'deposit25170'
-        ).value =
-            deposit25170.toFixed(2);
-
-
-        document.getElementById(
-            'deposit25171'
-        ).value =
-            deposit25171.toFixed(2);
-
-
-        document.getElementById(
-            'deposit25718'
-        ).value =
-            deposit25718.toFixed(2);
-
-
-        document.getElementById(
-            'deposit25719'
-        ).value =
-            deposit25719.toFixed(2);
-
-
-        document.getElementById(
-            'deposit25458'
-        ).value =
-            deposit25458.toFixed(2);
-
-
-        const finalInvoice =
-            number(
-                document.getElementById(
-                    'finalInvoiceAmount'
-                )?.value
-            );
-
-
-        const finalPayment =
-            finalInvoice
-            - deposit25170
-            - deposit25171
-            - deposit25718
-            - deposit25719
-            - deposit25458;
-
-
-        document.getElementById(
-            'finalAmountPaid'
-        ).value =
-            finalPayment.toFixed(2);
-
+        if (finalAmountPaid) {
+            finalAmountPaid.value = finalPayment.toFixed(2);
+        }
     }
-
 
     /* =========================================================
        BIND INPUT
@@ -2758,6 +3068,724 @@ document.addEventListener('DOMContentLoaded', function () {
 
     updateScrollbarWidth();
 
+
+    /* =========================================================
+       EDIT / UPDATE LOBERON CIPL
+    ========================================================= */
+
+    const lobPage = document.querySelector('.lob-page');
+    const btnEdit = document.getElementById('btnLobEdit');
+    const btnSave = document.getElementById('btnLobSave');
+    const btnCancel = document.getElementById('btnLobCancel');
+    const btnAddPayment = document.getElementById('btnLobAddPayment');
+    const editControls = document.querySelectorAll('.lob-edit-control');
+
+    let lobSnapshot = null;
+
+    const surchargeDetails = { 1: {}, 2: {}, 3: {} };
+    const bldeList = @json($bldeNumbers->values());
+
+    function esc(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function normalizeRefPo(value) {
+        return String(value ?? '').replace(/[\u00AD\u200B-\u200D\uFEFF]/g, '').trim();
+    }
+
+    function paymentDateFallback() {
+        const invoiceDate = document.querySelector('[name="invoice_date"]')?.value || '';
+        if (invoiceDate) return invoiceDate;
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
+    function getExistingSurchargeSlot(row) {
+        const slot = parseInt(row.dataset.surchargeSlot || '1', 10);
+        return [1,2,3].includes(slot) ? slot : 1;
+    }
+
+    document.querySelectorAll('.payment-existing-row').forEach(function(row) {
+        const type = row.querySelector('.payment-type')?.value || '';
+        if (type !== 'surcharge') return;
+        const slot = getExistingSurchargeSlot(row);
+        const refPo = normalizeRefPo(row.querySelector('.payment-ref-po')?.value || '');
+        if (!refPo) return;
+        surchargeDetails[slot][refPo] = {
+            id: row.dataset.paymentId || null, ref_po: refPo,
+            amount: number(row.querySelector('.payment-amount')?.value),
+            payment_date: row.querySelector('.payment-date')?.value || paymentDateFallback(),
+            reference: row.querySelector('.payment-reference')?.value || '',
+            surcharge_slot: slot,
+            keterangan: row.querySelector('.payment-keterangan')?.value || `Surcharge ${slot}`
+        };
+    });
+
+    /*
+     * Existing surcharge dari database langsung ditampilkan
+     * ke widget Surcharge 1/2/3 saat halaman dibuka.
+     */
+    [1, 2, 3].forEach(function (slot) {
+
+        const total = Object.values(
+            surchargeDetails[slot] || {}
+        ).reduce(function (sum, detail) {
+
+            return sum + number(detail.amount);
+
+        }, 0);
+
+        const input = document.getElementById(
+            `surcharge${slot}`
+        );
+
+        if (input) {
+            input.value = total.toFixed(2);
+        }
+    });
+
+    function openDepositModal(row) {
+        if (!lobPage.classList.contains('lob-editing')) return;
+        const refPo = normalizeRefPo(row.dataset.blde || '');
+        const amountInput = row.querySelector('.deposit-value');
+        const currentAmount = number(amountInput?.value);
+        Swal.fire({
+            title: `Deposit ${esc(refPo)}`, width:650, showCancelButton:true,
+            confirmButtonText:'Simpan', cancelButtonText:'Batal', focusConfirm:false,
+            html:`<div class="lob-modal-grid">
+                <div><label>Tanggal Payment *</label><input id="lobDepositDate" type="date" value="${esc(row.dataset.paymentDate || paymentDateFallback())}"></div>
+                <div><label>Amount *</label><input id="lobDepositAmount" type="number" step="0.01" min="0" value="${currentAmount.toFixed(2)}"></div>
+                <div><label>Reference</label><input id="lobDepositReference" type="text" value="${esc(row.dataset.paymentReference || '')}"></div>
+                <div><label>Keterangan</label><input id="lobDepositKeterangan" type="text" value="${esc(row.dataset.paymentKeterangan || '')}"></div>
+                <div class="full"><small>BLDE: <strong>${esc(refPo)}</strong></small></div>
+            </div>`,
+            preConfirm:function(){
+                const date=document.getElementById('lobDepositDate')?.value||'';
+                const amount=number(document.getElementById('lobDepositAmount')?.value);
+                if(!date){Swal.showValidationMessage('Tanggal payment wajib diisi.');return false;}
+                if(amount<=0){Swal.showValidationMessage('Amount harus lebih besar dari 0.');return false;}
+                return {date,amount,reference:document.getElementById('lobDepositReference')?.value||'',keterangan:document.getElementById('lobDepositKeterangan')?.value||''};
+            }
+        }).then(function(result){
+            if(!result.isConfirmed)return; const v=result.value;
+            row.dataset.paymentDate=v.date; row.dataset.paymentReference=v.reference; row.dataset.paymentKeterangan=v.keterangan;
+            if(amountInput) amountInput.value=v.amount.toFixed(2);
+            calculateTotals();
+        });
+    }
+
+    function openExistingPaymentModal(row) {
+        if (!lobPage.classList.contains('lob-editing')) return;
+        const type=row.querySelector('.payment-type')?.value||'deposit';
+        if(type==='surcharge'){ openSurchargeModal(getExistingSurchargeSlot(row)); return; }
+        const amountInput=row.querySelector('.payment-amount');
+        const dateInput=row.querySelector('.payment-date');
+        const refInput=row.querySelector('.payment-reference');
+        const ketInput=row.querySelector('.payment-keterangan');
+        const refPo=normalizeRefPo(row.querySelector('.payment-ref-po')?.value||'');
+        Swal.fire({
+            title:`${type==='pelunasan'?'Pelunasan':'Deposit'} ${esc(refPo)}`,width:650,showCancelButton:true,
+            confirmButtonText:'Simpan',cancelButtonText:'Batal',
+            html:`<div class="lob-modal-grid">
+                <div><label>Tanggal Payment *</label><input id="lobExistingDate" type="date" value="${esc(dateInput?.value||paymentDateFallback())}"></div>
+                <div><label>Amount *</label><input id="lobExistingAmount" type="number" step="0.01" min="0" value="${number(amountInput?.value).toFixed(2)}"></div>
+                <div><label>Reference</label><input id="lobExistingReference" type="text" value="${esc(refInput?.value||'')}"></div>
+                <div><label>Keterangan</label><input id="lobExistingKeterangan" type="text" value="${esc(ketInput?.value||'')}"></div>
+            </div>`,
+            preConfirm:function(){
+                const date=document.getElementById('lobExistingDate')?.value||''; const amount=number(document.getElementById('lobExistingAmount')?.value);
+                if(!date){Swal.showValidationMessage('Tanggal payment wajib diisi.');return false;}
+                if(amount<=0){Swal.showValidationMessage('Amount harus lebih besar dari 0.');return false;}
+                return {date,amount,reference:document.getElementById('lobExistingReference')?.value||'',keterangan:document.getElementById('lobExistingKeterangan')?.value||''};
+            }
+        }).then(function(result){
+            if(!result.isConfirmed)return; const v=result.value;
+            if(dateInput)dateInput.value=v.date; if(amountInput)amountInput.value=v.amount.toFixed(2); if(refInput)refInput.value=v.reference; if(ketInput)ketInput.value=v.keterangan; calculateTotals();
+        });
+    }
+
+    function openSurchargeModal(slot) {
+        if (!lobPage.classList.contains('lob-editing')) return;
+        const current=surchargeDetails[slot]||{}; let rows='';
+        bldeList.forEach(function(blde){
+            const refPo=normalizeRefPo(blde), d=current[refPo]||{};
+            rows+=`<tr data-ref-po="${esc(refPo)}">
+                <td><strong>${esc(refPo)}</strong></td>
+                <td><input class="lob-surcharge-amount" type="number" step="0.01" min="0" value="${number(d.amount).toFixed(2)}"></td>
+                <td><input class="lob-surcharge-date" type="date" value="${esc(d.payment_date||paymentDateFallback())}"></td>
+                <td><input class="lob-surcharge-reference" type="text" value="${esc(d.reference||'')}"></td>
+                <td><input class="lob-surcharge-keterangan" type="text" value="${esc(d.keterangan||`Surcharge ${slot}`)}"></td>
+            </tr>`;
+        });
+        if(!rows) rows='<tr><td colspan="5">Tidak ada BLDE pada invoice ini.</td></tr>';
+        Swal.fire({
+            title:`Surcharge ${slot} per BLDE`,width:1100,showCancelButton:true,confirmButtonText:'Simpan Surcharge',cancelButtonText:'Batal',
+            html:`<div class="lob-surcharge-grid"><table><thead><tr><th>BLDE</th><th>Amount</th><th>Tanggal *</th><th>Reference</th><th>Keterangan</th></tr></thead><tbody>${rows}</tbody></table></div><div style="margin-top:10px;text-align:right;font-weight:700">Total Surcharge ${slot}: <span id="lobSurchargeModalTotal">0.00</span></div>`,
+            didOpen:function(){
+                const modal=Swal.getHtmlContainer(); const update=function(){let total=0;modal.querySelectorAll('.lob-surcharge-amount').forEach(i=>total+=number(i.value));const el=modal.querySelector('#lobSurchargeModalTotal');if(el)el.textContent=total.toFixed(2);};
+                modal.querySelectorAll('.lob-surcharge-amount').forEach(i=>i.addEventListener('input',update)); update();
+            },
+            preConfirm:function(){
+                const modal=Swal.getHtmlContainer(); const result={}; let error=false;
+                modal.querySelectorAll('tbody tr[data-ref-po]').forEach(function(row){
+                    const refPo=normalizeRefPo(row.dataset.refPo); const amount=number(row.querySelector('.lob-surcharge-amount')?.value); const date=row.querySelector('.lob-surcharge-date')?.value||'';
+                    if(amount>0&&!date){error=true;return;} if(amount<=0)return;
+                    result[refPo]={id:current[refPo]?.id||null,ref_po:refPo,amount:amount,payment_date:date,reference:row.querySelector('.lob-surcharge-reference')?.value||'',surcharge_slot:slot,
+                        surcharge_slot:slot,
+                        keterangan:(function(){
+                            const ket = String(
+                                row.querySelector('.lob-surcharge-keterangan')?.value || ''
+                            ).trim();
+
+                            if (!ket) {
+                                return `Surcharge ${slot}`;
+                            }
+
+                            if (/^Surcharge\s*[123]\b/i.test(ket)) {
+                                return ket;
+                            }
+
+                            return `Surcharge ${slot} - ${ket}`;
+                        })()};
+                });
+                if(error){Swal.showValidationMessage('Tanggal payment wajib diisi untuk setiap BLDE yang memiliki amount.');return false;}
+                return result;
+            }
+        }).then(function(result){
+            if(!result.isConfirmed)return; surchargeDetails[slot]=result.value||{};
+            const total=Object.values(surchargeDetails[slot]).reduce((sum,d)=>sum+number(d.amount),0); const input=document.getElementById(`surcharge${slot}`); if(input)input.value=total.toFixed(2); calculateTotals();
+        });
+    }
+
+    function bindPaymentModalTriggers() {
+        document.querySelectorAll('.deposit-row').forEach(function(row){row.classList.add('lob-payment-clickable');row.addEventListener('click',()=>openDepositModal(row));});
+        document.querySelectorAll('.payment-existing-row').forEach(function(row){row.classList.add('lob-payment-clickable');row.addEventListener('click',function(e){if(e.target.closest('button,a'))return;openExistingPaymentModal(row);});});
+        [1,2,3].forEach(function(slot){const input=document.getElementById(`surcharge${slot}`);if(!input)return;input.addEventListener('click',()=>openSurchargeModal(slot));});
+    }
+
+    bindPaymentModalTriggers();
+
+    function setLobEditing(editing) {
+
+        if (!lobPage) return;
+
+        lobPage.classList.toggle('lob-editing', editing);
+
+        editControls.forEach(function (button) {
+            button.style.display = editing ? '' : 'none';
+        });
+
+        if (btnEdit) {
+            btnEdit.style.display = editing ? 'none' : '';
+        }
+
+        document.querySelectorAll(
+            '.lob-page input, .lob-page textarea, .lob-page select'
+        ).forEach(function (input) {
+
+            // Payment amount existing is edited through modal.
+            if (input.classList.contains('payment-amount')) {
+                input.readOnly = true;
+                return;
+            }
+
+            if (input.classList.contains('deposit-value')) {
+                input.readOnly = true;
+                return;
+            }
+
+            if (input.classList.contains('surcharge-trigger')) {
+                input.readOnly = true;
+                return;
+            }
+
+            // Hidden fields never need editing.
+            if (input.type === 'hidden') {
+                return;
+            }
+
+            // Final calculated amount remains readonly.
+            if (
+                input.id === 'finalAmountPaid' ||
+                input.id === 'totalOrderValue' ||
+                input.id === 'finalInvoiceAmount'
+            ) {
+                input.readOnly = true;
+                return;
+            }
+
+            if (
+                input.tagName === 'TEXTAREA' ||
+                input.type === 'text' ||
+                input.type === 'date' ||
+                input.type === 'number'
+            ) {
+                input.readOnly = !editing;
+            }
+
+            if (input.tagName === 'SELECT') {
+                input.disabled = !editing;
+            }
+        });
+    }
+
+
+    function collectLobPayload() {
+
+        const items = [];
+
+        document.querySelectorAll(
+            '#lobItemsBody .lob-item-row'
+        ).forEach(function (row, index) {
+
+            function value(selector) {
+                return row.querySelector(selector)?.value ?? '';
+            }
+
+            items.push({
+                id: row.dataset.itemId || null,
+                index: index,
+
+                po_number: value('input[name$="[po_number]"]'),
+                article_code: value('input[name$="[article_code]"]'),
+                color_id: value('input[name$="[color_id]"]'),
+                size_id: value('input[name$="[size_id]"]'),
+                ean_code: value('input[name$="[ean_code]"]'),
+                eudr_dds_code: value('input[name$="[eudr_dds_code]"]'),
+                description: value('textarea[name$="[description]"]'),
+                hts_code: value('input[name$="[hts_code]"]'),
+                bulky_goods_class: value('input[name$="[bulky_goods_class]"]'),
+                net_weight: value('input[name$="[net_weight]"]'),
+                gross_weight: value('input[name$="[gross_weight]"]'),
+                qty_carton: value('input[name$="[qty_carton]"]'),
+
+                marks_1: value('input[name$="[marks_1]"]'),
+                marks_2: value('input[name$="[marks_2]"]'),
+                marks_3: value('input[name$="[marks_3]"]'),
+
+                carton_l: value('input[name$="[carton_l]"]'),
+                carton_w: value('input[name$="[carton_w]"]'),
+                carton_h: value('input[name$="[carton_h]"]'),
+
+                qty: value('input[name$="[qty]"]'),
+                price: value('input[name$="[price]"]')
+            });
+        });
+
+
+        const payments = [];
+
+        // Existing payment non-deposit.
+        // Deposit dikumpulkan dari .deposit-row agar tidak double.
+        // Surcharge dikumpulkan dari surchargeDetails per BLDE.
+        document.querySelectorAll('.payment-existing-row').forEach(function (row) {
+
+            const type =
+                row.querySelector('.payment-type')?.value || '';
+
+            if (type === 'deposit' || type === 'surcharge') {
+                return;
+            }
+
+            const amount =
+                number(
+                    row.querySelector('.payment-amount')?.value
+                );
+
+            if (amount <= 0) {
+                return;
+            }
+
+            payments.push({
+                id: row.dataset.paymentId || null,
+                payment_type: type,
+                ref_po: normalizeRefPo(
+                    row.querySelector('.payment-ref-po')?.value || ''
+                ),
+                payment_date: row.querySelector('.payment-date')?.value || paymentDateFallback(),
+                amount: amount,
+                reference: row.querySelector('.payment-reference')?.value || '',
+                keterangan: row.querySelector('.payment-keterangan')?.value || ''
+            });
+        });
+
+        // Deposit BLDE yang belum mempunyai payment record.
+        document.querySelectorAll('.deposit-row').forEach(function (row) {
+            const amount = number(row.querySelector('.deposit-value')?.value);
+            if (amount <= 0) return;
+            payments.push({
+                id: row.dataset.paymentId || null,
+                payment_type: 'deposit',
+                ref_po: normalizeRefPo(row.dataset.blde || ''),
+                payment_date: row.dataset.paymentDate || paymentDateFallback(),
+                amount: amount,
+                reference: row.dataset.paymentReference || '',
+                keterangan: row.dataset.paymentKeterangan || ''
+            });
+        });
+
+        // Surcharge 1/2/3, satu payment record per BLDE yang berisi amount.
+        [1, 2, 3].forEach(function (slot) {
+            Object.values(surchargeDetails[slot] || {}).forEach(function (detail) {
+                const amount = number(detail.amount);
+                if (amount <= 0) return;
+                payments.push({
+                    id: detail.id || null,
+                    payment_type: 'surcharge',
+                    ref_po: normalizeRefPo(detail.ref_po || ''),
+                    payment_date: detail.payment_date || paymentDateFallback(),
+                    amount: amount,
+                    reference: detail.reference || '',
+                    surcharge_slot: slot,
+                    surcharge_slot: slot,
+                    keterangan:
+                        (
+                            detail.keterangan &&
+                            !/^Surcharge\s*[123]\b/i.test(
+                                String(detail.keterangan).trim()
+                            )
+                        )
+                            ? `Surcharge ${slot} - ${String(detail.keterangan).trim()}`
+                            : `Surcharge ${slot}`
+                });
+            });
+        });
+
+        // Payment baru umum.
+        document.querySelectorAll('.lob-new-payment-row').forEach(function (row) {
+            const amount = number(row.querySelector('.lob-new-payment-amount')?.value);
+            if (amount <= 0) return;
+            payments.push({
+                id: null,
+                payment_type: row.querySelector('.lob-new-payment-type')?.value || 'deposit',
+                ref_po: normalizeRefPo(row.querySelector('.lob-new-payment-ref-po')?.value || ''),
+                payment_date: row.querySelector('.lob-new-payment-date')?.value || paymentDateFallback(),
+                amount: amount,
+                reference: row.querySelector('.lob-new-payment-reference')?.value || '',
+                keterangan: row.querySelector('.lob-new-payment-keterangan')?.value || ''
+            });
+        });
+
+        return {
+            invoice_no: @json($invoice),
+
+            header: {
+                consignee_name:
+                    document.querySelector('[name="consignee_name"]')?.value || '',
+                consignee_address:
+                    document.querySelector('[name="consignee_address"]')?.value || '',
+                destination_name:
+                    document.querySelector('[name="destination_name"]')?.value || '',
+                destination_address:
+                    document.querySelector('[name="destination_address"]')?.value || '',
+                eori:
+                    document.querySelector('[name="eori"]')?.value || '',
+                incoterm:
+                    document.querySelector('[name="incoterm"]')?.value || '',
+                country_origin:
+                    document.querySelector('[name="country_origin"]')?.value || '',
+                port_loading:
+                    document.querySelector('[name="port_loading"]')?.value || '',
+                port_discharge:
+                    document.querySelector('[name="port_discharge"]')?.value || '',
+                rex:
+                    document.querySelector('[name="rex"]')?.value || '',
+                igst_no:
+                    document.querySelector('[name="igst_no"]')?.value || '',
+                invoice_date:
+                    document.querySelector('[name="invoice_date"]')?.value || '',
+                on_board_date:
+                    document.querySelector('[name="on_board_date"]')?.value || '',
+                vessel_name:
+                    document.querySelector('[name="vessel_name"]')?.value || '',
+                container_no:
+                    document.querySelector('[name="container_no"]')?.value || '',
+                container_type:
+                    document.querySelector('[name="container_type"]')?.value || '',
+                value_in_words:
+                    document.querySelector('[name="value_in_words"]')?.value || '',
+                payment_terms:
+                    document.querySelector('[name="payment_terms"]')?.value || ''
+            },
+
+            commercial: {
+                trade_discount:
+                    document.getElementById('tradeDiscount')?.value || 0,
+                surcharge1:
+                    document.getElementById('surcharge1')?.value || 0,
+                surcharge2:
+                    document.getElementById('surcharge2')?.value || 0,
+                surcharge3:
+                    document.getElementById('surcharge3')?.value || 0,
+                deduction1:
+                    document.getElementById('deduction1')?.value || 0,
+                deduction2:
+                    document.getElementById('deduction2')?.value || 0,
+                sample:
+                    document.getElementById('sample')?.value || 0
+            },
+
+            items: items,
+            payments: payments
+        };
+    }
+
+
+    function restoreLobSnapshot() {
+
+        if (!lobSnapshot) {
+            window.location.reload();
+            return;
+        }
+
+        window.location.reload();
+    }
+
+
+    if (btnEdit) {
+        btnEdit.addEventListener('click', function () {
+
+            lobSnapshot = collectLobPayload();
+
+            setLobEditing(true);
+
+        });
+    }
+
+
+    if (btnCancel) {
+        btnCancel.addEventListener('click', function () {
+
+            Swal.fire({
+                title: 'Batalkan perubahan?',
+                text: 'Perubahan yang belum disimpan akan dibatalkan.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Ya, batalkan',
+                cancelButtonText: 'Kembali'
+            }).then(function (result) {
+
+                if (result.isConfirmed) {
+                    restoreLobSnapshot();
+                }
+
+            });
+
+        });
+    }
+
+
+    function addNewPaymentRow() {
+
+        const body =
+            document.getElementById('lobNewPaymentsBody');
+
+        if (!body) return;
+
+        const options = @json($bldeNumbers->values());
+
+        let refOptions =
+            '<option value="">-- Pilih BLDE --</option>';
+
+        options.forEach(function (blde) {
+
+            refOptions +=
+                '<option value="' +
+                String(blde).replace(/"/g, '&quot;') +
+                '">' +
+                String(blde).replace(/</g, '&lt;') +
+                '</option>';
+
+        });
+
+
+        const tr =
+            document.createElement('tr');
+
+        tr.className =
+            'lob-new-payment-row';
+
+        tr.innerHTML = `
+            <td class="lob-payment-label">
+
+                <div style="display:flex; gap:4px;">
+
+                    <select class="lob-new-payment-type">
+                        <option value="deposit">Deposit</option>
+                        <option value="pelunasan">Pelunasan</option>
+                        <option value="surcharge">Surcharge</option>
+                    </select>
+
+                    <select class="lob-new-payment-ref-po">
+                        ${refOptions}
+                    </select>
+
+                </div>
+
+                <div style="display:flex; gap:4px; margin-top:3px;">
+
+                    <input
+                        type="date"
+                        class="lob-new-payment-date">
+
+                    <input
+                        type="text"
+                        class="lob-new-payment-reference"
+                        placeholder="Reference">
+
+                    <input
+                        type="text"
+                        class="lob-new-payment-keterangan"
+                        placeholder="Keterangan">
+
+                </div>
+
+            </td>
+
+            <td class="lob-payment-value">
+
+                <div style="display:flex; gap:3px;">
+
+                    <input
+                        type="number"
+                        step="0.01"
+                        class="lob-new-payment-amount"
+                        value="0">
+
+                    <button
+                        type="button"
+                        class="lob-payment-remove"
+                        title="Hapus">
+                        <i class="fa fa-trash"></i>
+                    </button>
+
+                </div>
+
+            </td>
+        `;
+
+        body.appendChild(tr);
+
+        tr.querySelector('.lob-new-payment-amount')
+            .addEventListener('input', calculateDeposit);
+
+        tr.querySelector('.lob-payment-remove')
+            .addEventListener('click', function () {
+
+                tr.remove();
+                calculateDeposit();
+
+            });
+
+    }
+
+
+    if (btnAddPayment) {
+
+        btnAddPayment.addEventListener(
+            'click',
+            addNewPaymentRow
+        );
+
+    }
+
+
+    if (btnSave) {
+
+        btnSave.addEventListener('click', async function () {
+
+            const payload =
+                collectLobPayload();
+
+            const csrf =
+                document.querySelector(
+                    'meta[name="csrf-token"]'
+                )?.getAttribute('content');
+
+
+            Swal.fire({
+                title: 'Menyimpan...',
+                text: 'Mohon tunggu.',
+                allowOutsideClick: false,
+                didOpen: function () {
+                    Swal.showLoading();
+                }
+            });
+
+
+            try {
+
+                const response =
+                    await fetch(
+                        "{{ url('/export/loberon/update') }}",
+                        {
+                            method: 'PUT',
+
+                            headers: {
+                                'Content-Type':
+                                    'application/json',
+
+                                'Accept':
+                                    'application/json',
+
+                                'X-CSRF-TOKEN':
+                                    csrf
+                            },
+
+                            body:
+                                JSON.stringify(payload)
+                        }
+                    );
+
+
+                const result =
+                    await response.json();
+
+
+                if (!response.ok || !result.success) {
+
+                    throw new Error(
+                        result.message ||
+                        'Gagal memperbarui Loberon CIPL.'
+                    );
+
+                }
+
+
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil',
+                    text: result.message ||
+                        'Loberon CIPL berhasil diperbarui.',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+
+
+                window.location.reload();
+
+
+            } catch (error) {
+
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal',
+                    text: error.message ||
+                        'Terjadi kesalahan saat update.'
+                });
+
+            }
+
+        });
+
+    }
+
+
+    // Awal halaman = VIEW MODE.
+    setLobEditing(false);
 });
 </script>
 
