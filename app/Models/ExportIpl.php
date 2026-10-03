@@ -35,7 +35,25 @@ class ExportIpl extends Model
         'eta',
 
         'created_by',
-        'date'
+        'date',
+        'buyer',
+        'buyer_address',
+
+        'final_destination',
+        'final_destination_address',
+        'eori',
+
+        'customer_code',
+        'customer_po_no',
+
+        'incoterm',
+
+        'port_loading', 
+        'port_discharge',
+
+        'country_of_origin',
+        'rex',
+        'igst_no',
     ];
 
     protected $casts = [
@@ -64,18 +82,18 @@ class ExportIpl extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
     public function exportDocumentsInvoice()
-{
-    return $this->hasMany(
-        ExportDocument::class,
-        'invoice_id'
-    );
-}
+    {
+        return $this->hasMany(
+            ExportDocument::class,
+            'invoice_id'
+        );
+    }
 
-public function exportDocumentsPacking()
-{
-    return $this->hasMany(
-        ExportDocument::class,
-        'packing_list_id'
-    );
-}
+    public function exportDocumentsPacking()
+    {
+        return $this->hasMany(
+            ExportDocument::class,
+            'packing_list_id'
+        );
+    }
 }

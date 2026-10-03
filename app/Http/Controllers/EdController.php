@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Loberon;
 class EdController extends Controller
 {
     //
@@ -432,6 +433,13 @@ class EdController extends Controller
 
     public function ipl(Request $request)
     {
+        $activeRef = trim(
+            (string) $request->query('ref', '')
+        );
+
+        if ($activeRef !== '') {
+            return $this->lobIndex($request);
+        }
         $datas = ExportIpl::withCount([
             'items',
             'pos',
@@ -2246,6 +2254,119 @@ class EdController extends Controller
 
         ]);
     }
+    public function lobIndex(Request $request)
+{
+    $invoiceNo = trim(
+        (string) $request->query('ref', '')
+    );
+
+    if ($invoiceNo === '') {
+        abort(404, 'Invoice tidak ditemukan.');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Ambil IPL berdasarkan invoice_no
+    |--------------------------------------------------------------------------
+    */
+    $ipl = ExportIpl::with([
+        'creator',
+        'pos',
+        'items',
+        'items.po',
+        'items.po.detailPos',
+        'items.detailPo',
+        'exportDocumentsInvoice',
+        'exportDocumentsPacking',
+    ])
+        ->where('invoice_no', $invoiceNo)
+        ->firstOrFail();
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Ambil semua article_nr dari IPL
+    |--------------------------------------------------------------------------
+    */
+    $articleNrs = $ipl->items
+        ->pluck('article_nr')
+        ->filter()
+        ->map(function ($value) {
+            return trim((string) $value);
+        })
+        ->unique()
+        ->values();
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Cari data Loberon berdasarkan article_code
+    |--------------------------------------------------------------------------
+    */
+    $loberons = Loberon::whereIn(
+        'article_code',
+        $articleNrs
+    )
+        ->get()
+        ->keyBy(function ($loberon) {
+            return trim(
+                (string) $loberon->article_code
+            );
+        });
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Gabungkan data IPL + Loberon
+    |--------------------------------------------------------------------------
+    */
+    foreach ($ipl->items as $item) {
+
+        $articleNr = trim(
+            (string) $item->article_nr
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Data Loberon
+        |--------------------------------------------------------------------------
+        */
+        $item->loberon = $loberons->get($articleNr);
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Detail PO
+        |--------------------------------------------------------------------------
+        */
+        $detail = null;
+
+        if ($item->detailPo) {
+
+            $detail = is_array(
+                $item->detailPo->detail
+            )
+                ? $item->detailPo->detail
+                : json_decode(
+                    $item->detailPo->detail,
+                    true
+                );
+        }
+
+        $item->detail_data = is_array($detail)
+            ? $detail
+            : [];
+    }
+
+
+    return view(
+        'pages.exports.lobindex',
+        compact(
+            'ipl',
+            'invoiceNo'
+        )
+    );
+}
     // EXPORT DOWNLOAD
     // ada di helpers
 
