@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class ExportIpl extends Model
 {
     protected $fillable = [
+        // EXISTING IPL
         'invoice_no',
         'sales_order',
         'released',
@@ -36,29 +37,56 @@ class ExportIpl extends Model
 
         'created_by',
         'date',
-        'buyer',
-        'buyer_address',
 
         'final_destination',
         'final_destination_address',
         'eori',
 
-        'customer_code',
-        'customer_po_no',
-
         'incoterm',
-
-        'port_loading', 
-        'port_discharge',
 
         'country_of_origin',
         'rex',
         'igst_no',
+
+        // =========================
+        // SHIPPING INSTRUCTION
+        // =========================
+        'si_no',
+
+        'shipping_forwarder',
+        'attn',
+        'booking_no',
+
+        'peb_no',
+        'peb_date',
+        'kpbc_no',
+
+        'lc_no',
+        'freight',
+        'contract_no',
+
+        'notify_party',
+        'connect_to',
+
+        'bill_of_lading',
+
+        'tare',
+        'vgm',
+
+        'location',
+        'stuffing_date',
+        'emkl',
     ];
 
     protected $casts = [
         'etd' => 'date',
         'eta' => 'date',
+        'date' => 'date',
+        'peb_date' => 'date',
+        'stuffing_date' => 'date',
+
+        'tare' => 'decimal:2',
+        'vgm' => 'decimal:2',
     ];
 
     /*

@@ -674,6 +674,12 @@
                     Print
                 </button>
 
+                <a href="{{ route('export.loberon.downloadCipl', $ipl->id) }}"
+                   class="btn btn-sm btn-success no-print">
+                    <i class="fa fa-file-excel"></i>
+                    Download CIPL
+                </a>
+
                 <a href="{{ url('/export/ipl') }}"
                    class="btn btn-sm btn-secondary">
                     <i class="fa fa-arrow-left"></i>
