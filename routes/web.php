@@ -175,6 +175,33 @@ Route::get(
     '/export/loberon/update',
     [EdController::class, 'updateLoberon']
 )->name('export.loberon.update');
+Route::get(
+    '/export/{id}/si',
+    [EdController::class, 'si']
+)->name('export.si');
+
+
+Route::put(
+    '/export/{id}/si/update',
+    [EdController::class, 'updateSiField']
+)->name('export.si.update');
+
+
+Route::put(
+    '/export/{id}/si/update-hs-code',
+    [EdController::class, 'updateSiHsCode']
+)->name('export.si.update.hs');
+Route::get(
+    '/export/{id}/si/excel',
+    [EdController::class, 'downloadSiExcel']
+)->name('export.si.excel');
+
+
+Route::get(
+    '/export/{id}/si/pdf',
+    [EdController::class, 'downloadSiPdf']
+)->name('export.si.pdf');
+
 // Download Packing List
 Route::get(
     '/export/{id}/IPLEX',
@@ -315,6 +342,11 @@ Route::get(
     [EdController::class, 'ipl']
 )->name('export.ipl');
 
+// download cipl
+Route::get(
+    '/export/{id}/loberon/cipl',
+    [EdController::class, 'downloadCipl']
+)->name('export.loberon.downloadCipl');
 
 // ==========================================================
 // EXPORT DOCUMENT

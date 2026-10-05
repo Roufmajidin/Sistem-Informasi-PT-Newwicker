@@ -17,10 +17,13 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Loberon;
 use App\Models\ExportArPayment;
-
+use App\Exports\ExportCipl;
+use App\Exports\ExportSi;
+use Barryvdh\DomPDF\Facade\Pdf;
 class EdController extends Controller
 {
     //
+
     public function index()
     {
         return view('pages.exports.index', [
@@ -2630,368 +2633,364 @@ class EdController extends Controller
 
         ]);
     }
-   public function lobIndex(Request $request)
-{
-    $invoiceNo = trim(
-        (string) $request->query('ref', '')
-    );
-
-    if ($invoiceNo === '') {
-        abort(404, 'Invoice tidak ditemukan.');
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | AMBIL IPL
-    |--------------------------------------------------------------------------
-    */
-    $ipl = ExportIpl::with([
-        'creator',
-        'pos',
-        'items',
-        'items.po',
-        'items.po.detailPos',
-        'items.detailPo',
-        'exportDocumentsInvoice',
-        'exportDocumentsPacking',
-    ])
-        ->where('invoice_no', $invoiceNo)
-        ->firstOrFail();
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | AMBIL SEMUA ARTICLE
-    |--------------------------------------------------------------------------
-    */
-    $articleNrs = $ipl->items
-        ->pluck('article_nr')
-        ->filter()
-        ->map(function ($value) {
-            return trim((string) $value);
-        })
-        ->unique()
-        ->values();
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | DATA LOBERON
-    |--------------------------------------------------------------------------
-    |
-    | article_nr dari ExportIplItem
-    |          ↓
-    | Loberon.article_code
-    |          ↓
-    | $item->loberon
-    |
-    */
-    $loberons = Loberon::whereIn(
-        'article_code',
-        $articleNrs
-    )
-        ->get()
-        ->keyBy(function ($loberon) {
-            return trim(
-                (string) $loberon->article_code
-            );
-        });
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | GABUNGKAN DATA IPL + LOBERON
-    |--------------------------------------------------------------------------
-    */
-    foreach ($ipl->items as $item) {
-
-        $articleNr = trim(
-            (string) $item->article_nr
+    public function lobIndex(Request $request)
+    {
+        $invoiceNo = trim(
+            (string) $request->query('ref', '')
         );
+
+        if ($invoiceNo === '') {
+            abort(404, 'Invoice tidak ditemukan.');
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | AMBIL IPL
+        |--------------------------------------------------------------------------
+        */
+        $ipl = ExportIpl::with([
+            'creator',
+            'pos',
+            'items',
+            'items.po',
+            'items.po.detailPos',
+            'items.detailPo',
+            'exportDocumentsInvoice',
+            'exportDocumentsPacking',
+        ])
+            ->where('invoice_no', $invoiceNo)
+            ->firstOrFail();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | AMBIL SEMUA ARTICLE
+        |--------------------------------------------------------------------------
+        */
+        $articleNrs = $ipl->items
+            ->pluck('article_nr')
+            ->filter()
+            ->map(function ($value) {
+                return trim((string) $value);
+            })
+            ->unique()
+            ->values();
 
 
         /*
         |--------------------------------------------------------------------------
         | DATA LOBERON
         |--------------------------------------------------------------------------
+        |
+        | article_nr dari ExportIplItem
+        |          ↓
+        | Loberon.article_code
+        |          ↓
+        | $item->loberon
+        |
         */
-        $item->loberon =
-            $loberons->get($articleNr);
+        $loberons = Loberon::whereIn(
+            'article_code',
+            $articleNrs
+        )
+            ->get()
+            ->keyBy(function ($loberon) {
+                return trim(
+                    (string) $loberon->article_code
+                );
+            });
 
 
         /*
         |--------------------------------------------------------------------------
-        | DETAIL PO
+        | GABUNGKAN DATA IPL + LOBERON
         |--------------------------------------------------------------------------
         */
-        $detail = null;
+        foreach ($ipl->items as $item) {
 
-        if ($item->detailPo) {
-
-            $detail = is_array(
-                $item->detailPo->detail
-            )
-                ? $item->detailPo->detail
-                : json_decode(
-                    $item->detailPo->detail,
-                    true
-                );
-        }
+            $articleNr = trim(
+                (string) $item->article_nr
+            );
 
 
-        $item->detail_data =
-            is_array($detail)
+            /*
+            |--------------------------------------------------------------------------
+            | DATA LOBERON
+            |--------------------------------------------------------------------------
+            */
+            $item->loberon =
+                $loberons->get($articleNr);
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | DETAIL PO
+            |--------------------------------------------------------------------------
+            */
+            $detail = null;
+
+            if ($item->detailPo) {
+
+                $detail = is_array(
+                    $item->detailPo->detail
+                )
+                    ? $item->detailPo->detail
+                    : json_decode(
+                        $item->detailPo->detail,
+                        true
+                    );
+            }
+
+
+            $item->detail_data =
+                is_array($detail)
                 ? $detail
                 : [];
-    }
+        }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | NORMALIZE REF PO / BLDE
-    |--------------------------------------------------------------------------
-    |
-    | Menghilangkan karakter invisible seperti:
-    | BLDE­25170
-    | menjadi:
-    | BLDE25170
-    |
-    */
-    $normalizeRefPo = function ($value) {
-
-        $value = (string) ($value ?? '');
-
-        $value = preg_replace(
-            '/[\x{00AD}\x{200B}-\x{200D}\x{FEFF}]/u',
-            '',
-            $value
-        );
-
-        $value = preg_replace(
-            '/\s+/u',
-            ' ',
-            $value
-        );
-
-        return trim($value);
-    };
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | AMBIL EXPORT AR MILIK IPL INI
-    |--------------------------------------------------------------------------
-    |
-    | Ambil SEMUA payment:
-    | - deposit
-    | - pelunasan
-    | - surcharge
-    |
-    | Jangan difilter deposit saja, karena widget surcharge
-    | membutuhkan data surcharge dari database.
-    |
-    */
-    $exportAr = ExportAr::with([
-        'payments' => function ($query) {
-
-            $query
-                ->orderBy('payment_date')
-                ->orderBy('id');
-
-        },
-    ])
-        ->where(
-            'export_ipl_id',
-            $ipl->id
-        )
-        ->first();
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | SEMUA PAYMENT
-    |--------------------------------------------------------------------------
-    */
-    $lobPayments = collect();
-
-    if ($exportAr) {
-
-        $lobPayments = $exportAr->payments;
 
         /*
         |--------------------------------------------------------------------------
-        | NORMALIZE REF PO
+        | NORMALIZE REF PO / BLDE
+        |--------------------------------------------------------------------------
+        |
+        | Menghilangkan karakter invisible seperti:
+        | BLDE­25170
+        | menjadi:
+        | BLDE25170
+        |
+        */
+        $normalizeRefPo = function ($value) {
+
+            $value = (string) ($value ?? '');
+
+            $value = preg_replace(
+                '/[\x{00AD}\x{200B}-\x{200D}\x{FEFF}]/u',
+                '',
+                $value
+            );
+
+            $value = preg_replace(
+                '/\s+/u',
+                ' ',
+                $value
+            );
+
+            return trim($value);
+        };
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | AMBIL EXPORT AR MILIK IPL INI
+        |--------------------------------------------------------------------------
+        |
+        | Ambil SEMUA payment:
+        | - deposit
+        | - pelunasan
+        | - surcharge
+        |
+        | Jangan difilter deposit saja, karena widget surcharge
+        | membutuhkan data surcharge dari database.
+        |
+        */
+        $exportAr = ExportAr::with([
+            'payments' => function ($query) {
+
+                $query
+                    ->orderBy('payment_date')
+                    ->orderBy('id');
+
+            },
+        ])
+            ->where(
+                'export_ipl_id',
+                $ipl->id
+            )
+            ->first();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SEMUA PAYMENT
         |--------------------------------------------------------------------------
         */
-        $lobPayments->each(function ($payment) use (
-            $normalizeRefPo
-        ) {
+        $lobPayments = collect();
 
-            $payment->ref_po_normalized =
-                $normalizeRefPo(
-                    $payment->ref_po
-                );
+        if ($exportAr) {
 
-        });
-    }
+            $lobPayments = $exportAr->payments;
 
+            /*
+            |--------------------------------------------------------------------------
+            | NORMALIZE REF PO
+            |--------------------------------------------------------------------------
+            */
+            $lobPayments->each(function ($payment) use ($normalizeRefPo) {
 
-    /*
-    |--------------------------------------------------------------------------
-    | DEPOSIT BERDASARKAN REF PO / BLDE
-    |--------------------------------------------------------------------------
-    |
-    | Satu BLDE boleh mempunyai beberapa deposit.
-    | Semuanya dijumlahkan.
-    |
-    */
-    $depositByPo = collect();
-
-
-    if ($lobPayments->isNotEmpty()) {
-
-        $depositByPo = $lobPayments
-            ->filter(function ($payment) {
-
-                return
-                    strtolower(
-                        (string) $payment->payment_type
-                    ) === 'deposit'
-                    &&
-                    trim(
-                        (string) $payment->ref_po_normalized
-                    ) !== '';
-
-            })
-            ->groupBy(function ($payment) {
-
-                return $payment->ref_po_normalized;
-
-            })
-            ->map(function ($payments) {
-
-                return $payments->sum(
-                    function ($payment) {
-
-                        return (float) (
-                            $payment->amount ?? 0
-                        );
-
-                    }
-                );
+                $payment->ref_po_normalized =
+                    $normalizeRefPo(
+                        $payment->ref_po
+                    );
 
             });
-    }
+        }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | AMBIL BLDE YANG MEMANG ADA DI INVOICE
-    |--------------------------------------------------------------------------
-    */
-    $bldeNumbers = $ipl->items
-        ->map(function ($item) use (
-            $normalizeRefPo
-        ) {
-
-            return $normalizeRefPo(
-                $item->blde ?? ''
-            );
-
-        })
-        ->filter()
-        ->unique()
-        ->values();
+        /*
+        |--------------------------------------------------------------------------
+        | DEPOSIT BERDASARKAN REF PO / BLDE
+        |--------------------------------------------------------------------------
+        |
+        | Satu BLDE boleh mempunyai beberapa deposit.
+        | Semuanya dijumlahkan.
+        |
+        */
+        $depositByPo = collect();
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | PASTIKAN SEMUA BLDE ADA DI DEPOSIT MAP
-    |--------------------------------------------------------------------------
-    |
-    | Kalau belum ada deposit:
-    |
-    | BLDE25170 => 0
-    | BLDE25171 => 0
-    |
-    */
-    foreach ($bldeNumbers as $blde) {
+        if ($lobPayments->isNotEmpty()) {
 
-        if (!$depositByPo->has($blde)) {
+            $depositByPo = $lobPayments
+                ->filter(function ($payment) {
 
-            $depositByPo->put(
+                    return
+                        strtolower(
+                            (string) $payment->payment_type
+                        ) === 'deposit'
+                        &&
+                        trim(
+                            (string) $payment->ref_po_normalized
+                        ) !== '';
+
+                })
+                ->groupBy(function ($payment) {
+
+                    return $payment->ref_po_normalized;
+
+                })
+                ->map(function ($payments) {
+
+                    return $payments->sum(
+                        function ($payment) {
+
+                            return (float) (
+                                $payment->amount ?? 0
+                            );
+
+                        }
+                    );
+
+                });
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | AMBIL BLDE YANG MEMANG ADA DI INVOICE
+        |--------------------------------------------------------------------------
+        */
+        $bldeNumbers = $ipl->items
+            ->map(function ($item) use ($normalizeRefPo) {
+
+                return $normalizeRefPo(
+                    $item->blde ?? ''
+                );
+
+            })
+            ->filter()
+            ->unique()
+            ->values();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | PASTIKAN SEMUA BLDE ADA DI DEPOSIT MAP
+        |--------------------------------------------------------------------------
+        |
+        | Kalau belum ada deposit:
+        |
+        | BLDE25170 => 0
+        | BLDE25171 => 0
+        |
+        */
+        foreach ($bldeNumbers as $blde) {
+
+            if (!$depositByPo->has($blde)) {
+
+                $depositByPo->put(
+                    $blde,
+                    0
+                );
+            }
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | ORDER DEPOSIT SESUAI URUTAN ITEM INVOICE
+        |--------------------------------------------------------------------------
+        */
+        $orderedDepositByPo = collect();
+
+        foreach ($bldeNumbers as $blde) {
+
+            $orderedDepositByPo->put(
                 $blde,
-                0
+                (float) $depositByPo->get(
+                    $blde,
+                    0
+                )
             );
         }
-    }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | ORDER DEPOSIT SESUAI URUTAN ITEM INVOICE
-    |--------------------------------------------------------------------------
-    */
-    $orderedDepositByPo = collect();
+        /*
+        |--------------------------------------------------------------------------
+        | EXPORT AR ID + STATUS
+        |--------------------------------------------------------------------------
+        */
+        $exportArId = $exportAr
+            ? $exportAr->id
+            : null;
 
-    foreach ($bldeNumbers as $blde) {
+        $arStatus = $exportAr
+            ? $exportAr->status
+            : 0;
 
-        $orderedDepositByPo->put(
-            $blde,
-            (float) $depositByPo->get(
-                $blde,
-                0
+
+        /*
+        |--------------------------------------------------------------------------
+        | KIRIM KE BLADE
+        |--------------------------------------------------------------------------
+        |
+        | $lobPayments penting untuk:
+        | - existing payment
+        | - surcharge 1/2/3
+        | - modal payment
+        |
+        | $ipl tetap membawa:
+        | - Loberon data
+        | - detail PO
+        | - item data
+        |
+        */
+        return view(
+            'pages.exports.lobindex',
+            compact(
+                'ipl',
+                'invoiceNo',
+                'bldeNumbers',
+                'depositByPo',
+                'orderedDepositByPo',
+                'lobPayments',
+                'exportAr',
+                'exportArId',
+                'arStatus'
             )
         );
     }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | EXPORT AR ID + STATUS
-    |--------------------------------------------------------------------------
-    */
-    $exportArId = $exportAr
-        ? $exportAr->id
-        : null;
-
-    $arStatus = $exportAr
-        ? $exportAr->status
-        : 0;
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | KIRIM KE BLADE
-    |--------------------------------------------------------------------------
-    |
-    | $lobPayments penting untuk:
-    | - existing payment
-    | - surcharge 1/2/3
-    | - modal payment
-    |
-    | $ipl tetap membawa:
-    | - Loberon data
-    | - detail PO
-    | - item data
-    |
-    */
-    return view(
-        'pages.exports.lobindex',
-        compact(
-            'ipl',
-            'invoiceNo',
-            'bldeNumbers',
-            'depositByPo',
-            'orderedDepositByPo',
-            'lobPayments',
-            'exportAr',
-            'exportArId',
-            'arStatus'
-        )
-    );
-}
 
     public function updateLoberon(Request $request)
     {
@@ -3780,5 +3779,547 @@ class EdController extends Controller
     }
     // EXPORT DOWNLOAD
     // ada di helpers
+    public function downloadCipl($id)
+    {
+        $invoice = ExportIpl::findOrFail($id);
+
+        return (new ExportCipl())
+            ->download($invoice);
+    }
+    public function si($id)
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | LOAD IPL + ITEMS
+        |--------------------------------------------------------------------------
+        */
+
+        $ipl = ExportIpl::with([
+            'items'
+        ])->findOrFail($id);
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | HS CODE
+        |--------------------------------------------------------------------------
+        | Ambil HS Code dari ExportIplItem.
+        |
+        | Contoh:
+        | 9401.53.00
+        | 9401.53.00
+        | 4602.12.90
+        | 4602.12.90
+        |
+        | Menjadi:
+        | 9401.53.00
+        | 4602.12.90
+        |--------------------------------------------------------------------------
+        */
+
+        $hsCodes = $ipl->items
+            ->pluck('hs_code')
+            ->filter(function ($value) {
+
+                return trim((string) $value) !== '';
+
+            })
+            ->map(function ($value) {
+
+                return trim((string) $value);
+
+            })
+            ->unique()
+            ->values();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | PO NUMBER
+        |--------------------------------------------------------------------------
+        | Mengikuti BLDE / PO No yang tersimpan di ExportIplItem.
+        |--------------------------------------------------------------------------
+        */
+
+        $poNumbers = $ipl->items
+            ->map(function ($item) {
+
+                $po = $item->blde
+                    ?? $item->po_no
+                    ?? '';
+
+                return trim((string) $po);
+
+            })
+            ->filter(function ($value) {
+
+                return $value !== '';
+
+            })
+            ->unique()
+            ->values();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | TOTAL QUANTITY / CARTONS
+        |--------------------------------------------------------------------------
+        */
+
+        $totalQty = $ipl->items->sum(function ($item) {
+
+            return (float) (
+                $item->qty_box ?? 0
+            );
+
+        });
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | TOTAL NET WEIGHT
+        |--------------------------------------------------------------------------
+        |
+        | IMPORTANT:
+        |
+        | net_weight = berat per carton
+        | qty_box    = jumlah carton
+        |
+        | Maka:
+        |
+        | total net = net_weight × qty_box
+        |--------------------------------------------------------------------------
+        */
+
+        $totalNet = $ipl->items->sum(function ($item) {
+
+            $netWeight = (float) (
+                $item->net_weight ?? 0
+            );
+
+            $qtyBox = (float) (
+                $item->qty_box ?? 0
+            );
+
+            return $netWeight * $qtyBox;
+
+        });
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | TOTAL GROSS WEIGHT
+        |--------------------------------------------------------------------------
+        |
+        | gross_weight = berat gross per carton
+        | qty_box      = jumlah carton
+        |
+        | Maka:
+        |
+        | total gross = gross_weight × qty_box
+        |--------------------------------------------------------------------------
+        */
+
+        $totalGross = $ipl->items->sum(function ($item) {
+
+            $grossWeight = (float) (
+                $item->gross_weight ?? 0
+            );
+
+            $qtyBox = (float) (
+                $item->qty_box ?? 0
+            );
+
+            return $grossWeight * $qtyBox;
+
+        });
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | TOTAL CBM
+        |--------------------------------------------------------------------------
+        |
+        | total_cbm sudah merupakan total:
+        |
+        | CBM per carton × Qty Box
+        |
+        | Jadi JANGAN dikali qty_box lagi.
+        |--------------------------------------------------------------------------
+        */
+
+        $totalCbm = $ipl->items->sum(function ($item) {
+
+            return (float) (
+                $item->total_cbm ?? 0
+            );
+
+        });
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | HS CODE DISPLAY
+        |--------------------------------------------------------------------------
+        */
+
+        $hsCodeDisplay = $hsCodes->implode(', ');
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | PO DISPLAY
+        |--------------------------------------------------------------------------
+        */
+
+        $poNumberDisplay = $poNumbers->implode(' ; ');
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | RETURN VIEW
+        |--------------------------------------------------------------------------
+        */
+
+        return view(
+            'pages.exports.si',
+            compact(
+                'ipl',
+                'hsCodes',
+                'hsCodeDisplay',
+                'poNumbers',
+                'poNumberDisplay',
+                'totalQty',
+                'totalNet',
+                'totalGross',
+                'totalCbm'
+            )
+        );
+    }
+
+
+    /**
+     * ============================================================
+     * UPDATE SHIPPING INSTRUCTION FIELD
+     * ============================================================
+     *
+     * Dipanggil ketika user selesai edit field
+     * lalu pindah / blur ke field berikutnya.
+     *
+     * AJAX:
+     *
+     * PUT /export/{id}/si/update
+     *
+     */
+    public function updateSiField(Request $request, $id)
+    {
+        $ipl = ExportIpl::findOrFail($id);
+
+        $allowedFields = [
+            'date',
+            'shipping_forwarder',
+            'attn',
+            'booking_no',
+            'peb_no',
+            'peb_date',
+            'kpbc_no',
+            'lc_no',
+            'freight',
+            'contract_no',
+            'notify_party',
+            'connect_to',
+            'bill_of_lading',
+            'tare',
+            'vgm',
+            'location',
+            'stuffing_date',
+            'emkl',
+            'vessel_name',
+            'port_loading',
+            'port_discharge',
+            'fumigation',
+            'container_type',
+            'container_no',
+            'seal_no',
+            'etd',
+            'eta',
+        ];
+
+        $field = $request->input('field');
+
+        if (!in_array($field, $allowedFields, true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Field tidak diizinkan.',
+            ], 422);
+        }
+
+        $value = $request->input('value');
+
+        if (is_string($value)) {
+            $value = trim($value);
+        }
+
+        if ($value === '') {
+            $value = null;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | DATE
+        |--------------------------------------------------------------------------
+        */
+
+        $dateFields = [
+            'date',
+            'peb_date',
+            'stuffing_date',
+            'etd',
+            'eta',
+        ];
+
+        if (in_array($field, $dateFields, true)) {
+
+            if ($value !== null) {
+
+                try {
+
+                    $value = \Carbon\Carbon::parse($value)
+                        ->format('Y-m-d');
+
+                } catch (\Throwable $e) {
+
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Format tanggal tidak valid.',
+                    ], 422);
+                }
+            }
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | NUMERIC
+        |--------------------------------------------------------------------------
+        */
+
+        $numericFields = [
+            'tare',
+            'vgm',
+        ];
+
+        if (in_array($field, $numericFields, true)) {
+
+            if ($value !== null) {
+
+                $value = str_replace(',', '.', $value);
+
+                if (!is_numeric($value)) {
+
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Nilai harus berupa angka.',
+                    ], 422);
+                }
+
+                $value = (float) $value;
+            }
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SAVE
+        |--------------------------------------------------------------------------
+        */
+
+        $ipl->update([
+            $field => $value,
+        ]);
+
+        $ipl->refresh();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'SI berhasil diperbarui.',
+            'field' => $field,
+            'value' => $ipl->{$field},
+        ]);
+    }
+    public function updateSiHsCode(
+        Request $request,
+        $id
+    ) {
+
+        /*
+        |--------------------------------------------------------------------------
+        | FIND IPL
+        |--------------------------------------------------------------------------
+        */
+
+        $ipl = ExportIpl::findOrFail($id);
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | OLD HS CODE
+        |--------------------------------------------------------------------------
+        */
+
+        $oldHsCode = trim(
+            (string) $request->input(
+                'old_hs_code'
+            )
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | NEW HS CODE
+        |--------------------------------------------------------------------------
+        */
+
+        $newHsCode = trim(
+            (string) $request->input(
+                'new_hs_code'
+            )
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | VALIDATE OLD
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $oldHsCode === ''
+        ) {
+
+            return response()->json([
+
+                'success' => false,
+
+                'message' =>
+                    'HS Code lama tidak ditemukan.',
+
+            ], 422);
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | VALIDATE NEW
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $newHsCode === ''
+        ) {
+
+            return response()->json([
+
+                'success' => false,
+
+                'message' =>
+                    'HS Code tidak boleh kosong.',
+
+            ], 422);
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | UPDATE ITEM
+        |--------------------------------------------------------------------------
+        |
+        | Hanya item milik IPL ini yang diubah.
+        |--------------------------------------------------------------------------
+        */
+
+        $updated = ExportIplItem::where(
+            'export_ipl_id',
+            $ipl->id
+        )
+            ->where(
+                'hs_code',
+                $oldHsCode
+            )
+            ->update([
+
+                'hs_code' =>
+                    $newHsCode,
+
+            ]);
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | RESPONSE
+        |--------------------------------------------------------------------------
+        */
+
+        return response()->json([
+
+            'success' => true,
+
+            'message' =>
+                'HS Code berhasil diperbarui.',
+
+            'updated_items' =>
+                $updated,
+
+            'old_hs_code' =>
+                $oldHsCode,
+
+            'new_hs_code' =>
+                $newHsCode,
+
+        ]);
+    }public function downloadSiExcel($id)
+{
+    $ipl = \App\Models\ExportIpl::with([
+        'items',
+    ])->findOrFail($id);
+
+    return (new ExportSi())->download($ipl);
+}
+    public function downloadSiPdf($id)
+    {
+        $ipl = \App\Models\ExportIpl::with([
+            'items',
+        ])->findOrFail($id);
+
+        $pdf = Pdf::loadView(
+            'pages.exports.si_pdf',
+            compact('ipl')
+        );
+
+        $pdf->setPaper('a4', 'portrait');
+
+        // ==========================================
+        // AMANKAN NAMA FILE
+        // ==========================================
+        $invoiceNo = $ipl->invoice_no ?: $ipl->id;
+
+        $safeInvoiceNo = preg_replace(
+            '/[\/\\\\:*?"<>|]+/',
+            '-',
+            $invoiceNo
+        );
+
+        $safeInvoiceNo = trim($safeInvoiceNo, '.- ');
+
+        if ($safeInvoiceNo === '') {
+            $safeInvoiceNo = $ipl->id;
+        }
+
+        return $pdf->download(
+            'SI_' . $safeInvoiceNo . '.pdf'
+        );
+    }
 
 }

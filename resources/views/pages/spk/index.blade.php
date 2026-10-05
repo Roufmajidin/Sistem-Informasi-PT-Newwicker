@@ -2533,8 +2533,7 @@
 
     <div class="box">
         <!-- TOP TOOLBAR -->
-    @section('btn')
-        <header class="box-header">
+        <header class="box-header mt-4">
             <div style="display:flex; align-items:center; gap:8px;">
                 <h3>SPK PRODUKSI</h3>
                 @if ($spk['mode'] === 'edit')
@@ -2567,7 +2566,6 @@
                 <button type="button" class="btn-tool" id="copyJpegBtn">📋 Salin</button>
             </div>
         </header>
-    @endsection
 
     <!-- MAIN WORKSPACE -->
     <div class="box-body spk-wrapper" id="printArea">
