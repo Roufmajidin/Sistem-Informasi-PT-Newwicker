@@ -505,7 +505,7 @@
                                      </li>
                                      <li><a href="/bom-produksi"><span class="nav-text">COG</span></a></li>
                                      <li>
-                                         <a href="/monitoring-barang-masuk">
+                                         <a href="/qc/laporan">
                                              <!-- <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span> -->
                                              <span class="nav-text">Monitoring in/o</span>
                                          </a>
