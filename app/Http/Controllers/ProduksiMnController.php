@@ -133,7 +133,7 @@ class ProduksiMnController extends Controller
                 $detailPo->detail,
                 true
             );
-        
+
             $itemName =
                 $detailData['description'] ?? $detailData['nama'] ?? $detailData['item'] ?? '-';
             $articleCode =
@@ -2324,99 +2324,239 @@ class ProduksiMnController extends Controller
                             | untuk menjaga Anyam biasa tetap bekerja seperti sebelumnya.
                             */
                         } elseif ($kategoriSpk === 'ANYAM') {
-                            $componentHasRealIn = false;
-
-                            foreach ($components as &$component) {
-                                $componentName = strtoupper(
-                                    trim((string) (
-                                        $component['name']
-                                        ?? $component['proses']
-                                        ?? $component['deskripsi']
-                                        ?? ''
-                                    ))
-                                );
-
-                                $processRows = $inventoryByDetailComponent->filter(
-                                    function ($row) use ($spk, $detailPo, $componentName) {
-                                        if (
-                                            (int) ($row->spk_id ?? 0) !== (int) $spk->id
-                                            || (int) ($row->detail_po_id ?? 0) !== (int) $detailPo->id
-                                        ) {
-                                            return false;
-                                        }
-
-                                        if (
-                                            strtolower(trim((string) ($row->type ?? ''))) !== 'in'
-                                        ) {
-                                            return false;
-                                        }
-
-                                        $remarkKey = strtoupper(
-                                            trim((string) ($row->remark ?? ''))
-                                        );
-
-                                        if ($remarkKey === '' || $componentName === '') {
-                                            return false;
-                                        }
-
-                                        $componentKey = trim(
-                                            preg_replace('/[^A-Z0-9]+/', ' ', $componentName)
-                                        );
-
-                                        $remarkNormalized = trim(
-                                            preg_replace('/[^A-Z0-9]+/', ' ', $remarkKey)
-                                        );
-
-                                        if ($componentKey === '' || $remarkNormalized === '') {
-                                            return false;
-                                        }
-
-                                        return $remarkNormalized === $componentKey
-                                            || str_contains(
-                                                ' ' . $remarkNormalized . ' ',
-                                                ' ' . $componentKey . ' '
-                                            )
-                                            || str_contains(
-                                                $remarkNormalized,
-                                                $componentKey
-                                            );
-                                    }
-                                );
-
-                                $component['qty_in'] = (float) $processRows->sum('total_in');
-                                $component['passed'] = $totalPassed;
-                                $component['rejected'] = $totalRejected;
-
-                                if ($component['qty_in'] > 0) {
-                                    $componentHasRealIn = true;
-                                }
-                            }
-
-                            unset($component);
-
-                            // Anyam murni tanpa remark component: fallback ke total SPK.
-                            if (!$componentHasRealIn) {
-                                $componentQtyIn = $totalIn;
-
-                                foreach ($components as &$component) {
-                                    $component['qty_in'] = $totalIn;
-                                }
-
-                                unset($component);
-                            } else {
-                                // Dipakai hanya untuk kompatibilitas field lama.
-                                // Monitoring utama mengambil nilai dari masing-masing component.
-                                $componentQtyIn = (float) collect($components)
-                                    ->pluck('qty_in')
-                                    ->filter(fn($value) => (float) $value > 0)
-                                    ->min();
-                            }
 
                             /*
                             |--------------------------------------------------------------------------
-                            | PACKAGING / BOX
+                            | ANYAM MURNI
                             |--------------------------------------------------------------------------
+                            |
+                            | Jika hanya ada 1 component generic "ANYAM",
+                            | Qty IN harus mengambil TOTAL seluruh IN SPK.
+                            |
+                            | Contoh:
+                            |
+                            | 28/09 = 24
+                            | 30/09 = 10
+                            | 01/10 = 16
+                            | 02/10 = 14
+                            |
+                            | TOTAL IN = 64
+                            |
+                            | Jangan hanya mengambil remark = ANYAM (16),
+                            | karena remark ANYAM bukan berarti transaksi tersebut
+                            | adalah satu-satunya Qty IN untuk component.
+                            |
                             */
+
+                            $isGenericAnyam = (
+                                count($components) === 1
+                                &&
+                                strtoupper(
+                                    trim(
+                                        (string) (
+                                            $components[0]['name']
+                                            ?? ''
+                                        )
+                                    )
+                                ) === 'ANYAM'
+                            );
+
+                            if ($isGenericAnyam) {
+
+                                $components[0]['qty_in'] = $totalIn;
+
+                                $components[0]['passed'] = $totalPassed;
+
+                                $components[0]['rejected'] = $totalRejected;
+
+                                $componentQtyIn = $totalIn;
+
+                            } else {
+
+                                /*
+                                |--------------------------------------------------------------------------
+                                | ANYAM DENGAN COMPONENT KHUSUS
+                                |--------------------------------------------------------------------------
+                                |
+                                | Contoh:
+                                | ANYAM DUDUKAN
+                                | ANYAM SANDARAN
+                                | ANYAM RANGKA
+                                |
+                                | Untuk kasus seperti ini baru gunakan remark sebagai
+                                | identifikasi component.
+                                |
+                                */
+
+                                $componentHasRealIn = false;
+
+                                foreach ($components as &$component) {
+
+                                    $componentName = strtoupper(
+                                        trim(
+                                            (string) (
+                                                $component['name']
+                                                ?? $component['proses']
+                                                ?? $component['deskripsi']
+                                                ?? ''
+                                            )
+                                        )
+                                    );
+
+                                    $processRows = $inventoryByDetailComponent->filter(
+                                        function ($row) use ($spk, $detailPo, $componentName) {
+
+                                            if (
+                                                (int) ($row->spk_id ?? 0)
+                                                !==
+                                                (int) $spk->id
+                                            ) {
+                                                return false;
+                                            }
+
+                                            if (
+                                                (int) ($row->detail_po_id ?? 0)
+                                                !==
+                                                (int) $detailPo->id
+                                            ) {
+                                                return false;
+                                            }
+
+                                            if (
+                                                strtolower(
+                                                    trim(
+                                                        (string) (
+                                                            $row->type ?? ''
+                                                        )
+                                                    )
+                                                )
+                                                !== 'in'
+                                            ) {
+                                                return false;
+                                            }
+
+                                            $remarkKey = strtoupper(
+                                                trim(
+                                                    (string) (
+                                                        $row->remark ?? ''
+                                                    )
+                                                )
+                                            );
+
+                                            if (
+                                                $remarkKey === ''
+                                                ||
+                                                $componentName === ''
+                                            ) {
+                                                return false;
+                                            }
+
+                                            $componentKey = trim(
+                                                preg_replace(
+                                                    '/[^A-Z0-9]+/',
+                                                    ' ',
+                                                    $componentName
+                                                )
+                                            );
+
+                                            $remarkNormalized = trim(
+                                                preg_replace(
+                                                    '/[^A-Z0-9]+/',
+                                                    ' ',
+                                                    $remarkKey
+                                                )
+                                            );
+
+                                            if (
+                                                $componentKey === ''
+                                                ||
+                                                $remarkNormalized === ''
+                                            ) {
+                                                return false;
+                                            }
+
+                                            return (
+                                                $remarkNormalized === $componentKey
+                                                ||
+                                                str_contains(
+                                                    ' ' . $remarkNormalized . ' ',
+                                                    ' ' . $componentKey . ' '
+                                                )
+                                                ||
+                                                str_contains(
+                                                    $remarkNormalized,
+                                                    $componentKey
+                                                )
+                                            );
+                                        }
+                                    );
+
+                                    $component['qty_in'] =
+                                        (float) $processRows->sum(
+                                            'total_in'
+                                        );
+
+                                    $component['passed'] =
+                                        $totalPassed;
+
+                                    $component['rejected'] =
+                                        $totalRejected;
+
+                                    if (
+                                        $component['qty_in'] > 0
+                                    ) {
+                                        $componentHasRealIn = true;
+                                    }
+                                }
+
+                                unset($component);
+
+                                /*
+                                |--------------------------------------------------------------------------
+                                | FALLBACK
+                                |--------------------------------------------------------------------------
+                                |
+                                | Kalau component khusus tidak memiliki remark,
+                                | gunakan total IN SPK.
+                                |
+                                */
+
+                                if (!$componentHasRealIn) {
+
+                                    $componentQtyIn =
+                                        $totalIn;
+
+                                    foreach (
+                                        $components
+                                        as &$component
+                                    ) {
+
+                                        $component['qty_in'] =
+                                            $totalIn;
+
+                                        $component['passed'] =
+                                            $totalPassed;
+
+                                        $component['rejected'] =
+                                            $totalRejected;
+                                    }
+
+                                    unset($component);
+
+                                } else {
+
+                                    $componentQtyIn =
+                                        (float) collect(
+                                            $components
+                                        )
+                                            ->pluck('qty_in')
+                                            ->filter(
+                                                fn($value) =>
+                                                    (float) $value > 0
+                                            )
+                                            ->min();
+                                }
+                            }
                         } elseif ($isPackagingComposite) {
                             /*
                             |--------------------------------------------------------------------------

@@ -229,8 +229,8 @@
         }
 
         /* =========================================================
-                   HS CODE HOVER DETAIL
-                   ========================================================= */
+                       HS CODE HOVER DETAIL
+                       ========================================================= */
         .ci-hs-hover-trigger {
             position: relative;
             cursor: pointer;
@@ -493,6 +493,12 @@
 
                                             <i class="fa fa-database"></i>
                                             <span>LOB</span>
+                                        </a>
+                                        <a href="{{ route('export.si', $data->id) }}"
+                                            class="btn btn-sm btn-info btn-download" title="Shipping Instruction">
+
+                                            <i class="fa fa-file-alt"></i>
+                                            <span>SI</span>
                                         </a>
 
                                     </div>

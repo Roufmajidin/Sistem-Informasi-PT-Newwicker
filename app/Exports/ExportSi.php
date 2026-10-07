@@ -178,7 +178,7 @@ class ExportSi
 
         $sheet->setCellValue(
             'A5',
-            'PHONE : 0231 - 325880 - export@newwicker@com'
+            'PHONE : 0231 - 325880 - export@newwicker.com'
         );
 
         $sheet

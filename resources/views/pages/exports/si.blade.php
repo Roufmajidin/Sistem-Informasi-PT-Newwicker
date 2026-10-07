@@ -1032,7 +1032,7 @@
 
             <div class="si-company-line">
 
-                PHONE : 0231 - 325880 - export@newwicker@com
+                PHONE : 0231 - 325880 - export@newwicker.com
 
             </div>
 

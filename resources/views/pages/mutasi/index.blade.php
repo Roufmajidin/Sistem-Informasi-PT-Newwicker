@@ -1,3 +1,4 @@
+{{-- halaman mutasi  --}}
 @extends('master.master')
 
 @section('title', 'Mutasi Barang')
@@ -224,6 +225,7 @@
                 let supplierName = '';
                 let currentSupId = null;
                 let kategoriSpk = '';
+                const spkDetailCache = Object.create(null);
                 $(document).on('click', '.pilih-spk', function() {
 
                     // Reset data/modal sebelumnya terlebih dahulu
@@ -234,38 +236,45 @@
                     $(this).addClass('active');
 
                     currentSpkId = $(this).data('id');
+
+                    function applySpkDetail(res) {
+                        supplierName = res.supplier;
+                        currentSupId = res.sup_id;
+                        kategoriSpk = res.kategori;
+
+                        $('#judulSpk').text(res.no_spk);
+                        items = Array.isArray(res.items) ? res.items : [];
+
+                        let html = '<option value="">Pilih Item...</option>';
+
+                        $.each(items, function(i, item) {
+                            html += `
+                                <option value="${item.detail_po_id}" data-index="${i}" data-photo="${escapeHtml(item.photo || '')}">
+                                    ${escapeHtml(item.kode || '-')} - ${escapeHtml(item.nama || '-')} (${escapeHtml(item.qty ?? 0)} ${escapeHtml(item.satuan || '')})
+                                </option>
+                            `;
+                        });
+
+                        $('#itemSelect').html(html);
+                        $('#modalSpk').modal('show');
+                    }
+
+                    if (spkDetailCache[currentSpkId]) {
+                        applySpkDetail(spkDetailCache[currentSpkId]);
+                        return;
+                    }
+
                     $.ajax({
-
                         url: "/mutasi/" + currentSpkId,
-
                         type: "GET",
-
+                        cache: true,
                         success: function(res) {
-                            supplierName = res.supplier;
-                            currentSupId = res.sup_id;
-                            kategoriSpk = res.kategori;
-
-                            console.log(res);
-
-                            $('#judulSpk').text(res.no_spk);
-
-                            items = res.items;
-
-                            let html = '<option value="">Pilih Item...</option>';
-
-                            $.each(res.items, function(i, item) {
-                                html += `
-                    <option value="${item.detail_po_id}" data-index="${i}" data-photo="${escapeHtml(item.photo || '')}">
-                        ${item.kode} - ${item.nama} (${item.qty} ${item.satuan})
-                    </option>
-                `;
-                            });
-                            $('#modalSpk').modal('show');
-
-                            $('#itemSelect').html(html);
-
+                            spkDetailCache[currentSpkId] = res;
+                            applySpkDetail(res);
+                        },
+                        error: function(xhr) {
+                            console.error('Gagal mengambil detail SPK:', xhr.status);
                         }
-
                     });
 
                 });
@@ -849,7 +858,6 @@
                     let index = $(this).find(':selected').data('index');
 
                     let item = items[index];
-                    console.log(item)
                     if (!item) return;
 
                     // Tambahan foto saja; logic existing di bawah tetap sama.
@@ -899,7 +907,7 @@
                                 let jam = datetime[1] ?? '';
 
                                 html += `
-                    <tr data-id="${row.id}">
+                    <tr data-id="${row.id}" data-detail-po-id="${escapeHtml(detailPoId)}">
 
                         <td>${i+1}</td>
 
@@ -1005,10 +1013,48 @@
                 // add rw
                 $(document).on('click', '#btnTambah', function() {
 
+                    const detailPoId = $('#itemSelect').val();
+
+                    // Pastikan item sudah dipilih
+                    if (!detailPoId) {
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'warning',
+                            title: 'Pilih item terlebih dahulu',
+                            showConfirmButton: false,
+                            timer: 2500,
+                            timerProgressBar: true
+                        });
+                        return;
+                    }
+
+                    // Ambil item yang sedang dipilih
+                    const index = $('#itemSelect').find(':selected').data('index');
+                    const item = items[index];
+
+                    if (!item) {
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'error',
+                            title: 'Data item tidak ditemukan',
+                            showConfirmButton: false,
+                            timer: 2500,
+                            timerProgressBar: true
+                        });
+                        return;
+                    }
+
+                    const itemName = item.nama || item.name || '-';
+
                     let no = $('#tbodyTimeline tr').length + 1;
 
                     $('#tbodyTimeline').append(`
-        <tr data-id="">
+        <tr
+            data-id=""
+            data-detail-po-id="${escapeHtml(detailPoId)}"
+        >
 
             <td>${no}</td>
 
@@ -1031,21 +1077,21 @@
                 </select>
             </td>
 
-
-
             <td>
                 <input type="number" class="form-control form-control-sm qty">
             </td>
-              <td>
+
+            <td>
                 <input type="text" class="form-control form-control-sm remark">
             </td>
 
             <td class="text-center">
 
-                <button class="btn btn-danger btn-sm hapus-row">
-
+                <button
+                    type="button"
+                    class="btn btn-danger btn-sm hapus-row"
+                >
                     <i class="fas fa-trash"></i>
-
                 </button>
 
             </td>
@@ -1053,7 +1099,27 @@
         </tr>
     `);
 
+                    // Toast ketika berhasil menambah baris
+                    const Toast = Swal.mixin({
+                        toast: true,
+                        position: 'top-end',
+                        iconColor: 'white',
+                        customClass: {
+                            popup: 'colored-toast'
+                        },
+                        showConfirmButton: false,
+                        timer: 3000,
+                        timerProgressBar: true
+                    });
+
+                    Toast.fire({
+                        icon: 'success',
+                        title: `Menambah baris untuk Detail PO ID ${detailPoId}`,
+                        text: itemName
+                    });
+
                 });
+
                 // hapus row
                 $(document).on('click', '.hapus-row', function() {
 
@@ -1064,8 +1130,17 @@
                 $(document).on('click', '#btnSave', function() {
 
                     let rows = [];
+                    let invalidRow = null;
 
-                    $('#tbodyTimeline tr').each(function() {
+                    $('#tbodyTimeline tr').each(function(index) {
+
+                        const detailPoId = $(this).attr('data-detail-po-id');
+
+                        // Pastikan setiap row memiliki Detail PO ID
+                        if (!detailPoId) {
+                            invalidRow = index + 1;
+                            return false;
+                        }
 
                         rows.push({
 
@@ -1073,7 +1148,8 @@
 
                             spk_id: currentSpkId,
 
-                            detail_po_id: $('#itemSelect').val(),
+                            // Ambil Detail PO ID dari row masing-masing
+                            detail_po_id: detailPoId,
 
                             sup_id: currentSupId,
 
@@ -1090,6 +1166,37 @@
                         });
 
                     });
+
+                    // Jangan kirim data jika ada row tanpa Detail PO ID
+                    if (invalidRow !== null) {
+
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'error',
+                            title: `Detail PO pada baris ${invalidRow} tidak ditemukan`,
+                            showConfirmButton: false,
+                            timer: 3000,
+                            timerProgressBar: true
+                        });
+
+                        return;
+                    }
+
+                    if (!rows.length) {
+
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'warning',
+                            title: 'Tidak ada baris untuk disimpan',
+                            showConfirmButton: false,
+                            timer: 2500,
+                            timerProgressBar: true
+                        });
+
+                        return;
+                    }
 
                     $.ajax({
 
@@ -1115,6 +1222,7 @@
                                 timer: 2500,
                                 timerProgressBar: true
                             });
+
                             Toast.fire({
                                 icon: 'success',
                                 title: 'ikan hiu ikan hiu, love you'
@@ -1128,13 +1236,23 @@
 
                             console.log(xhr.responseText);
 
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'error',
+                                title: 'Gagal menyimpan timeline',
+                                showConfirmButton: false,
+                                timer: 3000,
+                                timerProgressBar: true
+                            });
+
                         }
 
                     });
 
                 });
 
-            function resetModal() {
+                function resetModal() {
 
     items = [];
     currentSpkId = null;
@@ -1616,321 +1734,137 @@
 
                     function showPreview(row, event) {
 
-                        activeRow =
-                            row;
+                        activeRow = row;
+                        clearTimeout(hoverTimer);
 
+                        hoverTimer = setTimeout(async function () {
 
-                        clearTimeout(
-                            hoverTimer
-                        );
+                            if (activeRow !== row) return;
 
+                            const spkId = row.getAttribute('data-id');
+                            if (!spkId) return;
 
-                        hoverTimer =
-                            setTimeout(
-                                function () {
+                            /* Cache SPK: hover kedua tidak perlu request lagi. */
+                            if (cache[spkId]) {
+                                render(cache[spkId]);
+                                preview.style.display = 'block';
+                                preview.setAttribute('aria-hidden', 'false');
+                                movePreview(event);
+                                return;
+                            }
 
-                                    if (
-                                        activeRow !==
-                                        row
-                                    ) {
-                                        return;
-                                    }
+                            const baseItems = decodeItems(row);
+                            const items = baseItems.map(function(item) {
+                                const copy = Object.assign({}, item);
+                                copy.qty_in = 0;
+                                copy.hover_components = null;
+                                return copy;
+                            });
 
+                            /* Render cepat dari data yang sudah ada di Blade. */
+                            render(items);
+                            preview.style.display = 'block';
+                            preview.setAttribute('aria-hidden', 'false');
+                            movePreview(event);
 
-                                    const spkId =
-                                        row.getAttribute(
-                                            'data-id'
-                                        );
+                            const thisRequest = ++requestNo;
 
+                            if (!items.length) {
+                                cache[spkId] = items;
+                                return;
+                            }
 
-                                    if (!spkId) {
-                                        return;
-                                    }
+                            /*
+                            | Cache timeline per Detail PO.
+                            | Semua request dijalankan paralel, tetapi DOM hanya
+                            | dirender sekali setelah seluruh response selesai.
+                            */
+                            const timelinePromises = items.map(function(item) {
+                                const detailPoId = item.detail_po_id;
 
+                                if (!detailPoId) {
+                                    return Promise.resolve([]);
+                                }
 
-                                    let items;
+                                const cacheKey = spkId + ':' + detailPoId;
 
+                                if (cache.timeline && cache.timeline[cacheKey]) {
+                                    return Promise.resolve(cache.timeline[cacheKey]);
+                                }
 
-                                    /*
-                                    |--------------------------------------------------------------------------
-                                    | CACHE
-                                    |--------------------------------------------------------------------------
-                                    */
-
-                                    if (
-                                        cache[spkId]
-                                    ) {
-
-                                        render(
-                                            cache[spkId]
-                                        );
-
-                                    } else {
-
-                                        /*
-                                        | Ambil items langsung
-                                        | dari Blade.
-                                        */
-
-                                        items =
-                                            decodeItems(
-                                                row
-                                            );
-
-
-                                        /*
-                                        | Tambahkan qty_in = 0
-                                        | supaya tabel langsung tampil.
-                                        */
-
-                                        items =
-                                            items.map(
-                                                function (item) {
-
-                                                    const copy =
-                                                        Object.assign(
-                                                            {},
-                                                            item
-                                                        );
-
-                                                    copy.qty_in =
-                                                        0;
-
-                                                    copy.hover_components =
-                                                        null;
-
-                                                    return copy;
-
-                                                }
-                                            );
-
-
-                                        render(
-                                            items
-                                        );
-
-
-                                        /*
-                                        |--------------------------------------------------------------------------
-                                        | FETCH TIMELINE
-                                        |--------------------------------------------------------------------------
-                                        */
-
-                                        const thisRequest =
-                                            ++requestNo;
-
-
-                                        let pending =
-                                            items.length;
-
-
-                                        if (!pending) {
-                                            return;
+                                return fetch(
+                                    '/mutasi/timeline/detail?spk_id=' +
+                                    encodeURIComponent(spkId) +
+                                    '&detail_po_id=' +
+                                    encodeURIComponent(detailPoId),
+                                    {
+                                        method: 'GET',
+                                        credentials: 'same-origin',
+                                        headers: {
+                                            'Accept': 'application/json',
+                                            'X-Requested-With': 'XMLHttpRequest'
                                         }
-
-
-                                        items.forEach(
-                                            function (item, index) {
-
-                                                const detailPoId =
-                                                    item.detail_po_id;
-
-
-                                                if (!detailPoId) {
-
-                                                    pending--;
-
-                                                    return;
-
-                                                }
-
-
-                                                /*
-                                                | Native fetch.
-                                                |
-                                                | TIDAK ADA:
-                                                | $.ajax
-                                                | .catch
-                                                */
-
-                                                fetch(
-                                                    '/mutasi/timeline/detail?spk_id=' +
-                                                    encodeURIComponent(spkId) +
-                                                    '&detail_po_id=' +
-                                                    encodeURIComponent(detailPoId),
-                                                    {
-                                                        method: 'GET',
-                                                        credentials: 'same-origin',
-                                                        headers: {
-                                                            'Accept':
-                                                                'application/json',
-                                                            'X-Requested-With':
-                                                                'XMLHttpRequest'
-                                                        }
-                                                    }
-                                                )
-                                                .then(
-                                                    function (response) {
-
-                                                        return response.json();
-
-                                                    }
-                                                )
-                                                .then(
-                                                    function (res) {
-
-                                                        let qtyIn =
-                                                            0;
-
-
-                                                        /*
-                                                        | Response Anda:
-                                                        |
-                                                        | timeline:
-                                                        | 39 in
-                                                        | 21 in
-                                                        |
-                                                        | hasil = 60
-                                                        */
-
-                                                        (res.timeline || [])
-                                                            .forEach(
-                                                                function (timelineRow) {
-
-                                                                    const type =
-                                                                        String(
-                                                                            timelineRow.type ||
-                                                                            ''
-                                                                        )
-                                                                        .trim()
-                                                                        .toLowerCase();
-
-
-                                                                    if (
-                                                                        type ===
-                                                                        'in'
-                                                                    ) {
-
-                                                                        qtyIn +=
-                                                                            Number(
-                                                                                timelineRow.qty ||
-                                                                                0
-                                                                            );
-
-                                                                    }
-
-
-                                                                    /*
-                                                                    | Service masuk
-                                                                    | juga dihitung sebagai IN,
-                                                                    | mengikuti logic existing.
-                                                                    */
-
-                                                                    if (
-                                                                        type ===
-                                                                        'service_masuk'
-                                                                    ) {
-
-                                                                        qtyIn +=
-                                                                            Number(
-                                                                                timelineRow.qty ||
-                                                                                0
-                                                                            );
-
-                                                                    }
-
-                                                                }
-                                                            );
-
-
-                                                        items[index]
-                                                            .qty_in =
-                                                                qtyIn;
-
-                                                        /*
-                                                        | Kalau item mempunyai custom_columns,
-                                                        | siapkan baris komponen untuk tooltip.
-                                                        | getComponentRows() adalah logic yang sama
-                                                        | dengan tabel Rincian Komponen di modal.
-                                                        | Kalau custom_columns kosong, hover tetap
-                                                        | menggunakan item utama seperti sebelumnya.
-                                                        */
-                                                        const customColumns =
-                                                            Array.isArray(items[index].custom_columns)
-                                                                ? items[index].custom_columns
-                                                                : [];
-
-                                                        if (customColumns.length > 0) {
-                                                            items[index].hover_components =
-                                                                getComponentRows(
-                                                                    items[index],
-                                                                    res.timeline || []
-                                                                );
-                                                        } else {
-                                                            items[index].hover_components =
-                                                                null;
-                                                        }
-
-
-                                                        /*
-                                                        | Jangan render jika
-                                                        | mouse sudah pindah.
-                                                        */
-
-                                                        if (
-                                                            thisRequest ===
-                                                            requestNo
-                                                        ) {
-
-                                                            render(
-                                                                items
-                                                            );
-
-                                                            movePreviewFromRow();
-
-                                                        }
-
-
-                                                        pending--;
-
-                                                        if (
-                                                            pending <= 0 &&
-                                                            thisRequest ===
-                                                            requestNo
-                                                        ) {
-
-                                                            cache[spkId] =
-                                                                items;
-
-                                                        }
-
-                                                    }
-                                                );
-
-                                            }
-                                        );
-
                                     }
+                                )
+                                .then(function(response) {
+                                    if (!response.ok) {
+                                        throw new Error('HTTP ' + response.status);
+                                    }
+                                    return response.json();
+                                })
+                                .then(function(res) {
+                                    const timeline = Array.isArray(res.timeline)
+                                        ? res.timeline
+                                        : [];
 
+                                    if (!cache.timeline) cache.timeline = {};
+                                    cache.timeline[cacheKey] = timeline;
 
-                                    preview.style.display =
-                                        'block';
+                                    return timeline;
+                                })
+                                .catch(function() {
+                                    return [];
+                                });
+                            });
 
+                            const timelines = await Promise.all(timelinePromises);
 
-                                    preview.setAttribute(
-                                        'aria-hidden',
-                                        'false'
-                                    );
+                            if (thisRequest !== requestNo || activeRow !== row) {
+                                return;
+                            }
 
+                            items.forEach(function(item, index) {
+                                const timeline = timelines[index] || [];
+                                let qtyIn = 0;
 
-                                    movePreview(
-                                        event
-                                    );
+                                timeline.forEach(function(timelineRow) {
+                                    const type = String(timelineRow.type || '')
+                                        .trim()
+                                        .toLowerCase();
 
+                                    if (type === 'in' || type === 'service_masuk') {
+                                        qtyIn += Number(timelineRow.qty || 0);
+                                    }
+                                });
 
-                                },
-                                120
-                            );
+                                item.qty_in = qtyIn;
+
+                                const customColumns = Array.isArray(item.custom_columns)
+                                    ? item.custom_columns
+                                    : [];
+
+                                item.hover_components = customColumns.length > 0
+                                    ? getComponentRows(item, timeline)
+                                    : null;
+                            });
+
+                            cache[spkId] = items;
+
+                            /* Penting: hanya 1x render final, bukan setiap response. */
+                            render(items);
+                            movePreviewFromRow();
+
+                        }, 100);
 
                     }
 
@@ -2721,6 +2655,41 @@
 
                 #itemSelect.item-select option:first-child {
                     color: #94a3b8;
+                }
+
+
+
+                /* =========================================================
+                   MICRO UI IMPROVEMENT + PERFORMANCE
+                   ========================================================= */
+                .spk-table-wrap {
+                    contain: layout paint;
+                    border-radius: 12px;
+                }
+
+                #tbodySpk .pilih-spk {
+                    transition: background-color .12s ease;
+                }
+
+                #tbodySpk .pilih-spk:hover {
+                    background: #f7f9fc;
+                }
+
+                #tbodySpk .pilih-spk.active {
+                    background: #eef4ff;
+                    box-shadow: inset 3px 0 0 #4f73d9;
+                }
+
+                #spkHoverPreview {
+                    contain: layout paint;
+                    will-change: left, top;
+                    border: 1px solid rgba(148, 163, 184, .28);
+                    box-shadow: 0 14px 36px rgba(15, 23, 42, .16);
+                }
+
+                .item-detail-card,
+                .item-picker-wrap {
+                    contain: content;
                 }
 
                 @media (max-width: 576px) {

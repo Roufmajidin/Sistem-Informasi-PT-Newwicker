@@ -626,8 +626,7 @@
          Semua ID tombol dipertahankan untuk JavaScript lama.
          ===================================================== --}}
     @section('btn')
-    @endsection
-    <div class="bom-topbar">
+     <div class="bom-topbar">
 
         <div class="bom-title">
             <h6>
@@ -670,6 +669,8 @@
         </div>
 
     </div>
+    @endsection
+   
 
     {{-- =====================================================
          INFORMASI PRODUK + FOTO
@@ -2035,11 +2036,19 @@
     });
 
     function saveDraft() {
-        let draft = collectBomData();
-        localStorage.setItem(
-            'bom_draft',
-            JSON.stringify(draft)
-        );
+        try {
+            let draft = collectBomData();
+
+            localStorage.setItem(
+                'bom_draft',
+                JSON.stringify(draft)
+            );
+
+            return true;
+        } catch (error) {
+            console.error('SAVE BOM DRAFT ERROR:', error);
+            return false;
+        }
     }
     $(document).on(
         'input change',
@@ -2067,6 +2076,57 @@
             updateSummary();
         }
     );
+
+    /* =========================================================
+       CREATE DRAFT AUTOSAVE HARDENING
+       - Tidak mengubah handler lama yang sudah berjalan.
+       - Menangkap SEMUA input/textarea/select di BOM.
+       - Debounce agar localStorage tidak ditulis pada setiap keystroke.
+       - Flush sebelum halaman ditinggalkan agar perubahan terakhir tersimpan.
+       ========================================================= */
+    let createDraftSaveTimer = null;
+
+    function scheduleCreateDraftSave() {
+        clearTimeout(createDraftSaveTimer);
+
+        createDraftSaveTimer = setTimeout(function() {
+            createDraftSaveTimer = null;
+            saveDraft();
+        }, 500);
+    }
+
+    $(document).on(
+        'input change',
+        '.bom-compact-page input:not([type="file"]), .bom-compact-page textarea, .bom-compact-page select',
+        function() {
+            scheduleCreateDraftSave();
+        }
+    );
+
+    // Dynamic rows yang berubah karena tombol juga dipastikan masuk draft.
+    $(document).on(
+        'click',
+        '#btn-add-header, .btn-add-child, .btn-add-sub-price, .btn-remove-header, .btn-remove-child, .btn-remove-sub-price, .btn-add-summary, .btn-remove-summary, .btn-select-material',
+        function() {
+            scheduleCreateDraftSave();
+        }
+    );
+
+    // Image tidak bisa disimpan ke localStorage sebagai File, tetapi perubahan
+    // image tetap memicu penyimpanan data BOM terbaru.
+    $(document).on('change', '#bom_image', function() {
+        scheduleCreateDraftSave();
+    });
+
+    // Simpan perubahan terakhir jika user langsung menutup/reload tab.
+    $(window).on('beforeunload', function() {
+        if (createDraftSaveTimer) {
+            clearTimeout(createDraftSaveTimer);
+            createDraftSaveTimer = null;
+        }
+
+        saveDraft();
+    });
 
     // Global compatibility: some existing handlers call renderDraft() directly.
     // Keep both names available without changing the existing render logic.
@@ -2579,7 +2639,14 @@
         if (!draft) {
             return;
         }
-        draft = JSON.parse(draft);
+        try {
+            draft = JSON.parse(draft);
+        } catch (error) {
+            console.error('LOAD BOM DRAFT ERROR:', error);
+            localStorage.removeItem('bom_draft');
+            return;
+        }
+
         // console.log('draft loaded', draft);
         window.renderDraft(draft);
 

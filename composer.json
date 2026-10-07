@@ -9,6 +9,7 @@
         "php": "^8.2",
         "barryvdh/laravel-dompdf": "^3.1",
         "cdsmths/laravel-ocr-space": "^1.0",
+        "evilfreelancer/routeros-api-php": "^1.7",
         "google/apiclient": "*",
         "intervention/image": "^3.11",
         "laravel/framework": "^12.0",

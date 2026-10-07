@@ -89,3 +89,5 @@ Route::post(
     [StockMaterialController::class, 'saveSheet']
 );
 Route::get('/produksi/in_out_barang_jadi', [ProduksiMnController::class, 'barangJadi']);
+Route::get('/qc/laporan/add-in', [QcController::class, 'laporanAddIn'])
+    ->name('api.qc.laporan.add-in');

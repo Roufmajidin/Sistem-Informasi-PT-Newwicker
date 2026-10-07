@@ -1,0 +1,6 @@
+// Tambahkan ke routes/api.php
+
+use App\Http\Controllers\QcController;
+
+Route::get('/qc/laporan/add-in', [QcController::class, 'laporanAddIn'])
+    ->name('api.qc.laporan.add-in');

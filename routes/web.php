@@ -39,6 +39,9 @@ use App\Http\Controllers\PurchasingController;
 use App\Http\Controllers\VendorController;
 use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\LobController;
+use App\Services\MikrotikService;
+use App\Http\Controllers\NetworkController;
+
 // ==========================================================
 // MAGIC APPROVAL LINK - PUBLIC ENTRY POINT
 // ==========================================================
@@ -51,6 +54,21 @@ Route::get('/approval/bypass_config/{token}', [
 // AUTH PROTECTION - ALL INTERNAL ROUTES
 // ==========================================================
 Route::middleware('auth')->group(function () {
+    // mikrotik
+Route::get('/network', [NetworkController::class, 'index'])
+    ->name('network.index');
+Route::get('/network/wifi-users', [NetworkController::class, 'wifiUsers'])
+    ->name('network.wifi-users');
+Route::get('/network/realtime', [NetworkController::class, 'realtime'])
+    ->name('network.realtime');
+    Route::get('/network/debug-wifi', [NetworkController::class, 'debugWifi'])
+    ->name('network.debug-wifi');
+Route::get('/test-mikrotik', function (MikrotikService $mikrotik) {
+    return response()->json([
+        'success' => true,
+        'interfaces' => $mikrotik->getInterfaces(),
+    ]);
+});
     // finance
     Route::get('/finance', [FinanceController::class, 'index'])
         ->name('finance.index');

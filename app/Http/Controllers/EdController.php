@@ -4047,7 +4047,14 @@ class EdController extends Controller
 
         $field = $request->input('field');
 
+        /*
+        |--------------------------------------------------------------------------
+        | CHECK FIELD
+        |--------------------------------------------------------------------------
+        */
+
         if (!in_array($field, $allowedFields, true)) {
+
             return response()->json([
                 'success' => false,
                 'message' => 'Field tidak diizinkan.',
@@ -4068,6 +4075,16 @@ class EdController extends Controller
         |--------------------------------------------------------------------------
         | DATE
         |--------------------------------------------------------------------------
+        |
+        | Input SI menggunakan:
+        | dd/mm/yyyy
+        |
+        | Contoh:
+        | 13/07/2026
+        |
+        | Database:
+        | 2026-07-13
+        |
         */
 
         $dateFields = [
@@ -4084,19 +4101,69 @@ class EdController extends Controller
 
                 try {
 
-                    $value = \Carbon\Carbon::parse($value)
-                        ->format('Y-m-d');
+                    /*
+                    |--------------------------------------------------------------------------
+                    | PRIORITAS FORMAT SI: dd/mm/yyyy
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $parsedDate = \Carbon\Carbon::createFromFormat(
+                        'd/m/Y',
+                        $value
+                    );
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | PASTIKAN TANGGAL VALID
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if ($parsedDate->format('d/m/Y') !== $value) {
+                        throw new \Exception(
+                            'Tanggal tidak valid.'
+                        );
+                    }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | SIMPAN KE DATABASE
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $value = $parsedDate->format('Y-m-d');
 
                 } catch (\Throwable $e) {
 
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Format tanggal tidak valid.',
-                    ], 422);
+                    /*
+                    |--------------------------------------------------------------------------
+                    | FALLBACK
+                    |--------------------------------------------------------------------------
+                    |
+                    | Kalau frontend ternyata mengirim Y-m-d
+                    | seperti input type="date"
+                    |
+                    */
+
+                    try {
+
+                        $parsedDate = \Carbon\Carbon::createFromFormat(
+                            'Y-m-d',
+                            $value
+                        );
+
+                        $value = $parsedDate->format('Y-m-d');
+
+                    } catch (\Throwable $e2) {
+
+                        return response()->json([
+                            'success' => false,
+                            'message' =>
+                                'Format tanggal tidak valid. Gunakan dd/mm/yyyy.',
+                        ], 422);
+                    }
                 }
             }
         }
-
 
         /*
         |--------------------------------------------------------------------------
@@ -4127,10 +4194,9 @@ class EdController extends Controller
             }
         }
 
-
         /*
         |--------------------------------------------------------------------------
-        | SAVE
+        | SAVE TO EXPORT IPL
         |--------------------------------------------------------------------------
         */
 
@@ -4140,11 +4206,122 @@ class EdController extends Controller
 
         $ipl->refresh();
 
+        /*
+        |--------------------------------------------------------------------------
+        | SYNC TO PO
+        |--------------------------------------------------------------------------
+        |
+        | Jika Stuffing Date berubah:
+        |
+        | ExportIpl.sales_order
+        |        ↓
+        | cari semua PO
+        |        ↓
+        | PO.act_ship = stuffing_date
+        | PO.etd      = ExportIpl.etd
+        |
+        */
+
+        $updatedPOs = [];
+
+        if ($field === 'stuffing_date') {
+
+            /*
+            |--------------------------------------------------------------------------
+            | AMBIL SALES ORDER
+            |--------------------------------------------------------------------------
+            |
+            | Contoh:
+            |
+            | NW 26 - 45, NW 26 - 50B
+            |
+            */
+
+            $salesOrders = collect(
+                preg_split(
+                    '/[,;\n]+/',
+                    (string) $ipl->sales_order
+                )
+            )
+                ->map(function ($poNo) {
+
+                    return trim($poNo);
+
+                })
+                ->filter()
+                ->unique()
+                ->values();
+
+            /*
+            |--------------------------------------------------------------------------
+            | UPDATE SEMUA PO
+            |--------------------------------------------------------------------------
+            */
+
+            foreach ($salesOrders as $poNo) {
+
+                $po = \App\Models\Po::where(
+                    'order_no',
+                    $poNo
+                )->first();
+
+                if (!$po) {
+                    continue;
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | ACTUAL SHIP
+                |--------------------------------------------------------------------------
+                |
+                | Stuffing Date SI
+                |          ↓
+                | PO act_ship
+                |
+                */
+
+                $po->act_ship = $value;
+
+                /*
+                |--------------------------------------------------------------------------
+                | ETD
+                |--------------------------------------------------------------------------
+                |
+                | Tidak perlu user edit ETD.
+                |
+                | Ambil ETD dari ExportIpl.
+                |
+                */
+
+                if ($ipl->etd) {
+
+                    $po->etd = $ipl->etd;
+                }
+
+                $po->save();
+
+                $updatedPOs[] = [
+                    'id' => $po->id,
+                    'order_no' => $po->order_no,
+                ];
+            }
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | RESPONSE
+        |--------------------------------------------------------------------------
+        */
+
         return response()->json([
             'success' => true,
             'message' => 'SI berhasil diperbarui.',
+
             'field' => $field,
+
             'value' => $ipl->{$field},
+
+            'updated_pos' => $updatedPOs,
         ]);
     }
     public function updateSiHsCode(
@@ -4279,14 +4456,15 @@ class EdController extends Controller
                 $newHsCode,
 
         ]);
-    }public function downloadSiExcel($id)
-{
-    $ipl = \App\Models\ExportIpl::with([
-        'items',
-    ])->findOrFail($id);
+    }
+    public function downloadSiExcel($id)
+    {
+        $ipl = \App\Models\ExportIpl::with([
+            'items',
+        ])->findOrFail($id);
 
-    return (new ExportSi())->download($ipl);
-}
+        return (new ExportSi())->download($ipl);
+    }
     public function downloadSiPdf($id)
     {
         $ipl = \App\Models\ExportIpl::with([

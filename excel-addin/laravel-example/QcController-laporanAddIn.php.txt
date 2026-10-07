@@ -1,0 +1,70 @@
+// Contoh method di QcController.
+// Sesuaikan field/relasi dengan model kamu.
+
+public function laporanAddIn(Request $request)
+{
+    $inspectionModel = $this->inspectionScheduleModel();
+
+    $query = $inspectionModel::with([
+        'kategori',
+        'user',
+        'spk',
+        'detailPo',
+        'po'
+    ]);
+
+    if ($request->filled('inspector')) {
+        $query->where('user_id', $request->inspector);
+    }
+
+    if ($request->filled('from')) {
+        $query->whereDate('tanggal_inspect', '>=', $request->from);
+    }
+
+    if ($request->filled('to')) {
+        $query->whereDate('tanggal_inspect', '<=', $request->to);
+    }
+
+    $inspection = $query
+        ->orderBy('tanggal_inspect', 'desc')
+        ->get();
+
+    $qcs = User::with(['karyawan.divisi'])
+        ->whereHas('karyawan.divisi', function ($q) {
+            $q->where('nama', 'like', 'QC%');
+        })
+        ->orderBy('name')
+        ->get();
+
+    $rows = $inspection->map(function ($item) {
+        return [
+            'tanggal' => optional($item->tanggal_inspect)
+                ? \Carbon\Carbon::parse($item->tanggal_inspect)->format('d/m/Y')
+                : null,
+            'spk' => optional($item->spk)->data['no_spk'] ?? null,
+            'po' => optional($item->po)->order_no ?? null,
+            'buyer' => optional($item->po)->company_name ?? null,
+            'description' => data_get($item->detailPo, 'detail.description'),
+            'kategori' => optional($item->kategori)->kategori,
+            'batch' => $item->batch,
+            'inspect' => $item->jumlah_inspect,
+            'passed' => $item->passed,
+            'rejected' => $item->rejected,
+            'qc' => optional($item->user)->name,
+        ];
+    })->values();
+
+    return response()->json([
+        'success' => true,
+        'data' => $rows,
+        'qcs' => $qcs->map(function ($qc) {
+            return [
+                'id' => $qc->id,
+                'name' => optional($qc->karyawan)->nama_lengkap ?: $qc->name,
+            ];
+        })->values(),
+        'meta' => [
+            'total' => $rows->count(),
+        ],
+    ]);
+}

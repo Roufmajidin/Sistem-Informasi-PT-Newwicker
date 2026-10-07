@@ -47,6 +47,7 @@ class QcController extends Controller
     /**
      * Show the form for creating a new resource.
      */
+
     public function create()
     {
         //
@@ -62,491 +63,59 @@ class QcController extends Controller
      * Display the specified resource.
      */
 
-    // public function convert(Request $request)
-    // {
-    //     $raw   = trim($request->excel_data);
-    //     $lines = preg_split("/\r\n|\n|\r/", $raw);
-    //     // =========================
-    //     // HEADER
-    //     // =========================
-    //     $headerLine   = array_map('trim', explode("\t", $lines[0]));
-    //     $headers      = [];
-    //     $wdhCount     = 0;
-    //     $headerRepeat = []; // untuk Remark Remark dll
-    //     foreach ($headerLine as $col) {
-    //         // ===== HANDLE W D H =====
-    //         if (in_array($col, ['W', 'D', 'H'])) {
-    //             $wdhCount++;
-    //             if ($wdhCount <= 3) {
-    //                 $headers[] = 'item_' . strtolower($col);
-    //             } else {
-    //                 $headers[] = 'packing_' . strtolower($col);
-    //             }
-    //             continue;
-    //         }
-    //         // ===== NORMAL HEADER =====
-    //         $key = strtolower(str_replace([' ', '.', "\n"], '_', $col));
-    //         // ===== DUPLICATE HEADER (Remark Remark, dll) =====
-    //         if (isset($headerRepeat[$key])) {
-    //             $headerRepeat[$key]++;
-    //             $key .= '_' . $headerRepeat[$key];
-    //         } else {
-    //             $headerRepeat[$key] = 1;
-    //             // suffix _1 hanya jika nanti ada duplikat
-    //             // remark pertama tetap "remark"
-    //         }
-    //         $headers[] = $key;
-    //     }
-    //     // =========================
-    //     // DATA
-    //     // =========================
-    //     $items = [];
-    //     for ($i = 1; $i < count($lines); $i++) {
-    //         $cols = array_map('trim', explode("\t", $lines[$i]));
-    //         // skip baris bukan item
-    //         if (! isset($cols[0]) || ! is_numeric($cols[0])) {
-    //             continue;
-    //         }
-    //         $row = [];
-    //         foreach ($headers as $idx => $key) {
-    //             $row[$key] = $cols[$idx] ?? null;
-    //         }
-    //         $items[] = $row;
-    //     }
-    //     return response()->json([
-    //         // 'headers' => $headers,
-    //         'items' => $items,
-    //     ]);
-    // }
     public function convert(Request $request)
     {
         $raw = trim($request->excel_data);
-
-        if ($raw === '') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Data Excel kosong.'
-            ], 422);
-        }
-
         $lines = preg_split("/\r\n|\n|\r/", $raw);
-
-        // =====================================================
+        // =========================
         // HEADER
-        // =====================================================
-
-        $headerLine = array_map(
-            'trim',
-            explode("\t", $lines[0])
-        );
-
+        // =========================
+        $headerLine = array_map('trim', explode("\t", $lines[0]));
         $headers = [];
         $wdhCount = 0;
-        $headerRepeat = [];
-
+        $headerRepeat = []; // untuk Remark Remark dll
         foreach ($headerLine as $col) {
-
-            $originalCol = trim($col);
-
-            // =================================================
-            // NORMALIZE HEADER
-            // =================================================
-
-            $normalizedCol = strtoupper(
-                preg_replace(
-                    '/\s+/',
-                    ' ',
-                    $originalCol
-                )
-            );
-
-            // =================================================
-            // DIMENSION / W-D-H
-            // =================================================
-
-            /*
-            |--------------------------------------------------------------------------
-            | CASE 1
-            |--------------------------------------------------------------------------
-            |
-            | W | D | H
-            |
-            | menjadi:
-            |
-            | item_w | item_d | item_h
-            |
-            */
-
-            if (
-                in_array(
-                    $normalizedCol,
-                    ['W', 'D', 'H'],
-                    true
-                )
-            ) {
-
+            // ===== HANDLE W D H =====
+            if (in_array($col, ['W', 'D', 'H'])) {
                 $wdhCount++;
-
                 if ($wdhCount <= 3) {
-
-                    $headers[] =
-                        'item_' .
-                        strtolower($normalizedCol);
-
+                    $headers[] = 'item_' . strtolower($col);
                 } else {
-
-                    $headers[] =
-                        'packing_' .
-                        strtolower($normalizedCol);
-
+                    $headers[] = 'packing_' . strtolower($col);
                 }
-
                 continue;
             }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | CASE 2
-            |--------------------------------------------------------------------------
-            |
-            | DIMENSION (CM)
-            |
-            | D
-            | H
-            |
-            | menjadi:
-            |
-            | item_w
-            | item_d
-            | item_h
-            |
-            */
-
-            if (
-                in_array(
-                    $normalizedCol,
-                    [
-                        'DIMENSION (CM)',
-                        'DIMENTION (CM)',
-                        'DIMENSION',
-                        'DIMENTION'
-                    ],
-                    true
-                )
-            ) {
-
-                /*
-                |--------------------------------------------------------------------------
-                | DIMENSION (CM) dianggap sebagai WIDTH
-                |--------------------------------------------------------------------------
-                */
-
-                $wdhCount = 1;
-
-                $headers[] = 'item_w';
-
-                continue;
-            }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | CASE 3
-            |--------------------------------------------------------------------------
-            |
-            | ITEM W
-            | ITEM D
-            | ITEM H
-            |
-            */
-
-            if (
-                in_array(
-                    $normalizedCol,
-                    [
-                        'ITEM W',
-                        'ITEM_W'
-                    ],
-                    true
-                )
-            ) {
-
-                $headers[] = 'item_w';
-
-                continue;
-            }
-
-            if (
-                in_array(
-                    $normalizedCol,
-                    [
-                        'ITEM D',
-                        'ITEM_D'
-                    ],
-                    true
-                )
-            ) {
-
-                $headers[] = 'item_d';
-
-                continue;
-            }
-
-            if (
-                in_array(
-                    $normalizedCol,
-                    [
-                        'ITEM H',
-                        'ITEM_H'
-                    ],
-                    true
-                )
-            ) {
-
-                $headers[] = 'item_h';
-
-                continue;
-            }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | CASE 4
-            |--------------------------------------------------------------------------
-            |
-            | PACK W / PACK D / PACK H
-            |
-            */
-
-            if (
-                in_array(
-                    $normalizedCol,
-                    [
-                        'PACK W',
-                        'PACK_W',
-                        'PACKING W',
-                        'PACKING_W'
-                    ],
-                    true
-                )
-            ) {
-
-                $headers[] = 'packing_w';
-
-                continue;
-            }
-
-            if (
-                in_array(
-                    $normalizedCol,
-                    [
-                        'PACK D',
-                        'PACK_D',
-                        'PACKING D',
-                        'PACKING_D'
-                    ],
-                    true
-                )
-            ) {
-
-                $headers[] = 'packing_d';
-
-                continue;
-            }
-
-            if (
-                in_array(
-                    $normalizedCol,
-                    [
-                        'PACK H',
-                        'PACK_H',
-                        'PACKING H',
-                        'PACKING_H'
-                    ],
-                    true
-                )
-            ) {
-
-                $headers[] = 'packing_h';
-
-                continue;
-            }
-
-
-            // =================================================
-            // NORMAL HEADER
-            // =================================================
-
-            $key = strtolower(
-                str_replace(
-                    [
-                        ' ',
-                        '.',
-                        "\n"
-                    ],
-                    '_',
-                    $originalCol
-                )
-            );
-
-
-            // =================================================
-            // DUPLICATE HEADER
-            // =================================================
-
-            if (
-                isset(
-                $headerRepeat[$key]
-            )
-            ) {
-
+            // ===== NORMAL HEADER =====
+            $key = strtolower(str_replace([' ', '.', "\n"], '_', $col));
+            // ===== DUPLICATE HEADER (Remark Remark, dll) =====
+            if (isset($headerRepeat[$key])) {
                 $headerRepeat[$key]++;
-
-                $key .= '_' .
-                    $headerRepeat[$key];
-
+                $key .= '_' . $headerRepeat[$key];
             } else {
-
                 $headerRepeat[$key] = 1;
-
+                // suffix _1 hanya jika nanti ada duplikat
+                // remark pertama tetap "remark"
             }
-
             $headers[] = $key;
         }
-
-
-        // =====================================================
+        // =========================
         // DATA
-        // =====================================================
-
+        // =========================
         $items = [];
-
-        for (
-            $i = 1;
-            $i < count($lines);
-            $i++
-        ) {
-
-            $cols = array_map(
-                'trim',
-                explode("\t", $lines[$i])
-            );
-
-
-            // =================================================
-            // SKIP BARIS BUKAN ITEM
-            // =================================================
-
-            if (
-                !isset($cols[0]) ||
-                !is_numeric($cols[0])
-            ) {
-
+        for ($i = 1; $i < count($lines); $i++) {
+            $cols = array_map('trim', explode("\t", $lines[$i]));
+            // skip baris bukan item
+            if (!isset($cols[0]) || !is_numeric($cols[0])) {
                 continue;
             }
-
-
             $row = [];
-
-
-            // =================================================
-            // MAP DATA KE HEADER
-            // =================================================
-
-            foreach (
-                $headers as $idx => $key
-            ) {
-
-                $row[$key] =
-                    $cols[$idx] ?? '';
+            foreach ($headers as $idx => $key) {
+                $row[$key] = $cols[$idx] ?? null;
             }
-
-
-            // =================================================
-            // OPTIONAL: NORMALIZE LEGACY DATA
-            // =================================================
-
-            /*
-            |--------------------------------------------------------------------------
-            | Kalau somehow masih ada data:
-            |
-            | dimension_(cm)
-            |
-            | kita pindahkan ke item_w
-            |--------------------------------------------------------------------------
-            */
-
-            if (
-                (
-                    !isset($row['item_w']) ||
-                    $row['item_w'] === ''
-                ) &&
-                isset($row['dimension_(cm)'])
-            ) {
-
-                $row['item_w'] =
-                    $row['dimension_(cm)'];
-            }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | Legacy D / H
-            |--------------------------------------------------------------------------
-            */
-
-            if (
-                (
-                    !isset($row['item_d']) ||
-                    $row['item_d'] === ''
-                ) &&
-                isset($row['d'])
-            ) {
-
-                $row['item_d'] =
-                    $row['d'];
-            }
-
-
-            if (
-                (
-                    !isset($row['item_h']) ||
-                    $row['item_h'] === ''
-                ) &&
-                isset($row['h'])
-            ) {
-
-                $row['item_h'] =
-                    $row['h'];
-            }
-
-
-            // =================================================
-            // REMOVE LEGACY FIELD
-            // =================================================
-
-            unset(
-                $row['dimension_(cm)'],
-                $row['dimention_(cm)']
-            );
-
-
-            // =================================================
-            // ADD ITEM
-            // =================================================
-
             $items[] = $row;
         }
-
-
-        // =====================================================
-        // RESPONSE
-        // =====================================================
-
         return response()->json([
-            'success' => true,
-            'headers' => $headers,
+            // 'headers' => $headers,
             'items' => $items,
         ]);
     }
@@ -608,88 +177,88 @@ class QcController extends Controller
         return response()->json($pos);
     }
     public function ajaxPoList(Request $request)
-{
-    $q = trim($request->q ?? '');
-    $type = $request->type;
-    $sort = $request->sort === 'asc' ? 'asc' : 'desc';
+    {
+        $q = trim($request->q ?? '');
+        $type = $request->type;
+        $sort = $request->sort === 'asc' ? 'asc' : 'desc';
 
-    $query = Po::query()
-        ->select([
-            'id',
-            'order_no',
-            'company_name',
-            'country',
-            'release_date',
-            'shipment_date',
-            'act_ship',
-            'value',
-            'cont_numb',
-            'do_released',
-        ]);
+        $query = Po::query()
+            ->select([
+                'id',
+                'order_no',
+                'company_name',
+                'country',
+                'release_date',
+                'shipment_date',
+                'act_ship',
+                'value',
+                'cont_numb',
+                'do_released',
+            ]);
 
-    // =========================
-    // SEARCH
-    // =========================
-    if ($q !== '') {
-        $query->where(function ($sub) use ($q) {
-            $sub->where('order_no', 'like', "%{$q}%")
-                ->orWhere('company_name', 'like', "%{$q}%");
-        });
+        // =========================
+        // SEARCH
+        // =========================
+        if ($q !== '') {
+            $query->where(function ($sub) use ($q) {
+                $sub->where('order_no', 'like', "%{$q}%")
+                    ->orWhere('company_name', 'like', "%{$q}%");
+            });
+        }
+
+        // =========================
+        // FILTER TYPE
+        // =========================
+        if ($type === 'NWS') {
+
+            $query->where('order_no', 'like', 'NWS%');
+
+        } elseif ($type === 'NW') {
+
+            $query->where('order_no', 'like', 'NW%')
+                ->where('order_no', 'not like', 'NWS%');
+        }
+
+        // =========================
+        // SORT
+        // =========================
+        $query->orderBy('order_no', $sort);
+
+        // =========================
+        // LIMIT
+        // =========================
+        $pos = $query
+            ->limit(100)
+            ->get();
+
+        return response()->json($pos);
     }
-
-    // =========================
-    // FILTER TYPE
-    // =========================
-    if ($type === 'NWS') {
-
-        $query->where('order_no', 'like', 'NWS%');
-
-    } elseif ($type === 'NW') {
-
-        $query->where('order_no', 'like', 'NW%')
-              ->where('order_no', 'not like', 'NWS%');
-    }
-
-    // =========================
-    // SORT
-    // =========================
-    $query->orderBy('order_no', $sort);
-
-    // =========================
-    // LIMIT
-    // =========================
-    $pos = $query
-        ->limit(100)
-        ->get();
-
-    return response()->json($pos);
-}
-    // public function ajaxPoList(Request $request)
-    // {
-    //     $q = $request->q;
-    //     $type = $request->type;
-    //     $sort = $request->sort ?? 'desc'; // default terbaru
+    //   public function ajaxPoList(Request $request)
+// {
+//     $q    = $request->q;
+//     $type = $request->type;
+//     $sort = $request->sort ?? 'desc'; // default terbaru
 
     //     $query = Po::with('details')
 
     //         // =========================
-    //         // SEARCH
-    //         // =========================
-    //         ->when($q, function ($query) use ($q) {
+//         // SEARCH
+//         // =========================
+//         ->when($q, function ($query) use ($q) {
 
     //             $query->where(function ($sub) use ($q) {
 
     //                 $sub->where('order_no', 'like', "%{$q}%")
-    //                     ->orWhere('company_name', 'like', "%{$q}%");
+//                     ->orWhere('company_name', 'like', "%{$q}%");
 
     //             });
 
     //         })
 
     //         // =========================
-    //         // FILTER TYPE
-    //         // =========================
-    //         ->when($type, function ($query) use ($type) {
+//         // FILTER TYPE
+//         // =========================
+//         ->when($type, function ($query) use ($type) {
 
     //             if ($type === 'NWS') {
 
@@ -700,16 +269,16 @@ class QcController extends Controller
     //             if ($type === 'NW') {
 
     //                 $query->where('order_no', 'like', 'NW%')
-    //                     ->where('order_no', 'not like', 'NWS%');
+//                       ->where('order_no', 'not like', 'NWS%');
 
     //             }
 
     //         });
 
     //     // =========================
-    //     // SORT ORDER NO
-    //     // =========================
-    //     if ($sort == 'asc') {
+//     // SORT ORDER NO
+//     // =========================
+//     if ($sort == 'asc') {
 
     //         $query->orderBy('order_no', 'asc');
 
@@ -722,7 +291,7 @@ class QcController extends Controller
     //     $pos = $query->get();
 
     //     return response()->json($pos);
-    // }
+// }
     public function ajaxPo(Request $request)
     {
         $q = $request->q;
@@ -876,13 +445,6 @@ class QcController extends Controller
             // dd($items);
         }
         return $items;
-    }
-        public function getDate()
-    {
-        return response()->json([
-            'success' => true,
-            'rejected_start' => '2026-09-21',
-        ]);
     }
     // public function getDataApi(string $kategoriName, string $detailPoId, string $poId)
     // {
@@ -1561,7 +1123,7 @@ class QcController extends Controller
         ]);
     }
 
-    private const USE_TEST_INSPECTION = true;
+    private const USE_TEST_INSPECTION = false;
     //  helpers
 
     private function inspectionScheduleModel(): string
@@ -8275,5 +7837,690 @@ class QcController extends Controller
             'total' => $inspection->count()
         ]);
     }
+    public function getDate()
+    {
+        return response()->json([
+            'success' => true,
+            'rejected_start' => '2026-09-21',
+        ]);
+    }
+    // add in excel
+    public function laporanAddIn(Request $request)
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | INSPECTION DATA
+        |--------------------------------------------------------------------------
+        |
+        | Ambil seluruh relasi yang memang dibutuhkan oleh Excel Add-in.
+        |
+        */
+
+        $inspectionModel = $this->inspectionScheduleModel();
+
+        $query = $inspectionModel::with([
+            'kategori',
+            'user',
+            'spk',
+            'detailPo',
+            'po',
+        ]);
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | FILTER INSPECTOR
+        |--------------------------------------------------------------------------
+        */
+
+        if ($request->filled('inspector')) {
+
+            $query->where(
+                'user_id',
+                $request->inspector
+            );
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | FILTER TANGGAL FROM
+        |--------------------------------------------------------------------------
+        */
+
+        if ($request->filled('from')) {
+
+            $query->whereDate(
+                'tanggal_inspect',
+                '>=',
+                $request->from
+            );
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | FILTER TANGGAL TO
+        |--------------------------------------------------------------------------
+        */
+
+        if ($request->filled('to')) {
+
+            $query->whereDate(
+                'tanggal_inspect',
+                '<=',
+                $request->to
+            );
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | GET INSPECTION
+        |--------------------------------------------------------------------------
+        */
+
+        $inspection = $query
+            ->orderByDesc('tanggal_inspect')
+            ->orderByDesc('id')
+            ->get();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | DAFTAR QC / INSPECTOR
+        |--------------------------------------------------------------------------
+        |
+        | Digunakan untuk dropdown Inspector di Excel Add-in.
+        |
+        */
+
+        $qcs = User::with([
+            'karyawan.divisi'
+        ])
+            ->whereHas(
+                'karyawan.divisi',
+                function ($q) {
+
+                    $q->where(
+                        'nama',
+                        'like',
+                        'QC%'
+                    );
+                }
+            )
+            ->orderBy('name')
+            ->get();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | FLATTEN DATA UNTUK EXCEL
+        |--------------------------------------------------------------------------
+        |
+        | Jangan kirim object relationship mentah ke Excel.
+        | Semua field dibuat menjadi string / number.
+        |
+        */
+
+        $rows = $inspection
+            ->values()
+            ->map(function ($item, $index) {
+
+                /*
+                |--------------------------------------------------------------------------
+                | TANGGAL
+                |--------------------------------------------------------------------------
+                */
+
+                $tanggal = '';
+
+                if ($item->tanggal_inspect) {
+
+                    try {
+
+                        $tanggal =
+                            \Carbon\Carbon::parse(
+                                $item->tanggal_inspect
+                            )->format('d M Y');
+
+                    } catch (\Throwable $e) {
+
+                        $tanggal =
+                            (string) $item->tanggal_inspect;
+                    }
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | RELATIVE TIME
+                |--------------------------------------------------------------------------
+                |
+                | Contoh:
+                |
+                | 07 Oct 2026
+                | 18 hours ago
+                |
+                */
+
+                if ($item->created_at) {
+
+                    try {
+
+                        $relative =
+                            \Carbon\Carbon::parse(
+                                $item->created_at
+                            )->diffForHumans();
+
+                        $tanggal .=
+                            "\n" . $relative;
+
+                    } catch (\Throwable $e) {
+                        // Abaikan jika created_at tidak valid.
+                    }
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | PO
+                |--------------------------------------------------------------------------
+                */
+
+                $po = '';
+
+                if ($item->po) {
+
+                    $po =
+                        $item->po->order_no
+                        ?? '';
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | BUYER
+                |--------------------------------------------------------------------------
+                */
+
+                $buyer = '';
+
+                if ($item->po) {
+
+                    $buyer =
+                        $item->po->company_name
+                        ?? '';
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | NAME ITEMS
+                |--------------------------------------------------------------------------
+                |
+                | detailPo->detail biasanya merupakan JSON / array.
+                |
+                */
+
+                $nameItems = '';
+
+                if ($item->detailPo) {
+
+                    $detail =
+                        $item->detailPo->detail
+                        ?? null;
+
+
+                    /*
+                    | Jika detail berupa JSON string
+                    */
+
+                    if (is_string($detail)) {
+
+                        $decoded =
+                            json_decode(
+                                $detail,
+                                true
+                            );
+
+                        if (
+                            json_last_error() ===
+                            JSON_ERROR_NONE
+                        ) {
+
+                            $detail =
+                                $decoded;
+                        }
+                    }
+
+
+                    /*
+                    | Ambil description
+                    */
+
+                    if (is_array($detail)) {
+
+                        $nameItems =
+                            $detail['description']
+                            ?? '';
+
+                    } elseif (
+                        is_object($detail)
+                    ) {
+
+                        $nameItems =
+                            $detail->description
+                            ?? '';
+                    }
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | NO SPK
+                |--------------------------------------------------------------------------
+                |
+                | SPK menggunakan struktur:
+                |
+                | spk.data.no_spk
+                |
+                */
+
+                $noSpk = '';
+
+                if ($item->spk) {
+
+                    $spkData =
+                        $item->spk->data
+                        ?? null;
+
+
+                    /*
+                    | Jika data masih JSON string
+                    */
+
+                    if (is_string($spkData)) {
+
+                        $decoded =
+                            json_decode(
+                                $spkData,
+                                true
+                            );
+
+                        if (
+                            json_last_error() ===
+                            JSON_ERROR_NONE
+                        ) {
+
+                            $spkData =
+                                $decoded;
+                        }
+                    }
+
+
+                    if (is_array($spkData)) {
+
+                        $noSpk =
+                            $spkData['no_spk']
+                            ?? '';
+
+                    } elseif (
+                        is_object($spkData)
+                    ) {
+
+                        $noSpk =
+                            $spkData->no_spk
+                            ?? '';
+                    }
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | SUB NAME
+                |--------------------------------------------------------------------------
+                |
+                | Sesuai struktur SPK:
+                |
+                | spk.data.sup
+                |
+                |
+                | Di sistem monitoring:
+                |
+                | SUB NAME = supplier SPK
+                |
+                */
+
+                $subName = '';
+
+                if ($item->spk) {
+
+                    $spkData =
+                        $item->spk->data
+                        ?? null;
+
+
+                    /*
+                    | Jika data JSON string
+                    */
+
+                    if (is_string($spkData)) {
+
+                        $decoded =
+                            json_decode(
+                                $spkData,
+                                true
+                            );
+
+                        if (
+                            json_last_error() ===
+                            JSON_ERROR_NONE
+                        ) {
+
+                            $spkData =
+                                $decoded;
+                        }
+                    }
+
+
+                    if (is_array($spkData)) {
+
+                        $subName =
+                            $spkData['sup']
+                            ?? '';
+
+                    } elseif (
+                        is_object($spkData)
+                    ) {
+
+                        $subName =
+                            $spkData->sup
+                            ?? '';
+                    }
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | PERSON / INSPECTOR
+                |--------------------------------------------------------------------------
+                */
+
+                $person = '';
+
+                if ($item->user) {
+
+                    $person =
+                        $item->user->name
+                        ?? '';
+
+
+                    /*
+                    | Fallback nama lengkap karyawan
+                    */
+
+                    if (
+                        trim((string) $person) === ''
+                    ) {
+
+                        $person =
+                            optional(
+                                $item->user->karyawan
+                            )->nama_lengkap
+                            ?? '';
+                    }
+
+
+                    /*
+                    | Fallback field nama_lengkap
+                    */
+
+                    if (
+                        trim((string) $person) === ''
+                    ) {
+
+                        $person =
+                            $item->user->nama_lengkap
+                            ?? '';
+                    }
+
+
+                    /*
+                    | Fallback field nama
+                    */
+
+                    if (
+                        trim((string) $person) === ''
+                    ) {
+
+                        $person =
+                            $item->user->nama
+                            ?? '';
+                    }
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | TOTAL INSPECTED
+                |--------------------------------------------------------------------------
+                */
+
+                $totalInspected =
+                    $item->jumlah_inspect
+                    ?? 0;
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | PASS
+                |--------------------------------------------------------------------------
+                */
+
+                $pass =
+                    $item->passed
+                    ?? 0;
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | REJECT
+                |--------------------------------------------------------------------------
+                */
+
+                $reject =
+                    $item->rejected
+                    ?? 0;
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | RETURN FLAT ROW
+                |--------------------------------------------------------------------------
+                */
+
+                return [
+
+                    /*
+                    | # 
+                    */
+
+                    'no' =>
+                        $index + 1,
+
+
+                    /*
+                    | TANGGAL JAM
+                    */
+
+                    'tanggal' =>
+                        $tanggal,
+
+
+                    /*
+                    | PO
+                    */
+
+                    'po' =>
+                        (string) $po,
+
+
+                    /*
+                    | NAME ITEMS
+                    */
+
+                    'name_items' =>
+                        (string) $nameItems,
+
+
+                    /*
+                    | BUYER
+                    */
+
+                    'buyer' =>
+                        (string) $buyer,
+
+
+                    /*
+                    | NO. SPK
+                    */
+
+                    'no_spk' =>
+                        (string) $noSpk,
+
+
+                    /*
+                    | SUB NAME
+                    */
+
+                    'sub_name' =>
+                        (string) $subName,
+
+
+                    /*
+                    | PERSON
+                    */
+
+                    'person' =>
+                        (string) $person,
+
+
+                    /*
+                    | TOTAL INSPECTED
+                    */
+
+                    'total_inspected' =>
+                        is_numeric($totalInspected)
+                        ? (float) $totalInspected
+                        : 0,
+
+
+                    /*
+                    | PASS
+                    */
+
+                    'pass' =>
+                        is_numeric($pass)
+                        ? (float) $pass
+                        : 0,
+
+
+                    /*
+                    | REJECT
+                    */
+
+                    'reject' =>
+                        is_numeric($reject)
+                        ? (float) $reject
+                        : 0,
+                ];
+            })
+            ->values();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | RESPONSE
+        |--------------------------------------------------------------------------
+        */
+
+        return response()->json([
+
+            'success' => true,
+
+            /*
+            | Data utama untuk Excel
+            */
+
+            'data' => $rows,
+
+
+            /*
+            | Data QC untuk dropdown Inspector
+            */
+
+            'qcs' => $qcs
+                ->map(function ($qc) {
+
+                    $name =
+                        $qc->name
+                        ?? '';
+
+
+                    /*
+                    | Jika User name kosong,
+                    | gunakan nama karyawan.
+                    */
+
+                    if (
+                        trim((string) $name) === ''
+                    ) {
+
+                        $name =
+                            optional(
+                                $qc->karyawan
+                            )->nama_lengkap
+                            ?? '';
+                    }
+
+
+                    return [
+
+                        'id' =>
+                            $qc->id,
+
+                        'name' =>
+                            (string) $name,
+                    ];
+                })
+                ->values(),
+
+
+            /*
+            | Metadata
+            */
+
+            'meta' => [
+
+                'total_inspection' =>
+                    $rows->count(),
+
+                'total_qc' =>
+                    $qcs->count(),
+
+                'from' =>
+                    $request->from,
+
+                'to' =>
+                    $request->to,
+
+                'inspector' =>
+                    $request->inspector,
+            ],
+        ]);
+    }
+
+
 }
 
