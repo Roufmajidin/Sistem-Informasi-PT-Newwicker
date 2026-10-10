@@ -3520,7 +3520,8 @@ public function overview()
     */
 
     return view(
-        'pages.laporan.overview',
+        // 'pages.laporan.overview',
+        'pages.maintenance.index',
 
         compact(
 
