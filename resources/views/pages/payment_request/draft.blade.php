@@ -46,7 +46,7 @@
                             margin:0;
                             font-size:28px;
                         ">
-                                        Purchase Request
+                                        Payment Request
                                     </h2>
                                 </td>
                                 {{-- NEED DATE --}}
