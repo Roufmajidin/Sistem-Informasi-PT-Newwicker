@@ -2,6 +2,7 @@
 namespace App\Http\Controllers;
 
 // use App\Exports\AbsenExport;
+use Carbon\Carbon;
 
 use App\Exports\AbsenExport;
 use App\Models\Absen;
@@ -11,6 +12,7 @@ use App\Models\Lembur;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Models\User;
 
 // class AbsenController extends Controller
 // {
@@ -19,7 +21,7 @@ use Maatwebsite\Excel\Facades\Excel;
 //         $request->validate([
 //             'latitude'  => 'required|numeric',
 //             'longitude' => 'required|numeric',
-//             'foto'      => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+//             'foto'      => 'nullable|image|mimes:jpg,jpeg,png|max:2048',f
 //         ]);
 
 //         // Lokasi kantor (PT NewWicker)
@@ -97,92 +99,7 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class AbsenController extends Controller
 {
-    public function absen(Request $request)
-    {
-        if (! $request->user()) {
-            return response()->json(['message' => 'Token tidak valid'], 401);
-        }
-
-        $user  = $request->user();
-        $today = $this->getBusinessDate($user);
-        $now   = now();
-
-        // ==================== Lokasi kantor ====================
-        $officeLat = config('office.lat');
-        $officeLng = config('office.lon');
-        $radius    = config('office.radius'); // meter
-
-        $userLat = $request->latitude;
-        $userLng = $request->longitude;
-
-        if (!isset($userLat) || !isset($userLng)) {
-            return response()->json(['message' => 'Lokasi tidak terdeteksi'], 400);
-        }
-
-        // ==================== Hitung jarak ====================
-        $jarak = $this->distance($userLat, $userLng, $officeLat, $officeLng);
-
-        // ==================== USER EXCEPTION ====================
-        $exceptionUsers = [182]; // user bebas radius
-
-        if (!in_array($user->id, $exceptionUsers) && $jarak > $radius) {
-            return response()->json([
-                'message' => 'Anda berada di luar area kantor (' . round($jarak) . ' meter). Absen ditolak.',
-            ], 403);
-        }
-
-        // ==================== Upload foto opsional ====================
-        $fotoPath = null;
-        if ($request->hasFile('foto')) {
-            $fotoPath = $request->file('foto')->store('absen_foto', 'public');
-        }
-
-        // ==================== Cek data absen hari ini ====================
-        $absen = Absen::where('user_id', $user->id)
-            ->where('tanggal', $today)
-            ->first();
-
-        // ==================== Belum ada absen hari ini → Absen Masuk ====================
-        if (!$absen) {
-
-            Absen::create([
-                'user_id'    => $user->id,
-                'tanggal'    => $today,
-                'jam_masuk'  => $now->format('H:i:s'),
-                'latitude'   => $userLat,
-                'longitude'  => $userLng,
-                'foto'       => $fotoPath,
-                'keterangan' => 'Hadir',
-            ]);
-
-            return response()->json([
-                'message' => 'Absen masuk tercatat pukul ' . $now->format('H:i'),
-            ], 201);
-        }
-
-        // ==================== Sudah masuk tapi belum keluar → Absen Keluar ====================
-        if ($absen->jam_masuk && !$absen->jam_keluar) {
-
-            $absen->update([
-                'jam_keluar'  => $now->format('H:i:s'),
-                'latitude_k'  => $userLat,
-                'longitude_k' => $userLng,
-                'foto_keluar' => $fotoPath,
-                              'keterangan'  => 'Full H',
-
-            ]);
-
-            return response()->json([
-                'message' => 'Absen keluar berhasil dicatat pukul ' . $now->format('H:i'),
-            ], 200);
-        }
-
-        // ==================== Sudah lengkap ====================
-        return response()->json([
-            'message' => 'Absen hari ini sudah lengkap',
-        ], 200);
-    }
-    // helperrs
+    // helper
     private function getBusinessDate(User $user)
 {
     $now = now();
@@ -203,145 +120,391 @@ class AbsenController extends Controller
 
     return $now->toDateString();
 }
-     public function absenLembur(Request $request)
-    {
-        // ==================== Validasi Token ====================
-        if (! $request->user()) {
-            return response()->json([
-                'message' => 'Token tidak valid'
-            ], 401);
-        }
+  public function absen(Request $request)
+{
+    if (! $request->user()) {
+        return response()->json([
+            'message' => 'Token tidak valid'
+        ], 401);
+    }
 
-        $user  = $request->user();
-        // $today = now()->toDateString();
-               $today = $this->getBusinessDate($user);
+    $user  = $request->user();
+    // $today = now()->toDateString();
+     $today = $this->getBusinessDate($user);
+    $now   = now();
 
-        $now   = now();
+    /*
+    |--------------------------------------------------------------------------
+    | LOKASI KANTOR
+    |--------------------------------------------------------------------------
+    */
 
-        // ==================== Lokasi kantor ====================
-        $officeLat = config('office.lat');
-        $officeLng = config('office.lon');
-        $radius    = config('office.radius');
+    $officeLat = config('office.lat');
+    $officeLng = config('office.lon');
+    $radius    = config('office.radius');
 
-        $userLat = $request->latitude;
-        $userLng = $request->longitude;
+    $userLat = $request->latitude;
+    $userLng = $request->longitude;
 
-        if (! isset($userLat) || ! isset($userLng)) {
-            return response()->json([
-                'message' => 'Lokasi tidak terdeteksi'
-            ], 400);
-        }
+    if (!isset($userLat) || !isset($userLng)) {
+        return response()->json([
+            'message' => 'Lokasi tidak terdeteksi'
+        ], 400);
+    }
 
-        // ==================== EXCEPTION USER 182 ====================
-        if ($user->id != 182 || $user->id != 136) {
+    /*
+    |--------------------------------------------------------------------------
+    | HITUNG JARAK
+    |--------------------------------------------------------------------------
+    */
 
-            $jarak = $this->distance($userLat, $userLng, $officeLat, $officeLng);
+    $jarak = $this->distance(
+        $userLat,
+        $userLng,
+        $officeLat,
+        $officeLng
+    );
 
-            // if ($jarak > $radius) {
-            //     return response()->json([
-            //         'message' => 'Anda di luar area kantor (' . round($jarak) . ' meter)',
-            //     ], 403);
-            // }
-        }
+    /*
+    |--------------------------------------------------------------------------
+    | USER YANG BEBAS RADIUS
+    |--------------------------------------------------------------------------
+    */
 
-        // ==================== Upload foto ====================
-        $fotoPath = null;
+    $exceptionUsers = [182, 136];
 
-        if ($request->hasFile('foto')) {
-            $fotoPath = $request->file('foto')->store('lembur_foto', 'public');
-        }
+    // if (
+    //     !in_array($user->id, $exceptionUsers) &&
+    //     $jarak > $radius
+    // ) {
+    //     return response()->json([
+    //         'message' => 'Anda berada di luar area kantor (' . round($jarak) . ' meter). Absen ditolak.',
+    //     ], 403);
+    // }
 
-        // ==================== Cek lembur hari ini ====================
-      $lembur = Lembur::where('user_id', $user->id)
-    ->whereNull('jam_keluar')
-    ->latest('tanggal')
-    ->first();
-        // ======================================================
-// LUPA CHECKOUT LEMBUR
-// Setelah jam 06.00 otomatis:
-// 1. Tutup lembur
-// 2. Buat absen masuk hari ini
-// ======================================================
-if (
-    $lembur &&
-    $lembur->jam_masuk &&
-    !$lembur->jam_keluar &&
-    $lembur->tanggal < $today &&
-    $now->hour >= 6
-) {
+    /*
+    |--------------------------------------------------------------------------
+    | UPLOAD FOTO
+    |--------------------------------------------------------------------------
+    */
 
-    // Tutup lembur
-    $lembur->update([
-        'jam_keluar'  => $now->format('H:i:s'),
-        'latitude_k'  => $userLat,
-        'longitude_k' => $userLng,
-        'foto_keluar' => $fotoPath,
-        'keterangan'  => 'Selesai Lembur (Otomatis)',
-    ]);
+    $fotoPath = null;
 
-    // Buat absen masuk hari ini jika belum ada
+    if ($request->hasFile('foto')) {
+        $fotoPath = $request->file('foto')
+            ->store('absen_foto', 'public');
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | CEK ABSEN HARI INI
+    |--------------------------------------------------------------------------
+    */
+
     $absen = Absen::where('user_id', $user->id)
-        ->where('tanggal', now()->toDateString())
+        ->where('tanggal', $today)
         ->first();
 
-    if (! $absen) {
+    /*
+    |--------------------------------------------------------------------------
+    | BELUM ADA ABSEN -> ABSEN MASUK
+    |--------------------------------------------------------------------------
+    */
+
+    if (!$absen) {
 
         Absen::create([
             'user_id'    => $user->id,
-            'tanggal'    => now()->toDateString(),
+            'tanggal'    => $today,
             'jam_masuk'  => $now->format('H:i:s'),
             'latitude'   => $userLat,
             'longitude'  => $userLng,
             'foto'       => $fotoPath,
             'keterangan' => 'Hadir',
         ]);
+
+        return response()->json([
+            'message' => 'Absen masuk tercatat pukul ' . $now->format('H:i'),
+        ], 201);
     }
 
-    return response()->json([
-        'message' => 'Lembur otomatis ditutup dan absen masuk berhasil dicatat.',
-    ], 200);
-}
-        // ==================== Masuk lembur ====================
-        if (! $lembur) {
+    /*
+    |--------------------------------------------------------------------------
+    | SUDAH ADA RECORD TAPI BELUM JAM MASUK
+    | KASUS IJIN TELAT
+    |--------------------------------------------------------------------------
+    */
 
-            Lembur::create([
-                'user_id'    => $user->id,
-                'tanggal'    => $today,
-                'jam_masuk'  => $now->format('H:i:s'),
-                'latitude'   => $userLat,
-                'longitude'  => $userLng,
-                'foto'       => $fotoPath,
-                'keterangan' => 'Mulai Lembur',
-            ]);
+    if (!$absen->jam_masuk) {
 
-            return response()->json([
-                'message' => 'Absen lembur masuk tercatat pukul ' . $now->format('H:i'),
-            ], 201);
-        }
+        $absen->update([
+            'jam_masuk' => $now->format('H:i:s'),
+            'latitude'  => $userLat,
+            'longitude' => $userLng,
+            'foto'      => $fotoPath,
+        ]);
 
-        // ==================== Keluar lembur ====================
-        if ($lembur->jam_masuk && ! $lembur->jam_keluar) {
-
-            $lembur->update([
-                'jam_keluar'  => $now->format('H:i:s'),
-                'latitude_k'  => $userLat,
-                'longitude_k' => $userLng,
-                'foto_keluar' => $fotoPath,
-                'keterangan'  => 'Selesai Lembur',
-            ]);
-
-            return response()->json([
-                'message' => 'Absen lembur selesai pukul ' . $now->format('H:i'),
-            ], 200);
-        }
-
-        // ==================== Sudah lengkap ====================
         return response()->json([
-            'message' => 'Lembur hari ini sudah lengkap',
+            'message' => 'Absen masuk berhasil dicatat pukul ' . $now->format('H:i'),
         ], 200);
     }
 
-   public function ajukanIzin(Request $request)
+    /*
+    |--------------------------------------------------------------------------
+    | SUDAH MASUK TAPI BELUM KELUAR
+    |--------------------------------------------------------------------------
+    */
+
+    if ($absen->jam_masuk && !$absen->jam_keluar) {
+
+        $absen->update([
+            'jam_keluar'  => $now->format('H:i:s'),
+            'latitude_k'  => $userLat,
+            'longitude_k' => $userLng,
+            'foto_keluar' => $fotoPath,
+            'keterangan'  => 'Full H',
+        ]);
+
+        return response()->json([
+            'message' => 'Absen keluar berhasil dicatat pukul ' . $now->format('H:i'),
+        ], 200);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | ABSEN SUDAH LENGKAP
+    |--------------------------------------------------------------------------
+    */
+
+    return response()->json([
+        'message' => 'Absen hari ini sudah lengkap',
+    ], 200);
+}
+    
+  public function absenLembur(Request $request)
+{
+    // ============================================================
+    // VALIDASI TOKEN
+    // ============================================================
+
+    if (! $request->user()) {
+        return response()->json([
+            'message' => 'Token tidak valid'
+        ], 401);
+    }
+
+    $user = $request->user();
+
+    // ============================================================
+    // BUSINESS DATE
+    // ============================================================
+
+    $today = $this->getBusinessDate($user);
+    $now   = now();
+
+    // ============================================================
+    // LOKASI KANTOR
+    // ============================================================
+
+    $officeLat = config('office.lat');
+    $officeLng = config('office.lon');
+    $radius    = config('office.radius');
+
+    $userLat = $request->latitude;
+    $userLng = $request->longitude;
+
+    if (! isset($userLat) || ! isset($userLng)) {
+        return response()->json([
+            'message' => 'Lokasi tidak terdeteksi'
+        ], 400);
+    }
+
+    // ============================================================
+    // EXCEPTION USER 182 & 136
+    // ============================================================
+    // User 182 dan 136 tidak dikenakan pengecekan radius.
+    //
+    // CATATAN:
+    // Sebelumnya menggunakan:
+    //
+    // if ($user->id != 182 || $user->id != 136)
+    //
+    // Itu selalu TRUE.
+    //
+    // Yang benar:
+    // ============================================================
+
+    if ($user->id != 182 && $user->id != 136) {
+
+        $jarak = $this->distance(
+            $userLat,
+            $userLng,
+            $officeLat,
+            $officeLng
+        );
+
+        /*
+        if ($jarak > $radius) {
+            return response()->json([
+                'message' => 'Anda di luar area kantor (' . round($jarak) . ' meter)',
+            ], 403);
+        }
+        */
+    }
+
+    // ============================================================
+    // UPLOAD FOTO
+    // ============================================================
+
+    $fotoPath = null;
+
+    if ($request->hasFile('foto')) {
+
+        $fotoPath = $request
+            ->file('foto')
+            ->store('lembur_foto', 'public');
+    }
+
+    // ============================================================
+    // NORMALISASI BUSINESS DATE
+    // ============================================================
+
+    $businessDate = \Carbon\Carbon::parse($today)->toDateString();
+
+    // ============================================================
+    // 1. CARI LEMBUR HARI INI
+    // ============================================================
+    //
+    // Hanya mengambil lembur pada business date hari ini.
+    //
+    // Ini bagian PALING PENTING supaya lembur kemarin
+    // tidak dianggap sebagai lembur hari ini.
+    //
+    // ============================================================
+
+    $lemburHariIni = Lembur::where('user_id', $user->id)
+        ->whereDate('tanggal', $businessDate)
+        ->latest('id')
+        ->first();
+
+    // ============================================================
+    // 2. JIKA ADA LEMBUR HARI INI YANG BELUM CHECKOUT
+    // ============================================================
+    //
+    // Maka klik sekarang = CHECKOUT.
+    //
+    // ============================================================
+
+    if (
+        $lemburHariIni &&
+        $lemburHariIni->jam_masuk &&
+        ! $lemburHariIni->jam_keluar
+    ) {
+
+        $lemburHariIni->update([
+            'jam_keluar'  => $now->format('H:i:s'),
+            'latitude_k'  => $userLat,
+            'longitude_k' => $userLng,
+            'foto_keluar' => $fotoPath,
+            'keterangan'  => 'Selesai Lembur',
+        ]);
+
+        return response()->json([
+            'message' => 'Absen lembur selesai pukul ' . $now->format('H:i'),
+        ], 200);
+    }
+
+    // ============================================================
+    // 3. CEK APAKAH ADA LEMBUR KEMARIN YANG LUPA CHECKOUT
+    // ============================================================
+    //
+    // Hanya mencari tanggal SEBELUM business date hari ini.
+    //
+    // Jadi:
+    //
+    // 2026-08-10 -> lembur terbuka
+    // 2026-08-11 -> user mulai lembur
+    //
+    // Lembur 10 Agustus akan dianggap lupa checkout.
+    //
+    // ============================================================
+
+    $lemburLama = Lembur::where('user_id', $user->id)
+        ->whereNull('jam_keluar')
+        ->whereDate('tanggal', '<', $businessDate)
+        ->latest('tanggal')
+        ->latest('id')
+        ->first();
+
+    // ============================================================
+    // 4. JIKA ADA LEMBUR LAMA
+    // ============================================================
+    //
+    // Tutup lembur lama.
+    //
+    // TAPI JANGAN RETURN.
+    //
+    // Setelah ditutup, langsung lanjut membuat lembur baru
+    // untuk hari ini.
+    //
+    // ============================================================
+
+    if (
+        $lemburLama &&
+        $lemburLama->jam_masuk &&
+        ! $lemburLama->jam_keluar
+    ) {
+
+        $lemburLama->update([
+            'jam_keluar'  => '06:00:00',
+            'latitude_k'  => $userLat,
+            'longitude_k' => $userLng,
+            'foto_keluar' => $fotoPath,
+            'keterangan'  => 'Lupa Checkout Lembur',
+        ]);
+    }
+
+    // ============================================================
+    // 5. BUAT LEMBUR BARU HARI INI
+    // ============================================================
+    //
+    // Pada titik ini:
+    //
+    // - Tidak ada lembur hari ini yang terbuka
+    // - Kalau ada lembur lama, sudah ditutup
+    //
+    // Maka request ini dianggap sebagai:
+    //
+    // >>> MULAI LEMBUR HARI INI
+    //
+    // ============================================================
+
+    $lemburBaru = Lembur::create([
+        'user_id'    => $user->id,
+        'tanggal'    => $businessDate,
+        'jam_masuk'  => $now->format('H:i:s'),
+        'latitude'   => $userLat,
+        'longitude'  => $userLng,
+        'foto'       => $fotoPath,
+        'keterangan' => 'Mulai Lembur',
+    ]);
+
+    // ============================================================
+    // RESPONSE
+    // ============================================================
+
+    return response()->json([
+        'message' => 'Absen lembur masuk tercatat pukul ' . $now->format('H:i'),
+        'data' => [
+            'id'        => $lemburBaru->id,
+            'tanggal'   => $businessDate,
+            'jam_masuk' => $lemburBaru->jam_masuk,
+        ]
+    ], 201);
+}
+
+
+  public function ajukanIzin(Request $request)
 {
     if (! $request->user()) {
         return response()->json(['message' => 'Token tidak valid'], 401);
@@ -361,9 +524,14 @@ if (
 
     // Konversi tanggal
     try {
-        $tanggal = \Carbon\Carbon::createFromFormat('d-m-Y', $validated['tanggal'])
-            ->format('Y-m-d');
+
+        $tanggal = \Carbon\Carbon::createFromFormat(
+            'd-m-Y',
+            $validated['tanggal']
+        )->format('Y-m-d');
+
     } catch (\Exception $e) {
+
         return response()->json([
             'message' => 'Format tanggal tidak valid. Gunakan dd-mm-yyyy',
         ], 422);
@@ -374,17 +542,38 @@ if (
 
     if ($request->hasFile('file')) {
 
-        $file     = $request->file('file');
+        $file = $request->file('file');
 
-        $fileName = time() . '_' . $user->id . '.' . $file->getClientOriginalExtension();
+        $fileName = time() . '_' . $user->id . '.' .
+            $file->getClientOriginalExtension();
 
-        $filePath = $file->storeAs('uploads/izin', $fileName, 'public');
+        $filePath = $file->storeAs(
+            'uploads/izin',
+            $fileName,
+            'public'
+        );
     }
 
-    // Cek existing
+    // =========================
+    // Cek existing absen
+    // =========================
     $existing = Absen::where('user_id', $user->id)
         ->whereDate('tanggal', $validated['mulai_tanggal'])
         ->first();
+
+    // =========================
+    // Cek duplicate izin
+    // =========================
+    $cekIzin = Izin::where('user_id', $user->id)
+        ->whereDate('mulai_tanggal', $validated['mulai_tanggal'])
+        ->first();
+
+    if ($cekIzin) {
+
+        return response()->json([
+            'message' => 'Izin sudah pernah diajukan',
+        ], 200);
+    }
 
     // =========================
     // JIKA SUDAH ABSEN MASUK
@@ -395,13 +584,20 @@ if (
         if ($existing->jam_masuk != null) {
 
             $existing->update([
+
                 'keterangan' => $validated['keterangan'],
+
                 'messages'   => $validated['messages'] ?? null,
+
                 'foto'       => $filePath ?? $existing->foto,
+
                 'status'     => 'izin_pulang_cepat',
             ]);
 
-            // ==================== SIMPAN IZIN ====================
+            // ====================
+            // SIMPAN IZIN
+            // ====================
+
             $type = IzinType::whereRaw(
                 'LOWER(name) = ?',
                 [strtolower($validated['keterangan'])]
@@ -410,27 +606,41 @@ if (
             $a = $type?->id;
 
             $izin = Izin::create([
+
                 'user_id'        => $user->id,
+
                 'type_id'        => $a,
+
                 'tanggal'        => $validated['keterangan'],
 
                 'mulai_tanggal'  => $validated['mulai_tanggal'],
+
                 'sampai_tanggal' => $validated['sampai_tanggal'],
+
                 'alasan'         => $validated['messages'] ?? null,
+
                 'file'           => $filePath,
+
                 'status'         => 'pending',
             ]);
 
             return response()->json([
+
                 'message' => 'Izin pulang cepat berhasil diajukan',
+
                 'data'    => $existing,
+
                 'izin'    => $izin,
+
             ], 200);
         }
 
         return response()->json([
+
             'message' => 'Anda sudah mengajukan izin pada tanggal tersebut',
+
             'data'    => $existing,
+
         ], 200);
     }
 
@@ -438,42 +648,69 @@ if (
 
     try {
 
-        // ==================== SIMPAN ABSEN ====================
+        // ====================
+        // SIMPAN ABSEN
+        // ====================
+
         $absen = Absen::create([
+
             'user_id'    => $user->id,
+
             'tanggal'    => $tanggal,
+
             'jam_masuk'  => null,
+
             'jam_keluar' => null,
+
             'keterangan' => $validated['keterangan'],
+
             'messages'   => $validated['messages'] ?? null,
+
             'foto'       => $filePath,
+
             'status'     => 'pending',
         ]);
 
-        // ==================== SIMPAN IZIN ====================
-        $type = IzinType::whereRaw('LOWER(name) = ?', [strtolower($validated['keterangan'])])
-            ->first();
+        // ====================
+        // SIMPAN IZIN
+        // ====================
 
-        $a    = $type?->id;
+        $type = IzinType::whereRaw(
+            'LOWER(name) = ?',
+            [strtolower($validated['keterangan'])]
+        )->first();
+
+        $a = $type?->id;
 
         $izin = Izin::create([
+
             'user_id'        => $user->id,
+
             'type_id'        => $a,
+
             'tanggal'        => $validated['keterangan'],
 
             'mulai_tanggal'  => $validated['mulai_tanggal'],
+
             'sampai_tanggal' => $validated['sampai_tanggal'],
+
             'alasan'         => $validated['messages'] ?? null,
+
             'file'           => $filePath,
+
             'status'         => 'pending',
         ]);
 
         DB::commit();
 
         return response()->json([
+
             'message' => 'Izin berhasil diajukan',
+
             'absen'   => $absen,
+
             'izin'    => $izin,
+
         ], 201);
 
     } catch (\Exception $e) {
@@ -481,21 +718,16 @@ if (
         DB::rollBack();
 
         return response()->json([
+
             'message' => 'Gagal mengajukan izin',
+
             'error'   => $e->getMessage(),
+
         ], 500);
     }
 }
 
-    private function mapTypeId($keterangan)
-    {
-        $type = IzinType::whereRaw('LOWER(name) = ?', [strtolower($keterangan)])
-            ->first();
-
-        return $type?->id;
-    }
-
-    public function izinSaya(Request $request)
+   public function izinSaya(Request $request)
     {
         if (! $request->user()) {
             return response()->json([
@@ -559,7 +791,7 @@ if (
 
         return response()->json(['message' => 'Izin berhasil divalidasi'], 200);
     }
-    public function getTypes()
+     public function getTypes()
     {
         $types = IzinType::select('id', 'name', 'code')
             ->orderBy('id')

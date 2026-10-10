@@ -271,7 +271,7 @@ class PengajuanController extends Controller
 
                     [
                         'name' => 'Checked By',
-                        'user' => 'Ulfah Nabila',
+                        'user' => 'Ainunnisyah Uwiyah',
                     ],
 
                     [
