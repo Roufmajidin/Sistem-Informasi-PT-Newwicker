@@ -1,4 +1,4 @@
-{{-- @extends('master.master')
+@extends('master.master')
 
 @section('title', 'Detail Barang')
 
@@ -2627,8 +2627,8 @@
     </script>
 
 
-@endsection --}}
-
+@endsection
+{{-- 
 @extends('master.master')
 
 @section('title', 'Detail Barang')
@@ -8066,4 +8066,4 @@
     </script>
 
 
-@endsection
+@endsection --}}
