@@ -1,4 +1,4 @@
-@extends('master.master')
+{{-- @extends('master.master')
 
 @if (request()->is('ar_buyer'))
 
@@ -3689,4 +3689,6 @@
     );
 </script>
 
-@endsection
+@endsection --}}
+
+@include('pages.maintenance.index')
