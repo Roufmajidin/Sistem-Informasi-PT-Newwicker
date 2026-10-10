@@ -1047,7 +1047,7 @@
             <head>
 
                 <title>
-                    Purchase Request
+                    Payment Request
                 </title>
 
                 <style>
