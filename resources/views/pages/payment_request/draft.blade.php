@@ -4,7 +4,7 @@
     <div class="box mt-4">
         @section('btn')
             <div class="box-header d-flex justify-content-between align-items-center">
-                <h3 class="card-title">Payment Request (Nur)</h3>
+                <h3 class="card-title">Payment Request</h3>
             </div>
         @endsection
         <div class="box-body spk-wrapper">

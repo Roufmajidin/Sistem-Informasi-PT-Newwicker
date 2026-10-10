@@ -838,7 +838,8 @@
                             Swal.fire({
                                 icon: 'error',
                                 title: 'Gagal',
-                                text: res.message || 'Gagal menambahkan payment ke Draft Finance.'
+                                text: res.message ||
+                                    'Gagal menambahkan payment ke Draft Finance.'
                             });
 
                             return;
@@ -853,7 +854,8 @@
                         Swal.fire({
                             icon: 'success',
                             title: 'Berhasil',
-                            text: res.message || 'Payment berhasil ditambahkan ke Draft Finance.',
+                            text: res.message ||
+                                'Payment berhasil ditambahkan ke Draft Finance.',
                             timer: 1500,
                             showConfirmButton: false
                         });
@@ -867,7 +869,8 @@
                         Swal.fire({
                             icon: 'error',
                             title: 'Server Error',
-                            text: xhr.responseJSON?.message || 'Terjadi kesalahan saat menambahkan payment ke Draft Finance.'
+                            text: xhr.responseJSON?.message ||
+                                'Terjadi kesalahan saat menambahkan payment ke Draft Finance.'
                         });
                     }
                 });
