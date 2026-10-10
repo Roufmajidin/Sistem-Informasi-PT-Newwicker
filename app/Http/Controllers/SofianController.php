@@ -515,10 +515,11 @@ class SofianController extends Controller
         ->orderByDesc('id')
         ->get();
 
-    return view('pages.exports.ar', compact(
-        'ars',
-        'arsLegacy'
-    ));
+    // return view('pages.exports.ar', compact(
+    //     'ars',
+    //     'arsLegacy'
+    // ));
+    return view('pages.maintenance.index');
 }
     public function updateArField(Request $request, $id)
     {
