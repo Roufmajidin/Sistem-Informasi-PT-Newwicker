@@ -500,27 +500,27 @@ class SofianController extends Controller
 
         ]);
     }
- public function arBuyer()
-{
-    $ars = ExportAr::with([
-        'exportIpl.pos',
-        'exportIpl.items',
-        'payments',
-    ])
-        ->orderByDesc('tanggal_invoice')
-        ->orderByDesc('id')
-        ->get();
+    public function arBuyer()
+    {
+        $ars = ExportAr::with([
+            'exportIpl.pos',
+            'exportIpl.items',
+            'payments',
+        ])
+            ->orderByDesc('tanggal_invoice')
+            ->orderByDesc('id')
+            ->get();
 
-    $arsLegacy = ExportArLegacy::orderByDesc('tanggal_invoice')
-        ->orderByDesc('id')
-        ->get();
+        $arsLegacy = ExportArLegacy::orderByDesc('tanggal_invoice')
+            ->orderByDesc('id')
+            ->get();
 
-    // return view('pages.exports.ar', compact(
-    //     'ars',
-    //     'arsLegacy'
-    // ));
-    return view('pages.maintenance.index');
-}
+        // return view('pages.exports.ar', compact(
+        //     'ars',
+        //     'arsLegacy'
+        // ));
+        return view('pages.maintenance.index');
+    }
     public function updateArField(Request $request, $id)
     {
         try {
@@ -791,1176 +791,1164 @@ class SofianController extends Controller
     | export_ar_legacy.
     |
     */
-  public function addArLegacyMass(Request $request)
-{
-    try {
+    public function addArLegacyMass(Request $request)
+    {
+        try {
 
-        /*
-        |--------------------------------------------------------------------------
-        | AMBIL DATA
-        |--------------------------------------------------------------------------
-        */
+            /*
+            |--------------------------------------------------------------------------
+            | AMBIL DATA
+            |--------------------------------------------------------------------------
+            */
 
-        $rows  = $request->input('rows');
-        $mCont = $request->input('m_cont');
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | VALIDASI M_CONT
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            $mCont === null ||
-            $mCont === '' ||
-            !is_numeric($mCont) ||
-            (int) $mCont < 1 ||
-            (int) $mCont > 12
-        ) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Bulan Container (m_cont) wajib diisi angka 1 sampai 12.',
-            ], 422);
-        }
-
-        $mCont = (int) $mCont;
+            $rows = $request->input('rows');
+            $mCont = $request->input('m_cont');
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | VALIDASI ROW
-        |--------------------------------------------------------------------------
-        */
+            /*
+            |--------------------------------------------------------------------------
+            | VALIDASI M_CONT
+            |--------------------------------------------------------------------------
+            */
 
-        if (!is_array($rows) || count($rows) === 0) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Data rows kosong atau tidak valid.',
-            ], 422);
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | PARSE NUMBER
-        |--------------------------------------------------------------------------
-        */
-
-        $parseNumber = function ($value) {
-
-            if ($value === null || $value === '') {
-                return 0;
+            if (
+                $mCont === null ||
+                $mCont === '' ||
+                !is_numeric($mCont) ||
+                (int) $mCont < 1 ||
+                (int) $mCont > 12
+            ) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Bulan Container (m_cont) wajib diisi angka 1 sampai 12.',
+                ], 422);
             }
 
-            $str = trim((string) $value);
+            $mCont = (int) $mCont;
 
-            $str = str_replace(
-                [
-                    "\xc2\xa0",
+
+            /*
+            |--------------------------------------------------------------------------
+            | VALIDASI ROW
+            |--------------------------------------------------------------------------
+            */
+
+            if (!is_array($rows) || count($rows) === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Data rows kosong atau tidak valid.',
+                ], 422);
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | PARSE NUMBER
+            |--------------------------------------------------------------------------
+            */
+
+            $parseNumber = function ($value) {
+
+                if ($value === null || $value === '') {
+                    return 0;
+                }
+
+                $str = trim((string) $value);
+
+                $str = str_replace(
+                    [
+                        "\xc2\xa0",
+                        'Rp',
+                        'rp',
+                        '$',
+                        'USD',
+                        'usd',
+                        ' '
+                    ],
+                    '',
+                    $str
+                );
+
+                if ($str === '' || $str === '-') {
+                    return 0;
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | Format Indonesia / US
+                |--------------------------------------------------------------------------
+                */
+
+                if (
+                    strpos($str, ',') !== false &&
+                    strpos($str, '.') !== false
+                ) {
+
+                    /*
+                    | 19.335,50
+                    */
+
+                    if (strrpos($str, ',') > strrpos($str, '.')) {
+
+                        $str = str_replace('.', '', $str);
+                        $str = str_replace(',', '.', $str);
+
+                    }
+
+                    /*
+                    | 19,335.50
+                    */ else {
+
+                        $str = str_replace(',', '', $str);
+
+                    }
+
+                }
+
+                /*
+                | Hanya koma
+                */ elseif (strpos($str, ',') !== false) {
+
+                    $parts = explode(',', $str);
+
+                    $last = end($parts);
+
+                    if (strlen($last) <= 2) {
+
+                        $str = str_replace(',', '.', $str);
+
+                    } else {
+
+                        $str = str_replace(',', '', $str);
+
+                    }
+
+                }
+
+                /*
+                | Banyak titik
+                */ elseif (substr_count($str, '.') > 1) {
+
+                    $str = str_replace('.', '', $str);
+
+                }
+
+
+                return is_numeric($str)
+                    ? (float) $str
+                    : 0;
+            };
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | PARSE DATE
+            |--------------------------------------------------------------------------
+            */
+
+            $parseDate = function ($value) {
+
+                if (
+                    $value === null ||
+                    trim((string) $value) === ''
+                ) {
+                    return null;
+                }
+
+                $value = trim((string) $value);
+
+
+                foreach ([
+                    'm/d/Y',
+                    'm-d-Y',
+                    'Y-m-d',
+                    'd/m/Y',
+                    'd-m-Y',
+                ] as $format) {
+
+                    try {
+
+                        return \Carbon\Carbon::createFromFormat(
+                            $format,
+                            $value
+                        )->format('Y-m-d');
+
+                    } catch (\Throwable $e) {
+
+                        // lanjut
+
+                    }
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | Excel Serial Date
+                |--------------------------------------------------------------------------
+                */
+
+                if (
+                    is_numeric($value) &&
+                    (float) $value > 20000
+                ) {
+
+                    try {
+
+                        return \PhpOffice\PhpSpreadsheet\Shared\Date
+                            ::excelToDateTimeObject((float) $value)
+                            ->format('Y-m-d');
+
+                    } catch (\Throwable $e) {
+
+                        // abaikan
+                    }
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | Carbon fallback
+                |--------------------------------------------------------------------------
+                */
+
+                try {
+
+                    return \Carbon\Carbon::parse($value)
+                        ->format('Y-m-d');
+
+                } catch (\Throwable $e) {
+
+                    return null;
+                }
+            };
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | AMBIL TANGGAL DARI NOMOR INVOICE
+            |
+            | Contoh:
+            | INV-xxx/NWxx/04/2026
+            |--------------------------------------------------------------------------
+            */
+
+            $invoiceDateFromNumber = function ($invoice) {
+
+                if (
+                    preg_match(
+                        '/\/(\d{1,2})\/(\d{4})\s*$/',
+                        (string) $invoice,
+                        $match
+                    )
+                ) {
+
+                    $month = (int) $match[1];
+                    $year = (int) $match[2];
+
+                    if (
+                        $month >= 1 &&
+                        $month <= 12
+                    ) {
+
+                        return sprintf(
+                            '%04d-%02d-01',
+                            $year,
+                            $month
+                        );
+                    }
+                }
+
+                return null;
+            };
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | HELPER GET DATA
+            |--------------------------------------------------------------------------
+            */
+
+            $get = function ($row, array $keys = [], $index = null) {
+
+                if (!is_array($row)) {
+                    return '';
+                }
+
+
+                foreach ($keys as $key) {
+
+                    if (
+                        array_key_exists($key, $row) &&
+                        $row[$key] !== null &&
+                        trim((string) $row[$key]) !== ''
+                    ) {
+
+                        return $row[$key];
+                    }
+                }
+
+
+                if (
+                    $index !== null &&
+                    array_key_exists($index, $row)
+                ) {
+
+                    return $row[$index];
+                }
+
+
+                return '';
+            };
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | COUNTER
+            |--------------------------------------------------------------------------
+            */
+
+            $inserted = 0;
+            $skipped = 0;
+            $errors = [];
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | LOOP ROW
+            |--------------------------------------------------------------------------
+            */
+
+            foreach ($rows as $rowIndex => $row) {
+
+                try {
+
+                    if (!is_array($row)) {
+
+                        $skipped++;
+
+                        $errors[] =
+                            'Baris ' .
+                            ($rowIndex + 1) .
+                            ': format row tidak valid.';
+
+                        continue;
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | MAPPING EXCEL A:R
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $customer = trim((string) $get(
+                        $row,
+                        [
+                            'nama_pelanggan',
+                            'customer',
+                            'buyer',
+                            'nama_customer'
+                        ],
+                        1
+                    ));
+
+
+                    $po = trim((string) $get(
+                        $row,
+                        [
+                            'no_po',
+                            'po',
+                            'customer_po_no'
+                        ],
+                        2
+                    ));
+
+
+                    $invoice = trim((string) $get(
+                        $row,
+                        [
+                            'no_invoice',
+                            'invoice',
+                            'invoice_no'
+                        ],
+                        3
+                    ));
+
+
+                    $shipmentRaw = $get(
+                        $row,
+                        [
+                            'tanggal_shipment',
+                            'shipment_date',
+                            'tanggal_shipment_raw'
+                        ],
+                        4
+                    );
+
+
+                    $pengajuanPeb = trim((string) $get(
+                        $row,
+                        [
+                            'no_pengajuan_peb',
+                            'pengajuan_peb'
+                        ],
+                        5
+                    ));
+
+
+                    $noPeb = trim((string) $get(
+                        $row,
+                        [
+                            'no_peb',
+                            'peb'
+                        ],
+                        6
+                    ));
+
+
+                    $fobUsd = $parseNumber(
+                        $get(
+                            $row,
+                            ['fob_usd', 'fob'],
+                            7
+                        )
+                    );
+
+
+                    $fobPebUsd = $parseNumber(
+                        $get(
+                            $row,
+                            ['fob_peb_usd', 'fob_peb'],
+                            8
+                        )
+                    );
+
+
+                    $kurs = $parseNumber(
+                        $get(
+                            $row,
+                            ['kurs_kemenkeu', 'kurs'],
+                            9
+                        )
+                    );
+
+
+                    $container = (int) round(
+                        $parseNumber(
+                            $get(
+                                $row,
+                                [
+                                    'jumlah_container',
+                                    'container'
+                                ],
+                                10
+                            )
+                        )
+                    );
+
+
+                    /*
+                    | Jumlah Rp dari Excel
+                    */
+
+                    $jumlahRp = $parseNumber(
+                        $get(
+                            $row,
+                            [
+                                'jumlah_rupiah',
+                                'jumlah_rp'
+                            ],
+                            11
+                        )
+                    );
+
+
+                    /*
+                    | Deposit
+                    */
+
+                    $depositDate = $parseDate(
+                        $get(
+                            $row,
+                            [
+                                'deposit_date',
+                                'deposit_tanggal',
+                                'deposit_payment_date'
+                            ],
+                            12
+                        )
+                    );
+
+
+                    $depositUsd = $parseNumber(
+                        $get(
+                            $row,
+                            [
+                                'deposit_usd',
+                                'deposit_amount',
+                                'deposit',
+                                'uang_muka'
+                            ],
+                            13
+                        )
+                    );
+
+
+                    /*
+                    | Pelunasan
+                    */
+
+                    $pelunasanDate = $parseDate(
+                        $get(
+                            $row,
+                            [
+                                'pelunasan_date',
+                                'pelunasan_tanggal',
+                                'pelunasan_payment_date'
+                            ],
+                            14
+                        )
+                    );
+
+
+                    $pelunasanUsd = $parseNumber(
+                        $get(
+                            $row,
+                            [
+                                'pelunasan_usd',
+                                'pelunasan_amount',
+                                'pelunasan'
+                            ],
+                            15
+                        )
+                    );
+
+
+                    /*
+                    | Sisa Piutang
+                    */
+
+                    $sisaPiutangUsd = $parseNumber(
+                        $get(
+                            $row,
+                            [
+                                'sisa_piutang_usd',
+                                'sisa_piutang',
+                                'sisa'
+                            ],
+                            16
+                        )
+                    );
+
+
+                    $keterangan = trim((string) $get(
+                        $row,
+                        [
+                            'keterangan',
+                            'remark',
+                            'description'
+                        ],
+                        17
+                    ));
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | VALIDASI DASAR
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if (
+                        $customer === '' &&
+                        $invoice === ''
+                    ) {
+
+                        $skipped++;
+
+                        continue;
+                    }
+
+
+                    if ($invoice === '') {
+
+                        $skipped++;
+
+                        $errors[] =
+                            'Baris ' .
+                            ($rowIndex + 1) .
+                            ': No. Invoice kosong.';
+
+                        continue;
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | DUPLICATE INVOICE
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if (
+                        ExportArLegacy::where(
+                            'no_invoice',
+                            $invoice
+                        )->exists()
+                    ) {
+
+                        $skipped++;
+
+                        $errors[] =
+                            'Baris ' .
+                            ($rowIndex + 1) .
+                            ': Invoice ' .
+                            $invoice .
+                            ' sudah ada.';
+
+                        continue;
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | TANGGAL SHIPMENT
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $shipment = $parseDate($shipmentRaw);
+
+
+                    if (
+                        $shipmentRaw !== null &&
+                        trim((string) $shipmentRaw) !== '' &&
+                        !$shipment
+                    ) {
+
+                        $skipped++;
+
+                        $errors[] =
+                            'Baris ' .
+                            ($rowIndex + 1) .
+                            ' / ' .
+                            $invoice .
+                            ': tanggal shipment tidak valid.';
+
+                        continue;
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | TANGGAL INVOICE
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $invoiceDate =
+                        $invoiceDateFromNumber($invoice)
+                        ?: $shipment;
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | JUMLAH RUPIAH
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if (
+                        $jumlahRp <= 0 &&
+                        $fobUsd > 0 &&
+                        $kurs > 0
+                    ) {
+
+                        $jumlahRp =
+                            $fobUsd *
+                            $kurs;
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | SISA PIUTANG
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if (
+                        $sisaPiutangUsd == 0 &&
+                        (
+                            $fobUsd > 0 ||
+                            $depositUsd > 0 ||
+                            $pelunasanUsd > 0
+                        )
+                    ) {
+
+                        $sisaPiutangUsd =
+                            $fobUsd -
+                            $depositUsd -
+                            $pelunasanUsd;
+                    }
+
+
+                    if (
+                        $sisaPiutangUsd < 0 &&
+                        abs($sisaPiutangUsd) < 0.01
+                    ) {
+
+                        $sisaPiutangUsd = 0;
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | CREATE
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $legacy = new ExportArLegacy();
+
+
+                    $legacy->forceFill([
+
+                        'nama_pelanggan' =>
+                            $customer,
+
+                        'no_po' =>
+                            $po,
+
+                        'no_invoice' =>
+                            $invoice,
+
+                        'tanggal_invoice' =>
+                            $invoiceDate,
+
+                        'tanggal_shipment' =>
+                            $shipment,
+
+                        'no_pengajuan_peb' =>
+                            $pengajuanPeb,
+
+                        'no_peb' =>
+                            $noPeb,
+
+                        'fob_usd' =>
+                            $fobUsd,
+
+                        'fob_peb_usd' =>
+                            $fobPebUsd,
+
+                        'kurs_kemenkeu' =>
+                            $kurs,
+
+                        'jumlah_container' =>
+                            $container,
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | INI YANG SEBELUMNYA HILANG
+                        |--------------------------------------------------------------------------
+                        */
+
+                        'm_cont' =>
+                            $mCont,
+
+                        'deposit_date' =>
+                            $depositDate,
+
+                        'deposit_usd' =>
+                            $depositUsd,
+
+                        'pelunasan_date' =>
+                            $pelunasanDate,
+
+                        'pelunasan_usd' =>
+                            $pelunasanUsd,
+
+                        'sisa_piutang_usd' =>
+                            $sisaPiutangUsd,
+
+                        'keterangan' =>
+                            (
+                                $keterangan !== '' &&
+                                $keterangan !== '-'
+                            )
+                            ? $keterangan
+                            : null,
+
+                        'remark' =>
+                            'IMPORT AR LAMA',
+
+                        'created_by' =>
+                            auth()->id(),
+
+                    ]);
+
+
+                    $legacy->save();
+
+
+                    $inserted++;
+
+                } catch (\Throwable $e) {
+
+                    $skipped++;
+
+                    $errors[] =
+                        'Baris ' .
+                        ($rowIndex + 1) .
+                        ': ' .
+                        $e->getMessage();
+                }
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | RESPONSE
+            |--------------------------------------------------------------------------
+            */
+
+            return response()->json([
+
+                'success' =>
+                    true,
+
+                'message' =>
+                    "Import AR lama selesai. {$inserted} data masuk, {$skipped} dilewati.",
+
+                'inserted_count' =>
+                    $inserted,
+
+                'skipped_count' =>
+                    $skipped,
+
+                'm_cont' =>
+                    $mCont,
+
+                'errors' =>
+                    array_slice(
+                        $errors,
+                        0,
+                        50
+                    ),
+
+            ]);
+
+        } catch (\Throwable $e) {
+
+            return response()->json([
+
+                'success' =>
+                    false,
+
+                'message' =>
+                    $e->getMessage(),
+
+            ], 500);
+        }
+    }
+    public function updateArLegacyField(Request $request, $id)
+    {
+        try {
+
+            $ar = ExportArLegacy::findOrFail($id);
+
+            /*
+            |--------------------------------------------------------------------------
+            | FIELD YANG BOLEH DIEDIT
+            |--------------------------------------------------------------------------
+            */
+
+            $allowed = [
+                'nama_pelanggan',
+                'no_po',
+                'no_invoice',
+                'tanggal_shipment',
+                'no_pengajuan_peb',
+                'no_peb',
+
+                'fob_usd',
+                'fob_peb_usd',
+                'kurs_kemenkeu',
+                'jumlah_container',
+
+                'deposit_date',
+                'deposit_usd',
+
+                'pelunasan_date',
+                'pelunasan_usd',
+
+                'keterangan',
+            ];
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | VALIDASI FIELD
+            |--------------------------------------------------------------------------
+            */
+
+            if (!in_array($request->field, $allowed, true)) {
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Field AR Legacy tidak diperbolehkan.'
+                ], 422);
+
+            }
+
+
+            $field = $request->field;
+            $value = $request->value;
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | DATE
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                in_array($field, [
+                    'tanggal_shipment',
+                    'deposit_date',
+                    'pelunasan_date',
+                ], true)
+            ) {
+
+                $value = $value ?: null;
+
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | NUMERIC
+            |--------------------------------------------------------------------------
+            |
+            | Karena input dari Blade bisa berupa:
+            |
+            | 19,335.00
+            | 19.335,00
+            | $ 19,335.00
+            | Rp 19.335,00
+            |
+            */
+
+            if (
+                in_array($field, [
+                    'fob_usd',
+                    'fob_peb_usd',
+                    'kurs_kemenkeu',
+                    'deposit_usd',
+                    'pelunasan_usd',
+                    'jumlah_container',
+                ], true)
+            ) {
+
+                $raw = trim((string) $value);
+
+                // Hapus currency / whitespace
+                $raw = str_replace([
                     'Rp',
                     'rp',
                     '$',
                     'USD',
                     'usd',
-                    ' '
-                ],
-                '',
-                $str
-            );
-
-            if ($str === '' || $str === '-') {
-                return 0;
-            }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | Format Indonesia / US
-            |--------------------------------------------------------------------------
-            */
-
-            if (
-                strpos($str, ',') !== false &&
-                strpos($str, '.') !== false
-            ) {
-
-                /*
-                | 19.335,50
-                */
-
-                if (strrpos($str, ',') > strrpos($str, '.')) {
-
-                    $str = str_replace('.', '', $str);
-                    $str = str_replace(',', '.', $str);
-
-                }
-
-                /*
-                | 19,335.50
-                */
-
-                else {
-
-                    $str = str_replace(',', '', $str);
-
-                }
-
-            }
-
-            /*
-            | Hanya koma
-            */
-
-            elseif (strpos($str, ',') !== false) {
-
-                $parts = explode(',', $str);
-
-                $last = end($parts);
-
-                if (strlen($last) <= 2) {
-
-                    $str = str_replace(',', '.', $str);
-
-                } else {
-
-                    $str = str_replace(',', '', $str);
-
-                }
-
-            }
-
-            /*
-            | Banyak titik
-            */
-
-            elseif (substr_count($str, '.') > 1) {
-
-                $str = str_replace('.', '', $str);
-
-            }
-
-
-            return is_numeric($str)
-                ? (float) $str
-                : 0;
-        };
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | PARSE DATE
-        |--------------------------------------------------------------------------
-        */
-
-        $parseDate = function ($value) {
-
-            if (
-                $value === null ||
-                trim((string) $value) === ''
-            ) {
-                return null;
-            }
-
-            $value = trim((string) $value);
-
-
-            foreach ([
-                'm/d/Y',
-                'm-d-Y',
-                'Y-m-d',
-                'd/m/Y',
-                'd-m-Y',
-            ] as $format) {
-
-                try {
-
-                    return \Carbon\Carbon::createFromFormat(
-                        $format,
-                        $value
-                    )->format('Y-m-d');
-
-                } catch (\Throwable $e) {
-
-                    // lanjut
-
-                }
-            }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | Excel Serial Date
-            |--------------------------------------------------------------------------
-            */
-
-            if (
-                is_numeric($value) &&
-                (float) $value > 20000
-            ) {
-
-                try {
-
-                    return \PhpOffice\PhpSpreadsheet\Shared\Date
-                        ::excelToDateTimeObject((float) $value)
-                        ->format('Y-m-d');
-
-                } catch (\Throwable $e) {
-
-                    // abaikan
-                }
-            }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | Carbon fallback
-            |--------------------------------------------------------------------------
-            */
-
-            try {
-
-                return \Carbon\Carbon::parse($value)
-                    ->format('Y-m-d');
-
-            } catch (\Throwable $e) {
-
-                return null;
-            }
-        };
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | AMBIL TANGGAL DARI NOMOR INVOICE
-        |
-        | Contoh:
-        | INV-xxx/NWxx/04/2026
-        |--------------------------------------------------------------------------
-        */
-
-        $invoiceDateFromNumber = function ($invoice) {
-
-            if (
-                preg_match(
-                    '/\/(\d{1,2})\/(\d{4})\s*$/',
-                    (string) $invoice,
-                    $match
-                )
-            ) {
-
-                $month = (int) $match[1];
-                $year  = (int) $match[2];
-
-                if (
-                    $month >= 1 &&
-                    $month <= 12
-                ) {
-
-                    return sprintf(
-                        '%04d-%02d-01',
-                        $year,
-                        $month
-                    );
-                }
-            }
-
-            return null;
-        };
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | HELPER GET DATA
-        |--------------------------------------------------------------------------
-        */
-
-        $get = function (
-            $row,
-            array $keys = [],
-            $index = null
-        ) {
-
-            if (!is_array($row)) {
-                return '';
-            }
-
-
-            foreach ($keys as $key) {
-
-                if (
-                    array_key_exists($key, $row) &&
-                    $row[$key] !== null &&
-                    trim((string) $row[$key]) !== ''
-                ) {
-
-                    return $row[$key];
-                }
-            }
-
-
-            if (
-                $index !== null &&
-                array_key_exists($index, $row)
-            ) {
-
-                return $row[$index];
-            }
-
-
-            return '';
-        };
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | COUNTER
-        |--------------------------------------------------------------------------
-        */
-
-        $inserted = 0;
-        $skipped  = 0;
-        $errors   = [];
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | LOOP ROW
-        |--------------------------------------------------------------------------
-        */
-
-        foreach ($rows as $rowIndex => $row) {
-
-            try {
-
-                if (!is_array($row)) {
-
-                    $skipped++;
-
-                    $errors[] =
-                        'Baris ' .
-                        ($rowIndex + 1) .
-                        ': format row tidak valid.';
-
-                    continue;
-                }
-
+                    ' ',
+                    "\xc2\xa0",
+                ], '', $raw);
 
                 /*
                 |--------------------------------------------------------------------------
-                | MAPPING EXCEL A:R
-                |--------------------------------------------------------------------------
-                */
-
-                $customer = trim((string) $get(
-                    $row,
-                    [
-                        'nama_pelanggan',
-                        'customer',
-                        'buyer',
-                        'nama_customer'
-                    ],
-                    1
-                ));
-
-
-                $po = trim((string) $get(
-                    $row,
-                    [
-                        'no_po',
-                        'po',
-                        'customer_po_no'
-                    ],
-                    2
-                ));
-
-
-                $invoice = trim((string) $get(
-                    $row,
-                    [
-                        'no_invoice',
-                        'invoice',
-                        'invoice_no'
-                    ],
-                    3
-                ));
-
-
-                $shipmentRaw = $get(
-                    $row,
-                    [
-                        'tanggal_shipment',
-                        'shipment_date',
-                        'tanggal_shipment_raw'
-                    ],
-                    4
-                );
-
-
-                $pengajuanPeb = trim((string) $get(
-                    $row,
-                    [
-                        'no_pengajuan_peb',
-                        'pengajuan_peb'
-                    ],
-                    5
-                ));
-
-
-                $noPeb = trim((string) $get(
-                    $row,
-                    [
-                        'no_peb',
-                        'peb'
-                    ],
-                    6
-                ));
-
-
-                $fobUsd = $parseNumber(
-                    $get(
-                        $row,
-                        ['fob_usd', 'fob'],
-                        7
-                    )
-                );
-
-
-                $fobPebUsd = $parseNumber(
-                    $get(
-                        $row,
-                        ['fob_peb_usd', 'fob_peb'],
-                        8
-                    )
-                );
-
-
-                $kurs = $parseNumber(
-                    $get(
-                        $row,
-                        ['kurs_kemenkeu', 'kurs'],
-                        9
-                    )
-                );
-
-
-                $container = (int) round(
-                    $parseNumber(
-                        $get(
-                            $row,
-                            [
-                                'jumlah_container',
-                                'container'
-                            ],
-                            10
-                        )
-                    )
-                );
-
-
-                /*
-                | Jumlah Rp dari Excel
-                */
-
-                $jumlahRp = $parseNumber(
-                    $get(
-                        $row,
-                        [
-                            'jumlah_rupiah',
-                            'jumlah_rp'
-                        ],
-                        11
-                    )
-                );
-
-
-                /*
-                | Deposit
-                */
-
-                $depositDate = $parseDate(
-                    $get(
-                        $row,
-                        [
-                            'deposit_date',
-                            'deposit_tanggal',
-                            'deposit_payment_date'
-                        ],
-                        12
-                    )
-                );
-
-
-                $depositUsd = $parseNumber(
-                    $get(
-                        $row,
-                        [
-                            'deposit_usd',
-                            'deposit_amount',
-                            'deposit',
-                            'uang_muka'
-                        ],
-                        13
-                    )
-                );
-
-
-                /*
-                | Pelunasan
-                */
-
-                $pelunasanDate = $parseDate(
-                    $get(
-                        $row,
-                        [
-                            'pelunasan_date',
-                            'pelunasan_tanggal',
-                            'pelunasan_payment_date'
-                        ],
-                        14
-                    )
-                );
-
-
-                $pelunasanUsd = $parseNumber(
-                    $get(
-                        $row,
-                        [
-                            'pelunasan_usd',
-                            'pelunasan_amount',
-                            'pelunasan'
-                        ],
-                        15
-                    )
-                );
-
-
-                /*
-                | Sisa Piutang
-                */
-
-                $sisaPiutangUsd = $parseNumber(
-                    $get(
-                        $row,
-                        [
-                            'sisa_piutang_usd',
-                            'sisa_piutang',
-                            'sisa'
-                        ],
-                        16
-                    )
-                );
-
-
-                $keterangan = trim((string) $get(
-                    $row,
-                    [
-                        'keterangan',
-                        'remark',
-                        'description'
-                    ],
-                    17
-                ));
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | VALIDASI DASAR
+                | DETEKSI FORMAT ANGKA
                 |--------------------------------------------------------------------------
                 */
 
                 if (
-                    $customer === '' &&
-                    $invoice === ''
+                    str_contains($raw, ',') &&
+                    str_contains($raw, '.')
                 ) {
 
-                    $skipped++;
-
-                    continue;
-                }
-
-
-                if ($invoice === '') {
-
-                    $skipped++;
-
-                    $errors[] =
-                        'Baris ' .
-                        ($rowIndex + 1) .
-                        ': No. Invoice kosong.';
-
-                    continue;
-                }
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | DUPLICATE INVOICE
-                |--------------------------------------------------------------------------
-                */
-
-                if (
-                    ExportArLegacy::where(
-                        'no_invoice',
-                        $invoice
-                    )->exists()
-                ) {
-
-                    $skipped++;
-
-                    $errors[] =
-                        'Baris ' .
-                        ($rowIndex + 1) .
-                        ': Invoice ' .
-                        $invoice .
-                        ' sudah ada.';
-
-                    continue;
-                }
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | TANGGAL SHIPMENT
-                |--------------------------------------------------------------------------
-                */
-
-                $shipment = $parseDate($shipmentRaw);
-
-
-                if (
-                    $shipmentRaw !== null &&
-                    trim((string) $shipmentRaw) !== '' &&
-                    !$shipment
-                ) {
-
-                    $skipped++;
-
-                    $errors[] =
-                        'Baris ' .
-                        ($rowIndex + 1) .
-                        ' / ' .
-                        $invoice .
-                        ': tanggal shipment tidak valid.';
-
-                    continue;
-                }
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | TANGGAL INVOICE
-                |--------------------------------------------------------------------------
-                */
-
-                $invoiceDate =
-                    $invoiceDateFromNumber($invoice)
-                    ?: $shipment;
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | JUMLAH RUPIAH
-                |--------------------------------------------------------------------------
-                */
-
-                if (
-                    $jumlahRp <= 0 &&
-                    $fobUsd > 0 &&
-                    $kurs > 0
-                ) {
-
-                    $jumlahRp =
-                        $fobUsd *
-                        $kurs;
-                }
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | SISA PIUTANG
-                |--------------------------------------------------------------------------
-                */
-
-                if (
-                    $sisaPiutangUsd == 0 &&
-                    (
-                        $fobUsd > 0 ||
-                        $depositUsd > 0 ||
-                        $pelunasanUsd > 0
-                    )
-                ) {
-
-                    $sisaPiutangUsd =
-                        $fobUsd -
-                        $depositUsd -
-                        $pelunasanUsd;
-                }
-
-
-                if (
-                    $sisaPiutangUsd < 0 &&
-                    abs($sisaPiutangUsd) < 0.01
-                ) {
-
-                    $sisaPiutangUsd = 0;
-                }
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | CREATE
-                |--------------------------------------------------------------------------
-                */
-
-                $legacy = new ExportArLegacy();
-
-
-                $legacy->forceFill([
-
-                    'nama_pelanggan' =>
-                        $customer,
-
-                    'no_po' =>
-                        $po,
-
-                    'no_invoice' =>
-                        $invoice,
-
-                    'tanggal_invoice' =>
-                        $invoiceDate,
-
-                    'tanggal_shipment' =>
-                        $shipment,
-
-                    'no_pengajuan_peb' =>
-                        $pengajuanPeb,
-
-                    'no_peb' =>
-                        $noPeb,
-
-                    'fob_usd' =>
-                        $fobUsd,
-
-                    'fob_peb_usd' =>
-                        $fobPebUsd,
-
-                    'kurs_kemenkeu' =>
-                        $kurs,
-
-                    'jumlah_container' =>
-                        $container,
+                    $lastComma = strrpos($raw, ',');
+                    $lastDot = strrpos($raw, '.');
 
                     /*
-                    |--------------------------------------------------------------------------
-                    | INI YANG SEBELUMNYA HILANG
-                    |--------------------------------------------------------------------------
+                    | 19.335,50
+                    | berarti format Indonesia
                     */
 
-                    'm_cont' =>
-                        $mCont,
+                    if ($lastComma > $lastDot) {
 
-                    'deposit_date' =>
-                        $depositDate,
+                        $raw = str_replace('.', '', $raw);
+                        $raw = str_replace(',', '.', $raw);
 
-                    'deposit_usd' =>
-                        $depositUsd,
+                    }
 
-                    'pelunasan_date' =>
-                        $pelunasanDate,
+                    /*
+                    | 19,335.50
+                    | berarti format US
+                    */ else {
 
-                    'pelunasan_usd' =>
-                        $pelunasanUsd,
+                        $raw = str_replace(',', '', $raw);
 
-                    'sisa_piutang_usd' =>
-                        $sisaPiutangUsd,
+                    }
 
-                    'keterangan' =>
-                        (
-                            $keterangan !== '' &&
-                            $keterangan !== '-'
-                        )
-                            ? $keterangan
-                            : null,
+                } elseif (str_contains($raw, ',')) {
 
-                    'remark' =>
-                        'IMPORT AR LAMA',
+                    /*
+                    | Kalau hanya ada koma:
+                    | 19335,50 -> 19335.50
+                    */
 
-                    'created_by' =>
-                        auth()->id(),
+                    $parts = explode(',', $raw);
 
-                ]);
+                    if (
+                        count($parts) === 2 &&
+                        strlen($parts[1]) <= 2
+                    ) {
 
+                        $raw = $parts[0] . '.' . $parts[1];
 
-                $legacy->save();
+                    } else {
 
+                        $raw = str_replace(',', '', $raw);
 
-                $inserted++;
+                    }
 
-            } catch (\Throwable $e) {
+                } elseif (substr_count($raw, '.') > 1) {
 
-                $skipped++;
+                    /*
+                    | Contoh:
+                    | 19.335.500
+                    */
 
-                $errors[] =
-                    'Baris ' .
-                    ($rowIndex + 1) .
-                    ': ' .
-                    $e->getMessage();
+                    $raw = str_replace('.', '', $raw);
+
+                }
+
+                $value = is_numeric($raw)
+                    ? (float) $raw
+                    : 0;
+
             }
-        }
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | RESPONSE
-        |--------------------------------------------------------------------------
-        */
+            /*
+            |--------------------------------------------------------------------------
+            | JUMLAH CONTAINER
+            |--------------------------------------------------------------------------
+            */
 
-        return response()->json([
+            if ($field === 'jumlah_container') {
 
-            'success' =>
-                true,
+                $value = (int) round((float) $value);
 
-            'message' =>
-                "Import AR lama selesai. {$inserted} data masuk, {$skipped} dilewati.",
-
-            'inserted_count' =>
-                $inserted,
-
-            'skipped_count' =>
-                $skipped,
-
-            'm_cont' =>
-                $mCont,
-
-            'errors' =>
-                array_slice(
-                    $errors,
-                    0,
-                    50
-                ),
-
-        ]);
-
-    } catch (\Throwable $e) {
-
-        return response()->json([
-
-            'success' =>
-                false,
-
-            'message' =>
-                $e->getMessage(),
-
-        ], 500);
-    }
-}
-    public function updateArLegacyField(Request $request, $id)
-{
-    try {
-
-        $ar = ExportArLegacy::findOrFail($id);
-
-        /*
-        |--------------------------------------------------------------------------
-        | FIELD YANG BOLEH DIEDIT
-        |--------------------------------------------------------------------------
-        */
-
-        $allowed = [
-            'nama_pelanggan',
-            'no_po',
-            'no_invoice',
-            'tanggal_shipment',
-            'no_pengajuan_peb',
-            'no_peb',
-
-            'fob_usd',
-            'fob_peb_usd',
-            'kurs_kemenkeu',
-            'jumlah_container',
-
-            'deposit_date',
-            'deposit_usd',
-
-            'pelunasan_date',
-            'pelunasan_usd',
-
-            'keterangan',
-        ];
+            }
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | VALIDASI FIELD
-        |--------------------------------------------------------------------------
-        */
+            /*
+            |--------------------------------------------------------------------------
+            | SIMPAN FIELD YANG DIUBAH
+            |--------------------------------------------------------------------------
+            */
 
-        if (!in_array($request->field, $allowed, true)) {
+            $ar->{$field} = $value;
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | HITUNG ULANG SISA PIUTANG
+            |--------------------------------------------------------------------------
+            |
+            | Sisa = FOB USD
+            |      - Deposit USD
+            |      - Pelunasan USD
+            |
+            */
+
+            $fobUsd = (float) $ar->fob_usd;
+
+            $depositUsd = (float) $ar->deposit_usd;
+
+            $pelunasanUsd = (float) $ar->pelunasan_usd;
+
+
+            $sisaPiutang = $fobUsd
+                - $depositUsd
+                - $pelunasanUsd;
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Jangan negatif
+            |--------------------------------------------------------------------------
+            */
+
+            if ($sisaPiutang < 0) {
+                $sisaPiutang = 0;
+            }
+
+
+            $ar->sisa_piutang_usd = round(
+                $sisaPiutang,
+                2
+            );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | SIMPAN
+            |--------------------------------------------------------------------------
+            */
+
+            $ar->save();
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | JUMLAH RP
+            |--------------------------------------------------------------------------
+            |
+            | Mengikuti Excel Legacy:
+            |
+            | FOB USD × Kurs Kemenkeu
+            |
+            */
+
+            $jumlahRp =
+                (float) $ar->fob_usd
+                *
+                (float) $ar->kurs_kemenkeu;
+
+
+            return response()->json([
+                'success' => true,
+
+                'message' => 'Data AR Legacy berhasil diperbarui.',
+
+                'data' => [
+                    'id' => $ar->id,
+
+                    'field' => $field,
+
+                    'value' => $ar->{$field},
+
+                    'sisa_piutang_usd' => (float) $ar->sisa_piutang_usd,
+
+                    'jumlah_rupiah' => round(
+                        $jumlahRp,
+                        2
+                    ),
+                ],
+            ]);
+
+
+        } catch (\Throwable $e) {
 
             return response()->json([
                 'success' => false,
-                'message' => 'Field AR Legacy tidak diperbolehkan.'
-            ], 422);
+                'message' => $e->getMessage(),
+            ], 500);
 
         }
-
-
-        $field = $request->field;
-        $value = $request->value;
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | DATE
-        |--------------------------------------------------------------------------
-        */
-
-        if (in_array($field, [
-            'tanggal_shipment',
-            'deposit_date',
-            'pelunasan_date',
-        ], true)) {
-
-            $value = $value ?: null;
-
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | NUMERIC
-        |--------------------------------------------------------------------------
-        |
-        | Karena input dari Blade bisa berupa:
-        |
-        | 19,335.00
-        | 19.335,00
-        | $ 19,335.00
-        | Rp 19.335,00
-        |
-        */
-
-        if (in_array($field, [
-            'fob_usd',
-            'fob_peb_usd',
-            'kurs_kemenkeu',
-            'deposit_usd',
-            'pelunasan_usd',
-            'jumlah_container',
-        ], true)) {
-
-            $raw = trim((string) $value);
-
-            // Hapus currency / whitespace
-            $raw = str_replace([
-                'Rp',
-                'rp',
-                '$',
-                'USD',
-                'usd',
-                ' ',
-                "\xc2\xa0",
-            ], '', $raw);
-
-            /*
-            |--------------------------------------------------------------------------
-            | DETEKSI FORMAT ANGKA
-            |--------------------------------------------------------------------------
-            */
-
-            if (
-                str_contains($raw, ',') &&
-                str_contains($raw, '.')
-            ) {
-
-                $lastComma = strrpos($raw, ',');
-                $lastDot   = strrpos($raw, '.');
-
-                /*
-                | 19.335,50
-                | berarti format Indonesia
-                */
-
-                if ($lastComma > $lastDot) {
-
-                    $raw = str_replace('.', '', $raw);
-                    $raw = str_replace(',', '.', $raw);
-
-                }
-
-                /*
-                | 19,335.50
-                | berarti format US
-                */
-
-                else {
-
-                    $raw = str_replace(',', '', $raw);
-
-                }
-
-            }
-
-            elseif (str_contains($raw, ',')) {
-
-                /*
-                | Kalau hanya ada koma:
-                | 19335,50 -> 19335.50
-                */
-
-                $parts = explode(',', $raw);
-
-                if (
-                    count($parts) === 2 &&
-                    strlen($parts[1]) <= 2
-                ) {
-
-                    $raw = $parts[0] . '.' . $parts[1];
-
-                } else {
-
-                    $raw = str_replace(',', '', $raw);
-
-                }
-
-            }
-
-            elseif (substr_count($raw, '.') > 1) {
-
-                /*
-                | Contoh:
-                | 19.335.500
-                */
-
-                $raw = str_replace('.', '', $raw);
-
-            }
-
-            $value = is_numeric($raw)
-                ? (float) $raw
-                : 0;
-
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | JUMLAH CONTAINER
-        |--------------------------------------------------------------------------
-        */
-
-        if ($field === 'jumlah_container') {
-
-            $value = (int) round((float) $value);
-
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | SIMPAN FIELD YANG DIUBAH
-        |--------------------------------------------------------------------------
-        */
-
-        $ar->{$field} = $value;
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | HITUNG ULANG SISA PIUTANG
-        |--------------------------------------------------------------------------
-        |
-        | Sisa = FOB USD
-        |      - Deposit USD
-        |      - Pelunasan USD
-        |
-        */
-
-        $fobUsd = (float) $ar->fob_usd;
-
-        $depositUsd = (float) $ar->deposit_usd;
-
-        $pelunasanUsd = (float) $ar->pelunasan_usd;
-
-
-        $sisaPiutang = $fobUsd
-            - $depositUsd
-            - $pelunasanUsd;
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Jangan negatif
-        |--------------------------------------------------------------------------
-        */
-
-        if ($sisaPiutang < 0) {
-            $sisaPiutang = 0;
-        }
-
-
-        $ar->sisa_piutang_usd = round(
-            $sisaPiutang,
-            2
-        );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | SIMPAN
-        |--------------------------------------------------------------------------
-        */
-
-        $ar->save();
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | JUMLAH RP
-        |--------------------------------------------------------------------------
-        |
-        | Mengikuti Excel Legacy:
-        |
-        | FOB USD × Kurs Kemenkeu
-        |
-        */
-
-        $jumlahRp =
-            (float) $ar->fob_usd
-            *
-            (float) $ar->kurs_kemenkeu;
-
-
-        return response()->json([
-            'success' => true,
-
-            'message' => 'Data AR Legacy berhasil diperbarui.',
-
-            'data' => [
-                'id' => $ar->id,
-
-                'field' => $field,
-
-                'value' => $ar->{$field},
-
-                'sisa_piutang_usd' => (float) $ar->sisa_piutang_usd,
-
-                'jumlah_rupiah' => round(
-                    $jumlahRp,
-                    2
-                ),
-            ],
-        ]);
-
-
-    } catch (\Throwable $e) {
-
-        return response()->json([
-            'success' => false,
-            'message' => $e->getMessage(),
-        ], 500);
-
     }
-}
 }
