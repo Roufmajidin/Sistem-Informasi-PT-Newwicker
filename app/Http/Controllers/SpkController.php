@@ -39,6 +39,10 @@ use App\Models\Pengajuan;
 use App\Models\PengajuanDetail;
 use App\Models\PengajuanApprovalStep;
 use App\Models\PengajuanMeta;
+use App\Exports\PaymentRequestExcelExportHelper;
+use Illuminate\Http\Response;
+
+use Symfony\Component\HttpFoundation\StreamedResponse;
 class SpkController extends Controller
 {
     //
@@ -3900,10 +3904,36 @@ class SpkController extends Controller
 
         return $changes;
     }
-    public function export($spkId)
+
+
+    public function exportte(int $id): StreamedResponse
     {
-        return ExportSpks::export($spkId);
+        $spreadsheet = PaymentRequestExcelExportHelper::build($id);
+
+        $fileName = 'Payment-Request-' . $id . '-2UP.xlsx';
+
+        return response()->streamDownload(
+            function () use ($spreadsheet) {
+                try {
+                    $writer = new Xlsx($spreadsheet);
+                    $writer->save('php://output');
+                } finally {
+                    $spreadsheet->disconnectWorksheets();
+                }
+            },
+            $fileName,
+            [
+                'Content-Type' =>
+                    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'Cache-Control' =>
+                    'max-age=0, no-cache, no-store, must-revalidate',
+                'Pragma' => 'public',
+            ]
+        );
     }
+
+
+
 
     public function getTotalSpkQtyByDetailPoAndKategori(
         int $detailPoId,
@@ -4706,29 +4736,103 @@ class SpkController extends Controller
 
         /*
         |--------------------------------------------------------------------------
+        | MAPPING ITEM SPK
+        |--------------------------------------------------------------------------
+        |
+        | PENTING:
+        |
+        | Tidak mengubah payment_request_saveds.
+        | Tidak menyimpan items baru ke saved.
+        |
+        | Data item diambil langsung dari tabel SPK
+        | berdasarkan data.no_spk.
+        |
+        */
+
+        $spkItemsMap = Spk::get()
+            ->mapWithKeys(function ($spk) {
+
+                $spkData = is_string($spk->data)
+                    ? json_decode($spk->data, true)
+                    : ($spk->data ?? []);
+
+                $noSpk = trim(
+                    (string) ($spkData['no_spk'] ?? '')
+                );
+
+                if ($noSpk === '') {
+                    return [];
+                }
+
+                $items = collect(
+                    $spkData['items'] ?? []
+                )
+                    ->map(function ($item) {
+
+                        return [
+                            'nama' => $item['nama'] ?? '-',
+
+                            'kode' => $item['kode'] ?? '-',
+
+                            'qty' => $item['qty'] ?? 0,
+
+                            'satuan' =>
+                                $item['satuan']
+                                ?? $item['sat']
+                                ?? '',
+
+                        ];
+                    })
+                    ->values()
+                    ->toArray();
+
+                return [
+                    $noSpk => $items
+                ];
+            });
+
+
+        /*
+        |--------------------------------------------------------------------------
         | REQUEST DRAFT
         |--------------------------------------------------------------------------
         */
 
         $requests = PaymentRequest::with('spk')
+
             ->where('status', 'draft')
+
             ->latest()
+
             ->get()
+
             ->map(function ($request) {
 
                 if (!$request->spk) {
 
                     Log::warning('SPK NOT FOUND', [
-                        'payment_request_id' => $request->id,
-                        'spk_id' => $request->spk_id,
+
+                        'payment_request_id' =>
+                            $request->id,
+
+                        'spk_id' =>
+                            $request->spk_id,
+
                     ]);
 
                     return null;
                 }
 
+
                 $spkData = is_string($request->spk->data)
-                    ? json_decode($request->spk->data, true)
+
+                    ? json_decode(
+                        $request->spk->data,
+                        true
+                    )
+
                     : ($request->spk->data ?? []);
+
 
                 $payment = collect(
                     $spkData['payments'] ?? []
@@ -4737,53 +4841,94 @@ class SpkController extends Controller
                         $request->payment_id
                     );
 
+
                 $items = collect(
                     $spkData['items'] ?? []
                 )->map(function ($item) {
 
-                    $mainTotal = (float) ($item['total'] ?? 0);
+                    $mainTotal =
+                        (float) ($item['total'] ?? 0);
 
                     $extraTotal = collect(
                         $item['custom_columns'] ?? []
                     )->sum(function ($row) {
-                        return (float) ($row['total'] ?? 0);
+
+                        return (float) (
+                            $row['total'] ?? 0
+                        );
                     });
 
+
                     return [
-                        'nama' => $item['nama'] ?? '-',
-                        'kode' => $item['kode'] ?? '-',
-                        'qty' => $item['qty'] ?? 0,
-                        'harga' => $item['harga'] ?? 0,
-                        'total' => $mainTotal + $extraTotal,
+
+                        'nama' =>
+                            $item['nama'] ?? '-',
+
+                        'kode' =>
+                            $item['kode'] ?? '-',
+
+                        'qty' =>
+                            $item['qty'] ?? 0,
+
+                        'harga' =>
+                            $item['harga'] ?? 0,
+
+                        'total' =>
+                            $mainTotal + $extraTotal,
+
                     ];
                 });
 
+
                 return [
-                    'id' => $request->id,
 
-                    'request_no' => $request->request_no,
-                    'payment_id' => $request->payment_id,
+                    'id' =>
+                        $request->id,
 
-                    'status' => $request->status,
+                    'request_no' =>
+                        $request->request_no,
 
-                    'request_date' => $request->request_date,
-                    'need_date' => $request->need_date,
+                    'payment_id' =>
+                        $request->payment_id,
 
-                    'spk_id' => $request->spk_id,
-                    'spk_no' => $spkData['no_spk'] ?? '-',
-                    'no_po' => $spkData['no_po'] ?? '-',
+                    'status' =>
+                        $request->status,
 
-                    'supplier' => $spkData['sup'] ?? '-',
-                    'kategori' => $spkData['kategori'] ?? '-',
+                    'request_date' =>
+                        $request->request_date,
 
-                    'tgl_terima' => $spkData['tgl_terima'] ?? '-',
-                    'tgl_selesai' => $spkData['tgl_selesai'] ?? '-',
+                    'need_date' =>
+                        $request->need_date,
 
-                    'payment_note' => $payment['note'] ?? '-',
+                    'spk_id' =>
+                        $request->spk_id,
 
-                    'payment_amount' => $payment['amount'] ?? 0,
+                    'spk_no' =>
+                        $spkData['no_spk'] ?? '-',
 
-                    'payment_date' => $payment['date'] ?? null,
+                    'no_po' =>
+                        $spkData['no_po'] ?? '-',
+
+                    'supplier' =>
+                        $spkData['sup'] ?? '-',
+
+                    'kategori' =>
+                        $spkData['kategori'] ?? '-',
+
+                    'tgl_terima' =>
+                        $spkData['tgl_terima'] ?? '-',
+
+                    'tgl_selesai' =>
+                        $spkData['tgl_selesai'] ?? '-',
+
+                    'payment_note' =>
+                        $payment['note'] ?? '-',
+
+                    'payment_amount' =>
+                        $payment['amount'] ?? 0,
+
+                    'payment_date' =>
+                        $payment['date'] ?? null,
 
                     'payment_is_request' =>
                         $payment['is_request'] ?? false,
@@ -4791,13 +4936,17 @@ class SpkController extends Controller
                     'note_tambahan' =>
                         $payment['note_tambahan'] ?? null,
 
-                    'items' => $items,
+                    'items' =>
+                        $items,
 
                     'grand_total_spk' =>
                         $items->sum('total'),
+
                 ];
             })
+
             ->filter()
+
             ->values();
 
 
@@ -4808,8 +4957,11 @@ class SpkController extends Controller
         */
 
         $draftRequests = PaymentRequestSaved::latest()
+
             ->get()
-            ->map(function ($draft) {
+
+            ->map(function ($draft) use ($spkItemsMap) {
+
 
                 /*
                 |--------------------------------------------------------------------------
@@ -4818,35 +4970,59 @@ class SpkController extends Controller
                 */
 
                 $paymentRequests = PaymentRequest::with('spk')
+
                     ->whereIn(
                         'id',
                         $draft->payment_request_ids ?? []
                     )
+
                     ->get()
-                    ->map(function ($request) {
+
+                    ->map(function ($request) use ($spkItemsMap) {
+
 
                         if (!$request->spk) {
 
                             Log::warning(
                                 'SPK NOT FOUND IN DRAFT',
                                 [
+
                                     'payment_request_id' =>
                                         $request->id,
 
                                     'spk_id' =>
                                         $request->spk_id,
+
                                 ]
                             );
 
                             return null;
                         }
 
-                        $spkData = is_string($request->spk->data)
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | DATA SPK
+                        |--------------------------------------------------------------------------
+                        */
+
+                        $spkData = is_string(
+                            $request->spk->data
+                        )
+
                             ? json_decode(
                                 $request->spk->data,
                                 true
                             )
+
                             : ($request->spk->data ?? []);
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | PAYMENT YANG DIPILIH
+                        |--------------------------------------------------------------------------
+                        */
 
                         $payment = collect(
                             $spkData['payments'] ?? []
@@ -4855,8 +5031,55 @@ class SpkController extends Controller
                                 $request->payment_id
                             );
 
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | NO SPK
+                        |--------------------------------------------------------------------------
+                        */
+
+                        $noSpk = trim(
+                            (string) (
+                                $spkData['no_spk'] ?? ''
+                            )
+                        );
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | MAPPING ITEM DARI TABLE SPK
+                        |--------------------------------------------------------------------------
+                        |
+                        | Tidak mengambil item dari saved.
+                        |
+                        | Cari berdasarkan:
+                        |
+                        | payment request
+                        |       ↓
+                        | spk_id
+                        |       ↓
+                        | spk.data.no_spk
+                        |       ↓
+                        | spkItemsMap
+                        |
+                        */
+
+                        $spkItems = $spkItemsMap->get(
+                            $noSpk,
+                            []
+                        );
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | RETURN PAYMENT
+                        |--------------------------------------------------------------------------
+                        */
+
                         return [
-                            'id' => $request->id,
+
+                            'id' =>
+                                $request->id,
 
                             'payment_id' =>
                                 $request->payment_id,
@@ -4865,7 +5088,9 @@ class SpkController extends Controller
                                 $request->request_no,
 
                             'spk_no' =>
-                                $spkData['no_spk'] ?? '-',
+                                $noSpk !== ''
+                                ? $noSpk
+                                : '-',
 
                             'no_po' =>
                                 $spkData['no_po'] ?? '-',
@@ -4883,9 +5108,26 @@ class SpkController extends Controller
                                 (float) (
                                     $payment['amount'] ?? 0
                                 ),
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | ITEM SPK
+                            |--------------------------------------------------------------------------
+                            |
+                            | INI BARU.
+                            |
+                            | Tidak mengubah data saved.
+                            |
+                            */
+
+                            'spk_items' =>
+                                $spkItems,
+
                         ];
                     })
+
                     ->filter()
+
                     ->values();
 
 
@@ -4897,6 +5139,7 @@ class SpkController extends Controller
                 | PENTING:
                 |
                 | Jangan mengambil approver dari:
+                |
                 | $kepalaPurchasing
                 | $prodManager
                 | $ceo
@@ -4911,11 +5154,14 @@ class SpkController extends Controller
                 $approvals = PaymentRequestApproval::with([
                     'user.karyawan.divisi'
                 ])
+
                     ->where(
                         'payment_request_saved_id',
                         $draft->id
                     )
+
                     ->orderBy('step')
+
                     ->get();
 
 
@@ -4930,6 +5176,7 @@ class SpkController extends Controller
                 */
 
                 $pendingApproval = $approvals
+
                     ->filter(function ($approval) {
 
                         return strtolower(
@@ -4938,7 +5185,9 @@ class SpkController extends Controller
                             )
                         ) === 'pending';
                     })
+
                     ->sortBy('step')
+
                     ->first();
 
 
@@ -4956,29 +5205,38 @@ class SpkController extends Controller
                 */
 
                 $approvalList = $approvals
+
                     ->map(function ($approval) {
 
-                        $user = $approval->user;
+                        $user =
+                            $approval->user;
+
 
                         return [
 
                             /*
                             | Approval ID
                             */
+
                             'id' =>
                                 $approval->id,
+
 
                             /*
                             | Urutan approval
                             */
+
                             'step' =>
                                 $approval->step,
+
 
                             /*
                             | Role / Divisi approval
                             */
+
                             'role' =>
                                 $approval->role ?? '-',
+
 
                             /*
                             | USER ID
@@ -4986,34 +5244,47 @@ class SpkController extends Controller
                             | Ini yang nanti dikirim ke
                             | generateMagicApprovalLink()
                             */
+
                             'user_id' =>
                                 $approval->user_id,
+
 
                             /*
                             | Nama user sebenarnya
                             */
+
                             'user_name' =>
                                 $user?->name ?? '-',
+
 
                             /*
                             | Email user
                             */
+
                             'email' =>
                                 $user?->email ?? null,
+
 
                             /*
                             | Status approval
                             */
+
                             'status' =>
-                                $approval->status ?? 'Pending',
+                                $approval->status
+                                ?? 'Pending',
+
 
                             /*
                             | Tanggal approval
                             */
+
                             'approved_at' =>
-                                $approval->approved_at ?? null,
+                                $approval->approved_at
+                                ?? null,
+
                         ];
                     })
+
                     ->values();
 
 
@@ -5030,6 +5301,7 @@ class SpkController extends Controller
                 Log::info(
                     'PAYMENT REQUEST DRAFT APPROVERS',
                     [
+
                         'draft_id' =>
                             $draft->id,
 
@@ -5038,6 +5310,7 @@ class SpkController extends Controller
 
                         'approvals' =>
                             $approvalList->toArray(),
+
                     ]
                 );
 
@@ -5051,9 +5324,9 @@ class SpkController extends Controller
                 return [
 
                     /*
-                    |--------------------------------------------------------------
+                    |--------------------------------------------------------------------------
                     | DRAFT
-                    |--------------------------------------------------------------
+                    |--------------------------------------------------------------------------
                     */
 
                     'id' =>
@@ -5073,9 +5346,9 @@ class SpkController extends Controller
 
 
                     /*
-                    |--------------------------------------------------------------
+                    |--------------------------------------------------------------------------
                     | TOTAL
-                    |--------------------------------------------------------------
+                    |--------------------------------------------------------------------------
                     */
 
                     'grand_total' =>
@@ -5088,9 +5361,9 @@ class SpkController extends Controller
 
 
                     /*
-                    |--------------------------------------------------------------
+                    |--------------------------------------------------------------------------
                     | ITEMS
-                    |--------------------------------------------------------------
+                    |--------------------------------------------------------------------------
                     */
 
                     'items' =>
@@ -5098,9 +5371,9 @@ class SpkController extends Controller
 
 
                     /*
-                    |--------------------------------------------------------------
+                    |--------------------------------------------------------------------------
                     | PENDING SIGN
-                    |--------------------------------------------------------------
+                    |--------------------------------------------------------------------------
                     */
 
                     'pending_sign' =>
@@ -5108,9 +5381,9 @@ class SpkController extends Controller
 
 
                     /*
-                    |--------------------------------------------------------------
+                    |--------------------------------------------------------------------------
                     | SEMUA APPROVER DRAFT
-                    |--------------------------------------------------------------
+                    |--------------------------------------------------------------------------
                     |
                     | INI YANG DIGUNAKAN MODAL MAGIC LINK.
                     |
@@ -5121,15 +5394,17 @@ class SpkController extends Controller
 
 
                     /*
-                    |--------------------------------------------------------------
+                    |--------------------------------------------------------------------------
                     | RECON
-                    |--------------------------------------------------------------
+                    |--------------------------------------------------------------------------
                     */
 
                     'ainun_saved_recon' =>
                         $draft->ainun_saved_recon,
+
                 ];
             })
+
             ->values();
 
 
@@ -5141,24 +5416,51 @@ class SpkController extends Controller
 
         return view(
             'pages.payment_request.draft',
+
             compact(
+
                 'requests',
+
                 'draftRequests',
+
                 'authUser',
 
                 /*
                 | Master approver tetap dikirim agar
                 | Blade lama tidak error.
                 */
+
                 'kepalaPurchasing',
+
                 'prodManager',
+
                 'ceo',
+
                 'vpSales',
+
                 'finance',
+
                 'hrd',
+
                 'coo'
+
             )
         );
+    }
+    public function export(int $id): StreamedResponse
+    {
+        $spreadsheet = PaymentRequestExcelExportHelper::build($id);
+
+        $fileName = 'Payment-Request-' . $id . '-2UP.xlsx';
+
+        return response()->streamDownload(function () use ($spreadsheet) {
+            $writer = new Xlsx($spreadsheet);
+            $writer->save('php://output');
+        }, $fileName, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Cache-Control' => 'max-age=0, no-cache, no-store, must-revalidate',
+            'Pragma' => 'public',
+        ]);
     }
     // magic
     public function magicApproval(string $token)
@@ -5444,17 +5746,39 @@ class SpkController extends Controller
     {
         $draft = PaymentRequestSaved::findOrFail($id);
 
+        /*
+        |--------------------------------------------------------------------------
+        | APPROVAL
+        |--------------------------------------------------------------------------
+        | Existing approval logic is kept exactly as before.
+        */
         $approvals = PaymentRequestApproval::with('user')
             ->where('payment_request_saved_id', $draft->id)
             ->orderBy('step')
             ->get();
 
+        /*
+        |--------------------------------------------------------------------------
+        | PAYMENT REQUEST
+        |--------------------------------------------------------------------------
+        |
+        | Item tetap diambil LIVE dari SPK.
+        | Tidak mengubah payment_request_saveds.
+        |
+        */
         $items = PaymentRequest::with('spk')
-            ->whereIn('id', $draft->payment_request_ids ?? [])
+            ->whereIn(
+                'id',
+                $draft->payment_request_ids ?? []
+            )
             ->get()
             ->map(function ($request) {
 
-                // Jika SPK tidak ditemukan
+                /*
+                |--------------------------------------------------------------------------
+                | SPK TIDAK ADA
+                |--------------------------------------------------------------------------
+                */
                 if (!$request->spk) {
                     return [
                         'supplier' => '-',
@@ -5466,15 +5790,424 @@ class SpkController extends Controller
                         'adjustment' => 0,
                         'payment_amount' => 0,
                         'payment_request_amount' => 0,
+                        'spk_items' => [],
                     ];
                 }
 
+                /*
+                |--------------------------------------------------------------------------
+                | DATA SPK
+                |--------------------------------------------------------------------------
+                */
                 $spkData = is_string($request->spk->data)
                     ? json_decode($request->spk->data, true)
-                    : $request->spk->data;
+                    : ($request->spk->data ?? []);
 
+                if (!is_array($spkData)) {
+                    $spkData = [];
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | PAYMENT YANG DIPILIH
+                |--------------------------------------------------------------------------
+                */
                 $payment = collect($spkData['payments'] ?? [])
-                    ->firstWhere('payment_id', $request->payment_id);
+                    ->firstWhere(
+                        'payment_id',
+                        $request->payment_id
+                    );
+
+                /*
+                |--------------------------------------------------------------------------
+                | SPK ID DITANGKAP SEBELUM NESTED CLOSURE
+                |--------------------------------------------------------------------------
+                |
+                | Penting: jangan menggunakan $request di dalam closure item
+                | tanpa use(), karena $request pada map luar tidak otomatis
+                | tersedia di map dalam.
+                |--------------------------------------------------------------------------
+                */
+                $spkId = $request->spk_id;
+
+                /*
+                |--------------------------------------------------------------------------
+                | ITEM DARI TABEL SPK
+                |--------------------------------------------------------------------------
+                |
+                | QTY       = QTY asli SPK.
+                | QTY IN    = balancing ProductionTimeline berdasarkan komponen.
+                | INSPECT   = InspectSchedule berdasarkan spk_id + detail_po_id.
+                |
+                */
+                $spkItems = collect($spkData['items'] ?? [])
+                    ->filter(function ($item) {
+                        return is_array($item);
+                    })
+                    ->map(function ($item) use ($spkId) {
+
+                        $detailPoId =
+                            $item['detail_po_id']
+                            ?? $item['detail_id']
+                            ?? null;
+
+                        $qtySpk = (float) ($item['qty'] ?? 0);
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | TIMELINE PRODUCTION
+                        |--------------------------------------------------------------------------
+                        | Sama dengan balancing pada Modal Mutasi:
+                        | spk_id + detail_po_id
+                        */
+                        $timeline = $detailPoId !== null
+                            ? ProductionTimeline::query()
+                                ->where('spk_id', $spkId)
+                                ->where('detail_po_id', $detailPoId)
+                                ->orderBy('id')
+                                ->get()
+                            : collect();
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | INSPECT SCHEDULE
+                        |--------------------------------------------------------------------------
+                        | Ini khusus untuk tabel TIMELINE BARANG MASUK di PDF.
+                        |
+                        | Tidak dipakai untuk menghitung QTY IN utama.
+                        | QTY IN utama tetap dari ProductionTimeline + component
+                        | balancing supaya logic yang sudah benar tidak berubah.
+                        */
+                        $inspectSchedules = $detailPoId !== null
+                            ? \App\Models\InspectSchedule::query()
+                                ->where('spk_id', $spkId)
+                                ->where('detail_po_id', $detailPoId)
+                                ->orderBy('batch')
+                                ->orderBy('tanggal_inspect')
+                                ->orderBy('id')
+                                ->get()
+                                ->map(function ($inspect) {
+                                    return [
+                                        'id' => $inspect->id,
+                                        'batch' => $inspect->batch,
+                                        'tanggal_inspect' => $inspect->tanggal_inspect
+                                            ? \Carbon\Carbon::parse($inspect->tanggal_inspect)->format('d/m/Y')
+                                            : '',
+                                        'qty' => (float) ($inspect->jumlah_inspect ?? 0),
+                                        'passed' => (float) ($inspect->passed ?? 0),
+                                        'rejected' => (float) ($inspect->rejected ?? 0),
+                                        'user_id' => $inspect->user_id,
+                                        'kategori_id' => $inspect->kategori_id,
+                                        'is_service' => (bool) ($inspect->is_service ?? false),
+                                        'nw_service' => (bool) ($inspect->nw_service ?? false),
+                                        'is_reinspect' => (bool) ($inspect->is_reinspect ?? false),
+                                    ];
+                                })
+                                ->values()
+                                ->toArray()
+                            : [];
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | CUSTOM COMPONENT
+                        |--------------------------------------------------------------------------
+                        */
+                        $customColumns = $item['custom_columns'] ?? [];
+
+                        if (is_string($customColumns)) {
+                            $customColumns = json_decode($customColumns, true) ?? [];
+                        }
+
+                        if (!is_array($customColumns)) {
+                            $customColumns = [];
+                        }
+
+                        $components = [];
+
+                        foreach ($customColumns as $componentIndex => $component) {
+
+                            if (!is_array($component)) {
+                                continue;
+                            }
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | CARI NAMA KOMPONEN
+                            | Sama dengan logic Modal Mutasi.
+                            |--------------------------------------------------------------------------
+                            */
+                            $componentName = '';
+
+                            $preferredNameKeys = [
+                                'nama',
+                                'name',
+                                'nama_material',
+                                'nama_bahan',
+                                'bahan',
+                                'triplek',
+                                'finishing',
+                                'komponen',
+                                'component',
+                                'description',
+                            ];
+
+                            foreach ($preferredNameKeys as $key) {
+                                $value = $component[$key] ?? null;
+
+                                if (
+                                    is_string($value)
+                                    && trim($value) !== ''
+                                    && !in_array(
+                                        strtolower(trim($value)),
+                                        ['-', 'null', 'undefined', 'n/a', 'na'],
+                                        true
+                                    )
+                                ) {
+                                    $componentName = trim($value);
+                                    break;
+                                }
+                            }
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | FALLBACK NAMA KOMPONEN
+                            |--------------------------------------------------------------------------
+                            */
+                            if ($componentName === '') {
+                                foreach ($component as $key => $value) {
+                                    $keyLower = strtolower((string) $key);
+
+                                    if (!is_string($value) || trim($value) === '') {
+                                        continue;
+                                    }
+
+                                    $cleanValue = strtolower(trim($value));
+
+                                    if (
+                                        in_array(
+                                            $keyLower,
+                                            [
+                                                'harga',
+                                                'material',
+                                                'pcs',
+                                                'set',
+                                                'total',
+                                                'p',
+                                                'l',
+                                                't',
+                                                'qty',
+                                                'kode',
+                                                'id',
+                                            ],
+                                            true
+                                        )
+                                    ) {
+                                        continue;
+                                    }
+
+                                    if (
+                                        in_array(
+                                            $cleanValue,
+                                            ['-', 'null', 'undefined', 'n/a', 'na'],
+                                            true
+                                        )
+                                    ) {
+                                        continue;
+                                    }
+
+                                    $componentName = trim($value);
+                                    break;
+                                }
+                            }
+
+                            if ($componentName === '') {
+                                $componentName = 'Komponen ' . ($componentIndex + 1);
+                            }
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | QTY SPK KOMPONEN
+                            |--------------------------------------------------------------------------
+                            */
+                            $componentQtySpk =
+                                isset($component['pcs'])
+                                && $component['pcs'] !== ''
+                                && is_numeric($component['pcs'])
+                                ? (float) $component['pcs']
+                                : $qtySpk;
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | NORMALISASI NAMA
+                            |--------------------------------------------------------------------------
+                            */
+                            $normalizeText = function ($value) {
+                                return trim(
+                                    preg_replace(
+                                        '/\s+/',
+                                        ' ',
+                                        preg_replace(
+                                            '/[^a-z0-9]+/i',
+                                            ' ',
+                                            strtolower((string) ($value ?? ''))
+                                        )
+                                    )
+                                );
+                            };
+
+                            $targetName = $normalizeText($componentName);
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | QTY IN KOMPONEN
+                            |--------------------------------------------------------------------------
+                            |
+                            | IN + SERVICE_MASUK dihitung.
+                            | Remark kosong -> component pertama.
+                            | Remark berisi -> EXACT MATCH dengan nama component.
+                            |--------------------------------------------------------------------------
+                            */
+                            $componentQtyIn = 0;
+
+                            foreach ($timeline as $timelineRow) {
+                                $type = strtolower(trim((string) ($timelineRow->type ?? '')));
+
+                                if ($type !== 'in' && $type !== 'service_masuk') {
+                                    continue;
+                                }
+
+                                $qty = (float) ($timelineRow->qty ?? 0);
+
+                                if ($qty == 0) {
+                                    continue;
+                                }
+
+                                $remark = $normalizeText($timelineRow->remark ?? '');
+
+                                if ($remark === '') {
+                                    if ((int) $componentIndex === 0) {
+                                        $componentQtyIn += $qty;
+                                    }
+                                    continue;
+                                }
+
+                                if ($remark === $targetName) {
+                                    $componentQtyIn += $qty;
+                                }
+                            }
+
+                            $components[] = [
+                                'name' => $componentName,
+                                'qty_spk' => $componentQtySpk,
+                                'qty_in' => $componentQtyIn,
+                                'balance' => $componentQtySpk - $componentQtyIn,
+                            ];
+                        }
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | BALANCING QTY IN ITEM
+                        |--------------------------------------------------------------------------
+                        |
+                        | Tidak menjumlahkan Qty In antar component.
+                        | Ambil progress component paling rendah.
+                        |--------------------------------------------------------------------------
+                        */
+                        $balancedQtyIn = 0;
+
+                        if (count($components) > 0 && $qtySpk > 0) {
+                            $progressValues = [];
+
+                            foreach ($components as $componentRow) {
+                                $componentQty = (float) ($componentRow['qty_spk'] ?? 0);
+                                $componentIn = (float) ($componentRow['qty_in'] ?? 0);
+
+                                if ($componentQty <= 0) {
+                                    continue;
+                                }
+
+                                $progressValues[] = max(0, $componentIn / $componentQty);
+                            }
+
+                            if (count($progressValues) > 0) {
+                                $minimumProgress = min($progressValues);
+
+                                $balancedQtyIn = min(
+                                    $qtySpk,
+                                    $qtySpk * $minimumProgress
+                                );
+                            }
+                        } else {
+                            /*
+                            |--------------------------------------------------------------------------
+                            | FALLBACK ITEM TANPA COMPONENT
+                            |--------------------------------------------------------------------------
+                            */
+                            foreach ($timeline as $timelineRow) {
+                                $type = strtolower(trim((string) ($timelineRow->type ?? '')));
+
+                                if ($type === 'in' || $type === 'service_masuk') {
+                                    $balancedQtyIn += (float) ($timelineRow->qty ?? 0);
+                                }
+                            }
+
+                            $balancedQtyIn = min($qtySpk, $balancedQtyIn);
+                        }
+
+                        return [
+                            'kode' => $item['kode'] ?? '-',
+                            'nama' => $item['nama'] ?? '-',
+
+                            // QTY HEADER = QTY ASLI SPK
+                            'qty' => $qtySpk,
+
+                            // QTY IN = BALANCED PRODUCTION TIMELINE
+                            'qty_in' => $balancedQtyIn,
+
+                            'satuan' => $item['satuan'] ?? $item['sat'] ?? 'pcs',
+                            'detail_po_id' => $detailPoId,
+
+                            // Struktur component asli SPK.
+                            // PDF memakai ini untuk menjalankan logic
+                            // yang sama persis dengan Modal Mutasi.
+                            'custom_columns' => $customColumns,
+
+                            'components' => $components,
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | RAW PRODUCTION TIMELINE
+                            |--------------------------------------------------------------------------
+                            | Dikirim mentah dari query yang sama dengan Modal Mutasi:
+                            | spk_id + detail_po_id.
+                            |
+                            | PDF akan memakai data ini untuk menghitung QTY IN
+                            | dengan logic component/remark yang sama persis.
+                            |--------------------------------------------------------------------------
+                            */
+                            'production_timeline' => $timeline
+                                ->map(function ($timelineRow) {
+                                    return [
+                                        'id' => $timelineRow->id,
+                                        'spk_id' => $timelineRow->spk_id,
+                                        'detail_po_id' => $timelineRow->detail_po_id,
+                                        'type' => $timelineRow->type,
+                                        'qty' => (float) ($timelineRow->qty ?? 0),
+                                        'remark' => $timelineRow->remark,
+                                        'date' => $timelineRow->date,
+                                        'process' => $timelineRow->process,
+                                        'next_process' => $timelineRow->next_process,
+                                    ];
+                                })
+                                ->values()
+                                ->toArray(),
+
+                            // Data tambahan untuk tabel TIMELINE BARANG MASUK.
+                            'inspect_timeline' => $inspectSchedules,
+                        ];
+                    })
+                    ->values()
+                    ->toArray();
 
                 return [
                     'supplier' => $spkData['sup'] ?? '-',
@@ -5486,11 +6219,18 @@ class SpkController extends Controller
                     'adjustment' => $payment['adjustment'] ?? 0,
                     'payment_amount' => (float) ($payment['amount'] ?? 0),
                     'payment_request_amount' => !empty($payment['adjustment'])
-                        ? (float) $payment['adjustment']
+                        ? (float) ($payment['adjustment'])
                         : (float) ($payment['amount'] ?? 0),
+                    'spk_items' => $spkItems,
                 ];
-            });
+            })
+            ->values();
 
+        /*
+        |--------------------------------------------------------------------------
+        | RESPONSE
+        |--------------------------------------------------------------------------
+        */
         return response()->json([
             'id' => $draft->id,
             'request_no' => $draft->request_no,

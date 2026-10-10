@@ -70,6 +70,11 @@ Route::get('/test-mikrotik', function (MikrotikService $mikrotik) {
     ]);
 });
     // finance
+    Route::get(
+    '/payment-request-saved/{id}/export-excel-2up',
+    [SpkController::class, 'exportte']
+)->name('payment-request-saved.export.excel.2up');
+
     Route::get('/finance', [FinanceController::class, 'index'])
         ->name('finance.index');
     Route::get(

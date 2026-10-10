@@ -22,7 +22,7 @@ class ProduksiController extends Controller
                 $q->where('order_no', 'like', "%{$search}%")
                     ->orWhere('company_name', 'like', "%{$search}%")
 
-                // 🔥 search di detail (JSON)
+                    // 🔥 search di detail (JSON)
                     ->orWhereHas('details', function ($q2) use ($search) {
                         $q2->where('detail->description', 'like', "%{$search}%");
                     });
@@ -37,12 +37,12 @@ class ProduksiController extends Controller
     public function getByDetail(Request $request, $kategori = null)
     {
         $request->validate([
-            'po_id'        => 'required|integer',
+            'po_id' => 'required|integer',
             'detail_po_id' => 'required|integer',
-            'spk_id'       => 'nullable|string', // JSON string dari JS
+            'spk_id' => 'nullable|string', // JSON string dari JS
         ]);
 
-        $poId     = $request->po_id;
+        $poId = $request->po_id;
         $detailId = $request->detail_po_id;
 
         // Decode SPK JSON dari request jika ada
@@ -52,7 +52,7 @@ class ProduksiController extends Controller
         $query = ProductionTimeline::where('po_id', $poId)
             ->where('detail_po_id', $detailId);
 
-        if (! empty($spkData)) {
+        if (!empty($spkData)) {
             $spkIds = [];
             foreach ($spkData as $cat => $spks) {
                 foreach ($spks as $spk) {
@@ -68,30 +68,30 @@ class ProduksiController extends Controller
 
         $data = $query->orderBy('date')->get()->map(function ($row) {
             return [
-                'id'         => $row->id,
-                'type'       => $row->type,
-                'qty'        => $row->qty,
-                'spk_id'     => $row->spk_id,
-                'sup'        => data_get($row->data, 'sup'),
-                'date'       => $row->date,
-                'remark'     => $row->remark,
+                'id' => $row->id,
+                'type' => $row->type,
+                'qty' => $row->qty,
+                'spk_id' => $row->spk_id,
+                'sup' => data_get($row->data, 'sup'),
+                'date' => $row->date,
+                'remark' => $row->remark,
                 'is_service' => data_get($row->data, 'is_service', 0),
             ];
         });
 
         // ===== HITUNG TOTAL SPK DARI TABLE SPK =====
         $totalSpkMap = [];
-        $spks        = Spk::where('po_id', $poId)->get();
+        $spks = Spk::where('po_id', $poId)->get();
 
         foreach ($spks as $spk) {
-            $spkJson     = $spk->data;
+            $spkJson = $spk->data;
             $kategoriSpk = strtolower($spkJson['kategori'] ?? 'unknown');
 
-            if (! isset($totalSpkMap[$kategoriSpk])) {
+            if (!isset($totalSpkMap[$kategoriSpk])) {
                 $totalSpkMap[$kategoriSpk] = 0;
             }
 
-            if (! empty($spkJson['items'])) {
+            if (!empty($spkJson['items'])) {
                 foreach ($spkJson['items'] as $item) {
                     // FILTER berdasarkan detail_po_id
                     if (($item['detail_po_id'] ?? null) == $detailId) {
@@ -103,31 +103,31 @@ class ProduksiController extends Controller
 
         // ===== HITUNG KESIMPULAN =====
         // ===== HITUNG KESIMPULAN =====
-        $kesimpulan   = [];
+        $kesimpulan = [];
         $kategoriList = $data->pluck('sup')->unique()->toArray();
 
         foreach ($kategoriList as $cat) {
-            $inQty      = $data->where('sup', $cat)->where('type', 'in')->sum('qty');
-            $outQty     = $data->where('sup', $cat)->where('type', 'out')->sum('qty');
+            $inQty = $data->where('sup', $cat)->where('type', 'in')->sum('qty');
+            $outQty = $data->where('sup', $cat)->where('type', 'out')->sum('qty');
             $serviceOut = $data->where('sup', $cat)->where('type', 'out')->where('is_service', 1)->sum('qty');
 
             $netIn = $inQty - $serviceOut; // IN bersih = total IN dikurangi service out
 
-            $totalSpk   = $totalSpkMap[$cat] ?? 0;
+            $totalSpk = $totalSpkMap[$cat] ?? 0;
             $belumMasuk = max(0, $totalSpk - $netIn);
 
             $kesimpulan[$cat] = [
-                'in'          => $inQty - $serviceOut,
-                'out'         => $outQty - $serviceOut,
+                'in' => $inQty - $serviceOut,
+                'out' => $outQty - $serviceOut,
                 'service_out' => $serviceOut,          // <--- tambahkan keterangan service
-                'net_in'      => $netIn + $serviceOut, // <--- bisa langsung ditampilkan ke user
-                'total_spk'   => $totalSpk,
+                'net_in' => $netIn + $serviceOut, // <--- bisa langsung ditampilkan ke user
+                'total_spk' => $totalSpk,
                 'belum_masuk' => $belumMasuk,
             ];
         }
 
         return response()->json([
-            'data'       => $data,
+            'data' => $data,
             'kesimpulan' => $kesimpulan,
         ]);
     }
@@ -136,25 +136,25 @@ class ProduksiController extends Controller
     {
         // ================= VALIDASI INPUT =================
         $request->validate([
-            'po_id'        => 'required|integer',
+            'po_id' => 'required|integer',
             'detail_po_id' => 'required|integer',
-            'spk_id'       => 'required|integer',
-            'type'         => 'required|in:in,out',
-            'qty'          => 'required|numeric|min:0.01',
-            'date'         => 'required|date',
-            'sup'          => 'required|string', // kategori tujuan
-            'origin_sup'   => 'nullable|string', // kategori asal (OUT biasa)
-            'is_service'   => 'nullable|boolean',
-            'remark'       => 'nullable|string',
+            'spk_id' => 'required|integer',
+            'type' => 'required|in:in,out',
+            'qty' => 'required|numeric|min:0.01',
+            'date' => 'required|date',
+            'sup' => 'required|string', // kategori tujuan
+            'origin_sup' => 'nullable|string', // kategori asal (OUT biasa)
+            'is_service' => 'nullable|boolean',
+            'remark' => 'nullable|string',
         ]);
 
-        $sup       = $request->sup;
+        $sup = $request->sup;
         $originSup = $request->origin_sup ?? $sup;
         $isService = $request->is_service ?? 0;
 
         // ================= AMBIL SPK =================
         $spk = Spk::find($request->spk_id);
-        if (! $spk) {
+        if (!$spk) {
             return response()->json(['success' => false, 'message' => 'SPK tidak ditemukan'], 404);
         }
 
@@ -162,7 +162,7 @@ class ProduksiController extends Controller
 
         // ================= AMBIL ITEM SESUAI DETAIL_PO_ID =================
         $item = collect($spkData['items'] ?? [])->firstWhere('detail_po_id', $request->detail_po_id);
-        if (! $item) {
+        if (!$item) {
             return response()->json(['success' => false, 'message' => 'Item SPK tidak ditemukan'], 404);
         }
 
@@ -174,14 +174,14 @@ class ProduksiController extends Controller
             ->where('data->sup', $sup)
             ->get();
 
-        $totalMasuk   = $timelineCat->where('type', 'in')->sum('qty');
-        $totalOut     = $timelineCat->where('type', 'out')->where('is_service', 0)->sum('qty');
+        $totalMasuk = $timelineCat->where('type', 'in')->sum('qty');
+        $totalOut = $timelineCat->where('type', 'out')->where('is_service', 0)->sum('qty');
         $totalService = $timelineCat->where('type', 'out')->where('is_service', 1)->sum('qty');
         Log::info("Timeline kategori '{$sup}' | IN: {$totalMasuk}, OUT biasa: {$totalOut}, OUT service: {$totalService}, maxQtySPK: {$maxQtySPK}");
-        $sisa         = $maxQtySPK - $request->qty;
-        $u            = $totalMasuk + $request->qty - $totalService;
+        $sisa = $maxQtySPK - $request->qty;
+        $u = $totalMasuk + $request->qty - $totalService;
         $totalUsedCat = $totalMasuk - $totalOut - $totalService + $request->qty;
-        $newTotalIn   = $totalMasuk + $request->qty - $totalService;
+        $newTotalIn = $totalMasuk + $request->qty - $totalService;
         if ($request->type === 'in') {
 
             $newTotalIn = $totalMasuk + $request->qty - $totalService;
@@ -196,7 +196,7 @@ class ProduksiController extends Controller
         //
         if ($request->type === 'out') {
 
-            if (! $isService) {
+            if (!$isService) {
                 $s = $totalOut + $request->qty;
                 if ($s > $maxQtySPK) {
                     return response()->json([
@@ -220,17 +220,17 @@ class ProduksiController extends Controller
 
         // ================= SIMPAN =================
         ProductionTimeline::create([
-            'po_id'        => $request->po_id,
+            'po_id' => $request->po_id,
             'detail_po_id' => $request->detail_po_id,
-            'spk_id'       => $request->spk_id,
-            'type'         => $request->type,
-            'qty'          => $request->qty,
-            'date'         => $request->date,
-            'remark'       => $request->remark,
-            'is_service'   => $request->is_service ? 1 : 0,
+            'spk_id' => $request->spk_id,
+            'type' => $request->type,
+            'qty' => $request->qty,
+            'date' => $request->date,
+            'remark' => $request->remark,
+            'is_service' => $request->is_service ? 1 : 0,
 
-            'data'         => [
-                'sup'        => $sup,
+            'data' => [
+                'sup' => $sup,
                 'is_service' => $isService,
             ],
         ]);
@@ -243,13 +243,13 @@ class ProduksiController extends Controller
         $timeline = ProductionTimeline::findOrFail($id);
 
         $timeline->update([
-            'type'   => $request->type,
-            'qty'    => $request->qty,
+            'type' => $request->type,
+            'qty' => $request->qty,
             'spk_id' => $request->spk_id,
-            'date'   => $request->date,
+            'date' => $request->date,
             'remark' => $request->remark,
-            'data'   => [
-                'sup'        => $request->sup,
+            'data' => [
+                'sup' => $request->sup,
                 'is_service' => $request->is_service ?? 0,
             ],
         ]);
@@ -257,153 +257,154 @@ class ProduksiController extends Controller
         return response()->json(['success' => true]);
     }
     //mutasi mba siti
-    public function mutasi(){
-        $a = Spk::with(['po','detailPo'])->get();
+    public function mutasi()
+    {
+        $a = Spk::with(['po', 'detailPo'])->get();
         // dd($a);
-        return view('pages.mutasi.index',compact('a'));
+        return view('pages.mutasi.index', compact('a'));
     }
-  public function mutasidetail($id)
-{
-    $spk = Spk::with('po')->findOrFail($id);
+    public function mutasidetail($id)
+    {
+        $spk = Spk::with('po')->findOrFail($id);
 
-    $data = $spk->data;
+        $data = $spk->data;
 
-    $supplier = Supplier::where(
-        'name',
-        $data['sup'] ?? ''
-    )->first();
+        $supplier = Supplier::where(
+            'name',
+            $data['sup'] ?? ''
+        )->first();
 
-    /*
-    |--------------------------------------------------------------------------
-    | Tambahkan photo dari DetailPo berdasarkan detail_po_id masing-masing item
-    |--------------------------------------------------------------------------
-    */
-    $items = collect($data['items'] ?? [])
-        ->map(function ($item) {
+        /*
+        |--------------------------------------------------------------------------
+        | Tambahkan photo dari DetailPo berdasarkan detail_po_id masing-masing item
+        |--------------------------------------------------------------------------
+        */
+        $items = collect($data['items'] ?? [])
+            ->map(function ($item) {
 
-            $detailPoId = $item['detail_po_id'] ?? null;
+                $detailPoId = $item['detail_po_id'] ?? null;
 
-            $photo = null;
+                $photo = null;
 
-            if ($detailPoId) {
+                if ($detailPoId) {
 
-                $detailPo = DetailPo::find($detailPoId);
+                    $detailPo = DetailPo::find($detailPoId);
 
-                if ($detailPo) {
+                    if ($detailPo) {
 
-                    $detail = $detailPo->detail;
+                        $detail = $detailPo->detail;
 
-                    /*
-                    | Kalau detail masih berupa JSON string
-                    | ubah menjadi array.
-                    */
-                    if (is_string($detail)) {
-                        $detail = json_decode(
-                            $detail,
-                            true
-                        ) ?? [];
-                    }
+                        /*
+                        | Kalau detail masih berupa JSON string
+                        | ubah menjadi array.
+                        */
+                        if (is_string($detail)) {
+                            $detail = json_decode(
+                                $detail,
+                                true
+                            ) ?? [];
+                        }
 
-                    if (is_array($detail)) {
-                        $photo = $detail['photo'] ?? null;
+                        if (is_array($detail)) {
+                            $photo = $detail['photo'] ?? null;
+                        }
                     }
                 }
-            }
 
-            /*
-            |--------------------------------------------------------------------------
-            | Masukkan photo ke item SPK
-            |--------------------------------------------------------------------------
-            */
-            $item['photo'] = $photo;
+                /*
+                |--------------------------------------------------------------------------
+                | Masukkan photo ke item SPK
+                |--------------------------------------------------------------------------
+                */
+                $item['photo'] = $photo;
 
-            return $item;
-        })
-        ->values()
-        ->toArray();
+                return $item;
+            })
+            ->values()
+            ->toArray();
 
-    return response()->json([
-        'success'   => true,
-        'spk_id'    => $spk->id,
-        'sup_id'    => $supplier?->id,
-        'supplier'  => $supplier?->name,
-        'no_spk'    => $data['no_spk'] ?? '',
-        'no_po'     => $data['no_po'] ?? '',
-        'kategori'  => $data['kategori'] ?? '',
-        'items'     => $items,
-    ]);
-}
-    public function mutasiTimelineDetail(Request $request)
-{
- $timeline = ProductionTimeline::where('spk_id', $request->spk_id)
-        ->where('detail_po_id', $request->detail_po_id)
-        ->orderBy('id')
-        ->get();
-
-    return response()->json([
-        'success' => true,
-        'timeline' => $timeline
-    ]);
-}
-// save mutasi
-    public function saveTimeline(Request $request)
-{
-    foreach ($request->rows as $row) {
-
-        // Ambil SPK untuk mendapatkan po_id
-        $spk = Spk::findOrFail($row['spk_id']);
-
-        ProductionTimeline::updateOrCreate(
-
-            [
-                'id' => $row['id'] ?: null,
-            ],
-
-            [
-                'po_id'        => $spk->po_id,
-                'spk_id'       => $row['spk_id'],
-                'detail_po_id' => $row['detail_po_id'],
-                'sup_id'       => $row['sup_id'],
-                'qty'          => $row['qty'],
-                'type'         => $row['type'],
-                'remark'       => $row['remark'],
-                'date'         => $row['date'] . ' ' . $row['time'],
-            ]
-
-        );
+        return response()->json([
+            'success' => true,
+            'spk_id' => $spk->id,
+            'sup_id' => $supplier?->id,
+            'supplier' => $supplier?->name,
+            'no_spk' => $data['no_spk'] ?? '',
+            'no_po' => $data['no_po'] ?? '',
+            'kategori' => $data['kategori'] ?? '',
+            'items' => $items,
+        ]);
     }
+    public function mutasiTimelineDetail(Request $request)
+    {
+        $timeline = ProductionTimeline::where('spk_id', $request->spk_id)
+            ->where('detail_po_id', $request->detail_po_id)
+            ->orderBy('id')
+            ->get();
 
-    return response()->json([
-        'success' => true,
-        'message' => 'Timeline berhasil disimpan.'
-    ]);
-}
-// search
-public function mutasiSearch(Request $request)
-{
-    $search = $request->search;
+        return response()->json([
+            'success' => true,
+            'timeline' => $timeline
+        ]);
+    }
+    // save mutasi
+    public function saveTimeline(Request $request)
+    {
+        foreach ($request->rows as $row) {
 
-    $query = Spk::with(['po','detailPo']);
+            // Ambil SPK untuk mendapatkan po_id
+            $spk = Spk::findOrFail($row['spk_id']);
 
-    if ($search) {
+            ProductionTimeline::updateOrCreate(
 
-        $query->where(function ($q) use ($search) {
+                [
+                    'id' => $row['id'] ?: null,
+                ],
 
-            $q->whereHas('po', function ($po) use ($search) {
+                [
+                    'po_id' => $spk->po_id,
+                    'spk_id' => $row['spk_id'],
+                    'detail_po_id' => $row['detail_po_id'],
+                    'sup_id' => $row['sup_id'],
+                    'qty' => $row['qty'],
+                    'type' => $row['type'],
+                    'remark' => $row['remark'],
+                    'date' => $row['date'] . ' ' . $row['time'],
+                ]
 
-                $po->where('order_no','like',"%{$search}%")
-                   ->orWhere('company_name','like',"%{$search}%");
+            );
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Timeline berhasil disimpan.'
+        ]);
+    }
+    // search
+    public function mutasiSearch(Request $request)
+    {
+        $search = $request->search;
+
+        $query = Spk::with(['po', 'detailPo']);
+
+        if ($search) {
+
+            $query->where(function ($q) use ($search) {
+
+                $q->whereHas('po', function ($po) use ($search) {
+
+                    $po->where('order_no', 'like', "%{$search}%")
+                        ->orWhere('company_name', 'like', "%{$search}%");
+
+                });
+
+                $q->orWhere('data', 'like', "%{$search}%");
 
             });
 
-            $q->orWhere('data','like',"%{$search}%");
+        }
 
-        });
+        return response()->json($query->latest()->get());
 
     }
-
-    return response()->json($query->latest()->get());
-
-}
 
 }

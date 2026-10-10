@@ -1051,6 +1051,84 @@
         let massPekerjaanTimers = {};
 
 
+        // Validasi realtime khusus Mass Input; tidak mengubah validasi Single Input.
+        let massQtyRevision = 0;
+        let massQtyTimer = null;
+        let massQtyValid = false;
+        let massQtyChecking = false;
+        const massQtyFormat = value => new Intl.NumberFormat('id-ID', {maximumFractionDigits: 2}).format(Number(value) || 0);
+
+        function massQtyStatus(row, message, error) {
+            const input = row.find('.mass-qty');
+            let info = row.find('.mass-qty-info');
+            if (!info.length) info = $('<div class="mass-qty-info small mt-1"></div>').insertAfter(input);
+            input.toggleClass('is-invalid', !!error).toggleClass('is-valid', !error && !!message);
+            info.toggleClass('text-danger', !!error).toggleClass('text-success', !error).text(message);
+        }
+
+        async function validateMassQtyRealtime() {
+            const revision = ++massQtyRevision;
+            const rows = $('#massUpahBodyRows .mass-upah-row').toArray();
+            const groups = new Map();
+            let valid = rows.length > 0;
+            massQtyChecking = true;
+            massQtyValid = false;
+            $('#btnSaveMassUpah').prop('disabled', true);
+            for (const el of rows) {
+                if (revision !== massQtyRevision) return false;
+                const row = $(el);
+                const article = String(row.find('.mass-article').val() || '').trim();
+                const pekerjaan = String(row.find('.mass-pekerjaan').val() || '').trim();
+                const no_po = String(row.find('.mass-no-po').val() || '').trim();
+                const rawQty = String(row.find('.mass-qty').val() ?? '').trim();
+                const qty = Number(rawQty);
+                if (!article || !pekerjaan || !rawQty || !Number.isFinite(qty) || qty <= 0) {
+                    valid = false;
+                    massQtyStatus(row, 'Lengkapi Article, Pekerjaan dan Qty positif.', true);
+                    continue;
+                }
+                // Kombinasi sama pada beberapa row harus dihitung kumulatif.
+                const key = JSON.stringify([article.toLowerCase(), no_po.toLowerCase(), pekerjaan.toLowerCase()]);
+                const sum = (groups.get(key) || 0) + qty;
+                groups.set(key, sum);
+                try {
+                    const res = await $.ajax({
+                        url: "{{ route('upah.transaksi.check.qty') }}",
+                        type: 'GET', dataType: 'json',
+                        data: {article, pekerjaan, no_po, qty: sum}
+                    });
+                    if (revision !== massQtyRevision) return false;
+                    const ok = res && res.success === true && res.valid === true && res.over !== true;
+                    if (!ok) valid = false;
+                    const summary = res && res.found
+                        ? 'PO: ' + massQtyFormat(res.qty_po) + ' | Terpakai: ' + massQtyFormat(res.used_qty) + ' | Sisa: ' + massQtyFormat(res.remaining_qty) + ' | Mass: ' + massQtyFormat(sum)
+                        : 'Detail PO tidak ditemukan';
+                    massQtyStatus(row, (ok ? '✓ ' : '✕ ') + summary + (ok ? '' : ' — ' + (res.message || 'Qty tidak valid')), !ok);
+                } catch (err) {
+                    if (revision !== massQtyRevision) return false;
+                    valid = false;
+                    massQtyStatus(row, 'Gagal mengecek Qty. Coba lagi.', true);
+                }
+            }
+            if (revision !== massQtyRevision) return false;
+            massQtyChecking = false;
+            massQtyValid = valid;
+            $('#btnSaveMassUpah').prop('disabled', !valid);
+            return valid;
+        }
+
+        function scheduleMassQtyCheck() {
+            massQtyRevision++;
+            massQtyValid = false;
+            $('#btnSaveMassUpah').prop('disabled', true);
+            clearTimeout(massQtyTimer);
+            massQtyTimer = setTimeout(validateMassQtyRealtime, 300);
+        }
+
+        $(document).on('input change',
+            '#massUpahBodyRows .mass-qty, #massUpahBodyRows .mass-article, #massUpahBodyRows .mass-pekerjaan, #massUpahBodyRows .mass-no-po',
+            scheduleMassQtyCheck);
+
         function createMassRow(focusArticle = true) {
 
             massRowCounter++;
@@ -1093,6 +1171,12 @@
             </td>
 
             <td>
+                <select class="form-control mass-no-po">
+                    <option value="">Pilih No PO...</option>
+                </select>
+            </td>
+
+            <td>
                 <input type="text"
                         class="form-control mass-person"
                         placeholder="Person">
@@ -1122,12 +1206,6 @@
             </td>
 
             <td>
-                <select class="form-control mass-no-po">
-                    <option value="">Pilih No PO...</option>
-                </select>
-            </td>
-
-            <td>
                 <input type="text"
                         class="form-control mass-no-spk"
                         placeholder="No SPK">
@@ -1147,6 +1225,7 @@
             const row = $('#massUpahBodyRows .mass-upah-row').last();
 
             calculateMassRow(row);
+            scheduleMassQtyCheck();
 
             if (focusArticle) {
                 setTimeout(function() {
@@ -1353,6 +1432,7 @@
             resetMassNoPo(row);
 
             calculateMassRow(row);
+            scheduleMassQtyCheck();
 
             if (keyword.length < 2) return;
 
@@ -1465,6 +1545,7 @@
             row.find('.mass-description').val(description);
 
             row.find('.mass-article-result').empty().removeClass('show');
+            scheduleMassQtyCheck();
 
             const pekerjaanSelect = row.find('.mass-pekerjaan');
 
@@ -1532,6 +1613,7 @@
                     });
 
                     pekerjaanSelect.prop('disabled', false);
+                    scheduleMassQtyCheck();
 
                     if (!response.length) {
                         pekerjaanSelect.append(
@@ -1608,6 +1690,7 @@
                         });
 
                         poSelect.prop('disabled', false);
+                        scheduleMassQtyCheck();
 
                         /*
                         |--------------------------------------------------------------------------
@@ -1619,6 +1702,7 @@
                     } else {
 
                         makeMassNoPoManual(row);
+                        scheduleMassQtyCheck();
 
                     }
                 },
@@ -1652,6 +1736,7 @@
             row.find('.mass-harga').val(harga);
 
             calculateMassRow(row);
+            scheduleMassQtyCheck();
 
             setTimeout(function() {
                 row.find('.mass-qty').trigger('focus').select();
@@ -1710,6 +1795,7 @@
                 calculateMassRow(row);
 
                 row.find('.mass-article').trigger('focus');
+                scheduleMassQtyCheck();
 
                 return;
             }
@@ -1717,6 +1803,7 @@
             row.remove();
 
             renumberMassRows();
+            scheduleMassQtyCheck();
 
             $('#massUpahBodyRows .mass-upah-row')
                 .last()
@@ -1731,7 +1818,14 @@
         |--------------------------------------------------------------------------
         */
 
-        $('#btnSaveMassUpah').on('click', function() {
+        $('#btnSaveMassUpah').on('click', async function() {
+            // Cek ulang seluruh row sebelum POST; cegah simpan saat Qty tidak valid.
+            clearTimeout(massQtyTimer);
+            if (!(await validateMassQtyRealtime())) {
+                $('#massUpahError').removeClass('d-none')
+                    .text('Periksa Qty pada setiap baris. Qty tidak boleh melebihi sisa PO.');
+                return;
+            }
 
             const button = $(this);
             const rows = [];
@@ -1885,7 +1979,7 @@
                 complete: function() {
 
                     button
-                        .prop('disabled', false)
+                        .prop('disabled', !massQtyValid)
                         .html(
                             '<i class="fas fa-save mr-1"></i> Simpan Semua'
                         );

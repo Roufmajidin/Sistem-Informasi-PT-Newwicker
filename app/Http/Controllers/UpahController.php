@@ -1463,8 +1463,77 @@ class UpahController extends Controller
      * Realtime check dari frontend.
      * Tidak menyimpan detail_po_id ke tabel upah.
      */
+    /** Data Overview PO: satu request, agregasi database, tanpa pagination transaksi. */
+    private function overviewPoData(Request $request)
+    {
+        $keyword = trim((string) $request->query('q', ''));
+        $query = Upah::query()
+            ->select('no_po', 'article', 'description', 'pekerjaan')
+            ->selectRaw('SUM(qty) AS used_qty')
+            ->whereNotNull('no_po')->where('no_po', '<>', '');
+
+        if ($keyword !== '') {
+            $query->where(function ($q) use ($keyword) {
+                $q->where('no_po', 'like', '%' . $keyword . '%')
+                  ->orWhere('article', 'like', '%' . $keyword . '%')
+                  ->orWhere('description', 'like', '%' . $keyword . '%');
+            });
+        }
+
+        // Batasi hasil per request untuk mencegah modal memuat ribuan baris sekaligus.
+        $rows = $query->groupBy('no_po', 'article', 'description', 'pekerjaan')
+            ->orderBy('no_po')->orderBy('pekerjaan')->limit(501)->get();
+        $hasMore = $rows->count() > 500;
+        $rows = $rows->take(500);
+        $poNumbers = $rows->pluck('no_po')->unique()->values()->all();
+        $poQty = [];
+
+        if ($poNumbers) {
+            $details = DetailPo::with('po')
+                ->whereHas('po', function ($q) use ($poNumbers) {
+                    $q->whereIn('order_no', $poNumbers);
+                })->whereNotNull('detail')->get();
+            foreach ($details as $detailPo) {
+                $detail = $detailPo->detail;
+                if (!is_array($detail)) continue;
+                $po = trim((string) optional($detailPo->po)->order_no);
+                $article = '';
+                foreach (['article_code', 'article_code_', 'article_nr', 'article_nr_', 'article', 'article_no', 'article_number', 'sku', 'item_code', 'code'] as $key) {
+                    if (isset($detail[$key]) && trim((string) $detail[$key]) !== '') {
+                        $article = trim((string) $detail[$key]); break;
+                    }
+                }
+                if ($po === '' || $article === '') continue;
+                $key = mb_strtolower($po . '|' . $article);
+                $poQty[$key] = ($poQty[$key] ?? 0) + $this->getDetailPoQty($detailPo);
+            }
+        }
+
+        $result = $rows->map(function ($r) use ($poQty) {
+            $po = trim((string) $r->no_po);
+            $article = trim((string) $r->article);
+            $qty = $poQty[mb_strtolower($po . '|' . $article)] ?? null;
+            $used = (float) $r->used_qty;
+            return [
+                'po' => $po, 'article' => $article,
+                'description' => (string) ($r->description ?? ''),
+                'pekerjaan' => (string) ($r->pekerjaan ?? ''),
+                'qty_po' => $qty, 'used_qty' => $used,
+                'remaining_qty' => $qty === null ? null : max(0, $qty - $used),
+                'progress' => $qty > 0 ? min(100, $used / $qty * 100) : null,
+            ];
+        })->values();
+
+        return response()->json(['success' => true, 'items' => $result, 'has_more' => $hasMore]);
+    }
+
     public function checkQtyUpah(Request $request)
     {
+        // Overview memakai endpoint yang sama, tanpa mengubah validasi Qty existing.
+        if ($request->boolean('overview_po')) {
+            return $this->overviewPoData($request);
+        }
+
         $request->validate([
             'article' => 'required|string|max:100',
             'pekerjaan' => 'required|string|max:100',

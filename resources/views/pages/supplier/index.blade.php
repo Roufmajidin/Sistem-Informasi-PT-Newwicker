@@ -53,6 +53,13 @@
 .jenis-supplier-name{display:block;max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:text;position:relative}
 .jenis-supplier-name:hover{text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}
 #modalLinkVendor .modal-dialog{max-width:700px;width:95%}
+#newVendorPanel{margin-top:14px;padding:16px;border:1px solid #bfdbfe;background:#f8fbff;border-radius:10px}
+#newVendorPanel .new-vendor-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+#newVendorPanel .form-group{margin-bottom:12px}
+#newVendorPanel label{font-size:12px;color:#475569;font-weight:600}
+#newVendorPanel .form-control{height:38px}
+#newVendorPanel .new-vendor-help{font-size:11px;color:#64748b;margin:0 0 12px}
+@media(max-width:600px){#newVendorPanel .new-vendor-grid{grid-template-columns:1fr}}
 #modalLinkVendor .modal-content{min-height:350px}
 #modalLinkVendor .modal-body{padding:25px 30px}
 #modalLinkVendor #vendorSearchInput{height:44px;font-size:14px}
@@ -241,6 +248,52 @@
                             <div><strong>Bank:</strong> <span id="selectedVendorBank">-</span></div>
                             <div><strong>UNIQ:</strong> <span id="selectedVendorUniq">-</span></div>
                         </div>
+                    </div>
+                </div>
+
+                <div id="newVendorPanel" style="display:none">
+                    <h5 style="margin:0 0 6px;font-weight:700;color:#1e40af">Tambah Vendor Baru</h5>
+                    <p class="new-vendor-help">Vendor akan disimpan ke Data Vendor dan langsung ditautkan ke supplier ini.</p>
+                    <div class="new-vendor-grid">
+                        <div class="form-group">
+                            <label for="newVendorNama">Nama Vendor *</label>
+                            <input type="text" id="newVendorNama" class="form-control" maxlength="255" required>
+                        </div>
+                        <div class="form-group" style="grid-column:1/-1">
+                            <label for="newVendorAlamat">Alamat</label>
+                            <input type="text" id="newVendorAlamat" class="form-control" maxlength="255">
+                        </div>
+                        <div class="form-group">
+                            <label for="newVendorRekening">Nomor Rekening</label>
+                            <input type="text" id="newVendorRekening" class="form-control" maxlength="100">
+                        </div>
+                        <div class="form-group">
+                            <label for="newVendorNamaRekening">Nama Rekening</label>
+                            <input type="text" id="newVendorNamaRekening" class="form-control" maxlength="255">
+                        </div>
+                        <div class="form-group">
+                            <label for="newVendorBank">Bank</label>
+                            <input type="text" id="newVendorBank" class="form-control" maxlength="100" list="newVendorBankSuggestions" autocomplete="off">
+                            <datalist id="newVendorBankSuggestions"><option value="BCA"><option value="BRI"><option value="BNI"><option value="Mandiri"><option value="BSI"><option value="CIMB Niaga"><option value="Permata"></datalist>
+                        </div>
+                        <div class="form-group">
+                            <label for="newVendorNpwp">NPWP</label>
+                            <input type="text" id="newVendorNpwp" class="form-control" maxlength="100">
+                        </div>
+                        <div class="form-group">
+                            <label for="newVendorType">Vendor Type</label>
+                            <input type="text" id="newVendorType" class="form-control" maxlength="100" list="newVendorTypeSuggestions" autocomplete="off" placeholder="Pilih atau ketik sendiri">
+                            <datalist id="newVendorTypeSuggestions"><option value="PT"><option value="CV"><option value="UD"><option value="Perorangan"><option value="Toko"><option value="Perusahaan"></datalist>
+                        </div>
+                        <div class="form-group" style="grid-column:1/-1">
+                            <label for="newVendorType2">Vendor Type 2 (Opsional)</label>
+                            <input type="text" id="newVendorType2" class="form-control" maxlength="100" list="newVendorType2Suggestions" autocomplete="off" placeholder="Opsional — pilih saran atau ketik sendiri">
+                            <datalist id="newVendorType2Suggestions"><option value="Lokal"><option value="Import"><option value="Material"><option value="Jasa"><option value="Barang"><option value="Lainnya"></datalist>
+                        </div>
+                    </div>
+                    <div style="display:flex;justify-content:flex-end;gap:8px">
+                        <button type="button" class="btn btn-default" id="cancelNewVendor">Batal Tambah</button>
+                        <button type="button" class="btn btn-success" id="btnCreateAndLinkVendor"><i class="fa fa-save"></i> Simpan &amp; Link</button>
                     </div>
                 </div>
             </div>
@@ -539,7 +592,9 @@ $(document).on('click','.rekening-cell',function(){
     $('#vendorSearchInput').val('');
     $('#vendorSuggestions').hide().html('');
     $('#selectedVendor').hide();
-    $('#btnSaveLinkVendor').prop('disabled',true);
+    $('#newVendorPanel').hide();
+    $('#btnSaveLinkVendor').show().prop('disabled',true);
+    $('#vendorSearchInput').prop('disabled',false);
     $('#btnUnlinkVendor').prop('disabled',!selectedVendorId);
 
     if(selectedVendorId){
@@ -562,7 +617,8 @@ $(document).on('click','.rekening-cell',function(){
 $('#vendorSearchInput').on('input',function(){
     let q=$(this).val().trim();
     selectedVendorId=null;
-    $('#btnSaveLinkVendor').prop('disabled',true);
+    $('#newVendorPanel').hide();
+    $('#btnSaveLinkVendor').show().prop('disabled',true);
     $('#btnUnlinkVendor').prop('disabled',true);
     $('#selectedVendor').hide();
     clearTimeout(vendorSearchTimer);
@@ -581,7 +637,7 @@ $('#vendorSearchInput').on('input',function(){
                 let html='';
 
                 if(!vendors.length){
-                    html='<div class="vendor-suggestion"><span style="color:#94a3b8">Vendor tidak ditemukan</span></div>';
+                    html='<div class="vendor-suggestion" style="cursor:default"><span style="color:#64748b">Vendor tidak ditemukan.</span> <a href="#" id="showNewVendorForm" style="font-weight:700;color:#2563eb">Klik di sini untuk menambahkan</a></div>';
                 }else{
                     vendors.forEach(function(v){
                         html+=`
@@ -611,9 +667,92 @@ $('#vendorSearchInput').on('input',function(){
     },250);
 });
 
+/* OPEN / CLOSE FORM VENDOR BARU */
+$(document).on('click','#showNewVendorForm',function(e){
+    e.preventDefault();
+    const searchText = $('#vendorSearchInput').val().trim();
+    $('#newVendorPanel').slideDown(120);
+    $('#newVendorNama').val(searchText).trigger('focus');
+    // Jika input pencarian berupa nomor rekening, bantu isi nomor rekening.
+    if(/^[0-9\s.-]+$/.test(searchText) && searchText.replace(/\D/g,'').length >= 4){
+        $('#newVendorRekening').val(searchText);
+    }
+    $('#vendorSuggestions').hide().html('');
+    $('#selectedVendor').hide();
+    $('#btnSaveLinkVendor').hide();
+});
+
+$('#cancelNewVendor').on('click',function(){
+    $('#newVendorPanel').slideUp(120);
+    $('#btnSaveLinkVendor').show().prop('disabled',!selectedVendorId);
+});
+
+/* SIMPAN VENDOR BARU, LALU LANGSUNG TAUTKAN */
+$('#btnCreateAndLinkVendor').on('click',function(){
+    const supplierId = $('#linkSupplierId').val();
+    const namaVendor = $('#newVendorNama').val().trim();
+    if(!supplierId) return alert('Supplier tidak ditemukan. Tutup modal lalu coba lagi.');
+    if(!namaVendor) return alert('Nama vendor wajib diisi.');
+
+    const button = $(this);
+    button.prop('disabled',true).html('<i class="fa fa-spinner fa-spin"></i> Menyimpan...');
+
+    $.ajax({
+        url: "{{ route('vendor.store') }}",
+        type: 'POST',
+        data: {
+            _token: csrf,
+            nama_vendor: namaVendor,
+            alamat: $('#newVendorAlamat').val().trim(),
+            nomor_rekening: $('#newVendorRekening').val().trim(),
+            nama_rekening: $('#newVendorNamaRekening').val().trim(),
+            bank: $('#newVendorBank').val().trim(),
+            npwp: $('#newVendorNpwp').val().trim(),
+            vendor_type: $('#newVendorType').val().trim(),
+            vendor_type2: $('#newVendorType2').val().trim()
+        },
+        success: function(createResponse){
+            if(!createResponse || !createResponse.success || !createResponse.data || !createResponse.data.id){
+                alert(createResponse?.message || 'Vendor gagal ditambahkan.');
+                return;
+            }
+            const vendor = createResponse.data;
+            $.ajax({
+                url: "{{ url('/supplier') }}/" + supplierId + "/link-vendor",
+                type: 'POST',
+                data: {_token: csrf, vendor_id: vendor.id},
+                success: function(linkResponse){
+                    if(!linkResponse || !linkResponse.success){
+                        alert('Vendor sudah tersimpan, tetapi gagal ditautkan. Silakan cari vendor ini lalu tautkan secara manual.');
+                        return;
+                    }
+                    const rowData = linkResponse.data;
+                    const $cell = $('#tblSupplier tbody tr[data-id="'+supplierId+'"] .rekening-cell');
+                    $cell.attr('data-vendor-id', rowData.vendor_id || vendor.id);
+                    $cell.html(rekeningHtml(rowData.vendor || vendor));
+                    $('#modalLinkVendor').modal('hide');
+                },
+                error: function(xhr){
+                    alert('Vendor sudah tersimpan, tetapi gagal ditautkan: ' + (xhr.responseJSON?.message || 'silakan tautkan secara manual.'));
+                }
+            });
+        },
+        error: function(xhr){
+            let message = xhr.responseJSON?.message || 'Vendor gagal ditambahkan.';
+            if(xhr.responseJSON?.errors) message = Object.values(xhr.responseJSON.errors).flat().join('\n');
+            alert(message);
+        },
+        complete: function(){
+            button.prop('disabled',false).html('<i class="fa fa-save"></i> Simpan &amp; Link');
+        }
+    });
+});
+
 /* SELECT VENDOR */
 $(document).on('click','.select-vendor',function(){
     selectedVendorId=$(this).data('id');
+    $('#newVendorPanel').hide();
+    $('#btnSaveLinkVendor').show();
 
     $('#vendorSearchInput').val($(this).data('rekening') || $(this).data('name'));
     $('#vendorSuggestions').hide().html('');
