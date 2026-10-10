@@ -127,14 +127,14 @@
                                      <span class="nav-text">SPK</span>
                                  </a>
                              </li>
-                               <li>
+                               {{-- <li>
                                  <a href="/finance">
                                      <span class="nav-icon">
                                          <i class="material-icons">&#xe85e;</i>
                                      </span>
                                      <span class="nav-text">Draft Pengajuan</span>
                                  </a>
-                             </li>
+                             </li> --}}
                              <li>
                                  <a href="/spk/request-r">
                                      <span class="nav-icon">
