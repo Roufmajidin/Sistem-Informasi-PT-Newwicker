@@ -26,7 +26,7 @@ class AuthController extends Controller
             'password' => 'required',
         ]);
 
-        if (! Auth::attempt($credentials)) {
+        if (!Auth::attempt($credentials)) {
             return response()->json([
                 'message' => 'Email atau password salah',
             ], 401);
@@ -75,7 +75,7 @@ class AuthController extends Controller
     {
         $user = $request->user();
 
-        if (! $user) {
+        if (!$user) {
             return response()->json([
                 'message' => 'Unauthenticated (token salah atau sudah logout)',
             ], 401);
@@ -100,7 +100,7 @@ class AuthController extends Controller
         try {
             $user = $request->user();
 
-            if (! $user) {
+            if (!$user) {
                 return response()->json([
                     'message' => 'Token tidak valid atau sudah logout',
                 ], 401);
@@ -134,9 +134,11 @@ class AuthController extends Controller
         ]);
     }
 
+
     private function getBusinessDate(User $user)
     {
-        $now = now();
+        // Gunakan waktu Indonesia secara eksplisit
+        $now = \Carbon\Carbon::now('Asia/Jakarta');
 
         // Cari lembur yang belum checkout
         $openLembur = Lembur::where('user_id', $user->id)
@@ -144,12 +146,11 @@ class AuthController extends Controller
             ->latest('tanggal')
             ->first();
 
-        if ($openLembur) {
-
-            // Masih lembur sampai pagi
-            if ($now->hour < 7) {
-                return $openLembur->tanggal;
-            }
+        // Sebelum pukul 07.00 WIB, lembur yang masih terbuka
+        // tetap menggunakan tanggal lembur sebelumnya.
+        if ($openLembur && $now->hour < 7) {
+            return \Carbon\Carbon::parse($openLembur->tanggal)
+                ->toDateString();
         }
 
         return $now->toDateString();
@@ -159,7 +160,7 @@ class AuthController extends Controller
     {
         $user = $request->user();
 
-        if (! $user) {
+        if (!$user) {
             return response()->json([
                 'message' => 'Unauthorized atau token tidak valid',
             ], 401);
@@ -179,7 +180,7 @@ class AuthController extends Controller
 
         $hasToday = $absens->where('tanggal', $today)->first();
 
-        if (! $hasToday) {
+        if (!$hasToday) {
             $dummy = [
                 'id' => null,
                 'user_id' => $user->id,
@@ -223,11 +224,11 @@ class AuthController extends Controller
         if (
             $hasToday &&
             $lemburToday &&
-            ! empty($lemburToday->jam_keluar)
+            !empty($lemburToday->jam_keluar)
         ) {
             $hasToday->keterangan = 'Selesai Lembur';
         }
-        if (! $lemburToday) {
+        if (!$lemburToday) {
             $lemburToday = (object) [
                 'id' => null,
                 'user_id' => $user->id,
@@ -263,7 +264,7 @@ class AuthController extends Controller
 
     public function getLemburSaya(Request $request)
     {
-        if (! $request->user()) {
+        if (!$request->user()) {
             return response()->json(['message' => 'Token tidak valid'], 401);
         }
 
