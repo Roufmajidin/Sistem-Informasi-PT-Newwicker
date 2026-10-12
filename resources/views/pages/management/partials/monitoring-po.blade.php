@@ -8,7 +8,7 @@
                                 <h6>
                                     PO : {{ $po['po_number'] }}
                                     <span class="">
-                                        ({{ $po['buyer'] ?? $po['buyer_name'] ?? '-' }})
+                                        ({{ $po['buyer'] ?? ($po['buyer_name'] ?? '-') }})
                                     </span>
                                 </h6>
 
@@ -58,21 +58,14 @@
 
                             $foundCategories = [];
 
-                            foreach (($po['items'] ?? []) as $headerItem) {
-
+                            foreach ($po['items'] ?? [] as $headerItem) {
                                 /*
                                 |--------------------------------------------------------------------------
                                 | SEMUA SPK PADA ITEM
                                 |--------------------------------------------------------------------------
                                 */
-                                foreach (($headerItem['spks'] ?? []) as $headerSpk) {
-
-                                    $categoryKey = strtolower(
-                                        trim(
-                                            $headerSpk['kategori_monitoring']
-                                            ?? ''
-                                        )
-                                    );
+                                foreach ($headerItem['spks'] ?? [] as $headerSpk) {
+                                    $categoryKey = strtolower(trim($headerSpk['kategori_monitoring'] ?? ''));
 
                                     /*
                                     |--------------------------------------------------------------
@@ -83,21 +76,18 @@
                                     | ditampilkan pada kolom Accessories.
                                     */
                                     if ($categoryKey === '') {
-
-                                        $kategoriRaw = strtolower(
-                                            trim($headerSpk['kategori'] ?? '')
-                                        );
+                                        $kategoriRaw = strtolower(trim($headerSpk['kategori'] ?? ''));
 
                                         if (
-                                            str_contains($kategoriRaw, 'kaki kayu')
-                                            || str_contains($kategoriRaw, 'kayu kaki')
-                                            || str_contains($kategoriRaw, 'cushion')
-                                            || str_contains($kategoriRaw, 'kaca')
-                                            || str_contains($kategoriRaw, 'glass')
-                                            || str_contains($kategoriRaw, 'cermin')
-                                            || str_contains($kategoriRaw, 'mirror')
-                                            || str_contains($kategoriRaw, 'aksesor')
-                                            || str_contains($kategoriRaw, 'accessor')
+                                            str_contains($kategoriRaw, 'kaki kayu') ||
+                                            str_contains($kategoriRaw, 'kayu kaki') ||
+                                            str_contains($kategoriRaw, 'cushion') ||
+                                            str_contains($kategoriRaw, 'kaca') ||
+                                            str_contains($kategoriRaw, 'glass') ||
+                                            str_contains($kategoriRaw, 'cermin') ||
+                                            str_contains($kategoriRaw, 'mirror') ||
+                                            str_contains($kategoriRaw, 'aksesor') ||
+                                            str_contains($kategoriRaw, 'accessor')
                                         ) {
                                             $categoryKey = 'accessories';
                                         }
@@ -111,11 +101,7 @@
                                         $categoryKey = 'packaging';
                                     }
 
-                                    if (
-                                        $categoryKey !== ''
-                                        &&
-                                        isset($categoryOrder[$categoryKey])
-                                    ) {
+                                    if ($categoryKey !== '' && isset($categoryOrder[$categoryKey])) {
                                         $foundCategories[$categoryKey] = true;
                                     }
                                 }
@@ -125,12 +111,7 @@
                                 | UNFINISH
                                 |--------------------------------------------------------------------------
                                 */
-                                if (
-                                    array_key_exists(
-                                        'unfinish',
-                                        $headerItem
-                                    )
-                                ) {
+                                if (array_key_exists('unfinish', $headerItem)) {
                                     $foundCategories['unfinish'] = true;
                                 }
 
@@ -139,12 +120,7 @@
                                 | FINAL
                                 |--------------------------------------------------------------------------
                                 */
-                                if (
-                                    array_key_exists(
-                                        'final',
-                                        $headerItem
-                                    )
-                                ) {
+                                if (array_key_exists('final', $headerItem)) {
                                     $foundCategories['final'] = true;
                                 }
                             }
@@ -156,18 +132,9 @@
                             */
                             $categories = [];
 
-                            foreach (
-                                $categoryOrder
-                                as $categoryKey => $categoryLabel
-                            ) {
-
-                                if (
-                                    isset(
-                                        $foundCategories[$categoryKey]
-                                    )
-                                ) {
-                                    $categories[$categoryKey] =
-                                        $categoryLabel;
+                            foreach ($categoryOrder as $categoryKey => $categoryLabel) {
+                                if (isset($foundCategories[$categoryKey])) {
+                                    $categories[$categoryKey] = $categoryLabel;
                                 }
                             }
 
@@ -285,7 +252,7 @@
                                                     */
                                                     $spkQtyByLabel = [];
 
-                                                    foreach (($item['spks'] ?? []) as $spkInfo) {
+                                                    foreach ($item['spks'] ?? [] as $spkInfo) {
                                                         $kategoriSpk = strtolower(trim($spkInfo['kategori'] ?? ''));
 
                                                         if ($kategoriSpk === '') {
@@ -353,7 +320,10 @@
                                                             $spkCategoryKey = 'unfinish';
                                                         } elseif (str_contains($labelLower, 'final')) {
                                                             $spkCategoryKey = 'final';
-                                                        } elseif (str_contains($labelLower, 'packaging') || str_contains($labelLower, 'box')) {
+                                                        } elseif (
+                                                            str_contains($labelLower, 'packaging') ||
+                                                            str_contains($labelLower, 'box')
+                                                        ) {
                                                             $spkCategoryKey = 'box';
                                                         } elseif (str_contains($labelLower, 'decor')) {
                                                             $spkCategoryKey = 'decor';
@@ -406,82 +376,75 @@
 
                                                 $monitoringSeen = [];
 
-                                                foreach (($item['spks'] ?? []) as $spk) {
-
-    /*
+                                                foreach ($item['spks'] ?? [] as $spk) {
+                                                    /*
     |--------------------------------------------------------------------------
     | HINDARI DUPLIKASI SPK IDENTIK
     |--------------------------------------------------------------------------
     | Composite Rangka + Anyam tetap aman karena kategori/component berbeda.
     | Hanya record yang benar-benar identik yang dilewati.
     */
-    $monitoringFingerprint = implode('|', [
-        $spk['spk_id'] ?? '',
-        $spk['kategori_monitoring'] ?? '',
-        $spk['kategori'] ?? '',
-        $spk['qty'] ?? '',
-        $spk['qty_in'] ?? '',
-        $spk['passed'] ?? '',
-        $spk['rejected'] ?? '',
-        $spk['component_name'] ?? '',
-        $spk['material'] ?? ($item['material'] ?? ''),
-    ]);
+                                                    $monitoringFingerprint = implode('|', [
+                                                        $spk['spk_id'] ?? '',
+                                                        $spk['kategori_monitoring'] ?? '',
+                                                        $spk['kategori'] ?? '',
+                                                        $spk['qty'] ?? '',
+                                                        $spk['qty_in'] ?? '',
+                                                        $spk['passed'] ?? '',
+                                                        $spk['rejected'] ?? '',
+                                                        $spk['component_name'] ?? '',
+                                                        $spk['material'] ?? ($item['material'] ?? ''),
+                                                    ]);
 
-    if (isset($monitoringSeen[$monitoringFingerprint])) {
-        continue;
-    }
+                                                    if (isset($monitoringSeen[$monitoringFingerprint])) {
+                                                        continue;
+                                                    }
 
-    $monitoringSeen[$monitoringFingerprint] = true;
+                                                    $monitoringSeen[$monitoringFingerprint] = true;
 
-    $categoryKey = strtolower(
-        trim($spk['kategori_monitoring'] ?? '')
-    );
+                                                    $categoryKey = strtolower(trim($spk['kategori_monitoring'] ?? ''));
 
-    /*
+                                                    /*
     |--------------------------------------------------------------------------
     | FALLBACK CATEGORY -> ACCESSORIES
     |--------------------------------------------------------------------------
     | SPK seperti Cushion, Kaca/Glass, Cermin/Mirror, dan Kaki Kayu
     | kadang tidak mempunyai kategori_monitoring.
     */
-    if ($categoryKey === '') {
+                                                    if ($categoryKey === '') {
+                                                        $kategoriRaw = strtolower(trim($spk['kategori'] ?? ''));
 
-        $kategoriRaw = strtolower(
-            trim($spk['kategori'] ?? '')
-        );
+                                                        if (
+                                                            str_contains($kategoriRaw, 'kaki kayu') ||
+                                                            str_contains($kategoriRaw, 'kayu kaki') ||
+                                                            str_contains($kategoriRaw, 'cushion') ||
+                                                            str_contains($kategoriRaw, 'kaca') ||
+                                                            str_contains($kategoriRaw, 'glass') ||
+                                                            str_contains($kategoriRaw, 'cermin') ||
+                                                            str_contains($kategoriRaw, 'mirror') ||
+                                                            str_contains($kategoriRaw, 'aksesor') ||
+                                                            str_contains($kategoriRaw, 'accessor')
+                                                        ) {
+                                                            $categoryKey = 'accessories';
+                                                        }
+                                                    }
 
-        if (
-            str_contains($kategoriRaw, 'kaki kayu')
-            || str_contains($kategoriRaw, 'kayu kaki')
-            || str_contains($kategoriRaw, 'cushion')
-            || str_contains($kategoriRaw, 'kaca')
-            || str_contains($kategoriRaw, 'glass')
-            || str_contains($kategoriRaw, 'cermin')
-            || str_contains($kategoriRaw, 'mirror')
-            || str_contains($kategoriRaw, 'aksesor')
-            || str_contains($kategoriRaw, 'accessor')
-        ) {
-            $categoryKey = 'accessories';
-        }
-    }
+                                                    if ($categoryKey === 'box') {
+                                                        $categoryKey = 'packaging';
+                                                    }
 
-    if ($categoryKey === 'box') {
-        $categoryKey = 'packaging';
-    }
+                                                    if (!isset($monitoring[$categoryKey])) {
+                                                        continue;
+                                                    }
 
-    if (!isset($monitoring[$categoryKey])) {
-        continue;
-    }
-
-    /*
+                                                    /*
     |--------------------------------------------------------------------------
     | SIMPAN SEMUA SPK UNTUK TOOLTIP
     |--------------------------------------------------------------------------
     */
-    $monitoring[$categoryKey]['spks'][] = $spk;
+                                                    $monitoring[$categoryKey]['spks'][] = $spk;
 
-
-    /*
+                                                    /*
     |--------------------------------------------------------------------------
     | DETEKSI RANGKA KAKI KAYU
     |--------------------------------------------------------------------------
@@ -489,92 +452,73 @@
     | tetapi tidak ikut total Rangka.
     |--------------------------------------------------------------------------
     */
-    $kategoriSpk = strtoupper(
-        trim($spk['kategori'] ?? '')
-    );
+                                                    $kategoriSpk = strtoupper(trim($spk['kategori'] ?? ''));
 
-    $exceptionRule = strtoupper(
-        trim($spk['exception_rule'] ?? '')
-    );
+                                                    $exceptionRule = strtoupper(trim($spk['exception_rule'] ?? ''));
 
-    $isKakiKayu =
-        str_contains($kategoriSpk, 'KAKI KAYU')
-        ||
-        str_contains($kategoriSpk, 'KAYU KAKI')
-        ||
-        str_contains($exceptionRule, 'KAKI KAYU')
-        ||
-        str_contains($exceptionRule, 'KAYU KAKI');
+                                                    $isKakiKayu =
+                                                        str_contains($kategoriSpk, 'KAKI KAYU') ||
+                                                        str_contains($kategoriSpk, 'KAYU KAKI') ||
+                                                        str_contains($exceptionRule, 'KAKI KAYU') ||
+                                                        str_contains($exceptionRule, 'KAYU KAKI');
 
-
-    /*
+                                                    /*
     |--------------------------------------------------------------------------
     | RANGKA KAKI KAYU
     |--------------------------------------------------------------------------
     */
-    if (
-        $categoryKey === 'rangka'
-        &&
-        $isKakiKayu
-    ) {
-        continue;
-    }
+                                                    if ($categoryKey === 'rangka' && $isKakiKayu) {
+                                                        continue;
+                                                    }
 
-
-    /*
+                                                    /*
     |--------------------------------------------------------------------------
     | NORMAL TOTAL
     |--------------------------------------------------------------------------
     */
-    if ($categoryKey === 'rangka') {
+                                                    if ($categoryKey === 'rangka') {
+                                                        $kategoriSpk = strtoupper(trim($spk['kategori'] ?? ''));
 
-    $kategoriSpk = strtoupper(
-        trim($spk['kategori'] ?? '')
-    );
+                                                        $allRangkaSpks = $monitoring['rangka']['spks'] ?? [];
 
-    $allRangkaSpks = $monitoring['rangka']['spks'] ?? [];
+                                                        $hasRangkaKayu = false;
+                                                        $hasRangkaTriplek = false;
 
-    $hasRangkaKayu = false;
-    $hasRangkaTriplek = false;
+                                                        foreach ($allRangkaSpks as $rangkaSpk) {
+                                                            $kategoriRangka = strtoupper(
+                                                                trim($rangkaSpk['kategori'] ?? ''),
+                                                            );
 
-    foreach ($allRangkaSpks as $rangkaSpk) {
-        $kategoriRangka = strtoupper(
-            trim($rangkaSpk['kategori'] ?? '')
-        );
+                                                            if (str_contains($kategoriRangka, 'RANGKA KAYU')) {
+                                                                $hasRangkaKayu = true;
+                                                            }
 
-        if (str_contains($kategoriRangka, 'RANGKA KAYU')) {
-            $hasRangkaKayu = true;
-        }
+                                                            if (str_contains($kategoriRangka, 'RANGKA TRIPLEK')) {
+                                                                $hasRangkaTriplek = true;
+                                                            }
+                                                        }
 
-        if (str_contains($kategoriRangka, 'RANGKA TRIPLEK')) {
-            $hasRangkaTriplek = true;
-        }
-    }
+                                                        /*
+                                                         * Jika dalam item yang sama ada Rangka Kayu + Rangka Triplek,
+                                                         * yang dihitung hanya Rangka Kayu.
+                                                         */
+                                                        if (
+                                                            $hasRangkaKayu &&
+                                                            $hasRangkaTriplek &&
+                                                            !str_contains($kategoriSpk, 'RANGKA KAYU')
+                                                        ) {
+                                                            continue;
+                                                        }
+                                                    }
+                                                    $monitoring[$categoryKey]['in'] += (float) ($spk['qty_in'] ?? 0);
 
-    /*
-     * Jika dalam item yang sama ada Rangka Kayu + Rangka Triplek,
-     * yang dihitung hanya Rangka Kayu.
-     */
-    if (
-        $hasRangkaKayu
-        && $hasRangkaTriplek
-        && !str_contains($kategoriSpk, 'RANGKA KAYU')
-    ) {
-        continue;
-    }
-}
-    $monitoring[$categoryKey]['in'] +=
-        (float) ($spk['qty_in'] ?? 0);
+                                                    $monitoring[$categoryKey]['pass'] += (float) ($spk['passed'] ?? 0);
 
-    $monitoring[$categoryKey]['pass'] +=
-        (float) ($spk['passed'] ?? 0);
+                                                    $monitoring[$categoryKey]['reject'] +=
+                                                        (float) ($spk['rejected'] ?? 0);
+                                                }
 
-    $monitoring[$categoryKey]['reject'] +=
-        (float) ($spk['rejected'] ?? 0);
-}
-
-
-/*
+                                                /*
 |--------------------------------------------------------------------------
 | ANYAM COMPONENT
 |--------------------------------------------------------------------------
@@ -589,80 +533,76 @@
 | sedangkan components hanya berisi struktur/proses Anyam.
 |--------------------------------------------------------------------------
 */
-$anyamSpks = $monitoring['anyam']['spks'] ?? [];
+                                                $anyamSpks = $monitoring['anyam']['spks'] ?? [];
 
-if (!empty($anyamSpks)) {
+                                                if (!empty($anyamSpks)) {
+                                                    $componentIn = [];
+                                                    $componentPass = [];
 
-    $componentIn = [];
-    $componentPass = [];
+                                                    foreach ($anyamSpks as $spk) {
+                                                        foreach ($spk['components'] ?? [] as $component) {
+                                                            $componentName = strtoupper(
+                                                                trim(
+                                                                    $component['name'] ??
+                                                                        ($component['proses'] ??
+                                                                            ($component['deskripsi'] ?? '')),
+                                                                ),
+                                                            );
 
-    foreach ($anyamSpks as $spk) {
+                                                            if ($componentName === '') {
+                                                                continue;
+                                                            }
 
-        foreach (($spk['components'] ?? []) as $component) {
-
-            $componentName = strtoupper(
-                trim(
-                    $component['name']
-                    ?? $component['proses']
-                    ?? $component['deskripsi']
-                    ?? ''
-                )
-            );
-
-            if ($componentName === '') {
-                continue;
-            }
-
-            /*
+                                                            /*
             |--------------------------------------------------------------------------
             | NORMALISASI COMPONENT ANYAM
             |--------------------------------------------------------------------------
             */
-            if (str_contains($componentName, 'ANYAM RANGKA')) {
-                $componentName = 'ANYAM RANGKA';
-            } elseif (str_contains($componentName, 'ANYAM DUDUKAN')) {
-                $componentName = 'ANYAM DUDUKAN';
-            } elseif (str_contains($componentName, 'ANYAM SANDARAN')) {
-                $componentName = 'ANYAM SANDARAN';
-            } else {
-                /*
+                                                            if (str_contains($componentName, 'ANYAM RANGKA')) {
+                                                                $componentName = 'ANYAM RANGKA';
+                                                            } elseif (str_contains($componentName, 'ANYAM DUDUKAN')) {
+                                                                $componentName = 'ANYAM DUDUKAN';
+                                                            } elseif (str_contains($componentName, 'ANYAM SANDARAN')) {
+                                                                $componentName = 'ANYAM SANDARAN';
+                                                            } else {
+                                                                /*
                 | ANYAM biasa tidak masuk MIN component.
                 | Nilai SPK tetap menjadi sumber utama.
                 */
-                continue;
-            }
+                                                                continue;
+                                                            }
 
-            $componentIn[$componentName] =
-                ($componentIn[$componentName] ?? 0)
-                + (float) ($component['qty_in'] ?? 0);
+                                                            $componentIn[$componentName] =
+                                                                ($componentIn[$componentName] ?? 0) +
+                                                                (float) ($component['qty_in'] ?? 0);
 
-            $componentPass[$componentName] =
-                ($componentPass[$componentName] ?? 0)
-                + (float) ($component['passed'] ?? 0);
-        }
-    }
+                                                            $componentPass[$componentName] =
+                                                                ($componentPass[$componentName] ?? 0) +
+                                                                (float) ($component['passed'] ?? 0);
+                                                        }
+                                                    }
 
-    $requiredAnyamComponents = [
-        'ANYAM RANGKA',
-        'ANYAM DUDUKAN',
-        'ANYAM SANDARAN',
-    ];
+                                                    $requiredAnyamComponents = [
+                                                        'ANYAM RANGKA',
+                                                        'ANYAM DUDUKAN',
+                                                        'ANYAM SANDARAN',
+                                                    ];
 
-    /*
+                                                    /*
     |--------------------------------------------------------------------------
     | CEK COMPOSITE LENGKAP
     |--------------------------------------------------------------------------
     */
-    $hasFullAnyamComposite = true;
+                                                    $hasFullAnyamComposite = true;
 
-    foreach ($requiredAnyamComponents as $requiredComponent) {
-        if (!array_key_exists($requiredComponent, $componentIn)) {
-            $hasFullAnyamComposite = false;
-            break;
-        }
-    }
+                                                    foreach ($requiredAnyamComponents as $requiredComponent) {
+                                                        if (!array_key_exists($requiredComponent, $componentIn)) {
+                                                            $hasFullAnyamComposite = false;
+                                                            break;
+                                                        }
+                                                    }
 
-    /*
+                                                    /*
     |--------------------------------------------------------------------------
     | ANYAM COMPONENT - IN
     |--------------------------------------------------------------------------
@@ -672,19 +612,19 @@ if (!empty($anyamSpks)) {
     | tidak menjadi sumber inspection; pertahankan qty_in dari SPK.
     |--------------------------------------------------------------------------
     */
-    $componentInHasRealData = false;
+                                                    $componentInHasRealData = false;
 
-    if ($hasFullAnyamComposite) {
-        foreach ($requiredAnyamComponents as $requiredComponent) {
-            if ((float) ($componentIn[$requiredComponent] ?? 0) > 0) {
-                $componentInHasRealData = true;
-                break;
-            }
-        }
-    }
+                                                    if ($hasFullAnyamComposite) {
+                                                        foreach ($requiredAnyamComponents as $requiredComponent) {
+                                                            if ((float) ($componentIn[$requiredComponent] ?? 0) > 0) {
+                                                                $componentInHasRealData = true;
+                                                                break;
+                                                            }
+                                                        }
+                                                    }
 
-    if ($hasFullAnyamComposite && $componentInHasRealData) {
-        /*
+                                                    if ($hasFullAnyamComposite && $componentInHasRealData) {
+                                                        /*
         |--------------------------------------------------------------------------
         | ANYAM COMPONENT - IN
         |--------------------------------------------------------------------------
@@ -699,21 +639,21 @@ if (!empty($anyamSpks)) {
         | IN Anyam = MIN(40, 30, 37) = 30
         |--------------------------------------------------------------------------
         */
-        $anyamComponentValues = [];
+                                                        $anyamComponentValues = [];
 
-        foreach ($requiredAnyamComponents as $requiredComponent) {
-            if (array_key_exists($requiredComponent, $componentIn)) {
-                $anyamComponentValues[] =
-                    (float) ($componentIn[$requiredComponent] ?? 0);
-            }
-        }
+                                                        foreach ($requiredAnyamComponents as $requiredComponent) {
+                                                            if (array_key_exists($requiredComponent, $componentIn)) {
+                                                                $anyamComponentValues[] =
+                                                                    (float) ($componentIn[$requiredComponent] ?? 0);
+                                                            }
+                                                        }
 
-        if (!empty($anyamComponentValues)) {
-            $monitoring['anyam']['in'] = min($anyamComponentValues);
-        }
-    }
+                                                        if (!empty($anyamComponentValues)) {
+                                                            $monitoring['anyam']['in'] = min($anyamComponentValues);
+                                                        }
+                                                    }
 
-    /*
+                                                    /*
     |--------------------------------------------------------------------------
     | ANYAM COMPONENT - PASSED
     |--------------------------------------------------------------------------
@@ -723,95 +663,78 @@ if (!empty($anyamSpks)) {
     | Jika tidak, gunakan nilai passed dari SPK yang sudah dihitung di atas.
     |--------------------------------------------------------------------------
     */
-    $hasFullAnyamCompositePass = true;
+                                                    $hasFullAnyamCompositePass = true;
 
-    foreach ($requiredAnyamComponents as $requiredComponent) {
-        if (!array_key_exists($requiredComponent, $componentPass)) {
-            $hasFullAnyamCompositePass = false;
-            break;
-        }
-    }
+                                                    foreach ($requiredAnyamComponents as $requiredComponent) {
+                                                        if (!array_key_exists($requiredComponent, $componentPass)) {
+                                                            $hasFullAnyamCompositePass = false;
+                                                            break;
+                                                        }
+                                                    }
 
-    $componentPassHasRealData = false;
+                                                    $componentPassHasRealData = false;
 
-    if ($hasFullAnyamCompositePass) {
-        foreach ($requiredAnyamComponents as $requiredComponent) {
-            if ((float) ($componentPass[$requiredComponent] ?? 0) > 0) {
-                $componentPassHasRealData = true;
-                break;
-            }
-        }
-    }
+                                                    if ($hasFullAnyamCompositePass) {
+                                                        foreach ($requiredAnyamComponents as $requiredComponent) {
+                                                            if ((float) ($componentPass[$requiredComponent] ?? 0) > 0) {
+                                                                $componentPassHasRealData = true;
+                                                                break;
+                                                            }
+                                                        }
+                                                    }
 
-    if ($hasFullAnyamCompositePass && $componentPassHasRealData) {
-        $monitoring['anyam']['pass'] = min(
-            $componentPass['ANYAM RANGKA'],
-            $componentPass['ANYAM DUDUKAN'],
-            $componentPass['ANYAM SANDARAN']
-        );
-    }
-}
+                                                    if ($hasFullAnyamCompositePass && $componentPassHasRealData) {
+                                                        $monitoring['anyam']['pass'] = min(
+                                                            $componentPass['ANYAM RANGKA'],
+                                                            $componentPass['ANYAM DUDUKAN'],
+                                                            $componentPass['ANYAM SANDARAN'],
+                                                        );
+                                                    }
+                                                }
 
-$packagingSpks =
-    $monitoring['packaging']['spks'] ?? [];
+                                                $packagingSpks = $monitoring['packaging']['spks'] ?? [];
 
-if (!empty($packagingSpks)) {
+                                                if (!empty($packagingSpks)) {
+                                                    $boxIn = 0;
+                                                    $boxPass = 0;
 
-    $boxIn = 0;
-    $boxPass = 0;
+                                                    foreach ($packagingSpks as $spk) {
+                                                        foreach ($spk['components'] ?? [] as $component) {
+                                                            $componentName = strtoupper(
+                                                                trim(
+                                                                    $component['name'] ??
+                                                                        ($component['proses'] ??
+                                                                            ($component['deskripsi'] ?? '')),
+                                                                ),
+                                                            );
 
-    foreach ($packagingSpks as $spk) {
-
-        foreach (($spk['components'] ?? []) as $component) {
-
-            $componentName = strtoupper(
-                trim(
-                    $component['name']
-                    ?? $component['proses']
-                    ?? $component['deskripsi']
-                    ?? ''
-                )
-            );
-
-
-            /*
+                                                            /*
             |--------------------------------------------------------------------------
             | HANYA BOX MENJADI ACUAN ANGKA UTAMA
             |--------------------------------------------------------------------------
             */
-            if (
-                $componentName === 'BOX'
-                ||
-                str_contains(
-                    $componentName,
-                    'CARTON BOX'
-                )
-            ) {
+                                                            if (
+                                                                $componentName === 'BOX' ||
+                                                                str_contains($componentName, 'CARTON BOX')
+                                                            ) {
+                                                                $boxIn += (float) ($component['qty_in'] ?? 0);
 
-                $boxIn +=
-                    (float) ($component['qty_in'] ?? 0);
+                                                                $boxPass += (float) ($component['passed'] ?? 0);
+                                                            }
+                                                        }
+                                                    }
 
-                $boxPass +=
-                    (float) ($component['passed'] ?? 0);
-            }
-        }
-    }
-
-
-    /*
+                                                    /*
     |--------------------------------------------------------------------------
     | SET TOTAL PACKAGING
     |--------------------------------------------------------------------------
     */
-    if ($boxIn > 0 || $boxPass > 0) {
+                                                    if ($boxIn > 0 || $boxPass > 0) {
+                                                        $monitoring['packaging']['in'] = $boxIn;
 
-        $monitoring['packaging']['in'] =
-            $boxIn;
-
-        $monitoring['packaging']['pass'] =
-            $boxPass;
-    }
-}
+                                                        $monitoring['packaging']['pass'] = $boxPass;
+                                                    }
+                                                }
 
                                                 $formatQty = function ($value) {
                                                     $value = (float) $value;
@@ -823,7 +746,6 @@ if (!empty($packagingSpks)) {
                                             @endphp
 
                                             @foreach ($categories as $categoryKey => $categoryLabel)
-
                                                 @php
                                                     $categorySpks = $monitoring[$categoryKey]['spks'] ?? [];
 
@@ -859,15 +781,12 @@ if (!empty($packagingSpks)) {
                                                 @endphp
 
                                                 {{-- IN --}}
-                                               @if ($categoryKey !== 'final')
+                                                @if ($categoryKey !== 'final')
                                                     <td class="text-center status-col text-primary fw-bold">
 
                                                         @if (!empty($categorySpks))
-                                                            <span
-                                                                class="spk-hover-target"
-                                                                data-tooltip-type="in"
-                                                                data-monitor-metric="qty_in"
-                                                            >
+                                                            <span class="spk-hover-target" data-tooltip-type="in"
+                                                                data-monitor-metric="qty_in">
                                                                 {{ $formatQty($monitoring[$categoryKey]['in'] ?? 0) }}
 
                                                                 <span class="spk-list-tooltip">
@@ -888,8 +807,10 @@ if (!empty($packagingSpks)) {
                                                                                     <th class="col-no">#</th>
                                                                                     <th class="col-spk">NO SPK</th>
                                                                                     <th class="col-sub">SUB NAME</th>
-                                                                                    <th class="col-category">JENIS/KATEGORI</th>
-                                                                                    <th class="col-description">KETERANGAN</th>
+                                                                                    <th class="col-category">
+                                                                                        JENIS/KATEGORI</th>
+                                                                                    <th class="col-description">
+                                                                                        KETERANGAN</th>
                                                                                     <th class="col-total">TOTAL IN</th>
                                                                                 </tr>
                                                                             </thead>
@@ -911,18 +832,15 @@ if (!empty($packagingSpks)) {
                                                                                         |--------------------------------------------------------------------------
                                                                                         */
                                                                                         $spkSubName =
-                                                                                            $spkInfo['supplier']
-                                                                                            ?? '-';
+                                                                                            $spkInfo['supplier'] ?? '-';
                                                                                     @endphp
                                                                                     <tr>
                                                                                         <td class="col-no">
                                                                                             {{ $loop->iteration }}
                                                                                         </td>
                                                                                         <td class="col-spk">
-                                                                                            <a
-                                                                                                href="{{ url('spk/edit/' . ($spkInfo['spk_id'] ?? '')) }}"
-                                                                                                class="spk-link"
-                                                                                            >
+                                                                                            <a href="{{ url('spk/edit/' . ($spkInfo['spk_id'] ?? '')) }}"
+                                                                                                class="spk-link">
                                                                                                 {{ $spkInfo['no_spk'] ?? '-' }}
                                                                                             </a>
                                                                                         </td>
@@ -934,7 +852,8 @@ if (!empty($packagingSpks)) {
                                                                                             {{ strtoupper($spkInfo['kategori'] ?? '-') }}
 
                                                                                             @if (!empty($spkInfo['is_exception']))
-                                                                                                <span class="exception-badge">
+                                                                                                <span
+                                                                                                    class="exception-badge">
                                                                                                     EXCEPTION
                                                                                                 </span>
                                                                                             @endif
@@ -942,55 +861,80 @@ if (!empty($packagingSpks)) {
                                                                                         </td>
 
                                                                                         <td class="col-description">
-@php
-                                                                                                 /*
+                                                                                            @php
+                                                                                                /*
                                                                                                  | KETERANGAN TOOLTIP
                                                                                                  | Prioritas: component/process, lalu material SPK.
                                                                                                  */
-                                                                                                 $componentNames = collect($spkInfo['components'] ?? [])
-                                                                                                     ->map(function ($component) {
-                                                                                                         return trim((string) (
-                                                                                                             $component['name']
-                                                                                                             ?? $component['proses']
-                                                                                                             ?? $component['deskripsi']
-                                                                                                             ?? ''
-                                                                                                         ));
-                                                                                                     })
-                                                                                                     ->filter()
-                                                                                                     ->unique()
-                                                                                                     ->values()
-                                                                                                     ->all();
+                                                                                                $componentNames = collect(
+                                                                                                    $spkInfo[
+                                                                                                        'components'
+                                                                                                    ] ?? [],
+                                                                                                )
+                                                                                                    ->map(function (
+                                                                                                        $component,
+                                                                                                    ) {
+                                                                                                        return trim(
+                                                                                                            (string) ($component[
+                                                                                                                'name'
+                                                                                                            ] ??
+                                                                                                                ($component[
+                                                                                                                    'proses'
+                                                                                                                ] ??
+                                                                                                                    ($component[
+                                                                                                                        'deskripsi'
+                                                                                                                    ] ??
+                                                                                                                        ''))),
+                                                                                                        );
+                                                                                                    })
+                                                                                                    ->filter()
+                                                                                                    ->unique()
+                                                                                                    ->values()
+                                                                                                    ->all();
 
-                                                                                                 $materialName = trim((string) (
-                                                                                                     $spkInfo['material']
-                                                                                                     ?? $item['material']
-                                                                                                     ?? ''
-                                                                                                 ));
+                                                                                                $materialName = trim(
+                                                                                                    (string) ($spkInfo[
+                                                                                                        'material'
+                                                                                                    ] ??
+                                                                                                        ($item[
+                                                                                                            'material'
+                                                                                                        ] ??
+                                                                                                            '')),
+                                                                                                );
 
-                                                                                                 if (!empty($componentNames)) {
-                                                                                                     $description = implode(', ', $componentNames);
-                                                                                                 } elseif ($materialName !== '') {
-                                                                                                     $description = $materialName;
-                                                                                                 } else {
-                                                                                                     $description = '-';
-                                                                                                 }
-                                                                                             @endphp
+                                                                                                if (
+                                                                                                    !empty(
+                                                                                                        $componentNames
+                                                                                                    )
+                                                                                                ) {
+                                                                                                    $description = implode(
+                                                                                                        ', ',
+                                                                                                        $componentNames,
+                                                                                                    );
+                                                                                                } elseif (
+                                                                                                    $materialName !== ''
+                                                                                                ) {
+                                                                                                    $description = $materialName;
+                                                                                                } else {
+                                                                                                    $description = '-';
+                                                                                                }
+                                                                                            @endphp
 
-                                                                                             {{ $description }}
+                                                                                            {{ $description }}
 
                                                                                         </td>
 
                                                                                         <td class="col-total"
                                                                                             data-tooltip-in-value="{{ $formatQty(
                                                                                                 $categoryKey === 'anyam'
-                                                                                                    ? collect($spkInfo['components'] ?? [])->sum(fn ($component) => (float) ($component['qty_in'] ?? 0))
-                                                                                                    : ($spkInfo['qty_in'] ?? 0)
+                                                                                                    ? collect($spkInfo['components'] ?? [])->sum(fn($component) => (float) ($component['qty_in'] ?? 0))
+                                                                                                    : $spkInfo['qty_in'] ?? 0,
                                                                                             ) }}"
                                                                                             data-tooltip-pass-value="{{ $formatQty($spkInfo['passed'] ?? 0) }}">
                                                                                             {{ $formatQty(
                                                                                                 $categoryKey === 'anyam'
-                                                                                                    ? collect($spkInfo['components'] ?? [])->sum(fn ($component) => (float) ($component['qty_in'] ?? 0))
-                                                                                                    : ($spkInfo['qty_in'] ?? 0)
+                                                                                                    ? collect($spkInfo['components'] ?? [])->sum(fn($component) => (float) ($component['qty_in'] ?? 0))
+                                                                                                    : $spkInfo['qty_in'] ?? 0,
                                                                                             ) }}
                                                                                         </td>
                                                                                     </tr>
@@ -1019,11 +963,8 @@ if (!empty($packagingSpks)) {
                                                 <td class="text-center status-col pass-box">
 
                                                     @if (!empty($categorySpks))
-                                                        <span
-                                                            class="spk-hover-target"
-                                                            data-tooltip-type="pass"
-                                                            data-monitor-metric="passed"
-                                                        >
+                                                        <span class="spk-hover-target" data-tooltip-type="pass"
+                                                            data-monitor-metric="passed">
                                                             {{ $formatQty($monitoring[$categoryKey]['pass'] ?? 0) }}
 
                                                             <span class="spk-list-tooltip">
@@ -1044,8 +985,10 @@ if (!empty($packagingSpks)) {
                                                                                 <th class="col-no">#</th>
                                                                                 <th class="col-spk">NO SPK</th>
                                                                                 <th class="col-sub">SUB NAME</th>
-                                                                                <th class="col-category">JENIS/KATEGORI</th>
-                                                                                <th class="col-description">KETERANGAN</th>
+                                                                                <th class="col-category">JENIS/KATEGORI
+                                                                                </th>
+                                                                                <th class="col-description">KETERANGAN
+                                                                                </th>
                                                                                 <th class="col-total">TOTAL PASSED</th>
                                                                             </tr>
                                                                         </thead>
@@ -1053,17 +996,16 @@ if (!empty($packagingSpks)) {
                                                                             @foreach ($categorySpks as $spkInfo)
                                                                                 @php
                                                                                     // Supplier / sub name untuk PASSED harus sama persis dengan IN.
-                                                                                    $spkSubName = $spkInfo['supplier'] ?? '-';
+                                                                                    $spkSubName =
+                                                                                        $spkInfo['supplier'] ?? '-';
                                                                                 @endphp
                                                                                 <tr>
                                                                                     <td class="col-no">
                                                                                         {{ $loop->iteration }}
                                                                                     </td>
                                                                                     <td class="col-spk">
-                                                                                        <a
-                                                                                            href="{{ url('spk/edit/' . ($spkInfo['spk_id'] ?? '')) }}"
-                                                                                            class="spk-link"
-                                                                                        >
+                                                                                        <a href="{{ url('spk/edit/' . ($spkInfo['spk_id'] ?? '')) }}"
+                                                                                            class="spk-link">
                                                                                             {{ $spkInfo['no_spk'] ?? '-' }}
                                                                                         </a>
                                                                                     </td>
@@ -1073,53 +1015,77 @@ if (!empty($packagingSpks)) {
                                                                                     <td class="col-category">
                                                                                         {{ strtoupper($spkInfo['kategori'] ?? '-') }}
                                                                                         @if (!empty($spkInfo['is_exception']))
-                                                                                            <span class="exception-badge">
+                                                                                            <span
+                                                                                                class="exception-badge">
                                                                                                 EXCEPTION
                                                                                             </span>
                                                                                         @endif
 
-                                                                                        </td>
+                                                                                    </td>
 
-                                                                                        <td class="col-description">
-@php
-                                                                                                 /*
+                                                                                    <td class="col-description">
+                                                                                        @php
+                                                                                            /*
                                                                                                  | KETERANGAN TOOLTIP
                                                                                                  | Prioritas: component/process, lalu material SPK.
                                                                                                  */
-                                                                                                 $componentNames = collect($spkInfo['components'] ?? [])
-                                                                                                     ->map(function ($component) {
-                                                                                                         return trim((string) (
-                                                                                                             $component['name']
-                                                                                                             ?? $component['proses']
-                                                                                                             ?? $component['deskripsi']
-                                                                                                             ?? ''
-                                                                                                         ));
-                                                                                                     })
-                                                                                                     ->filter()
-                                                                                                     ->unique()
-                                                                                                     ->values()
-                                                                                                     ->all();
+                                                                                            $componentNames = collect(
+                                                                                                $spkInfo[
+                                                                                                    'components'
+                                                                                                ] ?? [],
+                                                                                            )
+                                                                                                ->map(function (
+                                                                                                    $component,
+                                                                                                ) {
+                                                                                                    return trim(
+                                                                                                        (string) ($component[
+                                                                                                            'name'
+                                                                                                        ] ??
+                                                                                                            ($component[
+                                                                                                                'proses'
+                                                                                                            ] ??
+                                                                                                                ($component[
+                                                                                                                    'deskripsi'
+                                                                                                                ] ??
+                                                                                                                    ''))),
+                                                                                                    );
+                                                                                                })
+                                                                                                ->filter()
+                                                                                                ->unique()
+                                                                                                ->values()
+                                                                                                ->all();
 
-                                                                                                 $materialName = trim((string) (
-                                                                                                     $spkInfo['material']
-                                                                                                     ?? $item['material']
-                                                                                                     ?? ''
-                                                                                                 ));
+                                                                                            $materialName = trim(
+                                                                                                (string) ($spkInfo[
+                                                                                                    'material'
+                                                                                                ] ??
+                                                                                                    ($item[
+                                                                                                        'material'
+                                                                                                    ] ??
+                                                                                                        '')),
+                                                                                            );
 
-                                                                                                 if (!empty($componentNames)) {
-                                                                                                     $description = implode(', ', $componentNames);
-                                                                                                 } elseif ($materialName !== '') {
-                                                                                                     $description = $materialName;
-                                                                                                 } else {
-                                                                                                     $description = '-';
-                                                                                                 }
-                                                                                             @endphp
+                                                                                            if (
+                                                                                                !empty($componentNames)
+                                                                                            ) {
+                                                                                                $description = implode(
+                                                                                                    ', ',
+                                                                                                    $componentNames,
+                                                                                                );
+                                                                                            } elseif (
+                                                                                                $materialName !== ''
+                                                                                            ) {
+                                                                                                $description = $materialName;
+                                                                                            } else {
+                                                                                                $description = '-';
+                                                                                            }
+                                                                                        @endphp
 
-                                                                                             {{ $description }}
+                                                                                        {{ $description }}
 
-                                                                                        </td>
+                                                                                    </td>
 
-                                                                                        <td class="col-total"
+                                                                                    <td class="col-total"
                                                                                         data-tooltip-in-value="{{ $formatQty($spkInfo['qty_in'] ?? 0) }}"
                                                                                         data-tooltip-pass-value="{{ $formatQty($spkInfo['passed'] ?? 0) }}">
                                                                                         {{ $formatQty($spkInfo['passed'] ?? 0) }}
@@ -1143,7 +1109,6 @@ if (!empty($packagingSpks)) {
                                                     @endif
 
                                                 </td>
-
                                             @endforeach
 
                                         </tr>
@@ -1178,7 +1143,8 @@ if (!empty($packagingSpks)) {
 
                                         </h5>
 
-                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal">
+                                        <button type="button" class="btn-close btn-close-white"
+                                            data-bs-dismiss="modal">
                                         </button>
 
                                     </div>
@@ -1231,12 +1197,10 @@ if (!empty($packagingSpks)) {
                                             */
                                             $modalSpks = [];
 
-                                            foreach (($item['spks'] ?? []) as $modalSpk) {
-                                                $modalSpkKey = (string) (
-                                                    $modalSpk['spk_id']
-                                                    ?? $modalSpk['no_spk']
-                                                    ?? md5(json_encode($modalSpk))
-                                                );
+                                            foreach ($item['spks'] ?? [] as $modalSpk) {
+                                                $modalSpkKey =
+                                                    (string) ($modalSpk['spk_id'] ??
+                                                        ($modalSpk['no_spk'] ?? md5(json_encode($modalSpk))));
 
                                                 if (!isset($modalSpks[$modalSpkKey])) {
                                                     $modalSpks[$modalSpkKey] = $modalSpk;
@@ -1245,11 +1209,11 @@ if (!empty($packagingSpks)) {
                                         @endphp
 
                                         @forelse($modalSpks as $spk)
-
                                             <div class="card border-0 shadow-sm mb-3">
                                                 <div class="card-body">
 
-                                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                                    <div
+                                                        class="d-flex justify-content-between align-items-center mb-3">
 
                                                         <div class="d-flex gap-2 flex-wrap">
 
@@ -1290,13 +1254,28 @@ if (!empty($packagingSpks)) {
                                                                 </tr>
 
                                                                 <tr>
-                                                                    <td>No SPK</td>
-                                                                    <td>:
-                                                                        <a href="{{ url('spk/edit/' . ($spk['spk_id'] ?? '')) }}"
-                                                                           class="fw-bold text-primary text-decoration-underline">
-                                                                            {{ $spk['no_spk'] ?? '-' }}
-                                                                        </a>
+                                                                    <td width="140">Spk</td>
+
+                                                                    <td>
+                                                                        @if (
+                                                                            \Illuminate\Support\Facades\Auth::check() &&
+                                                                                \Illuminate\Support\Facades\Auth::user()->role == null &&
+                                                                                !in_array(strtolower(\Illuminate\Support\Facades\Auth::user()->email ?? ''), [
+                                                                                    'surana@gmail.com',
+                                                                                    'johnm@gmail.com',
+                                                                                    'aji@gmail.com',
+                                                                                ]))
+                                                                            <a href="{{ url('spk/edit/' . ($spk['spk_id'] ?? '')) }}"
+                                                                                class="fw-bold text-primary text-decoration-underline">
+                                                                                {{ $spk['no_spk'] ?? '-' }}
+                                                                            </a>
+                                                                        @else
+                                                                            <span class="fw-bold text-secondary">
+                                                                                {{ $spk['no_spk'] ?? '-' }}
+                                                                            </span>
+                                                                        @endif
                                                                     </td>
+
                                                                 </tr>
 
                                                                 <tr>
@@ -1319,9 +1298,9 @@ if (!empty($packagingSpks)) {
                                                                     <td>Harga</td>
                                                                     <td>:
                                                                         <span class="price-container"
-                                                                              data-price="{{ number_format($spk['harga'] ?? 0) }}">
+                                                                            data-price="{{ number_format($spk['harga'] ?? 0) }}">
                                                                             <a href="#"
-                                                                               class="show-price text-primary text-decoration-underline">
+                                                                                class="show-price text-primary text-decoration-underline">
                                                                                 Lihat Harga? Tap disini
                                                                             </a>
                                                                         </span>
@@ -1368,7 +1347,6 @@ if (!empty($packagingSpks)) {
                                             <div class="alert alert-warning mb-0">
                                                 Tidak ada SPK untuk item ini
                                             </div>
-
                                         @endforelse
                                     </div>
 

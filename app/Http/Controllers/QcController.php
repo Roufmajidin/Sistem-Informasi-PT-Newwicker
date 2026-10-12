@@ -6467,47 +6467,32 @@ class QcController extends Controller
 
         $bomMap = collect();
 
-        if (
-            $articleNumbers->isNotEmpty()
-        ) {
+        if ($articleNumbers->isNotEmpty()) {
+            // Cache 60 detik untuk data BOM; struktur hasil tetap berupa array per article_number.
+            $bomCacheKey = 'qc_po_bom_v1_' . md5(
+                json_encode($articleNumbers->sort()->values()->all())
+            );
 
-            $bomMap =
-                Bom::with([
-                    'groups.items',
-                ])
-                    ->whereIn(
-                        'article_number',
-                        $articleNumbers
-                    )
-                    ->get()
-                    ->keyBy(
-                        'article_number'
-                    );
+            $bomMap = \Illuminate\Support\Facades\Cache::remember(
+                $bomCacheKey,
+                now()->addSeconds(60),
+                static function () use ($articleNumbers) {
+                    return Bom::with(['groups.items'])
+                        ->whereIn('article_number', $articleNumbers)
+                        ->get()
+                        ->keyBy('article_number')
+                        ->map(static function ($bom) {
+                            return $bom->toArray();
+                        });
+                }
+            );
 
-
-            /*
-            |--------------------------------------------------------------------------
-            | IMPORTANT
-            |--------------------------------------------------------------------------
-            |
-            | Convert BOM ke array SEKALI.
-            |
-            | Struktur tetap sama.
-            |
-            |--------------------------------------------------------------------------
-            */
-
-            $bomMap =
-                $bomMap->map(
-                    static function ($bom) {
-
-                        return $bom->toArray();
-                    }
-                );
+            if (!$bomMap instanceof \Illuminate\Support\Collection) {
+                $bomMap = collect($bomMap);
+            }
         }
 
-        $bomTime =
-            microtime(true) - $tBom;
+        $bomTime = microtime(true) - $tBom;
 
 
         /*
@@ -6520,49 +6505,35 @@ class QcController extends Controller
 
         $cadMap = collect();
 
-        if (
-            $articleNumbers->isNotEmpty()
-        ) {
+        if ($articleNumbers->isNotEmpty()) {
+            // Cache pendek untuk data CAD; query tetap memilih versi terbaru seperti sebelumnya.
+            $cadCacheKey = 'qc_po_cad_v1_' . md5(
+                json_encode($articleNumbers->sort()->values()->all())
+            );
 
-            $cadMap =
-                CadModel::whereIn(
-                    'article_code',
-                    $articleNumbers
-                )
-                    ->orderByDesc(
-                        'version'
-                    )
-                    ->get()
-                    ->groupBy(
-                        static function ($item) {
+            $cadMap = \Illuminate\Support\Facades\Cache::remember(
+                $cadCacheKey,
+                now()->addSeconds(60),
+                static function () use ($articleNumbers) {
+                    return CadModel::whereIn('article_code', $articleNumbers)
+                        ->orderByDesc('version')
+                        ->get()
+                        ->groupBy(static function ($item) {
+                            return (string) $item->article_code;
+                        })
+                        ->map(static function ($items) {
+                            $item = $items->first();
+                            return $item ? $item->toArray() : null;
+                        });
+                }
+            );
 
-                            return (string) 
-                                $item->article_code;
-                        }
-                    )
-                    ->map(
-                        static function ($items) {
-
-                            /*
-                            |--------------------------------------------------------------------------
-                            | Karena sudah ORDER BY version DESC,
-                            | first = version terbaru.
-                            |--------------------------------------------------------------------------
-                            */
-
-                            $item =
-                                $items->first();
-
-
-                            return $item
-                                ? $item->toArray()
-                                : null;
-                        }
-                    );
+            if (!$cadMap instanceof \Illuminate\Support\Collection) {
+                $cadMap = collect($cadMap);
+            }
         }
 
-        $cadTime =
-            microtime(true) - $tCad;
+        $cadTime = microtime(true) - $tCad;
 
 
         /*
@@ -6577,10 +6548,16 @@ class QcController extends Controller
 
         $inspectionByDetailSpk = [];
 
+        $inspectionQueryTime = 0;
+
+        $inspectionConvertTime = 0;
+
 
         if (
             $detailPoIds->isNotEmpty()
         ) {
+
+            $tInspectionQuery = microtime(true);
 
             $inspectionSchedules =
                 $inspectionModel::with([
@@ -6592,6 +6569,10 @@ class QcController extends Controller
                         $detailPoIds
                     )
                     ->get();
+
+            $inspectionQueryTime = microtime(true) - $tInspectionQuery;
+
+            $tInspectionConvert = microtime(true);
 
 
             /*
@@ -6696,6 +6677,8 @@ class QcController extends Controller
                         ?? 0
                     );
             }
+
+            $inspectionConvertTime = microtime(true) - $tInspectionConvert;
         }
 
 
@@ -7424,6 +7407,10 @@ class QcController extends Controller
                         4
                     ),
 
+                'inspection_query' => round($inspectionQueryTime, 4),
+
+                'inspection_convert' => round($inspectionConvertTime, 4),
+
                 'process' =>
                     round(
                         $processTime,
@@ -7504,26 +7491,7 @@ class QcController extends Controller
                 '0'
             );
     }
-    public function detailPoReports($detailPoId)
-    {
-        $inspectionModel = $this->inspectionScheduleModel();
-
-        $inspectSchedules = $inspectionModel::with([
-            'user',
-            'kategori',
-            'qcReports',
-            'reportPhotos',
-        ])
-            ->where('detail_po_id', $detailPoId)
-            ->orderBy('id')
-            ->get();
-
-        return response()->json([
-            'inspect_schedules' => $inspectSchedules,
-        ]);
-    }
-    // o
-    private function matchDivisi(
+private function matchDivisi(
         string $divisi,
         string $kategori
     ): bool {
@@ -7578,949 +7546,6 @@ class QcController extends Controller
 
         return false;
     }
-
-    public function laporanQc(Request $request)
-    {
-        $inspectionModel = $this->inspectionScheduleModel();
-
-        $inspectionModel = $this->inspectionScheduleModel();
-
-        $query = $inspectionModel::with([
-            'po',
-            'detailPo',
-            'user.karyawan',
-            'kategori',
-            'spk',
-            'qcReports',
-            'reportPhotos',
-        ]);
-
-        /*
-        |--------------------------------------------------------------------------
-        | Filter User
-        |--------------------------------------------------------------------------
-        */
-
-        if ($request->filled('user_id')) {
-            $query->where('user_id', $request->user_id);
-        }
-        // tambahan
-        /*
-    |--------------------------------------------------------------------------
-    | Filter Detail PO
-    |--------------------------------------------------------------------------
-    */
-
-        if ($request->filled('detail_po_id')) {
-            $query->where('detail_po_id', $request->detail_po_id);
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Filter Kategori Monitoring
-        |--------------------------------------------------------------------------
-        */
-
-        if ($request->filled('kategori')) {
-
-            $kategori = strtolower($request->kategori);
-
-            $mapping = [
-                'rangka' => [
-                    'RANGKA',
-                    'RANGKA BESI',
-                    'RANGKA KAYU',
-                    'RANGKA ROTAN',
-                    'RANGKA ALUMUNIUN',
-                    'RANGKA TRIPLEK',
-                    'TRIPLEK',
-
-                    'PLAT BESI',
-                ],
-
-                'anyam' => [
-                    'ANYAM',
-                    'ANYAM SINTETIS',
-                    'ANYAM KARAKTER',
-                    'RANGKA + ANYAM',
-                    'ANYAM + DEKOR',
-                    'BASKET JOGJA',
-                    'BASKE JOGJA',
-                    'BASKET LOMBOKAN',
-                    'BASKET TASIK',
-                ],
-
-                'unfinish' => [
-
-                ],
-            ];
-
-            if (isset($mapping[$kategori])) {
-
-                $query->whereHas('kategori', function ($q) use ($mapping, $kategori) {
-
-                    $q->whereIn('kategori', $mapping[$kategori]);
-
-                });
-
-            }
-        }
-        /*
-        |--------------------------------------------------------------------------
-        | Filter Date
-        |--------------------------------------------------------------------------
-        */
-
-        $from = null;
-        $to = null;
-
-        try {
-
-            if ($request->filled('from')) {
-                $from = Carbon::parse($request->from)->format('Y-m-d');
-            }
-
-            if ($request->filled('to')) {
-                $to = Carbon::parse($request->to)->format('Y-m-d');
-            }
-
-            if ($from && $to) {
-
-                $query->whereBetween('tanggal_inspect', [
-                    $from,
-                    $to
-                ]);
-
-            } elseif ($from) {
-
-                $query->whereDate('tanggal_inspect', '>=', $from);
-
-            } elseif ($to) {
-
-                $query->whereDate('tanggal_inspect', '<=', $to);
-
-            }
-
-        } catch (\Exception $e) {
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Format tanggal tidak valid'
-            ], 422);
-
-        }
-
-        $data = $query
-            ->orderByDesc('tanggal_inspect')
-            ->orderByDesc('id')
-            ->get();
-
-        /*
-        |--------------------------------------------------------------------------
-        | Transform Data
-        |--------------------------------------------------------------------------
-        */
-
-        $data->transform(function ($inspect) use ($from, $to) {
-
-            $inspect->spk_item = null;
-
-            if ($inspect->spk && !empty($inspect->spk->data)) {
-
-                $spkData = is_array($inspect->spk->data)
-                    ? $inspect->spk->data
-                    : json_decode($inspect->spk->data, true);
-
-                if (isset($spkData['items'])) {
-
-                    foreach ($spkData['items'] as $item) {
-
-                        if (($item['detail_po_id'] ?? null) == $inspect->detail_po_id) {
-
-                            $inspect->spk_item = $item;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            /*
-            |--------------------------------------------------------------------------
-            | Batch History
-            |--------------------------------------------------------------------------
-            */
-
-            $batchHistory = $inspectionModel::select(
-                'id',
-                'batch',
-                'passed',
-                'rejected',
-                'jumlah_inspect',
-                'tanggal_inspect'
-            )
-                ->where('detail_po_id', $inspect->detail_po_id)
-                ->where('kategori_id', $inspect->kategori_id);
-
-            if ($from && $to) {
-
-                $batchHistory->whereBetween('tanggal_inspect', [
-                    $from,
-                    $to
-                ]);
-
-            } elseif ($from) {
-
-                $batchHistory->whereDate('tanggal_inspect', '>=', $from);
-
-            } elseif ($to) {
-
-                $batchHistory->whereDate('tanggal_inspect', '<=', $to);
-
-            }
-
-            $inspect->batch_history = $batchHistory
-                ->orderBy('batch')
-                ->get();
-
-            return $inspect;
-        });
-
-        return view('pages.qc.lap', [
-            'response' => [
-                'success' => true,
-                'count' => $data->count(),
-                'filters' => [
-                    'user_id' => $request->user_id,
-                    'from' => $request->from,
-                    'to' => $request->to,
-                ],
-                'data' => $data,
-            ]
-        ]);
-    }
-    public function filterInspection(Request $request)
-    {
-        $inspectionModel = $this->inspectionScheduleModel();
-
-        $query = $inspectionModel::with([
-            'po',
-            'spk',
-            'user'
-        ]);
-
-        // Filter Inspector
-        if ($request->filled('inspector')) {
-            $query->where('user_id', $request->inspector);
-        }
-
-        // Filter Tanggal Awal
-        if ($request->filled('from')) {
-            $query->whereDate('tanggal_inspect', '>=', $request->from);
-        }
-
-        // Filter Tanggal Akhir
-        if ($request->filled('to')) {
-            $query->whereDate('tanggal_inspect', '<=', $request->to);
-        }
-
-        $inspection = $query
-            ->latest('tanggal_inspect')
-            ->get();
-        // dd($inspection);
-        $html = view(
-            'pages.qc.partial.inspection_table',
-            compact('inspection')
-        )->render();
-
-        return response()->json([
-            'html' => $html,
-            'total' => $inspection->count()
-        ]);
-    }
-    public function getDate()
-    {
-        return response()->json([
-            'success' => true,
-            'rejected_start' => '2026-09-21',
-        ]);
-    }
-    // add in excel
-    public function laporanAddIn(Request $request)
-    {
-        /*
-        |--------------------------------------------------------------------------
-        | INSPECTION DATA
-        |--------------------------------------------------------------------------
-        |
-        | Ambil seluruh relasi yang memang dibutuhkan oleh Excel Add-in.
-        |
-        */
-
-        $inspectionModel = $this->inspectionScheduleModel();
-
-        $query = $inspectionModel::with([
-            'kategori',
-            'user',
-            'spk',
-            'detailPo',
-            'po',
-        ]);
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | FILTER INSPECTOR
-        |--------------------------------------------------------------------------
-        */
-
-        if ($request->filled('inspector')) {
-
-            $query->where(
-                'user_id',
-                $request->inspector
-            );
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | FILTER TANGGAL FROM
-        |--------------------------------------------------------------------------
-        */
-
-        if ($request->filled('from')) {
-
-            $query->whereDate(
-                'tanggal_inspect',
-                '>=',
-                $request->from
-            );
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | FILTER TANGGAL TO
-        |--------------------------------------------------------------------------
-        */
-
-        if ($request->filled('to')) {
-
-            $query->whereDate(
-                'tanggal_inspect',
-                '<=',
-                $request->to
-            );
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | GET INSPECTION
-        |--------------------------------------------------------------------------
-        */
-
-        $inspection = $query
-            ->orderByDesc('tanggal_inspect')
-            ->orderByDesc('id')
-            ->get();
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | DAFTAR QC / INSPECTOR
-        |--------------------------------------------------------------------------
-        |
-        | Digunakan untuk dropdown Inspector di Excel Add-in.
-        |
-        */
-
-        $qcs = User::with([
-            'karyawan.divisi'
-        ])
-            ->whereHas(
-                'karyawan.divisi',
-                function ($q) {
-
-                    $q->where(
-                        'nama',
-                        'like',
-                        'QC%'
-                    );
-                }
-            )
-            ->orderBy('name')
-            ->get();
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | FLATTEN DATA UNTUK EXCEL
-        |--------------------------------------------------------------------------
-        |
-        | Jangan kirim object relationship mentah ke Excel.
-        | Semua field dibuat menjadi string / number.
-        |
-        */
-
-        $rows = $inspection
-            ->values()
-            ->map(function ($item, $index) {
-
-                /*
-                |--------------------------------------------------------------------------
-                | TANGGAL
-                |--------------------------------------------------------------------------
-                */
-
-                $tanggal = '';
-
-                if ($item->tanggal_inspect) {
-
-                    try {
-
-                        $tanggal =
-                            \Carbon\Carbon::parse(
-                                $item->tanggal_inspect
-                            )->format('d M Y');
-
-                    } catch (\Throwable $e) {
-
-                        $tanggal =
-                            (string) $item->tanggal_inspect;
-                    }
-                }
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | RELATIVE TIME
-                |--------------------------------------------------------------------------
-                |
-                | Contoh:
-                |
-                | 07 Oct 2026
-                | 18 hours ago
-                |
-                */
-
-                if ($item->created_at) {
-
-                    try {
-
-                        $relative =
-                            \Carbon\Carbon::parse(
-                                $item->created_at
-                            )->diffForHumans();
-
-                        $tanggal .=
-                            "\n" . $relative;
-
-                    } catch (\Throwable $e) {
-                        // Abaikan jika created_at tidak valid.
-                    }
-                }
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | PO
-                |--------------------------------------------------------------------------
-                */
-
-                $po = '';
-
-                if ($item->po) {
-
-                    $po =
-                        $item->po->order_no
-                        ?? '';
-                }
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | BUYER
-                |--------------------------------------------------------------------------
-                */
-
-                $buyer = '';
-
-                if ($item->po) {
-
-                    $buyer =
-                        $item->po->company_name
-                        ?? '';
-                }
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | NAME ITEMS
-                |--------------------------------------------------------------------------
-                |
-                | detailPo->detail biasanya merupakan JSON / array.
-                |
-                */
-
-                $nameItems = '';
-
-                if ($item->detailPo) {
-
-                    $detail =
-                        $item->detailPo->detail
-                        ?? null;
-
-
-                    /*
-                    | Jika detail berupa JSON string
-                    */
-
-                    if (is_string($detail)) {
-
-                        $decoded =
-                            json_decode(
-                                $detail,
-                                true
-                            );
-
-                        if (
-                            json_last_error() ===
-                            JSON_ERROR_NONE
-                        ) {
-
-                            $detail =
-                                $decoded;
-                        }
-                    }
-
-
-                    /*
-                    | Ambil description
-                    */
-
-                    if (is_array($detail)) {
-
-                        $nameItems =
-                            $detail['description']
-                            ?? '';
-
-                    } elseif (
-                        is_object($detail)
-                    ) {
-
-                        $nameItems =
-                            $detail->description
-                            ?? '';
-                    }
-                }
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | NO SPK
-                |--------------------------------------------------------------------------
-                |
-                | SPK menggunakan struktur:
-                |
-                | spk.data.no_spk
-                |
-                */
-
-                $noSpk = '';
-
-                if ($item->spk) {
-
-                    $spkData =
-                        $item->spk->data
-                        ?? null;
-
-
-                    /*
-                    | Jika data masih JSON string
-                    */
-
-                    if (is_string($spkData)) {
-
-                        $decoded =
-                            json_decode(
-                                $spkData,
-                                true
-                            );
-
-                        if (
-                            json_last_error() ===
-                            JSON_ERROR_NONE
-                        ) {
-
-                            $spkData =
-                                $decoded;
-                        }
-                    }
-
-
-                    if (is_array($spkData)) {
-
-                        $noSpk =
-                            $spkData['no_spk']
-                            ?? '';
-
-                    } elseif (
-                        is_object($spkData)
-                    ) {
-
-                        $noSpk =
-                            $spkData->no_spk
-                            ?? '';
-                    }
-                }
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | SUB NAME
-                |--------------------------------------------------------------------------
-                |
-                | Sesuai struktur SPK:
-                |
-                | spk.data.sup
-                |
-                |
-                | Di sistem monitoring:
-                |
-                | SUB NAME = supplier SPK
-                |
-                */
-
-                $subName = '';
-
-                if ($item->spk) {
-
-                    $spkData =
-                        $item->spk->data
-                        ?? null;
-
-
-                    /*
-                    | Jika data JSON string
-                    */
-
-                    if (is_string($spkData)) {
-
-                        $decoded =
-                            json_decode(
-                                $spkData,
-                                true
-                            );
-
-                        if (
-                            json_last_error() ===
-                            JSON_ERROR_NONE
-                        ) {
-
-                            $spkData =
-                                $decoded;
-                        }
-                    }
-
-
-                    if (is_array($spkData)) {
-
-                        $subName =
-                            $spkData['sup']
-                            ?? '';
-
-                    } elseif (
-                        is_object($spkData)
-                    ) {
-
-                        $subName =
-                            $spkData->sup
-                            ?? '';
-                    }
-                }
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | PERSON / INSPECTOR
-                |--------------------------------------------------------------------------
-                */
-
-                $person = '';
-
-                if ($item->user) {
-
-                    $person =
-                        $item->user->name
-                        ?? '';
-
-
-                    /*
-                    | Fallback nama lengkap karyawan
-                    */
-
-                    if (
-                        trim((string) $person) === ''
-                    ) {
-
-                        $person =
-                            optional(
-                                $item->user->karyawan
-                            )->nama_lengkap
-                            ?? '';
-                    }
-
-
-                    /*
-                    | Fallback field nama_lengkap
-                    */
-
-                    if (
-                        trim((string) $person) === ''
-                    ) {
-
-                        $person =
-                            $item->user->nama_lengkap
-                            ?? '';
-                    }
-
-
-                    /*
-                    | Fallback field nama
-                    */
-
-                    if (
-                        trim((string) $person) === ''
-                    ) {
-
-                        $person =
-                            $item->user->nama
-                            ?? '';
-                    }
-                }
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | TOTAL INSPECTED
-                |--------------------------------------------------------------------------
-                */
-
-                $totalInspected =
-                    $item->jumlah_inspect
-                    ?? 0;
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | PASS
-                |--------------------------------------------------------------------------
-                */
-
-                $pass =
-                    $item->passed
-                    ?? 0;
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | REJECT
-                |--------------------------------------------------------------------------
-                */
-
-                $reject =
-                    $item->rejected
-                    ?? 0;
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | RETURN FLAT ROW
-                |--------------------------------------------------------------------------
-                */
-
-                return [
-
-                    /*
-                    | # 
-                    */
-
-                    'no' =>
-                        $index + 1,
-
-
-                    /*
-                    | TANGGAL JAM
-                    */
-
-                    'tanggal' =>
-                        $tanggal,
-
-
-                    /*
-                    | PO
-                    */
-
-                    'po' =>
-                        (string) $po,
-
-
-                    /*
-                    | NAME ITEMS
-                    */
-
-                    'name_items' =>
-                        (string) $nameItems,
-
-
-                    /*
-                    | BUYER
-                    */
-
-                    'buyer' =>
-                        (string) $buyer,
-
-
-                    /*
-                    | NO. SPK
-                    */
-
-                    'no_spk' =>
-                        (string) $noSpk,
-
-
-                    /*
-                    | SUB NAME
-                    */
-
-                    'sub_name' =>
-                        (string) $subName,
-
-
-                    /*
-                    | PERSON
-                    */
-
-                    'person' =>
-                        (string) $person,
-
-
-                    /*
-                    | TOTAL INSPECTED
-                    */
-
-                    'total_inspected' =>
-                        is_numeric($totalInspected)
-                        ? (float) $totalInspected
-                        : 0,
-
-
-                    /*
-                    | PASS
-                    */
-
-                    'pass' =>
-                        is_numeric($pass)
-                        ? (float) $pass
-                        : 0,
-
-
-                    /*
-                    | REJECT
-                    */
-
-                    'reject' =>
-                        is_numeric($reject)
-                        ? (float) $reject
-                        : 0,
-                ];
-            })
-            ->values();
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | RESPONSE
-        |--------------------------------------------------------------------------
-        */
-
-        return response()->json([
-
-            'success' => true,
-
-            /*
-            | Data utama untuk Excel
-            */
-
-            'data' => $rows,
-
-
-            /*
-            | Data QC untuk dropdown Inspector
-            */
-
-            'qcs' => $qcs
-                ->map(function ($qc) {
-
-                    $name =
-                        $qc->name
-                        ?? '';
-
-
-                    /*
-                    | Jika User name kosong,
-                    | gunakan nama karyawan.
-                    */
-
-                    if (
-                        trim((string) $name) === ''
-                    ) {
-
-                        $name =
-                            optional(
-                                $qc->karyawan
-                            )->nama_lengkap
-                            ?? '';
-                    }
-
-
-                    return [
-
-                        'id' =>
-                            $qc->id,
-
-                        'name' =>
-                            (string) $name,
-                    ];
-                })
-                ->values(),
-
-
-            /*
-            | Metadata
-            */
-
-            'meta' => [
-
-                'total_inspection' =>
-                    $rows->count(),
-
-                'total_qc' =>
-                    $qcs->count(),
-
-                'from' =>
-                    $request->from,
-
-                'to' =>
-                    $request->to,
-
-                'inspector' =>
-                    $request->inspector,
-            ],
-        ]);
-    }
-
 
 }
 

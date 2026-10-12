@@ -45,6 +45,10 @@ use App\Http\Controllers\NetworkController;
 // ==========================================================
 // MAGIC APPROVAL LINK - PUBLIC ENTRY POINT
 // ==========================================================
+Route::get(
+    '/qc/getPoDetail/{kategoriId}/{detailPo}/{poId}',
+    [QcController::class, 'getDataApi']
+)->middleware('auth:sanctum');
 Route::get('/approval/bypass_config/{token}', [
     SpkController::class,
     'magicApproval'
@@ -665,7 +669,7 @@ Route::put(
     Route::get('/item/{id}', [QcController::class, 'itemDetail'])->name('qc.item.detail');
     Route::get('/qc/cek/{id}', [QcController::class, 'cek']);
     Route::get('/qc/getData/{kategoriId}/{detailPo}/{poId}', [QcController::class, 'getData']);
-    Route::get('/qc/getPoDetail/{kategoriId}/{detailPo}/{poId}', [QcController::class, 'getDataApi']);
+    // Route::get('/qc/getPoDetail/{kategoriId}/{detailPo}/{poId}', [QcController::class, 'getDataApi']);
     Route::get('/insert/{kategoriName}', [QcController::class, 'insertDummy']);
     Route::get('/qc/search', [QcController::class, 'ajaxPo'])->name('qc.ajax.poo');
     Route::post('/qc/store', [QcController::class, 'save'])->name('qc.save');
