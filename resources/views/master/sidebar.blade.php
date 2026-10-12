@@ -730,54 +730,58 @@
                                  </ul>
                              </li>
                          @endif
-                         @if (Auth::user()->role === 'rnd')
-                             <li>
-                                 <a href="{{ route('absen.riwayat') }}">
-                                     <span class="nav-icon"><i class="material-icons">&#xe192;</i></span>
-                                     <span class="nav-text">Riwayat Absen</span>
-                                 </a>
-                             </li>
-                             <li>
-                                 <a href="/karyawan-scan">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
-                                     <span class="nav-text">Absen Sekarang</span>
-                                 </a>
-                             </li>
-                             <li>
-                                 <a href="/marketing-release-order">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
-                                     <span class="nav-text">Release PFI</span>
-                                 </a>
-                             </li>
+@if (Auth::user()->role === 'rnd')
+    <li>
+        <a href="{{ route('absen.riwayat') }}">
+            <span class="nav-icon"><i class="material-icons">&#xe192;</i></span>
+            <span class="nav-text">Riwayat Absen</span>
+        </a>
+    </li>
 
-                             <li>
-                                 <a href="/semua-spk?spk=rnd_spk">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
-                                     <span class="nav-text">SPK SAMPLES</span>
-                                 </a>
-                             </li>
-                             <li>
-                                 <a href="/produksi/inventor">
-                                     <span class="nav-icon">
-                                         <i class="material-icons">&#xe85e;</i>
-                                     </span>
-                                     <span class="nav-text">SPK Monitoring</span>
-                                 </a>
-                             </li>
+    <li>
+        <a href="/karyawan-scan">
+            <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+            <span class="nav-text">Absen Sekarang</span>
+        </a>
+    </li>
 
-                             <li>
-                                 <a href="/bom">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
-                                     <span class="nav-text">BOM</span>
-                                 </a>
-                             </li>
-                             <li>
-                                 <a href="/cad">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
-                                     <span class="nav-text">CAD Drawing</span>
-                                 </a>
-                             </li>
-                         @endif
+    <li>
+        <a href="/marketing-release-order">
+            <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+            <span class="nav-text">Release PFI</span>
+        </a>
+    </li>
+
+    @if (strtolower(Auth::user()->email) !== 'riyatno@gmail.com')
+        <li>
+            <a href="/semua-spk?spk=rnd_spk">
+                <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                <span class="nav-text">SPK SAMPLES</span>
+            </a>
+        </li>
+
+        <li>
+            <a href="/produksi/inventor">
+                <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                <span class="nav-text">SPK Monitoring</span>
+            </a>
+        </li>
+
+        <li>
+            <a href="/bom">
+                <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                <span class="nav-text">BOM</span>
+            </a>
+        </li>
+    @endif
+
+    <li>
+        <a href="/cad">
+            <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+            <span class="nav-text">CAD Drawing</span>
+        </a>
+    </li>
+@endif
                          @auth
                              @if (auth()->user()->role == 'factory' || auth()->user()->role == 'coo')
                                  <li>
