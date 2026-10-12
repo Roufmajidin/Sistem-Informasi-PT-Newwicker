@@ -2237,3 +2237,164 @@
 
     });
 </script>
+
+
+<script>
+/*
+|--------------------------------------------------------------------------
+| LOADING DOWNLOAD EXCEL 2-UP PER SUBKON
+|--------------------------------------------------------------------------
+| Menampilkan status saat server menyiapkan Excel dan persentase nyata
+| ketika browser mulai menerima file.
+*/
+(function () {
+    if (window.__paymentRequestExcelLoadingBound) return;
+    window.__paymentRequestExcelLoadingBound = true;
+
+    function getFilename(disposition) {
+        if (!disposition) return 'payment-request.xlsx';
+
+        var utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+        if (utf8Match && utf8Match[1]) {
+            try { return decodeURIComponent(utf8Match[1].replace(/["']/g, '')); }
+            catch (e) {}
+        }
+
+        var match = disposition.match(/filename="?([^";]+)"?/i);
+        return match && match[1] ? match[1] : 'payment-request.xlsx';
+    }
+
+    function showProgress(percent, message, indeterminate) {
+        var bar = document.getElementById('excelDownloadProgressBar');
+        var label = document.getElementById('excelDownloadProgressPercent');
+        var status = document.getElementById('excelDownloadProgressStatus');
+
+        if (bar) {
+            bar.style.width = percent + '%';
+            bar.setAttribute('aria-valuenow', percent);
+            bar.classList.toggle('progress-bar-striped', !!indeterminate);
+            bar.classList.toggle('progress-bar-animated', !!indeterminate);
+        }
+        if (label) label.textContent = indeterminate ? 'Memproses…' : percent + '%';
+        if (status) status.textContent = message;
+    }
+
+    document.addEventListener('click', function (event) {
+        var link = event.target.closest('a[href*="/export-excel-2up"]');
+        if (!link) return;
+
+        // Jangan mengambil alih link yang dibuka di tab baru atau dengan modifier.
+        if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey ||
+            (link.target && link.target !== '_self')) return;
+
+        event.preventDefault();
+        if (link.dataset.excelLoading === '1') return;
+
+        link.dataset.excelLoading = '1';
+        var originalHtml = link.innerHTML;
+        var originalTitle = link.getAttribute('title');
+
+        link.style.pointerEvents = 'none';
+        link.style.opacity = '0.65';
+        link.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
+        link.setAttribute('aria-busy', 'true');
+
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Menyiapkan Excel',
+                html:
+                    '<div id="excelDownloadProgressStatus" style="margin-bottom:12px;">' +
+                    'Server sedang membuat file Excel…</div>' +
+                    '<div class="progress" style="height:18px;border-radius:9px;overflow:hidden;">' +
+                    '<div id="excelDownloadProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" ' +
+                    'role="progressbar" style="width:3%;transition:width .2s;" aria-valuemin="0" aria-valuemax="100" aria-valuenow="3"></div>' +
+                    '</div>' +
+                    '<div id="excelDownloadProgressPercent" style="margin-top:8px;font-weight:600;">Memproses…</div>',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                didOpen: function () { Swal.showLoading(); }
+            });
+        }
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', link.href, true);
+        xhr.responseType = 'blob';
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+        // Progress download aktual; sebelum respons mulai, tampilkan status proses.
+        xhr.onprogress = function (e) {
+            if (e.lengthComputable && e.total > 0) {
+                var percent = Math.min(100, Math.round((e.loaded / e.total) * 100));
+                showProgress(percent, 'Mengunduh file Excel…', false);
+            } else {
+                showProgress(3, 'Server sedang menyiapkan / mengirim file Excel…', true);
+            }
+        };
+
+        xhr.onload = function () {
+            var contentType = (xhr.getResponseHeader('Content-Type') || '').toLowerCase();
+
+            if (xhr.status >= 200 && xhr.status < 300 &&
+                xhr.response && xhr.response.size > 0 &&
+                !contentType.includes('text/html') &&
+                !contentType.includes('application/json')) {
+
+                showProgress(100, 'Excel selesai. Menyiapkan unduhan…', false);
+
+                var filename = getFilename(xhr.getResponseHeader('Content-Disposition'));
+                var blobUrl = window.URL.createObjectURL(xhr.response);
+                var downloadLink = document.createElement('a');
+                downloadLink.href = blobUrl;
+                downloadLink.download = filename;
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                downloadLink.remove();
+
+                setTimeout(function () { window.URL.revokeObjectURL(blobUrl); }, 30000);
+
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Excel siap',
+                        text: 'File berhasil dibuat dan unduhan sudah dimulai.',
+                        timer: 1400,
+                        showConfirmButton: false
+                    });
+                }
+            } else {
+                var message = 'Gagal mengunduh Excel. Silakan coba kembali.';
+                if (xhr.status === 401 || xhr.status === 403) {
+                    message = 'Sesi atau izin akses tidak valid. Silakan login ulang.';
+                }
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ icon: 'error', title: 'Download gagal', text: message });
+                } else {
+                    alert(message);
+                }
+            }
+        };
+
+        xhr.onerror = function () {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Koneksi bermasalah',
+                    text: 'File Excel tidak berhasil diunduh. Periksa koneksi lalu coba kembali.'
+                });
+            }
+        };
+
+        xhr.onloadend = function () {
+            link.dataset.excelLoading = '0';
+            link.style.pointerEvents = '';
+            link.style.opacity = '';
+            link.innerHTML = originalHtml;
+            link.removeAttribute('aria-busy');
+            if (originalTitle) link.setAttribute('title', originalTitle);
+        };
+
+        xhr.send();
+    });
+})();
+</script>

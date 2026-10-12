@@ -5298,21 +5298,21 @@ class SpkController extends Controller
                 |
                 */
 
-                Log::info(
-                    'PAYMENT REQUEST DRAFT APPROVERS',
-                    [
+                // Log::info(
+                //     'PAYMENT REQUEST DRAFT APPROVERS',
+                //     [
 
-                        'draft_id' =>
-                            $draft->id,
+                //         'draft_id' =>
+                //             $draft->id,
 
-                        'request_no' =>
-                            $draft->request_no,
+                //         'request_no' =>
+                //             $draft->request_no,
 
-                        'approvals' =>
-                            $approvalList->toArray(),
+                //         'approvals' =>
+                //             $approvalList->toArray(),
 
-                    ]
-                );
+                //     ]
+                // );
 
 
                 /*

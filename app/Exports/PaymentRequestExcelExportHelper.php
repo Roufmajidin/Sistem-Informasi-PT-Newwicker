@@ -604,7 +604,71 @@ class PaymentRequestExcelExportHelper
             ->whereIn('id', $requestIds)
             ->get();
 
-        $payments = $requests->map(function ($request) {
+        /*
+         * OPTIMASI:
+         * Kumpulkan semua pasangan SPK + detail terlebih dahulu, lalu ambil
+         * timeline dan inspeksi secara batch. Hasil per item tetap dipisahkan
+         * dengan composite key spk_id|detail_po_id.
+         */
+        $spkDataByRequest = [];
+        $spkIds = [];
+        $detailIds = [];
+
+        foreach ($requests as $request) {
+            if (!$request->spk) {
+                continue;
+            }
+
+            $spkData = is_string($request->spk->data)
+                ? json_decode($request->spk->data, true)
+                : ($request->spk->data ?? []);
+            $spkData = is_array($spkData) ? $spkData : [];
+            $spkDataByRequest[$request->id] = $spkData;
+
+            $spkId = $request->spk_id;
+            if ($spkId !== null && $spkId !== '') {
+                $spkIds[(string) $spkId] = $spkId;
+            }
+
+            foreach (($spkData['items'] ?? []) as $item) {
+                if (!is_array($item)) {
+                    continue;
+                }
+                $detailId = $item['detail_po_id'] ?? $item['detail_id'] ?? null;
+                if ($detailId !== null && $detailId !== '') {
+                    $detailIds[(string) $detailId] = $detailId;
+                }
+            }
+        }
+
+        $timelineByItem = [];
+        $inspectByItem = [];
+
+        if ($spkIds && $detailIds) {
+            ProductionTimeline::query()
+                ->whereIn('spk_id', array_values($spkIds))
+                ->whereIn('detail_po_id', array_values($detailIds))
+                ->orderBy('id')
+                ->get()
+                ->each(function ($row) use (&$timelineByItem) {
+                    $key = (string) $row->spk_id . '|' . (string) $row->detail_po_id;
+                    $timelineByItem[$key][] = $row;
+                });
+
+            InspectSchedule::query()
+                ->whereIn('spk_id', array_values($spkIds))
+                ->whereIn('detail_po_id', array_values($detailIds))
+                ->orderBy('batch')
+                ->orderBy('tanggal_inspect')
+                ->orderBy('id')
+                ->get()
+                ->each(function ($row) use (&$inspectByItem) {
+                    $key = (string) $row->spk_id . '|' . (string) $row->detail_po_id;
+                    $inspectByItem[$key][] = $row;
+                });
+        }
+
+        $payments = $requests->map(function ($request) use ($spkDataByRequest, $timelineByItem, $inspectByItem) {
             if (!$request->spk) {
                 return [
                     'supplier' => '-',
@@ -620,18 +684,18 @@ class PaymentRequestExcelExportHelper
                 ];
             }
 
-            $spkData = is_string($request->spk->data)
-                ? json_decode($request->spk->data, true)
-                : ($request->spk->data ?? []);
-
-            $spkData = is_array($spkData) ? $spkData : [];
-
+            $spkData = $spkDataByRequest[$request->id] ?? [];
             $payment = collect($spkData['payments'] ?? [])
                 ->firstWhere('payment_id', $request->payment_id);
-
             $payment = is_array($payment) ? $payment : [];
 
-            $items = self::buildItems($request->spk_id, $spkData['items'] ?? []);
+            $items = self::buildItems(
+                $request->spk_id,
+                $spkData['items'] ?? [],
+                $timelineByItem,
+                $inspectByItem
+            );
+
             $adjustment = $payment['adjustment'] ?? 0;
             $amount = (float) ($payment['amount'] ?? 0);
             $effective = (
@@ -674,31 +738,18 @@ class PaymentRequestExcelExportHelper
         ];
     }
 
-    private static function buildItems($spkId, array $rawItems): array
+    private static function buildItems($spkId, array $rawItems, array $timelineByItem = [], array $inspectByItem = []): array
     {
         return collect($rawItems)
             ->filter(static fn ($value) => is_array($value))
-            ->map(function (array $item) use ($spkId) {
+            ->map(function (array $item) use ($spkId, $timelineByItem, $inspectByItem) {
                 $detailPoId = $item['detail_po_id'] ?? $item['detail_id'] ?? null;
                 $qtySpk = (float) ($item['qty'] ?? 0);
+                $key = (string) $spkId . '|' . (string) $detailPoId;
 
-                $timeline = $detailPoId !== null
-                    ? ProductionTimeline::query()
-                        ->where('spk_id', $spkId)
-                        ->where('detail_po_id', $detailPoId)
-                        ->orderBy('id')
-                        ->get()
-                    : collect();
-
-                $inspect = $detailPoId !== null
-                    ? InspectSchedule::query()
-                        ->where('spk_id', $spkId)
-                        ->where('detail_po_id', $detailPoId)
-                        ->orderBy('batch')
-                        ->orderBy('tanggal_inspect')
-                        ->orderBy('id')
-                        ->get()
-                    : collect();
+                // Gunakan data hasil batch query; tidak ada query per item lagi.
+                $timeline = collect($detailPoId !== null ? ($timelineByItem[$key] ?? []) : []);
+                $inspect = collect($detailPoId !== null ? ($inspectByItem[$key] ?? []) : []);
 
                 $customColumns = $item['custom_columns'] ?? [];
                 if (is_string($customColumns)) {
