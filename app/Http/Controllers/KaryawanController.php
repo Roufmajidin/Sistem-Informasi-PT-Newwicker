@@ -44,33 +44,33 @@ class KaryawanController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'nama_lengkap.*'      => 'required|string|max:255',
-            'nik.*'               => 'required|string|max:100|unique:karyawans,nik',
-            'jenis_kelamin.*'     => 'nullable|string|in:L,P',
-            'ttl.*'               => 'nullable|string|max:255',
-            'alamat.*'            => 'nullable|string|max:255',
+            'nama_lengkap.*' => 'required|string|max:255',
+            'nik.*' => 'required|string|max:100|unique:karyawans,nik',
+            'jenis_kelamin.*' => 'nullable|string|in:L,P',
+            'ttl.*' => 'nullable|string|max:255',
+            'alamat.*' => 'nullable|string|max:255',
             'status_perkawinan.*' => 'nullable|string|max:100',
-            'divisi_id.*'         => 'nullable|integer|exists:divisis,id',
-            'status.*'            => 'nullable|string|max:100',
-            'lokasi.*'            => 'nullable|string|max:255',
-            'tanggal_join.*'      => 'nullable|date',
-            'photo.*'             => 'nullable|image|max:2048',
+            'divisi_id.*' => 'nullable|integer|exists:divisis,id',
+            'status.*' => 'nullable|string|max:100',
+            'lokasi.*' => 'nullable|string|max:255',
+            'tanggal_join.*' => 'nullable|date',
+            'photo.*' => 'nullable|image|max:2048',
         ]);
 
         $dataCount = count($request->nama_lengkap);
 
         for ($i = 0; $i < $dataCount; $i++) {
             $namaLengkap = trim($request->nama_lengkap[$i]);
-            $nik         = trim($request->nik[$i]);
+            $nik = trim($request->nik[$i]);
 
             // Pisah nama depan dan belakang
-            $parts       = explode(' ', $namaLengkap);
-            $firstName   = strtolower($parts[0]);                                       // Rayen
+            $parts = explode(' ', $namaLengkap);
+            $firstName = strtolower($parts[0]);                                       // Rayen
             $lastInitial = isset($parts[1]) ? strtolower(substr($parts[1], 0, 1)) : ''; // a
 
             // Email dengan format: firstname + lastInitial + @gmail.com
             $emailBase = $firstName . $lastInitial;
-            $email     = $emailBase . '@gmail.com';
+            $email = $emailBase . '@gmail.com';
 
             // Kalau email sudah ada → tambahkan angka
             $counter = 1;
@@ -83,22 +83,22 @@ class KaryawanController extends Controller
             $password = Hash::make($firstName);
             // dd($request->divisi_id[$i]);
             // === Simpan Karyawan ===
-            $karyawan                    = new Karyawan();
-            $karyawan->nama_lengkap      = $namaLengkap;
-            $karyawan->nik               = $nik;
-            $karyawan->jenis_kelamin     = $request->jenis_kelamin[$i] ?? null;
-            $karyawan->tempat            = $request->ttl[$i] ?? null;
-            $karyawan->alamat            = $request->alamat[$i] ?? null;
+            $karyawan = new Karyawan();
+            $karyawan->nama_lengkap = $namaLengkap;
+            $karyawan->nik = $nik;
+            $karyawan->jenis_kelamin = $request->jenis_kelamin[$i] ?? null;
+            $karyawan->tempat = $request->ttl[$i] ?? null;
+            $karyawan->alamat = $request->alamat[$i] ?? null;
             $karyawan->status_perkawinan = $request->status_perkawinan[$i] ?? null;
-            $karyawan->divisi_id         = ! empty($request->divisi_id[$i]) ? (int) $request->divisi_id[$i] : null;
-            $karyawan->status            = $request->status[$i] ?? null;
-            $karyawan->lokasi            = $request->lokasi[$i] ?? null;
-            $karyawan->tanggal_join      = $request->tanggal_join[$i] ?? null;
-            $karyawan->status            = $request->status[$i] ?? null;
+            $karyawan->divisi_id = !empty($request->divisi_id[$i]) ? (int) $request->divisi_id[$i] : null;
+            $karyawan->status = $request->status[$i] ?? null;
+            $karyawan->lokasi = $request->lokasi[$i] ?? null;
+            $karyawan->tanggal_join = $request->tanggal_join[$i] ?? null;
+            $karyawan->status = $request->status[$i] ?? null;
 
             // Upload photo kalau ada
             if ($request->hasFile("photo.$i")) {
-                $file     = $request->file("photo.$i");
+                $file = $request->file("photo.$i");
                 $filename = time() . '_' . $file->getClientOriginalName();
                 $file->move(public_path('uploads/karyawan'), $filename);
                 // $karyawan->photo = $filename;
@@ -107,16 +107,16 @@ class KaryawanController extends Controller
             $karyawan->save();
 
             // === Simpan User baru ===
-            $user              = new User();
-            $user->name        = $namaLengkap;
+            $user = new User();
+            $user->name = $namaLengkap;
             $user->karyawan_id = $karyawan->id;
-            $user->email       = $email;
-            $user->password    = $password;
+            $user->email = $email;
+            $user->password = $password;
             $user->save();
         }
 
         return response()->json([
-            'status'  => 'success',
+            'status' => 'success',
             'message' => 'Data baru berhasil ditambahkan!',
         ]);
     }
@@ -149,101 +149,101 @@ class KaryawanController extends Controller
      * Remove the specified resource from storage.
      */
     // lembur
- public function lembur(Request $request)
-{
-    $today = Carbon::now();
+    public function lembur(Request $request)
+    {
+        $today = Carbon::now();
 
-    $month = $request->month ?? $today->month;
-    $year  = $request->year ?? $today->year;
-    $date  = $request->date;
+        $month = $request->month ?? $today->month;
+        $year = $request->year ?? $today->year;
+        $date = $request->date;
 
-    $daysInMonth = Carbon::create($year, $month)->daysInMonth;
+        $daysInMonth = Carbon::create($year, $month)->daysInMonth;
 
-    $query = Lembur::with('user');
+        $query = Lembur::with('user');
 
-    // Filter harian jika tanggal dipilih
-    if ($date) {
-        $query->whereDate('tanggal', $date);
-    } else {
-        // Filter bulanan
-        $query->whereMonth('tanggal', $month)
-              ->whereYear('tanggal', $year);
+        // Filter harian jika tanggal dipilih
+        if ($date) {
+            $query->whereDate('tanggal', $date);
+        } else {
+            // Filter bulanan
+            $query->whereMonth('tanggal', $month)
+                ->whereYear('tanggal', $year);
+        }
+
+        $lemburs = $query
+            ->orderBy('tanggal', 'desc')
+            ->get();
+        $lemburs->each(function ($item) {
+
+            $item->warning = null;
+
+            if (!$item->jam_keluar) {
+                return;
+            }
+
+            $masuk = Carbon::createFromFormat(
+                'Y-m-d H:i:s',
+                $item->tanggal . ' ' . $item->jam_masuk
+            );
+
+            $keluar = Carbon::createFromFormat(
+                'Y-m-d H:i:s',
+                $item->tanggal . ' ' . $item->jam_keluar
+            );
+
+            // kalau checkout lewat tengah malam
+            if ($keluar->lt($masuk)) {
+                $keluar->addDay();
+            }
+
+            $menit = $masuk->diffInMinutes($keluar);
+
+            if ($menit <= 2) {
+                $item->warning =
+                    '⚠ Indikasi double tap lembur. Mohon cek riwayat absen.';
+            }
+        });
+        return view(
+            'pages.karyawan.lembur',
+            compact(
+                'lemburs',
+                'month',
+                'year',
+                'daysInMonth'
+            )
+        );
     }
+    public function destroy($id)
+    {
+        DB::beginTransaction();
 
-    $lemburs = $query
-        ->orderBy('tanggal', 'desc')
-        ->get();
-    $lemburs->each(function ($item) {
+        try {
 
-    $item->warning = null;
+            $karyawan = Karyawan::findOrFail($id);
 
-    if (!$item->jam_keluar) {
-        return;
+            // hapus user yang terhubung ke karyawan
+            User::where('karyawan_id', $id)->delete();
+
+            // hapus karyawan
+            $karyawan->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Karyawan dan User berhasil dihapus'
+            ]);
+
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
-
-    $masuk = Carbon::createFromFormat(
-        'Y-m-d H:i:s',
-        $item->tanggal.' '.$item->jam_masuk
-    );
-
-    $keluar = Carbon::createFromFormat(
-        'Y-m-d H:i:s',
-        $item->tanggal.' '.$item->jam_keluar
-    );
-
-    // kalau checkout lewat tengah malam
-    if ($keluar->lt($masuk)) {
-        $keluar->addDay();
-    }
-
-    $menit = $masuk->diffInMinutes($keluar);
-
-    if ($menit <= 2) {
-        $item->warning =
-            '⚠ Indikasi double tap lembur. Mohon cek riwayat absen.';
-    }
-});
-    return view(
-        'pages.karyawan.lembur',
-        compact(
-            'lemburs',
-            'month',
-            'year',
-            'daysInMonth'
-        )
-    );
-}
-   public function destroy($id)
-{
-    DB::beginTransaction();
-
-    try {
-
-        $karyawan = Karyawan::findOrFail($id);
-
-        // hapus user yang terhubung ke karyawan
-        User::where('karyawan_id', $id)->delete();
-
-        // hapus karyawan
-        $karyawan->delete();
-
-        DB::commit();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Karyawan dan User berhasil dihapus'
-        ]);
-
-    } catch (\Exception $e) {
-
-        DB::rollBack();
-
-        return response()->json([
-            'success' => false,
-            'message' => $e->getMessage()
-        ], 500);
-    }
-}
 
     public function import(Request $request)
     {
@@ -259,24 +259,24 @@ class KaryawanController extends Controller
                 $tanggal = Date::excelToDateTimeObject($row[11])->format('Y-m-d');
 
                 $data[] = [
-                    'nama_lengkap'         => $row[1],
-                    'nik'                  => $row[2],
-                    'jenis_kelamin'        => $row[3],
+                    'nama_lengkap' => $row[1],
+                    'nik' => $row[2],
+                    'jenis_kelamin' => $row[3],
                     'tempat_tanggal_lahir' => $row[4],
-                    'alamat'               => $row[5],
-                    'status_perkawinan'    => $row[6] ?? $row[7],
-                    'divisi'               => $row[8],
-                    'status_karyawan'      => $row[9],
-                    'lokasi'               => $row[10],
-                    'tanggal_join'         => $row[11] == null ? '' : $tanggal,
-                    'user_id'              => $row[12],
+                    'alamat' => $row[5],
+                    'status_perkawinan' => $row[6] ?? $row[7],
+                    'divisi' => $row[8],
+                    'status_karyawan' => $row[9],
+                    'lokasi' => $row[10],
+                    'tanggal_join' => $row[11] == null ? '' : $tanggal,
+                    'user_id' => $row[12],
                 ];
             }
             // Log::info('Import triggered', $data);
 
             return response()->json([
                 'success' => true,
-                'rows'    => $data,
+                'rows' => $data,
             ]);
         } catch (\Throwable $e) {
             return response()->json([
@@ -291,7 +291,7 @@ class KaryawanController extends Controller
         $found = [];
 
         foreach ($names as $name) {
-            if (! $name) {
+            if (!$name) {
                 continue;
             }
 
@@ -307,9 +307,9 @@ class KaryawanController extends Controller
 
     public function bulkSave(Request $request)
     {
-        $rows     = $request->input('rows', []);
+        $rows = $request->input('rows', []);
         $inserted = [];
-        $updated  = [];
+        $updated = [];
 
         foreach ($rows as $index => $row) {
             // Lewati baris pertama (header) atau baris kosong
@@ -318,9 +318,9 @@ class KaryawanController extends Controller
             }
 
             // --- Pisahkan tempat & tanggal lahir ---
-            $tempat_lahir  = null;
+            $tempat_lahir = null;
             $tanggal_lahir = null;
-            if (! empty($row['tempat_tanggal_lahir']) && str_contains($row['tempat_tanggal_lahir'], ',')) {
+            if (!empty($row['tempat_tanggal_lahir']) && str_contains($row['tempat_tanggal_lahir'], ',')) {
                 [$tempat_lahir, $tanggal_lahir] = array_map('trim', explode(',', $row['tempat_tanggal_lahir'], 2));
                 try {
                     $tanggal_lahir = \Carbon\Carbon::parse($tanggal_lahir)->format('Y-m-d');
@@ -331,7 +331,7 @@ class KaryawanController extends Controller
 
             // --- Format tanggal join ---
             $tanggal_join = null;
-            if (! empty($row['tanggal_join'])) {
+            if (!empty($row['tanggal_join'])) {
                 if (is_numeric($row['tanggal_join'])) {
                     $tanggal_join = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($row['tanggal_join'])->format('Y-m-d');
                 } else {
@@ -345,8 +345,8 @@ class KaryawanController extends Controller
 
             // --- Cari divisi id ---
             $divisiId = null;
-            if (! empty($row['divisi'])) {
-                $divisi   = \App\Models\Divisi::where('nama', trim($row['divisi']))->first();
+            if (!empty($row['divisi'])) {
+                $divisi = \App\Models\Divisi::where('nama', trim($row['divisi']))->first();
                 $divisiId = $divisi?->id;
             }
 
@@ -354,16 +354,16 @@ class KaryawanController extends Controller
             $karyawan = \App\Models\Karyawan::updateOrCreate(
                 ['nik' => $row['nik']],
                 [
-                    'nama_lengkap'      => $row['nama_lengkap'],
-                    'jenis_kelamin'     => $row['jenis_kelamin'] ?? null,
-                    'tempat'            => $tempat_lahir,
-                    'tanggal_lahir'     => $tanggal_lahir,
-                    'alamat'            => $row['alamat'] ?? null,
+                    'nama_lengkap' => $row['nama_lengkap'],
+                    'jenis_kelamin' => $row['jenis_kelamin'] ?? null,
+                    'tempat' => $tempat_lahir,
+                    'tanggal_lahir' => $tanggal_lahir,
+                    'alamat' => $row['alamat'] ?? null,
                     'status_perkawinan' => $row['status_perkawinan'] ?? null,
-                    'divisi_id'         => $divisiId,
-                    'status'            => $row['status_karyawan'] ?? null,
-                    'lokasi'            => $row['lokasi'] ?? null,
-                    'tanggal_join'      => $tanggal_join,
+                    'divisi_id' => $divisiId,
+                    'status' => $row['status_karyawan'] ?? null,
+                    'lokasi' => $row['lokasi'] ?? null,
+                    'tanggal_join' => $tanggal_join,
                 ]
             );
 
@@ -374,13 +374,13 @@ class KaryawanController extends Controller
             }
 
             // --- Handle User ---
-            $namaParts    = explode(' ', trim($karyawan->nama_lengkap));
-            $namaDepan    = strtolower($namaParts[0]);
+            $namaParts = explode(' ', trim($karyawan->nama_lengkap));
+            $namaDepan = strtolower($namaParts[0]);
             $namaBelakang = isset($namaParts[1]) ? strtolower(substr($namaParts[1], 0, 1)) : '';
 
             $baseEmail = $namaDepan . $namaBelakang . '@gmail.com';
-            $email     = $baseEmail;
-            $counter   = 1;
+            $email = $baseEmail;
+            $counter = 1;
 
             // Cari email unik
             while (\App\Models\User::where('email', $email)->exists()) {
@@ -392,26 +392,26 @@ class KaryawanController extends Controller
 
             if ($user) {
                 $user->update([
-                    'name'     => $karyawan->nama_lengkap,
-                    'email'    => $email, // ganti email hanya kalau perlu
+                    'name' => $karyawan->nama_lengkap,
+                    'email' => $email, // ganti email hanya kalau perlu
                     'password' => bcrypt($namaDepan),
                 ]);
             } else {
                 // insert baru
                 \App\Models\User::create([
-                    'name'        => $karyawan->nama_lengkap,
-                    'email'       => $email,
-                    'password'    => bcrypt($namaDepan),
+                    'name' => $karyawan->nama_lengkap,
+                    'email' => $email,
+                    'password' => bcrypt($namaDepan),
                     'karyawan_id' => $karyawan->id,
                 ]);
             }
         }
 
         return response()->json([
-            'success'       => true,
-            'inserted'      => count($inserted),
-            'updated'       => count($updated),
-            'updated_niks'  => array_column($updated, 'nik'),
+            'success' => true,
+            'inserted' => count($inserted),
+            'updated' => count($updated),
+            'updated_niks' => array_column($updated, 'nik'),
             'inserted_niks' => array_column($inserted, 'nik'),
         ]);
     }
@@ -420,139 +420,139 @@ class KaryawanController extends Controller
     {
         $officeLat = config('office.lat');
         $officeLng = config('office.lon');
-        $radius    = config('office.radius');
-        $riwayat   = Absen::where('user_id', auth()->id())
+        $radius = config('office.radius');
+        $riwayat = Absen::where('user_id', auth()->id())
             ->whereDate('tanggal', now()->toDateString())
             ->get();
         $divisi = User::with('karyawan')->find(auth()->id());
-        $divId  = Divisi::find($divisi->karyawan->divisi_id);
+        $divId = Divisi::find($divisi->karyawan->divisi_id);
         $riwayatLembur = Lembur::where('user_id', auth()->id())
             ->whereDate('tanggal', now())
             ->get();
-// dd($divId);
+        // dd($divId);
         return view('pages.karyawan.cam', compact('riwayat', 'officeLat', 'officeLng', 'radius', 'divId', 'riwayatLembur'));
     }
     // store lembur
     public function storeLembur(Request $request)
-{
-    $request->validate([
-        'status'    => 'required|in:masuk,keluar',
-        'foto'      => 'required|image',
-        'latitude'  => 'required',
-        'longitude' => 'required',
-    ]);
+    {
+        $request->validate([
+            'status' => 'required|in:masuk,keluar',
+            'foto' => 'required|image',
+            'latitude' => 'required',
+            'longitude' => 'required',
+        ]);
 
-    $today = now()->toDateString();
+        $today = now()->toDateString();
 
-    // wajib checkout dulu
-    $absen = Absen::where('user_id', auth()->id())
-        ->whereDate('tanggal', $today)
-        ->first();
+        // wajib checkout dulu
+        $absen = Absen::where('user_id', auth()->id())
+            ->whereDate('tanggal', $today)
+            ->first();
 
-    if (!$absen || !$absen->jam_keluar) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Silahkan checkout absen terlebih dahulu sebelum lembur.'
-        ], 422);
-    }
-
-    $lembur = Lembur::where('user_id', auth()->id())
-        ->whereDate('tanggal', $today)
-        ->first();
-
-    // ===============================
-    // LEMBUR MASUK
-    // ===============================
-    if ($request->status === 'masuk') {
-
-        if ($lembur && $lembur->jam_masuk) {
+        if (!$absen || !$absen->jam_keluar) {
             return response()->json([
                 'success' => false,
-                'message' => 'Anda sudah melakukan lembur masuk hari ini.'
+                'message' => 'Silahkan checkout absen terlebih dahulu sebelum lembur.'
+            ], 422);
+        }
+
+        $lembur = Lembur::where('user_id', auth()->id())
+            ->whereDate('tanggal', $today)
+            ->first();
+
+        // ===============================
+        // LEMBUR MASUK
+        // ===============================
+        if ($request->status === 'masuk') {
+
+            if ($lembur && $lembur->jam_masuk) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Anda sudah melakukan lembur masuk hari ini.'
+                ], 422);
+            }
+
+            $path = $request->file('foto')
+                ->store('lembur', 'public');
+
+            $lembur = Lembur::create([
+                'user_id' => auth()->id(),
+                'tanggal' => $today,
+                'jam_masuk' => now()->format('H:i:s'),
+                'latitude' => $request->latitude,
+                'longitude' => $request->longitude,
+                'foto' => $path,
+                'validate' => 0,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Lembur masuk berhasil.'
+            ]);
+        }
+
+        // ===============================
+        // LEMBUR KELUAR
+        // ===============================
+        if (!$lembur || !$lembur->jam_masuk) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda belum melakukan lembur masuk.'
+            ], 422);
+        }
+
+        if ($lembur->jam_keluar) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda sudah melakukan lembur keluar.'
             ], 422);
         }
 
         $path = $request->file('foto')
             ->store('lembur', 'public');
 
-        $lembur = Lembur::create([
-            'user_id'     => auth()->id(),
-            'tanggal'     => $today,
-            'jam_masuk'   => now()->format('H:i:s'),
-            'latitude'    => $request->latitude,
-            'longitude'   => $request->longitude,
-            'foto'        => $path,
-            'validate'    => 0,
+        $lembur->update([
+            'jam_keluar' => now()->format('H:i:s'),
+            'latitude_k' => $request->latitude,
+            'longitude_k' => $request->longitude,
+            'foto_keluar' => $path,
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Lembur masuk berhasil.'
+            'message' => 'Lembur keluar berhasil.'
         ]);
     }
+    public function riwayat(Request $request)
+    {
+        $bulanInput = $request->get('bulan');
+        $tahunInput = $request->get('tahun', now()->year);
 
-    // ===============================
-    // LEMBUR KELUAR
-    // ===============================
-    if (!$lembur || !$lembur->jam_masuk) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Anda belum melakukan lembur masuk.'
-        ], 422);
+        $tahun = (int) $tahunInput;
+        $bulan = $this->normalizeMonth($bulanInput, $tahun);
+
+        $riwayat = Absen::where('user_id', auth()->id())
+            ->whereMonth('tanggal', $bulan)
+            ->whereYear('tanggal', $tahun)
+            ->orderByDesc('tanggal')
+            ->get();
+
+        $lembur = Lembur::where('user_id', auth()->id())
+            ->whereMonth('tanggal', $bulan)
+            ->whereYear('tanggal', $tahun)
+            ->orderByDesc('tanggal')
+            ->get();
+
+        return view(
+            'pages.karyawan.history-absen',
+            compact(
+                'riwayat',
+                'lembur',
+                'bulan',
+                'tahun'
+            )
+        );
     }
-
-    if ($lembur->jam_keluar) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Anda sudah melakukan lembur keluar.'
-        ], 422);
-    }
-
-    $path = $request->file('foto')
-        ->store('lembur', 'public');
-
-    $lembur->update([
-        'jam_keluar'  => now()->format('H:i:s'),
-        'latitude_k'  => $request->latitude,
-        'longitude_k' => $request->longitude,
-        'foto_keluar' => $path,
-    ]);
-
-    return response()->json([
-        'success' => true,
-        'message' => 'Lembur keluar berhasil.'
-    ]);
-}
-  public function riwayat(Request $request)
-{
-    $bulanInput = $request->get('bulan');
-    $tahunInput = $request->get('tahun', now()->year);
-
-    $tahun = (int) $tahunInput;
-    $bulan = $this->normalizeMonth($bulanInput, $tahun);
-
-    $riwayat = Absen::where('user_id', auth()->id())
-        ->whereMonth('tanggal', $bulan)
-        ->whereYear('tanggal', $tahun)
-        ->orderByDesc('tanggal')
-        ->get();
-
-    $lembur = Lembur::where('user_id', auth()->id())
-        ->whereMonth('tanggal', $bulan)
-        ->whereYear('tanggal', $tahun)
-        ->orderByDesc('tanggal')
-        ->get();
-
-    return view(
-        'pages.karyawan.history-absen',
-        compact(
-            'riwayat',
-            'lembur',
-            'bulan',
-            'tahun'
-        )
-    );
-}
 
     protected function normalizeMonth($bulanInput, $tahun = null)
     {
@@ -567,14 +567,42 @@ class KaryawanController extends Controller
         $s = trim(mb_strtolower((string) $bulanInput));
 
         $map = [
-            'january'   => 1, 'february' => 2, 'march'     => 3, 'april'     => 4,
-            'may'       => 5, 'june'     => 6, 'july'      => 7, 'august'    => 8,
-            'september' => 9, 'october'  => 10, 'november' => 11, 'december' => 12,
-            'januari'   => 1, 'februari' => 2, 'maret'     => 3, 'april'     => 4,
-            'mei'       => 5, 'juni'     => 6, 'juli'      => 7, 'agustus'   => 8,
-            'september' => 9, 'oktober'  => 10, 'november' => 11, 'desember' => 12,
-            'jan'       => 1, 'feb'      => 2, 'mar'       => 3, 'apr'       => 4, 'jun'  => 6, 'jul' => 7, 'aug' => 8,
-            'sep'       => 9, 'oct'      => 10, 'nov'      => 11, 'dec'      => 12, 'mei' => 5,
+            'january' => 1,
+            'february' => 2,
+            'march' => 3,
+            'april' => 4,
+            'may' => 5,
+            'june' => 6,
+            'july' => 7,
+            'august' => 8,
+            'september' => 9,
+            'october' => 10,
+            'november' => 11,
+            'december' => 12,
+            'januari' => 1,
+            'februari' => 2,
+            'maret' => 3,
+            'april' => 4,
+            'mei' => 5,
+            'juni' => 6,
+            'juli' => 7,
+            'agustus' => 8,
+            'september' => 9,
+            'oktober' => 10,
+            'november' => 11,
+            'desember' => 12,
+            'jan' => 1,
+            'feb' => 2,
+            'mar' => 3,
+            'apr' => 4,
+            'jun' => 6,
+            'jul' => 7,
+            'aug' => 8,
+            'sep' => 9,
+            'oct' => 10,
+            'nov' => 11,
+            'dec' => 12,
+            'mei' => 5,
         ];
 
         if (isset($map[$s])) {
@@ -582,7 +610,7 @@ class KaryawanController extends Controller
         }
 
         try {
-            $y  = $tahun ?: now()->year;
+            $y = $tahun ?: now()->year;
             $dt = Carbon::parse("1 {$bulanInput} {$y}");
             return (int) $dt->month;
         } catch (\Throwable $e) {
@@ -595,13 +623,13 @@ class KaryawanController extends Controller
 
     public function storeAbsen(Request $request)
     {
-        if (! $request->user()) {
+        if (!$request->user()) {
             return response()->json(['message' => 'Token tidak valid'], 401);
         }
 
-        $user  = $request->user();
+        $user = $request->user();
         $today = now()->toDateString();
-        $now   = now();
+        $now = now();
 
         /*
     |--------------------------------------------------------------------------
@@ -609,7 +637,7 @@ class KaryawanController extends Controller
     |--------------------------------------------------------------------------
     */
         $exceptionUserIds = [180, 182]; // bisa tambah lagi
-        $isException      = in_array($user->id, $exceptionUserIds);
+        $isException = in_array($user->id, $exceptionUserIds);
 
         /*
     |--------------------------------------------------------------------------
@@ -618,18 +646,18 @@ class KaryawanController extends Controller
     */
         $officeLat = config('office.lat');
         $officeLng = config('office.lon');
-        $radius    = config('office.radius');
+        $radius = config('office.radius');
 
         $userLat = $request->latitude;
         $userLng = $request->longitude;
 
-        if (! isset($userLat) || ! isset($userLng)) {
+        if (!isset($userLat) || !isset($userLng)) {
             return response()->json(['message' => 'Lokasi tidak terdeteksi'], 400);
         }
 
         $jarak = $this->distance($userLat, $userLng, $officeLat, $officeLng);
 
-        if (! $isException && $jarak > $radius) {
+        if (!$isException && $jarak > $radius) {
             return response()->json([
                 'message' => 'Anda berada di luar area kantor (' . round($jarak) . ' meter)',
             ], 403);
@@ -650,14 +678,7 @@ class KaryawanController extends Controller
     | TRANSACTION
     |--------------------------------------------------------------------------
     */
-        return DB::transaction(function () use (
-            $user,
-            $today,
-            $now,
-            $userLat,
-            $userLng,
-            $fotoPath
-        ) {
+        return DB::transaction(function () use ($user, $today, $now, $userLat, $userLng, $fotoPath) {
 
             /*
         ==========================================================
@@ -675,21 +696,21 @@ class KaryawanController extends Controller
         JIKA TIDAK ADA → ABSEN MASUK BARU
         ==========================================================
         */
-            if (! $absenAktif) {
+            if (!$absenAktif) {
 
                 Absen::create([
-                    'user_id'    => $user->id,
-                    'tanggal'    => $today,
-                    'jam_masuk'  => $now->format('H:i:s'),
-                    'latitude'   => $userLat,
-                    'longitude'  => $userLng,
-                    'foto'       => $fotoPath,
+                    'user_id' => $user->id,
+                    'tanggal' => $today,
+                    'jam_masuk' => $now->format('H:i:s'),
+                    'latitude' => $userLat,
+                    'longitude' => $userLng,
+                    'foto' => $fotoPath,
                     'keterangan' => 'Masuk',
                 ]);
 
                 return response()->json([
                     'message' => 'Absen masuk tercatat jam ' . $now->format('H:i'),
-                    'status'  => 'masuk',
+                    'status' => 'masuk',
                 ], 201);
             }
 
@@ -699,16 +720,16 @@ class KaryawanController extends Controller
         ==========================================================
         */
             $absenAktif->update([
-                'jam_keluar'  => $now->format('H:i:s'),
-                'latitude_k'  => $userLat,
+                'jam_keluar' => $now->format('H:i:s'),
+                'latitude_k' => $userLat,
                 'longitude_k' => $userLng,
                 'foto_keluar' => $fotoPath,
-                'keterangan'  => 'Keluar',
+                'keterangan' => 'Keluar',
             ]);
 
             return response()->json([
                 'message' => 'Absen keluar tercatat jam ' . $now->format('H:i'),
-                'status'  => 'keluar',
+                'status' => 'keluar',
             ], 200);
         });
     }
@@ -721,8 +742,8 @@ class KaryawanController extends Controller
         $dLon = deg2rad($lon2 - $lon1);
 
         $a = sin($dLat / 2) * sin($dLat / 2) +
-        cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
-        sin($dLon / 2) * sin($dLon / 2);
+            cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
+            sin($dLon / 2) * sin($dLon / 2);
 
         $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
         return $earthRadius * $c;
@@ -736,7 +757,7 @@ class KaryawanController extends Controller
         $request->validate([
             'user_id' => 'required|exists:users,id',
             'tanggal' => 'required|date',
-            'status'  => 'required|in:izin,cuti,sakit',
+            'status' => 'required|in:izin,cuti,sakit',
         ]);
 
         $absen = Absen::firstOrCreate([
@@ -750,7 +771,7 @@ class KaryawanController extends Controller
         return redirect()->back()->with('success', 'Status absen diperbarui.');
     }
 
-    public function new ()
+    public function new()
     {
         //
 
@@ -758,62 +779,84 @@ class KaryawanController extends Controller
         // $today = Carbon::today()->toDateString();
         $today = '2025-06-26';
 
-        $karyawans = User::with(['absens' => function ($query) use ($today) {
-            $query->whereDate('tanggal', $today);
-        }, 'karyawan'])->get();
+        $karyawans = User::with([
+            'absens' => function ($query) use ($today) {
+                $query->whereDate('tanggal', $today);
+            },
+            'karyawan'
+        ])->get();
 
         // dd($karyawans);
         return view('pages.karyawan.absens', compact('karyawans'));
     }
     public function absenkaryawan()
     {
-        $today       = Carbon::now();
-        $year        = $today->year;
-        $month       = $today->month;
+        $today = Carbon::now();
+        $year = $today->year;
+        $month = $today->month;
         $daysInMonth = $today->daysInMonth;
 
-        $karyawans = User::with(['absens' => function ($q) use ($year, $month) {
-            $q->whereYear('tanggal', $year)
-                ->whereMonth('tanggal', $month);
-        }])->get();
+        $karyawans = User::with([
+            'absens' => function ($q) use ($year, $month) {
+                $q->whereYear('tanggal', $year)
+                    ->whereMonth('tanggal', $month);
+            }
+        ])->get();
         // dd(env('OFFICE_LAT'), env('OFFICE_LON'), env('OFFICE_RADIUS'));
         // dd(config('office'));
 
         return view('pages.karyawan.absen', compact('karyawans', 'month', 'year', 'daysInMonth'));
     }
-
     public function izinKaryawan(Request $request)
     {
-        $date = $request->get('date'); // contoh: 2025-09-18
+        $date = $request->get('date');
 
-        // ubah format jadi 20250918 biar cocok dengan format DB
-        $formattedDate = $date ? str_replace('-', '', $date) : null;
-
-        $absens = Absen::with('user')
-            ->whereNotIn('keterangan', ['Hadir', 'Lupa Absen Masuk', 'Lupa Absen Keluar', 'Full H'])
-            ->when($formattedDate, fn($q) => $q->where('tanggal', $formattedDate))
+        $izins = Izin::with('user')
+            ->when($date, function ($query) use ($date) {
+                $query->whereDate('tanggal', $date);
+            })
             ->orderBy('tanggal', 'desc')
+            ->orderBy('created_at', 'desc')
             ->paginate(10)
             ->withQueryString();
 
         return view('pages.karyawan.izin', [
-            'absens' => $absens,
-            'date'   => $date,
+            'absens' => $izins,
+            'date' => $date,
         ]);
     }
+    // public function izinKaryawan(Request $request)
+    // {
+    //     $date = $request->get('date'); // contoh: 2025-09-18
+
+    //     // ubah format jadi 20250918 biar cocok dengan format DB
+    //     $formattedDate = $date ? str_replace('-', '', $date) : null;
+
+    //     $absens = Absen::with('user')
+    //         ->whereNotIn('keterangan', ['Hadir', 'Lupa Absen Masuk', 'Lupa Absen Keluar', 'Full H'])
+    //         ->when($formattedDate, fn($q) => $q->where('tanggal', $formattedDate))
+    //         ->orderBy('tanggal', 'desc')
+    //         ->paginate(10)
+    //         ->withQueryString();
+
+    //     return view('pages.karyawan.izin', [
+    //         'absens' => $absens,
+    //         'date'   => $date,
+    //     ]);
+    // }
 
     public function filter(Request $request)
     {
         try {
             $month = $request->month;
-            $year  = $request->year;
-            $date  = $request->date ?? now()->toDateString();
+            $year = $request->year;
+            $date = $request->date ?? now()->toDateString();
 
             // Ambil data absensi + relasi karyawan
-         $absens = Absen::with([
-      'user.karyawan.divisi'
+            $absens = Absen::with([
+                'user.karyawan.divisi'
 
-])
+            ])
                 ->whereMonth('tanggal', $month)
                 ->whereYear('tanggal', $year)
                 ->when($date, fn($q) => $q->whereDate('tanggal', $date))
@@ -829,7 +872,7 @@ class KaryawanController extends Controller
             Log::error($e);
 
             return response()->json([
-                'error'   => true,
+                'error' => true,
                 'message' => $e->getMessage(),
             ], 500);
         }
@@ -837,15 +880,17 @@ class KaryawanController extends Controller
     public function bulanan(Request $request)
     {
         $month = $request->get('month', now()->month);
-        $year  = $request->get('year', now()->year);
+        $year = $request->get('year', now()->year);
 
-        $karyawans = User::with(['absens' => function ($q) use ($month, $year) {
-            $q->whereMonth('tanggal', $month)
-                ->whereYear('tanggal', $year);
-        }])->get();
+        $karyawans = User::with([
+            'absens' => function ($q) use ($month, $year) {
+                $q->whereMonth('tanggal', $month)
+                    ->whereYear('tanggal', $year);
+            }
+        ])->get();
 
         $bulanSekarang = \Carbon\Carbon::create($year, $month, 1);
-        $jumlahHari    = $bulanSekarang->daysInMonth;
+        $jumlahHari = $bulanSekarang->daysInMonth;
 
         $html = view('pages.widgets.absen-table-bulanan', compact('karyawans', 'bulanSekarang', 'jumlahHari'))->render();
 
@@ -854,12 +899,12 @@ class KaryawanController extends Controller
     public function updatePhoto(Request $request)
     {
         $request->validate([
-            'id'    => 'required|exists:karyawans,id',
+            'id' => 'required|exists:karyawans,id',
             'photo' => 'required|image|max:2048',
         ]);
 
         $karyawan = \App\Models\Karyawan::find($request->id);
-        $file     = $request->file('photo');
+        $file = $request->file('photo');
         $filename = 'user_' . time() . '.' . $file->getClientOriginalExtension();
 
         $file->move(public_path('assets/images/users/'), $filename);
@@ -874,13 +919,13 @@ class KaryawanController extends Controller
 
         return response()->json([
             'success' => true,
-            'id'      => $karyawan->id,
+            'id' => $karyawan->id,
             'message' => 'Foto berhasil diupdate',
-            'url'     => asset('assets/images/users/' . $filename),
+            'url' => asset('assets/images/users/' . $filename),
         ]);
     }
     // change password
-        public function changePassword(Request $request)
+    public function changePassword(Request $request)
     {
         $request->validate([
             'password' => 'required|min:2'
