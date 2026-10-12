@@ -2828,3 +2828,254 @@
 
     });
 </script>
+
+
+<!-- BOM NORMAL: DRAG HEADER + AUTOSAVE EDIT + PUSHER LISTENER -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script>
+    (function() {
+        'use strict';
+
+        const normalBomId = @json(isset($bom) ? $bom->id : null);
+        const normalBomEditMode = !!normalBomId && @json(isset($isEdit) ? (bool) $isEdit : true);
+        const normalBomReadOnly = @json(isset($isEdit) ? !(bool) $isEdit : false);
+
+        let normalAutoSaveTimer = null;
+        let normalAutoSaveBusy = false;
+        let normalAutoSaveDirty = false;
+        let normalAutoSaveQueued = false;
+        let normalChangeVersion = 0;
+        let normalSortable = null;
+
+        function ensureDragHandles() {
+            $('#bom-sections .bom-section').each(function() {
+                const header = $(this).find('.card-header').first();
+                if (!header.length || header.find('.normal-bom-drag-handle').length) return;
+
+                header.prepend(
+                    '<span class="normal-bom-drag-handle" title="Tarik untuk mengubah urutan header" ' +
+                    'style="display:inline-flex;align-items:center;justify-content:center;float:left;' +
+                    'margin-right:10px;cursor:grab;touch-action:none;font-size:18px;color:inherit;">' +
+                    '<i class="fa fa-bars"></i></span>'
+                );
+
+                header.css('cursor', 'default');
+            });
+        }
+
+        function initNormalSortable() {
+            const el = document.getElementById('bom-sections');
+            if (!el || typeof Sortable === 'undefined') return;
+
+            ensureDragHandles();
+
+            if (normalSortable) {
+                normalSortable.destroy();
+                normalSortable = null;
+            }
+
+            normalSortable = Sortable.create(el, {
+                animation: 180,
+                handle: '.normal-bom-drag-handle',
+                draggable: '.bom-section',
+                ghostClass: 'bom-drag-ghost',
+                chosenClass: 'bom-drag-chosen',
+                forceFallback: false,
+                onEnd: function() {
+                    normalMarkDirty();
+                }
+            });
+        }
+
+        function ensureAutoSaveStatus() {
+            if (!normalBomEditMode || $('#normal-bom-autosave-status').length) return;
+
+            const target = $('.bom-main-actions').first();
+            if (target.length) {
+                target.append(
+                    '<span id="normal-bom-autosave-status" style="display:inline-flex;align-items:center;' +
+                    'gap:5px;margin-left:10px;font-size:12px;color:#667085;white-space:nowrap;">' +
+                    '<i class="fa fa-check-circle"></i><span>Data tersimpan</span></span>'
+                );
+            }
+        }
+
+        function setNormalStatus(type, message) {
+            ensureAutoSaveStatus();
+            const el = $('#normal-bom-autosave-status');
+            if (!el.length) return;
+
+            const icon = type === 'saving' ? 'fa-spinner fa-spin' :
+                type === 'dirty' ? 'fa-clock-o' :
+                type === 'error' ? 'fa-exclamation-circle' :
+                'fa-check-circle';
+
+            const color = type === 'saving' ? '#d97706' :
+                type === 'dirty' ? '#667085' :
+                type === 'error' ? '#dc2626' :
+                '#16a34a';
+
+            el.css('color', color);
+            el.find('i').attr('class', 'fa ' + icon);
+            el.find('span').text(message);
+        }
+
+        function normalMarkDirty() {
+            if (!normalBomEditMode || normalBomReadOnly) return;
+
+            normalAutoSaveDirty = true;
+            normalAutoSaveQueued = false;
+            normalChangeVersion++;
+            setNormalStatus('dirty', 'Perubahan belum disimpan');
+            clearTimeout(normalAutoSaveTimer);
+            normalAutoSaveTimer = setTimeout(normalAutoSave, 1800);
+        }
+
+        function normalAutoSave() {
+            if (!normalBomEditMode || normalBomReadOnly || !normalBomId || !normalAutoSaveDirty) return;
+            if (normalAutoSaveBusy) {
+                normalAutoSaveQueued = true;
+                return;
+            }
+
+            if (typeof collectBomData !== 'function') {
+                setNormalStatus('error', 'Fungsi data BOM tidak ditemukan');
+                return;
+            }
+
+            normalAutoSaveBusy = true;
+            normalAutoSaveQueued = false;
+            const versionAtRequest = normalChangeVersion;
+            setNormalStatus('saving', 'Menyimpan...');
+
+            const formData = new FormData();
+            formData.append('_token', @json(csrf_token()));
+            formData.append('bom', JSON.stringify(collectBomData()));
+
+            const imageInput = document.getElementById('bom_image');
+            const image = imageInput && imageInput.files ? imageInput.files[0] : null;
+            if (image) formData.append('image', image);
+
+            $.ajax({
+                url: '/bom/update/' + normalBomId,
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function() {
+                    if (normalChangeVersion === versionAtRequest) {
+                        normalAutoSaveDirty = false;
+                    }
+                    setNormalStatus('success', 'Tersimpan otomatis • ' +
+                        new Date().toLocaleTimeString('id-ID', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit'
+                        }));
+                },
+                error: function(xhr) {
+                    console.error('BOM NORMAL AUTO SAVE ERROR:', xhr.responseText);
+                    normalAutoSaveDirty = true;
+                    setNormalStatus('error', 'Gagal menyimpan — akan dicoba lagi');
+                },
+                complete: function() {
+                    normalAutoSaveBusy = false;
+                    if (normalAutoSaveDirty || normalAutoSaveQueued) {
+                        normalAutoSaveQueued = false;
+                        clearTimeout(normalAutoSaveTimer);
+                        normalAutoSaveTimer = setTimeout(normalAutoSave, 1800);
+                    }
+                }
+            });
+        }
+
+        $(document).ready(function() {
+            ensureAutoSaveStatus();
+
+            // renderDraft pada halaman edit membuat section secara dinamis;
+            // jalankan sortable setelah render selesai.
+            setTimeout(initNormalSortable, 100);
+            setTimeout(initNormalSortable, 600);
+
+            if (normalBomReadOnly) {
+                $('#normal-bom-autosave-status').hide();
+                return;
+            }
+
+            $(document).on(
+                'input change',
+                '#bom-sections input:not([type="file"]), #bom-sections textarea, #bom-sections select, ' +
+                '.bom-product-table input, .bom-card input:not([type="file"]), .bom-product-table textarea, .bom-product-table select',
+                normalMarkDirty
+            );
+
+            $(document).on(
+                'click',
+                '#btn-add-header, #btn-add-summary, .btn-add-child, .btn-add-sub-price, ' +
+                '.btn-remove-header, .btn-remove-child, .btn-remove-sub-price, .btn-remove-summary, .btn-select-material',
+                function() {
+                    setTimeout(function() {
+                        initNormalSortable();
+                        normalMarkDirty();
+                    }, 80);
+                }
+            );
+
+            $(document).on('change', '#bom_image', normalMarkDirty);
+
+            // Watch DOM rows created by existing renderDraft/add-header handlers.
+            const sectionRoot = document.getElementById('bom-sections');
+            if (sectionRoot && window.MutationObserver) {
+                const observer = new MutationObserver(function() {
+                    ensureDragHandles();
+                    if (normalSortable) normalSortable.option('disabled', normalBomReadOnly);
+                });
+                observer.observe(sectionRoot, {
+                    childList: true,
+                    subtree: true
+                });
+            }
+
+            // Pusher/Echo listener: only refresh notification; do not overwrite active edits.
+            // Backend must broadcast the matching channel/event for this to receive updates.
+            if (normalBomId && window.Echo) {
+                try {
+                    window.Echo.channel('bom.' + normalBomId)
+                        .listen('.bom.updated', function(event) {
+                            if (normalAutoSaveDirty || normalAutoSaveBusy) {
+                                console.info(
+                                    'BOM diperbarui pengguna lain; perubahan lokal belum disimpan.');
+                                return;
+                            }
+                            $(document).trigger('bom-normal:remote-updated', [event]);
+                        });
+                } catch (error) {
+                    console.warn('BOM Pusher listener belum aktif:', error);
+                }
+            }
+        });
+
+        window.addEventListener('beforeunload', function() {
+            if (normalAutoSaveTimer) clearTimeout(normalAutoSaveTimer);
+            // No synchronous AJAX on unload; normal autosave runs while page remains open.
+        });
+    })();
+</script>
+<style>
+    #bom-sections .normal-bom-drag-handle {
+        user-select: none;
+    }
+
+    #bom-sections .normal-bom-drag-handle:active {
+        cursor: grabbing !important;
+    }
+
+    .bom-drag-ghost {
+        opacity: .4;
+        background: #fff3cd !important;
+    }
+
+    .bom-drag-chosen {
+        cursor: grabbing;
+    }
+</style>
