@@ -6,7 +6,8 @@
 @section('content')
 <div class="padding">
     <div class="box">
-        {{-- Header dan Filter --}}
+
+        {{-- HEADER --}}
         <div class="p-a white lt box-shadow">
             <div class="row">
                 <div class="col-sm-6">
@@ -48,7 +49,7 @@
             </div>
         </div>
 
-        {{-- Tabel Izin --}}
+        {{-- TABEL IZIN --}}
         <div class="col-12">
             <div class="table-wrapper">
                 <table class="table table-bordered table-striped">
@@ -73,85 +74,63 @@
 
                         @forelse($absens as $absen)
                             <tr>
+                                {{-- NOMOR --}}
                                 <td>{{ $no++ }}</td>
 
+                                {{-- NAMA KARYAWAN --}}
                                 <td>
                                     {{ optional($absen->user)->name ?? '-' }}
                                 </td>
 
-                                {{-- Tanggal: tanpa Carbon::parse --}}
+                                {{-- RENTANG TANGGAL IZIN --}}
                                 <td>
                                     @php
-                                        $tanggalValue = $absen->tanggal ?? null;
-                                        $tanggalText = '-';
+                                        $mulai = $absen->mulai_tanggal ?? null;
+                                        $sampai = $absen->sampai_tanggal ?? null;
 
-                                        if ($tanggalValue instanceof \DateTimeInterface) {
-                                            $tanggalText = $tanggalValue->format('d-m-Y');
-                                        } elseif (
-                                            is_string($tanggalValue) &&
-                                            preg_match('/^\d{4}-\d{2}-\d{2}$/', $tanggalValue)
-                                        ) {
-                                            $tanggalText = substr($tanggalValue, 8, 2)
-                                                . '-'
-                                                . substr($tanggalValue, 5, 2)
-                                                . '-'
-                                                . substr($tanggalValue, 0, 4);
-                                        } elseif (
-                                            is_string($tanggalValue) &&
-                                            preg_match('/^\d{8}$/', $tanggalValue)
-                                        ) {
-                                            $tanggalText = substr($tanggalValue, 6, 2)
-                                                . '-'
-                                                . substr($tanggalValue, 4, 2)
-                                                . '-'
-                                                . substr($tanggalValue, 0, 4);
-                                        }
+                                        $formatTanggal = function ($value) {
+                                            if (!$value) {
+                                                return '-';
+                                            }
+
+                                            try {
+                                                return \Carbon\Carbon::parse($value)
+                                                    ->format('d-m-Y');
+                                            } catch (\Throwable $e) {
+                                                return '-';
+                                            }
+                                        };
                                     @endphp
 
-                                    {{ $tanggalText }}
+                                    {{ $formatTanggal($mulai) }}
+
+                                    @if($sampai && $sampai != $mulai)
+                                        s/d {{ $formatTanggal($sampai) }}
+                                    @endif
                                 </td>
 
-                                {{-- Created At: tanpa parsing teks keterangan --}}
+                                {{-- WAKTU DATA DIBUAT --}}
                                 <td>
-                                    @php
-                                        $createdValue = $absen->created_at ?? null;
-                                        $createdText = '-';
-
-                                        if ($createdValue instanceof \DateTimeInterface) {
-                                            $createdText = $createdValue->format('d-m-Y H:i');
-                                        } elseif (
-                                            is_string($createdValue) &&
-                                            preg_match(
-                                                '/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/',
-                                                $createdValue
-                                            )
-                                        ) {
-                                            $createdText = substr($createdValue, 8, 2)
-                                                . '-'
-                                                . substr($createdValue, 5, 2)
-                                                . '-'
-                                                . substr($createdValue, 0, 4)
-                                                . ' '
-                                                . substr($createdValue, 11, 5);
-                                        }
-                                    @endphp
-
-                                    {{ $createdText }}
+                                    @if($absen->created_at)
+                                        {{ $absen->created_at->format('d-m-Y H:i') }}
+                                    @else
+                                        -
+                                    @endif
                                 </td>
 
-                                {{-- Keterangan adalah teks biasa --}}
+                                {{-- ALASAN IZIN --}}
                                 <td class="text-wrap">
-                                    {{ $absen->keterangan ?? '-' }}
+                                    {{ $absen->alasan ?? '-' }}
                                 </td>
 
-                                {{-- Bukti Foto --}}
+                                {{-- FILE BUKTI --}}
                                 <td>
-                                    @if(!empty($absen->foto))
+                                    @if(!empty($absen->file))
                                         <button
                                             type="button"
-                                            class="btn btn-sm btn-outline-primary view-photo"
-                                            data-foto="{{ asset('storage/' . $absen->foto) }}"
-                                            title="Lihat bukti"
+                                            class="btn btn-sm btn-outline-primary view-file"
+                                            data-file="{{ asset('storage/' . $absen->file) }}"
+                                            title="Lihat bukti izin"
                                         >
                                             <i class="fa fa-eye"></i>
                                         </button>
@@ -160,14 +139,25 @@
                                     @endif
                                 </td>
 
-                                {{-- Pesan --}}
+                                {{-- MESSAGES BELUM DIKETAHUI KOLOMNYA --}}
                                 <td>
-                                    {{ $absen->messages ?? '-' }}
+                                    -
                                 </td>
 
-                                {{-- Status Validasi --}}
+                                {{-- VALIDASI BERDASARKAN STATUS --}}
                                 <td>
-                                    @if((int) ($absen->validate ?? 0) === 1)
+                                    @php
+                                        $status = strtolower(
+                                            trim((string) ($absen->status ?? ''))
+                                        );
+                                    @endphp
+
+                                    @if(in_array($status, [
+                                        'approved',
+                                        'disetujui',
+                                        'validated',
+                                        'valid'
+                                    ]))
                                         <span class="badge bg-success">
                                             Sudah divalidasi
                                         </span>
@@ -193,7 +183,7 @@
                 </table>
             </div>
 
-            {{-- Pagination --}}
+            {{-- PAGINATION --}}
             <div class="mt-2">
                 {{ $absens->links() }}
             </div>
@@ -201,12 +191,12 @@
     </div>
 </div>
 
-{{-- Modal Foto --}}
-<div class="modal fade" id="fotoModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+{{-- MODAL BUKTI IZIN --}}
+<div class="modal fade" id="fileModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Bukti File</h5>
+                <h5 class="modal-title">Bukti Izin Karyawan</h5>
 
                 <button
                     type="button"
@@ -218,14 +208,34 @@
                 </button>
             </div>
 
-            <div class="modal-body d-flex justify-content-center">
+            <div class="modal-body text-center">
                 <img
-                    id="fotoPreview"
+                    id="fileImagePreview"
                     src=""
-                    alt="Foto Izin"
+                    alt="Bukti Izin"
                     class="img-fluid"
-                    style="max-height:70vh; border-radius:5px; border:1px solid #ddd;"
+                    style="max-height:70vh; display:none;"
                 >
+
+                <iframe
+                    id="filePdfPreview"
+                    src=""
+                    style="width:100%;height:70vh;display:none;border:0;"
+                    title="Bukti Izin"
+                ></iframe>
+
+                <div id="fileOtherPreview" style="display:none;">
+                    File tidak dapat ditampilkan di sini.
+                    <br>
+                    <a
+                        id="fileOpenLink"
+                        href="#"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        Buka atau unduh file
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -254,25 +264,42 @@
         min-width: 900px;
     }
 
-    #fotoPreview {
+    #fileImagePreview {
         object-fit: contain;
+        border-radius: 5px;
+        border: 1px solid #ddd;
     }
 </style>
 
 <script>
 $(document).ready(function () {
 
-    // Tampilkan foto bukti izin
-    $(document).on('click', '.view-photo', function () {
-        const fotoUrl = $(this).data('foto');
+    // Tampilkan bukti foto atau PDF
+    $(document).on('click', '.view-file', function () {
+        const fileUrl = $(this).data('file');
+        const extension = fileUrl.split('?')[0].split('.').pop().toLowerCase();
 
-        $('#fotoPreview').attr('src', fotoUrl);
-        $('#fotoModal').modal('show');
+        $('#fileImagePreview').hide().attr('src', '');
+        $('#filePdfPreview').hide().attr('src', '');
+        $('#fileOtherPreview').hide();
+        $('#fileOpenLink').attr('href', fileUrl);
+
+        if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension)) {
+            $('#fileImagePreview').attr('src', fileUrl).show();
+        } else if (extension === 'pdf') {
+            $('#filePdfPreview').attr('src', fileUrl).show();
+        } else {
+            $('#fileOtherPreview').show();
+        }
+
+        $('#fileModal').modal('show');
     });
 
-    // Bersihkan foto saat modal ditutup
-    $('#fotoModal').on('hidden.bs.modal', function () {
-        $('#fotoPreview').attr('src', '');
+    // Bersihkan preview ketika modal ditutup
+    $('#fileModal').on('hidden.bs.modal', function () {
+        $('#fileImagePreview').attr('src', '');
+        $('#filePdfPreview').attr('src', '');
+        $('#fileOtherPreview').hide();
     });
 
     // Validasi izin
@@ -291,7 +318,7 @@ $(document).ready(function () {
             },
 
             success: function (res) {
-                alert(res.message || 'Izin berhasil divalidasi');
+                alert(res.message || 'Permintaan validasi berhasil diproses');
                 location.reload();
             },
 
