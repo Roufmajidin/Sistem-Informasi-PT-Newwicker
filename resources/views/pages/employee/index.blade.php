@@ -75,7 +75,7 @@
                             </td>
 
                             <td>
-                                {{ $loan->jabatan }}
+                                {{-- {{ $loan->jabatan }} --}}
                             </td>
 
                             <td>
