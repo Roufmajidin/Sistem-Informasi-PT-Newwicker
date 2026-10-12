@@ -169,7 +169,12 @@ class AuthController extends Controller
         $user->load(['karyawan.divisi']);
 
         $today = $this->getBusinessDate($user);
-
+        Log::info('DEBUG TANGGAL ABSEN', [
+            'now_wib' => \Carbon\Carbon::now('Asia/Jakarta')
+                ->toDateTimeString(),
+            'today_api' => $today,
+            'app_timezone' => config('app.timezone'),
+        ]);
         // ======================
         // ABSEN
         // ======================
