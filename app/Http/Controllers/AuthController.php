@@ -7,62 +7,50 @@ use Carbon\Carbon;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class AuthController extends Controller
 {
     // TODO:: login via web
     // app/Http/Middleware/RedirectIfAuthenticated.php
-    public function handle($request, Closure $next, ...$guards)
-    {
-        foreach ($guards as $guard) {
-            if (Auth::guard($guard)->check()) {
-                return redirect('/'); // atau route dashboard kamu
-            }
-        }
-
-        return $next($request);
-    }
+  
     public function showLoginForm()
     {
         return view('pages.login.login ');
     }
 
     // Proses login
-    public function loginWeb(Request $request)
-    {
-        // Validasi input
-        $credentials = $request->validate([
-            'email'    => ['required', 'email'],
-            'password' => ['required'],
+   public function loginWeb(Request $request)
+{
+    // Validasi input
+    $credentials = $request->validate([
+        'email'    => ['required', 'email'],
+        'password' => ['required'],
+    ]);
+
+    // simpan halaman sebelumnya
+    if ($request->has('redirect')) {
+
+        session([
+            'url.intended' => $request->redirect
         ]);
 
-        // simpan halaman sebelumnya
-        if ($request->has('redirect')) {
-
-            session([
-                'url.intended' => $request->redirect,
-            ]);
-
-        }
-
-        // login
-        if (Auth::attempt($credentials, $request->filled('remember'))) {
-
-            $request->session()->regenerate();
-
-            // balik ke halaman sebelumnya
-            return redirect()->intended('/');
-
-        }
-
-        // gagal
-        return back()->withErrors([
-            'email' => 'Email atau password salah.',
-        ])->onlyInput('email');
     }
 
+    // login
+    if (Auth::attempt($credentials, $request->filled('remember'))) {
+
+        $request->session()->regenerate();
+
+        // balik ke halaman sebelumnya
+        return redirect()->intended('/');
+
+    }
+
+    // gagal
+    return back()->withErrors([
+        'email' => 'Email atau password salah.',
+    ])->onlyInput('email');
+}
     // Logout
     public function logoutWeb(Request $request)
     {
@@ -72,55 +60,49 @@ class AuthController extends Controller
 
         return redirect('/');
     }
-    public function login(Request $request)
-    {
- \DB::enableQueryLog();
+   public function login(Request $request)
+{
+    $credentials = $request->validate([
+        'email'    => 'required|email',
+        'password' => 'required',
+    ]);
 
-$start = microtime(true);
-        $credentials = $request->validate([
-            'email'    => 'required|email',
-            'password' => 'required',
-        ]);
+    if (!Auth::attempt($credentials)) {
+        return response()->json([
+            'message' => 'Email atau password salah',
+        ], 401);
+    }
 
-        if (! Auth::attempt($credentials)) {
-            return response()->json([
-                'message' => 'Email atau password salah',
-            ], 401);
-        }
+    $request->session()->regenerate();
 
-        $request->session()->regenerate();
+    $user = Auth::user();
 
-        $user = Auth::user();
+    // ambil karyawan
+    $karyawan = Karyawan::where('user_id', $user->id)->first();
 
-        // ambil karyawan
-        $karyawan = Karyawan::where('user_id', $user->id)->first();
-
-        if (! $karyawan) {
-            return response()->json([
-                'message' => 'Login berhasil',
-                'user'    => $user,
-            ]);
-        }
-
-        // ambil divisi
-        $divisi = Divisi::find($karyawan->divisi_id);
-
-        $isQc = in_array($divisi->nama, [
-            'QC RANGKA',
-            'QC ANYAM',
-        ]);
-        Log::info('LOGIN_TIME', [
-            'seconds' => microtime(true) - $start,
-        ]);
-
-        Log::info(DB::getQueryLog());
+    if (!$karyawan) {
         return response()->json([
             'message' => 'Login berhasil',
-            'user'    => $user,
-            'qc'      => $isQc,
-            'divisi'  => $divisi->nama,
+            'user' => $user,
         ]);
     }
+
+    // ambil divisi
+    $divisi = Divisi::find($karyawan->divisi_id);
+
+    $isQc = in_array($divisi->nama, [
+        'QC RANGKA',
+        'QC ANYAM',
+    ]);
+
+    return response()->json([
+        'message' => 'Login berhasil',
+        'user' => $user,
+        'qc' => $isQc,
+        'divisi' => $divisi->nama,
+    ]);
+}
+
 
     public function logout(Request $request)
     {
