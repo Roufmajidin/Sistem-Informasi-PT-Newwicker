@@ -254,7 +254,7 @@ class AuthController extends Controller
         });
 
         return response()->json([
-            'user' => $user,
+            'user' => 'aaa',
             'absen' => $absens->values(),
             'lembur' => $lemburList->values(), // ✅ TAMBAHAN
             'lembur_today' => $lemburToday,
