@@ -807,24 +807,25 @@ class KaryawanController extends Controller
 
         return view('pages.karyawan.absen', compact('karyawans', 'month', 'year', 'daysInMonth'));
     }
-    public function izinKaryawan(Request $request)
-    {
-        $date = $request->get('date');
+  public function izinKaryawan(Request $request)
+{
+    $date = $request->get('date');
 
-        $izins = Izin::with('user')
-            ->when($date, function ($query) use ($date) {
-                $query->whereDate('tanggal', $date);
-            })
-            ->orderBy('tanggal', 'desc')
-            ->orderBy('created_at', 'desc')
-            ->paginate(10)
-            ->withQueryString();
+    $izins = Izin::with(['user', 'type'])
+        ->when($date, function ($query) use ($date) {
+            $query->whereDate('mulai_tanggal', '<=', $date)
+                  ->whereDate('sampai_tanggal', '>=', $date);
+        })
+        ->orderBy('mulai_tanggal', 'desc')
+        ->orderBy('created_at', 'desc')
+        ->paginate(10)
+        ->withQueryString();
 
-        return view('pages.karyawan.izin', [
-            'absens' => $izins,
-            'date' => $date,
-        ]);
-    }
+    return view('pages.karyawan.izin', [
+        'absens' => $izins,
+        'date' => $date,
+    ]);
+}
     // public function izinKaryawan(Request $request)
     // {
     //     $date = $request->get('date'); // contoh: 2025-09-18
