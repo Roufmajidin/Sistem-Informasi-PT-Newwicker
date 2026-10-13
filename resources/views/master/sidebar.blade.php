@@ -40,9 +40,12 @@
                      @endphp
 
                      {{-- Menu Pengajuan --}}
+
+                     {{-- Menu Pengajuan --}}
                      @if (Auth::check() &&
-                             Auth::user()->role == null &&
-                             !in_array(strtolower(Auth::user()->email), ['surana@gmail.com', 'johnm@gmail.com', 'aji@gmail.com']))
+                             !in_array(strtolower(trim(Auth::user()->email ?? '')),
+                                 ['surana@gmail.com', 'johnm@gmail.com', 'aji@gmail.com'],
+                                 true))
                          <li>
                              <a href="/pengajuan">
                                  <span class="nav-icon">
@@ -52,6 +55,7 @@
                              </a>
                          </li>
                      @endif
+
                      {{-- =========================================================
      ROLE: EXPORT
      ========================================================= --}}
@@ -461,11 +465,11 @@
                              <!-- </li>
 
 
-                                                 <a href="/request">
-                                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
-                                                     <span class="nav-text">Agenda</span>
-                                                 </a>
-                                             </li> -->
+                                                     <a href="/request">
+                                                         <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                                         <span class="nav-text">Agenda</span>
+                                                     </a>
+                                                 </li> -->
 
                              <li>
                                  <a href="/request">
