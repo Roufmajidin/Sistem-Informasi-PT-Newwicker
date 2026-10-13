@@ -30,6 +30,19 @@
                      </li>
 
                      {{-- 🔹 Role: HRD --}}
+                      <li>
+                                 <a href="/karyawan-scan">
+                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                     <span class="nav-text">Absen Sekarang</span>
+                                 </a>
+                             </li>
+                             <li>
+                                 <a href="{{ route('absen.riwayat') }}">
+                                     <span class="nav-icon"><i class="material-icons">&#xe192;</i></span>
+                                     <span class="nav-text">Riwayat Absen</span>
+                                 </a>
+
+                             </li>
                      @php
                          use App\Models\Karyawan;
 
