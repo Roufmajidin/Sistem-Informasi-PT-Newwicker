@@ -30,7 +30,6 @@ use Throwable;
 
 
 class RndController extends Controller
-
 {
 
     /**
@@ -40,7 +39,6 @@ class RndController extends Controller
      */
 
     public function samplePictures(Request $request)
-
     {
 
         $search = trim((string) $request->input('search', ''));
@@ -87,7 +85,8 @@ class RndController extends Controller
 
 
 
-        return view('pages.rnds.index', compact('pos', 'search'));
+        // return view('pages.rnds.index', compact('pos', 'search'));
+        return view('pages.maintenance.index');
 
     }
 
@@ -100,7 +99,6 @@ class RndController extends Controller
      */
 
     private function getItemDetail(DetailPo $item): array
-
     {
 
         $detail = $item->detail;
@@ -130,7 +128,6 @@ class RndController extends Controller
      */
 
     private function getArticleInfo(DetailPo $item): array
-
     {
 
         $detail = $this->getItemDetail($item);
@@ -368,7 +365,6 @@ class RndController extends Controller
      */
 
     public function samplePicturesItems(Po $po)
-
     {
 
         $items = DetailPo::query()
@@ -804,7 +800,6 @@ class RndController extends Controller
      */
 
     public function samplePicturesDetail(Po $po)
-
     {
 
         $po->load('detailPos');
