@@ -25,67 +25,99 @@ class BuyerController extends Controller
     // {
     //     return response()->json(NewBuyer::all());
     // }
+
     public function index()
     {
         // Ambil semua buyer
         $buyers = NewBuyer::orderBy('id', 'desc')->get();
 
-        // Ambil semua cart sekaligus dan group per buyer_id
+        // Ambil cart dan kelompokkan berdasarkan buyer_id
         $allCarts = Carts::all()->groupBy('buyer_id');
 
-        // Ambil semua produk pameran sekaligus
-        // $allProducts = ProductPameran::all()->keyBy('article_code');
+        // Ambil semua produk dengan key article_code + exhibition_id
         $allProducts = ProductPameran::all()->keyBy(function ($item) {
-            return $item->article_code . '_' . $item->exhibition_id;
+            $articleCode = preg_replace('/\s+/u', '', $item->article_code);
+
+            return $articleCode . '_' . $item->exhibition_id;
         });
-        // Ambil semua exhibition sekaligus
+
+        // Ambil semua exhibition
         $allExhibitions = Exhibition::all()->keyBy('id');
 
-        // Map setiap buyer menjadi response
+        // Susun data buyer beserta cart dan detail produknya
         $result = $buyers->map(function ($buyer) use ($allCarts, $allProducts, $allExhibitions) {
-
-            $buyerCarts = $allCarts->get($buyer->buyer_id, collect());
+            $buyerCarts = $allCarts->get(
+                $buyer->buyer_id,
+                collect()
+            );
 
             $itemsWithProduct = $buyerCarts->map(function ($cart) use ($allProducts, $allExhibitions) {
-                $articleCode = preg_replace('/\s+/u', '', $cart->article_code);
-                $product     = $allProducts->get($articleCode);
+                $articleCode = preg_replace(
+                    '/\s+/u',
+                    '',
+                    $cart->article_code ?? ''
+                );
 
-                // Default photo
+                // Cari produk berdasarkan kode dan pameran
+                $productKey = $articleCode . '_' . $cart->exhibition_id;
+
+                $product = $allProducts->get($productKey);
+
+                // Foto default
                 $photoUrl = asset('images/default.jpg');
 
                 if ($product) {
-                    $exhibition = $allExhibitions->get($product->exhibition_id);
+                    $exhibition = $allExhibitions->get(
+                        $product->exhibition_id
+                    );
+
                     if ($exhibition) {
                         $photoPath = "pameran/{$exhibition->name}/{$articleCode}.webp";
-                        $fullPath  = "public/{$photoPath}";
-                        if (Storage::exists($fullPath)) {
+
+                        if (Storage::disk('public')->exists($photoPath)) {
                             $photoUrl = asset("storage/{$photoPath}");
                         }
                     }
 
-                    // **Timpa photo di product_detail**
+                    // Sertakan URL foto di detail produk
                     $product->photo = $photoUrl;
                 }
 
                 return [
-                    "id"             => $cart->id,
-                    "article_code"   => $articleCode,
-                    "buyer_id"       => $cart->buyer_id,
-                    "status"         => $cart->status,
-                    "remark"         => $cart->remark,
-                    "created_at"     => $cart->created_at,
-                    "updated_at"     => $cart->updated_at,
-                    "qty"            => $cart->qty,
-
-                    "product_detail" => $product, // photo sudah terupdate
-                    "isDeleted"      => $cart->isDeleted,
+                    'id' => $cart->id,
+                    'article_code' => $articleCode,
+                    'buyer_id' => $cart->buyer_id,
+                    'exhibition_id' => $cart->exhibition_id,
+                    'status' => $cart->status,
+                    'remark' => $cart->remark,
+                    'created_at' => $cart->created_at,
+                    'updated_at' => $cart->updated_at,
+                    'qty' => $cart->qty,
+                    'product_detail' => $product,
+                    'isDeleted' => $cart->isDeleted,
                 ];
-            });
+            })->values();
 
-        });
+            // PENTING: Kembalikan data buyer pada setiap iterasi map
+            return [
+                'id' => $buyer->id,
+                'buyer_id' => $buyer->buyer_id,
+                'order_no' => $buyer->order_no,
+                'company_name' => $buyer->company_name,
+                'country' => $buyer->country,
+                'shipment_date' => $buyer->shipment_date,
+                'packing' => $buyer->packing,
+                'contact_person' => $buyer->contact_person,
+                'remark' => $buyer->remark,
+                'created_at' => $buyer->created_at,
+                'updated_at' => $buyer->updated_at,
+                'product_items' => $itemsWithProduct,
+            ];
+        })->values();
 
         return response()->json($result);
     }
+
 
     // POST create buyer
     public function store(Request $request)
@@ -112,7 +144,7 @@ class BuyerController extends Controller
                 ->first();
             // Default nilai photo
             $photoPath = null;
-            $photoUrl  = asset('images/default.jpg'); // fallback gambar default
+            $photoUrl = asset('images/default.jpg'); // fallback gambar default
 
             if ($product) {
 
@@ -134,26 +166,26 @@ class BuyerController extends Controller
             }
 
             return [
-                "id"             => $cart->id,
-                "article_code"   => $cart->article_code,
-                "buyer_id"       => $cart->buyer_id,
-                "status"         => $cart->status,
-                "remark"         => $cart->remark,
-                "created_at"     => $cart->created_at,
-                "updated_at"     => $cart->updated_at,
-                "qty"            => $cart->qty,
+                "id" => $cart->id,
+                "article_code" => $cart->article_code,
+                "buyer_id" => $cart->buyer_id,
+                "status" => $cart->status,
+                "remark" => $cart->remark,
+                "created_at" => $cart->created_at,
+                "updated_at" => $cart->updated_at,
+                "qty" => $cart->qty,
 
                 // detail product_pameran
                 "product_detail" => $product,
 
                 // foto
-                "photo"          => $photoPath,
-                "isDeleted"      => $cart->isDeleted,
+                "photo" => $photoPath,
+                "isDeleted" => $cart->isDeleted,
             ];
         });
 
         return response()->json([
-            "buyer"         => $buyer,
+            "buyer" => $buyer,
             "product_items" => $itemsWithProduct,
         ]);
     }
@@ -175,39 +207,39 @@ class BuyerController extends Controller
 
     public function product($id)
     {
-        $product     = ProductPameran::where('article_code', $id)->first();
-        $e           = Exhibition::find($product->exhibition_id);
+        $product = ProductPameran::where('article_code', $id)->first();
+        $e = Exhibition::find($product->exhibition_id);
         $articleCode = trim($product->article_code);
-        $photoPath   = "pameran/{$e->name}/{$articleCode}.webp";
-        $photoUrl    = asset("storage/{$photoPath}");
+        $photoPath = "pameran/{$e->name}/{$articleCode}.webp";
+        $photoUrl = asset("storage/{$photoPath}");
 
         $data = [
-            'nr'                 => $product->id,
-            'photo'              => $photoUrl,
-            'article_code'       => $product->article_code,
-            'name'               => $product->name,
-            'categories'         => $product->categories,
-            'remark'             => $product->remark,
-            'item_dimension'     => ['w' => $product->item_w, 'd' => $product->item_d, 'h' => $product->item_h],
-            'packing_dimension'  => ['w' => $product->packing_w, 'd' => $product->packing_d, 'h' => $product->packing_h],
-            'size_of_set'        => [
+            'nr' => $product->id,
+            'photo' => $photoUrl,
+            'article_code' => $product->article_code,
+            'name' => $product->name,
+            'categories' => $product->categories,
+            'remark' => $product->remark,
+            'item_dimension' => ['w' => $product->item_w, 'd' => $product->item_d, 'h' => $product->item_h],
+            'packing_dimension' => ['w' => $product->packing_w, 'd' => $product->packing_d, 'h' => $product->packing_h],
+            'size_of_set' => [
                 'set_2' => $product->set2,
                 'set_3' => $product->set3,
                 'set_4' => $product->set4,
                 'set_5' => $product->set5,
             ],
-            'composition'        => $product->composition,
-            'finishing'          => $product->finishing,
-            'cbm'                => round((float) $product->cbm, 2),
-            'loadability_20'     => round((float) $product->loadability_20, 0),
-            'loadability_40'     => round((float) $product->loadability_40, 0),
-            'loadability_40_hc'  => round((float) $product->loadability_40hc, 0),
-            'price_item'         => (double) $product->fob_jakarta_in_usd,
+            'composition' => $product->composition,
+            'finishing' => $product->finishing,
+            'cbm' => round((float) $product->cbm, 2),
+            'loadability_20' => round((float) $product->loadability_20, 0),
+            'loadability_40' => round((float) $product->loadability_40, 0),
+            'loadability_40_hc' => round((float) $product->loadability_40hc, 0),
+            'price_item' => (double) $product->fob_jakarta_in_usd,
             'fob_jakarta_in_usd' => (double) $product->fob_jakarta_in_usd,
         ];
 
         return response()->json([
-            'status'  => true,
+            'status' => true,
             'message' => 'Produk berhasil ditemukan',
             'product' => $data,
         ]);
@@ -232,7 +264,7 @@ class BuyerController extends Controller
         // Ambil kombinasi unik article_code + exhibition_id
         $cartKeys = $carts->map(function ($cart) {
             return [
-                'article_code'  => trim($cart->article_code),
+                'article_code' => trim($cart->article_code),
                 'exhibition_id' => $cart->exhibition_id,
             ];
         })->unique();
@@ -255,7 +287,7 @@ class BuyerController extends Controller
 
         // ================== LOAD TEMPLATE ==================
         $spreadsheet = IOFactory::load(storage_path('app/public/Book4.xlsx'));
-        $sheet       = $spreadsheet->getActiveSheet();
+        $sheet = $spreadsheet->getActiveSheet();
 
         // ================== HEADER ==================
         $sheet->setCellValue('C5', $buyer->order_no ?? '-');
@@ -269,7 +301,7 @@ class BuyerController extends Controller
 
         foreach ($carts as $index => $cart) {
 
-            $articleCode  = trim($cart->article_code);
+            $articleCode = trim($cart->article_code);
             $exhibitionId = $cart->exhibition_id;
 
             $productKey = $articleCode . '_' . $exhibitionId;
@@ -329,79 +361,79 @@ class BuyerController extends Controller
 
             // ================== STYLE ==================
             $sheet->getStyle("A{$row}:T{$row}")->applyFromArray([
-                'borders'   => [
+                'borders' => [
                     'allBorders' => [
                         'borderStyle' => Border::BORDER_THIN,
                     ],
                 ],
                 'alignment' => [
                     'horizontal' => Alignment::HORIZONTAL_CENTER,
-                    'vertical'   => Alignment::VERTICAL_CENTER,
-                    'wrapText'   => true,
+                    'vertical' => Alignment::VERTICAL_CENTER,
+                    'wrapText' => true,
                 ],
             ]);
 
-    // ================== DRAW IMAGE ==================
-if ($photoFullPath && file_exists($photoFullPath)) {
+            // ================== DRAW IMAGE ==================
+            if ($photoFullPath && file_exists($photoFullPath)) {
 
-    try {
+                try {
 
-        // Convert WEBP -> JPEG sementara
-        $tempDir = storage_path('app/temp_excel_images');
+                    // Convert WEBP -> JPEG sementara
+                    $tempDir = storage_path('app/temp_excel_images');
 
-        if (!file_exists($tempDir)) {
-            mkdir($tempDir, 0777, true);
-        }
+                    if (!file_exists($tempDir)) {
+                        mkdir($tempDir, 0777, true);
+                    }
 
-        $tempJpeg = $tempDir . '/' . uniqid('img_') . '.jpg';
+                    $tempJpeg = $tempDir . '/' . uniqid('img_') . '.jpg';
 
-        $image = imagecreatefromwebp($photoFullPath);
+                    $image = imagecreatefromwebp($photoFullPath);
 
-        if ($image !== false) {
+                    if ($image !== false) {
 
-            imagejpeg($image, $tempJpeg, 90);
-            imagedestroy($image);
+                        imagejpeg($image, $tempJpeg, 90);
+                        imagedestroy($image);
 
-            $drawing = new Drawing();
-            $drawing->setName('Product Image');
-            $drawing->setDescription($articleCode);
-            $drawing->setPath($tempJpeg);
-            $drawing->setHeight(160);
-            $drawing->setCoordinates("B{$row}");
-            $drawing->setOffsetX(5);
-            $drawing->setOffsetY(5);
-            $drawing->setWorksheet($sheet);
+                        $drawing = new Drawing();
+                        $drawing->setName('Product Image');
+                        $drawing->setDescription($articleCode);
+                        $drawing->setPath($tempJpeg);
+                        $drawing->setHeight(160);
+                        $drawing->setCoordinates("B{$row}");
+                        $drawing->setOffsetX(5);
+                        $drawing->setOffsetY(5);
+                        $drawing->setWorksheet($sheet);
 
-            $sheet->getRowDimension($row)->setRowHeight(145);
+                        $sheet->getRowDimension($row)->setRowHeight(145);
 
-        } else {
+                    } else {
 
-            logger()->warning("FAILED TO CONVERT WEBP", [
-                'path' => $photoFullPath,
-            ]);
+                        logger()->warning("FAILED TO CONVERT WEBP", [
+                            'path' => $photoFullPath,
+                        ]);
 
-            $sheet->getRowDimension($row)->setRowHeight(30);
-        }
+                        $sheet->getRowDimension($row)->setRowHeight(30);
+                    }
 
-    } catch (\Exception $e) {
+                } catch (\Exception $e) {
 
-        logger()->error("IMAGE CONVERSION ERROR", [
-            'message' => $e->getMessage(),
-            'path'    => $photoFullPath,
-        ]);
+                    logger()->error("IMAGE CONVERSION ERROR", [
+                        'message' => $e->getMessage(),
+                        'path' => $photoFullPath,
+                    ]);
 
-        $sheet->getRowDimension($row)->setRowHeight(30);
-    }
+                    $sheet->getRowDimension($row)->setRowHeight(30);
+                }
 
-} else {
+            } else {
 
-    logger()->warning("IMAGE NOT FOUND", [
-        'article_code'  => $articleCode,
-        'exhibition_id' => $exhibitionId,
-    ]);
+                logger()->warning("IMAGE NOT FOUND", [
+                    'article_code' => $articleCode,
+                    'exhibition_id' => $exhibitionId,
+                ]);
 
-    $sheet->getRowDimension($row)->setRowHeight(30);
-}
+                $sheet->getRowDimension($row)->setRowHeight(30);
+            }
             $row++;
         }
 

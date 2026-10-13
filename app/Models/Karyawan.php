@@ -8,7 +8,7 @@ class Karyawan extends Model
     //
     protected $guarded = [];
 
-//     protected $fillable = [
+    //     protected $fillable = [
 //     'nama_lengkap',
 //     'nik',
 //     'jenis_kelamin',
@@ -26,8 +26,9 @@ class Karyawan extends Model
         return $this->belongsTo(Divisi::class);
     }
     public function user()
-{
-    return $this->belongsTo(User::class);
-}
+    {
+        return $this->belongsTo(User::class);
+    }
+
 
 }

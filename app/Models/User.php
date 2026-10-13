@@ -43,26 +43,47 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
-            'password'          => 'hashed',
+            'password' => 'hashed',
         ];
     }
     public function approvalMessages()
-{
-    return $this->hasMany(ApprovalMessage::class);
-}
+    {
+        return $this->hasMany(ApprovalMessage::class);
+    }
     public function karyawan()
     {
         return $this->belongsTo(Karyawan::class);
     }
 
-   public function absens()
-{
-    return $this->hasMany(Absen::class, 'user_id', 'id'); // user_id di table absens mengacu ke id user
-}
+    public function absens()
+    {
+        return $this->hasMany(Absen::class, 'user_id', 'id'); // user_id di table absens mengacu ke id user
+    }
 
-public function lemburs()
-{
-    return $this->hasMany(Lembur::class);
-}
+    public function lemburs()
+    {
+        return $this->hasMany(Lembur::class);
+    }
+    public function hasAccess($moduleName)
+    {
+        return $this->accessModules()
+            ->where('name', $moduleName)
+            ->exists();
+    }
+
+    public function userAccess()
+    {
+        return $this->hasMany(UserAccess::class, 'user_id', 'id');
+    }
+
+    public function accessModules()
+    {
+        return $this->belongsToMany(
+            AccessModule::class,
+            'user_access',
+            'user_id',
+            'id_access_module'
+        )->withTimestamps();
+    }
 
 }

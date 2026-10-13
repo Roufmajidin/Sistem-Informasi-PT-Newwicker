@@ -42,10 +42,22 @@ use App\Http\Controllers\LobController;
 use App\Services\MikrotikService;
 use App\Http\Controllers\NetworkController;
 use App\Http\Controllers\RndController;
+use App\Http\Controllers\GoogleDriveAuthController;
 
 // ==========================================================
 // MAGIC APPROVAL LINK - PUBLIC ENTRY POINT
 // ==========================================================
+Route::middleware('auth')->prefix('google-drive')->group(function () {
+    Route::get('/connect', [
+        GoogleDriveAuthController::class,
+        'connect',
+    ])->name('google-drive.connect');
+
+    Route::get('/callback', [
+        GoogleDriveAuthController::class,
+        'callback',
+    ])->name('google-drive.callback');
+});
 Route::get(
     '/qc/getPoDetail/{kategoriId}/{detailPo}/{poId}',
     [QcController::class, 'getDataApi']
@@ -74,9 +86,37 @@ Route::get('/test-mikrotik', function (MikrotikService $mikrotik) {
         'interfaces' => $mikrotik->getInterfaces(),
     ]);
 });
-// rnd 
-Route::get('/sample-pictures', [RndController::class, 'samplePictures'])->name('rnd.sample-pictures');
 
+// RND - Sample Pictures
+Route::prefix('rnd')
+    ->name('rnd.')
+    ->controller(RndController::class)
+    ->group(function () {
+
+        // Halaman utama daftar PO
+        Route::get('/sample-pictures', 'samplePictures')
+            ->name('sample-pictures');
+
+        // Mengambil daftar artikel PO melalui AJAX
+        Route::get('/sample-pictures/{po}/items', 'samplePicturesItems')
+            ->name('sample-pictures.items');
+
+        // Membuka arsip foto artikel
+        Route::get(
+            '/sample-pictures/{po}/items/{detailPo}/archive',
+            'openArticleArchive'
+        )->name('sample-pictures.archive');
+
+        // Upload foto ke Google Drive
+        Route::post(
+            '/sample-pictures/{po}/items/{detailPo}/archive/upload',
+            'uploadArticlePhotos'
+        )->name('sample-pictures.archive.upload');
+
+        // Halaman detail PO lama (tetap dipertahankan)
+        Route::get('/sample-pictures/{po}', 'samplePicturesDetail')
+            ->name('sample-pictures.detail');
+    });
     // finance
     Route::get(
     '/payment-request-saved/{id}/export-excel-2up',
@@ -1161,6 +1201,19 @@ Route::middleware('auth')->group(function () {
         ->name('it.index');
     Route::get('/it-dashboard/data', [ITController::class, 'data'])
         ->name('it.data');
+    Route::get('/it-access-control', [ItController::class, 'accessControl'])
+    ->name('it.access-control');
+
+    Route::post('/it-access-control/update', [ItController::class, 'updateAccess'])
+    ->name('it.access-update');
+    Route::post('/it-access-module/store', [ItController::class, 'storeModule'])
+        ->name('it.module.store');
+
+    Route::put('/it-access-module/{id}', [ItController::class, 'updateModule'])
+        ->name('it.module.update');
+
+    Route::delete('/it-access-module/{id}', [ItController::class, 'destroyModule'])
+        ->name('it.module.destroy');
 
 
 

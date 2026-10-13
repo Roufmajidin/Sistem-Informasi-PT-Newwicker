@@ -2689,7 +2689,7 @@
 
                     }).then(() => {
 
-                        window.location = "/bom-produksi/";
+                        window.location = "/bom/";
 
                     });
 

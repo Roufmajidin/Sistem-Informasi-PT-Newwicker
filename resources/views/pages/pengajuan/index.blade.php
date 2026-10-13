@@ -23,14 +23,30 @@
                 <div style="display:flex; align-items:center; gap:10px; margin-top:10px;">
 
                     <!-- FILTER TYPE -->
-                    <select id="filter-type" class="form-control" style="width:180px;">
+                    {{-- <select id="filter-type" class="form-control" style="width:180px;">
                         <option value="">-- Semua --</option>
-                        {{-- <option value="Purchasing">Purchasing</option> --}}
-
+                      
                         <option value="All Divisi">All Divisi</option>
                         <option value="Finance">Finance</option>
                         <option value="Spk">Pengajuan SPK</option>
-                    </select>
+                    </select> --}}
+                    <select id="filter-type" class="form-control" style="width:180px;">
+
+    <option value="">-- Pilih --</option>
+
+    @if(auth()->user()?->hasAccess('pengajuan_all_divisi'))
+        <option value="All Divisi">All Divisi</option>
+    @endif
+
+    @if(auth()->user()?->hasAccess('pengajuan_finance'))
+        <option value="Finance">Finance</option>
+    @endif
+
+    @if(auth()->user()?->hasAccess('pengajuan_spk'))
+        <option value="Spk">Pengajuan SPK</option>
+    @endif
+
+</select>
 
                     <!-- QR BUTTON -->
                     <div id="btn-qr"

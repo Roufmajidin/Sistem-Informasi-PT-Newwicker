@@ -6,6 +6,11 @@ use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Log;
+use App\Models\User;
+use App\Models\AccessModule;
+use App\Models\UserAccess;
+
+
 
 class ITController extends Controller
 {
@@ -594,4 +599,94 @@ class ITController extends Controller
             'X-Accel-Buffering' => 'no',
         ]);
     }
+    public function accessControl()
+    {
+        $users = User::with([
+            'karyawan.divisi',
+            'accessModules'
+        ])
+            ->orderBy('name')
+            ->get();
+
+        $modules = AccessModule::orderBy('id')->get();
+
+        return view('pages.it.access', compact(
+            'users',
+            'modules'
+        ));
+    }
+public function updateAccess(Request $request)
+{
+    $validated = $request->validate([
+        'user_id' => 'required|integer|exists:users,id',
+        'module_id' => 'required|integer|exists:access_module,id',
+        'is_checked' => 'required|boolean',
+    ]);
+
+    if ($validated['is_checked']) {
+        UserAccess::firstOrCreate([
+            'user_id' => $validated['user_id'],
+            'id_access_module' => $validated['module_id'],
+        ]);
+    } else {
+        UserAccess::where('user_id', $validated['user_id'])
+            ->where('id_access_module', $validated['module_id'])
+            ->delete();
+    }
+
+    return response()->json([
+        'status' => true,
+        'message' => 'Hak akses berhasil diperbarui.'
+    ]);
+}
+public function storeModule(Request $request)
+{
+    $validated = $request->validate([
+        'name' => 'required|string|max:150',
+    ]);
+
+    $module = AccessModule::create($validated);
+
+    return response()->json([
+        'status' => true,
+        'message' => 'Access module berhasil ditambahkan.',
+        'data' => $module
+    ]);
+}
+
+public function updateModule(Request $request, $id)
+{
+    $validated = $request->validate([
+        'name' => 'required|string|max:150',
+    ]);
+
+    $module = AccessModule::findOrFail($id);
+
+    $module->update($validated);
+
+    return response()->json([
+        'status' => true,
+        'message' => 'Access module berhasil diperbarui.',
+        'data' => $module
+    ]);
+}
+
+public function destroyModule($id)
+{
+    DB::transaction(function () use ($id) {
+
+        $module = AccessModule::findOrFail($id);
+
+        UserAccess::where('id_access_module', $module->id)
+            ->delete();
+
+        $module->delete();
+    });
+
+    return response()->json([
+        'status' => true,
+        'message' => 'Access module berhasil dihapus.'
+    ]);
+}
+
 }

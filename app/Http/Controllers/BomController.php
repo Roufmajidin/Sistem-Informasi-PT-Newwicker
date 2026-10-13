@@ -1187,11 +1187,11 @@ class BomController extends Controller
             foreach ($data['groups'] as $groupData) {
 
                 $sub = $groupData['sub_prices'][0] ?? null;
-                Log::info('SUB PRICES', [
-                    'header' => $groupData['name'],
-                    'count' => count($groupData['sub_prices'] ?? []),
-                    'data' => $groupData['sub_prices'] ?? [],
-                ]);
+                // Log::info('SUB PRICES', [
+                //     'header' => $groupData['name'],
+                //     'count' => count($groupData['sub_prices'] ?? []),
+                //     'data' => $groupData['sub_prices'] ?? [],
+                // ]);
                 $group = BomGroup::create([
 
                     'bom_id' => $bom->id,
@@ -1244,7 +1244,7 @@ class BomController extends Controller
 
             foreach ($data['summaries'] ?? [] as $summary) {
 
-                BomProdSummary::create([
+                BomSummary::create([
 
                     'bom_id' => $bom->id,
 

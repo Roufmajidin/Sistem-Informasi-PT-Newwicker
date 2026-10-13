@@ -42,10 +42,7 @@
                      {{-- Menu Pengajuan --}}
 
                      {{-- Menu Pengajuan --}}
-                     @if (Auth::check() &&
-                             !in_array(strtolower(trim(Auth::user()->email ?? '')),
-                                 ['surana@gmail.com', 'johnm@gmail.com', 'aji@gmail.com'],
-                                 true))
+                     @if (Auth::check() && Auth::user()->accessModules()->where('name', 'Pengajuan')->exists())
                          <li>
                              <a href="/pengajuan">
                                  <span class="nav-icon">
@@ -55,7 +52,6 @@
                              </a>
                          </li>
                      @endif
-
                      {{-- =========================================================
      ROLE: EXPORT
      ========================================================= --}}
@@ -465,11 +461,11 @@
                              <!-- </li>
 
 
-                                                         <a href="/request">
-                                                             <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
-                                                             <span class="nav-text">Agenda</span>
-                                                         </a>
-                                                     </li> -->
+                                                                     <a href="/request">
+                                                                         <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                                                         <span class="nav-text">Agenda</span>
+                                                                     </a>
+                                                                 </li> -->
 
                              <li>
                                  <a href="/request">
@@ -487,7 +483,11 @@
                                  </a>
                                  <ul class="nav-sub">
                                      <li><a href="/it-dashboard"><span class="nav-text">Dashboard</span></a></li>
-
+                                     <li>
+                                         <a href="{{ route('it.access-control') }}">
+                                             <span class="nav-text">Access Control</span>
+                                         </a>
+                                     </li>
                                  </ul>
                          @endif
                          @if (Auth::user()->role === 'purchasing')
@@ -671,7 +671,7 @@
                              </li>
                          @endif
                          {{-- 🔹 Role: User biasa --}}
-                         @if (Auth::user()->role == null || Auth::user()->email == 'surana@gmail.com')
+                         @if (Auth::user()->email == 'surana@gmail.com')
                              <li>
 
                                  <a href="/produksi/mn">
