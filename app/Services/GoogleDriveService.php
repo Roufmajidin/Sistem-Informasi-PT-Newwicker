@@ -234,4 +234,123 @@ class GoogleDriveService
             'size' => $created->getSize(),
         ];
     }
+    /**
+     * Membaca isi folder Google Drive.
+     * Hanya menampilkan folder dan file yang menjadi anak langsung.
+     */
+
+    public function listFolderContents(string $folderId): array
+    {
+        if (trim($folderId) === '') {
+            throw new \RuntimeException('ID folder Google Drive kosong.');
+        }
+
+        $items = [];
+        $pageToken = null;
+
+        do {
+            $params = [
+                'q' => "'" . str_replace(
+                    ["\\", "'"],
+                    ["\\\\", "\\'"],
+                    $folderId
+                ) . "' in parents and trashed = false",
+                'pageSize' => 1000,
+                'orderBy' => 'folder,name',
+                'fields' => 'nextPageToken,files(id,name,mimeType,size,webViewLink,createdTime,modifiedTime,parents)',
+                'supportsAllDrives' => true,
+                'includeItemsFromAllDrives' => true,
+            ];
+
+            if ($pageToken) {
+                $params['pageToken'] = $pageToken;
+            }
+
+            $result = $this->drive->files->listFiles($params);
+
+            foreach ($result->getFiles() as $file) {
+                $isFolder = $file->getMimeType()
+                    === 'application/vnd.google-apps.folder';
+
+                $items[] = [
+                    'id' => $file->getId(),
+                    'name' => $file->getName(),
+                    'type' => $isFolder ? 'folder' : 'file',
+                    'mime_type' => $file->getMimeType(),
+                    'size' => $file->getSize(),
+                    'url' => $file->getWebViewLink()
+                        ?: (
+                            $isFolder
+                            ? 'https://drive.google.com/drive/folders/'
+                            . $file->getId()
+                            : 'https://drive.google.com/file/d/'
+                            . $file->getId() . '/view'
+                        ),
+                    'created_time' => $file->getCreatedTime(),
+                    'modified_time' => $file->getModifiedTime(),
+                ];
+            }
+
+            $pageToken = $result->getNextPageToken();
+        } while ($pageToken);
+
+        return $items;
+    }
+
+    public function renameItem(string $itemId, string $newName): array
+    {
+        $newName = trim($newName);
+
+        if ($newName === '') {
+            throw new \InvalidArgumentException(
+                'Nama file atau folder tidak boleh kosong.'
+            );
+        }
+
+        $updated = $this->drive->files->update(
+            $itemId,
+            new \Google\Service\Drive\DriveFile([
+                'name' => $newName,
+            ]),
+            [
+                'fields' => 'id,name,mimeType,webViewLink,parents',
+                'supportsAllDrives' => true,
+            ]
+        );
+
+        return [
+            'id' => $updated->getId(),
+            'name' => $updated->getName(),
+            'mime_type' => $updated->getMimeType(),
+            'url' => $updated->getWebViewLink(),
+        ];
+    }
+
+    public function trashItem(string $itemId): bool
+    {
+        $this->drive->files->update(
+            $itemId,
+            new \Google\Service\Drive\DriveFile([
+                'trashed' => true,
+            ]),
+            [
+                'fields' => 'id,trashed',
+                'supportsAllDrives' => true,
+            ]
+        );
+
+        return true;
+    }
+
+
+    /**
+     * Mengganti nama folder atau file di Google Drive.
+     */
+
+
+    /**
+     * Memindahkan folder atau file ke Trash Google Drive.
+     * Tidak menghapusnya secara permanen.
+     */
+
 }

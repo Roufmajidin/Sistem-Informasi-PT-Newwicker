@@ -93,30 +93,53 @@ Route::prefix('rnd')
     ->controller(RndController::class)
     ->group(function () {
 
-        // Halaman utama daftar PO
         Route::get('/sample-pictures', 'samplePictures')
             ->name('sample-pictures');
 
-        // Mengambil daftar artikel PO melalui AJAX
         Route::get('/sample-pictures/{po}/items', 'samplePicturesItems')
             ->name('sample-pictures.items');
 
-        // Membuka arsip foto artikel
+        // Membuka root folder artikel
         Route::get(
             '/sample-pictures/{po}/items/{detailPo}/archive',
             'openArticleArchive'
         )->name('sample-pictures.archive');
 
-        // Upload foto ke Google Drive
+        // Membaca isi folder aktif
+        Route::get(
+            '/sample-pictures/{po}/items/{detailPo}/archive/folders/{folder}',
+            'browseArchiveFolder'
+        )->name('sample-pictures.archive.browse');
+
+        // Membuat subfolder
+        Route::post(
+            '/sample-pictures/{po}/items/{detailPo}/archive/folders',
+            'createArchiveFolder'
+        )->name('sample-pictures.archive.folder.create');
+
+        // Rename folder atau file
+        Route::patch(
+            '/sample-pictures/{po}/items/{detailPo}/archive/items/{folder}',
+            'renameArchiveItem'
+        )->name('sample-pictures.archive.item.rename');
+
+        // Memindahkan folder atau file ke Trash
+        Route::delete(
+            '/sample-pictures/{po}/items/{detailPo}/archive/items/{folder}',
+            'deleteArchiveItem'
+        )->name('sample-pictures.archive.item.delete');
+
+        // Upload ke root artikel atau folder aktif
         Route::post(
             '/sample-pictures/{po}/items/{detailPo}/archive/upload',
             'uploadArticlePhotos'
         )->name('sample-pictures.archive.upload');
 
-        // Halaman detail PO lama (tetap dipertahankan)
+        // Halaman detail PO lama
         Route::get('/sample-pictures/{po}', 'samplePicturesDetail')
             ->name('sample-pictures.detail');
     });
+
     // finance
     Route::get(
     '/payment-request-saved/{id}/export-excel-2up',
