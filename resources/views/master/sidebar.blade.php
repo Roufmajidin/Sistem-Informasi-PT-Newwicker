@@ -461,11 +461,11 @@
                              <!-- </li>
 
 
-                                                                             <a href="/request">
-                                                                                 <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
-                                                                                 <span class="nav-text">Agenda</span>
-                                                                             </a>
-                                                                         </li> -->
+                                                                         <a href="/request">
+                                                                             <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                                                             <span class="nav-text">Agenda</span>
+                                                                         </a>
+                                                                     </li> -->
 
                              <li>
                                  <a href="/request">
@@ -674,9 +674,18 @@
                          @php
                              $emailLogin = strtolower(trim(auth()->user()?->email ?? ''));
 
-                             $aksesProduksi = in_array($emailLogin, ['johnm@gmail.com', 'aji@gmail.com'], true);
+                             $aksesProduksi = in_array(
+                                 $emailLogin,
+                                 ['johnm@gmail.com', 'aji@gmail.com', 'surana@gmail.com'],
+                                 true,
+                             );
+
+                             $aksesSpkMonitoring = in_array($emailLogin, ['johnm@gmail.com', 'aji@gmail.com'], true);
+
+                             $aksesMutasi = $emailLogin === 'surana@gmail.com';
                          @endphp
 
+                         {{-- MONITORING PRODUKSI --}}
                          @if ($aksesProduksi)
                              <li>
                                  <a href="/produksi/mn">
@@ -687,12 +696,36 @@
                                  </a>
                              </li>
 
+                              <li>
+                                 <a href="/cad">
+                                     <span class="nav-icon">
+                                         <i class="material-icons">&#xe85e;</i>
+                                     </span>
+                                     <span class="nav-text">CAD</span>
+                                 </a>
+                             </li>
+                         @endif
+
+                         {{-- SPK MONITORING --}}
+                         @if ($aksesSpkMonitoring)
                              <li>
                                  <a href="/produksi/inventor">
                                      <span class="nav-icon">
                                          <i class="material-icons">&#xe85e;</i>
                                      </span>
                                      <span class="nav-text">SPK Monitoring</span>
+                                 </a>
+                             </li>
+                         @endif
+
+                         {{-- MUTASI BARANG JADI --}}
+                         @if ($aksesMutasi)
+                             <li>
+                                 <a href="/mutasi">
+                                     <span class="nav-icon">
+                                         <i class="material-icons">&#xe85e;</i>
+                                     </span>
+                                     <span class="nav-text">Mutasi Barang jadi</span>
                                  </a>
                              </li>
                          @endif
