@@ -465,11 +465,11 @@
                              <!-- </li>
 
 
-                                                     <a href="/request">
-                                                         <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
-                                                         <span class="nav-text">Agenda</span>
-                                                     </a>
-                                                 </li> -->
+                                                         <a href="/request">
+                                                             <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                                             <span class="nav-text">Agenda</span>
+                                                         </a>
+                                                     </li> -->
 
                              <li>
                                  <a href="/request">
@@ -797,6 +797,18 @@
                                          <span class="nav-text">BOM</span>
                                      </a>
                                  </li>
+                                 <li>
+                                     <a>
+                                         <span class="nav-caret"><i class="fa fa-caret-down"></i></span>
+                                         <span class="nav-icon"><i class="material-icons">&#xe5c3;</i></span>
+                                         <span class="nav-text">SAMPLES</span>
+                                     </a>
+                                     <ul class="nav-sub">
+                                         <li> <a href="{{ route('rnd.sample-pictures') }}">
+                                                 <span class="nav-text">PICTURES</span></a></li>
+
+
+                                     </ul>
                              @endif
 
                              <li>

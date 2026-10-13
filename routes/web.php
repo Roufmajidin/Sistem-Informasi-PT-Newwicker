@@ -41,6 +41,7 @@ use App\Http\Controllers\FinanceController;
 use App\Http\Controllers\LobController;
 use App\Services\MikrotikService;
 use App\Http\Controllers\NetworkController;
+use App\Http\Controllers\RndController;
 
 // ==========================================================
 // MAGIC APPROVAL LINK - PUBLIC ENTRY POINT
@@ -73,6 +74,9 @@ Route::get('/test-mikrotik', function (MikrotikService $mikrotik) {
         'interfaces' => $mikrotik->getInterfaces(),
     ]);
 });
+// rnd 
+Route::get('/sample-pictures', [RndController::class, 'samplePictures'])->name('rnd.sample-pictures');
+
     // finance
     Route::get(
     '/payment-request-saved/{id}/export-excel-2up',
