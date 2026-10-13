@@ -1152,7 +1152,7 @@ class BomController extends Controller
             // =========================
             // CREATE HEADER BOM
             // =========================
-            $bom = BomProd::create([
+            $bom = Bom::create([
 
                 'name' => $data['name'] ?? '',
 
@@ -1192,7 +1192,7 @@ class BomController extends Controller
                     'count' => count($groupData['sub_prices'] ?? []),
                     'data' => $groupData['sub_prices'] ?? [],
                 ]);
-                $group = BomProdGroup::create([
+                $group = BomGroup::create([
 
                     'bom_id' => $bom->id,
 
@@ -1210,7 +1210,7 @@ class BomController extends Controller
 
                 foreach ($groupData['items'] as $item) {
 
-                    BomProdItem::create([
+                    BomItem::create([
 
                         'group_id' => $group->id,
 
