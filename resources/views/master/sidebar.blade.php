@@ -461,11 +461,11 @@
                              <!-- </li>
 
 
-                                                                     <a href="/request">
-                                                                         <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
-                                                                         <span class="nav-text">Agenda</span>
-                                                                     </a>
-                                                                 </li> -->
+                                                                             <a href="/request">
+                                                                                 <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                                                                 <span class="nav-text">Agenda</span>
+                                                                             </a>
+                                                                         </li> -->
 
                              <li>
                                  <a href="/request">
@@ -671,56 +671,30 @@
                              </li>
                          @endif
                          {{-- 🔹 Role: User biasa --}}
-                         @if (Auth::user()->email == 'surana@gmail.com')
-                             <li>
+                         @php
+                             $emailLogin = strtolower(trim(auth()->user()?->email ?? ''));
 
+                             $aksesProduksi = in_array($emailLogin, ['johnm@gmail.com', 'aji@gmail.com'], true);
+                         @endphp
+
+                         @if ($aksesProduksi)
+                             <li>
                                  <a href="/produksi/mn">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                     <span class="nav-icon">
+                                         <i class="material-icons">&#xe85e;</i>
+                                     </span>
                                      <span class="nav-text">Monitoring Produksi</span>
                                  </a>
                              </li>
-                             <li>
-                                 <a href="/mutasi">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
-                                     <span class="nav-text">Mutasi Pemasukan (admin)</span>
-                                 </a>
-                             </li>
-                             <li>
-                                 <a href="{{ route('absen.riwayat') }}">
-                                     <span class="nav-icon"><i class="material-icons">&#xe192;</i></span>
-                                     <span class="nav-text">Riwayat Absen</span>
-                                 </a>
-                             </li>
 
                              <li>
-                                 <a href="/karyawan-scan">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
-                                     <span class="nav-text">Absen Sekarang</span>
+                                 <a href="/produksi/inventor">
+                                     <span class="nav-icon">
+                                         <i class="material-icons">&#xe85e;</i>
+                                     </span>
+                                     <span class="nav-text">SPK Monitoring</span>
                                  </a>
                              </li>
-                             <li>
-                                 <a href="/request">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
-                                     <span class="nav-text">Agenda</span>
-                                 </a>
-                             </li>
-                             @if (Auth::user()->email == 'johnm@gmail.com' || Auth::user()->email == 'aji@gmail.com')
-                                 <li>
-
-                                     <a href="/produksi/mn">
-                                         <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
-                                         <span class="nav-text">Monitoring Produksi</span>
-                                     </a>
-                                 </li>
-                                 <li>
-                                     <a href="/produksi/inventor">
-                                         <span class="nav-icon">
-                                             <i class="material-icons">&#xe85e;</i>
-                                         </span>
-                                         <span class="nav-text">SPK Monitoring</span>
-                                     </a>
-                                 </li>
-                             @endif
                          @endif
                          @if (Auth::user()->role == 'admin produksi')
                              <li>
