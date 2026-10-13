@@ -11,16 +11,10 @@ use Throwable;
 
 class GoogleDriveAuthController extends Controller
 {
-    /**
-     * Lokasi token pada disk local Laravel.
-     *
-     * Jika root disk local adalah storage/app/private,
-     * file ini berada di storage/app/private/google-drive-token.json.
-     */
     private string $tokenPath = 'google-drive-token.json';
 
     /**
-     * Membuat konfigurasi Google OAuth Client.
+     * Konfigurasi Google OAuth.
      */
     private function googleClient(): Client
     {
@@ -30,7 +24,8 @@ class GoogleDriveAuthController extends Controller
 
         if (!$clientId || !$clientSecret || !$redirectUri) {
             throw new RuntimeException(
-                'Konfigurasi Google Drive belum lengkap. Periksa GOOGLE_DRIVE_CLIENT_ID, GOOGLE_DRIVE_CLIENT_SECRET, dan GOOGLE_DRIVE_REDIRECT_URI pada .env.'
+                'Konfigurasi Google Drive belum lengkap. '
+                . 'Periksa konfigurasi pada .env hosting.'
             );
         }
 
@@ -40,25 +35,32 @@ class GoogleDriveAuthController extends Controller
         $client->setClientSecret($clientSecret);
         $client->setRedirectUri($redirectUri);
 
-        // Meminta refresh token agar server dapat mengakses Drive
-        // tanpa meminta staf R&D login Google berulang kali.
+        // Meminta refresh token untuk akses jangka panjang.
         $client->setAccessType('offline');
         $client->setPrompt('consent');
 
-        $client->setScopes([
-            Drive::DRIVE,
-        ]);
+        $client->setScopes([Drive::DRIVE]);
 
         return $client;
     }
 
     /**
-     * Mengarahkan akun IT ke halaman otorisasi Google.
+     * Memulai OAuth.
+     * Route ini sebaiknya hanya boleh diakses admin IT.
      */
     public function connect()
     {
         try {
             $client = $this->googleClient();
+
+            // State melindungi proses callback OAuth.
+            $state = bin2hex(random_bytes(32));
+
+            session([
+                'google_drive_oauth_state' => $state,
+            ]);
+
+            $client->setState($state);
 
             return redirect()->away(
                 $client->createAuthUrl()
@@ -67,14 +69,16 @@ class GoogleDriveAuthController extends Controller
             report($e);
 
             return response(
-                'Konfigurasi Google Drive belum siap. Periksa konfigurasi server dan log Laravel.',
+                'Google Drive belum siap. Periksa konfigurasi '
+                . 'dan log Laravel.',
                 500
             );
         }
     }
 
     /**
-     * Menerima callback Google dan menyimpan token OAuth.
+     * Callback Google OAuth.
+     * Token disimpan pada disk local Laravel di server.
      */
     public function callback(Request $request)
     {
@@ -85,9 +89,26 @@ class GoogleDriveAuthController extends Controller
             );
         }
 
+        $expectedState = session('google_drive_oauth_state');
+        $receivedState = $request->query('state');
+
+        if (
+            !is_string($expectedState) ||
+            !is_string($receivedState) ||
+            !hash_equals($expectedState, $receivedState)
+        ) {
+            return response(
+                'Sesi OAuth tidak valid atau kedaluwarsa. '
+                . 'Silakan mulai koneksi kembali.',
+                403
+            );
+        }
+
+        session()->forget('google_drive_oauth_state');
+
         if (!$request->filled('code')) {
             return response(
-                'Authorization code dari Google tidak ditemukan.',
+                'Authorization code Google tidak ditemukan.',
                 400
             );
         }
@@ -95,35 +116,35 @@ class GoogleDriveAuthController extends Controller
         try {
             $client = $this->googleClient();
 
-            // Tukar authorization code dengan access token.
             $token = $client->fetchAccessTokenWithAuthCode(
                 $request->query('code')
             );
 
-            if (!is_array($token) || isset($token['error'])) {
+            if (
+                !is_array($token) ||
+                isset($token['error']) ||
+                empty($token['access_token'])
+            ) {
                 $error = is_array($token)
-                    ? ($token['error_description'] ?? $token['error'] ?? 'Unknown error')
-                    : 'Respons token tidak valid';
+                    ? (
+                        $token['error_description']
+                        ?? $token['error']
+                        ?? 'Respons token tidak valid.'
+                    )
+                    : 'Respons Google tidak valid.';
 
                 return response(
-                    'Gagal mendapatkan token Google Drive: ' . $error,
-                    400
-                );
-            }
-
-            // Pastikan yang diterima benar-benar token akses,
-            // bukan file konfigurasi OAuth Client.
-            if (empty($token['access_token'])) {
-                return response(
-                    'Google tidak mengembalikan access token. Silakan ulangi proses koneksi.',
+                    'Gagal memperoleh token Google Drive: ' . $error,
                     400
                 );
             }
 
             $storage = Storage::disk('local');
 
-            // Pertahankan refresh token sebelumnya jika Google
-            // tidak memberikan refresh token baru.
+            /*
+             * Pertahankan refresh token lama apabila Google
+             * tidak mengirim refresh token pada respons baru.
+             */
             if ($storage->exists($this->tokenPath)) {
                 $oldToken = json_decode(
                     $storage->get($this->tokenPath),
@@ -140,17 +161,13 @@ class GoogleDriveAuthController extends Controller
                 }
             }
 
-            // Refresh token dibutuhkan untuk akses berkelanjutan
-            // tanpa login Google setiap kali token akses kedaluwarsa.
             if (empty($token['refresh_token'])) {
                 return response(
-                    'Refresh token tidak diterima. Periksa pengaturan OAuth dan ulangi persetujuan menggunakan akun IT.',
+                    'Refresh token tidak diterima. Periksa pengaturan '
+                    . 'OAuth Google dan ulangi proses koneksi akun IT.',
                     400
                 );
             }
-
-            // Pastikan direktori tujuan tersedia.
-            $storage->makeDirectory(''); // Root disk local.
 
             $json = json_encode(
                 $token,
@@ -159,23 +176,18 @@ class GoogleDriveAuthController extends Controller
 
             if ($json === false) {
                 throw new RuntimeException(
-                    'Token Google gagal dikonversi menjadi JSON.'
+                    'Token gagal dikonversi menjadi JSON.'
                 );
             }
 
-            // Simpan hanya token hasil OAuth.
-            $saved = $storage->put(
-                $this->tokenPath,
-                $json
-            );
-
-            if (!$saved || !$storage->exists($this->tokenPath)) {
+            // Simpan ke storage privat Laravel, bukan ke browser.
+            if (!$storage->put($this->tokenPath, $json)) {
                 throw new RuntimeException(
-                    'Token Google gagal disimpan ke penyimpanan Laravel.'
+                    'Token gagal disimpan di server.'
                 );
             }
 
-            // Verifikasi hasil penyimpanan tanpa menampilkan rahasia.
+            // Verifikasi penyimpanan tanpa menampilkan nilai rahasia.
             $savedToken = json_decode(
                 $storage->get($this->tokenPath),
                 true
@@ -187,18 +199,20 @@ class GoogleDriveAuthController extends Controller
                 empty($savedToken['refresh_token'])
             ) {
                 throw new RuntimeException(
-                    'File token tersimpan tetapi format token tidak valid.'
+                    'File token tersimpan tetapi formatnya tidak valid.'
                 );
             }
 
             return response(
-                'Google Drive berhasil dihubungkan. Token OAuth tersimpan secara privat di Laravel.'
+                'Google Drive berhasil dihubungkan. '
+                . 'Token tersimpan secara privat di server Laravel.'
             );
         } catch (Throwable $e) {
             report($e);
 
             return response(
-                'Koneksi Google Drive gagal. Periksa storage/logs/laravel.log untuk detailnya.',
+                'Koneksi Google Drive gagal. Periksa '
+                . 'storage/logs/laravel.log.',
                 500
             );
         }

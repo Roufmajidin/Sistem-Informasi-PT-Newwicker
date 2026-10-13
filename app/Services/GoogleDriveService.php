@@ -13,7 +13,8 @@ class GoogleDriveService
     private Client $client;
     private Drive $drive;
 
-  private string $tokenPath = 'google-drive-token.json';
+    private string $tokenPath = 'google-drive-token.json';
+
     public function __construct()
     {
         $this->client = new Client();
@@ -30,9 +31,7 @@ class GoogleDriveService
             config('services.google_drive.redirect_uri')
         );
 
-        $this->client->setScopes([
-            Drive::DRIVE,
-        ]);
+        $this->client->setScopes([Drive::DRIVE]);
 
         $this->loadToken();
 
@@ -40,7 +39,8 @@ class GoogleDriveService
     }
 
     /**
-     * Membaca token OAuth dan memperbaruinya jika kedaluwarsa.
+     * Membaca token dari storage server.
+     * Refresh access token secara otomatis jika kedaluwarsa.
      */
     private function loadToken(): void
     {
@@ -48,7 +48,8 @@ class GoogleDriveService
 
         if (!$storage->exists($this->tokenPath)) {
             throw new RuntimeException(
-                'Token Google Drive tidak ditemukan. Hubungkan akun IT terlebih dahulu.'
+                'Token Google Drive tidak ditemukan. '
+                . 'Admin IT perlu menghubungkan Google Drive terlebih dahulu.'
             );
         }
 
@@ -62,50 +63,83 @@ class GoogleDriveService
             empty($token['access_token'])
         ) {
             throw new RuntimeException(
-                'Token Google Drive tidak valid.'
+                'File token Google Drive tidak valid.'
             );
         }
 
         $this->client->setAccessToken($token);
 
-        if ($this->client->isAccessTokenExpired()) {
-            $refreshToken = $this->client->getRefreshToken();
+        // Access token masih berlaku: tidak perlu refresh.
+        if (!$this->client->isAccessTokenExpired()) {
+            return;
+        }
 
-            if (!$refreshToken) {
-                throw new RuntimeException(
-                    'Refresh token tidak tersedia. Hubungkan ulang akun IT.'
-                );
-            }
+        $refreshToken = $token['refresh_token']
+            ?? $this->client->getRefreshToken();
 
-            $newToken = $this->client
-                ->fetchAccessTokenWithRefreshToken($refreshToken);
+        if (empty($refreshToken)) {
+            throw new RuntimeException(
+                'Refresh token tidak tersedia. '
+                . 'Periksa koneksi Google Drive akun IT.'
+            );
+        }
 
-            if (isset($newToken['error'])) {
-                throw new RuntimeException(
-                    'Gagal memperbarui token Google Drive: ' .
-                    ($newToken['error_description']
-                        ?? $newToken['error'])
-                );
-            }
+        $newToken = $this->client
+            ->fetchAccessTokenWithRefreshToken($refreshToken);
 
-            // Pertahankan refresh token jika respons baru
-            // tidak menyertakannya.
-            if (empty($newToken['refresh_token'])) {
-                $newToken['refresh_token'] = $refreshToken;
-            }
-
-            $storage->put(
-                $this->tokenPath,
-                json_encode(
-                    $this->client->getAccessToken(),
-                    JSON_PRETTY_PRINT
+        if (
+            !is_array($newToken) ||
+            isset($newToken['error']) ||
+            empty($newToken['access_token'])
+        ) {
+            $error = is_array($newToken)
+                ? (
+                    $newToken['error_description']
+                    ?? $newToken['error']
+                    ?? 'Respons Google tidak valid.'
                 )
+                : 'Respons Google tidak valid.';
+
+            throw new RuntimeException(
+                'Refresh token gagal: ' . $error
+            );
+        }
+
+        // Google tidak selalu mengembalikan refresh token baru.
+        if (empty($newToken['refresh_token'])) {
+            $newToken['refresh_token'] = $refreshToken;
+        }
+
+        // Gabungkan token baru dengan token lama.
+        $updatedToken = array_merge($token, $newToken);
+
+        $this->client->setAccessToken($updatedToken);
+        $updatedToken = $this->client->getAccessToken();
+
+        if (empty($updatedToken['refresh_token'])) {
+            $updatedToken['refresh_token'] = $refreshToken;
+        }
+
+        $json = json_encode(
+            $updatedToken,
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
+        );
+
+        if ($json === false) {
+            throw new RuntimeException(
+                'Token Google gagal dikonversi menjadi JSON.'
+            );
+        }
+
+        if (!$storage->put($this->tokenPath, $json)) {
+            throw new RuntimeException(
+                'Token baru gagal disimpan di storage server.'
             );
         }
     }
 
     /**
-     * Membuat folder di dalam folder induk Google Drive.
+     * Membuat folder di Google Drive.
      */
     public function createFolder(
         string $name,
@@ -134,15 +168,18 @@ class GoogleDriveService
             ]
         );
 
+        $id = $created->getId();
+
         return [
-            'id' => $created->getId(),
+            'id' => $id,
             'name' => $created->getName(),
-            'url' => $created->getWebViewLink(),
+            'url' => $created->getWebViewLink()
+                ?: 'https://drive.google.com/drive/folders/' . $id,
         ];
     }
 
     /**
-     * Upload file ke folder Google Drive.
+     * Mengunggah file ke folder Google Drive.
      */
     public function uploadFile(
         string $localPath,
@@ -150,9 +187,23 @@ class GoogleDriveService
         string $folderId,
         string $mimeType
     ): array {
-        if (!is_file($localPath)) {
+        if (!is_file($localPath) || !is_readable($localPath)) {
             throw new RuntimeException(
-                'File lokal tidak ditemukan.'
+                'File lokal tidak ditemukan atau tidak dapat dibaca.'
+            );
+        }
+
+        if (trim($folderId) === '') {
+            throw new RuntimeException(
+                'ID folder Google Drive tidak valid.'
+            );
+        }
+
+        $contents = file_get_contents($localPath);
+
+        if ($contents === false) {
+            throw new RuntimeException(
+                'File gagal dibaca sebelum diunggah.'
             );
         }
 
@@ -164,7 +215,7 @@ class GoogleDriveService
         $created = $this->drive->files->create(
             $file,
             [
-                'data' => file_get_contents($localPath),
+                'data' => $contents,
                 'mimeType' => $mimeType,
                 'uploadType' => 'multipart',
                 'fields' => 'id,name,mimeType,webViewLink,parents,size',
@@ -172,11 +223,14 @@ class GoogleDriveService
             ]
         );
 
+        $id = $created->getId();
+
         return [
-            'id' => $created->getId(),
+            'id' => $id,
             'name' => $created->getName(),
             'mime_type' => $created->getMimeType(),
-            'url' => $created->getWebViewLink(),
+            'url' => $created->getWebViewLink()
+                ?: 'https://drive.google.com/file/d/' . $id . '/view',
             'size' => $created->getSize(),
         ];
     }
