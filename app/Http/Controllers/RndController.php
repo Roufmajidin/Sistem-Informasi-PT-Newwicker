@@ -655,7 +655,9 @@ class RndController extends Controller
 
                     $driveFileName = Str::uuid().'.'.$extension;
 
-                    // Satu file per request dari UI: jika gagal, file lain tetap bisa dilanjutkan.
+                    // Ukur transfer ke Google Drive secara terpisah.
+                    $driveStartedAt = microtime(true);
+
                     $driveFile = $drive->uploadFile(
                         $photo->getRealPath(),
                         $driveFileName,
@@ -663,9 +665,15 @@ class RndController extends Controller
                         $mimeType
                     );
 
+                    $driveDurationMs = (int) round(
+                        (microtime(true) - $driveStartedAt) * 1000
+                    );
+
                     if (empty($driveFile['id'])) {
                         throw new \RuntimeException('Google Drive tidak mengembalikan ID file.');
                     }
+
+                    $dbStartedAt = microtime(true);
 
                     $savedFile = RndArchiveFile::create([
                         'folder_id' => $folder->id,
@@ -675,6 +683,10 @@ class RndController extends Controller
                         'file_size' => (int) ($driveFile['size'] ?? $photo->getSize()),
                         'uploaded_by' => auth()->id(),
                     ]);
+
+                    $dbDurationMs = (int) round(
+                        (microtime(true) - $dbStartedAt) * 1000
+                    );
 
                     $uploaded[] = [
                         'id' => $savedFile->id,
@@ -686,7 +698,10 @@ class RndController extends Controller
                         'detail_po_id' => $detailPo->id,
                         'folder_id' => $folder->id,
                         'file' => $originalName,
-                        'duration_ms' => (int) round((microtime(true) - $fileStartedAt) * 1000),
+                        'file_size_bytes' => (int) ($photo->getSize() ?? 0),
+                        'drive_upload_ms' => $driveDurationMs,
+                        'database_save_ms' => $dbDurationMs,
+                        'total_file_ms' => (int) round((microtime(true) - $fileStartedAt) * 1000),
                     ]);
                 } catch (Throwable $fileError) {
                     $failed[] = [
@@ -699,7 +714,8 @@ class RndController extends Controller
                         'detail_po_id' => $detailPo->id,
                         'folder_id' => $folder->id,
                         'file' => $originalName,
-                        'duration_ms' => (int) round((microtime(true) - $fileStartedAt) * 1000),
+                        'file_size_bytes' => (int) ($photo->getSize() ?? 0),
+                        'total_file_ms' => (int) round((microtime(true) - $fileStartedAt) * 1000),
                         'error' => $fileError->getMessage(),
                     ]);
                 }
