@@ -604,194 +604,141 @@ class RndController extends Controller
      */
 
     public function uploadArticlePhotos(
-
         Request $request,
-
         Po $po,
-
         DetailPo $detailPo,
-
         GoogleDriveService $drive
-
     ) {
-
-        $request->validate([
+        $validated = $request->validate([
             'folder_id' => ['nullable', 'integer'],
-
-            'photos' => ['required', 'array', 'min:1', 'max:10'],
-
+            // UI mengirim satu file per request agar progress dan kegagalan terisolasi.
+            // Tetap menerima sampai 50 file jika endpoint dipanggil langsung.
+            'photos' => ['required', 'array', 'min:1', 'max:50'],
             'photos.*' => [
-
                 'required',
-
                 'image',
-
                 'mimes:jpg,jpeg,png,webp',
-
-                'max:10240',
-
+                'max:25600',
             ],
-
         ]);
 
-
+        $startedAt = microtime(true);
+        $folder = null;
+        $uploaded = [];
+        $failed = [];
 
         try {
-
             $folder = $this->resolveArticleArchiveFolder(
                 $po,
                 $detailPo,
-                $request->input('folder_id'),
+                $validated['folder_id'] ?? null,
                 $drive
             );
 
-
-
-            $uploaded = [];
-
-
-
-            foreach ($request->file('photos', []) as $photo) {
-
-                if (!$photo->isValid()) {
-
-                    throw new \RuntimeException(
-
-                        'Ada file foto yang gagal diunggah ke server.'
-
-                    );
-
-                }
-
-
-
+            foreach ($request->file('photos', []) as $index => $photo) {
+                $fileStartedAt = microtime(true);
                 $originalName = $photo->getClientOriginalName();
 
-                $mimeType = $photo->getMimeType()
+                try {
+                    if (!$photo->isValid()) {
+                        throw new \RuntimeException(
+                            'File gagal diterima server (upload error: '.$photo->getError().').'
+                        );
+                    }
 
-                    ?: 'application/octet-stream';
+                    $mimeType = $photo->getMimeType() ?: 'application/octet-stream';
+                    $extension = strtolower(
+                        $photo->guessExtension()
+                        ?: $photo->getClientOriginalExtension()
+                        ?: 'jpg'
+                    );
 
+                    $driveFileName = Str::uuid().'.'.$extension;
 
+                    // Satu file per request dari UI: jika gagal, file lain tetap bisa dilanjutkan.
+                    $driveFile = $drive->uploadFile(
+                        $photo->getRealPath(),
+                        $driveFileName,
+                        $folder->google_drive_folder_id,
+                        $mimeType
+                    );
 
-                // Nama unik di Drive, tetapi nama asli tetap disimpan di database.
+                    if (empty($driveFile['id'])) {
+                        throw new \RuntimeException('Google Drive tidak mengembalikan ID file.');
+                    }
 
-                $extension = strtolower(
+                    $savedFile = RndArchiveFile::create([
+                        'folder_id' => $folder->id,
+                        'original_name' => $originalName,
+                        'google_drive_file_id' => $driveFile['id'],
+                        'mime_type' => $driveFile['mime_type'] ?? $mimeType,
+                        'file_size' => (int) ($driveFile['size'] ?? $photo->getSize()),
+                        'uploaded_by' => auth()->id(),
+                    ]);
 
-                    $photo->guessExtension()
+                    $uploaded[] = [
+                        'id' => $savedFile->id,
+                        'name' => $savedFile->original_name,
+                    ];
 
-                    ?: $photo->getClientOriginalExtension()
+                    Log::info('RND photo uploaded', [
+                        'po_id' => $po->id,
+                        'detail_po_id' => $detailPo->id,
+                        'folder_id' => $folder->id,
+                        'file' => $originalName,
+                        'duration_ms' => (int) round((microtime(true) - $fileStartedAt) * 1000),
+                    ]);
+                } catch (Throwable $fileError) {
+                    $failed[] = [
+                        'name' => $originalName,
+                        'message' => $fileError->getMessage(),
+                    ];
 
-                    ?: 'jpg'
-
-                );
-
-
-
-                $driveFileName = Str::uuid() . '.' . $extension;
-
-
-
-                $driveFile = $drive->uploadFile(
-
-                    $photo->getRealPath(),
-
-                    $driveFileName,
-
-                    $folder->google_drive_folder_id,
-
-                    $mimeType
-
-                );
-
-
-
-                $savedFile = RndArchiveFile::create([
-
-                    'folder_id' => $folder->id,
-
-                    'original_name' => $originalName,
-
-                    'google_drive_file_id' => $driveFile['id'],
-
-                    'mime_type' => $driveFile['mime_type'] ?? $mimeType,
-
-                    'file_size' => (int) (
-
-                        $driveFile['size'] ?? $photo->getSize()
-
-                    ),
-
-                    'uploaded_by' => auth()->id(),
-
-                ]);
-
-
-
-                $uploaded[] = [
-
-                    'id' => $savedFile->id,
-
-                    'name' => $savedFile->original_name,
-
-                ];
-
+                    Log::error('RND upload satu foto gagal', [
+                        'po_id' => $po->id,
+                        'detail_po_id' => $detailPo->id,
+                        'folder_id' => $folder->id,
+                        'file' => $originalName,
+                        'duration_ms' => (int) round((microtime(true) - $fileStartedAt) * 1000),
+                        'error' => $fileError->getMessage(),
+                    ]);
+                }
             }
 
+            Cache::forget('rnd_drive_folder_items:'.$folder->google_drive_folder_id);
 
-
-            Cache::forget(
-                'rnd_drive_folder_items:' . $folder->google_drive_folder_id
-            );
+            $count = RndArchiveFile::where('folder_id', $folder->id)->count();
+            $success = count($uploaded) > 0 && count($failed) === 0;
 
             return response()->json([
-
-                'success' => true,
-
-                'message' => count($uploaded) . ' foto berhasil diunggah.',
-
+                'success' => $success,
+                'partial' => count($uploaded) > 0 && count($failed) > 0,
+                'message' => count($uploaded).' foto berhasil, '.count($failed).' gagal.',
                 'uploaded' => $uploaded,
-
-                'file_count' => RndArchiveFile::where(
-
-                    'folder_id',
-
-                    $folder->id
-
-                )->count(),
-
-            ]);
-
+                'failed' => $failed,
+                'file_count' => $count,
+                'folder' => [
+                    'database_id' => $folder->id,
+                    'drive_id' => $folder->google_drive_folder_id,
+                ],
+                'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+            ], count($uploaded) > 0 ? 200 : (count($failed) > 0 ? 500 : 200));
         } catch (Throwable $e) {
-
             Log::error('RND uploadArticlePhotos gagal', [
-
                 'po_id' => $po->id,
-
                 'detail_po_id' => $detailPo->id,
-
+                'folder_id' => $folder?->id,
                 'error' => $e->getMessage(),
-
             ]);
-
-
 
             return response()->json([
-
                 'success' => false,
-
                 'message' => config('app.debug')
-
                     ? $e->getMessage()
-
                     : 'Gagal mengunggah foto. Periksa log Laravel.',
-
             ], 500);
-
         }
-
     }
-
-
 
     /**
 
