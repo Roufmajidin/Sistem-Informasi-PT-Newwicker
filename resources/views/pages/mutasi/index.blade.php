@@ -72,8 +72,7 @@
 
                             @endphp
 
-                            <tr class="pilih-spk"
-                                data-id="{{ $spk->id }}"
+                            <tr class="pilih-spk" data-id="{{ $spk->id }}"
                                 data-items-b64="{{ base64_encode(json_encode($spk->data['items'] ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) }}"
                                 style="cursor:pointer"
                                 data-search="{{ strtolower(
@@ -167,7 +166,7 @@
                         <div class="item-picker-wrap">
                             <div class="item-picker-label">
                                 <div class="item-picker-label-left">
-                                   
+
                                     <div>
                                         {{-- <div class="item-picker-title">Pilih Item</div> --}}
                                         <div class="item-picker-subtitle">
@@ -178,16 +177,11 @@
                             </div>
 
                             <div class="item-select-shell item-select-shell-photo">
-                                <span class="item-select-leading-icon item-select-photo-preview" id="itemSelectPhotoPreview">
-                                    <img
-                                        id="itemSelectPhoto"
-                                        src="{{ asset('storage/rouf.jpeg') }}"
-                                        alt="Foto item"
-                                        style="display:block;"
-                                    >
-                                    <i class="fa fa-cube"
-                                       id="itemSelectPhotoPlaceholder"
-                                       style="display:none;"></i>
+                                <span class="item-select-leading-icon item-select-photo-preview"
+                                    id="itemSelectPhotoPreview">
+                                    <img id="itemSelectPhoto" src="{{ asset('storage/rouf.jpeg') }}" alt="Foto item"
+                                        style="display:block;">
+                                    <i class="fa fa-cube" id="itemSelectPhotoPlaceholder" style="display:none;"></i>
                                 </span>
 
                                 <select id="itemSelect" class="form-select item-select">
@@ -565,8 +559,11 @@
                         |--------------------------------------------------------------------------
                         */
 
+                        // Abaikan baris komponen yang tidak memiliki nama valid.
+                        // Jika semua baris komponen kosong, fallback item utama
+                        // di bawah akan digunakan.
                         if (!componentName) {
-                            componentName = `Komponen ${index + 1}`;
+                            return;
                         }
 
                         const qtySpk =
@@ -762,7 +759,11 @@
                                     </div>
 
                                     <span class="component-count">
-                                        ${components.length} komponen
+                                        ${
+                                            components.length === 1 && !components[0].specification
+                                                ? 'Item utama'
+                                                : components.length + ' komponen'
+                                        }
                                     </span>
 
                                 </div>
@@ -809,7 +810,8 @@
                     if (!photo) return '';
                     photo = String(photo).trim();
                     if (!photo) return '';
-                    if (photo.startsWith('http://') || photo.startsWith('https://') || photo.startsWith('data:image/')) return photo;
+                    if (photo.startsWith('http://') || photo.startsWith('https://') || photo.startsWith('data:image/'))
+                return photo;
                     if (photo.startsWith('//')) return window.location.protocol + photo;
                     if (photo.startsWith('/')) return photo;
                     if (photo.startsWith('storage/')) return '/' + photo;
@@ -845,8 +847,9 @@
                     }
                     $box.find('.item-select-photo-name-title').text(item.nama || item.name || '-');
                     $box.find('.item-select-photo-name-meta').text(
-                        [item.kode || '', item.qty !== undefined && item.qty !== null ? (formatNumber(item.qty) + (item.satuan ? ' ' + item.satuan : '')) : '']
-                            .filter(Boolean).join(' • ')
+                        [item.kode || '', item.qty !== undefined && item.qty !== null ? (formatNumber(item.qty) + (item.satuan ?
+                            ' ' + item.satuan : '')) : '']
+                        .filter(Boolean).join(' • ')
                     );
                     $box.show();
                 }
@@ -1254,34 +1257,34 @@
 
                 function resetModal() {
 
-    items = [];
-    currentSpkId = null;
-    currentSupId = null;
-    supplierName = '';
+                    items = [];
+                    currentSpkId = null;
+                    currentSupId = null;
+                    supplierName = '';
 
-    $('#judulSpk').text('Detail SPK');
+                    $('#judulSpk').text('Detail SPK');
 
-    $('#itemSelect').html('<option value="">Pilih Item...</option>');
+                    $('#itemSelect').html('<option value="">Pilih Item...</option>');
 
-    $('#itemInfo').empty();
+                    $('#itemInfo').empty();
 
-    $('#timelineTable').empty();
+                    $('#timelineTable').empty();
 
-    // Reset select ke option pertama
-    $('#itemSelect').prop('selectedIndex', 0);
+                    // Reset select ke option pertama
+                    $('#itemSelect').prop('selectedIndex', 0);
 
-    // Reset foto item
-    $('#itemSelectPhoto')
-        .attr('src', "{{ asset('storage/rouf.jpeg') }}")
-        .show();
+                    // Reset foto item
+                    $('#itemSelectPhoto')
+                        .attr('src', "{{ asset('storage/rouf.jpeg') }}")
+                        .show();
 
-    $('#itemSelectPhotoPlaceholder').hide();
+                    $('#itemSelectPhotoPlaceholder').hide();
 
-    $('#itemSelectPhotoName').hide();
+                    $('#itemSelectPhotoName').hide();
 
-    // Hapus blok/highlight SPK sebelumnya
-    $('#tbodySpk tr.pilih-spk').removeClass('active');
-}
+                    // Hapus blok/highlight SPK sebelumnya
+                    $('#tbodySpk tr.pilih-spk').removeClass('active');
+                }
                 $('#modalSpk').on('hidden.bs.modal', function() {
 
                     resetModal();
@@ -1304,18 +1307,18 @@
 
             <script>
                 /*
-                |--------------------------------------------------------------------------
-                | SPK HOVER PREVIEW + IN
-                |--------------------------------------------------------------------------
-                | - Items + Qty dibaca langsung dari data SPK.
-                | - IN diambil dari endpoint timeline yang SUDAH WORK.
-                | - Menggunakan fetch native, bukan $.ajax().
-                | - Tidak menggunakan $.ajax().then().catch().
-                | - Tidak mengubah click/modal existing.
-                |--------------------------------------------------------------------------
-                */
+                            |--------------------------------------------------------------------------
+                            | SPK HOVER PREVIEW + IN
+                            |--------------------------------------------------------------------------
+                            | - Items + Qty dibaca langsung dari data SPK.
+                            | - IN diambil dari endpoint timeline yang SUDAH WORK.
+                            | - Menggunakan fetch native, bukan $.ajax().
+                            | - Tidak menggunakan $.ajax().then().catch().
+                            | - Tidak mengubah click/modal existing.
+                            |--------------------------------------------------------------------------
+                            */
 
-                (function () {
+                (function() {
 
                     const preview =
                         document.getElementById('spkHoverPreview');
@@ -1346,9 +1349,9 @@
                             document.createElement('div');
 
                         div.textContent =
-                            value == null
-                                ? ''
-                                : String(value);
+                            value == null ?
+                            '' :
+                            String(value);
 
                         return div.innerHTML;
 
@@ -1418,9 +1421,7 @@
 
 
                         for (
-                            let i = 0;
-                            i < binary.length;
-                            i++
+                            let i = 0; i < binary.length; i++
                         ) {
 
                             bytes[i] =
@@ -1448,17 +1449,15 @@
                                 '';
 
                             for (
-                                let i = 0;
-                                i < binary.length;
-                                i++
+                                let i = 0; i < binary.length; i++
                             ) {
 
                                 encodedText +=
                                     '%' +
                                     ('00' +
                                         binary
-                                            .charCodeAt(i)
-                                            .toString(16)
+                                        .charCodeAt(i)
+                                        .toString(16)
                                     ).slice(-2);
 
                             }
@@ -1476,9 +1475,9 @@
                             JSON.parse(json);
 
 
-                        return Array.isArray(items)
-                            ? items
-                            : [];
+                        return Array.isArray(items) ?
+                            items :
+                            [];
 
                     }
 
@@ -1512,7 +1511,7 @@
                         let displayIndex = 0;
 
                         items.forEach(
-                            function (item) {
+                            function(item) {
 
                                 /*
                                 | Jika item mempunyai custom_columns / komponen,
@@ -1530,7 +1529,7 @@
                                 if (hasComponents) {
 
                                     item.hover_components.forEach(
-                                        function (component) {
+                                        function(component) {
 
                                             const name =
                                                 component.name ||
@@ -1737,7 +1736,7 @@
                         activeRow = row;
                         clearTimeout(hoverTimer);
 
-                        hoverTimer = setTimeout(async function () {
+                        hoverTimer = setTimeout(async function() {
 
                             if (activeRow !== row) return;
 
@@ -1793,38 +1792,37 @@
                                 }
 
                                 return fetch(
-                                    '/mutasi/timeline/detail?spk_id=' +
-                                    encodeURIComponent(spkId) +
-                                    '&detail_po_id=' +
-                                    encodeURIComponent(detailPoId),
-                                    {
-                                        method: 'GET',
-                                        credentials: 'same-origin',
-                                        headers: {
-                                            'Accept': 'application/json',
-                                            'X-Requested-With': 'XMLHttpRequest'
+                                        '/mutasi/timeline/detail?spk_id=' +
+                                        encodeURIComponent(spkId) +
+                                        '&detail_po_id=' +
+                                        encodeURIComponent(detailPoId), {
+                                            method: 'GET',
+                                            credentials: 'same-origin',
+                                            headers: {
+                                                'Accept': 'application/json',
+                                                'X-Requested-With': 'XMLHttpRequest'
+                                            }
                                         }
-                                    }
-                                )
-                                .then(function(response) {
-                                    if (!response.ok) {
-                                        throw new Error('HTTP ' + response.status);
-                                    }
-                                    return response.json();
-                                })
-                                .then(function(res) {
-                                    const timeline = Array.isArray(res.timeline)
-                                        ? res.timeline
-                                        : [];
+                                    )
+                                    .then(function(response) {
+                                        if (!response.ok) {
+                                            throw new Error('HTTP ' + response.status);
+                                        }
+                                        return response.json();
+                                    })
+                                    .then(function(res) {
+                                        const timeline = Array.isArray(res.timeline) ?
+                                            res.timeline :
+                                            [];
 
-                                    if (!cache.timeline) cache.timeline = {};
-                                    cache.timeline[cacheKey] = timeline;
+                                        if (!cache.timeline) cache.timeline = {};
+                                        cache.timeline[cacheKey] = timeline;
 
-                                    return timeline;
-                                })
-                                .catch(function() {
-                                    return [];
-                                });
+                                        return timeline;
+                                    })
+                                    .catch(function() {
+                                        return [];
+                                    });
                             });
 
                             const timelines = await Promise.all(timelinePromises);
@@ -1849,13 +1847,13 @@
 
                                 item.qty_in = qtyIn;
 
-                                const customColumns = Array.isArray(item.custom_columns)
-                                    ? item.custom_columns
-                                    : [];
+                                const customColumns = Array.isArray(item.custom_columns) ?
+                                    item.custom_columns :
+                                    [];
 
-                                item.hover_components = customColumns.length > 0
-                                    ? getComponentRows(item, timeline)
-                                    : null;
+                                item.hover_components = customColumns.length > 0 ?
+                                    getComponentRows(item, timeline) :
+                                    null;
                             });
 
                             cache[spkId] = items;
@@ -1880,14 +1878,11 @@
                             activeRow.getBoundingClientRect();
 
 
-                        const event =
-                            {
-                                clientX:
-                                    rect.right,
+                        const event = {
+                            clientX: rect.right,
 
-                                clientY:
-                                    rect.top
-                            };
+                            clientY: rect.top
+                        };
 
 
                         movePreview(
@@ -1905,7 +1900,7 @@
 
                     document.addEventListener(
                         'mouseover',
-                        function (event) {
+                        function(event) {
 
                             const row =
                                 event.target.closest(
@@ -1943,7 +1938,7 @@
 
                     document.addEventListener(
                         'mousemove',
-                        function (event) {
+                        function(event) {
 
                             if (!activeRow) {
                                 return;
@@ -1991,7 +1986,7 @@
 
                     document.addEventListener(
                         'mouseout',
-                        function (event) {
+                        function(event) {
 
                             if (!activeRow) {
                                 return;
@@ -1999,24 +1994,20 @@
 
 
                             const fromRow =
-                                event.target.closest
-                                    ?
-                                    event.target.closest(
-                                        'tr.pilih-spk'
-                                    )
-                                    :
-                                    null;
+                                event.target.closest ?
+                                event.target.closest(
+                                    'tr.pilih-spk'
+                                ) :
+                                null;
 
 
                             const toRow =
                                 event.relatedTarget &&
-                                event.relatedTarget.closest
-                                    ?
-                                    event.relatedTarget.closest(
-                                        'tr.pilih-spk'
-                                    )
-                                    :
-                                    null;
+                                event.relatedTarget.closest ?
+                                event.relatedTarget.closest(
+                                    'tr.pilih-spk'
+                                ) :
+                                null;
 
 
                             if (
@@ -2055,7 +2046,7 @@
 
                     window.addEventListener(
                         'scroll',
-                        function () {
+                        function() {
 
                             activeRow =
                                 null;
@@ -2074,26 +2065,27 @@
 
             <style>
                 /* =========================================================
-                   SPK HOVER PREVIEW
-                   ========================================================= */
-#tbodySpk tr.pilih-spk {
-    cursor: pointer;
-    transition: all 0.15s ease;
-}
+                       SPK HOVER PREVIEW
+                       ========================================================= */
+                #tbodySpk tr.pilih-spk {
+                    cursor: pointer;
+                    transition: all 0.15s ease;
+                }
 
-#tbodySpk tr.pilih-spk.active td {
-    background-color: #fff3cd !important;
-    color: #000 !important;
-}
+                #tbodySpk tr.pilih-spk.active td {
+                    background-color: #fff3cd !important;
+                    color: #000 !important;
+                }
 
-#tbodySpk tr.pilih-spk.active {
-    background-color: #fff3cd !important;
-    box-shadow: inset 4px 0 0 #ffc107;
-}
+                #tbodySpk tr.pilih-spk.active {
+                    background-color: #fff3cd !important;
+                    box-shadow: inset 4px 0 0 #ffc107;
+                }
 
-#tbodySpk tr.pilih-spk.active:hover td {
-    background-color: #ffe69c !important;
-}
+                #tbodySpk tr.pilih-spk.active:hover td {
+                    background-color: #ffe69c !important;
+                }
+
                 #spkHoverPreview {
                     position: fixed;
                     display: none;
@@ -2219,8 +2211,8 @@
 
 
                 /* =========================================================
-                               STICKY HEADER
-                               ========================================================= */
+                                   STICKY HEADER
+                                   ========================================================= */
 
                 .spk-table-wrap {
                     max-height: calc(100vh - 220px);
@@ -2259,8 +2251,8 @@
                 }
 
                 /* =========================================================
-                                   ITEM DETAIL + COMPONENTS
-                                   ========================================================= */
+                                       ITEM DETAIL + COMPONENTS
+                                       ========================================================= */
 
                 .item-detail-grid {
                     display: grid;
@@ -2485,8 +2477,8 @@
                 }
 
                 /* =========================================================
-                   ITEM PICKER
-                   ========================================================= */
+                       ITEM PICKER
+                       ========================================================= */
 
                 .item-picker-wrap {
                     margin-bottom: 18px;
@@ -2538,7 +2530,10 @@
                     line-height: 1.35;
                 }
 
-                .item-select-shell-photo { position: relative; }
+                .item-select-shell-photo {
+                    position: relative;
+                }
+
                 .item-select-shell-photo .item-select-photo-preview {
                     width: 46px;
                     height: 46px;
@@ -2551,15 +2546,32 @@
                     background: #f3f5f7;
                     color: #64748b;
                 }
+
                 .item-select-shell-photo .item-select-photo-preview img {
-                    width: 100%; height: 100%; object-fit: cover; display: block;
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                    display: block;
                 }
+
                 .item-select-photo-name {
-                    margin-top: 6px; padding-left: 54px;
-                    display: flex; flex-direction: column; line-height: 1.25;
+                    margin-top: 6px;
+                    padding-left: 54px;
+                    display: flex;
+                    flex-direction: column;
+                    line-height: 1.25;
                 }
-                .item-select-photo-name-title { font-size: 11px; font-weight: 700; color: #1f2937; }
-                .item-select-photo-name-meta { font-size: 10px; color: #64748b; }
+
+                .item-select-photo-name-title {
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: #1f2937;
+                }
+
+                .item-select-photo-name-meta {
+                    font-size: 10px;
+                    color: #64748b;
+                }
 
                 .item-select-shell {
                     position: relative;
@@ -2619,7 +2631,7 @@
                         0 4px 12px rgba(15, 23, 42, .05);
                 }
 
-                #itemSelect.item-select:focus + .item-select-arrow {
+                #itemSelect.item-select:focus+.item-select-arrow {
                     color: #4f73d9;
                     transform: translateY(-50%) rotate(180deg);
                 }
@@ -2660,8 +2672,8 @@
 
 
                 /* =========================================================
-                   MICRO UI IMPROVEMENT + PERFORMANCE
-                   ========================================================= */
+                       MICRO UI IMPROVEMENT + PERFORMANCE
+                       ========================================================= */
                 .spk-table-wrap {
                     contain: layout paint;
                     border-radius: 12px;
