@@ -301,7 +301,7 @@
 
                 </div>
 
-                <h3>Kelola Foto Sampel</h3>
+                <H6>Kelola Foto Sampel</H6>
 
                 <p id="rndDrawerSubtitle" class="rnd-sr-only">Daftar artikel dari Purchase Order.</p>
 
@@ -509,6 +509,11 @@
                         </div>
                         <nav id="rndDriveBreadcrumb" class="rnd-drive-breadcrumb" aria-label="Lokasi folder"></nav>
                         <div id="rndDriveCurrentPath" class="rnd-drive-current-path">Pilih artikel untuk memuat folder.
+                        </div>
+                        <div class="rnd-view-toolbar" role="group" aria-label="Mode tampilan file">
+                            <span class="rnd-view-caption">Tampilan file</span>
+                            <button type="button" id="rndViewTile" class="rnd-view-toggle active" aria-pressed="true" title="Tile / Grid Foto"><i class="fa fa-th-large"></i><span>Tile</span></button>
+                            <button type="button" id="rndViewList" class="rnd-view-toggle" aria-pressed="false" title="List File"><i class="fa fa-list"></i><span>List</span></button>
                         </div>
                         <div id="rndDriveItems" class="rnd-drive-items">
                             <div class="rnd-drive-empty">Folder belum dimuat.</div>
@@ -3139,7 +3144,104 @@
           .rnd-archive-topbar .rnd-folder-status {flex:1 1 40%!important;max-width:none!important;}
           .rnd-archive-topbar .rnd-archive-navigation {flex:1 1 auto!important;}
         }
-    </style>
+
+        /* R&D responsive desktop layout and tile/list toggle */
+        .rnd-drawer {width:min(1560px,calc(100vw - 24px))!important;height:calc(100dvh - 24px)!important;padding:14px 18px!important}
+        .rnd-archive-topbar {margin-bottom:8px!important}
+        .rnd-view-toolbar {display:flex;align-items:center;justify-content:flex-end;gap:5px;padding:7px 12px;border-bottom:1px solid #e7edf5;background:#fff;flex-shrink:0}
+        .rnd-view-caption {font-size:11px;color:#64748b;margin-right:8px}
+        .rnd-view-toggle {display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border:1px solid #dce5f1;border-radius:7px;background:#fff;color:#475569;font-size:11px;font-weight:700;cursor:pointer}
+        .rnd-view-toggle.active {background:#1769e0;color:#fff;border-color:#1769e0}
+        #rndDriveItems.rnd-drive-items-modern:not(.rnd-list-mode) {grid-template-columns:repeat(auto-fill,minmax(155px,1fr))!important;gap:12px!important;padding:12px!important}
+        #rndDriveItems:not(.rnd-list-mode) .rnd-drive-preview {height:116px!important}
+        #rndDriveItems .rnd-drive-preview img {object-fit:contain!important;background:#f6f8fc}
+        #rndDriveItems.rnd-list-mode {display:flex!important;flex-direction:column!important;gap:0!important;padding:4px 10px!important;align-content:stretch!important}
+        #rndDriveItems.rnd-list-mode .rnd-drive-item {display:grid!important;grid-template-columns:62px minmax(0,1fr) 40px!important;align-items:center!important;min-height:66px!important;gap:12px!important;border:0!important;border-bottom:1px solid #e9eef5!important;border-radius:0!important;box-shadow:none!important;transform:none!important;overflow:visible!important}
+        #rndDriveItems.rnd-list-mode .rnd-drive-preview {width:62px!important;height:54px!important;border-radius:7px!important;grid-column:1!important;grid-row:1!important}
+        #rndDriveItems.rnd-list-mode .rnd-drive-item-info {grid-column:2!important;grid-row:1!important;padding:5px 0!important}
+        #rndDriveItems.rnd-list-mode .rnd-drive-card-menu {position:relative!important;top:auto!important;right:auto!important;grid-column:3!important;grid-row:1!important}
+        #rndDriveItems.rnd-list-mode .rnd-drive-item-actions-modern {top:52px!important;right:0!important}
+        #rndDriveItems.rnd-list-mode .rnd-drive-item-name {font-size:12px!important}
+        @media(max-width:1100px) {.rnd-archive-workspace {grid-template-columns:minmax(220px,32%) minmax(0,1fr)!important}#rndDriveItems.rnd-drive-items-modern:not(.rnd-list-mode){grid-template-columns:repeat(auto-fill,minmax(135px,1fr))!important}}
+        @media(max-width:700px) {.rnd-drawer{width:calc(100vw - 8px)!important;height:calc(100dvh - 8px)!important;padding:10px!important}.rnd-archive-workspace{grid-template-columns:1fr!important;overflow-y:auto!important}.rnd-preview-pane{height:260px!important}#rndDriveItems.rnd-drive-items-modern:not(.rnd-list-mode){grid-template-columns:repeat(2,minmax(0,1fr))!important}.rnd-view-caption{display:none}}
+
+
+        /* Photo selection and in-place Google Drive preview */
+        #rndDriveItems .rnd-drive-item.rnd-drive-selected {border-color:#1769e8!important;box-shadow:0 0 0 2px rgba(23,105,232,.16)!important;background:#f8fbff!important}
+        #rndDriveItems .rnd-drive-item[data-type="file"] {cursor:pointer}
+        .rnd-preview-stage {position:relative!important}
+        .rnd-preview-nav {position:absolute;top:50%;transform:translateY(-50%);width:36px;height:36px;border:1px solid #dce5f1;border-radius:50%;background:rgba(255,255,255,.96);color:#1e3a5f;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:4;box-shadow:0 2px 9px rgba(15,23,42,.12)}
+        .rnd-preview-nav-prev {left:9px}.rnd-preview-nav-next {right:9px}
+        .rnd-preview-nav:hover {background:#eff6ff;color:#1769e8}
+        .rnd-preview-thumbs {min-height:0}
+    
+        /* V6 - Desktop 100%: prioritize file/folder area, scroll workspace instead of clipping */
+        @media (min-width: 701px) {
+          .rnd-archive-panel {overflow-y:auto!important;overflow-x:hidden!important;display:flex!important;flex-direction:column!important;}
+          .rnd-archive-workspace {flex:1 0 auto!important;min-height:510px!important;height:auto!important;overflow:visible!important;align-items:stretch!important;grid-template-columns:minmax(260px,32%) minmax(0,1fr)!important;}
+          .rnd-preview-pane {height:510px!important;min-height:510px!important;position:sticky!important;top:0!important;}
+          .rnd-archive-main {display:flex!important;flex-direction:column!important;overflow:visible!important;min-height:0!important;gap:12px!important;}
+          .rnd-drive-manager {height:auto!important;min-height:370px!important;max-height:none!important;flex:0 0 auto!important;overflow:hidden!important;}
+          #rndDriveItems {flex:0 0 auto!important;min-height:230px!important;max-height:420px!important;overflow-y:auto!important;align-content:start!important;}
+          #rndDriveItems.rnd-drive-items-modern:not(.rnd-list-mode) {grid-template-columns:repeat(auto-fill,minmax(150px,1fr))!important;gap:12px!important;}
+          #rndDriveItems:not(.rnd-list-mode) .rnd-drive-preview {height:112px!important;}
+          #rndDriveItems.rnd-list-mode {min-height:230px!important;}
+          #rndUploadForm {flex:0 0 auto!important;}
+          .rnd-drawer-footer {position:relative!important;z-index:2!important;background:#fff!important;}
+        }
+        @media (min-width:701px) and (max-height:760px) {
+          .rnd-archive-workspace {min-height:465px!important;}
+          .rnd-preview-pane {height:465px!important;min-height:465px!important;}
+          .rnd-drive-manager {min-height:345px!important;}
+          #rndDriveItems {min-height:205px!important;max-height:390px!important;}
+        }
+
+        /* V7: Fix compressed thumbnail rows at browser zoom 100% */
+        #rndDriveItems.rnd-drive-items-modern:not(.rnd-list-mode) {
+            display: grid !important;
+            grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)) !important;
+            grid-auto-rows: 166px !important;
+            align-content: start !important;
+            align-items: start !important;
+            gap: 12px !important;
+            overflow-y: auto !important;
+        }
+        #rndDriveItems:not(.rnd-list-mode) > .rnd-drive-item-modern {
+            display: flex !important;
+            flex-direction: column !important;
+            width: 100% !important;
+            height: 166px !important;
+            min-height: 166px !important;
+            max-height: 166px !important;
+            overflow: hidden !important;
+            flex-shrink: 0 !important;
+        }
+        #rndDriveItems:not(.rnd-list-mode) .rnd-drive-preview {
+            display: flex !important;
+            flex: 0 0 116px !important;
+            width: 100% !important;
+            height: 116px !important;
+            min-height: 116px !important;
+            max-height: 116px !important;
+            overflow: hidden !important;
+        }
+        #rndDriveItems:not(.rnd-list-mode) .rnd-drive-preview img {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: contain !important;
+            object-position: center !important;
+        }
+        #rndDriveItems:not(.rnd-list-mode) .rnd-drive-item-info {
+            flex: 0 0 48px !important;
+            min-height: 48px !important;
+            padding: 7px 10px !important;
+        }
+        @media(max-width:700px) {
+            #rndDriveItems.rnd-drive-items-modern:not(.rnd-list-mode) {
+                grid-template-columns: repeat(2,minmax(0,1fr)) !important;
+            }
+        }
+</style>
 
 
 
@@ -3624,6 +3726,8 @@
                     activeFolderDbId = data.active_folder.id;
                     driveBreadcrumbs = data.breadcrumbs || [];
                     driveCurrentItems = data.items || [];
+                    rndSelectedDriveId = null;
+                    previewThumbs.replaceChildren();
                     renderDriveBreadcrumbs();
                     renderDriveItems();
                     driveCurrentPath.textContent = data.active_folder.name || 'Folder aktif';
@@ -3709,6 +3813,70 @@
                 });
             }
 
+            const viewTileButton = document.getElementById('rndViewTile');
+            const viewListButton = document.getElementById('rndViewList');
+            let rndViewMode = 'tile';
+            try { rndViewMode = localStorage.getItem('rndArchiveViewMode') === 'list' ? 'list' : 'tile'; } catch (_) {}
+            function applyRndViewMode(mode) {
+                rndViewMode = mode;
+                driveItems.classList.toggle('rnd-list-mode', mode === 'list');
+                viewTileButton.classList.toggle('active', mode === 'tile');
+                viewListButton.classList.toggle('active', mode === 'list');
+                viewTileButton.setAttribute('aria-pressed', String(mode === 'tile'));
+                viewListButton.setAttribute('aria-pressed', String(mode === 'list'));
+                try { localStorage.setItem('rndArchiveViewMode', mode); } catch (_) {}
+            }
+            viewTileButton.addEventListener('click', () => applyRndViewMode('tile'));
+            viewListButton.addEventListener('click', () => applyRndViewMode('list'));
+            applyRndViewMode(rndViewMode);
+
+            // Preview foto Google Drive: tetap di panel kiri, tanpa navigasi keluar.
+            let rndSelectedDriveId = null;
+            function rndDrivePhotoItems() {
+                return driveCurrentItems.filter(item => item.type !== 'folder' &&
+                    (item.thumbnail_url || item.thumbnailLink || item.thumbnail || item.url || item.id));
+            }
+            function rndDrivePreviewUrl(item) {
+                return item.thumbnail_url || item.thumbnailLink || item.thumbnail ||
+                    (item.id ? 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(item.id) + '&sz=w1600' : item.url || '');
+            }
+            function rndSelectDrivePhoto(item) {
+                rndSelectedDriveId = String(item.id || item.name);
+                showPreview(rndDrivePreviewUrl(item), item.name, 'Foto tersimpan');
+                driveItems.querySelectorAll('.rnd-drive-item').forEach(card => {
+                    card.classList.toggle('rnd-drive-selected', card.dataset.fileKey === rndSelectedDriveId);
+                });
+                previewThumbs.replaceChildren();
+                const photos = rndDrivePhotoItems();
+                photos.forEach(photo => {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'rnd-preview-thumb' + (String(photo.id || photo.name) === rndSelectedDriveId ? ' active' : '');
+                    button.title = photo.name || 'Foto';
+                    const img = document.createElement('img');
+                    img.src = rndDrivePreviewUrl(photo);
+                    img.alt = photo.name || 'Foto';
+                    img.loading = 'lazy';
+                    button.appendChild(img);
+                    button.addEventListener('click', () => rndSelectDrivePhoto(photo));
+                    previewThumbs.appendChild(button);
+                });
+                // Navigasi panah hanya untuk foto di folder aktif.
+                previewStage.querySelectorAll('.rnd-preview-nav').forEach(el => el.remove());
+                const index = photos.findIndex(photo => String(photo.id || photo.name) === rndSelectedDriveId);
+                if (photos.length > 1 && index >= 0) {
+                    [['prev', -1, 'fa-chevron-left'], ['next', 1, 'fa-chevron-right']].forEach(([direction, offset, icon]) => {
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'rnd-preview-nav rnd-preview-nav-' + direction;
+                        btn.setAttribute('aria-label', direction === 'prev' ? 'Foto sebelumnya' : 'Foto berikutnya');
+                        btn.innerHTML = '<i class="fa ' + icon + '"></i>';
+                        btn.addEventListener('click', () => rndSelectDrivePhoto(photos[(index + offset + photos.length) % photos.length]));
+                        previewStage.appendChild(btn);
+                    });
+                }
+            }
+
             function renderDriveItems() {
                 driveItems.replaceChildren();
                 driveItems.classList.add('rnd-drive-items-modern');
@@ -3725,6 +3893,8 @@
                     const card = document.createElement('article');
                     card.className = 'rnd-drive-item rnd-drive-item-modern';
                     card.dataset.type = item.type;
+                    card.dataset.fileKey = String(item.id || item.name);
+                    if (item.type !== 'folder' && card.dataset.fileKey === rndSelectedDriveId) card.classList.add('rnd-drive-selected');
 
                     const preview = document.createElement('div');
                     preview.className = 'rnd-drive-preview';
@@ -3782,20 +3952,10 @@
                             if (item.database_id) loadDriveFolder(item.database_id);
                             else alert('Metadata folder belum tersedia. Klik Refresh lalu coba lagi.');
                         });
-                    } else if (item.url) {
-                        card.addEventListener('click', () => {
-                            const previewUrl = item.thumbnail_url || item.thumbnailLink || item
-                                .thumbnail ||
-                                (item.id ? ('https://drive.google.com/thumbnail?id=' +
-                                    encodeURIComponent(item.id) + '&sz=w1600') : item.url);
-                            showPreview(previewUrl, item.name, 'Foto tersimpan');
-                        });
-                        card.title = 'Klik dua kali untuk membuka foto';
-                        card.addEventListener('dblclick', () => window.open(item.url, '_blank',
-                            'noopener,noreferrer'));
+                    } else {
+                        card.addEventListener('click', () => rndSelectDrivePhoto(item));
+                        card.title = 'Klik untuk preview foto di sebelah kiri';
                         preview.style.cursor = 'pointer';
-                        preview.addEventListener('click', () => window.open(item.url, '_blank',
-                            'noopener,noreferrer'));
                     }
 
                     const actions = document.createElement('div');
@@ -3804,8 +3964,11 @@
                         const open = document.createElement('button');
                         open.type = 'button';
                         open.innerHTML = '<i class="fa fa-external-link"></i> Buka';
-                        open.addEventListener('click', () => window.open(item.url, '_blank',
-                            'noopener,noreferrer'));
+                        open.addEventListener('click', event => {
+                            event.stopPropagation();
+                            window.open(item.url, '_blank',
+                            'noopener,noreferrer');
+                        });
                         actions.appendChild(open);
                     }
                     const rename = document.createElement('button');
