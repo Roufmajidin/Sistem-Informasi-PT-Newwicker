@@ -191,7 +191,7 @@
                                 </th>
 
                                 <th>
-                                    NO SPK
+                                    Remark
                                 </th>
 
                             </tr>
@@ -494,7 +494,7 @@
                             </div>
                             <div class="col-md-4">
                                 <div class="upah-form-group">
-                                    <label class="upah-form-label">No SPK <small
+                                    <label class="upah-form-label">Remark <small
                                             class="text-muted">(optional)</small></label>
                                     <input type="text" id="insert_no_spk" name="no_spk" class="form-control"
                                         placeholder="No SPK">
