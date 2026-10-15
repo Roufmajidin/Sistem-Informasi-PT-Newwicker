@@ -1,5 +1,8 @@
 <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
 <script>
+    // Endpoint untuk validasi Qty realtime Single Add.
+    window.checkQtyUpahUrl = @json(route('upah.transaksi.check.qty'));
+
     $(document).ready(function() {
 
 
