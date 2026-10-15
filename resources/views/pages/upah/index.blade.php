@@ -296,6 +296,61 @@
         width:100%;
     }
 }
+
+/* =========================================================
+   RESPONSIVE TABLE: ELLIPSIS + ACTION ALWAYS VISIBLE
+   UI-only: IDs, events, routes, and forms remain unchanged.
+   ========================================================= */
+#tableUpahWrapper { width: 100%; max-width: 100%; overflow-x: auto; }
+#tableUpah {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: fixed !important;
+}
+#tableUpah th, #tableUpah td { box-sizing: border-box; }
+#tableUpah th:nth-child(1), #tableUpah td:nth-child(1) { width: 4%; }
+#tableUpah th:nth-child(2), #tableUpah td:nth-child(2) { width: 22%; }
+#tableUpah th:nth-child(3), #tableUpah td:nth-child(3) { width: 24%; }
+#tableUpah th:nth-child(4), #tableUpah td:nth-child(4) { width: 19%; }
+#tableUpah th:nth-child(5), #tableUpah td:nth-child(5) { width: 9%; }
+#tableUpah th:nth-child(6), #tableUpah td:nth-child(6) { width: 11%; }
+#tableUpah th:nth-child(7), #tableUpah td:nth-child(7) { width: 11%; }
+#tableUpah tbody td:nth-child(2),
+#tableUpah tbody td:nth-child(3),
+#tableUpah tbody td:nth-child(4) {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    max-width: 0;
+}
+#tableUpah tbody td:nth-child(7) {
+    white-space: nowrap !important;
+    overflow: visible;
+    text-align: center;
+    padding-left: 2px !important;
+    padding-right: 2px !important;
+}
+#tableUpah tbody td:nth-child(7) .btn {
+    width: 25px !important;
+    height: 25px !important;
+    min-width: 25px !important;
+    min-height: 25px !important;
+    margin: 0 1px !important;
+}
+#tableUpah tbody td:nth-child(7) .btn i { font-size: 10px; }
+@media (max-width: 900px) {
+    #tableUpah th:nth-child(1), #tableUpah td:nth-child(1) { width: 5%; }
+    #tableUpah th:nth-child(2), #tableUpah td:nth-child(2) { width: 20%; }
+    #tableUpah th:nth-child(3), #tableUpah td:nth-child(3) { width: 21%; }
+    #tableUpah th:nth-child(4), #tableUpah td:nth-child(4) { width: 17%; }
+    #tableUpah th:nth-child(5), #tableUpah td:nth-child(5) { width: 10%; }
+    #tableUpah th:nth-child(6), #tableUpah td:nth-child(6) { width: 14%; }
+    #tableUpah th:nth-child(7), #tableUpah td:nth-child(7) { width: 13%; }
+}
+@media (max-width: 620px) {
+    #tableUpah { min-width: 740px !important; }
+}
+
 </style>
 
 
@@ -421,15 +476,15 @@
                             </td>
 
                             <td>
-                                {{ $item->article }}
+                                <span title="{{ $item->article }}">{{ $item->article }}</span>
                             </td>
 
                             <td>
-                                {{ $item->description ?? '-' }}
+                                <span title="{{ $item->description ?? '-' }}">{{ $item->description ?? '-' }}</span>
                             </td>
 
                             <td>
-                                {{ $item->jenis }}
+                                <span title="{{ $item->jenis }}">{{ $item->jenis }}</span>
                             </td>
 
                             <td class="text-right">
