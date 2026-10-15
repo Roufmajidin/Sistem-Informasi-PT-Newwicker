@@ -2484,35 +2484,88 @@
     );
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | SEARCH BY TR
-    |--------------------------------------------------------------------------
-    */
-    let searchTimer = null;
+   /*
+|--------------------------------------------------------------------------
+| SEARCH TRANSAKSI UPAH
+|--------------------------------------------------------------------------
+*/
 
-    $('#searchUpahTable').on('input', function() {
+let searchTimer = null;
+let upahSearchRequest = null;
+let upahSearchSerial = 0;
 
-        clearTimeout(searchTimer);
+// Mengambil HTML tabel dari route yang sama, tanpa reload browser.
+// Handler Edit/Delete menggunakan delegated events dan tetap berfungsi.
+function searchTransaksiUpah(pageUrl = null) {
+    const serial = ++upahSearchSerial;
+    const search = $('#searchUpahTable').val().trim();
+    const url = new URL(pageUrl || window.location.href, window.location.origin);
 
-        const search = $(this).val().trim();
+    if (search) url.searchParams.set('search', search);
+    else url.searchParams.delete('search');
+    if (!pageUrl) url.searchParams.delete('page');
 
-        searchTimer = setTimeout(function() {
+    if (upahSearchRequest) upahSearchRequest.abort();
 
-            const url = new URL(window.location.href);
+    $('#upahSearchStatus')
+        .removeClass('d-none text-danger')
+        .html('<i class="fas fa-search mr-1"></i> Sedang mencari data...');
 
-            if (search) {
-                url.searchParams.set('search', search);
-            } else {
-                url.searchParams.delete('search');
+    upahSearchRequest = $.ajax({
+        url: url.toString(),
+        type: 'GET',
+        dataType: 'html',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        success: function (html) {
+            if (serial !== upahSearchSerial) return;
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            const nextBody = doc.querySelector('#upahTable tbody');
+            const nextPagination = doc.querySelector('#upahPagination');
+
+            if (!nextBody || !nextPagination) {
+                $('#upahSearchStatus').addClass('text-danger')
+                    .text('Gagal membaca hasil pencarian. Silakan coba lagi.');
+                return;
             }
 
-            url.searchParams.delete('page');
+            $('#upahTable tbody').html(nextBody.innerHTML);
+            $('#upahPagination').html(nextPagination.innerHTML);
+            filterUpahTable();
+            window.history.replaceState({}, '', url.toString());
 
-            window.location.href = url.toString();
+            const count = $('#upahTable tbody tr.upah-data-row').length;
+            $('#upahSearchStatus').text(count
+                ? 'Pencarian selesai.'
+                : 'Data tidak ditemukan.');
+            if (count) setTimeout(function () {
+                if (serial === upahSearchSerial) $('#upahSearchStatus').addClass('d-none');
+            }, 1200);
+        },
+        error: function (xhr, status) {
+            if (status === 'abort' || serial !== upahSearchSerial) return;
+            $('#upahSearchStatus').addClass('text-danger')
+                .text('Pencarian gagal. Periksa koneksi dan coba lagi.');
+        },
+        complete: function () {
+            if (serial === upahSearchSerial) upahSearchRequest = null;
+        }
+    });
+}
 
-        }, 400);
+$('#searchUpahTable').off('input.upahAjax').on('input.upahAjax', function () {
+    clearTimeout(searchTimer);
+    $('#clearSearchUpah').toggle(!!this.value);
+    $('#upahSearchStatus').removeClass('d-none text-danger')
+        .html('<i class="fas fa-search mr-1"></i> Sedang mencari data...');
+    searchTimer = setTimeout(function () { searchTransaksiUpah(); }, 450);
+});
 
+// Pagination pencarian juga tetap tanpa reload.
+$(document).off('click.upahAjaxPage', '#upahPagination a')
+    .on('click.upahAjaxPage', '#upahPagination a', function (e) {
+        e.preventDefault();
+        const href = $(this).attr('href');
+        if (href) searchTransaksiUpah(href);
     });
 
     /*
@@ -2531,7 +2584,8 @@
 
             $(this).hide();
 
-            filterUpahTable();
+            clearTimeout(searchTimer);
+            searchTransaksiUpah();
 
         }
     );

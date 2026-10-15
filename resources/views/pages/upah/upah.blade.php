@@ -95,6 +95,11 @@
 
                 </div>
 
+                <div id="upahSearchStatus" class="d-none" role="status" aria-live="polite"
+                     style="font-size:12px;color:#64748b;align-self:center;white-space:nowrap;">
+                    <i class="fas fa-search mr-1"></i> Sedang mencari data...
+                </div>
+
                 <button type="button" class="btn btn-sm btn-info" id="btnOverviewPO" data-toggle="modal"
                     data-target="#modalOverviewPO" style="white-space:nowrap;">
                     <i class="fas fa-chart-bar mr-1"></i> Overview
@@ -305,7 +310,7 @@
         </div>
 
 
-        <div class="mt-3">
+        <div class="mt-3" id="upahPagination">
 
             {{ $data->links() }}
 
