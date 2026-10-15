@@ -303,7 +303,7 @@
 
                 <h3>Kelola Foto Sampel</h3>
 
-                <p id="rndDrawerSubtitle">Daftar artikel dari Purchase Order.</p>
+                <p id="rndDrawerSubtitle" class="rnd-sr-only">Daftar artikel dari Purchase Order.</p>
 
             </div>
 
@@ -445,59 +445,37 @@
 
         <div id="rndArchivePanel" class="rnd-archive-panel" hidden>
 
-            <div class="rnd-archive-navigation">
-
-                <button type="button" id="rndBackToItems" class="rnd-back-button">
-
-                    <i class="fa fa-arrow-left"></i> Daftar Artikel
-
-                </button>
-
-
-
-                <a id="rndOpenDriveFolder" href="#" target="_blank" rel="noopener noreferrer" class="rnd-drive-link"
-                    hidden>
-
-                    <i class="fa fa-external-link"></i> Buka Google Drive
-
-                </a>
-
-            </div>
-
-
-
-            <div class="rnd-article-banner">
-
-                <div class="rnd-article-banner-icon">
-
-                    <i class="fa fa-picture-o"></i>
-
+            {{-- Compact article context: original IDs preserved for existing JavaScript --}}
+            <div class="rnd-archive-topbar">
+                {{-- Ringkasan PO + buyer, hanya pada tampilan artikel aktif --}}
+                <div class="rnd-compact-po" title="Purchase Order dan Buyer">
+                    <span class="rnd-compact-po-icon"><i class="fa fa-file-text-o"></i></span>
+                    <div class="rnd-compact-po-copy">
+                        <strong id="rndCompactPo">-</strong>
+                        <small id="rndCompactBuyer">-</small>
+                    </div>
+                    <i class="fa fa-angle-right rnd-compact-divider" aria-hidden="true"></i>
                 </div>
-
-                <div>
-
-                    <small>ARSIP ARTIKEL</small>
-
-                    <h4 id="rndArchiveTitle">-</h4>
-
-                    <p id="rndArchiveSubtitle">-</p>
-
+                <div class="rnd-article-banner">
+                    <div class="rnd-article-banner-icon"><i class="fa fa-picture-o"></i></div>
+                    <div class="rnd-article-banner-copy">
+                        <small>ARTIKEL AKTIF</small>
+                        <h4 id="rndArchiveTitle">-</h4>
+                        <p id="rndArchiveSubtitle">-</p>
+                    </div>
                 </div>
-
+                <div id="rndArchiveFolderStatus" class="rnd-folder-status" role="status">
+                    <i class="fa fa-circle-o-notch fa-spin"></i> Menyiapkan folder Google Drive...
+                </div>
+                <div class="rnd-archive-navigation">
+                    <button type="button" id="rndBackToItems" class="rnd-back-button">
+                        <i class="fa fa-arrow-left"></i> Daftar Artikel
+                    </button>
+                    <a id="rndOpenDriveFolder" href="#" target="_blank" rel="noopener noreferrer" class="rnd-drive-link" hidden>
+                        <i class="fa fa-external-link"></i> Buka Google Drive
+                    </a>
+                </div>
             </div>
-
-
-
-            <div id="rndArchiveFolderStatus" class="rnd-folder-status">
-
-                <i class="fa fa-circle-o-notch fa-spin"></i>
-
-                Menyiapkan folder Google Drive...
-
-            </div>
-
-
-
 
             {{-- DUAL PANE: PREVIEW KIRI, FILE MANAGER KANAN --}}
             <div class="rnd-archive-workspace">
@@ -3034,6 +3012,133 @@
                 width: 100% !important;
             }
         }
+
+        /* R&D Archive: compact layout redesign, presentation-only */
+        .rnd-sr-only {position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+        .rnd-drawer {--primary:#1769e8; padding:22px!important; border-radius:18px!important;}
+        .rnd-drawer-header {margin-bottom:13px!important;align-items:center!important}
+        .rnd-drawer-header h3 {font-size:24px!important;letter-spacing:-.6px;margin:0!important}
+        .rnd-po-summary {grid-template-columns:1fr 1fr .65fr!important;background:#fff!important;padding:12px 15px!important;margin-bottom:13px!important;gap:0!important;border-radius:12px!important}
+        .rnd-summary-item {padding:4px 15px!important;border-right:1px solid #e6edf5;gap:10px!important}
+        .rnd-summary-item:last-child {border-right:0}
+        .rnd-summary-icon {width:39px!important;height:39px!important;background:#eff6ff!important}
+        .rnd-summary-item strong {font-size:13px!important;color:#152238}
+        .rnd-archive-topbar {display:flex;align-items:center;gap:12px;flex-wrap:wrap;min-height:74px;padding:12px 14px;margin-bottom:14px;border:1px solid #dce6f4;border-radius:12px;background:#f8fbff}
+        .rnd-archive-topbar .rnd-article-banner {flex:1 1 220px;min-width:0;margin:0!important;padding:0!important;border:0!important;background:transparent!important}
+        .rnd-archive-topbar .rnd-article-banner-icon {width:43px;height:43px;border-radius:10px}
+        .rnd-archive-topbar .rnd-article-banner h4 {font-size:17px!important;margin-bottom:3px!important}
+        .rnd-archive-topbar .rnd-article-banner p {font-size:11px!important}
+        .rnd-archive-topbar .rnd-folder-status {flex:0 1 240px;margin:0!important;padding:9px 12px!important;line-height:1.45;border-radius:9px}
+        .rnd-archive-topbar .rnd-archive-navigation {margin:0!important;flex:0 0 auto;justify-content:flex-end;gap:7px}
+        .rnd-archive-topbar .rnd-back-button,.rnd-archive-topbar .rnd-drive-link {min-height:36px;padding:9px 11px!important;white-space:nowrap}
+        .rnd-archive-workspace {grid-template-columns:minmax(250px,35%) minmax(0,65%)!important;gap:14px!important}
+        .rnd-preview-pane,.rnd-drive-manager {border-radius:12px!important;border:1px solid #dce6f4!important}
+        .rnd-preview-pane-head {padding:14px!important}
+        .rnd-drive-manager-heading {gap:10px!important;flex-wrap:wrap;padding:13px 15px!important}
+        .rnd-drive-manager-heading h4 {font-size:17px!important}
+        .rnd-drive-manager-actions {gap:6px!important}
+        .rnd-drive-manager-actions button {padding:8px 10px!important}
+        .rnd-drive-items-modern {grid-template-columns:repeat(auto-fill,minmax(135px,1fr))!important}
+        @media(max-width:1050px) {.rnd-archive-topbar .rnd-folder-status{flex:1 1 180px}.rnd-archive-topbar .rnd-archive-navigation{flex:1 1 100%;justify-content:flex-end}}
+        @media(max-width:700px) {.rnd-drawer{padding:12px!important}.rnd-po-summary{grid-template-columns:1fr 1fr!important;gap:8px!important}.rnd-summary-item{border:0!important;padding:4px!important}.rnd-archive-workspace{grid-template-columns:1fr!important;grid-template-rows:auto auto!important;overflow:auto!important}.rnd-preview-pane{min-height:230px}.rnd-archive-topbar{align-items:stretch}.rnd-archive-topbar .rnd-article-banner{flex-basis:100%}.rnd-archive-topbar .rnd-folder-status{flex-basis:100%}.rnd-archive-topbar .rnd-archive-navigation{justify-content:space-between}}
+
+
+        /* ==========================================================
+           R&D ARCHIVE MODAL V3 - COMPACT SECOND SCREEN
+           Visual-only overrides. Existing IDs/events remain intact.
+           ========================================================== */
+        .rnd-drawer {height:min(900px,calc(100dvh - 32px))!important; padding:18px 20px!important;}
+        .rnd-drawer-header {margin-bottom:10px!important;}
+        .rnd-drawer-breadcrumb {display:none!important;}
+        .rnd-drawer-header h3 {font-size:21px!important;}
+        .rnd-po-summary {margin-bottom:10px!important;padding:9px 12px!important;}
+        .rnd-summary-icon {width:32px!important;height:32px!important;}
+        .rnd-archive-panel {flex:1 1 auto!important;min-height:0!important;overflow:hidden!important;}
+        .rnd-archive-topbar {flex:0 0 auto!important;min-height:58px!important;padding:8px 12px!important;margin-bottom:10px!important;gap:10px!important;}
+        .rnd-archive-topbar .rnd-article-banner-icon {width:36px!important;height:36px!important;}
+        .rnd-archive-topbar .rnd-article-banner h4 {font-size:15px!important;}
+        .rnd-archive-topbar .rnd-folder-status {font-size:10px!important;padding:7px 10px!important;}
+        .rnd-archive-topbar .rnd-back-button,.rnd-archive-topbar .rnd-drive-link {min-height:31px!important;padding:6px 9px!important;}
+        .rnd-archive-workspace {display:grid!important;grid-template-columns:minmax(250px,34%) minmax(0,1fr)!important;gap:12px!important;flex:1 1 auto!important;min-height:0!important;overflow:hidden!important;}
+        .rnd-preview-pane {min-height:0!important;height:100%!important;}
+        .rnd-preview-pane-head {padding:10px 12px!important;}
+        .rnd-preview-stage {min-height:0!important;flex:1 1 auto!important;}
+        .rnd-preview-caption {flex:0 0 auto!important;padding:8px 10px!important;}
+        .rnd-preview-thumbs:empty {display:none!important;}
+        .rnd-archive-main {display:grid!important;grid-template-rows:minmax(180px,1fr) auto!important;gap:10px!important;min-height:0!important;overflow:hidden!important;padding:0 2px 2px 0!important;align-content:stretch!important;}
+        .rnd-drive-manager {height:100%!important;min-height:0!important;min-width:0!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;}
+        .rnd-drive-manager-heading {padding:10px 12px!important;gap:8px!important;flex-wrap:wrap!important;}
+        .rnd-drive-manager-heading h4 {font-size:15px!important;margin:0 0 3px!important;}
+        .rnd-drive-manager-heading p {font-size:10px!important;}
+        .rnd-drive-manager-actions button {padding:6px 9px!important;font-size:10px!important;}
+        .rnd-drive-breadcrumb {padding:7px 12px!important;}
+        .rnd-drive-current-path {padding:6px 12px!important;}
+        #rndDriveItems {flex:1 1 auto!important;min-height:0!important;max-height:none!important;overflow-y:auto!important;align-content:start!important;grid-template-columns:repeat(auto-fill,minmax(120px,1fr))!important;padding:10px!important;gap:9px!important;}
+        .rnd-drive-preview {height:80px!important;}
+        .rnd-drive-item-info {padding:8px 10px!important;}
+        #rndUploadForm {display:block!important;flex:0 0 auto!important;margin:0!important;padding:10px 12px!important;border:1px solid #dce6f4!important;border-radius:12px!important;overflow:visible!important;}
+        #rndUploadForm .rnd-upload-heading {margin:0 0 7px!important;}
+        #rndUploadForm .rnd-upload-heading h4 {font-size:12px!important;}
+        #rndUploadForm .rnd-upload-heading p {font-size:10px!important;}
+        #rndUploadForm .rnd-file-picker {min-height:0!important;padding:8px 10px!important;display:flex!important;flex-direction:row!important;justify-content:flex-start!important;flex-wrap:wrap!important;gap:7px!important;text-align:left!important;}
+        #rndUploadForm .rnd-file-picker>i {font-size:16px!important;}
+        #rndUploadForm .rnd-file-picker strong {font-size:10px!important;}
+        #rndUploadForm .rnd-file-picker span {font-size:9px!important;}
+        #rndUploadForm #rndPhotoInput {width:100%!important;max-width:none!important;font-size:10px!important;}
+        #rndUploadForm .rnd-selected-files {max-height:36px!important;overflow-y:auto!important;margin-top:5px!important;}
+        #rndUploadForm .rnd-upload-actions {position:static!important;min-height:0!important;padding:7px 0 0!important;margin:5px 0 0!important;background:#fff!important;box-shadow:none!important;}
+        #rndUploadForm #rndUploadButton {min-height:34px!important;min-width:125px!important;padding:7px 12px!important;font-size:11px!important;}
+        .rnd-gallery-heading,#rndArchiveFiles {display:none!important;}
+        .rnd-drawer-footer {padding-top:8px!important;margin-top:9px!important;}
+        @media(max-height:730px) and (min-width:701px) {
+            .rnd-drawer {height:calc(100dvh - 16px)!important;padding:12px 16px!important;}
+            .rnd-drawer-header {margin-bottom:6px!important;}
+            .rnd-po-summary {margin-bottom:6px!important;}
+            .rnd-archive-topbar {margin-bottom:6px!important;}
+            .rnd-drive-manager-heading p {display:none!important;}
+            #rndUploadForm .rnd-file-picker span {display:none!important;}
+        }
+        @media(max-width:850px) and (min-width:701px) {
+            .rnd-archive-workspace {grid-template-columns:minmax(205px,32%) minmax(0,1fr)!important;gap:8px!important;}
+            .rnd-drive-manager-heading {align-items:flex-start!important;}
+        }
+        @media(max-width:700px) {
+            .rnd-drawer {height:calc(100dvh - 12px)!important;padding:10px!important;}
+            .rnd-archive-panel {overflow-y:auto!important;}
+            .rnd-archive-workspace {display:flex!important;flex-direction:column!important;overflow:visible!important;}
+            .rnd-preview-pane {height:220px!important;min-height:220px!important;}
+            .rnd-archive-main {display:flex!important;flex-direction:column!important;overflow:visible!important;}
+            .rnd-drive-manager {height:310px!important;min-height:310px!important;}
+            #rndUploadForm {flex-shrink:0!important;}
+            .rnd-archive-topbar .rnd-folder-status {flex:1 1 100%!important;}
+        }
+
+
+        /* V4: PO + buyer + article + cloud status + actions in ONE row */
+        .rnd-drawer:has(#rndArchivePanel:not([hidden])) > .rnd-po-summary {display:none!important;}
+        .rnd-archive-topbar {display:flex!important;flex-wrap:nowrap!important;align-items:center!important;gap:12px!important;min-width:0!important;}
+        .rnd-compact-po {display:flex;align-items:center;gap:9px;min-width:0;flex:0 1 230px;padding-right:12px;border-right:1px solid #dbe5f1;}
+        .rnd-compact-po-icon {display:flex;align-items:center;justify-content:center;width:33px;height:33px;flex:0 0 33px;border-radius:8px;background:#fff;color:#1769e8;}
+        .rnd-compact-po-copy {display:flex;flex-direction:column;gap:3px;min-width:0;}
+        .rnd-compact-po-copy strong {font-size:12px;color:#17243a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .rnd-compact-po-copy small {font-size:10px;font-weight:600;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .rnd-compact-divider {margin-left:auto;color:#94a3b8;}
+        .rnd-archive-topbar .rnd-article-banner {flex:1 1 190px!important;min-width:120px!important;}
+        .rnd-archive-topbar .rnd-folder-status {flex:0 1 200px!important;min-width:140px!important;max-width:220px!important;margin:0!important;}
+        .rnd-archive-topbar .rnd-archive-navigation {flex:0 0 auto!important;min-width:0!important;margin:0!important;justify-content:flex-end!important;}
+        @media(max-width:1100px) {
+          .rnd-archive-topbar {gap:7px!important;}
+          .rnd-compact-po {flex-basis:175px;padding-right:7px;gap:5px;}
+          .rnd-archive-topbar .rnd-folder-status {max-width:165px!important;min-width:100px!important;}
+          .rnd-archive-topbar .rnd-back-button,.rnd-archive-topbar .rnd-drive-link {padding:6px!important;font-size:9px!important;}
+        }
+        @media(max-width:800px) {
+          .rnd-archive-topbar {flex-wrap:wrap!important;}
+          .rnd-compact-po {flex:1 1 40%;}
+          .rnd-archive-topbar .rnd-article-banner {flex:1 1 45%!important;}
+          .rnd-archive-topbar .rnd-folder-status {flex:1 1 40%!important;max-width:none!important;}
+          .rnd-archive-topbar .rnd-archive-navigation {flex:1 1 auto!important;}
+        }
     </style>
 
 
@@ -4302,6 +4407,25 @@
 
             });
 
+        })();
+    </script>
+
+    {{-- Sinkronkan label ringkas tanpa mengubah handler Google Drive yang sudah ada. --}}
+    <script>
+        (function () {
+            const sourcePo = document.getElementById('rndDrawerPo');
+            const sourceBuyer = document.getElementById('rndDrawerBuyer');
+            const compactPo = document.getElementById('rndCompactPo');
+            const compactBuyer = document.getElementById('rndCompactBuyer');
+            if (!sourcePo || !sourceBuyer || !compactPo || !compactBuyer) return;
+            function syncPoInfo() {
+                compactPo.textContent = sourcePo.textContent.trim() || '-';
+                compactBuyer.textContent = sourceBuyer.textContent.trim() || '-';
+            }
+            const observer = new MutationObserver(syncPoInfo);
+            observer.observe(sourcePo, {childList:true,characterData:true,subtree:true});
+            observer.observe(sourceBuyer, {childList:true,characterData:true,subtree:true});
+            syncPoInfo();
         })();
     </script>
 @endsection

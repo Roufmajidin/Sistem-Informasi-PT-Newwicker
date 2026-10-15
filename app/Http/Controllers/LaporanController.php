@@ -16,32 +16,32 @@ use App\Models\InvLama;
 use App\Models\SpkLama;
 class LaporanController extends Controller
 {
-     public function index(Request $request)
-{
-    $jenis = $request->jenis;
-    $search = $request->search;
+    public function index(Request $request)
+    {
+        $jenis = $request->jenis;
+        $search = $request->search;
 
-    /*
-    |--------------------------------------------------------------------------
-    | SUMMARY TRANSAKSI PER BARANG
-    |--------------------------------------------------------------------------
-    |
-    | Semua transaksi dihitung:
-    |
-    | IN  = menambah stok
-    | OUT = mengurangi stok
-    |
-    | Termasuk transaksi OPNAME.
-    |
-    | stok_awal TIDAK digunakan dalam perhitungan saldo.
-    |
-    */
+        /*
+        |--------------------------------------------------------------------------
+        | SUMMARY TRANSAKSI PER BARANG
+        |--------------------------------------------------------------------------
+        |
+        | Semua transaksi dihitung:
+        |
+        | IN  = menambah stok
+        | OUT = mengurangi stok
+        |
+        | Termasuk transaksi OPNAME.
+        |
+        | stok_awal TIDAK digunakan dalam perhitungan saldo.
+        |
+        */
 
-    $transactionSummary = TransaksiStok::query()
-        ->select(
-            'stok_id',
+        $transactionSummary = TransaksiStok::query()
+            ->select(
+                'stok_id',
 
-            DB::raw("
+                DB::raw("
                 SUM(
                     CASE
                         WHEN tipe = 'in'
@@ -51,7 +51,7 @@ class LaporanController extends Controller
                 ) AS total_in
             "),
 
-            DB::raw("
+                DB::raw("
                 SUM(
                     CASE
                         WHEN tipe = 'out'
@@ -60,380 +60,380 @@ class LaporanController extends Controller
                     END
                 ) AS total_out
             ")
-        )
-        ->groupBy('stok_id');
+            )
+            ->groupBy('stok_id');
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | DATA STOK
-    |--------------------------------------------------------------------------
-    */
+        /*
+        |--------------------------------------------------------------------------
+        | DATA STOK
+        |--------------------------------------------------------------------------
+        */
 
-    $stoks = Stok::query()
+        $stoks = Stok::query()
 
-        ->leftJoinSub(
-            $transactionSummary,
-            'transaction_summary',
-            function ($join) {
+            ->leftJoinSub(
+                $transactionSummary,
+                'transaction_summary',
+                function ($join) {
 
-                $join->on(
-                    'stoks.id',
-                    '=',
-                    'transaction_summary.stok_id'
-                );
+                    $join->on(
+                        'stoks.id',
+                        '=',
+                        'transaction_summary.stok_id'
+                    );
 
-            }
-        )
+                }
+            )
 
-        ->select(
-            'stoks.*',
+            ->select(
+                'stoks.*',
 
-            DB::raw("
+                DB::raw("
                 COALESCE(
                     transaction_summary.total_in,
                     0
                 ) AS total_in
             "),
 
-            DB::raw("
+                DB::raw("
                 COALESCE(
                     transaction_summary.total_out,
                     0
                 ) AS total_out
             ")
-        )
+            )
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | FILTER JENIS
+            |--------------------------------------------------------------------------
+            */
+
+            ->when($jenis, function ($q) use ($jenis) {
+
+                $q->where(
+                    'stoks.jenis',
+                    $jenis
+                );
+
+            })
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | SEARCH
+            |--------------------------------------------------------------------------
+            |
+            | Cari berdasarkan:
+            | - kode barang
+            | - nama barang
+            |
+            */
+
+            ->when($search, function ($q) use ($search) {
+
+                $q->where(function ($query) use ($search) {
+
+                    $query
+
+                        ->where(
+                            'stoks.kode_barang',
+                            'LIKE',
+                            '%' . $search . '%'
+                        )
+
+                        ->orWhere(
+                            'stoks.nama_barang',
+                            'LIKE',
+                            '%' . $search . '%'
+                        );
+
+                });
+
+            })
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | SORTING
+            |--------------------------------------------------------------------------
+            */
+
+            ->orderBy(
+                'stoks.nama_barang'
+            )
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | EXECUTE QUERY
+            |--------------------------------------------------------------------------
+            */
+
+            ->get()
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | HITUNG SALDO
+            |--------------------------------------------------------------------------
+            |
+            | PENTING:
+            |
+            | stok_awal TIDAK DIGUNAKAN.
+            |
+            | Rumus:
+            |
+            | SALDO = TOTAL IN - TOTAL OUT
+            |
+            | Contoh:
+            |
+            | IN  = 45
+            | OUT = 35
+            |
+            | SALDO = 45 - 35
+            |       = 10
+            |
+            | Kalau ada:
+            |
+            | Opname IN  = 5
+            | Opname OUT = 2
+            |
+            | maka otomatis:
+            |
+            | TOTAL IN  = IN normal + Opname IN
+            | TOTAL OUT = OUT normal + Opname OUT
+            |
+            */
+
+            ->map(function ($stok) {
+
+                $totalIn = (float) ($stok->total_in ?? 0);
+
+                $totalOut = (float) ($stok->total_out ?? 0);
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | SALDO AKHIR
+                |--------------------------------------------------------------------------
+                */
+
+                $stok->saldo =
+                    $totalIn
+                    - $totalOut;
+
+
+                return $stok;
+
+            });
 
 
         /*
         |--------------------------------------------------------------------------
-        | FILTER JENIS
+        | RETURN VIEW
         |--------------------------------------------------------------------------
         */
 
-        ->when($jenis, function ($q) use ($jenis) {
+        return view(
+            'pages.laporan.index',
+            compact(
+                'stoks',
+                'search',
+                'jenis'
+            )
+        );
+    }
 
-            $q->where(
-                'stoks.jenis',
-                $jenis
-            );
+    public function warehouseHistory(Request $request)
+    {
+        $query = TransaksiStok::with(['stok', 'spk']);
 
-        })
+        /*
+        |--------------------------------------------------------------------------
+        | EXCLUDE OPNAME
+        |--------------------------------------------------------------------------
+        | Semua transaksi yang keterangan-nya mengandung "Opname"
+        | tidak akan ditampilkan dan tidak ikut perhitungan summary.
+        |
+        | LIKE di MySQL umumnya case-insensitive, sehingga:
+        | - Opname
+        | - OPNAME
+        | - opname
+        | - Opname Material
+        | - Stock Opname
+        | akan ikut dikecualikan.
+        */
+        $query->where(function ($q) {
+            $q->whereNull('keterangan')
+                ->orWhere('keterangan', 'not like', '%opname%');
+        });
 
 
         /*
         |--------------------------------------------------------------------------
         | SEARCH
         |--------------------------------------------------------------------------
-        |
-        | Cari berdasarkan:
-        | - kode barang
-        | - nama barang
-        |
         */
+        if ($request->filled('search')) {
 
-        ->when($search, function ($q) use ($search) {
+            $search = $request->search;
 
-            $q->where(function ($query) use ($search) {
+            $query->where(function ($q) use ($search) {
 
-                $query
+                $q->where('po', 'like', "%{$search}%")
+                    ->orWhere('keterangan', 'like', "%{$search}%")
+                    ->orWhere('tipe', 'like', "%{$search}%")
+                    ->orWhereHas('stok', function ($qq) use ($search) {
 
-                    ->where(
-                        'stoks.kode_barang',
-                        'LIKE',
-                        '%' . $search . '%'
-                    )
+                        $qq->where('nama_barang', 'like', "%{$search}%")
+                            ->orWhere('kode_barang', 'like', "%{$search}%");
 
-                    ->orWhere(
-                        'stoks.nama_barang',
-                        'LIKE',
-                        '%' . $search . '%'
-                    );
+                    });
+
+            });
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | DATE FROM
+        |--------------------------------------------------------------------------
+        */
+        if ($request->filled('date_from')) {
+
+            $query->whereDate(
+                'tanggal',
+                '>=',
+                $request->date_from
+            );
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | DATE TO
+        |--------------------------------------------------------------------------
+        */
+        if ($request->filled('date_to')) {
+
+            $query->whereDate(
+                'tanggal',
+                '<=',
+                $request->date_to
+            );
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | TYPE
+        |--------------------------------------------------------------------------
+        */
+        if ($request->filled('type')) {
+
+            $query->where(
+                'tipe',
+                $request->type
+            );
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | JENIS BAHAN
+        |--------------------------------------------------------------------------
+        */
+        if ($request->filled('jenis')) {
+
+            $query->whereHas('stok', function ($q) use ($request) {
+
+                $q->where(
+                    'jenis',
+                    $request->jenis
+                );
 
             });
 
-        })
+        }
 
 
         /*
         |--------------------------------------------------------------------------
-        | SORTING
-        |--------------------------------------------------------------------------
-        */
-
-        ->orderBy(
-            'stoks.nama_barang'
-        )
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | EXECUTE QUERY
-        |--------------------------------------------------------------------------
-        */
-
-        ->get()
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | HITUNG SALDO
+        | SUMMARY
         |--------------------------------------------------------------------------
         |
-        | PENTING:
-        |
-        | stok_awal TIDAK DIGUNAKAN.
-        |
-        | Rumus:
-        |
-        | SALDO = TOTAL IN - TOTAL OUT
-        |
-        | Contoh:
-        |
-        | IN  = 45
-        | OUT = 35
-        |
-        | SALDO = 45 - 35
-        |       = 10
-        |
-        | Kalau ada:
-        |
-        | Opname IN  = 5
-        | Opname OUT = 2
-        |
-        | maka otomatis:
-        |
-        | TOTAL IN  = IN normal + Opname IN
-        | TOTAL OUT = OUT normal + Opname OUT
+        | Clone dari $query.
+        | Karena $query sudah mengecualikan Opname,
+        | summary juga otomatis tidak menghitung Opname.
         |
         */
+        $summaryQuery = clone $query;
 
-        ->map(function ($stok) {
-
-            $totalIn = (float) ($stok->total_in ?? 0);
-
-            $totalOut = (float) ($stok->total_out ?? 0);
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | SALDO AKHIR
-            |--------------------------------------------------------------------------
-            */
-
-            $stok->saldo =
-                $totalIn
-                - $totalOut;
-
-
-            return $stok;
-
-        });
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | RETURN VIEW
-    |--------------------------------------------------------------------------
-    */
-
-    return view(
-        'pages.laporan.index',
-        compact(
-            'stoks',
-            'search',
-            'jenis'
-        )
-    );
-}
-
-    public function warehouseHistory(Request $request)
-{
-    $query = TransaksiStok::with(['stok', 'spk']);
-
-    /*
-    |--------------------------------------------------------------------------
-    | EXCLUDE OPNAME
-    |--------------------------------------------------------------------------
-    | Semua transaksi yang keterangan-nya mengandung "Opname"
-    | tidak akan ditampilkan dan tidak ikut perhitungan summary.
-    |
-    | LIKE di MySQL umumnya case-insensitive, sehingga:
-    | - Opname
-    | - OPNAME
-    | - opname
-    | - Opname Material
-    | - Stock Opname
-    | akan ikut dikecualikan.
-    */
-    $query->where(function ($q) {
-        $q->whereNull('keterangan')
-            ->orWhere('keterangan', 'not like', '%opname%');
-    });
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | SEARCH
-    |--------------------------------------------------------------------------
-    */
-    if ($request->filled('search')) {
-
-        $search = $request->search;
-
-        $query->where(function ($q) use ($search) {
-
-            $q->where('po', 'like', "%{$search}%")
-                ->orWhere('keterangan', 'like', "%{$search}%")
-                ->orWhere('tipe', 'like', "%{$search}%")
-                ->orWhereHas('stok', function ($qq) use ($search) {
-
-                    $qq->where('nama_barang', 'like', "%{$search}%")
-                        ->orWhere('kode_barang', 'like', "%{$search}%");
-
-                });
-
-        });
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | DATE FROM
-    |--------------------------------------------------------------------------
-    */
-    if ($request->filled('date_from')) {
-
-        $query->whereDate(
-            'tanggal',
-            '>=',
-            $request->date_from
-        );
-
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | DATE TO
-    |--------------------------------------------------------------------------
-    */
-    if ($request->filled('date_to')) {
-
-        $query->whereDate(
-            'tanggal',
-            '<=',
-            $request->date_to
-        );
-
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | TYPE
-    |--------------------------------------------------------------------------
-    */
-    if ($request->filled('type')) {
-
-        $query->where(
-            'tipe',
-            $request->type
-        );
-
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | JENIS BAHAN
-    |--------------------------------------------------------------------------
-    */
-    if ($request->filled('jenis')) {
-
-        $query->whereHas('stok', function ($q) use ($request) {
-
-            $q->where(
-                'jenis',
-                $request->jenis
-            );
-
-        });
-
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | SUMMARY
-    |--------------------------------------------------------------------------
-    |
-    | Clone dari $query.
-    | Karena $query sudah mengecualikan Opname,
-    | summary juga otomatis tidak menghitung Opname.
-    |
-    */
-    $summaryQuery = clone $query;
-
-    $summary = $summaryQuery
-        ->join(
-            'stoks',
-            'stoks.id',
-            '=',
-            'transaksi_stoks.stok_id'
-        )
-        ->selectRaw("
+        $summary = $summaryQuery
+            ->join(
+                'stoks',
+                'stoks.id',
+                '=',
+                'transaksi_stoks.stok_id'
+            )
+            ->selectRaw("
             SUM(transaksi_stoks.qty) as total_qty,
             SUM(
                 transaksi_stoks.qty * stoks.harga
             ) as total_value,
             COUNT(*) as total_transaksi
         ")
-        ->first();
+            ->first();
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | HISTORY
-    |--------------------------------------------------------------------------
-    */
-    $histories = $query
-        ->latest('tanggal')
-        ->paginate(25)
-        ->withQueryString();
+        /*
+        |--------------------------------------------------------------------------
+        | HISTORY
+        |--------------------------------------------------------------------------
+        */
+        $histories = $query
+            ->latest('tanggal')
+            ->paginate(25)
+            ->withQueryString();
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | AJAX
-    |--------------------------------------------------------------------------
-    */
-    if ($request->ajax()) {
+        /*
+        |--------------------------------------------------------------------------
+        | AJAX
+        |--------------------------------------------------------------------------
+        */
+        if ($request->ajax()) {
 
+            return view(
+                'pages.laporan.partials.history_table',
+                compact(
+                    'histories',
+                    'summary'
+                )
+            )->render();
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | FULL PAGE
+        |--------------------------------------------------------------------------
+        */
         return view(
-            'pages.laporan.partials.history_table',
+            'pages.laporan.history',
             compact(
                 'histories',
                 'summary'
             )
-        )->render();
-
+        );
     }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | FULL PAGE
-    |--------------------------------------------------------------------------
-    */
-    return view(
-        'pages.laporan.history',
-        compact(
-            'histories',
-            'summary'
-        )
-    );
-}
 
     //     public function update(Request $request)
 // {
@@ -617,183 +617,183 @@ class LaporanController extends Controller
 //     }
 // }
 
-public function update(Request $request)
-{
-    $request->validate([
-        'id'          => 'nullable|integer',
-        'kode_barang' => 'nullable|string|max:255',
-        'nama_barang' => 'nullable|string|max:255',
-        'jenis'       => 'nullable|string|max:255',
-        'satuan'      => 'nullable|string|max:50',
-        'harga'       => 'nullable',
-        'stok_awal'   => 'nullable|numeric',
-    ]);
+    public function update(Request $request)
+    {
+        $request->validate([
+            'id' => 'nullable|integer',
+            'kode_barang' => 'nullable|string|max:255',
+            'nama_barang' => 'nullable|string|max:255',
+            'jenis' => 'nullable|string|max:255',
+            'satuan' => 'nullable|string|max:50',
+            'harga' => 'nullable',
+            'stok_awal' => 'nullable|numeric',
+        ]);
 
-    DB::beginTransaction();
+        DB::beginTransaction();
 
-    try {
-
-        /*
-        |--------------------------------------------------------------------------
-        | NORMALISASI HARGA
-        |--------------------------------------------------------------------------
-        */
-
-        $harga = $request->harga ?? 0;
-
-        if (is_string($harga)) {
-            $harga = str_replace('.', '', $harga);
-            $harga = str_replace(',', '.', $harga);
-        }
-
-        $harga = is_numeric($harga)
-            ? (float) $harga
-            : 0;
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | BARANG LAMA
-        |--------------------------------------------------------------------------
-        */
-
-        if ($request->filled('id')) {
-
-            $stok = Stok::findOrFail($request->id);
+        try {
 
             /*
             |--------------------------------------------------------------------------
-            | UPDATE MASTER
+            | NORMALISASI HARGA
             |--------------------------------------------------------------------------
             */
 
-            $stok->kode_barang = $request->kode_barang;
-            $stok->nama_barang = $request->nama_barang;
-            $stok->jenis       = $request->jenis;
-            $stok->satuan      = $request->satuan;
-            $stok->harga       = $harga;
+            $harga = $request->harga ?? 0;
 
-            $stok->save();
+            if (is_string($harga)) {
+                $harga = str_replace('.', '', $harga);
+                $harga = str_replace(',', '.', $harga);
+            }
+
+            $harga = is_numeric($harga)
+                ? (float) $harga
+                : 0;
 
 
             /*
             |--------------------------------------------------------------------------
-            | PENYESUAIAN SALDO / OPNAME
+            | BARANG LAMA
             |--------------------------------------------------------------------------
             */
 
-            if ($request->has('stok_awal')) {
+            if ($request->filled('id')) {
 
-                // Saldo yang diketik user dianggap sebagai saldo target
-                $saldoTarget = (float) $request->stok_awal;
+                $stok = Stok::findOrFail($request->id);
+
+                /*
+                |--------------------------------------------------------------------------
+                | UPDATE MASTER
+                |--------------------------------------------------------------------------
+                */
+
+                $stok->kode_barang = $request->kode_barang;
+                $stok->nama_barang = $request->nama_barang;
+                $stok->jenis = $request->jenis;
+                $stok->satuan = $request->satuan;
+                $stok->harga = $harga;
+
+                $stok->save();
 
 
                 /*
                 |--------------------------------------------------------------------------
-                | HITUNG SALDO ERP
+                | PENYESUAIAN SALDO / OPNAME
                 |--------------------------------------------------------------------------
                 */
 
-                $totalIn = TransaksiStok::where('stok_id', $stok->id)
-                    ->where('tipe', 'in')
-                    ->sum('qty');
+                if ($request->has('stok_awal')) {
 
-                $totalOut = TransaksiStok::where('stok_id', $stok->id)
-                    ->where('tipe', 'out')
-                    ->sum('qty');
-
-                $saldoERP =
-                    (float) $totalIn
-                    - (float) $totalOut;
+                    // Saldo yang diketik user dianggap sebagai saldo target
+                    $saldoTarget = (float) $request->stok_awal;
 
 
-                /*
-                |--------------------------------------------------------------------------
-                | HITUNG SELISIH
-                |--------------------------------------------------------------------------
-                */
+                    /*
+                    |--------------------------------------------------------------------------
+                    | HITUNG SALDO ERP
+                    |--------------------------------------------------------------------------
+                    */
 
-                $selisih = $saldoTarget - $saldoERP;
+                    $totalIn = TransaksiStok::where('stok_id', $stok->id)
+                        ->where('tipe', 'in')
+                        ->sum('qty');
+
+                    $totalOut = TransaksiStok::where('stok_id', $stok->id)
+                        ->where('tipe', 'out')
+                        ->sum('qty');
+
+                    $saldoERP =
+                        (float) $totalIn
+                        - (float) $totalOut;
 
 
-                /*
-                |--------------------------------------------------------------------------
-                | BUAT OPNAME JIKA ADA SELISIH
-                |--------------------------------------------------------------------------
-                */
+                    /*
+                    |--------------------------------------------------------------------------
+                    | HITUNG SELISIH
+                    |--------------------------------------------------------------------------
+                    */
 
-                if (abs($selisih) >= 0.0001) {
+                    $selisih = $saldoTarget - $saldoERP;
 
-                    if ($selisih > 0) {
 
-                        // Target lebih besar → IN
-                        TransaksiStok::create([
-                            'stok_id'    => $stok->id,
-                            'tanggal'    => now(),
-                            'tipe'       => 'in',
-                            'qty'        => round($selisih, 3),
-                            'keterangan' => 'Opname',
-                        ]);
+                    /*
+                    |--------------------------------------------------------------------------
+                    | BUAT OPNAME JIKA ADA SELISIH
+                    |--------------------------------------------------------------------------
+                    */
 
-                    } else {
+                    if (abs($selisih) >= 0.0001) {
 
-                        // Target lebih kecil → OUT
-                        TransaksiStok::create([
-                            'stok_id'    => $stok->id,
-                            'tanggal'    => now(),
-                            'tipe'       => 'out',
-                            'qty'        => round(abs($selisih), 3),
-                            'keterangan' => 'Opname',
-                        ]);
+                        if ($selisih > 0) {
+
+                            // Target lebih besar → IN
+                            TransaksiStok::create([
+                                'stok_id' => $stok->id,
+                                'tanggal' => now(),
+                                'tipe' => 'in',
+                                'qty' => round($selisih, 3),
+                                'keterangan' => 'Opname',
+                            ]);
+
+                        } else {
+
+                            // Target lebih kecil → OUT
+                            TransaksiStok::create([
+                                'stok_id' => $stok->id,
+                                'tanggal' => now(),
+                                'tipe' => 'out',
+                                'qty' => round(abs($selisih), 3),
+                                'keterangan' => 'Opname',
+                            ]);
+                        }
                     }
                 }
+
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Data stok berhasil diperbarui.',
+                    'id' => $stok->id,
+                ]);
             }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | BARANG BARU
+            |--------------------------------------------------------------------------
+            */
+
+            $stok = Stok::create([
+                'kode_barang' => $request->kode_barang,
+                'nama_barang' => $request->nama_barang,
+                'jenis' => $request->jenis,
+                'satuan' => $request->satuan,
+                'harga' => $harga,
+                'stok_awal' => (float) ($request->stok_awal ?? 0),
+            ]);
 
 
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Data stok berhasil diperbarui.',
-                'id'      => $stok->id,
+                'message' => 'Barang baru berhasil ditambahkan.',
+                'id' => $stok->id,
             ]);
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menyimpan data: ' . $e->getMessage(),
+            ], 500);
         }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | BARANG BARU
-        |--------------------------------------------------------------------------
-        */
-
-        $stok = Stok::create([
-            'kode_barang' => $request->kode_barang,
-            'nama_barang' => $request->nama_barang,
-            'jenis'       => $request->jenis,
-            'satuan'      => $request->satuan,
-            'harga'       => $harga,
-            'stok_awal'   => (float) ($request->stok_awal ?? 0),
-        ]);
-
-
-        DB::commit();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Barang baru berhasil ditambahkan.',
-            'id'      => $stok->id,
-        ]);
-
-    } catch (\Throwable $e) {
-
-        DB::rollBack();
-
-        return response()->json([
-            'success' => false,
-            'message' => 'Gagal menyimpan data: ' . $e->getMessage(),
-        ], 500);
     }
-}
     public function destroy($id)
     {
         $stok = Stok::findOrFail($id);
@@ -820,96 +820,96 @@ public function update(Request $request)
             'transaksi' => $transaksi,
         ]);
     }
-public function detailBarang(Request $request, $id)
-{
-    $stok = Stok::findOrFail($id);
+    public function detailBarang(Request $request, $id)
+    {
+        $stok = Stok::findOrFail($id);
 
-    /*
-    |--------------------------------------------------------------------------
-    | SEMUA TRANSAKSI
-    |--------------------------------------------------------------------------
-    | Digunakan khusus untuk menghitung SALDO SAAT INI.
-    |
-    | Jangan terkena filter tanggal.
-    */
+        /*
+        |--------------------------------------------------------------------------
+        | SEMUA TRANSAKSI
+        |--------------------------------------------------------------------------
+        | Digunakan khusus untuk menghitung SALDO SAAT INI.
+        |
+        | Jangan terkena filter tanggal.
+        */
 
-    $allTransaksi = TransaksiStok::where(
-        'stok_id',
-        $id
-    )
-        ->orderBy('tanggal', 'desc')
-        ->get();
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | SALDO SAAT INI
-    |--------------------------------------------------------------------------
-    |
-    | Semua IN menambah.
-    | Semua OUT mengurangi.
-    | Termasuk OPNAME.
-    |
-    | stok_awal TIDAK digunakan.
-    */
-
-    $totalInAll = $allTransaksi
-        ->where('tipe', 'in')
-        ->sum('qty');
-
-    $totalOutAll = $allTransaksi
-        ->where('tipe', 'out')
-        ->sum('qty');
-
-    $stokTersedia =
-        (float) $totalInAll
-        - (float) $totalOutAll;
+        $allTransaksi = TransaksiStok::where(
+            'stok_id',
+            $id
+        )
+            ->orderBy('tanggal', 'desc')
+            ->get();
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | TRANSAKSI UNTUK TAMPILAN HISTORY
-    |--------------------------------------------------------------------------
-    |
-    | Yang terkena filter tanggal hanya riwayatnya.
-    */
+        /*
+        |--------------------------------------------------------------------------
+        | SALDO SAAT INI
+        |--------------------------------------------------------------------------
+        |
+        | Semua IN menambah.
+        | Semua OUT mengurangi.
+        | Termasuk OPNAME.
+        |
+        | stok_awal TIDAK digunakan.
+        */
 
-    $transaksi = TransaksiStok::where(
-        'stok_id',
-        $id
-    )
+        $totalInAll = $allTransaksi
+            ->where('tipe', 'in')
+            ->sum('qty');
 
-        ->when(
-            $request->tanggal_awal,
-            fn($q) => $q->whereDate(
-                'tanggal',
-                '>=',
-                $request->tanggal_awal
+        $totalOutAll = $allTransaksi
+            ->where('tipe', 'out')
+            ->sum('qty');
+
+        $stokTersedia =
+            (float) $totalInAll
+            - (float) $totalOutAll;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | TRANSAKSI UNTUK TAMPILAN HISTORY
+        |--------------------------------------------------------------------------
+        |
+        | Yang terkena filter tanggal hanya riwayatnya.
+        */
+
+        $transaksi = TransaksiStok::where(
+            'stok_id',
+            $id
+        )
+
+            ->when(
+                $request->tanggal_awal,
+                fn($q) => $q->whereDate(
+                    'tanggal',
+                    '>=',
+                    $request->tanggal_awal
+                )
             )
-        )
 
-        ->when(
-            $request->tanggal_akhir,
-            fn($q) => $q->whereDate(
-                'tanggal',
-                '<=',
-                $request->tanggal_akhir
+            ->when(
+                $request->tanggal_akhir,
+                fn($q) => $q->whereDate(
+                    'tanggal',
+                    '<=',
+                    $request->tanggal_akhir
+                )
             )
-        )
 
-        ->orderBy('tanggal', 'desc')
-        ->get();
+            ->orderBy('tanggal', 'desc')
+            ->get();
 
 
-    return view(
-        'pages.laporan.detail',
-        compact(
-            'stok',
-            'transaksi',
-            'stokTersedia'
-        )
-    );
-}
+        return view(
+            'pages.laporan.detail',
+            compact(
+                'stok',
+                'transaksi',
+                'stokTersedia'
+            )
+        );
+    }
     // public function detailBarang(
     //     Request $request,
     //     $id
@@ -1071,65 +1071,65 @@ public function detailBarang(Request $request, $id)
 
     //     return response()->json($result);
     // }
-public function searchSpk(Request $request)
-{
-    $keyword = $request->q;
+    public function searchSpk(Request $request)
+    {
+        $keyword = $request->q;
 
-    $spks = Spk::where('data', 'like', '%' . $keyword . '%')
-        ->latest()
-        ->take(10)
-        ->get();
+        $spks = Spk::where('data', 'like', '%' . $keyword . '%')
+            ->latest()
+            ->take(10)
+            ->get();
 
-    $result = [];
+        $result = [];
 
-    foreach ($spks as $spk) {
+        foreach ($spks as $spk) {
 
-        $data = is_array($spk->data)
-            ? $spk->data
-            : (json_decode($spk->data, true) ?? []);
+            $data = is_array($spk->data)
+                ? $spk->data
+                : (json_decode($spk->data, true) ?? []);
 
-        /*
-        |--------------------------------------------------------------------------
-        | NORMALISASI ITEMS
-        |--------------------------------------------------------------------------
-        | Pastikan items selalu array.
-        */
-        $items = $data['items'] ?? [];
+            /*
+            |--------------------------------------------------------------------------
+            | NORMALISASI ITEMS
+            |--------------------------------------------------------------------------
+            | Pastikan items selalu array.
+            */
+            $items = $data['items'] ?? [];
 
-        if (is_string($items)) {
-            $decodedItems = json_decode($items, true);
+            if (is_string($items)) {
+                $decodedItems = json_decode($items, true);
 
-            $items = json_last_error() === JSON_ERROR_NONE
-                ? $decodedItems
-                : [];
-        }
-
-        if (!is_array($items)) {
-            $items = [];
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | NORMALISASI ITEM
-        |--------------------------------------------------------------------------
-        */
-        $items = array_values(array_filter(
-            $items,
-            function ($item) {
-                return is_array($item);
+                $items = json_last_error() === JSON_ERROR_NONE
+                    ? $decodedItems
+                    : [];
             }
-        ));
 
-        $result[] = [
-            'id'       => $spk->id,
-            'no_spk'   => $data['no_spk'] ?? '',
-            'supplier' => $data['sup'] ?? '',
-            'items'    => $items,
-        ];
+            if (!is_array($items)) {
+                $items = [];
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | NORMALISASI ITEM
+            |--------------------------------------------------------------------------
+            */
+            $items = array_values(array_filter(
+                $items,
+                function ($item) {
+                    return is_array($item);
+                }
+            ));
+
+            $result[] = [
+                'id' => $spk->id,
+                'no_spk' => $data['no_spk'] ?? '',
+                'supplier' => $data['sup'] ?? '',
+                'items' => $items,
+            ];
+        }
+
+        return response()->json($result);
     }
-
-    return response()->json($result);
-}
     public function searchBarang(Request $request)
     {
         $q = $request->q;
@@ -1157,75 +1157,75 @@ public function searchSpk(Request $request)
             'status' => 'success',
         ]);
     }
-public function overview()
-{
-    /*
-    |--------------------------------------------------------------------------
-    | EXCEPTION OPNAME
-    |--------------------------------------------------------------------------
-    |
-    | true  = transaksi opname ikut dihitung
-    | false = transaksi opname TIDAK dihitung
-    |
-    */
+    public function overview()
+    {
+        /*
+        |--------------------------------------------------------------------------
+        | EXCEPTION OPNAME
+        |--------------------------------------------------------------------------
+        |
+        | true  = transaksi opname ikut dihitung
+        | false = transaksi opname TIDAK dihitung
+        |
+        */
 
-    $opname = false;
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | ========================================================================
-    | WAREHOUSE OVERVIEW
-    | ========================================================================
-    |--------------------------------------------------------------------------
-    */
+        $opname = false;
 
 
-    $stocks = Stok::all();
+        /*
+        |--------------------------------------------------------------------------
+        | ========================================================================
+        | WAREHOUSE OVERVIEW
+        | ========================================================================
+        |--------------------------------------------------------------------------
+        */
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | STOCK TRANSACTION SUMMARY
-    |--------------------------------------------------------------------------
-    */
-
-    $stockSummaryQuery = TransaksiStok::join(
-        'stoks',
-        'stoks.id',
-        '=',
-        'transaksi_stoks.stok_id'
-    );
+        $stocks = Stok::all();
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | EXCLUDE OPNAME
-    |--------------------------------------------------------------------------
-    */
+        /*
+        |--------------------------------------------------------------------------
+        | STOCK TRANSACTION SUMMARY
+        |--------------------------------------------------------------------------
+        */
 
-    if (!$opname) {
-
-        $stockSummaryQuery->where(function ($query) {
-
-            $query->whereNull('transaksi_stoks.keterangan')
-                ->orWhere(
-                    'transaksi_stoks.keterangan',
-                    'not like',
-                    '%opname%'
-                );
-
-        });
-
-    }
+        $stockSummaryQuery = TransaksiStok::join(
+            'stoks',
+            'stoks.id',
+            '=',
+            'transaksi_stoks.stok_id'
+        );
 
 
-    $stockSummary = $stockSummaryQuery
+        /*
+        |--------------------------------------------------------------------------
+        | EXCLUDE OPNAME
+        |--------------------------------------------------------------------------
+        */
 
-        ->select(
-            'transaksi_stoks.stok_id',
+        if (!$opname) {
 
-            DB::raw("
+            $stockSummaryQuery->where(function ($query) {
+
+                $query->whereNull('transaksi_stoks.keterangan')
+                    ->orWhere(
+                        'transaksi_stoks.keterangan',
+                        'not like',
+                        '%opname%'
+                    );
+
+            });
+
+        }
+
+
+        $stockSummary = $stockSummaryQuery
+
+            ->select(
+                'transaksi_stoks.stok_id',
+
+                DB::raw("
                 SUM(
                     CASE
                         WHEN transaksi_stoks.tipe = 'in'
@@ -1235,7 +1235,7 @@ public function overview()
                 ) AS total_in_qty
             "),
 
-            DB::raw("
+                DB::raw("
                 SUM(
                     CASE
                         WHEN transaksi_stoks.tipe = 'out'
@@ -1244,137 +1244,137 @@ public function overview()
                     END
                 ) AS total_out_qty
             ")
-        )
+            )
 
-        ->groupBy('transaksi_stoks.stok_id')
+            ->groupBy('transaksi_stoks.stok_id')
 
-        ->get()
+            ->get()
 
-        ->keyBy('stok_id');
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | KPI
-    |--------------------------------------------------------------------------
-    */
-
-    $totalSku = $stocks->count();
-
-    $totalInventoryValue = 0;
-
-    $lowStockCount = 0;
-
-    $emptyStockCount = 0;
+            ->keyBy('stok_id');
 
 
-    foreach ($stocks as $stok) {
+        /*
+        |--------------------------------------------------------------------------
+        | KPI
+        |--------------------------------------------------------------------------
+        */
 
-        $summary = $stockSummary->get($stok->id);
+        $totalSku = $stocks->count();
 
-        $stokAkhir =
-            (float) ($stok->stok_awal ?? 0)
-            + (float) ($summary->total_in_qty ?? 0)
-            - (float) ($summary->total_out_qty ?? 0);
+        $totalInventoryValue = 0;
 
+        $lowStockCount = 0;
 
-        $totalInventoryValue +=
-            $stokAkhir * (float) ($stok->harga ?? 0);
-
-
-        if ($stokAkhir <= 0) {
-
-            $emptyStockCount++;
-
-        } elseif ($stokAkhir <= 10) {
-
-            $lowStockCount++;
-
-        }
-
-    }
+        $emptyStockCount = 0;
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | INVENTORY ASSET PER CATEGORY
-    |--------------------------------------------------------------------------
-    */
+        foreach ($stocks as $stok) {
 
-    $categoriesData = [];
-
-
-    foreach ($stocks->groupBy('jenis') as $jenis => $items) {
-
-        $totalInventoryAsset = 0;
-
-        $totalStock = 0;
-
-        $totalIn = 0;
-
-        $totalOut = 0;
-
-
-        foreach ($items as $item) {
-
-            $summary = $stockSummary->get($item->id);
-
-
-            $totalInQty =
-                (float) ($summary->total_in_qty ?? 0);
-
-
-            $totalOutQty =
-                (float) ($summary->total_out_qty ?? 0);
-
+            $summary = $stockSummary->get($stok->id);
 
             $stokAkhir =
-                (float) ($item->stok_awal ?? 0)
-                + $totalInQty
-                - $totalOutQty;
+                (float) ($stok->stok_awal ?? 0)
+                + (float) ($summary->total_in_qty ?? 0)
+                - (float) ($summary->total_out_qty ?? 0);
 
 
-            $totalStock += $stokAkhir;
+            $totalInventoryValue +=
+                $stokAkhir * (float) ($stok->harga ?? 0);
 
 
-            $inventoryAsset =
-                $stokAkhir * (float) ($item->harga ?? 0);
+            if ($stokAkhir <= 0) {
 
+                $emptyStockCount++;
 
-            $totalInventoryAsset += $inventoryAsset;
+            } elseif ($stokAkhir <= 10) {
 
+                $lowStockCount++;
 
-            $totalIn +=
-                $totalInQty * (float) ($item->harga ?? 0);
-
-
-            $totalOut +=
-                $totalOutQty * (float) ($item->harga ?? 0);
+            }
 
         }
 
 
-        $categoriesData[] = [
+        /*
+        |--------------------------------------------------------------------------
+        | INVENTORY ASSET PER CATEGORY
+        |--------------------------------------------------------------------------
+        */
 
-            'name' => $jenis,
+        $categoriesData = [];
 
-            'item_count' =>
-                $items->count(),
 
-            'total_stock' =>
-                $totalStock,
+        foreach ($stocks->groupBy('jenis') as $jenis => $items) {
 
-            'total_value' =>
-                $totalInventoryAsset,
+            $totalInventoryAsset = 0;
 
-            'total_in' =>
-                $totalIn,
+            $totalStock = 0;
 
-            'total_out' =>
-                $totalOut,
+            $totalIn = 0;
 
-            'percentage' =>
-                $totalInventoryValue > 0
+            $totalOut = 0;
+
+
+            foreach ($items as $item) {
+
+                $summary = $stockSummary->get($item->id);
+
+
+                $totalInQty =
+                    (float) ($summary->total_in_qty ?? 0);
+
+
+                $totalOutQty =
+                    (float) ($summary->total_out_qty ?? 0);
+
+
+                $stokAkhir =
+                    (float) ($item->stok_awal ?? 0)
+                    + $totalInQty
+                    - $totalOutQty;
+
+
+                $totalStock += $stokAkhir;
+
+
+                $inventoryAsset =
+                    $stokAkhir * (float) ($item->harga ?? 0);
+
+
+                $totalInventoryAsset += $inventoryAsset;
+
+
+                $totalIn +=
+                    $totalInQty * (float) ($item->harga ?? 0);
+
+
+                $totalOut +=
+                    $totalOutQty * (float) ($item->harga ?? 0);
+
+            }
+
+
+            $categoriesData[] = [
+
+                'name' => $jenis,
+
+                'item_count' =>
+                    $items->count(),
+
+                'total_stock' =>
+                    $totalStock,
+
+                'total_value' =>
+                    $totalInventoryAsset,
+
+                'total_in' =>
+                    $totalIn,
+
+                'total_out' =>
+                    $totalOut,
+
+                'percentage' =>
+                    $totalInventoryValue > 0
 
                     ? round(
                         ($totalInventoryAsset / $totalInventoryValue)
@@ -1383,1297 +1383,1112 @@ public function overview()
 
                     : 0,
 
-            'color' => match (
+                'color' => match (
                 strtolower(trim($jenis))
             ) {
 
-                'bahan baku' =>
-                    '#0d6efd',
+                    'bahan baku' =>
+                        '#0d6efd',
 
-                'bahan penolong' =>
-                    '#198754',
+                    'bahan penolong' =>
+                        '#198754',
 
-                'bahan finishing' =>
-                    '#fd7e14',
+                    'bahan finishing' =>
+                        '#fd7e14',
 
-                default =>
-                    '#6c757d'
-            },
+                    default =>
+                        '#6c757d'
+                },
 
-            'bg_soft' =>
-                '#f8f9fa',
+                'bg_soft' =>
+                    '#f8f9fa',
 
-            'icon' =>
-                'bi-box'
-
-        ];
-
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | FAST MOVING
-    |--------------------------------------------------------------------------
-    */
-
-    $topOutgoingQuery = TransaksiStok::query()
-
-        ->select(
-            'stok_id',
-
-            DB::raw(
-                'SUM(qty) as total_out_qty'
-            ),
-
-            DB::raw(
-                'COUNT(*) as out_frequency'
-            )
-        )
-
-        ->where('tipe', 'out');
-
-
-    if (!$opname) {
-
-        $topOutgoingQuery->where(function ($query) {
-
-            $query->whereNull('keterangan')
-                ->orWhere(
-                    'keterangan',
-                    'not like',
-                    '%opname%'
-                );
-
-        });
-
-    }
-
-
-    $topOutgoingMaterials = $topOutgoingQuery
-
-        ->groupBy('stok_id')
-
-        ->orderByDesc('total_out_qty')
-
-        ->with('stok')
-
-        ->take(20)
-
-        ->get()
-
-        ->map(function ($row) {
-
-            return (object) [
-
-                'code' =>
-                    $row->stok->kode_barang,
-
-                'name' =>
-                    $row->stok->nama_barang,
-
-                'category' =>
-                    $row->stok->jenis,
-
-                'location' =>
-                    '-',
-
-                'unit' =>
-                    $row->stok->satuan,
-
-                'total_out_qty' =>
-                    $row->total_out_qty,
-
-                'total_out_value' =>
-                    $row->total_out_qty
-                    * $row->stok->harga,
-
-                'out_frequency' =>
-                    $row->out_frequency,
+                'icon' =>
+                    'bi-box'
 
             ];
 
-        });
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | STOCK MOVEMENT 6 MONTHS
-    |--------------------------------------------------------------------------
-    */
-
-    $stockMovement = [];
-
-
-    for ($i = 5; $i >= 0; $i--) {
-
-        $date =
-            Carbon::now()->subMonths($i);
+        }
 
 
         /*
         |--------------------------------------------------------------------------
-        | IN
+        | FAST MOVING
         |--------------------------------------------------------------------------
         */
 
-        $stockInQuery = TransaksiStok::join(
-            'stoks',
-            'stoks.id',
-            '=',
-            'transaksi_stoks.stok_id'
-        )
+        $topOutgoingQuery = TransaksiStok::query()
 
-            ->where(
-                'transaksi_stoks.tipe',
-                'in'
+            ->select(
+                'stok_id',
+
+                DB::raw(
+                    'SUM(qty) as total_out_qty'
+                ),
+
+                DB::raw(
+                    'COUNT(*) as out_frequency'
+                )
             )
 
-            ->whereYear(
-                'transaksi_stoks.tanggal',
-                $date->year
-            )
-
-            ->whereMonth(
-                'transaksi_stoks.tanggal',
-                $date->month
-            );
+            ->where('tipe', 'out');
 
 
         if (!$opname) {
 
-            $stockInQuery->where(function ($query) {
+            $topOutgoingQuery->where(function ($query) {
 
-                $query->whereNull(
-                    'transaksi_stoks.keterangan'
-                )
-
-                ->orWhere(
-                    'transaksi_stoks.keterangan',
-                    'not like',
-                    '%opname%'
-                );
+                $query->whereNull('keterangan')
+                    ->orWhere(
+                        'keterangan',
+                        'not like',
+                        '%opname%'
+                    );
 
             });
 
         }
 
 
-        $stockIn =
-            $stockInQuery
+        $topOutgoingMaterials = $topOutgoingQuery
 
-                ->selectRaw(
-                    'SUM(
-                        transaksi_stoks.qty
-                        * stoks.harga
-                    ) as total'
-                )
+            ->groupBy('stok_id')
 
-                ->value('total') ?? 0;
+            ->orderByDesc('total_out_qty')
+
+            ->with('stok')
+
+            ->take(20)
+
+            ->get()
+
+            ->map(function ($row) {
+
+                return (object) [
+
+                    'code' =>
+                        $row->stok->kode_barang,
+
+                    'name' =>
+                        $row->stok->nama_barang,
+
+                    'category' =>
+                        $row->stok->jenis,
+
+                    'location' =>
+                        '-',
+
+                    'unit' =>
+                        $row->stok->satuan,
+
+                    'total_out_qty' =>
+                        $row->total_out_qty,
+
+                    'total_out_value' =>
+                        $row->total_out_qty
+                        * $row->stok->harga,
+
+                    'out_frequency' =>
+                        $row->out_frequency,
+
+                ];
+
+            });
 
 
         /*
         |--------------------------------------------------------------------------
-        | OUT
+        | STOCK MOVEMENT 6 MONTHS
         |--------------------------------------------------------------------------
         */
 
-        $stockOutQuery = TransaksiStok::join(
-            'stoks',
-            'stoks.id',
-            '=',
-            'transaksi_stoks.stok_id'
-        )
+        $stockMovement = [];
 
-            ->where(
-                'transaksi_stoks.tipe',
-                'out'
+
+        for ($i = 5; $i >= 0; $i--) {
+
+            $date =
+                Carbon::now()->subMonths($i);
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | IN
+            |--------------------------------------------------------------------------
+            */
+
+            $stockInQuery = TransaksiStok::join(
+                'stoks',
+                'stoks.id',
+                '=',
+                'transaksi_stoks.stok_id'
             )
 
-            ->whereYear(
-                'transaksi_stoks.tanggal',
-                $date->year
-            )
-
-            ->whereMonth(
-                'transaksi_stoks.tanggal',
-                $date->month
-            );
-
-
-        if (!$opname) {
-
-            $stockOutQuery->where(function ($query) {
-
-                $query->whereNull(
-                    'transaksi_stoks.keterangan'
+                ->where(
+                    'transaksi_stoks.tipe',
+                    'in'
                 )
 
-                ->orWhere(
-                    'transaksi_stoks.keterangan',
-                    'not like',
-                    '%opname%'
+                ->whereYear(
+                    'transaksi_stoks.tanggal',
+                    $date->year
+                )
+
+                ->whereMonth(
+                    'transaksi_stoks.tanggal',
+                    $date->month
                 );
 
-            });
 
-        }
+            if (!$opname) {
+
+                $stockInQuery->where(function ($query) {
+
+                    $query->whereNull(
+                        'transaksi_stoks.keterangan'
+                    )
+
+                        ->orWhere(
+                            'transaksi_stoks.keterangan',
+                            'not like',
+                            '%opname%'
+                        );
+
+                });
+
+            }
 
 
-        $stockOut =
-            $stockOutQuery
+            $stockIn =
+                $stockInQuery
 
-                ->selectRaw(
-                    'SUM(
+                    ->selectRaw(
+                        'SUM(
                         transaksi_stoks.qty
                         * stoks.harga
                     ) as total'
+                    )
+
+                    ->value('total') ?? 0;
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | OUT
+            |--------------------------------------------------------------------------
+            */
+
+            $stockOutQuery = TransaksiStok::join(
+                'stoks',
+                'stoks.id',
+                '=',
+                'transaksi_stoks.stok_id'
+            )
+
+                ->where(
+                    'transaksi_stoks.tipe',
+                    'out'
                 )
 
-                ->value('total') ?? 0;
+                ->whereYear(
+                    'transaksi_stoks.tanggal',
+                    $date->year
+                )
+
+                ->whereMonth(
+                    'transaksi_stoks.tanggal',
+                    $date->month
+                );
 
 
-        $stockMovement[] = [
+            if (!$opname) {
 
-            'month' =>
-                $date->format('M'),
+                $stockOutQuery->where(function ($query) {
 
-            'stock_in' =>
-                round(
-                    $stockIn / 1000000,
-                    2
-                ),
+                    $query->whereNull(
+                        'transaksi_stoks.keterangan'
+                    )
 
-            'stock_out' =>
-                round(
-                    $stockOut / 1000000,
-                    2
-                ),
+                        ->orWhere(
+                            'transaksi_stoks.keterangan',
+                            'not like',
+                            '%opname%'
+                        );
 
-            'stock_in_text' =>
-                'Rp ' .
-                number_format(
-                    $stockIn / 1000000,
-                    2
-                ) .
-                ' Jt',
+                });
 
-            'stock_out_text' =>
-                'Rp ' .
-                number_format(
-                    $stockOut / 1000000,
-                    2
-                ) .
-                ' Jt',
+            }
 
-            'difference' =>
-                round(
-                    ($stockIn - $stockOut)
-                    / 1000000,
-                    2
-                ),
 
-            'status' =>
-                $stockIn >= $stockOut
+            $stockOut =
+                $stockOutQuery
+
+                    ->selectRaw(
+                        'SUM(
+                        transaksi_stoks.qty
+                        * stoks.harga
+                    ) as total'
+                    )
+
+                    ->value('total') ?? 0;
+
+
+            $stockMovement[] = [
+
+                'month' =>
+                    $date->format('M'),
+
+                'stock_in' =>
+                    round(
+                        $stockIn / 1000000,
+                        2
+                    ),
+
+                'stock_out' =>
+                    round(
+                        $stockOut / 1000000,
+                        2
+                    ),
+
+                'stock_in_text' =>
+                    'Rp ' .
+                    number_format(
+                        $stockIn / 1000000,
+                        2
+                    ) .
+                    ' Jt',
+
+                'stock_out_text' =>
+                    'Rp ' .
+                    number_format(
+                        $stockOut / 1000000,
+                        2
+                    ) .
+                    ' Jt',
+
+                'difference' =>
+                    round(
+                        ($stockIn - $stockOut)
+                        / 1000000,
+                        2
+                    ),
+
+                'status' =>
+                    $stockIn >= $stockOut
                     ? 'Surplus'
                     : 'Defisit',
 
-        ];
-
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | SUMMARY BY UNIT
-    |--------------------------------------------------------------------------
-    */
-
-    $unitSummaries = [];
-
-
-    foreach (
-        $stocks->groupBy('satuan')
-        as $unit => $items
-    ) {
-
-        $qty = 0;
-
-        $value = 0;
-
-
-        foreach ($items as $item) {
-
-            $summary =
-                $stockSummary->get(
-                    $item->id
-                );
-
-
-            $stokAkhir =
-                (float) (
-                    $item->stok_awal ?? 0
-                )
-
-                + (float) (
-                    $summary->total_in_qty ?? 0
-                )
-
-                - (float) (
-                    $summary->total_out_qty ?? 0
-                );
-
-
-            $qty += $stokAkhir;
-
-
-            $value +=
-                $stokAkhir
-                * (float) (
-                    $item->harga ?? 0
-                );
+            ];
 
         }
 
 
-        $unitSummaries[] = [
+        /*
+        |--------------------------------------------------------------------------
+        | SUMMARY BY UNIT
+        |--------------------------------------------------------------------------
+        */
 
-            'unit' =>
-                $unit,
-
-            'total_items' =>
-                $items->count(),
-
-            'total_stock' =>
-                $qty,
-
-            'inventory_value' =>
-                $value,
-
-        ];
-
-    }
+        $unitSummaries = [];
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | ========================================================================
-    | FINISHING CONTROL
-    | ========================================================================
-    |--------------------------------------------------------------------------
-    |
-    | Sumber data:
-    |
-    | MonitoringInvoice
-    | InvLama
-    | SpkLama
-    | Spk -> payments
-    |
-    | Konsep:
-    |
-    | Invoice        = DEBET
-    | Pemotongan SPK = KREDIT
-    | Sisa           = Invoice - Pemotongan
-    |
-    */
+        foreach (
+            $stocks->groupBy('satuan')
+            as $unit => $items
+        ) {
+
+            $qty = 0;
+
+            $value = 0;
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | AMBIL INVOICE
-    |--------------------------------------------------------------------------
-    */
+            foreach ($items as $item) {
 
-    $monitoringInvoices =
-        MonitoringInvoice::query()
-
-            ->orderBy('tanggal_invoice')
-
-            ->orderBy('id')
-
-            ->get();
+                $summary =
+                    $stockSummary->get(
+                        $item->id
+                    );
 
 
-    $invLamas =
-        InvLama::query()
+                $stokAkhir =
+                    (float) (
+                        $item->stok_awal ?? 0
+                    )
 
-            ->orderBy('tanggal_invoice')
+                    + (float) (
+                        $summary->total_in_qty ?? 0
+                    )
 
-            ->orderBy('id')
-
-            ->get();
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | AMBIL SPK LAMA
-    |--------------------------------------------------------------------------
-    */
-
-    $spkLamas =
-        SpkLama::query()
-
-            ->orderBy('tanggal_potong')
-
-            ->orderBy('id')
-
-            ->get();
+                    - (float) (
+                        $summary->total_out_qty ?? 0
+                    );
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | AMBIL SPK BARU
-    |--------------------------------------------------------------------------
-    */
-
-    $spks =
-        Spk::query()
-
-            ->get();
+                $qty += $stokAkhir;
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | NORMALIZE INVOICE
-    |--------------------------------------------------------------------------
-    */
+                $value +=
+                    $stokAkhir
+                    * (float) (
+                        $item->harga ?? 0
+                    );
 
-    $normalizeInvoice = function ($value) {
-
-        return strtoupper(
-            preg_replace(
-                '/[^A-Z0-9]/',
-                '',
-                (string) $value
-            )
-        );
-
-    };
+            }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | NORMALIZE SUB
-    |--------------------------------------------------------------------------
-    */
+            $unitSummaries[] = [
 
-    $normalizeSub = function ($value) {
+                'unit' =>
+                    $unit,
 
-        $value =
-            strtoupper(
-                trim(
+                'total_items' =>
+                    $items->count(),
+
+                'total_stock' =>
+                    $qty,
+
+                'inventory_value' =>
+                    $value,
+
+            ];
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | ========================================================================
+        | FINISHING CONTROL
+        | ========================================================================
+        |--------------------------------------------------------------------------
+        |
+        | Sumber data:
+        |
+        | MonitoringInvoice
+        | InvLama
+        | SpkLama
+        | Spk -> payments
+        |
+        | Konsep:
+        |
+        | Invoice        = DEBET
+        | Pemotongan SPK = KREDIT
+        | Sisa           = Invoice - Pemotongan
+        |
+        */
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | AMBIL INVOICE
+        |--------------------------------------------------------------------------
+        */
+
+        $monitoringInvoices =
+            MonitoringInvoice::query()
+
+                ->orderBy('tanggal_invoice')
+
+                ->orderBy('id')
+
+                ->get();
+
+
+        $invLamas =
+            InvLama::query()
+
+                ->orderBy('tanggal_invoice')
+
+                ->orderBy('id')
+
+                ->get();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | AMBIL SPK LAMA
+        |--------------------------------------------------------------------------
+        */
+
+        $spkLamas =
+            SpkLama::query()
+
+                ->orderBy('tanggal_potong')
+
+                ->orderBy('id')
+
+                ->get();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | AMBIL SPK BARU
+        |--------------------------------------------------------------------------
+        */
+
+        $spks =
+            Spk::query()
+
+                ->get();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | NORMALIZE INVOICE
+        |--------------------------------------------------------------------------
+        */
+
+        $normalizeInvoice = function ($value) {
+
+            return strtoupper(
+                preg_replace(
+                    '/[^A-Z0-9]/',
+                    '',
                     (string) $value
                 )
             );
 
-
-        if (
-            str_contains(
-                $value,
-                'TOMO'
-            )
-        ) {
-            return 'TOMO';
-        }
+        };
 
 
-        if (
-            str_contains(
-                $value,
-                'DARTO'
-            )
-        ) {
-            return 'DARTO';
-        }
+        /*
+        |--------------------------------------------------------------------------
+        | NORMALIZE SUB
+        |--------------------------------------------------------------------------
+        */
 
+        $normalizeSub = function ($value) {
 
-        if (
-            str_contains(
-                $value,
-                'PRODUKSI'
-            )
-        ) {
-            return 'PRODUKSI';
-        }
-
-
-        if (
-            str_contains(
-                $value,
-                'SAMPEL'
-            )
-        ) {
-            return 'SAMPEL';
-        }
-
-
-        return $value;
-
-    };
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | MAP INVOICE
-    |--------------------------------------------------------------------------
-    */
-
-    $allFinishingInvoices = collect();
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | MONITORING INVOICE
-    |--------------------------------------------------------------------------
-    */
-
-    foreach (
-        $monitoringInvoices
-        as $invoice
-    ) {
-
-        $key =
-            $normalizeInvoice(
-                $invoice->nomor_invoice
-            );
-
-
-        if ($key === '') {
-            continue;
-        }
-
-
-        $allFinishingInvoices->push([
-            'key' =>
-                $key,
-
-            'model' =>
-                $invoice,
-
-            'source' =>
-                'monitoring_invoice',
-        ]);
-
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | INVOICE LAMA
-    |--------------------------------------------------------------------------
-    |
-    | Hanya tambahkan jika belum ada
-    | pada MonitoringInvoice.
-    |
-    */
-
-    $monitoringInvoiceKeys =
-        $monitoringInvoices
-
-            ->map(function ($invoice) use (
-                $normalizeInvoice
-            ) {
-
-                return $normalizeInvoice(
-                    $invoice->nomor_invoice
+            $value =
+                strtoupper(
+                    trim(
+                        (string) $value
+                    )
                 );
 
-            })
-
-            ->filter()
-
-            ->flip();
-
-
-    foreach (
-        $invLamas
-        as $invoice
-    ) {
-
-        $key =
-            $normalizeInvoice(
-                $invoice->nomor_invoice
-            );
-
-
-        if ($key === '') {
-            continue;
-        }
-
-
-        if (
-            isset(
-                $monitoringInvoiceKeys[$key]
-            )
-        ) {
-            continue;
-        }
-
-
-        $allFinishingInvoices->push([
-            'key' =>
-                $key,
-
-            'model' =>
-                $invoice,
-
-            'source' =>
-                'inv_lama',
-        ]);
-
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | HELPER HITUNG DETAIL INVOICE
-    |--------------------------------------------------------------------------
-    */
-
-    $calculateInvoiceTotal =
-        function ($details) {
 
             if (
-                !is_array($details)
+                str_contains(
+                    $value,
+                    'TOMO'
+                )
             ) {
-                return 0;
+                return 'TOMO';
             }
 
 
-            $total = 0;
-
-
-            foreach (
-                $details
-                as $detail
+            if (
+                str_contains(
+                    $value,
+                    'DARTO'
+                )
             ) {
+                return 'DARTO';
+            }
+
+
+            if (
+                str_contains(
+                    $value,
+                    'PRODUKSI'
+                )
+            ) {
+                return 'PRODUKSI';
+            }
+
+
+            if (
+                str_contains(
+                    $value,
+                    'SAMPEL'
+                )
+            ) {
+                return 'SAMPEL';
+            }
+
+
+            return $value;
+
+        };
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | MAP INVOICE
+        |--------------------------------------------------------------------------
+        */
+
+        $allFinishingInvoices = collect();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | MONITORING INVOICE
+        |--------------------------------------------------------------------------
+        */
+
+        foreach (
+            $monitoringInvoices
+            as $invoice
+        ) {
+
+            $key =
+                $normalizeInvoice(
+                    $invoice->nomor_invoice
+                );
+
+
+            if ($key === '') {
+                continue;
+            }
+
+
+            $allFinishingInvoices->push([
+                'key' =>
+                    $key,
+
+                'model' =>
+                    $invoice,
+
+                'source' =>
+                    'monitoring_invoice',
+            ]);
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | INVOICE LAMA
+        |--------------------------------------------------------------------------
+        |
+        | Hanya tambahkan jika belum ada
+        | pada MonitoringInvoice.
+        |
+        */
+
+        $monitoringInvoiceKeys =
+            $monitoringInvoices
+
+                ->map(function ($invoice) use ($normalizeInvoice) {
+
+                    return $normalizeInvoice(
+                        $invoice->nomor_invoice
+                    );
+
+                })
+
+                ->filter()
+
+                ->flip();
+
+
+        foreach (
+            $invLamas
+            as $invoice
+        ) {
+
+            $key =
+                $normalizeInvoice(
+                    $invoice->nomor_invoice
+                );
+
+
+            if ($key === '') {
+                continue;
+            }
+
+
+            if (
+                isset(
+                $monitoringInvoiceKeys[$key]
+            )
+            ) {
+                continue;
+            }
+
+
+            $allFinishingInvoices->push([
+                'key' =>
+                    $key,
+
+                'model' =>
+                    $invoice,
+
+                'source' =>
+                    'inv_lama',
+            ]);
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | HELPER HITUNG DETAIL INVOICE
+        |--------------------------------------------------------------------------
+        */
+
+        $calculateInvoiceTotal =
+            function ($details) {
 
                 if (
-                    !is_array($detail)
+                    !is_array($details)
                 ) {
-                    continue;
+                    return 0;
                 }
 
 
-                /*
-                | Cari field total terlebih dahulu
-                */
-
-                $lineTotal = 0;
+                $total = 0;
 
 
                 foreach (
+                    $details
+                    as $detail
+                ) {
+
+                    if (
+                        !is_array($detail)
+                    ) {
+                        continue;
+                    }
+
+
+                    /*
+                    | Cari field total terlebih dahulu
+                    */
+
+                    $lineTotal = 0;
+
+
+                    foreach (
+                        [
+                            'total',
+                            'subtotal',
+                            'jumlah',
+                            'amount'
+                        ]
+                        as $field
+                    ) {
+
+                        if (
+                            isset(
+                            $detail[$field]
+                        )
+                            &&
+                            is_numeric(
+                                $detail[$field]
+                            )
+                        ) {
+
+                            $lineTotal =
+                                (float) 
+                                $detail[$field];
+
+                            break;
+
+                        }
+
+                    }
+
+
+                    /*
+                    | Kalau total tidak ada,
+                    | hitung qty x harga.
+                    */
+
+                    if (
+                        $lineTotal <= 0
+                    ) {
+
+                        $qty = 0;
+
+                        $harga = 0;
+
+
+                        foreach (
+                            [
+                                'qty',
+                                'quantity',
+                                'jumlah_qty'
+                            ]
+                            as $field
+                        ) {
+
+                            if (
+                                isset(
+                                $detail[$field]
+                            )
+                                &&
+                                is_numeric(
+                                    $detail[$field]
+                                )
+                            ) {
+
+                                $qty =
+                                    (float) 
+                                    $detail[$field];
+
+                                break;
+
+                            }
+
+                        }
+
+
+                        foreach (
+                            [
+                                'harga',
+                                'price',
+                                'harga_satuan'
+                            ]
+                            as $field
+                        ) {
+
+                            if (
+                                isset(
+                                $detail[$field]
+                            )
+                                &&
+                                is_numeric(
+                                    $detail[$field]
+                                )
+                            ) {
+
+                                $harga =
+                                    (float) 
+                                    $detail[$field];
+
+                                break;
+
+                            }
+
+                        }
+
+
+                        $lineTotal =
+                            $qty * $harga;
+
+                    }
+
+
+                    $total += $lineTotal;
+
+                }
+
+
+                return $total;
+
+            };
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SUMMARY STRUCTURE
+        |--------------------------------------------------------------------------
+        */
+
+        $finishingSummary = [
+
+            'TOMO' => [
+                'invoice_count' => 0,
+                'invoice_total' => 0,
+                'cut_total' => 0,
+                'remaining' => 0,
+                'completed' => 0,
+                'partial' => 0,
+                'pending' => 0,
+                'invoices' => [],
+            ],
+
+            'DARTO' => [
+                'invoice_count' => 0,
+                'invoice_total' => 0,
+                'cut_total' => 0,
+                'remaining' => 0,
+                'completed' => 0,
+                'partial' => 0,
+                'pending' => 0,
+                'invoices' => [],
+            ],
+
+            'PRODUKSI' => [
+                'invoice_count' => 0,
+                'invoice_total' => 0,
+                'cut_total' => 0,
+                'remaining' => 0,
+                'completed' => 0,
+                'partial' => 0,
+                'pending' => 0,
+                'invoices' => [],
+            ],
+
+            'SAMPEL' => [
+                'invoice_count' => 0,
+                'invoice_total' => 0,
+                'cut_total' => 0,
+                'remaining' => 0,
+                'completed' => 0,
+                'partial' => 0,
+                'pending' => 0,
+                'invoices' => [],
+            ],
+
+        ];
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | PENDING GLOBAL
+        |--------------------------------------------------------------------------
+        */
+
+        $finishingPending = [];
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | RUNNING BALANCE
+        |--------------------------------------------------------------------------
+        */
+
+        $finishingRunningBalance = [];
+
+        $runningFinishingBalance = 0;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | PROSES SETIAP INVOICE
+        |--------------------------------------------------------------------------
+        */
+
+        foreach (
+            $allFinishingInvoices
+            as $invoiceItem
+        ) {
+
+            $invoice =
+                $invoiceItem['model'];
+
+
+            $invoiceKey =
+                $invoiceItem['key'];
+
+
+            $invoiceNumber =
+                trim(
+                    $invoice->nomor_invoice
+                    ?? ''
+                );
+
+
+            if (
+                $invoiceNumber === ''
+            ) {
+                continue;
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | DETAIL BAHAN
+            |--------------------------------------------------------------------------
+            */
+
+            $detailBahan =
+                $invoice->detail_bahan
+                ?? [];
+
+
+            if (
+                !is_array($detailBahan)
+            ) {
+                $detailBahan = [];
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | NILAI INVOICE
+            |--------------------------------------------------------------------------
+            */
+
+            $invoiceTotal =
+                $calculateInvoiceTotal(
+                    $detailBahan
+                );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | TENTUKAN SUB
+            |--------------------------------------------------------------------------
+            */
+
+            $invoiceToSub =
+                trim(
+                    (string) (
+                        $invoice->to_sub
+                        ?? ''
+                    )
+                );
+
+
+            $sub = '';
+
+
+            if (
+                $invoiceToSub !== ''
+            ) {
+
+                $sub =
+                    $normalizeSub(
+                        $invoiceToSub
+                    );
+
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | FALLBACK KATEGORI
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                !in_array(
+                    $sub,
                     [
-                        'total',
-                        'subtotal',
-                        'jumlah',
-                        'amount'
+                        'TOMO',
+                        'DARTO',
+                        'PRODUKSI',
+                        'SAMPEL'
+                    ],
+                    true
+                )
+            ) {
+
+                foreach (
+                    [
+                        'kategori',
+                        'kategori_invoice',
+                        'jenis_invoice',
+                        'tipe_invoice',
+                        'category',
+                        'type_invoice'
                     ]
                     as $field
                 ) {
 
                     if (
                         isset(
-                            $detail[$field]
-                        )
-                        &&
-                        is_numeric(
-                            $detail[$field]
-                        )
-                    ) {
-
-                        $lineTotal =
-                            (float)
-                            $detail[$field];
-
-                        break;
-
-                    }
-
-                }
-
-
-                /*
-                | Kalau total tidak ada,
-                | hitung qty x harga.
-                */
-
-                if (
-                    $lineTotal <= 0
-                ) {
-
-                    $qty = 0;
-
-                    $harga = 0;
-
-
-                    foreach (
-                        [
-                            'qty',
-                            'quantity',
-                            'jumlah_qty'
-                        ]
-                        as $field
-                    ) {
-
-                        if (
-                            isset(
-                                $detail[$field]
-                            )
-                            &&
-                            is_numeric(
-                                $detail[$field]
-                            )
-                        ) {
-
-                            $qty =
-                                (float)
-                                $detail[$field];
-
-                            break;
-
-                        }
-
-                    }
-
-
-                    foreach (
-                        [
-                            'harga',
-                            'price',
-                            'harga_satuan'
-                        ]
-                        as $field
-                    ) {
-
-                        if (
-                            isset(
-                                $detail[$field]
-                            )
-                            &&
-                            is_numeric(
-                                $detail[$field]
-                            )
-                        ) {
-
-                            $harga =
-                                (float)
-                                $detail[$field];
-
-                            break;
-
-                        }
-
-                    }
-
-
-                    $lineTotal =
-                        $qty * $harga;
-
-                }
-
-
-                $total += $lineTotal;
-
-            }
-
-
-            return $total;
-
-        };
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | SUMMARY STRUCTURE
-    |--------------------------------------------------------------------------
-    */
-
-    $finishingSummary = [
-
-        'TOMO' => [
-            'invoice_count' => 0,
-            'invoice_total' => 0,
-            'cut_total' => 0,
-            'remaining' => 0,
-            'completed' => 0,
-            'partial' => 0,
-            'pending' => 0,
-            'invoices' => [],
-        ],
-
-        'DARTO' => [
-            'invoice_count' => 0,
-            'invoice_total' => 0,
-            'cut_total' => 0,
-            'remaining' => 0,
-            'completed' => 0,
-            'partial' => 0,
-            'pending' => 0,
-            'invoices' => [],
-        ],
-
-        'PRODUKSI' => [
-            'invoice_count' => 0,
-            'invoice_total' => 0,
-            'cut_total' => 0,
-            'remaining' => 0,
-            'completed' => 0,
-            'partial' => 0,
-            'pending' => 0,
-            'invoices' => [],
-        ],
-
-        'SAMPEL' => [
-            'invoice_count' => 0,
-            'invoice_total' => 0,
-            'cut_total' => 0,
-            'remaining' => 0,
-            'completed' => 0,
-            'partial' => 0,
-            'pending' => 0,
-            'invoices' => [],
-        ],
-
-    ];
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | PENDING GLOBAL
-    |--------------------------------------------------------------------------
-    */
-
-    $finishingPending = [];
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | RUNNING BALANCE
-    |--------------------------------------------------------------------------
-    */
-
-    $finishingRunningBalance = [];
-
-    $runningFinishingBalance = 0;
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | PROSES SETIAP INVOICE
-    |--------------------------------------------------------------------------
-    */
-
-    foreach (
-        $allFinishingInvoices
-        as $invoiceItem
-    ) {
-
-        $invoice =
-            $invoiceItem['model'];
-
-
-        $invoiceKey =
-            $invoiceItem['key'];
-
-
-        $invoiceNumber =
-            trim(
-                $invoice->nomor_invoice
-                ?? ''
-            );
-
-
-        if (
-            $invoiceNumber === ''
-        ) {
-            continue;
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | DETAIL BAHAN
-        |--------------------------------------------------------------------------
-        */
-
-        $detailBahan =
-            $invoice->detail_bahan
-            ?? [];
-
-
-        if (
-            !is_array($detailBahan)
-        ) {
-            $detailBahan = [];
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | NILAI INVOICE
-        |--------------------------------------------------------------------------
-        */
-
-        $invoiceTotal =
-            $calculateInvoiceTotal(
-                $detailBahan
-            );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | TENTUKAN SUB
-        |--------------------------------------------------------------------------
-        */
-
-        $invoiceToSub =
-            trim(
-                (string) (
-                    $invoice->to_sub
-                    ?? ''
-                )
-            );
-
-
-        $sub = '';
-
-
-        if (
-            $invoiceToSub !== ''
-        ) {
-
-            $sub =
-                $normalizeSub(
-                    $invoiceToSub
-                );
-
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | FALLBACK KATEGORI
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            !in_array(
-                $sub,
-                [
-                    'TOMO',
-                    'DARTO',
-                    'PRODUKSI',
-                    'SAMPEL'
-                ],
-                true
-            )
-        ) {
-
-            foreach (
-                [
-                    'kategori',
-                    'kategori_invoice',
-                    'jenis_invoice',
-                    'tipe_invoice',
-                    'category',
-                    'type_invoice'
-                ]
-                as $field
-            ) {
-
-                if (
-                    isset(
                         $invoice->{$field}
                     )
-                    &&
-                    trim(
-                        (string)
-                        $invoice->{$field}
-                    ) !== ''
-                ) {
-
-                    $candidate =
-                        $normalizeSub(
+                        &&
+                        trim(
+                            (string) 
                             $invoice->{$field}
-                        );
-
-
-                    if (
-                        in_array(
-                            $candidate,
-                            [
-                                'TOMO',
-                                'DARTO',
-                                'PRODUKSI',
-                                'SAMPEL'
-                            ],
-                            true
-                        )
+                        ) !== ''
                     ) {
 
-                        $sub =
-                            $candidate;
+                        $candidate =
+                            $normalizeSub(
+                                $invoice->{$field}
+                            );
 
-                        break;
+
+                        if (
+                            in_array(
+                                $candidate,
+                                [
+                                    'TOMO',
+                                    'DARTO',
+                                    'PRODUKSI',
+                                    'SAMPEL'
+                                ],
+                                true
+                            )
+                        ) {
+
+                            $sub =
+                                $candidate;
+
+                            break;
+
+                        }
 
                     }
 
                 }
 
             }
-
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Kalau belum bisa dikategorikan,
-        | jangan dipaksa masuk ke chart.
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            !in_array(
-                $sub,
-                [
-                    'TOMO',
-                    'DARTO',
-                    'PRODUKSI',
-                    'SAMPEL'
-                ],
-                true
-            )
-        ) {
-
-            $sub = 'PRODUKSI';
-
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | HITUNG PEMOTONGAN
-        |--------------------------------------------------------------------------
-        */
-
-        $cutTotal = 0;
-
-        $cutDetails = [];
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | SPK LAMA
-        |--------------------------------------------------------------------------
-        */
-
-        foreach (
-            $spkLamas
-            as $spkLama
-        ) {
-
-            $spkInvoiceKey =
-                $normalizeInvoice(
-                    $spkLama->no_inv
-                );
-
-
-            if (
-                $spkInvoiceKey === ''
-                ||
-                $spkInvoiceKey !== $invoiceKey
-            ) {
-                continue;
-            }
-
-
-            $amount =
-                (float) (
-                    $spkLama->pemotongan_bahan
-                    ?? 0
-                );
-
-
-            if (
-                $amount <= 0
-            ) {
-                continue;
-            }
-
-
-            $cutTotal +=
-                $amount;
-
-
-            $cutDetails[] = [
-
-                'source' =>
-                    'spk_lama',
-
-                'spk_id' =>
-                    $spkLama->id,
-
-                'no_spk' =>
-                    $spkLama->no_spk,
-
-                'po' =>
-                    $spkLama->po,
-
-                'tanggal' =>
-                    $spkLama->tanggal_potong,
-
-                'amount' =>
-                    $amount,
-
-            ];
-
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | SPK BARU
-        |--------------------------------------------------------------------------
-        */
-
-        foreach (
-            $spks
-            as $spk
-        ) {
-
-            $data =
-                $spk->data;
-
-
-            if (
-                !is_array($data)
-            ) {
-                continue;
-            }
-
-
-            $supplier =
-                $data['sup']
-                ?? optional(
-                    $spk->supplier
-                )->name
-                ?? null;
-
-
-            $supplierNormalized =
-                $normalizeSub(
-                    $supplier
-                );
 
 
             /*
             |--------------------------------------------------------------------------
-            | PAYMENT
+            | Kalau belum bisa dikategorikan,
+            | jangan dipaksa masuk ke chart.
             |--------------------------------------------------------------------------
             */
 
-            $payments =
-                $data['payments']
-                ?? [];
-
-
             if (
-                !is_array($payments)
+                !in_array(
+                    $sub,
+                    [
+                        'TOMO',
+                        'DARTO',
+                        'PRODUKSI',
+                        'SAMPEL'
+                    ],
+                    true
+                )
             ) {
-                continue;
+
+                $sub = 'PRODUKSI';
+
             }
 
 
+            /*
+            |--------------------------------------------------------------------------
+            | HITUNG PEMOTONGAN
+            |--------------------------------------------------------------------------
+            */
+
+            $cutTotal = 0;
+
+            $cutDetails = [];
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | SPK LAMA
+            |--------------------------------------------------------------------------
+            */
+
             foreach (
-                $payments
-                as $paymentIndex => $payment
+                $spkLamas
+                as $spkLama
             ) {
 
-                if (
-                    !is_array($payment)
-                ) {
-                    continue;
-                }
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | HANYA PAYMENT BAHAN
-                |--------------------------------------------------------------------------
-                */
-
-                $note =
-                    strtolower(
-                        trim(
-                            $payment['note']
-                            ?? ''
-                        )
-                    );
-
-
-                if (
-                    $note !== 'bahan'
-                ) {
-                    continue;
-                }
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | NOTE TAMBAHAN
-                |--------------------------------------------------------------------------
-                */
-
-                $noteTambahan =
-                    trim(
-                        $payment['note_tambahan']
-                        ?? ''
-                    );
-
-
-                if (
-                    $noteTambahan === ''
-                ) {
-                    continue;
-                }
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | MATCH INVOICE
-                |--------------------------------------------------------------------------
-                */
-
-                $noteInvoiceNormalized =
+                $spkInvoiceKey =
                     $normalizeInvoice(
-                        $noteTambahan
+                        $spkLama->no_inv
                     );
 
 
                 if (
-                    $invoiceKey === ''
+                    $spkInvoiceKey === ''
                     ||
-                    $noteInvoiceNormalized === ''
-                    ||
-                    !str_contains(
-                        $noteInvoiceNormalized,
-                        $invoiceKey
-                    )
+                    $spkInvoiceKey !== $invoiceKey
                 ) {
                     continue;
                 }
 
-
-                /*
-                |--------------------------------------------------------------------------
-                | AMOUNT
-                |--------------------------------------------------------------------------
-                */
 
                 $amount =
                     (float) (
-                        $payment['amount']
+                        $spkLama->pemotongan_bahan
                         ?? 0
                     );
 
@@ -2685,40 +2500,6 @@ public function overview()
                 }
 
 
-                $paymentDate = null;
-
-
-                if (
-                    !empty(
-                        $payment['date']
-                    )
-                ) {
-
-                    try {
-
-                        $paymentDate =
-                            Carbon::parse(
-                                $payment['date']
-                            );
-
-                    } catch (
-                        \Throwable $e
-                    ) {
-
-                        $paymentDate =
-                            $invoice->tanggal_invoice;
-
-                    }
-
-                }
-
-
-                $noSpk =
-                    $data['no_spk']
-                    ?? $spk->no_spk
-                    ?? null;
-
-
                 $cutTotal +=
                     $amount;
 
@@ -2726,20 +2507,19 @@ public function overview()
                 $cutDetails[] = [
 
                     'source' =>
-                        'spk',
+                        'spk_lama',
 
                     'spk_id' =>
-                        $spk->id,
+                        $spkLama->id,
 
                     'no_spk' =>
-                        $noSpk,
+                        $spkLama->no_spk,
 
                     'po' =>
-                        $data['no_po']
-                        ?? null,
+                        $spkLama->po,
 
                     'tanggal' =>
-                        $paymentDate,
+                        $spkLama->tanggal_potong,
 
                     'amount' =>
                         $amount,
@@ -2748,59 +2528,277 @@ public function overview()
 
             }
 
-        }
+
+            /*
+            |--------------------------------------------------------------------------
+            | SPK BARU
+            |--------------------------------------------------------------------------
+            */
+
+            foreach (
+                $spks
+                as $spk
+            ) {
+
+                $data =
+                    $spk->data;
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | SISA
-        |--------------------------------------------------------------------------
-        */
-
-        $remaining =
-            max(
-                0,
-                $invoiceTotal
-                - $cutTotal
-            );
+                if (
+                    !is_array($data)
+                ) {
+                    continue;
+                }
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | STATUS
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            $cutTotal <= 0
-        ) {
-
-            $status =
-                'pending';
-
-        } elseif (
-            $remaining <= 0
-        ) {
-
-            $status =
-                'completed';
-
-        } else {
-
-            $status =
-                'partial';
-
-        }
+                $supplier =
+                    $data['sup']
+                    ?? optional(
+                        $spk->supplier
+                    )->name
+                    ?? null;
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | PERSENTASE
-        |--------------------------------------------------------------------------
-        */
+                $supplierNormalized =
+                    $normalizeSub(
+                        $supplier
+                    );
 
-        $percentage =
-            $invoiceTotal > 0
+
+                /*
+                |--------------------------------------------------------------------------
+                | PAYMENT
+                |--------------------------------------------------------------------------
+                */
+
+                $payments =
+                    $data['payments']
+                    ?? [];
+
+
+                if (
+                    !is_array($payments)
+                ) {
+                    continue;
+                }
+
+
+                foreach (
+                    $payments
+                    as $paymentIndex => $payment
+                ) {
+
+                    if (
+                        !is_array($payment)
+                    ) {
+                        continue;
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | HANYA PAYMENT BAHAN
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $note =
+                        strtolower(
+                            trim(
+                                $payment['note']
+                                ?? ''
+                            )
+                        );
+
+
+                    if (
+                        $note !== 'bahan'
+                    ) {
+                        continue;
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | NOTE TAMBAHAN
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $noteTambahan =
+                        trim(
+                            $payment['note_tambahan']
+                            ?? ''
+                        );
+
+
+                    if (
+                        $noteTambahan === ''
+                    ) {
+                        continue;
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | MATCH INVOICE
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $noteInvoiceNormalized =
+                        $normalizeInvoice(
+                            $noteTambahan
+                        );
+
+
+                    if (
+                        $invoiceKey === ''
+                        ||
+                        $noteInvoiceNormalized === ''
+                        ||
+                        !str_contains(
+                            $noteInvoiceNormalized,
+                            $invoiceKey
+                        )
+                    ) {
+                        continue;
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | AMOUNT
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $amount =
+                        (float) (
+                            $payment['amount']
+                            ?? 0
+                        );
+
+
+                    if (
+                        $amount <= 0
+                    ) {
+                        continue;
+                    }
+
+
+                    $paymentDate = null;
+
+
+                    if (
+                        !empty(
+                        $payment['date']
+                    )
+                    ) {
+
+                        try {
+
+                            $paymentDate =
+                                Carbon::parse(
+                                    $payment['date']
+                                );
+
+                        } catch (
+                            \Throwable $e
+                        ) {
+
+                            $paymentDate =
+                                $invoice->tanggal_invoice;
+
+                        }
+
+                    }
+
+
+                    $noSpk =
+                        $data['no_spk']
+                        ?? $spk->no_spk
+                        ?? null;
+
+
+                    $cutTotal +=
+                        $amount;
+
+
+                    $cutDetails[] = [
+
+                        'source' =>
+                            'spk',
+
+                        'spk_id' =>
+                            $spk->id,
+
+                        'no_spk' =>
+                            $noSpk,
+
+                        'po' =>
+                            $data['no_po']
+                            ?? null,
+
+                        'tanggal' =>
+                            $paymentDate,
+
+                        'amount' =>
+                            $amount,
+
+                    ];
+
+                }
+
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | SISA
+            |--------------------------------------------------------------------------
+            */
+
+            $remaining =
+                max(
+                    0,
+                    $invoiceTotal
+                    - $cutTotal
+                );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | STATUS
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                $cutTotal <= 0
+            ) {
+
+                $status =
+                    'pending';
+
+            } elseif (
+                $remaining <= 0
+            ) {
+
+                $status =
+                    'completed';
+
+            } else {
+
+                $status =
+                    'partial';
+
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | PERSENTASE
+            |--------------------------------------------------------------------------
+            */
+
+            $percentage =
+                $invoiceTotal > 0
 
                 ? min(
                     100,
@@ -2816,116 +2814,66 @@ public function overview()
                 : 0;
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | UPDATE SUMMARY
-        |--------------------------------------------------------------------------
-        */
+            /*
+            |--------------------------------------------------------------------------
+            | UPDATE SUMMARY
+            |--------------------------------------------------------------------------
+            */
 
-        $finishingSummary[$sub]
+            $finishingSummary[$sub]
             ['invoice_count']++;
 
 
-        $finishingSummary[$sub]
+            $finishingSummary[$sub]
             ['invoice_total']
-            += $invoiceTotal;
+                += $invoiceTotal;
 
 
-        $finishingSummary[$sub]
+            $finishingSummary[$sub]
             ['cut_total']
-            += $cutTotal;
+                += $cutTotal;
 
 
-        $finishingSummary[$sub]
+            $finishingSummary[$sub]
             ['remaining']
-            += $remaining;
+                += $remaining;
 
 
-        switch ($status) {
+            switch ($status) {
 
-            case 'completed':
+                case 'completed':
 
-                $finishingSummary[$sub]
+                    $finishingSummary[$sub]
                     ['completed']++;
 
-                break;
+                    break;
 
 
-            case 'partial':
+                case 'partial':
 
-                $finishingSummary[$sub]
+                    $finishingSummary[$sub]
                     ['partial']++;
 
-                break;
+                    break;
 
 
-            case 'pending':
+                case 'pending':
 
-                $finishingSummary[$sub]
+                    $finishingSummary[$sub]
                     ['pending']++;
 
-                break;
+                    break;
 
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | DETAIL INVOICE
-        |--------------------------------------------------------------------------
-        */
-
-        $invoiceData = [
-
-            'invoice' =>
-                $invoiceNumber,
-
-            'tanggal' =>
-                $invoice->tanggal_invoice,
-
-            'sub' =>
-                $sub,
-
-            'invoice_total' =>
-                $invoiceTotal,
-
-            'cut_total' =>
-                $cutTotal,
-
-            'remaining' =>
-                $remaining,
-
-            'percentage' =>
-                $percentage,
-
-            'status' =>
-                $status,
-
-            'cut_details' =>
-                $cutDetails,
-
-        ];
+            }
 
 
-        $finishingSummary[$sub]
-            ['invoices'][] =
-                $invoiceData;
+            /*
+            |--------------------------------------------------------------------------
+            | DETAIL INVOICE
+            |--------------------------------------------------------------------------
+            */
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | PENDING / PARTIAL
-        |--------------------------------------------------------------------------
-        |
-        | Yang belum selesai ditaruh ke daftar pekerjaan.
-        |
-        */
-
-        if (
-            $status !== 'completed'
-        ) {
-
-            $finishingPending[] = [
+            $invoiceData = [
 
                 'invoice' =>
                     $invoiceNumber,
@@ -2951,71 +2899,121 @@ public function overview()
                 'status' =>
                     $status,
 
+                'cut_details' =>
+                    $cutDetails,
+
             ];
+
+
+            $finishingSummary[$sub]
+            ['invoices'][] =
+                $invoiceData;
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | PENDING / PARTIAL
+            |--------------------------------------------------------------------------
+            |
+            | Yang belum selesai ditaruh ke daftar pekerjaan.
+            |
+            */
+
+            if (
+                $status !== 'completed'
+            ) {
+
+                $finishingPending[] = [
+
+                    'invoice' =>
+                        $invoiceNumber,
+
+                    'tanggal' =>
+                        $invoice->tanggal_invoice,
+
+                    'sub' =>
+                        $sub,
+
+                    'invoice_total' =>
+                        $invoiceTotal,
+
+                    'cut_total' =>
+                        $cutTotal,
+
+                    'remaining' =>
+                        $remaining,
+
+                    'percentage' =>
+                        $percentage,
+
+                    'status' =>
+                        $status,
+
+                ];
+
+            }
 
         }
 
-    }
+
+        /*
+        |--------------------------------------------------------------------------
+        | TOTAL FINISHING GLOBAL
+        |--------------------------------------------------------------------------
+        */
+
+        $finishingTotalInvoice = 0;
+
+        $finishingTotalCut = 0;
+
+        $finishingTotalRemaining = 0;
+
+        $finishingTotalInvoices = 0;
+
+        $finishingCompleted = 0;
+
+        $finishingPartial = 0;
+
+        $finishingPendingCount = 0;
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | TOTAL FINISHING GLOBAL
-    |--------------------------------------------------------------------------
-    */
+        foreach (
+            $finishingSummary
+            as $summary
+        ) {
 
-    $finishingTotalInvoice = 0;
+            $finishingTotalInvoice +=
+                $summary['invoice_total'];
 
-    $finishingTotalCut = 0;
+            $finishingTotalCut +=
+                $summary['cut_total'];
 
-    $finishingTotalRemaining = 0;
+            $finishingTotalRemaining +=
+                $summary['remaining'];
 
-    $finishingTotalInvoices = 0;
+            $finishingTotalInvoices +=
+                $summary['invoice_count'];
 
-    $finishingCompleted = 0;
+            $finishingCompleted +=
+                $summary['completed'];
 
-    $finishingPartial = 0;
+            $finishingPartial +=
+                $summary['partial'];
 
-    $finishingPendingCount = 0;
+            $finishingPendingCount +=
+                $summary['pending'];
 
-
-    foreach (
-        $finishingSummary
-        as $summary
-    ) {
-
-        $finishingTotalInvoice +=
-            $summary['invoice_total'];
-
-        $finishingTotalCut +=
-            $summary['cut_total'];
-
-        $finishingTotalRemaining +=
-            $summary['remaining'];
-
-        $finishingTotalInvoices +=
-            $summary['invoice_count'];
-
-        $finishingCompleted +=
-            $summary['completed'];
-
-        $finishingPartial +=
-            $summary['partial'];
-
-        $finishingPendingCount +=
-            $summary['pending'];
-
-    }
+        }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | GLOBAL COMPLETION
-    |--------------------------------------------------------------------------
-    */
+        /*
+        |--------------------------------------------------------------------------
+        | GLOBAL COMPLETION
+        |--------------------------------------------------------------------------
+        */
 
-    $finishingCompletion =
-        $finishingTotalInvoice > 0
+        $finishingCompletion =
+            $finishingTotalInvoice > 0
 
             ? round(
                 (
@@ -3027,87 +3025,87 @@ public function overview()
             : 0;
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | CHART 1
-    |--------------------------------------------------------------------------
-    |
-    | Invoice vs Pemotongan vs Sisa
-    |
-    */
+        /*
+        |--------------------------------------------------------------------------
+        | CHART 1
+        |--------------------------------------------------------------------------
+        |
+        | Invoice vs Pemotongan vs Sisa
+        |
+        */
 
-    $finishingChart = [];
-
-
-    foreach (
-        [
-            'TOMO',
-            'DARTO',
-            'PRODUKSI',
-            'SAMPEL'
-        ]
-        as $sub
-    ) {
-
-        $summary =
-            $finishingSummary[$sub];
+        $finishingChart = [];
 
 
-        $finishingChart[] = [
+        foreach (
+            [
+                'TOMO',
+                'DARTO',
+                'PRODUKSI',
+                'SAMPEL'
+            ]
+            as $sub
+        ) {
 
-            'sub' =>
-                $sub,
+            $summary =
+                $finishingSummary[$sub];
 
-            'invoice_total' =>
-                round(
-                    $summary['invoice_total']
-                    / 1000000,
-                    2
-                ),
 
-            'cut_total' =>
-                round(
-                    $summary['cut_total']
-                    / 1000000,
-                    2
-                ),
+            $finishingChart[] = [
 
-            'remaining' =>
-                round(
-                    $summary['remaining']
-                    / 1000000,
-                    2
-                ),
+                'sub' =>
+                    $sub,
 
-            'invoice_total_text' =>
-                'Rp ' .
-                number_format(
-                    $summary['invoice_total'],
-                    0,
-                    ',',
-                    '.'
-                ),
+                'invoice_total' =>
+                    round(
+                        $summary['invoice_total']
+                        / 1000000,
+                        2
+                    ),
 
-            'cut_total_text' =>
-                'Rp ' .
-                number_format(
-                    $summary['cut_total'],
-                    0,
-                    ',',
-                    '.'
-                ),
+                'cut_total' =>
+                    round(
+                        $summary['cut_total']
+                        / 1000000,
+                        2
+                    ),
 
-            'remaining_text' =>
-                'Rp ' .
-                number_format(
-                    $summary['remaining'],
-                    0,
-                    ',',
-                    '.'
-                ),
+                'remaining' =>
+                    round(
+                        $summary['remaining']
+                        / 1000000,
+                        2
+                    ),
 
-            'percentage' =>
-                $summary['invoice_total'] > 0
+                'invoice_total_text' =>
+                    'Rp ' .
+                    number_format(
+                        $summary['invoice_total'],
+                        0,
+                        ',',
+                        '.'
+                    ),
+
+                'cut_total_text' =>
+                    'Rp ' .
+                    number_format(
+                        $summary['cut_total'],
+                        0,
+                        ',',
+                        '.'
+                    ),
+
+                'remaining_text' =>
+                    'Rp ' .
+                    number_format(
+                        $summary['remaining'],
+                        0,
+                        ',',
+                        '.'
+                    ),
+
+                'percentage' =>
+                    $summary['invoice_total'] > 0
 
                     ? round(
                         (
@@ -3120,310 +3118,228 @@ public function overview()
 
                     : 0,
 
-            'invoice_count' =>
-                $summary['invoice_count'],
+                'invoice_count' =>
+                    $summary['invoice_count'],
 
-            'completed' =>
-                $summary['completed'],
+                'completed' =>
+                    $summary['completed'],
 
-            'partial' =>
-                $summary['partial'],
+                'partial' =>
+                    $summary['partial'],
 
-            'pending' =>
-                $summary['pending'],
+                'pending' =>
+                    $summary['pending'],
 
-        ];
+            ];
 
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | CHART 2
-    |--------------------------------------------------------------------------
-    |
-    | STATUS INVOICE
-    |
-    */
-
-    $finishingStatusChart = [
-
-        'labels' => [
-            'Selesai',
-            'Sebagian',
-            'Belum Dipotong',
-        ],
-
-        'series' => [
-
-            $finishingCompleted,
-
-            $finishingPartial,
-
-            $finishingPendingCount,
-
-        ],
-
-    ];
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | CHART 3
-    |--------------------------------------------------------------------------
-    |
-    | PER SUB
-    |
-    */
-
-    $finishingSubChart = [
-
-        'labels' => [
-            'TOMO',
-            'DARTO',
-            'PRODUKSI',
-            'SAMPEL',
-        ],
-
-        'invoice' => [],
-
-        'cut' => [],
-
-        'remaining' => [],
-
-    ];
-
-
-    foreach (
-        [
-            'TOMO',
-            'DARTO',
-            'PRODUKSI',
-            'SAMPEL'
-        ]
-        as $sub
-    ) {
-
-        $summary =
-            $finishingSummary[$sub];
-
-
-        $finishingSubChart['invoice'][] =
-            round(
-                $summary['invoice_total']
-                / 1000000,
-                2
-            );
-
-
-        $finishingSubChart['cut'][] =
-            round(
-                $summary['cut_total']
-                / 1000000,
-                2
-            );
-
-
-        $finishingSubChart['remaining'][] =
-            round(
-                $summary['remaining']
-                / 1000000,
-                2
-            );
-
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | CHART 4
-    |--------------------------------------------------------------------------
-    |
-    | RUNNING BALANCE FINISHING
-    |--------------------------------------------------------------------------
-    */
-
-    $sortedFinishing =
-        $allFinishingInvoices
-
-            ->sortBy(function ($item) {
-
-                $date =
-                    $item['model']
-                        ->tanggal_invoice;
-
-                if (!$date) {
-                    return PHP_INT_MAX;
-                }
-
-                try {
-
-                    return Carbon::parse(
-                        $date
-                    )->timestamp;
-
-                } catch (
-                    \Throwable $e
-                ) {
-
-                    return PHP_INT_MAX;
-
-                }
-
-            })
-
-            ->values();
-
-
-    foreach (
-        $sortedFinishing
-        as $invoiceItem
-    ) {
-
-        $invoice =
-            $invoiceItem['model'];
-
-
-        $invoiceNumber =
-            trim(
-                $invoice->nomor_invoice
-                ?? ''
-            );
-
-
-        if (
-            $invoiceNumber === ''
-        ) {
-            continue;
         }
-
-
-        $detail =
-            $invoice->detail_bahan
-            ?? [];
-
-
-        if (
-            !is_array($detail)
-        ) {
-            $detail = [];
-        }
-
-
-        $invoiceTotal =
-            $calculateInvoiceTotal(
-                $detail
-            );
 
 
         /*
         |--------------------------------------------------------------------------
-        | Cari total potongan berdasarkan invoice
+        | CHART 2
         |--------------------------------------------------------------------------
+        |
+        | STATUS INVOICE
+        |
         */
 
-        $invoiceKey =
-            $normalizeInvoice(
-                $invoiceNumber
-            );
+        $finishingStatusChart = [
+
+            'labels' => [
+                'Selesai',
+                'Sebagian',
+                'Belum Dipotong',
+            ],
+
+            'series' => [
+
+                $finishingCompleted,
+
+                $finishingPartial,
+
+                $finishingPendingCount,
+
+            ],
+
+        ];
 
 
-        $cutTotal = 0;
+        /*
+        |--------------------------------------------------------------------------
+        | CHART 3
+        |--------------------------------------------------------------------------
+        |
+        | PER SUB
+        |
+        */
+
+        $finishingSubChart = [
+
+            'labels' => [
+                'TOMO',
+                'DARTO',
+                'PRODUKSI',
+                'SAMPEL',
+            ],
+
+            'invoice' => [],
+
+            'cut' => [],
+
+            'remaining' => [],
+
+        ];
 
 
         foreach (
-            $spkLamas
-            as $spkLama
+            [
+                'TOMO',
+                'DARTO',
+                'PRODUKSI',
+                'SAMPEL'
+            ]
+            as $sub
         ) {
 
-            if (
-                $normalizeInvoice(
-                    $spkLama->no_inv
-                )
-                !==
-                $invoiceKey
-            ) {
-                continue;
-            }
+            $summary =
+                $finishingSummary[$sub];
 
 
-            $cutTotal +=
-                (float) (
-                    $spkLama->pemotongan_bahan
-                    ?? 0
+            $finishingSubChart['invoice'][] =
+                round(
+                    $summary['invoice_total']
+                    / 1000000,
+                    2
+                );
+
+
+            $finishingSubChart['cut'][] =
+                round(
+                    $summary['cut_total']
+                    / 1000000,
+                    2
+                );
+
+
+            $finishingSubChart['remaining'][] =
+                round(
+                    $summary['remaining']
+                    / 1000000,
+                    2
                 );
 
         }
 
 
+        /*
+        |--------------------------------------------------------------------------
+        | CHART 4
+        |--------------------------------------------------------------------------
+        |
+        | RUNNING BALANCE FINISHING
+        |--------------------------------------------------------------------------
+        */
+
+        $sortedFinishing =
+            $allFinishingInvoices
+
+                ->sortBy(function ($item) {
+
+                    $date =
+                        $item['model']
+                            ->tanggal_invoice;
+
+                    if (!$date) {
+                        return PHP_INT_MAX;
+                    }
+
+                    try {
+
+                        return Carbon::parse(
+                            $date
+                        )->timestamp;
+
+                    } catch (
+                        \Throwable $e
+                    ) {
+
+                        return PHP_INT_MAX;
+
+                    }
+
+                })
+
+                ->values();
+
+
         foreach (
-            $spks
-            as $spk
+            $sortedFinishing
+            as $invoiceItem
         ) {
 
-            $data =
-                $spk->data;
+            $invoice =
+                $invoiceItem['model'];
+
+
+            $invoiceNumber =
+                trim(
+                    $invoice->nomor_invoice
+                    ?? ''
+                );
 
 
             if (
-                !is_array($data)
+                $invoiceNumber === ''
             ) {
                 continue;
             }
 
 
-            $payments =
-                $data['payments']
+            $detail =
+                $invoice->detail_bahan
                 ?? [];
 
 
             if (
-                !is_array($payments)
+                !is_array($detail)
             ) {
-                continue;
+                $detail = [];
             }
 
 
+            $invoiceTotal =
+                $calculateInvoiceTotal(
+                    $detail
+                );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | Cari total potongan berdasarkan invoice
+            |--------------------------------------------------------------------------
+            */
+
+            $invoiceKey =
+                $normalizeInvoice(
+                    $invoiceNumber
+                );
+
+
+            $cutTotal = 0;
+
+
             foreach (
-                $payments
-                as $payment
+                $spkLamas
+                as $spkLama
             ) {
 
                 if (
-                    !is_array($payment)
-                ) {
-                    continue;
-                }
-
-
-                if (
-                    strtolower(
-                        trim(
-                            $payment['note']
-                            ?? ''
-                        )
+                    $normalizeInvoice(
+                        $spkLama->no_inv
                     )
                     !==
-                    'bahan'
-                ) {
-                    continue;
-                }
-
-
-                $note =
-                    $normalizeInvoice(
-                        $payment['note_tambahan']
-                        ?? ''
-                    );
-
-
-                if (
-                    $invoiceKey === ''
-                    ||
-                    !str_contains(
-                        $note,
-                        $invoiceKey
-                    )
+                    $invoiceKey
                 ) {
                     continue;
                 }
@@ -3431,161 +3347,243 @@ public function overview()
 
                 $cutTotal +=
                     (float) (
-                        $payment['amount']
+                        $spkLama->pemotongan_bahan
                         ?? 0
                     );
 
             }
 
+
+            foreach (
+                $spks
+                as $spk
+            ) {
+
+                $data =
+                    $spk->data;
+
+
+                if (
+                    !is_array($data)
+                ) {
+                    continue;
+                }
+
+
+                $payments =
+                    $data['payments']
+                    ?? [];
+
+
+                if (
+                    !is_array($payments)
+                ) {
+                    continue;
+                }
+
+
+                foreach (
+                    $payments
+                    as $payment
+                ) {
+
+                    if (
+                        !is_array($payment)
+                    ) {
+                        continue;
+                    }
+
+
+                    if (
+                        strtolower(
+                            trim(
+                                $payment['note']
+                                ?? ''
+                            )
+                        )
+                        !==
+                        'bahan'
+                    ) {
+                        continue;
+                    }
+
+
+                    $note =
+                        $normalizeInvoice(
+                            $payment['note_tambahan']
+                            ?? ''
+                        );
+
+
+                    if (
+                        $invoiceKey === ''
+                        ||
+                        !str_contains(
+                            $note,
+                            $invoiceKey
+                        )
+                    ) {
+                        continue;
+                    }
+
+
+                    $cutTotal +=
+                        (float) (
+                            $payment['amount']
+                            ?? 0
+                        );
+
+                }
+
+            }
+
+
+            $runningFinishingBalance +=
+                $invoiceTotal
+                - $cutTotal;
+
+
+            $finishingRunningBalance[] = [
+
+                'invoice' =>
+                    $invoiceNumber,
+
+                'tanggal' =>
+                    $invoice->tanggal_invoice,
+
+                'invoice_total' =>
+                    $invoiceTotal,
+
+                'cut_total' =>
+                    $cutTotal,
+
+                'remaining' =>
+                    max(
+                        0,
+                        $invoiceTotal
+                        - $cutTotal
+                    ),
+
+                'running_balance' =>
+                    $runningFinishingBalance,
+
+            ];
+
         }
 
 
-        $runningFinishingBalance +=
-            $invoiceTotal
-            - $cutTotal;
+        /*
+        |--------------------------------------------------------------------------
+        | SORT PENDING
+        |--------------------------------------------------------------------------
+        |
+        | Prioritas:
+        | 1. Belum dipotong
+        | 2. Sebagian
+        |
+        */
+
+        usort(
+            $finishingPending,
+            function ($a, $b) {
+
+                if (
+                    $a['status']
+                    ===
+                    $b['status']
+                ) {
+                    return 0;
+                }
 
 
-        $finishingRunningBalance[] = [
+                if (
+                    $a['status']
+                    ===
+                    'pending'
+                ) {
+                    return -1;
+                }
 
-            'invoice' =>
-                $invoiceNumber,
 
-            'tanggal' =>
-                $invoice->tanggal_invoice,
+                return 1;
 
-            'invoice_total' =>
-                $invoiceTotal,
+            }
+        );
 
-            'cut_total' =>
-                $cutTotal,
 
-            'remaining' =>
-                max(
-                    0,
-                    $invoiceTotal
-                    - $cutTotal
-                ),
+        /*
+        |--------------------------------------------------------------------------
+        | VIEW
+        |--------------------------------------------------------------------------
+        */
 
-            'running_balance' =>
-                $runningFinishingBalance,
+        return view(
+            // 'pages.laporan.overview',
+            'pages.maintenance.index',
 
-        ];
+            compact(
 
+                /*
+                |--------------------------------------------------------------------------
+                | WAREHOUSE
+                |--------------------------------------------------------------------------
+                */
+
+                'totalSku',
+
+                'totalInventoryValue',
+
+                'lowStockCount',
+
+                'emptyStockCount',
+
+                'categoriesData',
+
+                'topOutgoingMaterials',
+
+                'stockMovement',
+
+                'unitSummaries',
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | FINISHING
+                |--------------------------------------------------------------------------
+                */
+
+                'finishingSummary',
+
+                'finishingChart',
+
+                'finishingStatusChart',
+
+                'finishingSubChart',
+
+                'finishingPending',
+
+                'finishingTotalInvoice',
+
+                'finishingTotalCut',
+
+                'finishingTotalRemaining',
+
+                'finishingTotalInvoices',
+
+                'finishingCompleted',
+
+                'finishingPartial',
+
+                'finishingPendingCount',
+
+                'finishingCompletion',
+
+                'finishingRunningBalance'
+
+            )
+        );
     }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | SORT PENDING
-    |--------------------------------------------------------------------------
-    |
-    | Prioritas:
-    | 1. Belum dipotong
-    | 2. Sebagian
-    |
-    */
-
-    usort(
-        $finishingPending,
-        function ($a, $b) {
-
-            if (
-                $a['status']
-                ===
-                $b['status']
-            ) {
-                return 0;
-            }
-
-
-            if (
-                $a['status']
-                ===
-                'pending'
-            ) {
-                return -1;
-            }
-
-
-            return 1;
-
-        }
-    );
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | VIEW
-    |--------------------------------------------------------------------------
-    */
-
-    return view(
-        // 'pages.laporan.overview',
-        'pages.maintenance.index',
-
-        compact(
-
-            /*
-            |--------------------------------------------------------------------------
-            | WAREHOUSE
-            |--------------------------------------------------------------------------
-            */
-
-            'totalSku',
-
-            'totalInventoryValue',
-
-            'lowStockCount',
-
-            'emptyStockCount',
-
-            'categoriesData',
-
-            'topOutgoingMaterials',
-
-            'stockMovement',
-
-            'unitSummaries',
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | FINISHING
-            |--------------------------------------------------------------------------
-            */
-
-            'finishingSummary',
-
-            'finishingChart',
-
-            'finishingStatusChart',
-
-            'finishingSubChart',
-
-            'finishingPending',
-
-            'finishingTotalInvoice',
-
-            'finishingTotalCut',
-
-            'finishingTotalRemaining',
-
-            'finishingTotalInvoices',
-
-            'finishingCompleted',
-
-            'finishingPartial',
-
-            'finishingPendingCount',
-
-            'finishingCompletion',
-
-            'finishingRunningBalance'
-
-        )
-    );
-}
-//     public function overview()
+    //     public function overview()
 //     {
 //         /*
 //         |--------------------------------------------------------------------------
@@ -3593,7 +3591,7 @@ public function overview()
 //         |--------------------------------------------------------------------------
 //         */
 
-//         // $stocks = Stok::with('transaksi')->get();
+    //         // $stocks = Stok::with('transaksi')->get();
 //         $stocks = Stok::all();
 //         $stockSummary = TransaksiStok::join(
 //             'stoks',
@@ -3604,7 +3602,7 @@ public function overview()
 //             ->select(
 //                 'stok_id',
 
-//                 DB::raw("
+    //                 DB::raw("
 //             SUM(CASE
 //                 WHEN tipe='in'
 //                 THEN qty
@@ -3612,7 +3610,7 @@ public function overview()
 //             END) AS total_in_qty
 //         "),
 
-//                 DB::raw("
+    //                 DB::raw("
 //             SUM(CASE
 //                 WHEN tipe='out'
 //                 THEN qty
@@ -3625,191 +3623,191 @@ public function overview()
 //             ->keyBy('stok_id');
 //         $totalSku = $stocks->count();
 
-//         $totalInventoryValue = 0;
+    //         $totalInventoryValue = 0;
 
-//         $lowStockCount = 0;
+    //         $lowStockCount = 0;
 
-//         $emptyStockCount = 0;
+    //         $emptyStockCount = 0;
 
-//         foreach ($stocks as $stok) {
+    //         foreach ($stocks as $stok) {
 
-//             $summary = $stockSummary->get($stok->id);
+    //             $summary = $stockSummary->get($stok->id);
 
-//             $stokAkhir =
+    //             $stokAkhir =
 //                 $stok->stok_awal
 //                 + ($summary->total_in_qty ?? 0)
 //                 - ($summary->total_out_qty ?? 0);
 
-//             $totalInventoryValue += $stokAkhir * $stok->harga;
+    //             $totalInventoryValue += $stokAkhir * $stok->harga;
 
-//             if ($stokAkhir <= 0) {
+    //             if ($stokAkhir <= 0) {
 //                 $emptyStockCount++;
 //             } elseif ($stokAkhir <= 10) {
 //                 $lowStockCount++;
 //             }
 //         }
 
-//         /*
+    //         /*
 // |--------------------------------------------------------------------------
 // | Inventory Asset Per Category
 // |--------------------------------------------------------------------------
 // */
 
-//         $categoriesData = [];
+    //         $categoriesData = [];
 
-//         foreach ($stocks->groupBy('jenis') as $jenis => $items) {
+    //         foreach ($stocks->groupBy('jenis') as $jenis => $items) {
 
-//             $totalInventoryAsset = 0;
+    //             $totalInventoryAsset = 0;
 
-//             $totalStock = 0;
+    //             $totalStock = 0;
 //             $totalIn = 0;
 
-//             $totalOut = 0;
+    //             $totalOut = 0;
 //             foreach ($items as $item) {
 
-//                 $summary = $stockSummary->get($item->id);
+    //                 $summary = $stockSummary->get($item->id);
 
-//                 $stokAkhir =
+    //                 $stokAkhir =
 //                     $item->stok_awal
 //                     + ($summary->total_in_qty ?? 0)
 //                     - ($summary->total_out_qty ?? 0);
 
-//                 /*
+    //                 /*
 //                 |-----------------------------------------
 //                 | Current Stock
 //                 |-----------------------------------------
 //                 */
 
-//                 $totalStock += $stokAkhir;
+    //                 $totalStock += $stokAkhir;
 
-//                 /*
+    //                 /*
 //                 |-----------------------------------------
 //                 | Inventory Asset
 //                 |-----------------------------------------
 //                 */
 
-//                 $inventoryAsset =
+    //                 $inventoryAsset =
 //                     $stokAkhir * $item->harga;
 
-//                 $totalInventoryAsset += $inventoryAsset;
+    //                 $totalInventoryAsset += $inventoryAsset;
 //                 $totalIn += ($summary->total_in_qty ?? 0) * $item->harga;
 
-//                 $totalOut += ($summary->total_out_qty ?? 0) * $item->harga;
+    //                 $totalOut += ($summary->total_out_qty ?? 0) * $item->harga;
 
-//             }
+    //             }
 
-//             $categoriesData[] = [
+    //             $categoriesData[] = [
 
-//                 'name' => $jenis,
+    //                 'name' => $jenis,
 
-//                 'item_count' => $items->count(),
+    //                 'item_count' => $items->count(),
 
-//                 'total_stock' => $totalStock,
+    //                 'total_stock' => $totalStock,
 
-//                 'total_value' => $totalInventoryAsset,
+    //                 'total_value' => $totalInventoryAsset,
 //                 'total_in' => $totalIn,
 
-//                 'total_out' => $totalOut,
+    //                 'total_out' => $totalOut,
 //                 // 'total' => $totalIn + $totalOut,
 //                 'percentage' =>
 
-//                     $totalInventoryValue > 0
+    //                     $totalInventoryValue > 0
 
-//                     ? round(
+    //                     ? round(
 //                         ($totalInventoryAsset / $totalInventoryValue) * 100
 //                     )
 
-//                     : 0,
+    //                     : 0,
 
-//                 'color' => match (strtolower($jenis)) {
+    //                 'color' => match (strtolower($jenis)) {
 
-//                     'bahan baku' => '#0d6efd',
+    //                     'bahan baku' => '#0d6efd',
 
-//                     'bahan penolong' => '#198754',
+    //                     'bahan penolong' => '#198754',
 
-//                     'bahan finishing' => '#fd7e14',
+    //                     'bahan finishing' => '#fd7e14',
 
-//                     default => '#6c757d'
+    //                     default => '#6c757d'
 
-//                 },
+    //                 },
 
-//                 'bg_soft' => '#f8f9fa',
+    //                 'bg_soft' => '#f8f9fa',
 
-//                 'icon' => 'bi-box'
+    //                 'icon' => 'bi-box'
 
-//             ];
+    //             ];
 
-//         }
+    //         }
 
-//         /*
+    //         /*
 //         |--------------------------------------------------------------------------
 //         | Fast Moving Material
 //         |--------------------------------------------------------------------------
 //         */
 
-//         $topOutgoingMaterials = TransaksiStok::select(
+    //         $topOutgoingMaterials = TransaksiStok::select(
 
-//             'stok_id',
+    //             'stok_id',
 
-//             DB::raw('SUM(qty) as total_out_qty'),
+    //             DB::raw('SUM(qty) as total_out_qty'),
 
-//             DB::raw('COUNT(*) as out_frequency')
+    //             DB::raw('COUNT(*) as out_frequency')
 
-//         )
+    //         )
 
-//             ->where('tipe', 'out')
+    //             ->where('tipe', 'out')
 
-//             ->groupBy('stok_id')
+    //             ->groupBy('stok_id')
 
-//             ->orderByDesc('total_out_qty')
+    //             ->orderByDesc('total_out_qty')
 
-//             ->with('stok')
+    //             ->with('stok')
 
-//             ->take(20)
+    //             ->take(20)
 
-//             ->get()
+    //             ->get()
 
-//             ->map(function ($row) {
+    //             ->map(function ($row) {
 
-//                 return (object) [
+    //                 return (object) [
 
-//                     'code' => $row->stok->kode_barang,
+    //                     'code' => $row->stok->kode_barang,
 
-//                     'name' => $row->stok->nama_barang,
+    //                     'name' => $row->stok->nama_barang,
 
-//                     'category' => $row->stok->jenis,
+    //                     'category' => $row->stok->jenis,
 
-//                     'location' => '-',
+    //                     'location' => '-',
 
-//                     'unit' => $row->stok->satuan,
+    //                     'unit' => $row->stok->satuan,
 
-//                     'total_out_qty' => $row->total_out_qty,
+    //                     'total_out_qty' => $row->total_out_qty,
 
-//                     'total_out_value' =>
+    //                     'total_out_value' =>
 
-//                         $row->total_out_qty * $row->stok->harga,
+    //                         $row->total_out_qty * $row->stok->harga,
 
-//                     'out_frequency' =>
+    //                     'out_frequency' =>
 
-//                         $row->out_frequency,
+    //                         $row->out_frequency,
 
-//                 ];
+    //                 ];
 
-//             });
+    //             });
 
-//         /*
+    //         /*
 //         |--------------------------------------------------------------------------
 //         | Stock Movement 6 Months
 //         |--------------------------------------------------------------------------
 //         */
 
-//         $stockMovement = [];
+    //         $stockMovement = [];
 
-//         for ($i = 5; $i >= 0; $i--) {
+    //         for ($i = 5; $i >= 0; $i--) {
 
-//             $date = Carbon::now()->subMonths($i);
+    //             $date = Carbon::now()->subMonths($i);
 
-//             $stockIn = TransaksiStok::join(
+    //             $stockIn = TransaksiStok::join(
 //                 'stoks',
 //                 'stoks.id',
 //                 '=',
@@ -3821,7 +3819,7 @@ public function overview()
 //                 ->selectRaw('SUM(qty * harga) as total')
 //                 ->value('total') ?? 0;
 
-//             $stockOut = TransaksiStok::join(
+    //             $stockOut = TransaksiStok::join(
 //                 'stoks',
 //                 'stoks.id',
 //                 '=',
@@ -3833,100 +3831,100 @@ public function overview()
 //                 ->selectRaw('SUM(qty * harga) as total')
 //                 ->value('total') ?? 0;
 
-//             $stockMovement[] = [
+    //             $stockMovement[] = [
 
-//                 'month' => $date->format('M'),
+    //                 'month' => $date->format('M'),
 
-//                 // simpan angka asli
+    //                 // simpan angka asli
 //                 'stock_in' => round($stockIn / 1000000, 2),
 
-//                 'stock_out' => round($stockOut / 1000000, 2),
+    //                 'stock_out' => round($stockOut / 1000000, 2),
 
-//                 // tambahan supaya mudah dibaca
+    //                 // tambahan supaya mudah dibaca
 //                 'stock_in_text' => 'Rp ' . number_format($stockIn / 1000000, 2) . ' Jt',
 
-//                 'stock_out_text' => 'Rp ' . number_format($stockOut / 1000000, 2) . ' Jt',
+    //                 'stock_out_text' => 'Rp ' . number_format($stockOut / 1000000, 2) . ' Jt',
 
-//                 'difference' => round(($stockIn - $stockOut) / 1000000, 2),
+    //                 'difference' => round(($stockIn - $stockOut) / 1000000, 2),
 
-//                 'status' => $stockIn >= $stockOut
+    //                 'status' => $stockIn >= $stockOut
 //                     ? 'Surplus'
 //                     : 'Defisit',
 
-//             ];
+    //             ];
 
-//         }
+    //         }
 
-//         /*
+    //         /*
 //         |--------------------------------------------------------------------------
 //         | Summary By Unit
 //         |--------------------------------------------------------------------------
 //         */
 
-//         $unitSummaries = [];
+    //         $unitSummaries = [];
 
-//         foreach ($stocks->groupBy('satuan') as $unit => $items) {
+    //         foreach ($stocks->groupBy('satuan') as $unit => $items) {
 
-//             $qty = 0;
+    //             $qty = 0;
 
-//             $value = 0;
+    //             $value = 0;
 
-//             foreach ($items as $item) {
+    //             foreach ($items as $item) {
 
-//                 $summary = $stockSummary->get($item->id);
+    //                 $summary = $stockSummary->get($item->id);
 
-//                 $stokAkhir =
+    //                 $stokAkhir =
 //                     $item->stok_awal
 //                     + ($summary->total_in_qty ?? 0)
 //                     - ($summary->total_out_qty ?? 0);
 
-//                 $qty += $stokAkhir;
+    //                 $qty += $stokAkhir;
 
-//                 $value += $stokAkhir * $item->harga;
+    //                 $value += $stokAkhir * $item->harga;
 
-//             }
+    //             }
 
-//             $unitSummaries[] = [
+    //             $unitSummaries[] = [
 
-//                 'unit' => $unit,
+    //                 'unit' => $unit,
 
-//                 'total_items' => $items->count(),
+    //                 'total_items' => $items->count(),
 
-//                 'total_stock' => $qty,
+    //                 'total_stock' => $qty,
 
-//                 'inventory_value' => $value,
+    //                 'inventory_value' => $value,
 
-//             ];
+    //             ];
 
-//         }
+    //         }
 
-//         return view(
+    //         return view(
 
-//             'pages.laporan.overview',
+    //             'pages.laporan.overview',
 
-//             compact(
+    //             compact(
 
-//                 'totalSku',
+    //                 'totalSku',
 
-//                 'totalInventoryValue',
+    //                 'totalInventoryValue',
 
-//                 'lowStockCount',
+    //                 'lowStockCount',
 
-//                 'emptyStockCount',
+    //                 'emptyStockCount',
 
-//                 'categoriesData',
+    //                 'categoriesData',
 
-//                 'topOutgoingMaterials',
+    //                 'topOutgoingMaterials',
 
-//                 'stockMovement',
+    //                 'stockMovement',
 
-//                 'unitSummaries'
+    //                 'unitSummaries'
 
-//             )
+    //             )
 
-//         );
+    //         );
 
-//     }
+    //     }
     // export 
     public function exportWarehouseHistory(Request $request)
     {
@@ -4044,7 +4042,19 @@ public function overview()
         );
     }
     // Update SPK (tetap dipakai oleh drawer)
+    public function updateHistorySpk(Request $request, $id)
+    {
+        $history = TransaksiStok::findOrFail($id);
 
+        $history->spk_id = $request->spk_id;
+
+        $history->save();
+
+        return response()->json([
+            'status' => 'success',
+            'msg' => 'SPK berhasil diupdate.'
+        ]);
+    }
     public function updateHistoryField(Request $request, $id)
     {
         $history = TransaksiStok::with('stok')->findOrFail($id);

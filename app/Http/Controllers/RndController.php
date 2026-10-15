@@ -85,7 +85,7 @@ class RndController extends Controller
 
 
 
-        // return view('pages.rnds.index', compact('pos', 'search'));
+        return view('pages.rnds.index', compact('pos', 'search'));
         // return view('pages.maintenance.index');
 
     }
