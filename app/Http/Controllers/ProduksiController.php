@@ -294,10 +294,7 @@ class ProduksiController extends Controller
 
                         $detail = $detailPo->detail;
 
-                        /*
-                        | Kalau detail masih berupa JSON string
-                        | ubah menjadi array.
-                        */
+                      
                         if (is_string($detail)) {
                             $detail = json_decode(
                                 $detail,
