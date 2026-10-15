@@ -138,6 +138,10 @@ Route::prefix('rnd')
         // Halaman detail PO lama
         Route::get('/sample-pictures/{po}', 'samplePicturesDetail')
             ->name('sample-pictures.detail');
+            Route::post('/sample-pictures/{po}/items/{detailPo}/archive/items/{folder}/move',
+'moveArchiveItem')->name('sample-pictures.archive.item.move');
+Route::post('/sample-pictures/{po}/items/{detailPo}/archive/items/{folder}/copy',
+'copyArchiveItem')->name('sample-pictures.archive.item.copy');
     });
 
     // finance
@@ -1088,7 +1092,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/bom/{id}/export-excel', [BomController::class, 'exportExcel'])->name('bom.export.excel');
 
     // siti
-    Route::get('/mutasi', [ProduksiController::class, 'mutasi'])->name('mutasi.index');
+Route::get('/mutasi', [ProduksiController::class, 'mutasi'])->name('mutasi.index');
     Route::get('/mutasi/{id}', [ProduksiController::class, 'mutasidetail'])
         ->name('mutasi.detail');
     Route::get('/mutasi/timeline/detail', [ProduksiController::class, 'mutasiTimelineDetail'])

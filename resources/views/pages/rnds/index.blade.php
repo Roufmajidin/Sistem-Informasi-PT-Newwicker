@@ -645,7 +645,18 @@
 
     </aside>
 
-
+    {{-- UPLOAD PROGRESS LAYER: above archive modal --}}
+    <div id="rndUploadLayer" class="rnd-upload-layer" hidden role="dialog" aria-modal="true" aria-labelledby="rndLayerTitle">
+        <div class="rnd-upload-layer-card" role="status" aria-live="polite">
+            <div class="rnd-layer-icon"><i class="fa fa-cloud-upload"></i></div>
+            <h3 id="rndLayerTitle">Mengunggah Foto</h3>
+            <p id="rndLayerFilename">Menyiapkan file...</p>
+            <div class="rnd-layer-ring" id="rndLayerRing"><span id="rndLayerPercent">0%</span></div>
+            <div class="rnd-layer-track"><div id="rndLayerBar"></div></div>
+            <div class="rnd-layer-stats" id="rndLayerStats">Memulai upload...</div>
+            <small>Mohon tunggu sampai proses upload selesai.</small>
+        </div>
+    </div>
 
     <style>
         .rnd-page,
@@ -3241,6 +3252,164 @@
                 grid-template-columns: repeat(2,minmax(0,1fr)) !important;
             }
         }
+
+        /* Compact archive layout matching reference 2 */
+        .rnd-drawer { width:min(1500px,calc(100vw - 20px))!important; height:calc(100dvh - 20px)!important; padding:14px 16px!important; }
+        .rnd-drawer-header {margin-bottom:8px!important}
+        .rnd-drawer-breadcrumb {display:none!important}
+        .rnd-drawer-header h6 {font-size:15px!important;font-weight:750;margin:0!important}
+        .rnd-archive-topbar {padding:8px 10px!important;gap:10px!important}
+        .rnd-archive-workspace {grid-template-columns:minmax(235px,32%) minmax(0,1fr)!important;gap:8px!important;align-items:stretch!important}
+        .rnd-drive-manager {margin:0 0 8px!important;border-radius:10px!important}
+        .rnd-drive-manager-heading {padding:9px 12px!important;gap:8px!important}
+        .rnd-drive-manager-heading h4 {font-size:14px!important;margin:0!important}
+        .rnd-drive-manager-heading p {display:none!important}
+        .rnd-drive-manager-actions button {padding:6px 8px!important;font-size:10px!important}
+        .rnd-drive-breadcrumb {padding:7px 11px!important}
+        .rnd-drive-current-path {padding:7px 11px!important}
+        #rndDriveItems.rnd-drive-items-modern:not(.rnd-list-mode) {grid-template-columns:repeat(auto-fill,minmax(125px,1fr))!important;gap:9px!important;padding:10px!important}
+        #rndDriveItems:not(.rnd-list-mode) .rnd-drive-preview {height:95px!important}
+        #rndDriveItems:not(.rnd-list-mode) .rnd-drive-item-info {padding:7px 9px!important}
+        #rndDriveItems {min-height:155px!important;max-height:280px!important}
+        #rndUploadForm {padding:10px 12px!important;margin:0 0 10px!important}
+        .rnd-upload-heading {margin-bottom:6px!important}
+        .rnd-file-picker {padding:9px 10px!important;gap:3px!important}
+        .rnd-file-picker>i {display:none!important}
+        .rnd-upload-actions {padding-top:7px!important;margin-top:7px!important}
+        .rnd-preview-pane {min-height:340px!important}
+        .rnd-drawer-footer {padding-top:7px!important;margin-top:7px!important}
+        .rnd-upload-layer[hidden] {display:none!important}
+        .rnd-upload-layer {position:fixed;inset:0;z-index:10050;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.42);backdrop-filter:blur(3px)}
+        .rnd-upload-layer-card {width:min(370px,100%);padding:27px 26px 23px;text-align:center;background:#fff;border-radius:18px;box-shadow:0 25px 85px rgba(15,23,42,.28);font-family:Arial,sans-serif;color:#17243a}
+        .rnd-layer-icon {font-size:25px;color:#1769e8;margin-bottom:8px}
+        .rnd-upload-layer-card h3 {font-size:17px;margin:0 0 8px;font-weight:800}
+        .rnd-upload-layer-card p {font-size:11px;color:#64748b;overflow-wrap:anywhere;min-height:30px;margin:0 0 12px}
+        .rnd-layer-ring {width:124px;height:124px;margin:0 auto 16px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(#1769e8 0%,#e9f0fa 0%);position:relative}
+        .rnd-layer-ring:before {content:'';position:absolute;inset:11px;border-radius:50%;background:white}
+        .rnd-layer-ring span {position:relative;font-size:27px;font-weight:800;color:#1769e8}
+        .rnd-layer-track {height:8px;background:#e9f0fa;border-radius:20px;overflow:hidden}
+        #rndLayerBar {height:100%;width:0;background:#1769e8;border-radius:20px;transition:width .2s}
+        .rnd-layer-stats {font-size:12px;color:#475569;font-weight:700;margin:12px 0}
+        .rnd-upload-layer-card small {color:#94a3b8;font-size:10px}
+        @media(max-width:700px){.rnd-archive-workspace{grid-template-columns:1fr!important}.rnd-preview-pane{min-height:220px!important}#rndDriveItems.rnd-drive-items-modern:not(.rnd-list-mode){grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+
+        /* V8: modal reference layout - preview left, flexible file area, upload at bottom */
+        @media (min-width:701px) {
+          .rnd-drawer {width:calc(100vw - 20px)!important;max-width:1560px!important;height:calc(100dvh - 20px)!important;padding:12px 16px!important;}
+          .rnd-archive-panel:not([hidden]) {display:flex!important;flex-direction:column!important;flex:1 1 0!important;min-height:0!important;overflow:hidden!important;padding:0!important;}
+          .rnd-archive-topbar {flex:0 0 auto!important;margin:0 0 8px!important;padding:7px 10px!important;}
+          .rnd-archive-workspace {display:grid!important;grid-template-columns:minmax(235px,32%) minmax(0,1fr)!important;gap:8px!important;flex:1 1 0!important;height:auto!important;min-height:0!important;overflow:hidden!important;align-items:stretch!important;}
+          .rnd-preview-pane {position:relative!important;top:auto!important;height:100%!important;min-height:0!important;overflow:hidden!important;}
+          .rnd-archive-main {display:flex!important;flex-direction:column!important;gap:8px!important;height:100%!important;min-height:0!important;overflow:hidden!important;padding:0!important;}
+          .rnd-drive-manager {display:flex!important;flex-direction:column!important;flex:1 1 0!important;height:auto!important;min-height:130px!important;max-height:none!important;margin:0!important;overflow:hidden!important;}
+          #rndDriveItems {flex:1 1 0!important;min-height:0!important;max-height:none!important;overflow-y:auto!important;align-content:start!important;}
+          #rndDriveItems.rnd-drive-items-modern:not(.rnd-list-mode) {grid-template-columns:repeat(auto-fill,minmax(125px,1fr))!important;gap:9px!important;padding:10px!important;}
+          #rndDriveItems:not(.rnd-list-mode) .rnd-drive-preview {height:95px!important;}
+          #rndUploadForm {flex:0 0 auto!important;margin:0!important;padding:9px 11px!important;}
+          #rndUploadForm .rnd-file-picker {padding:7px 10px!important;}
+          #rndUploadForm .rnd-upload-actions {padding-top:5px!important;margin-top:3px!important;}
+          .rnd-drawer-footer {flex:0 0 auto!important;margin-top:7px!important;padding-top:7px!important;}
+        }
+        @media (min-width:701px) and (max-height:620px) {
+          .rnd-archive-topbar {padding:5px 8px!important;}
+          .rnd-upload-heading p,#rndUploadForm .rnd-file-picker span {display:none!important;}
+          #rndUploadForm .rnd-selected-files {max-height:20px!important;}
+        }
+
+
+/* V9 Responsive Explorer: final overrides, preserving existing handlers */
+.rnd-drawer {font-size:10px!important}
+.rnd-drawer h4,.rnd-drawer h6 {font-size:12px!important}
+.rnd-drawer button,.rnd-drawer a,.rnd-drawer input,.rnd-drawer small,.rnd-drawer p,.rnd-drawer span,.rnd-drawer strong,.rnd-drawer label {font-size:inherit}
+.rnd-drive-manager-heading h4 {font-size:15px!important}
+.rnd-drive-manager-heading p,.rnd-upload-heading p {font-size:9px!important}
+.rnd-archive-topbar .rnd-article-banner h4 {font-size:12px!important}
+.rnd-drive-item-modern .rnd-drive-item-name {font-size:10px!important}
+.rnd-drive-item-modern .rnd-drive-item-meta {font-size:8px!important}
+.rnd-drive-manager-actions button,.rnd-view-toggle,.rnd-back-button,.rnd-drive-link {font-size:9px!important}
+.rnd-upload-heading h4 {font-size:11px!important}
+.rnd-upload-layer-card h3 {font-size:14px!important}
+.rnd-upload-layer-card p {font-size:9px!important}
+.rnd-upload-layer-card .rnd-layer-ring span {font-size:23px!important}
+.rnd-mobile-preview-close {display:none}
+@media (min-width:701px) {
+ .rnd-archive-workspace {grid-template-columns:minmax(220px,30%) minmax(0,1fr)!important}
+ #rndDriveItems.rnd-drive-items-modern:not(.rnd-list-mode){grid-template-columns:repeat(auto-fill,minmax(122px,1fr))!important}
+}
+@media (max-width:700px) {
+ .rnd-drawer {inset:0!important;top:0!important;left:0!important;transform:translateY(8px)!important;width:100vw!important;height:100dvh!important;min-height:0!important;border-radius:0!important;padding:9px!important}
+ .rnd-drawer.open {transform:translateY(0)!important}
+ .rnd-drawer-header {margin-bottom:7px!important}
+ .rnd-drawer-header h6 {font-size:13px!important}
+ .rnd-archive-panel:not([hidden]) {display:block!important;flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;overscroll-behavior:contain}
+ .rnd-archive-topbar {padding:7px!important;gap:6px!important;margin-bottom:8px!important}
+ .rnd-archive-workspace {display:flex!important;flex-direction:column!important;gap:8px!important;overflow:visible!important;height:auto!important;min-height:0!important}
+ .rnd-archive-main {display:flex!important;flex-direction:column!important;min-width:0!important;overflow:visible!important;height:auto!important}
+ .rnd-preview-pane {display:none!important}
+ .rnd-preview-pane.rnd-mobile-preview-open {display:flex!important;position:fixed!important;inset:0!important;z-index:10020!important;width:100vw!important;height:100dvh!important;min-height:0!important;background:#fff!important;border:0!important;border-radius:0!important;padding:12px!important;flex-direction:column!important}
+ .rnd-mobile-preview-close {display:flex;align-items:center;justify-content:center;position:absolute;top:8px;right:9px;z-index:3;width:32px;height:32px;border:1px solid #dbe5f2;border-radius:8px;background:white;color:#334155}
+ .rnd-preview-pane.rnd-mobile-preview-open .rnd-preview-stage {flex:1!important;min-height:0!important;height:auto!important}
+ .rnd-drive-manager {margin:0 0 8px!important;min-height:280px!important;max-height:none!important;overflow:hidden!important}
+ .rnd-drive-manager-heading {padding:9px!important;gap:7px!important;flex-direction:column!important;align-items:stretch!important}
+ .rnd-drive-manager-heading h4 {font-size:13px!important}
+ .rnd-drive-manager-actions {justify-content:flex-start!important}
+ .rnd-drive-manager-actions button {padding:7px 8px!important}
+ .rnd-drive-breadcrumb,.rnd-drive-current-path {padding:7px 9px!important}
+ #rndDriveItems {max-height:none!important;min-height:240px!important;overflow:visible!important}
+ #rndDriveItems.rnd-drive-items-modern:not(.rnd-list-mode){grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;padding:9px!important}
+ #rndDriveItems:not(.rnd-list-mode) .rnd-drive-preview {height:105px!important}
+ #rndUploadForm {margin:0 0 65px!important;padding:10px!important}
+ #rndUploadForm .rnd-upload-actions {position:sticky!important;bottom:0!important;background:white!important;z-index:5!important}
+ #rndUploadButton {min-height:35px!important}
+ .rnd-drawer-footer {padding:7px 0!important;margin-top:4px!important}
+ .rnd-upload-layer-card {width:min(340px,calc(100vw - 30px))!important;padding:18px!important}
+ .rnd-layer-ring {width:100px!important;height:100px!important}
+}
+
+
+/* V10 FIX: keep folder cards visible; avoid shrinking manager below its content. */
+@media (min-width:701px) {
+  #rndArchivePanel.rnd-archive-panel:not([hidden]) {
+    display:block!important; flex:1 1 auto!important; min-height:0!important;
+    overflow-y:auto!important; overflow-x:hidden!important;
+  }
+  #rndArchivePanel .rnd-archive-workspace {
+    display:grid!important; grid-template-columns:minmax(220px,30%) minmax(0,1fr)!important;
+    align-items:start!important; height:auto!important; min-height:0!important;
+    overflow:visible!important; gap:10px!important;
+  }
+  #rndArchivePanel .rnd-preview-pane {
+    position:sticky!important; top:0!important; height:clamp(340px,65dvh,600px)!important;
+    min-height:340px!important; overflow:hidden!important;
+  }
+  #rndArchivePanel .rnd-archive-main {
+    display:flex!important; flex-direction:column!important; height:auto!important;
+    min-height:0!important; overflow:visible!important; gap:10px!important;
+  }
+  #rndArchivePanel #rndDriveManager {
+    display:flex!important; flex-direction:column!important; flex:none!important;
+    height:auto!important; min-height:350px!important; max-height:none!important;
+    overflow:hidden!important; margin:0!important;
+  }
+  #rndArchivePanel #rndDriveItems {
+    flex:none!important; height:clamp(245px,39dvh,480px)!important;
+    min-height:245px!important; max-height:none!important;
+    overflow-y:auto!important; align-content:start!important;
+  }
+  #rndArchivePanel #rndDriveItems.rnd-drive-items-modern:not(.rnd-list-mode) {
+    grid-template-columns:repeat(auto-fill,minmax(132px,1fr))!important;
+    grid-auto-rows:max-content!important; gap:10px!important;
+  }
+  #rndArchivePanel #rndDriveItems:not(.rnd-list-mode) .rnd-drive-preview {height:105px!important}
+  #rndArchivePanel #rndUploadForm {flex:none!important; margin:0!important}
+}
+@media (max-width:700px) {
+  #rndArchivePanel .rnd-preview-pane:not(.rnd-mobile-preview-open) {display:none!important}
+  #rndArchivePanel #rndDriveManager {min-height:300px!important; height:auto!important}
+  #rndArchivePanel #rndDriveItems {height:auto!important;min-height:260px!important;max-height:none!important;overflow:visible!important}
+  #rndArchivePanel #rndDriveItems.rnd-drive-items-modern:not(.rnd-list-mode) {grid-template-columns:repeat(2,minmax(0,1fr))!important}
+}
+
 </style>
 
 
@@ -3877,6 +4046,25 @@
                 }
             }
 
+            // Perbarui grid tanpa mengubah posisi scroll, folder aktif, atau preview.
+            function renderDriveItemsStable() {
+                const scrollTop = driveItems.scrollTop;
+                const scrollLeft = driveItems.scrollLeft;
+                renderDriveItems();
+                driveItems.scrollTop = scrollTop;
+                driveItems.scrollLeft = scrollLeft;
+            }
+            function upsertDriveItem(item) {
+                if (!item || !item.id) return;
+                const index = driveCurrentItems.findIndex(x => String(x.id) === String(item.id));
+                if (index >= 0) driveCurrentItems[index] = {...driveCurrentItems[index], ...item};
+                else driveCurrentItems.unshift(item);
+                renderDriveItemsStable();
+            }
+            function removeDriveItem(id) {
+                driveCurrentItems = driveCurrentItems.filter(x => String(x.id) !== String(id));
+                renderDriveItemsStable();
+            }
             function renderDriveItems() {
                 driveItems.replaceChildren();
                 driveItems.classList.add('rnd-drive-items-modern');
@@ -3979,7 +4167,7 @@
                         const value = prompt('Nama baru:', item.name);
                         if (value === null || !value.trim() || value.trim() === item.name) return;
                         try {
-                            await fetchJson(driveEndpoint('/items/' + encodeURIComponent(item
+                            const renameResult = await fetchJson(driveEndpoint('/items/' + encodeURIComponent(item
                             .id)), {
                                 method: 'PATCH',
                                 headers: {
@@ -3990,8 +4178,9 @@
                                     parent_folder_id: activeFolderDbId
                                 })
                             });
-                            await loadDriveFolder(activeFolderDbId);
-                            await refreshItems();
+                            item.name = renameResult?.item?.name || value.trim();
+                            upsertDriveItem(item);
+                            if (rndSelectedDriveId === String(item.id)) showPreview('', item.name, 'Foto');
                         } catch (e) {
                             alert(e.message || 'Gagal rename item.');
                         }
@@ -4014,8 +4203,7 @@
                                     parent_folder_id: activeFolderDbId
                                 })
                             });
-                            await loadDriveFolder(activeFolderDbId);
-                            await refreshItems();
+                            removeDriveItem(item.id);
                         } catch (e) {
                             alert(e.message || 'Gagal menghapus item.');
                         }
@@ -4032,6 +4220,160 @@
                 });
             }
 
+            // Explorer interactions: drag/move, copy/paste, undo.
+            // Backend endpoints required: POST /items/{driveId}/move and POST /items/{driveId}/copy.
+            let explorerSelected = null;
+            let explorerClipboard = null;
+            let explorerUndo = null;
+            let explorerBusy = false;
+            const explorerLayer = document.createElement('div');
+            explorerLayer.className = 'rnd-explorer-confirm';
+            explorerLayer.hidden = true;
+            explorerLayer.innerHTML = '<div class="rnd-explorer-dialog" role="dialog" aria-modal="true" aria-labelledby="rndMoveTitle"><i class="fa fa-folder-open"></i><h4 id="rndMoveTitle">Pindahkan item?</h4><p id="rndMoveDescription"></p><div><button type="button" data-answer="cancel">Cancel</button><button type="button" class="primary" data-answer="move">Move</button></div></div>';
+            document.body.appendChild(explorerLayer);
+            const explorerToast = document.createElement('div');
+            explorerToast.className = 'rnd-explorer-toast';
+            explorerToast.hidden = true;
+            document.body.appendChild(explorerToast);
+            function explorerNotify(message, undoable = false) {
+                explorerToast.replaceChildren();
+                const label = document.createElement('span'); label.textContent = message;
+                explorerToast.appendChild(label);
+                if (undoable) {
+                    const undo = document.createElement('button');
+                    undo.type = 'button'; undo.textContent = 'Undo (Ctrl+Z)';
+                    undo.addEventListener('click', explorerUndoMove);
+                    explorerToast.appendChild(undo);
+                }
+                explorerToast.hidden = false;
+            }
+            function explorerConfirm(item, folder) {
+                return new Promise(resolve => {
+                    document.getElementById('rndMoveDescription').textContent = 'Move "' + item.name + '" into "' + folder.name + '" folder?';
+                    explorerLayer.hidden = false;
+                    function done(event) {
+                        const answer = event.target.closest('[data-answer]');
+                        if (!answer) return;
+                        explorerLayer.removeEventListener('click', done);
+                        explorerLayer.hidden = true;
+                        resolve(answer.dataset.answer === 'move');
+                    }
+                    explorerLayer.addEventListener('click', done);
+                });
+            }
+            function explorerCardItem(card) {
+                return driveCurrentItems.find(item => String(item.id) === card.dataset.explorerId);
+            }
+            async function explorerRequest(item, target, operation) {
+                if (explorerBusy || uploadInProgress) return;
+                if (!item || !item.id || !target || !target.id) return;
+                if (operation === 'copy' && item.type === 'folder') { explorerNotify('Copy folder belum didukung. Gunakan Move.'); return; }
+                if (operation === 'move' && String(item.database_id || '') === String(target.id)) {
+                    explorerNotify('Folder tidak dapat dipindahkan ke dirinya sendiri.'); return;
+                }
+                if (operation === 'move' && String(item.parent_folder_id || activeFolderDbId) === String(target.id)) {
+                    explorerNotify('Item sudah berada di folder tersebut.'); return;
+                }
+                const fromId = item.parent_folder_id || activeFolderDbId;
+                explorerBusy = true;
+                try {
+                    const operationResult = await fetchJson(driveEndpoint('/items/' + encodeURIComponent(item.id) + '/' + operation), {
+                        method: 'POST', headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify({target_folder_id: target.id, parent_folder_id: fromId})
+                    });
+                    if (operation === 'move') explorerUndo = {item: {...item}, fromId, toId: target.id};
+                    if (operation === 'move') removeDriveItem(item.id);
+                    else if (String(target.id) === String(activeFolderDbId) && operationResult?.item?.id) upsertDriveItem(operationResult.item);
+                    explorerNotify(operation === 'move' ? 'Moved "' + item.name + '" into "' + target.name + '".' : 'Copied "' + item.name + '".', operation === 'move');
+                } catch (error) { explorerNotify(error.message || 'Operasi gagal.'); }
+                finally { explorerBusy = false; }
+            }
+            async function explorerUndoMove() {
+                if (!explorerUndo || explorerBusy || uploadInProgress) return;
+                const record = explorerUndo;
+                explorerBusy = true;
+                try {
+                    await fetchJson(driveEndpoint('/items/' + encodeURIComponent(record.item.id) + '/move'), {
+                        method: 'POST', headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify({target_folder_id: record.fromId, parent_folder_id: record.toId})
+                    });
+                    explorerUndo = null;
+                    if (String(record.fromId) === String(activeFolderDbId)) upsertDriveItem(record.item);
+                    else removeDriveItem(record.item.id);
+                    explorerNotify('Undo berhasil. Item kembali ke folder asal.');
+                } catch (error) { explorerNotify(error.message || 'Undo gagal.'); }
+                finally { explorerBusy = false; }
+            }
+            function explorerPaste(target) {
+                if (!explorerClipboard) return explorerNotify('Clipboard kosong. Pilih item lalu Ctrl+C.');
+                explorerRequest(explorerClipboard.item, target, 'copy');
+            }
+            function explorerContextMenu(event, card) {
+                event.preventDefault();
+                const item = explorerCardItem(card);
+                if (!item) return;
+                explorerSelected = item;
+                const menu = document.createElement('div');
+                menu.className = 'rnd-explorer-context';
+                const copy = document.createElement('button'); copy.textContent = 'Copy  Ctrl+C';
+                copy.onclick = () => { explorerClipboard = {item: {...item, parent_folder_id: activeFolderDbId}}; explorerNotify('Copied: ' + item.name); menu.remove(); };
+                menu.appendChild(copy);
+                if (item.type === 'folder' && item.database_id) {
+                    const paste = document.createElement('button'); paste.textContent = 'Paste into folder  Ctrl+V';
+                    paste.disabled = !explorerClipboard;
+                    paste.onclick = () => { explorerPaste({id:item.database_id, name:item.name}); menu.remove(); };
+                    menu.appendChild(paste);
+                }
+                menu.style.left = Math.min(event.clientX, innerWidth - 200) + 'px';
+                menu.style.top = Math.min(event.clientY, innerHeight - 100) + 'px';
+                document.querySelectorAll('.rnd-explorer-context').forEach(el => el.remove());
+                document.body.appendChild(menu);
+                setTimeout(() => document.addEventListener('pointerdown', e => {if (!menu.contains(e.target)) menu.remove();}, {once:true}), 0);
+            }
+            // MutationObserver preserves existing rendering and all existing click handlers.
+            const explorerObserver = new MutationObserver(() => {
+                driveItems.querySelectorAll('.rnd-drive-item:not([data-explorer-bound])').forEach(card => {
+                    card.dataset.explorerBound = '1';
+                    card.dataset.explorerId = card.dataset.fileKey;
+                    card.draggable = true;
+                    card.addEventListener('click', () => { explorerSelected = explorerCardItem(card); });
+                    card.addEventListener('contextmenu', e => explorerContextMenu(e, card));
+                    card.addEventListener('dragstart', e => {
+                        const item = explorerCardItem(card);
+                        if (!item || uploadInProgress) {e.preventDefault(); return;}
+                        explorerSelected = {...item, parent_folder_id: activeFolderDbId};
+                        e.dataTransfer.effectAllowed = 'move';
+                        e.dataTransfer.setData('text/plain', String(item.id));
+                    });
+                    if (card.dataset.type === 'folder') {
+                        card.addEventListener('dragover', e => {e.preventDefault(); e.dataTransfer.dropEffect = 'move'; card.classList.add('rnd-drop-target');});
+                        card.addEventListener('dragleave', () => card.classList.remove('rnd-drop-target'));
+                        card.addEventListener('drop', async e => {
+                            e.preventDefault(); e.stopPropagation(); card.classList.remove('rnd-drop-target');
+                            const source = driveCurrentItems.find(x => String(x.id) === e.dataTransfer.getData('text/plain'));
+                            const target = explorerCardItem(card);
+                            if (!source || !target || !target.database_id || source.id === target.id) return;
+                            if (await explorerConfirm({...source, parent_folder_id: activeFolderDbId}, target)) await explorerRequest({...source, parent_folder_id: activeFolderDbId}, {id:target.database_id, name:target.name}, 'move');
+                        });
+                    }
+                });
+            });
+            explorerObserver.observe(driveItems, {childList:true});
+            document.addEventListener('keydown', e => {
+                if (!drawer.classList.contains('open') || archivePanel.hidden) return;
+                if (e.target.closest('input,textarea,[contenteditable="true"]')) return;
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c' && explorerSelected) {
+                    e.preventDefault(); explorerClipboard = {item:{...explorerSelected, parent_folder_id: activeFolderDbId}};
+                    explorerNotify('Copied: ' + explorerSelected.name + '. Open destination and press Ctrl+V.');
+                }
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v' && explorerClipboard && activeFolderDbId) {
+                    e.preventDefault(); explorerPaste({id:activeFolderDbId, name:driveCurrentPath.textContent.trim()});
+                }
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && explorerUndo) {
+                    e.preventDefault(); explorerUndoMove();
+                }
+            });
+
             driveBack.addEventListener('click', () => {
                 if (driveBreadcrumbs.length > 1) loadDriveFolder(driveBreadcrumbs[driveBreadcrumbs.length - 2]
                     .id);
@@ -4044,7 +4386,7 @@
                 const name = prompt('Nama folder baru:');
                 if (name === null || !name.trim()) return;
                 try {
-                    await fetchJson(driveEndpoint('/folders'), {
+                    const createdResult = await fetchJson(driveEndpoint('/folders'), {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -4054,7 +4396,8 @@
                             parent_folder_id: activeFolderDbId
                         })
                     });
-                    await loadDriveFolder(activeFolderDbId);
+                    if (createdResult?.item?.id) upsertDriveItem(createdResult.item);
+                    else await loadDriveFolder(activeFolderDbId);
                 } catch (e) {
                     alert(e.message || 'Gagal membuat folder.');
                 }
@@ -4330,6 +4673,25 @@
 
 
 
+            const uploadLayer = document.getElementById('rndUploadLayer');
+            const layerPercent = document.getElementById('rndLayerPercent');
+            const layerBar = document.getElementById('rndLayerBar');
+            const layerRing = document.getElementById('rndLayerRing');
+            const layerFilename = document.getElementById('rndLayerFilename');
+            const layerStats = document.getElementById('rndLayerStats');
+            function syncUploadLayer() {
+                const value = Math.max(0, Math.min(100, parseFloat(progressBar.style.width) || 0));
+                layerPercent.textContent = Math.round(value) + '%';
+                layerBar.style.width = value + '%';
+                layerRing.style.background = 'conic-gradient(#1769e8 ' + value + '%,#e9f0fa ' + value + '%)';
+                layerFilename.textContent = progressText.textContent || 'Mengunggah foto...';
+                layerStats.textContent = uploadMessage.textContent || 'Sedang diproses...';
+            }
+            const layerObserver = new MutationObserver(syncUploadLayer);
+            layerObserver.observe(progressText, {childList:true,characterData:true,subtree:true});
+            layerObserver.observe(uploadMessage, {childList:true,characterData:true,subtree:true});
+            layerObserver.observe(progressBar, {attributes:true,attributeFilter:['style']});
+
             uploadForm.addEventListener('submit', async function(event) {
                 event.preventDefault();
                 if (uploadInProgress) return;
@@ -4348,6 +4710,8 @@
                 photoInput.disabled = true;
                 uploadProgress.hidden = false;
                 progressBar.style.width = '0%';
+                uploadLayer.hidden = false;
+                syncUploadLayer();
 
                 const csrf = document.querySelector('meta[name="csrf-token"]');
                 const successful = [];
@@ -4406,6 +4770,16 @@
                                 throw new Error(result.message || 'Server menolak file.');
                             }
                             successful.push(file.name);
+                            for (const uploaded of (result.uploaded || [])) {
+                                if (uploaded.drive_id) {
+                                    upsertDriveItem({
+                                        id: uploaded.drive_id, database_id: uploaded.id,
+                                        name: uploaded.name || file.name, type: 'file',
+                                        mime_type: file.type || 'image/jpeg', size: file.size,
+                                        url: 'https://drive.google.com/file/d/' + encodeURIComponent(uploaded.drive_id) + '/view'
+                                    });
+                                }
+                            }
                         } catch (error) {
                             const message = error.name === 'AbortError'
                                 ? 'Waktu upload habis (3 menit).'
@@ -4449,16 +4823,16 @@
                         progressText.textContent = 'Semua foto berhasil diunggah.';
                     }
 
-                    // Refresh sesudah semua file diproses, bukan sesudah tiap file.
-                    const refreshTasks = [];
-                    if (activeFolderDbId) refreshTasks.push(loadDriveFolder(activeFolderDbId));
-                    if (activeItemsUrl) refreshTasks.push(refreshItems());
-                    await Promise.all(refreshTasks);
+                    // Grid sudah diperbarui per foto sukses, tanpa reload dan tanpa reset preview.
+                    // Jika ada file tanpa drive_id dari backend lama, gunakan Refresh manual.
+
 
                 } catch (error) {
                     console.error('Proses upload gagal:', error);
                     setUploadMessage(error.message || 'Proses upload gagal.', 'error');
                 } finally {
+                    syncUploadLayer();
+                    uploadLayer.hidden = true;
                     uploadInProgress = false;
                     uploadButton.disabled = false;
                     photoInput.disabled = false;
@@ -4591,4 +4965,135 @@
             syncPoInfo();
         })();
     </script>
+
+    <script>
+    /* Mobile preview opens only for actual photo previews; existing preview logic unchanged. */
+    (function(){
+      const pane=document.querySelector('#rndArchivePanel .rnd-preview-pane');
+      const stage=document.getElementById('rndPreviewStage');
+      if(!pane||!stage)return;
+      const close=document.createElement('button');
+      close.type='button';close.className='rnd-mobile-preview-close';
+      close.setAttribute('aria-label','Tutup preview');
+      close.innerHTML='<i class="fa fa-times"></i>';
+      pane.appendChild(close);
+      close.addEventListener('click',()=>pane.classList.remove('rnd-mobile-preview-open'));
+      let hadPhoto=false;
+      const watch=new MutationObserver(()=>{
+        const hasPhoto=!!stage.querySelector('img,video,iframe');
+        if(hasPhoto&&!hadPhoto&&window.matchMedia('(max-width:700px)').matches){
+          pane.classList.add('rnd-mobile-preview-open');
+        }
+        hadPhoto=hasPhoto;
+      });
+      watch.observe(stage,{childList:true,subtree:true});
+      document.getElementById('rndBackToItems')?.addEventListener('click',()=>pane.classList.remove('rnd-mobile-preview-open'));
+      document.getElementById('rndCloseDrawer')?.addEventListener('click',()=>pane.classList.remove('rnd-mobile-preview-open'));
+    })();
+    </script>
+
+
+<style>
+.rnd-explorer-confirm[hidden],.rnd-explorer-toast[hidden]{display:none!important}
+.rnd-explorer-confirm{position:fixed;inset:0;z-index:11050;background:rgba(15,23,42,.38);display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px)}
+.rnd-explorer-dialog{width:min(360px,100%);background:white;border:1px solid #dce5f2;border-radius:14px;padding:22px;text-align:center;box-shadow:0 16px 50px #0f172a30;font:12px Arial,sans-serif;color:#17243a}
+.rnd-explorer-dialog>i{font-size:32px;color:#f2b400}.rnd-explorer-dialog h4{font-size:15px;margin:12px 0}.rnd-explorer-dialog p{line-height:1.6;overflow-wrap:anywhere}.rnd-explorer-dialog>div{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
+.rnd-explorer-dialog button{border:1px solid #dce5f2;border-radius:7px;padding:9px 17px;background:white;cursor:pointer}.rnd-explorer-dialog button.primary{background:#1769e8;color:white;border-color:#1769e8}
+.rnd-explorer-toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);z-index:11060;display:flex;align-items:center;gap:14px;max-width:calc(100vw - 24px);padding:12px 16px;border-radius:9px;background:#17243a;color:#fff;box-shadow:0 10px 30px #0f172a44;font:12px Arial,sans-serif}
+.rnd-explorer-toast button{border:0;background:transparent;color:#93c5fd;font-weight:bold;cursor:pointer;white-space:nowrap}
+.rnd-explorer-context{position:fixed;z-index:11070;display:flex;flex-direction:column;min-width:180px;background:white;border:1px solid #dce5f2;border-radius:9px;padding:5px;box-shadow:0 8px 30px #0f172a30}
+.rnd-explorer-context button{background:white;border:0;text-align:left;padding:10px;border-radius:6px;cursor:pointer;font-size:11px}.rnd-explorer-context button:hover{background:#eff6ff}.rnd-explorer-context button:disabled{opacity:.45}
+.rnd-drop-target{outline:3px dashed #1769e8!important;background:#eff6ff!important}
+</style>
+
+
+{{-- Fullscreen photo viewer: double-click photo, wheel zoom, pointer pan --}}
+<style>
+#rndFullscreenViewer[hidden]{display:none!important}
+#rndFullscreenViewer{position:fixed;inset:0;z-index:2147483000;background:rgba(5,12,25,.97);color:#fff;display:flex;flex-direction:column;overflow:hidden;touch-action:none;font-family:Arial,sans-serif}
+.rnd-fv-toolbar{height:54px;flex:0 0 54px;display:flex;align-items:center;gap:10px;padding:8px 15px;background:rgba(18,28,47,.9);z-index:2}
+.rnd-fv-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:700}
+.rnd-fv-toolbar button{border:1px solid #536178;border-radius:7px;background:#24334b;color:white;min-width:35px;height:34px;padding:0 10px;cursor:pointer;font-size:13px}
+.rnd-fv-toolbar button:hover{background:#36547c}
+.rnd-fv-canvas{position:relative;flex:1;min-height:0;overflow:hidden;display:flex;align-items:center;justify-content:center;cursor:grab;touch-action:none;user-select:none}
+.rnd-fv-canvas.is-panning{cursor:grabbing}
+.rnd-fv-canvas img{display:block;max-width:100%;max-height:100%;object-fit:contain;pointer-events:none;user-select:none;transform-origin:center center;will-change:transform}
+.rnd-fv-hint{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);background:rgba(15,23,42,.76);border-radius:25px;padding:9px 15px;color:#dbe5f2;font-size:11px;white-space:nowrap;pointer-events:none}
+.rnd-fv-error{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);padding:16px;text-align:center;font-size:12px;color:#fecaca;max-width:90%}
+@media(max-width:600px){.rnd-fv-toolbar{padding:7px;gap:5px}.rnd-fv-toolbar button{padding:0 7px;min-width:30px}.rnd-fv-hint{font-size:9px;bottom:10px}}
+</style>
+<div id="rndFullscreenViewer" hidden role="dialog" aria-modal="true" aria-label="Foto layar penuh">
+ <div class="rnd-fv-toolbar">
+  <span id="rndFvTitle" class="rnd-fv-title">Foto</span>
+  <button type="button" id="rndFvOut" title="Perkecil">−</button>
+  <span id="rndFvPercent" style="font-size:11px;min-width:40px;text-align:center">100%</span>
+  <button type="button" id="rndFvIn" title="Perbesar">+</button>
+  <button type="button" id="rndFvReset" title="Reset zoom">Reset</button>
+  <button type="button" id="rndFvClose" title="Tutup (Esc)" aria-label="Tutup">✕</button>
+ </div>
+ <div id="rndFvCanvas" class="rnd-fv-canvas">
+  <img id="rndFvImage" alt="Foto fullscreen" draggable="false">
+  <div id="rndFvError" class="rnd-fv-error" hidden>Foto tidak dapat ditampilkan. Pastikan gambar dapat diakses dari browser.</div>
+  <div class="rnd-fv-hint">Scroll untuk zoom · Drag untuk geser · Esc untuk tutup</div>
+ </div>
+</div>
+<script>
+(function(){
+ 'use strict';
+ const viewer=document.getElementById('rndFullscreenViewer');
+ const canvas=document.getElementById('rndFvCanvas');
+ const img=document.getElementById('rndFvImage');
+ const title=document.getElementById('rndFvTitle');
+ const percent=document.getElementById('rndFvPercent');
+ const error=document.getElementById('rndFvError');
+ const grid=document.getElementById('rndDriveItems');
+ const stage=document.getElementById('rndPreviewStage');
+ let zoom=1,dx=0,dy=0,dragging=false,startX=0,startY=0,oldOverflow='',lastFocus=null;
+ const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+ function draw(){img.style.transform=`translate(${dx}px,${dy}px) scale(${zoom})`;percent.textContent=Math.round(zoom*100)+'%';}
+ function setZoom(next,cx=canvas.clientWidth/2,cy=canvas.clientHeight/2){
+   const z=clamp(next,0.25,12),ratio=z/zoom;
+   dx=(dx-(cx-canvas.clientWidth/2))*ratio+(cx-canvas.clientWidth/2);
+   dy=(dy-(cy-canvas.clientHeight/2))*ratio+(cy-canvas.clientHeight/2);
+   zoom=z;draw();
+ }
+ function open(src,name){
+   if(!src)return;
+   lastFocus=document.activeElement;
+   oldOverflow=document.body.style.overflow;
+   document.body.style.overflow='hidden';
+   zoom=1;dx=0;dy=0;dragging=false;error.hidden=true;
+   img.style.display='block';img.removeAttribute('src');
+   title.textContent=name||'Foto Sampel';viewer.hidden=false;
+   img.src=src;draw();document.getElementById('rndFvClose').focus();
+ }
+ function close(){if(viewer.hidden)return;viewer.hidden=true;img.removeAttribute('src');document.body.style.overflow=oldOverflow;dragging=false;canvas.classList.remove('is-panning');lastFocus?.focus?.();}
+ img.addEventListener('error',()=>{error.hidden=false;img.style.display='none';});
+ img.addEventListener('load',()=>{error.hidden=true;img.style.display='block';});
+ document.getElementById('rndFvClose').addEventListener('click',close);
+ document.getElementById('rndFvIn').addEventListener('click',()=>setZoom(zoom*1.25));
+ document.getElementById('rndFvOut').addEventListener('click',()=>setZoom(zoom/1.25));
+ document.getElementById('rndFvReset').addEventListener('click',()=>{zoom=1;dx=dy=0;draw();});
+ canvas.addEventListener('wheel',e=>{if(viewer.hidden)return;e.preventDefault();const r=canvas.getBoundingClientRect();setZoom(zoom*(e.deltaY<0?1.13:1/1.13),e.clientX-r.left,e.clientY-r.top);},{passive:false});
+ canvas.addEventListener('pointerdown',e=>{if(e.button!==0)return;dragging=true;startX=e.clientX-dx;startY=e.clientY-dy;canvas.setPointerCapture(e.pointerId);canvas.classList.add('is-panning');});
+ canvas.addEventListener('pointermove',e=>{if(!dragging)return;dx=e.clientX-startX;dy=e.clientY-startY;draw();});
+ function endPan(){dragging=false;canvas.classList.remove('is-panning');}
+ canvas.addEventListener('pointerup',endPan);canvas.addEventListener('pointercancel',endPan);
+ document.addEventListener('keydown',e=>{if(viewer.hidden)return;if(e.key==='Escape'){e.preventDefault();close();}else if(e.key==='+'||e.key==='='){e.preventDefault();setZoom(zoom*1.25);}else if(e.key==='-'){e.preventDefault();setZoom(zoom/1.25);}else if(e.key==='0'){e.preventDefault();zoom=1;dx=dy=0;draw();}});
+ // Capture double click on file tiles without changing the existing selection/drag handlers.
+ grid?.addEventListener('dblclick',e=>{
+   if(e.target.closest('button,.rnd-drive-card-menu,.rnd-drive-item-actions'))return;
+   const card=e.target.closest('.rnd-drive-item');
+   if(!card||card.dataset.type==='folder')return;
+   const thumbnail=card.querySelector('.rnd-drive-preview img');
+   const selected=stage?.querySelector('img');
+   const src=(selected&&selected.src&&selected.src!==location.href?selected.src:null)||thumbnail?.src;
+   const name=card.querySelector('.rnd-drive-item-name')?.textContent||'Foto Sampel';
+   if(src){e.preventDefault();e.stopPropagation();open(src,name);}
+ },true);
+ // Also support double-clicking the large preview or locally selected photo.
+ stage?.addEventListener('dblclick',e=>{const selected=stage.querySelector('img');if(selected?.src){e.preventDefault();open(selected.src,document.getElementById('rndPreviewCaption')?.textContent||'Foto Sampel');}});
+})();
+</script>
+
 @endsection
