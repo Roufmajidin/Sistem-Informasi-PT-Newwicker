@@ -47,6 +47,8 @@ use App\Http\Controllers\GoogleDriveAuthController;
 // ==========================================================
 // MAGIC APPROVAL LINK - PUBLIC ENTRY POINT
 // ==========================================================
+Route::get('/qc/getPoDetail/{kategoriId}/{detailPo}/{poId}', [QcController::class, 'getDataApi']);
+
 Route::middleware('auth')->prefix('google-drive')->group(function () {
     Route::get('/connect', [
         GoogleDriveAuthController::class,
