@@ -342,66 +342,80 @@ class RndController extends Controller
         $this->groupExistingPoFolderByBuyer($po, $poFolder, $drive);
 
         /*
-
-         * 3. Cari folder artikel di database.
-
+         * Folder artikel: Google Drive adalah sumber utama. Jangan langsung
+         * createFolder() ketika metadata DB belum ditemukan.
          */
-
-        $articleFolder = RndArchiveFolder::query()
-
-            ->where('po_id', $po->id)
-
-            ->where('detail_po_id', $item->id)
-
-            ->where('folder_type', 'article')
-
-            ->first();
-
-        /*
-
-         * 4. Jika belum ada, buat folder artikel di Google Drive.
-
-         */
-
-        if (!$articleFolder) {
-
-            $folderName = $info['article_code'];
-
-            if ($info['description'] !== '') {
-
-                $folderName .= ' - ' . $info['description'];
-
-            }
-
-            $driveFolder = $drive->createFolder(
-
-                Str::limit($folderName, 180, ''),
-
-                $poFolder->google_drive_folder_id
-
-            );
-
-            $articleFolder = RndArchiveFolder::create([
-
-                'parent_id' => $poFolder->id,
-
-                'po_id' => $po->id,
-
-                'detail_po_id' => $item->id,
-
-                'item_key' => (string) $item->id,
-
-                'folder_name' => Str::limit($folderName, 180, ''),
-
-                'folder_type' => 'article',
-
-                'google_drive_folder_id' => $driveFolder['id'],
-
-                'created_by' => auth()->id(),
-
-            ]);
-
+        $folderName = $info['article_code'];
+        if ($info['description'] !== '') {
+            $folderName .= ' - ' . $info['description'];
         }
+        $folderName = Str::limit($folderName, 180, '');
+
+        $articleFolder = Cache::lock('rnd_article_folder:' . $po->id . ':' . $item->id, 60)
+            ->block(15, function () use ($po, $item, $drive, $poFolder, $folderName) {
+                $record = RndArchiveFolder::query()
+                    ->where('po_id', $po->id)
+                    ->where('detail_po_id', $item->id)
+                    ->where('folder_type', 'article')
+                    ->first();
+
+                $poDriveId = (string) $poFolder->google_drive_folder_id;
+                if ($poDriveId === '') {
+                    throw new \RuntimeException('ID Google Drive folder PO kosong.');
+                }
+
+                // Periksa folder anak aktual setiap kali artikel dibuka.
+                $children = $drive->listFolderContents($poDriveId);
+                $matches = array_values(array_filter($children, static function ($child) use ($folderName) {
+                    return ($child['type'] ?? '') === 'folder'
+                        && mb_strtolower(trim((string) ($child['name'] ?? ''))) === mb_strtolower(trim($folderName));
+                }));
+
+                if ($record) {
+                    $recordDriveId = (string) $record->google_drive_folder_id;
+                    // Jika ID DB masih cocok dengan folder di PO, gunakan ID itu.
+                    foreach ($children as $child) {
+                        if (($child['type'] ?? '') === 'folder'
+                            && (string) ($child['id'] ?? '') === $recordDriveId) {
+                            return $record;
+                        }
+                    }
+                    // Folder mungkin dipindah manual atau akses berubah: jangan
+                    // diam-diam membuat folder baru / mengganti ID metadata.
+                    throw new \RuntimeException(
+                        'Folder artikel di database tidak ditemukan di dalam PO Google Drive. '
+                        . 'Periksa ID folder artikel ' . $recordDriveId
+                        . ' dan folder PO ' . $poDriveId . '. Tidak ada folder baru dibuat.'
+                    );
+                }
+
+                if (count($matches) > 1) {
+                    $ids = implode(', ', array_map(static fn ($f) => (string) $f['id'], $matches));
+                    throw new \RuntimeException(
+                        'Ditemukan ' . count($matches) . ' folder artikel bernama "' . $folderName
+                        . '" di Google Drive (ID: ' . $ids . '). '
+                        . 'Perlu pilih folder yang benar sebelum melanjutkan. Tidak membuat folder baru.'
+                    );
+                }
+
+                if (count($matches) === 1) {
+                    $driveFolderId = (string) $matches[0]['id'];
+                } else {
+                    $created = $drive->createFolder($folderName, $poDriveId);
+                    $driveFolderId = (string) $created['id'];
+                }
+
+                return RndArchiveFolder::create([
+                    'parent_id' => $poFolder->id,
+                    'po_id' => $po->id,
+                    'detail_po_id' => $item->id,
+                    'item_key' => (string) $item->id,
+                    'folder_name' => $folderName,
+                    'folder_type' => 'article',
+                    'google_drive_folder_id' => $driveFolderId,
+                    'created_by' => auth()->id(),
+                ]);
+            });
 
         return $articleFolder;
 
@@ -611,6 +625,11 @@ class RndController extends Controller
 
             );
 
+            // Drive adalah sumber kebenaran. Jangan menampilkan "kosong" ketika
+            // sebenarnya folder Drive berisi file yang belum tercatat di DB.
+            $driveItems = $drive->listFolderContents($folder->google_drive_folder_id);
+            $this->syncDriveFilesToDatabase($folder, $driveItems);
+
             $files = RndArchiveFile::query()
 
                 ->where('folder_id', $folder->id)
@@ -689,6 +708,36 @@ class RndController extends Controller
 
         }
 
+    }
+
+    /**
+     * Sinkronisasi aman: hanya mendaftarkan file yang memang ada di folder Drive.
+     * Tidak menghapus data DB atau memindahkan file.
+     */
+    private function syncDriveFilesToDatabase(RndArchiveFolder $folder, array $items): void
+    {
+        foreach ($items as $item) {
+            if (($item['type'] ?? '') !== 'file' || empty($item['id'])) continue;
+            $existing = RndArchiveFile::query()
+                ->where('google_drive_file_id', $item['id'])->first();
+            if ($existing) {
+                if ((int) $existing->folder_id !== (int) $folder->id) {
+                    Log::warning('RND file Drive tercatat di folder DB berbeda; tidak dipindahkan otomatis', [
+                        'drive_file_id' => $item['id'], 'expected_folder_id' => $folder->id,
+                        'actual_folder_id' => $existing->folder_id,
+                    ]);
+                }
+                continue;
+            }
+            RndArchiveFile::create([
+                'folder_id' => $folder->id,
+                'original_name' => $item['name'] ?? $item['id'],
+                'google_drive_file_id' => $item['id'],
+                'mime_type' => $item['mime_type'] ?? 'application/octet-stream',
+                'file_size' => (int) ($item['size'] ?? 0),
+                'uploaded_by' => auth()->id(),
+            ]);
+        }
     }
 
     /**
@@ -1099,29 +1148,10 @@ class RndController extends Controller
 
             );
 
-            // Cache singkat untuk mengurangi round-trip Google Drive saat folder dibuka berulang.
+            // Selalu baca kondisi Drive terbaru agar Refresh tidak menampilkan cache kosong.
+            $driveItems = $drive->listFolderContents($activeFolder->google_drive_folder_id);
 
-            // Cache akan dibersihkan ketika folder berubah.
-
-            $driveCacheKey = 'rnd_drive_folder_items:' . $activeFolder->google_drive_folder_id;
-
-            $driveItems = Cache::remember(
-
-                $driveCacheKey,
-
-                now()->addSeconds(8),
-
-                function () use ($drive, $activeFolder) {
-
-                    return $drive->listFolderContents(
-
-                        $activeFolder->google_drive_folder_id
-
-                    );
-
-                }
-
-            );
+            $this->syncDriveFilesToDatabase($activeFolder, $driveItems);
 
             $items = [];
 
