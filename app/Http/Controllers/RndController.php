@@ -25,6 +25,7 @@ use Illuminate\Support\Str;
 use Throwable;
 
 class RndController extends Controller
+
 {
 
     /**
@@ -73,13 +74,14 @@ class RndController extends Controller
         return view('pages.rnds.index', compact('pos', 'search'));
     }
 
-    /**
+/**
 
-         * Normalisasi kolom detail artikel menjadi array.
+     * Normalisasi kolom detail artikel menjadi array.
 
-         */
+     */
 
     private function getItemDetail(DetailPo $item): array
+
     {
 
         $detail = $item->detail;
@@ -103,6 +105,7 @@ class RndController extends Controller
      */
 
     private function getArticleInfo(DetailPo $item): array
+
     {
 
         $detail = $this->getItemDetail($item);
@@ -143,6 +146,67 @@ class RndController extends Controller
 
         ];
 
+    }
+
+    /**
+     * Pindahkan folder PO lama dari root RND archives ke folder Buyer saat PO dibuka.
+     * Tidak mengubah ID Google Drive, DB, atau isi folder; hanya parent Drive.
+     * Tidak memindahkan folder yang sudah berada di lokasi lain.
+     */
+    private function groupExistingPoFolderByBuyer(
+        Po $po,
+        RndArchiveFolder $poFolder,
+        GoogleDriveService $drive
+    ): void {
+        $rootId = trim((string) config('services.google_drive.root_folder_id'));
+        $sourceId = trim((string) $poFolder->google_drive_folder_id);
+        if ($rootId === '' || $sourceId === '') return;
+
+        try {
+            Cache::lock('rnd_group_po:' . $po->id, 60)->block(10, function () use ($po, $drive, $rootId, $sourceId) {
+                $source = $drive->getArchiveItem($sourceId);
+                if (($source['trashed'] ?? true)
+                    || ($source['mime_type'] ?? '') !== 'application/vnd.google-apps.folder') return;
+                $parents = $source['parents'] ?? [];
+                if (count($parents) !== 1) return;
+                // Only legacy PO folders directly in RND root can be moved.
+                if ($parents[0] !== $rootId) return;
+
+                $buyer = trim((string) ($po->company_name ?: 'BUYER TANPA NAMA'));
+                $buyer = trim(preg_replace('/\s+/u', ' ', preg_replace('/[\x00-\x1F\x7F]/u', ' ', $buyer)));
+                if ($buyer === '') $buyer = 'BUYER TANPA NAMA';
+
+                $matches = array_values(array_filter($drive->listFolderContents($rootId),
+                    fn ($entry) => ($entry['type'] ?? '') === 'folder'
+                        && mb_strtolower(trim((string) ($entry['name'] ?? ''))) === mb_strtolower($buyer)
+                ));
+                if (count($matches) > 1) {
+                    Log::warning('RND buyer folder duplicate; migration skipped', ['po_id' => $po->id, 'buyer' => $buyer]);
+                    return;
+                }
+                $buyerId = count($matches) === 1
+                    ? $matches[0]['id']
+                    : $drive->createFolder($buyer, $rootId)['id'];
+
+                foreach ($drive->listFolderContents($buyerId) as $child) {
+                    if (($child['type'] ?? '') === 'folder'
+                        && ($child['id'] ?? '') !== $sourceId
+                        && mb_strtolower(trim((string) ($child['name'] ?? '')))
+                            === mb_strtolower(trim((string) ($source['name'] ?? $po->order_no)))) {
+                        Log::warning('RND PO destination collision; migration skipped', ['po_id' => $po->id, 'buyer' => $buyer]);
+                        return;
+                    }
+                }
+
+                $drive->moveArchiveItem($sourceId, $rootId, $buyerId);
+                Log::info('RND legacy PO folder grouped under Buyer', [
+                    'po_id' => $po->id, 'buyer' => $buyer, 'drive_folder_id' => $sourceId,
+                ]);
+            });
+        } catch (Throwable $e) {
+            // Jangan blokir fitur buka artikel/upload jika proses pengelompokan gagal.
+            Log::warning('RND grouping skipped', ['po_id' => $po->id, 'error' => $e->getMessage()]);
+        }
     }
 
     /**
@@ -191,6 +255,14 @@ class RndController extends Controller
 
         }
 
+        // Struktur baru: RND archives / BUYER / PO / ARTIKEL.
+        // Buyer hanya disimpan di Drive, tanpa mengubah schema database.
+        // Folder PO lama dipindahkan secara bertahap ketika artikel PO dibuka.
+        $buyerName = trim((string) ($po->company_name ?: 'BUYER TANPA NAMA'));
+        $buyerName = preg_replace('/[\x00-\x1F\x7F]/u', ' ', $buyerName);
+        $buyerName = trim(preg_replace('/\s+/u', ' ', $buyerName));
+        if ($buyerName === '') $buyerName = 'BUYER TANPA NAMA';
+
         /*
 
          * 1. Cari folder PO di database.
@@ -215,7 +287,33 @@ class RndController extends Controller
 
         if (!$poFolder) {
 
-            $driveFolder = $drive->createFolder($po->order_no);
+            $rootId = (string) config('services.google_drive.root_folder_id');
+            if ($rootId === '') throw new \RuntimeException('Google Drive root folder belum dikonfigurasi.');
+
+            // Hindari folder buyer duplikat; gunakan lock untuk request bersamaan.
+            $buyerFolderId = Cache::lock('rnd_buyer_folder:' . sha1($rootId . '|' . mb_strtolower($buyerName)), 30)
+                ->block(15, function () use ($drive, $rootId, $buyerName) {
+                    foreach ($drive->listFolderContents($rootId) as $candidate) {
+                        if (($candidate['type'] ?? '') === 'folder'
+                            && mb_strtolower(trim($candidate['name'] ?? '')) === mb_strtolower($buyerName)) {
+                            return $candidate['id'];
+                        }
+                    }
+                    return $drive->createFolder($buyerName, $rootId)['id'];
+                });
+
+            // Reuse PO folder bila sudah dibuat di Buyer (mis. setelah retry).
+            $driveFolder = null;
+            foreach ($drive->listFolderContents($buyerFolderId) as $candidate) {
+                if (($candidate['type'] ?? '') === 'folder'
+                    && trim($candidate['name'] ?? '') === trim((string) $po->order_no)) {
+                    $driveFolder = ['id' => $candidate['id']];
+                    break;
+                }
+            }
+            if (!$driveFolder) {
+                $driveFolder = $drive->createFolder($po->order_no, $buyerFolderId);
+            }
 
             $poFolder = RndArchiveFolder::create([
 
@@ -238,6 +336,10 @@ class RndController extends Controller
             ]);
 
         }
+
+        // Rapikan PO lama secara bertahap hanya ketika artikelnya dibuka.
+        // Jika gagal, arsip tetap bisa dibuka dari folder lamanya.
+        $this->groupExistingPoFolderByBuyer($po, $poFolder, $drive);
 
         /*
 
@@ -312,6 +414,7 @@ class RndController extends Controller
      */
 
     private function getArchiveFolderIds(int $folderId): array
+
     {
 
         $ids = [$folderId];
@@ -347,6 +450,7 @@ class RndController extends Controller
     }
 
     private function countArticlePhotos(RndArchiveFolder $folder): int
+
     {
 
         $folderIds = $this->getArchiveFolderIds($folder->id);
@@ -374,6 +478,7 @@ class RndController extends Controller
     }
 
     public function samplePicturesItems(Po $po)
+
     {
 
         $items = DetailPo::query()
@@ -865,6 +970,7 @@ class RndController extends Controller
      */
 
     public function samplePicturesDetail(Po $po)
+
     {
 
         $po->load('detailPos');
@@ -1724,6 +1830,7 @@ class RndController extends Controller
     /** Move item within a single article; never allow moving the article root. */
 
     public function moveArchiveItem(Request $request, Po $po, DetailPo $detailPo, string $folder, GoogleDriveService $drive)
+
     {
 
         $data = $request->validate(['parent_folder_id' => ['required', 'integer'], 'target_folder_id' => ['required', 'integer']]);
@@ -1825,6 +1932,7 @@ class RndController extends Controller
     /** Copy file and persist local metadata. Folder-copy intentionally rejected. */
 
     public function copyArchiveItem(Request $request, Po $po, DetailPo $detailPo, string $folder, GoogleDriveService $drive)
+
     {
 
         $data = $request->validate(['parent_folder_id' => ['required', 'integer'], 'target_folder_id' => ['required', 'integer']]);

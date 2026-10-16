@@ -2417,6 +2417,42 @@
             transition: .15s ease;
         }
 
+
+        /* Pending state: kartu folder/foto transparan selama proses berjalan */
+        .rnd-drive-item.is-pending {
+            opacity: .42 !important;
+            filter: saturate(.65);
+            pointer-events: none;
+            position: relative;
+        }
+        .rnd-drive-item.is-pending::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: 4;
+            background: rgba(255,255,255,.18);
+            border-radius: inherit;
+        }
+        .rnd-pending-overlay {
+            position: absolute;
+            z-index: 5;
+            top: 8px;
+            left: 8px;
+            right: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 8px;
+            border-radius: 8px;
+            background: rgba(255,255,255,.94);
+            color: #475569;
+            box-shadow: 0 2px 8px rgba(15,23,42,.10);
+            font-size: 10px;
+            font-weight: 700;
+        }
+        .rnd-drive-item.is-pending .rnd-drive-preview img { opacity: .55; }
+
         #rndDriveNewFolder {
             background: #1769e8 !important;
             border-color: #1769e8 !important;
@@ -5496,6 +5532,10 @@
                     card.className = 'rnd-drive-item rnd-drive-item-modern';
                     card.dataset.type = item.type;
                     card.dataset.fileKey = String(item.id || item.name);
+                    if (item.__pending) {
+                        card.classList.add('is-pending');
+                        card.dataset.pendingId = String(item.id);
+                    }
                     if (item.type !== 'folder' && card.dataset.fileKey === rndSelectedDriveId) card.classList
                         .add('rnd-drive-selected');
 
@@ -5521,6 +5561,14 @@
                             preview.classList.add('is-file');
                             preview.innerHTML = '<i class="fa fa-file-image-o"></i>';
                         }
+                    }
+
+                    if (item.__pending) {
+                        const overlay = document.createElement('div');
+                        overlay.className = 'rnd-pending-overlay';
+                        overlay.innerHTML = '<i class="fa fa-circle-o-notch fa-spin"></i><span>' +
+                            (item.__pendingLabel || 'Memproses...') + '</span>';
+                        card.appendChild(overlay);
                     }
 
                     const topActions = document.createElement('div');
@@ -5906,6 +5954,14 @@
                 if (!activeFolderDbId) return alert('Folder arsip belum siap.');
                 const name = prompt('Nama folder baru:');
                 if (name === null || !name.trim()) return;
+
+                const tempId = 'pending-folder-' + Date.now();
+                driveCurrentItems.unshift({
+                    id: tempId, name: name.trim(), type: 'folder',
+                    __pending: true, __pendingLabel: 'Membuat folder...'
+                });
+                renderDriveItemsStable();
+                driveNewFolder.disabled = true;
                 try {
                     const createdResult = await fetchJson(driveEndpoint('/folders'), {
                         method: 'POST',
@@ -5917,10 +5973,14 @@
                             parent_folder_id: activeFolderDbId
                         })
                     });
+                    removeDriveItem(tempId);
                     if (createdResult?.item?.id) upsertDriveItem(createdResult.item);
                     else await loadDriveFolder(activeFolderDbId);
                 } catch (e) {
+                    removeDriveItem(tempId);
                     alert(e.message || 'Gagal membuat folder.');
+                } finally {
+                    driveNewFolder.disabled = false;
                 }
             });
 
@@ -6250,6 +6310,22 @@
                 const successful = [];
                 const failed = [];
 
+                // Kartu foto sementara langsung ditampilkan transparan selama upload.
+                const pendingUploadItems = new Map();
+                files.forEach((file, index) => {
+                    const tempId = 'pending-upload-' + Date.now() + '-' + index;
+                    let previewUrl = '';
+                    try { previewUrl = URL.createObjectURL(file); } catch (_) {}
+                    pendingUploadItems.set(file, { id: tempId, previewUrl });
+                    driveCurrentItems.unshift({
+                        id: tempId, name: file.name, type: 'file',
+                        thumbnail_url: previewUrl, mime_type: file.type || 'image/jpeg',
+                        size: file.size, __pending: true,
+                        __pendingLabel: 'Menunggu upload...'
+                    });
+                });
+                renderDriveItemsStable();
+
                 const formatBytes = bytes => {
                     if (!bytes) return '0 KB';
                     return bytes >= 1024 * 1024 ?
@@ -6257,92 +6333,107 @@
                         Math.max(1, Math.round(bytes / 1024)) + ' KB';
                 };
 
-                // Upload satu per satu agar server/Google Drive tidak menerima request besar
-                // sekaligus dan progress setiap file bisa terlihat.
+                // Maksimal 2 request bersamaan untuk mengurangi total waktu batch,
+                // tanpa membanjiri server hosting atau Google Drive.
                 try {
-                    for (let i = 0; i < files.length; i++) {
-                        const file = files[i];
-                        const current = i + 1;
-                        const percentBefore = Math.round((i / files.length) * 100);
+                    const MAX_PARALLEL_UPLOADS = 2;
+                    let nextFileIndex = 0;
+                    let processedCount = 0;
+                    let runningCount = 0;
 
-                        uploadButton.innerHTML =
-                            '<i class="fa fa-circle-o-notch fa-spin"></i><span>Upload ' +
-                            current + '/' + files.length + '</span>';
-                        progressBar.style.width = percentBefore + '%';
+                    const updateBatchProgress = () => {
+                        const percentage = Math.round((processedCount / files.length) * 100);
+                        progressBar.style.width = percentage + '%';
                         progressText.textContent =
-                            'Mengunggah ' + current + '/' + files.length +
-                            ': ' + file.name + ' (' + formatBytes(file.size) + ')';
-                        setUploadMessage(
-                            'Berhasil ' + successful.length + '/' + files.length +
-                            ' · Sedang diproses ' + current + '/' + files.length,
-                            ''
-                        );
-
-                        const formData = new FormData();
-                        if (activeFolderDbId) formData.append('folder_id', activeFolderDbId);
-                        formData.append('photos[]', file, file.name);
-
-                        try {
-                            // Timeout per file menghindari UI menunggu tanpa batas.
-                            const controller = new AbortController();
-                            const timeout = setTimeout(() => controller.abort(), 180000);
-                            let result;
-
-                            try {
-                                result = await fetchJson(activeUploadUrl, {
-                                    method: 'POST',
-                                    headers: {
-                                        'X-CSRF-TOKEN': csrf ? csrf.content : ''
-                                    },
-                                    body: formData,
-                                    signal: controller.signal
-                                });
-                            } finally {
-                                clearTimeout(timeout);
-                            }
-
-                            if (result && result.success === false) {
-                                throw new Error(result.message || 'Server menolak file.');
-                            }
-                            successful.push(file.name);
-                            for (const uploaded of (result.uploaded || [])) {
-                                if (uploaded.drive_id) {
-                                    upsertDriveItem({
-                                        id: uploaded.drive_id,
-                                        database_id: uploaded.id,
-                                        name: uploaded.name || file.name,
-                                        type: 'file',
-                                        mime_type: file.type || 'image/jpeg',
-                                        size: file.size,
-                                        url: 'https://drive.google.com/file/d/' +
-                                            encodeURIComponent(uploaded.drive_id) + '/view'
-                                    });
-                                }
-                            }
-                        } catch (error) {
-                            const message = error.name === 'AbortError' ?
-                                'Waktu upload habis (3 menit).' :
-                                (error.message || 'Upload gagal.');
-                            failed.push({
-                                name: file.name,
-                                message: message
-                            });
-                            console.error('Upload gagal untuk ' + file.name, error);
-                        }
-
-                        const completed = i + 1;
-                        progressBar.style.width = Math.round((completed / files.length) * 100) + '%';
-                        progressText.textContent =
-                            'Selesai diproses ' + completed + '/' + files.length +
+                            'Diproses ' + processedCount + '/' + files.length +
+                            ' · Aktif ' + runningCount +
                             ' · Berhasil ' + successful.length +
                             ' · Gagal ' + failed.length;
                         setUploadMessage(
-                            'Progres ' + completed + '/' + files.length +
+                            'Progres ' + processedCount + '/' + files.length +
                             ' foto · Berhasil ' + successful.length +
                             ' · Gagal ' + failed.length,
                             failed.length ? 'error' : ''
                         );
-                    }
+                        uploadButton.innerHTML =
+                            '<i class="fa fa-circle-o-notch fa-spin"></i><span>Upload ' +
+                            processedCount + '/' + files.length + '</span>';
+                    };
+
+                    const uploadWorker = async () => {
+                        while (nextFileIndex < files.length) {
+                            const index = nextFileIndex++;
+                            const file = files[index];
+                            runningCount++;
+                            progressText.textContent =
+                                'Mengunggah ' + file.name + ' (' + formatBytes(file.size) + ')';
+                            try {
+                                const formData = new FormData();
+                                if (activeFolderDbId) formData.append('folder_id', activeFolderDbId);
+                                formData.append('photos[]', file, file.name);
+
+                                const controller = new AbortController();
+                                const timeout = setTimeout(() => controller.abort(), 180000);
+                                let result;
+                                try {
+                                    result = await fetchJson(activeUploadUrl, {
+                                        method: 'POST',
+                                        headers: { 'X-CSRF-TOKEN': csrf ? csrf.content : '' },
+                                        body: formData,
+                                        signal: controller.signal
+                                    });
+                                } finally {
+                                    clearTimeout(timeout);
+                                }
+
+                                if (result && result.success === false) {
+                                    throw new Error(result.message || 'Server menolak file.');
+                                }
+                                successful.push(file.name);
+                                const pending = pendingUploadItems.get(file);
+                                if (pending) {
+                                    removeDriveItem(pending.id);
+                                    if (pending.previewUrl) URL.revokeObjectURL(pending.previewUrl);
+                                    pendingUploadItems.delete(file);
+                                }
+                                for (const uploaded of (result.uploaded || [])) {
+                                    if (uploaded.drive_id) {
+                                        upsertDriveItem({
+                                            id: uploaded.drive_id,
+                                            database_id: uploaded.id,
+                                            name: uploaded.name || file.name,
+                                            type: 'file',
+                                            mime_type: file.type || 'image/jpeg',
+                                            size: file.size,
+                                            url: 'https://drive.google.com/file/d/' +
+                                                encodeURIComponent(uploaded.drive_id) + '/view'
+                                        });
+                                    }
+                                }
+                            } catch (error) {
+                                const message = error.name === 'AbortError' ?
+                                    'Waktu upload habis (3 menit).' :
+                                    (error.message || 'Upload gagal.');
+                                failed.push({ name: file.name, message });
+                                const pending = pendingUploadItems.get(file);
+                                if (pending) {
+                                    removeDriveItem(pending.id);
+                                    if (pending.previewUrl) URL.revokeObjectURL(pending.previewUrl);
+                                    pendingUploadItems.delete(file);
+                                }
+                                console.error('Upload gagal untuk ' + file.name, error);
+                            } finally {
+                                runningCount--;
+                                processedCount++;
+                                updateBatchProgress();
+                            }
+                        }
+                    };
+
+                    await Promise.all(Array.from(
+                        { length: Math.min(MAX_PARALLEL_UPLOADS, files.length) },
+                        () => uploadWorker()
+                    ));
 
                     photoInput.value = '';
                     selectedFiles.textContent = 'Selesai. Berhasil ' + successful.length +
@@ -6845,7 +6936,89 @@
                 bottom: 10px
             }
         }
-    </style>
+    
+        /* RND Drive list: truncate long names and place list cards side-by-side */
+        #rndDriveItems.rnd-list-mode {
+            display: grid !important;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr)) !important;
+            align-content: start !important;
+            align-items: start !important;
+            gap: 8px 12px !important;
+            padding: 8px 10px !important;
+        }
+
+        #rndDriveItems.rnd-list-mode .rnd-drive-item {
+            display: grid !important;
+            grid-template-columns: 54px minmax(0, 1fr) 30px !important;
+            align-items: center !important;
+            min-width: 0 !important;
+            min-height: 62px !important;
+            gap: 9px !important;
+            padding: 7px 8px !important;
+            border: 1px solid #e6edf6 !important;
+            border-radius: 9px !important;
+            overflow: hidden !important;
+        }
+
+        #rndDriveItems.rnd-list-mode .rnd-drive-preview {
+            grid-column: 1 !important;
+            grid-row: 1 !important;
+            width: 54px !important;
+            height: 48px !important;
+            min-width: 0 !important;
+            border-radius: 6px !important;
+            overflow: hidden !important;
+        }
+
+        #rndDriveItems.rnd-list-mode .rnd-drive-item-info {
+            grid-column: 2 !important;
+            grid-row: 1 !important;
+            min-width: 0 !important;
+            width: 100% !important;
+            padding: 3px 0 !important;
+            overflow: hidden !important;
+        }
+
+        #rndDriveItems.rnd-list-mode .rnd-drive-item-name {
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            overflow-wrap: normal !important;
+            word-break: normal !important;
+        }
+
+        #rndDriveItems.rnd-list-mode .rnd-drive-item-meta {
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+        }
+
+        #rndDriveItems.rnd-list-mode .rnd-drive-card-menu {
+            grid-column: 3 !important;
+            grid-row: 1 !important;
+            justify-self: end !important;
+            position: relative !important;
+            top: auto !important;
+            right: auto !important;
+            width: 27px !important;
+            height: 27px !important;
+        }
+
+        #rndDriveItems.rnd-list-mode .rnd-drive-item-actions-modern {
+            top: 45px !important;
+            right: 4px !important;
+        }
+
+        @media (max-width: 520px) {
+            #rndDriveItems.rnd-list-mode {
+                grid-template-columns: minmax(0, 1fr) !important;
+            }
+        }
+</style>
     <div id="rndFullscreenViewer" hidden role="dialog" aria-modal="true" aria-label="Foto layar penuh">
         <div class="rnd-fv-toolbar">
             <span id="rndFvTitle" class="rnd-fv-title">Foto</span>
