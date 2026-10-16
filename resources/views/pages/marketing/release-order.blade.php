@@ -338,6 +338,8 @@
             background: #fff8e1 !important;
         }
 
+        #detail-table thead .inch-group { background: #226c82; }
+        #detail-table tbody td[data-key$="_inch"] { background: #f0f9fc; }
         #detail-table .dimension-cell {
             text-align: center;
             font-variant-numeric: tabular-nums;
@@ -1155,6 +1157,30 @@
                                     Object.keys(detail).forEach(key => allKeysSet.add(key));
                                 });
 
+                                // INCH: tampil hanya bila minimal satu item memiliki nilai.
+                                // Alias sumber Excel lama tetap dibaca tanpa mengubah database.
+                                const inchAliases = {
+                                    item_w_inch: ['item_w_inch', 'item_w_(inch)', 'item_w_(in)', 'dimension_(inch)', 'dimention_(inch)', 'dimension_inch', 'dimention_inch'],
+                                    item_d_inch: ['item_d_inch', 'item_d_(inch)', 'item_d_(in)', 'd_inch'],
+                                    item_h_inch: ['item_h_inch', 'item_h_(inch)', 'item_h_(in)', 'h_inch'],
+                                    pack_w_inch: ['pack_w_inch', 'packing_w_inch', 'pack_w_(inch)', 'packing_w_(inch)'],
+                                    pack_d_inch: ['pack_d_inch', 'packing_d_inch', 'pack_d_(inch)', 'packing_d_(inch)'],
+                                    pack_h_inch: ['pack_h_inch', 'packing_h_inch', 'pack_h_(inch)', 'packing_h_(inch)']
+                                };
+                                const hasDimensionValue = value => value !== null && value !== undefined && String(value).trim() !== '';
+                                const getInchValue = (detail, key) => {
+                                    for (const alias of (inchAliases[key] || [key])) {
+                                        if (hasDimensionValue(detail[alias])) return detail[alias];
+                                    }
+                                    return '';
+                                };
+                                const activeInchKeys = Object.keys(inchAliases).filter(key =>
+                                    res.items.some(item => hasDimensionValue(getInchValue(item.detail || {}, key)))
+                                );
+                                // Hilangkan alias mentah agar tidak muncul dua kolom untuk satu nilai.
+                                const inchAliasSet = new Set(Object.values(inchAliases).flat());
+                                allKeysSet = new Set([...allKeysSet].filter(key => !inchAliasSet.has(key)));
+                                activeInchKeys.forEach(key => allKeysSet.add(key));
                                 let allKeys = [...allKeysSet];
 
                                 // =====================================================
@@ -1164,7 +1190,9 @@
                                     'no_', 'photo', 'description', 'article_nr_', 'article_nr_nw',
                                     'nw_code', 'sub_category', 'qty', 'remark', 'cushion', 'glass',
                                     'item_w', 'item_d', 'item_h',
+                                    'item_w_inch', 'item_d_inch', 'item_h_inch',
                                     'pack_w', 'pack_d', 'pack_h',
+                                    'pack_w_inch', 'pack_d_inch', 'pack_h_inch',
                                     'composition', 'finishing', 'cbm', 'total_cbm',
                                     'value_in_usd', 'fob_jakarta_in_usd'
                                 ];
@@ -1223,6 +1251,25 @@
                                 // Hilangkan duplikat akibat pack_* + packing_* muncul bersamaan.
                                 keys = [...new Set(keys)];
 
+                                // Pastikan grup W/D/H berurutan, termasuk data lama yang tidak punya W.
+                                const dimensionGroups = [
+                                    ['item_w', 'item_d', 'item_h'],
+                                    ['item_w_inch', 'item_d_inch', 'item_h_inch'],
+                                    ['pack_w', 'pack_d', 'pack_h'],
+                                    ['pack_w_inch', 'pack_d_inch', 'pack_h_inch']
+                                ];
+                                for (const group of dimensionGroups) {
+                                    const present = group.filter(key => keys.includes(key));
+                                    if (!present.length) continue;
+                                    const firstIndex = Math.min(...present.map(key => keys.indexOf(key)));
+                                    keys = keys.filter(key => !group.includes(key));
+                                    keys.splice(firstIndex, 0, ...present);
+                                }
+                                // Hitung ulang index setelah alias dan pengurutan kolom.
+                                descIndex = keys.indexOf('description');
+                                cbmIndex = keys.includes('total_cbm') ? keys.indexOf('total_cbm') : keys.indexOf('cbm');
+                                priceIndex = keys.includes('value_in_usd') ? keys.indexOf('value_in_usd') : keys.indexOf('fob_jakarta_in_usd');
+
                                 // Dipakai oleh modal Add Items. ACT bukan field detail_po.
                                 window.currentMarketingPoId = id;
                                 window.currentDetailKeys = keys;
@@ -1249,9 +1296,15 @@
                                         item_w: 56,
                                         item_d: 56,
                                         item_h: 56,
+                                        item_w_inch: 66,
+                                        item_d_inch: 66,
+                                        item_h_inch: 66,
                                         pack_w: 56,
                                         pack_d: 56,
                                         pack_h: 56,
+                                        pack_w_inch: 66,
+                                        pack_d_inch: 66,
+                                        pack_h_inch: 66,
                                         composition: 180,
                                         finishing: 180,
                                         cbm: 78,
@@ -1281,64 +1334,30 @@
                                 let headerTop = $('<tr class="header-top"></tr>');
                                 let headerBottom = $('<tr class="header-bottom"></tr>');
 
-                                const itemDimensionKeys = ['item_w', 'item_d', 'item_h'];
-                                const packingDimensionKeys = ['pack_w', 'pack_d', 'pack_h'];
-
-                                const itemDimensionCount = itemDimensionKeys.filter(k => keys.includes(k)).length;
-                                const packingDimensionCount = packingDimensionKeys.filter(k => keys.includes(k)).length;
-
-                                const addSubHeader = (k, label) => {
-                                    headerBottom.append(`
-                            <th class="dimension-sub" data-header-key="${k}">${label}</th>
-                        `);
-                                };
-
+                                const itemDimensionKeys = ['item_w', 'item_d', 'item_h', 'item_w_inch', 'item_d_inch', 'item_h_inch'];
+                                const packingDimensionKeys = ['pack_w', 'pack_d', 'pack_h', 'pack_w_inch', 'pack_d_inch', 'pack_h_inch'];
+                                const dimensionHeaderGroups = [
+                                    { keys: ['item_w', 'item_d', 'item_h'], title: 'ITEM DIMENSION (CM)', cls: 'item-group' },
+                                    { keys: ['item_w_inch', 'item_d_inch', 'item_h_inch'], title: 'ITEM DIMENSION (INCH)', cls: 'item-group inch-group' },
+                                    { keys: ['pack_w', 'pack_d', 'pack_h'], title: 'PACKING DIMENSION (CM)', cls: 'packing-group' },
+                                    { keys: ['pack_w_inch', 'pack_d_inch', 'pack_h_inch'], title: 'PACKING DIMENSION (INCH)', cls: 'packing-group inch-group' }
+                                ];
+                                const groupedKeys = new Set(dimensionHeaderGroups.flatMap(group => group.keys));
                                 keys.forEach((k, i) => {
-                                    let cls = (i === descIndex) ? 'sticky-col' : '';
-
-                                    // ITEM DIMENSION GROUP
-                                    if (k === 'item_w') {
-                                        if (itemDimensionCount > 0) {
-                                            headerTop.append(`
-                                    <th colspan="${itemDimensionCount}" class="dimension-group item-group">
-                                        ITEM DIMENSION
-                                    </th>
-                                `);
-                                        }
-
-                                        if (keys.includes('item_w')) addSubHeader('item_w', 'W');
-                                        if (keys.includes('item_d')) addSubHeader('item_d', 'D');
-                                        if (keys.includes('item_h')) addSubHeader('item_h', 'H');
+                                    const group = dimensionHeaderGroups.find(group => group.keys.includes(k));
+                                    if (group) {
+                                        const present = group.keys.filter(key => keys.includes(key));
+                                        if (k !== present[0]) return;
+                                        headerTop.append(`<th colspan="${present.length}" class="dimension-group ${group.cls}">${group.title}</th>`);
+                                        present.forEach(key => {
+                                            const axis = key.match(/_([wdh])(?:_inch)?$/)?.[1]?.toUpperCase() || key;
+                                            headerBottom.append(`<th class="dimension-sub" data-header-key="${key}">${axis}</th>`);
+                                        });
                                         return;
                                     }
-
-                                    if (k === 'item_d' || k === 'item_h') return;
-
-                                    // PACKING DIMENSION GROUP
-                                    if (k === 'pack_w') {
-                                        if (packingDimensionCount > 0) {
-                                            headerTop.append(`
-                                    <th colspan="${packingDimensionCount}" class="dimension-group packing-group">
-                                        PACKING DIMENSION
-                                    </th>
-                                `);
-                                        }
-
-                                        if (keys.includes('pack_w')) addSubHeader('pack_w', 'W');
-                                        if (keys.includes('pack_d')) addSubHeader('pack_d', 'D');
-                                        if (keys.includes('pack_h')) addSubHeader('pack_h', 'H');
-                                        return;
-                                    }
-
-                                    if (k === 'pack_d' || k === 'pack_h') return;
-
-                                    let label = k === 'act' ?
-                                        'ACT' :
-                                        k.replaceAll('_', ' ').toUpperCase();
-
-                                    headerTop.append(`
-                            <th rowspan="2" class="${cls}">${label}</th>
-                        `);
+                                    const cls = i === descIndex ? 'sticky-col' : '';
+                                    const label = k === 'act' ? 'ACT' : k.replaceAll('_', ' ').toUpperCase();
+                                    headerTop.append(`<th rowspan="2" class="${cls}">${escapeHtml(label)}</th>`);
                                 });
 
                                 thead.append(headerTop);
@@ -1385,6 +1404,7 @@
                                         // VALUE + CELL CLASS
                                         // =====================================================
                                         let value = detail[key] ?? '';
+                                        if (activeInchKeys.includes(key)) value = getInchValue(detail, key);
 
                                         // Backward compatibility untuk data lama.
                                         if (value === '' && key === 'item_w') {
@@ -1439,6 +1459,15 @@
                                         // FORMAT PRICE
                                         if (key === 'value_in_usd' || key === 'fob_jakarta_in_usd') {
                                             totalPrice += parseFloat(value || 0);
+                                        }
+                                        // INCH: pembulatan hanya pada tampilan, nilai asli tetap disimpan.
+                                        const isInchDimension = activeInchKeys.includes(key);
+                                        const rawInchValue = isInchDimension ? value : null;
+                                        if (isInchDimension && value !== '' && value !== null &&
+                                            Number.isFinite(Number(value))) {
+                                            value = Number(value).toFixed(2);
+                                            td.attr('data-raw-inch', String(rawInchValue));
+                                            td.attr('title', 'Nilai asli: ' + rawInchValue);
                                         }
                                         // IMAGE
                                         if (key.includes('photo') && typeof value === 'string' && value
@@ -1499,7 +1528,7 @@
                             let td = $(this);
                             let key = td.data('key');
                             if (key && key.toLowerCase().includes('photo')) return;
-                            let text = td.find('.cell-text').text().trim();
+                            let text = td.attr('data-raw-inch') ?? td.find('.cell-text').text().trim();
                             td.attr('data-original', text);
                             td.html(`
             <input type="text"
@@ -1545,6 +1574,12 @@
                             pack_w: 'PACK W',
                             pack_d: 'PACK D',
                             pack_h: 'PACK H',
+                            item_w_inch: 'ITEM W (INCH)',
+                            item_d_inch: 'ITEM D (INCH)',
+                            item_h_inch: 'ITEM H (INCH)',
+                            pack_w_inch: 'PACK W (INCH)',
+                            pack_d_inch: 'PACK D (INCH)',
+                            pack_h_inch: 'PACK H (INCH)',
                             composition: 'COMPOSITION',
                             finishing: 'FINISHING',
                             cbm: 'CBM',
@@ -1556,7 +1591,7 @@
                     }
 
                     function addItemInputType(key) {
-                        if (['qty', 'item_w', 'item_d', 'item_h', 'pack_w', 'pack_d', 'pack_h', 'cbm', 'total_cbm', 'value_in_usd',
+                        if (['qty', 'item_w', 'item_d', 'item_h', 'pack_w', 'pack_d', 'pack_h', 'item_w_inch', 'item_d_inch', 'item_h_inch', 'pack_w_inch', 'pack_d_inch', 'pack_h_inch', 'cbm', 'total_cbm', 'value_in_usd',
                                 'fob_jakarta_in_usd'
                             ].includes(key)) {
                             return 'number';
