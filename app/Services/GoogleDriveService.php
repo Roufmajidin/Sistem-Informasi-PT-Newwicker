@@ -1,10 +1,6 @@
 <?php
 
-
-
 namespace App\Services;
-
-
 
 use Google\Client;
 
@@ -20,8 +16,6 @@ use RuntimeException;
 
 use Throwable;
 
-
-
 class GoogleDriveService
 
 {
@@ -30,11 +24,7 @@ class GoogleDriveService
 
     private Drive $drive;
 
-
-
     private string $tokenPath = 'google-drive-token.json';
-
-
 
     public function __construct()
 
@@ -42,15 +32,11 @@ class GoogleDriveService
 
         $this->client = new Client();
 
-
-
         $this->client->setClientId(
 
             config('services.google_drive.client_id')
 
         );
-
-
 
         $this->client->setClientSecret(
 
@@ -58,29 +44,19 @@ class GoogleDriveService
 
         );
 
-
-
         $this->client->setRedirectUri(
 
             config('services.google_drive.redirect_uri')
 
         );
 
-
-
         $this->client->setScopes([Drive::DRIVE]);
 
-
-
         $this->loadToken();
-
-
 
         $this->drive = new Drive($this->client);
 
     }
-
-
 
     /**
 
@@ -94,8 +70,6 @@ class GoogleDriveService
 
         $storage = Storage::disk('local');
 
-
-
         if (!$storage->exists($this->tokenPath)) {
 
             throw new RuntimeException(
@@ -106,11 +80,7 @@ class GoogleDriveService
 
         }
 
-
-
         $token = json_decode($storage->get($this->tokenPath), true);
-
-
 
         if (!is_array($token) || empty($token['access_token'])) {
 
@@ -118,11 +88,7 @@ class GoogleDriveService
 
         }
 
-
-
         $this->client->setAccessToken($token);
-
-
 
         if (!$this->client->isAccessTokenExpired()) {
 
@@ -130,13 +96,9 @@ class GoogleDriveService
 
         }
 
-
-
         $refreshToken = $token['refresh_token']
 
             ?? $this->client->getRefreshToken();
-
-
 
         if (empty($refreshToken)) {
 
@@ -148,11 +110,7 @@ class GoogleDriveService
 
         }
 
-
-
         $newToken = $this->client->fetchAccessTokenWithRefreshToken($refreshToken);
-
-
 
         if (
 
@@ -178,13 +136,9 @@ class GoogleDriveService
 
                 : 'Respons Google tidak valid.';
 
-
-
             throw new RuntimeException('Refresh token gagal: ' . $error);
 
         }
-
-
 
         // Google tidak selalu mengembalikan refresh token baru.
 
@@ -194,25 +148,17 @@ class GoogleDriveService
 
         }
 
-
-
         $updatedToken = array_merge($token, $newToken);
-
-
 
         $this->client->setAccessToken($updatedToken);
 
         $updatedToken = $this->client->getAccessToken();
-
-
 
         if (empty($updatedToken['refresh_token'])) {
 
             $updatedToken['refresh_token'] = $refreshToken;
 
         }
-
-
 
         $json = json_encode(
 
@@ -221,8 +167,6 @@ class GoogleDriveService
             JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
 
         );
-
-
 
         if ($json === false) {
 
@@ -233,8 +177,6 @@ class GoogleDriveService
             );
 
         }
-
-
 
         if (!$storage->put($this->tokenPath, $json)) {
 
@@ -247,8 +189,6 @@ class GoogleDriveService
         }
 
     }
-
-
 
     /**
 
@@ -268,8 +208,6 @@ class GoogleDriveService
 
             ?: config('services.google_drive.root_folder_id');
 
-
-
         if (!$parentFolderId) {
 
             throw new RuntimeException(
@@ -280,8 +218,6 @@ class GoogleDriveService
 
         }
 
-
-
         $folder = new DriveFile([
 
             'name' => $name,
@@ -291,8 +227,6 @@ class GoogleDriveService
             'parents' => [$parentFolderId],
 
         ]);
-
-
 
         $created = $this->drive->files->create(
 
@@ -308,11 +242,7 @@ class GoogleDriveService
 
         );
 
-
-
         $id = $created->getId();
-
-
 
         return [
 
@@ -327,8 +257,6 @@ class GoogleDriveService
         ];
 
     }
-
-
 
     /**
 
@@ -362,19 +290,13 @@ class GoogleDriveService
 
         }
 
-
-
         if (trim($folderId) === '') {
 
             throw new RuntimeException('ID folder Google Drive tidak valid.');
 
         }
 
-
-
         $fileSize = filesize($localPath);
-
-
 
         if ($fileSize === false) {
 
@@ -382,11 +304,48 @@ class GoogleDriveService
 
         }
 
-
+        // Small photos: a single multipart request avoids the resumable
+        // session setup and per-chunk round trips on shared hosting.
+        // Keep the limit bounded to avoid high PHP memory usage.
+        if ($fileSize > 0 && $fileSize <= 8 * 1024 * 1024) {
+            try {
+                $contents = file_get_contents($localPath);
+                if ($contents === false) {
+                    throw new RuntimeException('File gagal dibaca untuk upload.');
+                }
+                $file = new DriveFile([
+                    'name' => $fileName,
+                    'parents' => [$folderId],
+                ]);
+                $result = $this->drive->files->create($file, [
+                    'data' => $contents,
+                    'mimeType' => $mimeType,
+                    'uploadType' => 'multipart',
+                    'fields' => 'id,name,mimeType,webViewLink,parents,size',
+                    'supportsAllDrives' => true,
+                ]);
+                $id = $result->getId();
+                if (!$id) {
+                    throw new RuntimeException('Google Drive tidak mengembalikan ID file.');
+                }
+                return [
+                    'id' => $id,
+                    'name' => $result->getName(),
+                    'mime_type' => $result->getMimeType(),
+                    'url' => $result->getWebViewLink()
+                        ?: 'https://drive.google.com/file/d/' . $id . '/view',
+                    'size' => $result->getSize(),
+                ];
+            } catch (Throwable $e) {
+                throw new RuntimeException(
+                    'Upload Google Drive gagal: ' . $e->getMessage(),
+                    (int) $e->getCode(),
+                    $e
+                );
+            }
+        }
 
         $handle = fopen($localPath, 'rb');
-
-
 
         if ($handle === false) {
 
@@ -394,13 +353,9 @@ class GoogleDriveService
 
         }
 
-
-
-        $chunkSize = 5 * 1024 * 1024; // 5 MB
+        $chunkSize = 16 * 1024 * 1024; // 16 MB: fewer round-trips for large files
 
         $deferWasEnabled = false;
-
-
 
         try {
 
@@ -411,8 +366,6 @@ class GoogleDriveService
                 'parents' => [$folderId],
 
             ]);
-
-
 
             /*
 
@@ -425,8 +378,6 @@ class GoogleDriveService
             $this->client->setDefer(true);
 
             $deferWasEnabled = true;
-
-
 
             $request = $this->drive->files->create(
 
@@ -444,8 +395,6 @@ class GoogleDriveService
 
             );
 
-
-
             $media = new MediaFileUpload(
 
                 $this->client,
@@ -462,15 +411,9 @@ class GoogleDriveService
 
             );
 
-
-
             $media->setFileSize($fileSize);
 
-
-
             $result = false;
-
-
 
             /*
 
@@ -482,8 +425,6 @@ class GoogleDriveService
 
                 $chunk = fread($handle, $chunkSize);
 
-
-
                 if ($chunk === false) {
 
                     throw new RuntimeException(
@@ -494,15 +435,11 @@ class GoogleDriveService
 
                 }
 
-
-
                 if ($chunk === '' && feof($handle)) {
 
                     break;
 
                 }
-
-
 
                 if ($chunk === '') {
 
@@ -514,13 +451,9 @@ class GoogleDriveService
 
                 }
 
-
-
                 $result = $media->nextChunk($chunk);
 
             }
-
-
 
             if ($result === false) {
 
@@ -532,11 +465,7 @@ class GoogleDriveService
 
             }
 
-
-
             $id = $result->getId();
-
-
 
             if (empty($id)) {
 
@@ -547,8 +476,6 @@ class GoogleDriveService
                 );
 
             }
-
-
 
             return [
 
@@ -586,8 +513,6 @@ class GoogleDriveService
 
             }
 
-
-
             if ($deferWasEnabled) {
 
                 $this->client->setDefer(false);
@@ -597,8 +522,6 @@ class GoogleDriveService
         }
 
     }
-
-
 
     /**
 
@@ -616,13 +539,9 @@ class GoogleDriveService
 
         }
 
-
-
         $items = [];
 
         $pageToken = null;
-
-
 
         do {
 
@@ -635,8 +554,6 @@ class GoogleDriveService
                 $folderId
 
             );
-
-
 
             $params = [
 
@@ -654,19 +571,13 @@ class GoogleDriveService
 
             ];
 
-
-
             if ($pageToken) {
 
                 $params['pageToken'] = $pageToken;
 
             }
 
-
-
             $result = $this->drive->files->listFiles($params);
-
-
 
             foreach ($result->getFiles() as $file) {
 
@@ -674,11 +585,7 @@ class GoogleDriveService
 
                     === 'application/vnd.google-apps.folder';
 
-
-
                 $id = $file->getId();
-
-
 
                 $items[] = [
 
@@ -712,19 +619,13 @@ class GoogleDriveService
 
             }
 
-
-
             $pageToken = $result->getNextPageToken();
 
         } while ($pageToken);
 
-
-
         return $items;
 
     }
-
-
 
     /**
 
@@ -738,8 +639,6 @@ class GoogleDriveService
 
         $newName = trim($newName);
 
-
-
         if ($newName === '') {
 
             throw new \InvalidArgumentException(
@@ -749,8 +648,6 @@ class GoogleDriveService
             );
 
         }
-
-
 
         $updated = $this->drive->files->update(
 
@@ -768,11 +665,7 @@ class GoogleDriveService
 
         );
 
-
-
         $id = $updated->getId();
-
-
 
         return [
 
@@ -797,8 +690,6 @@ class GoogleDriveService
         ];
 
     }
-
-
 
     /**
 
@@ -826,47 +717,74 @@ class GoogleDriveService
 
         );
 
-
-
         return true;
 
     }
 
-
     /** Metadata asli diperlukan agar parent Drive diverifikasi sebelum perubahan. */
+
     public function getArchiveItem(string $id): array
+
     {
+
         $f = $this->drive->files->get($id, [
+
             'fields' => 'id,name,mimeType,parents,trashed', 'supportsAllDrives' => true,
+
         ]);
+
         return ['id'=>$f->getId(), 'name'=>$f->getName(), 'mime_type'=>$f->getMimeType(),
+
             'parents'=>$f->getParents() ?: [], 'trashed'=>(bool)$f->getTrashed()];
+
     }
 
     public function moveArchiveItem(string $id, string $from, string $to): array
+
     {
+
         $metadata = $this->getArchiveItem($id);
+
         if ($metadata['trashed'] || !in_array($from, $metadata['parents'], true)) {
+
             throw new \RuntimeException('Item tidak lagi berada di folder asal. Refresh arsip.');
+
         }
+
         if ($from === $to) throw new \InvalidArgumentException('Folder asal dan tujuan sama.');
+
         $f = $this->drive->files->update($id, new DriveFile(), [
+
             'addParents'=>$to, 'removeParents'=>$from,
+
             'fields'=>'id,name,mimeType,parents', 'supportsAllDrives'=>true,
+
         ]);
+
         return ['id'=>$f->getId(), 'name'=>$f->getName()];
+
     }
 
     public function copyArchiveItem(string $id, string $targetId, ?string $name = null): array
+
     {
+
         $metadata = $this->getArchiveItem($id);
+
         if ($metadata['trashed'] || $metadata['mime_type'] === 'application/vnd.google-apps.folder') {
+
             throw new \InvalidArgumentException('Penyalinan folder belum didukung.');
+
         }
+
         $f = $this->drive->files->copy($id, new DriveFile([
+
             'name'=>$name ?: $metadata['name'], 'parents'=>[$targetId],
+
         ]), ['fields'=>'id,name,mimeType,size,parents','supportsAllDrives'=>true]);
+
         return ['id'=>$f->getId(),'name'=>$f->getName(), 'mime_type'=>$f->getMimeType(), 'size'=>$f->getSize()];
+
     }
 
 }
