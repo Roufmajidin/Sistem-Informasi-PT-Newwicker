@@ -454,6 +454,12 @@
                 height: 28px;
             }
         }
+
+        /* Chat shortcut: animated typing caret, isolated from table styles */
+        #chatModal .modal-dialog { max-width: 680px; }
+        #chatModal #chat-input:focus { border-color: #2f437f; box-shadow: 0 0 0 2px rgba(47,67,127,.12); caret-color: #2f437f; }
+        #chatModal .release-chat-caret { display: inline-block; width: 2px; height: 13px; background: #2f437f; vertical-align: -2px; margin-left: 3px; animation: releaseChatBlink .85s steps(1) infinite; }
+        @keyframes releaseChatBlink { 50% { opacity: 0; } }
     </style>
     <div class="padding">
         <div class="box">
@@ -619,7 +625,7 @@
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h4 class="modal-title">Chat Room</h4>
+                        <h4 class="modal-title">Chat Room <span class="release-chat-caret" aria-hidden="true"></span></h4>
                         <button type="button" class="close" data-dismiss="modal">&times;</button>
                     </div>
                     <div class="modal-body">
@@ -2199,4 +2205,1552 @@
                 </script>
             @endpush
         @endpush
-    @endsection
+
+
+    {{-- Pusher Live Chat: shared presence-upah-transaksi, independent of Upah transaction scripts. --}}
+    <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
+    <script>
+    (function () {
+        'use strict';
+        if (window.__releaseOrderUpahPusherSetup) return;
+        window.__releaseOrderUpahPusherSetup = true;
+        function setup() {
+            if (window.upahRealtimeChannel) return;
+            const key = @json(config('broadcasting.connections.pusher.key'));
+            const cluster = @json(config('broadcasting.connections.pusher.options.cluster'));
+            if (!key || typeof Pusher === 'undefined') {
+                console.warn('[Release Order Chat] Pusher belum dikonfigurasi.');
+                return;
+            }
+            const pusher = new Pusher(key, {
+                cluster: cluster || 'ap1',
+                forceTLS: true,
+                authEndpoint: @json(route('pusher.auth')),
+                auth: {headers: {'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || @json(csrf_token())}}
+            });
+            window.upahRealtimePusher = pusher;
+            window.upahRealtimeChannelName = 'presence-upah-transaksi';
+            window.upahRealtimeChannel = pusher.subscribe(window.upahRealtimeChannelName);
+        }
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setup);
+        else setup();
+    })();
+    </script>
+
+<!-- =========================================================
+     UPAH LIVE CHAT - WHATSAPP STYLE
+     Realtime Pusher + typing indicator
+     Menggunakan channel Pusher yang sama:
+     presence-upah-transaksi
+     Tidak mengubah logic transaksi/cursor yang sudah ada.
+========================================================= -->
+<script>
+    (function() {
+        'use strict';
+
+        let upahChatInitialized = false;
+        let upahChatSubscribed = false;
+        let upahTypingTimer = null;
+        let upahTypingActive = false;
+        let upahTypingUsers = {};
+
+        const UPAH_CHAT_EVENT = 'client-upah-live-message';
+        const UPAH_TYPING_EVENT = 'client-upah-typing';
+        // Endpoint Laravel untuk menyimpan gambar hasil paste/upload.
+        // Sesuaikan hanya jika route Anda menggunakan URL lain.
+        const UPAH_CHAT_UPLOAD_URL = '/transaksi/upah/chat/upload-image';
+
+        let upahPendingImage = null;
+        let upahImageUploading = false;
+
+        const currentUserId = String(@json(auth()->id()));
+        const currentUserName = @json(auth()->user()->name ?? 'User');
+
+        function getUpahChatChannel() {
+            return window.upahRealtimeChannel || null;
+        }
+
+        function escapeUpahChatHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function scrollUpahChatToBottom() {
+            const box = document.getElementById('upahChatMessages');
+
+            if (box) {
+                box.scrollTop = box.scrollHeight;
+            }
+        }
+
+        function injectUpahChatStyle() {
+
+            if (document.getElementById('upahChatRealtimeStyle')) {
+                return;
+            }
+
+            const style = document.createElement('style');
+            style.id = 'upahChatRealtimeStyle';
+
+            style.innerHTML = `
+            #upahChatModal {
+                position: fixed !important;
+                inset: 0 !important;
+                z-index: 99999 !important;
+                display: none;
+                background: rgba(0,0,0,.38);
+                backdrop-filter: blur(2px);
+            }
+
+            #upahChatModal.show {
+                display: block !important;
+            }
+
+            #upahChatModal .upah-chat-window {
+                position: absolute;
+                right: 28px;
+                bottom: 28px;
+                width: min(390px, calc(100vw - 30px));
+                height: min(610px, calc(100vh - 50px));
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+                background: #efeae2;
+                border-radius: 18px;
+                box-shadow: 0 18px 55px rgba(0,0,0,.25);
+                border: 1px solid rgba(0,0,0,.08);
+            }
+
+            #upahChatModal .upah-chat-header {
+                min-height: 68px;
+                padding: 11px 14px;
+                display: flex;
+                align-items: center;
+                gap: 11px;
+                background: #075e54;
+                color: #fff;
+                flex-shrink: 0;
+            }
+
+            #upahChatModal .upah-chat-avatar {
+                width: 43px;
+                height: 43px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: rgba(255,255,255,.18);
+                font-size: 20px;
+                flex-shrink: 0;
+            }
+
+            #upahChatModal .upah-chat-title {
+                flex: 1;
+                min-width: 0;
+            }
+
+            #upahChatModal .upah-chat-title strong {
+                display: block;
+                font-size: 14px;
+                font-weight: 700;
+                line-height: 1.2;
+            }
+
+            #upahChatModal .upah-chat-status {
+                display: block;
+                margin-top: 3px;
+                font-size: 11px;
+                opacity: .85;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            #upahChatModal .upah-chat-close {
+                width: 36px;
+                height: 36px;
+                border: 0;
+                border-radius: 50%;
+                background: transparent;
+                color: #fff;
+                font-size: 25px;
+                line-height: 1;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            #upahChatModal .upah-chat-close:hover {
+                background: rgba(255,255,255,.14);
+            }
+
+            #upahChatModal .upah-chat-messages {
+                flex: 1;
+                overflow-y: auto;
+                overflow-x: hidden;
+                padding: 16px 12px 10px;
+                background-color: #efeae2;
+                background-image:
+                    radial-gradient(rgba(0,0,0,.035) 1px, transparent 1px);
+                background-size: 18px 18px;
+                scroll-behavior: smooth;
+            }
+
+            #upahChatModal .upah-chat-empty {
+                height: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                text-align: center;
+                color: #667781;
+                font-size: 12px;
+                padding: 30px;
+            }
+
+            #upahChatModal .upah-chat-message {
+                max-width: 82%;
+                width: fit-content;
+                margin-bottom: 7px;
+                padding: 7px 9px 5px;
+                border-radius: 9px;
+                position: relative;
+                word-break: break-word;
+                font-size: 13px;
+                line-height: 1.45;
+                box-shadow: 0 1px 1px rgba(0,0,0,.08);
+                clear: both;
+            }
+
+            #upahChatModal .upah-chat-message.mine {
+                float: right;
+                margin-left: 18%;
+                background: #d9fdd3;
+                border-top-right-radius: 3px;
+            }
+
+            #upahChatModal .upah-chat-message.other {
+                float: left;
+                margin-right: 18%;
+                background: #fff;
+                border-top-left-radius: 3px;
+            }
+
+            #upahChatModal .upah-chat-message-name {
+                color: #075e54;
+                font-size: 11px;
+                font-weight: 700;
+                margin-bottom: 2px;
+            }
+
+            #upahChatModal .upah-chat-message-text {
+                white-space: pre-wrap;
+                color: #111b21;
+                padding-right: 42px;
+            }
+
+            #upahChatModal .upah-chat-message-content {
+                white-space: pre-wrap !important;
+                overflow-wrap: anywhere !important;
+                word-break: break-word !important;
+                color: #111b21 !important;
+                display: block !important;
+                visibility: visible !important;
+            }
+
+            #upahChatModal .upah-chat-message-meta {
+                display: block !important;
+                text-align: right !important;
+                color: #667781 !important;
+                font-size: 9px !important;
+                line-height: 12px !important;
+                margin-top: 3px !important;
+                min-height: 12px;
+            }
+
+            #upahChatModal .upah-chat-message {
+                visibility: visible !important;
+                opacity: 1 !important;
+            }
+
+            #upahChatModal .upah-chat-message-time {
+                float: right;
+                color: #667781;
+                font-size: 9px;
+                margin: 4px 0 0 8px;
+                line-height: 12px;
+            }
+
+            #upahChatModal .upah-chat-typing {
+                min-height: 25px;
+                padding: 0 13px 5px;
+                background: #efeae2;
+                color: #667781;
+                font-size: 11px;
+                font-style: italic;
+                display: none;
+                flex-shrink: 0;
+            }
+
+            #upahChatModal .upah-chat-typing.show {
+                display: block;
+            }
+
+            #upahChatModal .upah-typing-dots {
+                display: inline-flex;
+                gap: 2px;
+                margin-left: 2px;
+                vertical-align: middle;
+            }
+
+            #upahChatModal .upah-typing-dots span {
+                width: 4px;
+                height: 4px;
+                border-radius: 50%;
+                background: #667781;
+                animation: upahTypingDot 1.2s infinite ease-in-out;
+            }
+
+            #upahChatModal .upah-typing-dots span:nth-child(2) {
+                animation-delay: .15s;
+            }
+
+            #upahChatModal .upah-typing-dots span:nth-child(3) {
+                animation-delay: .30s;
+            }
+
+            @keyframes upahTypingDot {
+                0%, 60%, 100% { transform: translateY(0); opacity: .45; }
+                30% { transform: translateY(-3px); opacity: 1; }
+            }
+
+            #upahChatModal .upah-chat-input-area {
+                display: flex;
+                align-items: flex-end;
+                gap: 7px;
+                padding: 9px;
+                background: #f0f2f5;
+                flex-shrink: 0;
+            }
+
+            #upahChatModal .upah-chat-input-wrap {
+                flex: 1;
+                min-width: 0;
+                background: #fff;
+                border-radius: 22px;
+                display: flex;
+                align-items: center;
+                padding: 0 12px;
+            }
+
+            #upahChatModal #upahChatInput {
+                width: 100%;
+                min-height: 40px;
+                max-height: 105px;
+                resize: none;
+                border: 0 !important;
+                outline: 0 !important;
+                box-shadow: none !important;
+                background: transparent !important;
+                padding: 10px 0 !important;
+                font-size: 13px;
+                color: #111b21;
+                caret-color: #087f5b;
+            }
+
+            #upahChatModal #upahChatInput:focus {
+                caret-color: #087f5b;
+            }
+
+            #upahChatModal .upah-chat-send {
+                width: 42px;
+                height: 42px;
+                border: 0;
+                border-radius: 50%;
+                background: #075e54;
+                color: #fff;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+                font-size: 17px;
+                transition: transform .12s ease, opacity .12s ease;
+            }
+
+            #upahChatModal .upah-chat-send:hover {
+                transform: scale(1.04);
+            }
+
+            #upahChatModal .upah-chat-send:active {
+                transform: scale(.96);
+            }
+
+
+            #upahChatModal .upah-chat-image {
+                display: block;
+                max-width: 260px;
+                max-height: 260px;
+                width: auto;
+                height: auto;
+                border-radius: 8px;
+                margin-top: 4px;
+                cursor: pointer;
+                object-fit: cover;
+            }
+
+            #upahChatModal .upah-chat-image-preview {
+                display: none;
+                padding: 6px 9px;
+                background: #f0f2f5;
+                border-top: 1px solid rgba(0,0,0,.06);
+            }
+
+            #upahChatModal .upah-chat-image-preview.show {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            #upahChatModal .upah-chat-image-preview img {
+                width: 54px;
+                height: 54px;
+                object-fit: cover;
+                border-radius: 7px;
+            }
+
+            #upahChatModal .upah-chat-image-preview-info {
+                flex: 1;
+                min-width: 0;
+                font-size: 11px;
+                color: #667781;
+            }
+
+            #upahChatModal .upah-chat-image-remove {
+                border: 0;
+                background: transparent;
+                color: #667781;
+                font-size: 20px;
+                cursor: pointer;
+            }
+
+            #upahChatModal .upah-chat-attach {
+                width: 38px;
+                height: 38px;
+                border: 0;
+                background: transparent;
+                color: #54656f;
+                cursor: pointer;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 18px;
+                flex-shrink: 0;
+            }
+
+            #upahChatModal .upah-chat-attach:hover {
+                background: rgba(0,0,0,.06);
+            }
+
+            @media (max-width: 600px) {
+                #upahChatModal .upah-chat-window {
+                    right: 8px;
+                    bottom: 8px;
+                    width: calc(100vw - 16px);
+                    height: calc(100vh - 16px);
+                    border-radius: 14px;
+                }
+            }
+        `;
+
+            document.head.appendChild(style);
+        }
+
+        function ensureUpahChatModal() {
+
+            // Jangan hanya mengecek #upahChatModal. Pada halaman Upah bisa saja
+            // sudah ada modal dengan ID tersebut tetapi isinya berasal dari Blade
+            // lama dan belum mempunyai #upahChatMessages.
+            let modal = document.getElementById('upahChatModal');
+
+            if (!modal) {
+                $('body').append(`
+            <div id="upahChatModal" aria-hidden="true">
+
+                <div class="upah-chat-window">
+
+                    <div class="upah-chat-header">
+
+                        <div class="upah-chat-avatar">
+                            <i class="fas fa-comments"></i>
+                        </div>
+
+                        <div class="upah-chat-title">
+                            <strong>Transaksi Upah</strong>
+                            <span class="upah-chat-status">
+                                Live Chat
+                            </span>
+                        </div>
+
+                        <button
+                            type="button"
+                            id="upahChatClose"
+                            class="upah-chat-close"
+                            aria-label="Close"
+                        >
+                            &times;
+                        </button>
+
+                    </div>
+
+                    <div
+                        id="upahChatMessages"
+                        class="upah-chat-messages"
+                    >
+                        <div class="upah-chat-empty">
+                            Belum ada pesan.<br>
+                            Mulai percakapan dengan user lain.
+                        </div>
+                    </div>
+
+                    <div
+                        id="upahChatTyping"
+                        class="upah-chat-typing"
+                    ></div>
+
+                    <div id="upahChatImagePreview" class="upah-chat-image-preview">
+                        <img id="upahChatImagePreviewImg" src="" alt="Preview">
+                        <div id="upahChatImagePreviewInfo" class="upah-chat-image-preview-info">Gambar siap dikirim</div>
+                        <button type="button" id="upahChatImageRemove" class="upah-chat-image-remove" title="Hapus gambar">&times;</button>
+                    </div>
+
+                    <div class="upah-chat-input-area">
+
+                        <input type="file" id="upahChatImageInput" accept="image/*" style="display:none;">
+
+                        <button type="button" id="upahChatAttach" class="upah-chat-attach" title="Kirim gambar">
+                            <i class="fas fa-paperclip"></i>
+                        </button>
+
+                        <div class="upah-chat-input-wrap">
+
+                            <textarea
+                                id="upahChatInput"
+                                rows="1"
+                                maxlength="1000"
+                                placeholder="Ketik pesan..."
+                                autocomplete="off"
+                            ></textarea>
+
+                        </div>
+
+                        <button
+                            type="button"
+                            id="upahChatSend"
+                            class="upah-chat-send"
+                            title="Kirim"
+                        >
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+        `);
+
+                modal = document.getElementById('upahChatModal');
+            }
+
+            // Repair modal yang sudah ada tetapi elemen chat-nya tidak lengkap.
+            if (!modal) {
+                console.error('[UPAH CHAT] Gagal membuat #upahChatModal.');
+                return;
+            }
+
+            if (!document.getElementById('upahChatMessages')) {
+                const windowEl = modal.querySelector('.upah-chat-window') || modal;
+                const typingEl = document.getElementById('upahChatTyping');
+                const inputArea = modal.querySelector('.upah-chat-input-area');
+
+                const messagesEl = document.createElement('div');
+                messagesEl.id = 'upahChatMessages';
+                messagesEl.className = 'upah-chat-messages';
+                messagesEl.innerHTML =
+                    '<div class="upah-chat-empty">Belum ada pesan.<br>Mulai percakapan dengan user lain.</div>';
+
+                if (typingEl && typingEl.parentNode === windowEl) {
+                    windowEl.insertBefore(messagesEl, typingEl);
+                } else if (inputArea && inputArea.parentNode === windowEl) {
+                    windowEl.insertBefore(messagesEl, inputArea);
+                } else {
+                    windowEl.appendChild(messagesEl);
+                }
+
+                console.log('[UPAH CHAT] #upahChatMessages diperbaiki/dibuat.');
+            }
+
+            // Pastikan typing area juga tersedia.
+            if (!document.getElementById('upahChatTyping')) {
+                const windowEl = modal.querySelector('.upah-chat-window') || modal;
+                const typingEl = document.createElement('div');
+                typingEl.id = 'upahChatTyping';
+                typingEl.className = 'upah-chat-typing';
+                windowEl.appendChild(typingEl);
+            }
+        }
+
+        function clearEmptyState() {
+            $('#upahChatMessages .upah-chat-empty').remove();
+        }
+
+        function scrollUpahChatToBottom() {
+            const box = document.getElementById('upahChatMessages');
+
+            if (box) {
+                box.scrollTop = box.scrollHeight;
+            }
+        }
+
+
+        function clearUpahPendingImage() {
+            upahPendingImage = null;
+            $('#upahChatImageInput').val('');
+            $('#upahChatImagePreview')
+                .removeClass('show');
+            $('#upahChatImagePreviewImg').attr('src', '');
+            $('#upahChatImagePreviewInfo').text('');
+        }
+
+        function setUpahPendingImage(file) {
+            if (!file || !file.type || !file.type.startsWith('image/')) {
+                alert('File yang dipilih harus berupa gambar.');
+                return;
+            }
+
+            if (file.size > 8 * 1024 * 1024) {
+                alert('Ukuran gambar maksimal 8 MB.');
+                return;
+            }
+
+            upahPendingImage = file;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                $('#upahChatImagePreviewImg').attr('src', e.target.result);
+                $('#upahChatImagePreviewInfo').text(
+                    file.name + ' • ' + Math.round(file.size / 1024) + ' KB'
+                );
+                $('#upahChatImagePreview').addClass('show');
+                $('#upahChatInput').trigger('focus');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function uploadUpahChatImage(file) {
+            const csrf = $('meta[name="csrf-token"]').attr('content') || '';
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('_token', csrf);
+
+            const response = await fetch(UPAH_CHAT_UPLOAD_URL, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrf,
+                    'Accept': 'application/json'
+                },
+                body: formData,
+                credentials: 'same-origin'
+            });
+
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error('Upload gambar gagal (' + response.status + '): ' + text);
+            }
+
+            const result = await response.json();
+
+            if (!result.success || !result.url) {
+                throw new Error(result.message || 'URL gambar tidak diterima dari server.');
+            }
+
+            return result.url;
+        }
+
+        function appendUpahChatMessage(data) {
+
+            console.log('[UPAH CHAT] RENDER MESSAGE:', data);
+
+            // Pastikan modal dan container selalu tersedia, termasuk ketika
+            // pesan diterima sebelum user menekan Ctrl+Shift+Z.
+            ensureUpahChatModal();
+
+            let box = document.getElementById('upahChatMessages');
+
+            if (!box && document.body) {
+                console.warn('[UPAH CHAT] Container pesan belum ada, membuat ulang modal.');
+                ensureUpahChatModal();
+                box = document.getElementById('upahChatMessages');
+            }
+
+            if (!box) {
+                console.error('[UPAH CHAT] #upahChatMessages tidak ditemukan saat render.');
+                return;
+            }
+
+            if (!data || typeof data !== 'object') {
+                console.warn('[UPAH CHAT] Payload message tidak valid:', data);
+                return;
+            }
+
+            const message = String(data.message ?? '').trim();
+            const imageUrl = String(data.image_url ?? '').trim();
+
+            if (!message && !imageUrl) {
+                console.warn('[UPAH CHAT] Message kosong:', data);
+                return;
+            }
+
+            clearEmptyState();
+
+            const senderId = String(data.user_id ?? '');
+            const name = escapeUpahChatHtml(data.name || 'User');
+            const safeMessage = escapeUpahChatHtml(message);
+            const safeImageUrl = escapeUpahChatHtml(imageUrl);
+            const isMine = senderId === currentUserId;
+
+            const timestamp = Number(data.timestamp);
+            const date = Number.isFinite(timestamp) && timestamp > 0 ?
+                new Date(timestamp) :
+                new Date();
+
+            const time = date.toLocaleTimeString('id-ID', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            const messageEl = document.createElement('div');
+            messageEl.className = 'upah-chat-message ' + (isMine ? 'mine' : 'other');
+
+            const nameEl = document.createElement('div');
+            nameEl.className = 'upah-chat-message-name';
+            nameEl.textContent = data.name || 'User';
+            messageEl.appendChild(nameEl);
+
+            if (message) {
+                const textEl = document.createElement('div');
+                textEl.className = 'upah-chat-message-content';
+                textEl.textContent = message;
+                messageEl.appendChild(textEl);
+            }
+
+            if (imageUrl) {
+                const image = document.createElement('img');
+                image.className = 'upah-chat-image';
+                image.src = imageUrl;
+                image.alt = 'Gambar';
+                image.loading = 'lazy';
+                image.addEventListener('click', function() {
+                    window.open(imageUrl, '_blank', 'noopener');
+                });
+                messageEl.appendChild(image);
+            }
+
+            const meta = document.createElement('div');
+            meta.className = 'upah-chat-message-meta';
+            meta.textContent = time + (isMine ? '  ✓✓' : '');
+            messageEl.appendChild(meta);
+
+            box.appendChild(messageEl);
+
+            // Paksa browser melakukan layout sebelum scroll.
+            requestAnimationFrame(function() {
+                box.scrollTop = box.scrollHeight;
+            });
+
+            console.log(
+                '[UPAH CHAT] MESSAGE RENDERED:', {
+                    senderId: senderId,
+                    mine: isMine,
+                    message: message
+                }
+            );
+        }
+
+        function renderUpahTyping() {
+
+            const typingBox = $('#upahChatTyping');
+
+            if (!typingBox.length) {
+                return;
+            }
+
+            const now = Date.now();
+
+            Object.keys(upahTypingUsers).forEach(function(userId) {
+
+                if (
+                    now - upahTypingUsers[userId].lastSeen >
+                    3500
+                ) {
+                    delete upahTypingUsers[userId];
+                }
+            });
+
+            const names = Object.keys(upahTypingUsers)
+                .map(function(id) {
+                    return upahTypingUsers[id].name;
+                })
+                .filter(Boolean);
+
+            if (!names.length) {
+
+                typingBox
+                    .removeClass('show')
+                    .html('');
+
+                return;
+            }
+
+            let text;
+
+            if (names.length === 1) {
+
+                text = escapeUpahChatHtml(names[0]) +
+                    ' sedang mengetik';
+
+            } else if (names.length === 2) {
+
+                text =
+                    escapeUpahChatHtml(names[0]) +
+                    ' dan ' +
+                    escapeUpahChatHtml(names[1]) +
+                    ' sedang mengetik';
+
+            } else {
+
+                text =
+                    names.length +
+                    ' orang sedang mengetik';
+            }
+
+            typingBox
+                .addClass('show')
+                .html(`
+                ${text}
+                <span class="upah-typing-dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </span>
+            `);
+        }
+
+        function receiveTyping(data) {
+
+            if (!data) {
+                return;
+            }
+
+            const userId = String(data.user_id ?? '');
+
+            if (!userId || userId === currentUserId) {
+                return;
+            }
+
+            if (data.typing === false) {
+
+                delete upahTypingUsers[userId];
+
+            } else {
+
+                upahTypingUsers[userId] = {
+                    name: data.name || 'User',
+                    lastSeen: Date.now()
+                };
+            }
+
+            renderUpahTyping();
+        }
+
+        function sendTypingState(isTyping) {
+
+            const channel = getUpahChatChannel();
+
+            if (!channel || !upahChatSubscribed) {
+                return;
+            }
+
+            try {
+
+                channel.trigger(UPAH_TYPING_EVENT, {
+                    user_id: currentUserId,
+                    name: currentUserName,
+                    typing: !!isTyping,
+                    timestamp: Date.now()
+                });
+
+            } catch (error) {
+
+                console.warn(
+                    '[UPAH CHAT] typing trigger gagal:',
+                    error
+                );
+            }
+        }
+
+        function stopTyping() {
+
+            if (!upahTypingActive) {
+                return;
+            }
+
+            upahTypingActive = false;
+
+            if (upahTypingTimer) {
+                clearTimeout(upahTypingTimer);
+                upahTypingTimer = null;
+            }
+
+            sendTypingState(false);
+        }
+
+        function handleTypingInput() {
+
+            if (!upahChatSubscribed) {
+                return;
+            }
+
+            if (!upahTypingActive) {
+
+                upahTypingActive = true;
+
+                sendTypingState(true);
+            }
+
+            if (upahTypingTimer) {
+                clearTimeout(upahTypingTimer);
+            }
+
+            upahTypingTimer = setTimeout(function() {
+
+                stopTyping();
+
+            }, 1800);
+        }
+
+        function bindUpahChat() {
+
+            const channel = getUpahChatChannel();
+
+            if (!channel) {
+                return false;
+            }
+
+            if (upahChatInitialized) {
+                return true;
+            }
+
+            console.log(
+                '[UPAH CHAT] Binding channel:',
+                window.upahRealtimeChannelName || channel.name
+            );
+
+            /*
+             * PENTING:
+             * subscription_succeeded menentukan bahwa client benar-benar
+             * sudah masuk ke presence-upah-transaksi.
+             */
+            channel.bind(
+                'pusher:subscription_succeeded',
+                function(members) {
+
+                    upahChatSubscribed = true;
+
+                    console.log(
+                        '[UPAH CHAT] Pusher subscription READY:',
+                        window.upahRealtimeChannelName || channel.name,
+                        'members:',
+                        members ? members.count : '?'
+                    );
+
+                    const status = $('#upahChatModal .upah-chat-status');
+
+                    if (status.length) {
+                        status.text('online • Live Chat');
+                    }
+                }
+            );
+
+            /*
+             * MESSAGE
+             */
+            channel.bind(
+                UPAH_CHAT_EVENT,
+                function(data) {
+
+                    console.log(
+                        '[UPAH CHAT] MESSAGE RECEIVED:',
+                        data
+                    );
+
+                    appendUpahChatMessage(data);
+
+                    // AUTO OPEN: pesan dari user lain langsung membuka chat.
+                    // Gunakan currentUserId (variabel yang memang tersedia di chat).
+                    if (String(data.user_id) !== String(currentUserId)) {
+                        setTimeout(function() {
+                            if (typeof window.openUpahChat === 'function') {
+                                window.openUpahChat();
+                            } else {
+                                // Fallback jika fungsi global belum siap.
+                                ensureUpahChatModal();
+                                const modal = $('#upahChatModal');
+                                if (modal.length) {
+                                    modal.addClass('show')
+                                        .css('display', 'block')
+                                        .attr('aria-hidden', 'false');
+                                    setTimeout(function() {
+                                        $('#upahChatInput').trigger('focus');
+                                        scrollUpahChatToBottom();
+                                    }, 50);
+                                }
+                            }
+                        }, 50);
+                    }
+                }
+            );
+
+            /*
+             * TYPING
+             */
+            channel.bind(
+                UPAH_TYPING_EVENT,
+                function(data) {
+
+                    console.log(
+                        '[UPAH CHAT] TYPING RECEIVED:',
+                        data
+                    );
+
+                    receiveTyping(data);
+                }
+            );
+
+            /*
+             * DEBUG ERROR
+             */
+            channel.bind(
+                'pusher:subscription_error',
+                function(status) {
+
+                    upahChatSubscribed = false;
+
+                    console.error(
+                        '[UPAH CHAT] Subscription error:',
+                        status
+                    );
+                }
+            );
+
+            upahChatInitialized = true;
+
+            console.log(
+                '[UPAH CHAT] Event listener berhasil dipasang.'
+            );
+
+            return true;
+        }
+
+        window.sendUpahChat = async function() {
+
+            const input = $('#upahChatInput');
+
+            if (!input.length) {
+                return;
+            }
+
+            const message = String(
+                input.val() || ''
+            ).trim();
+
+            if (!message && !upahPendingImage) {
+                return;
+            }
+
+            const channel = getUpahChatChannel();
+
+            if (!channel) {
+                console.error(
+                    '[UPAH CHAT] Channel Pusher tidak ditemukan.'
+                );
+                return;
+            }
+
+            if (!upahChatSubscribed) {
+                console.warn(
+                    '[UPAH CHAT] Channel belum subscribed. Pesan tidak dikirim.'
+                );
+                return;
+            }
+
+            if (upahImageUploading) {
+                return;
+            }
+
+            stopTyping();
+
+            let imageUrl = '';
+
+            try {
+
+                if (upahPendingImage) {
+
+                    upahImageUploading = true;
+
+                    $('#upahChatSend')
+                        .prop('disabled', true)
+                        .css('opacity', '.6');
+
+                    $('#upahChatImagePreviewInfo')
+                        .text('Mengunggah gambar...');
+
+                    imageUrl = await uploadUpahChatImage(
+                        upahPendingImage
+                    );
+                }
+
+                const data = {
+                    user_id: currentUserId,
+                    name: currentUserName,
+                    message: message,
+                    image_url: imageUrl,
+                    timestamp: Date.now()
+                };
+
+                console.log(
+                    '[UPAH CHAT] SEND:',
+                    data
+                );
+
+                channel.trigger(
+                    UPAH_CHAT_EVENT,
+                    data
+                );
+
+                appendUpahChatMessage(data);
+
+                input
+                    .val('')
+                    .css('height', 'auto')
+                    .trigger('focus');
+
+                clearUpahPendingImage();
+
+            } catch (error) {
+
+                console.error(
+                    '[UPAH CHAT] Kirim/upload gagal:',
+                    error
+                );
+
+                alert(
+                    'Gagal mengirim pesan/gambar. Periksa route upload gambar.'
+                );
+
+            } finally {
+
+                upahImageUploading = false;
+
+                $('#upahChatSend')
+                    .prop('disabled', false)
+                    .css('opacity', '');
+            }
+        };
+
+        window.openUpahChat = function() {
+
+            ensureUpahChatModal();
+
+            const modal = $('#upahChatModal');
+
+            if (!modal.length) {
+                return;
+            }
+
+            modal
+                .addClass('show')
+                .css('display', 'block')
+                .attr('aria-hidden', 'false');
+
+            // Fokus ke input chat dan posisikan caret (kursor berkedip)
+            // di akhir teks, termasuk setelah dialog selesai dirender.
+            function focusLiveChatCaret() {
+                if (!modal.hasClass('show')) return;
+                const input = document.getElementById('upahChatInput');
+                if (!input) return;
+                input.focus({ preventScroll: true });
+                const end = input.value.length;
+                try { input.setSelectionRange(end, end); } catch (err) {}
+                scrollUpahChatToBottom();
+            }
+
+            requestAnimationFrame(focusLiveChatCaret);
+            setTimeout(focusLiveChatCaret, 80);
+            setTimeout(function () {
+                // Jangan merebut fokus jika user sudah pindah ke kontrol lain.
+                if (modal.hasClass('show') &&
+                    (!modal[0].contains(document.activeElement) ||
+                     document.activeElement === document.body)) {
+                    focusLiveChatCaret();
+                }
+            }, 250);
+        };
+
+        window.closeUpahChat = function() {
+
+            const modal = $('#upahChatModal');
+
+            if (!modal.length) {
+                return;
+            }
+
+            stopTyping();
+
+            modal
+                .removeClass('show')
+                .css('display', '')
+                .attr('aria-hidden', 'true');
+
+            $('#upahChatInput').val('');
+        };
+
+
+        /*
+         * Attachment button.
+         */
+        $(document).on(
+            'click',
+            '#upahChatAttach',
+            function(e) {
+                e.preventDefault();
+                $('#upahChatImageInput').trigger('click');
+            }
+        );
+
+        $(document).on(
+            'change',
+            '#upahChatImageInput',
+            function() {
+                if (this.files && this.files[0]) {
+                    setUpahPendingImage(this.files[0]);
+                }
+            }
+        );
+
+        $(document).on(
+            'click',
+            '#upahChatImageRemove',
+            function(e) {
+                e.preventDefault();
+                clearUpahPendingImage();
+                $('#upahChatInput').trigger('focus');
+            }
+        );
+
+        /*
+         * WhatsApp-style paste image from clipboard.
+         * Ctrl+V screenshot / copied image => preview => Send.
+         */
+        $(document).on(
+            'paste',
+            '#upahChatInput',
+            function(e) {
+
+                const clipboard = e.originalEvent && e.originalEvent.clipboardData;
+
+                if (!clipboard || !clipboard.items) {
+                    return;
+                }
+
+                for (let i = 0; i < clipboard.items.length; i++) {
+
+                    const item = clipboard.items[i];
+
+                    if (item.type && item.type.indexOf('image/') === 0) {
+
+                        const file = item.getAsFile();
+
+                        if (file) {
+                            e.preventDefault();
+                            setUpahPendingImage(file);
+                        }
+
+                        return;
+                    }
+                }
+            }
+        );
+
+        function initUpahChat() {
+
+            injectUpahChatStyle();
+            ensureUpahChatModal();
+
+            if (bindUpahChat()) {
+                return;
+            }
+
+            let attempts = 0;
+
+            const timer = setInterval(function() {
+
+                attempts++;
+
+                if (bindUpahChat()) {
+
+                    clearInterval(timer);
+                    return;
+                }
+
+                if (attempts >= 80) {
+
+                    clearInterval(timer);
+
+                    console.error(
+                        '[UPAH CHAT] Channel Pusher tidak ditemukan setelah 20 detik.'
+                    );
+                }
+
+            }, 250);
+        }
+
+        /*
+         * Ctrl + Shift + Z
+         */
+        window.addEventListener(
+            'keydown',
+            function(e) {
+
+                if (
+                    e.ctrlKey &&
+                    e.shiftKey &&
+                    e.code === 'KeyZ'
+                ) {
+
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.stopImmediatePropagation();
+
+                    window.openUpahChat();
+
+                    return false;
+                }
+
+                if (
+                    e.key === 'Escape' &&
+                    $('#upahChatModal').hasClass('show')
+                ) {
+
+                    e.preventDefault();
+
+                    window.closeUpahChat();
+                }
+
+            },
+            true
+        );
+
+        /*
+         * Close
+         */
+        $(document).on(
+            'click',
+            '#upahChatClose',
+            function(e) {
+
+                e.preventDefault();
+                e.stopPropagation();
+
+                window.closeUpahChat();
+            }
+        );
+
+        /*
+         * Send
+         */
+        $(document).on(
+            'click',
+            '#upahChatSend',
+            function(e) {
+
+                e.preventDefault();
+                e.stopPropagation();
+
+                window.sendUpahChat();
+            }
+        );
+
+        /*
+         * Input:
+         * - Enter = send
+         * - Shift + Enter = new line
+         * - Ctrl + Enter = send
+         */
+        $(document).on(
+            'keydown',
+            '#upahChatInput',
+            function(e) {
+
+                if (
+                    e.key === 'Enter' &&
+                    !e.shiftKey
+                ) {
+
+                    e.preventDefault();
+
+                    window.sendUpahChat();
+
+                    return;
+                }
+
+                if (
+                    e.key === 'Enter' &&
+                    e.ctrlKey
+                ) {
+
+                    e.preventDefault();
+
+                    window.sendUpahChat();
+                }
+            }
+        );
+
+        /*
+         * Detect typing realtime.
+         */
+        $(document).on(
+            'input',
+            '#upahChatInput',
+            function() {
+
+                const value = String(
+                    $(this).val() || ''
+                ).trim();
+
+                if (value.length > 0) {
+
+                    handleTypingInput();
+
+                } else {
+
+                    stopTyping();
+                }
+
+                /*
+                 * Auto resize textarea seperti WhatsApp.
+                 */
+                this.style.height = 'auto';
+                this.style.height =
+                    Math.min(this.scrollHeight, 105) + 'px';
+            }
+        );
+
+        /*
+         * Jika pindah tab / window, kirim typing=false.
+         */
+        $(window).on(
+            'blur',
+            function() {
+                stopTyping();
+            }
+        );
+
+        $(document).ready(function() {
+
+            initUpahChat();
+
+            /*
+             * Refresh typing indicator setiap 1 detik
+             * supaya user otomatis hilang setelah timeout.
+             */
+            setInterval(function() {
+                renderUpahTyping();
+            }, 1000);
+        });
+
+    })();
+</script>
+    
+{{-- Remote mouse cursors: same Pusher event/channel as Transaksi Upah. --}}
+<style>
+ #releaseRemoteCursors { position:fixed;inset:0;pointer-events:none;z-index:9999999; }
+ .release-remote-cursor { position:fixed;pointer-events:none;transform:translate(-1px,-1px);transition:left 90ms linear,top 90ms linear;will-change:left,top; }
+ .release-remote-cursor-arrow { width:0;height:0;border-bottom:15px solid transparent;border-left:11px solid #2563eb;transform:rotate(-42deg);filter:drop-shadow(0 1px 1px rgba(0,0,0,.25)); }
+ .release-remote-cursor-name { position:absolute;left:9px;top:12px;padding:3px 7px;border-radius:4px;background:#2563eb;color:#fff;font-size:10px;font-weight:700;line-height:1.2;white-space:nowrap;box-shadow:0 2px 5px rgba(0,0,0,.18); }
+ .release-remote-cursor.is-idle { opacity:.45; }
+</style>
+<div id="releaseRemoteCursors" aria-hidden="true"></div>
+<script>
+(function () {
+ 'use strict';
+ // Share the existing Pusher connection created for the chat; never subscribe twice.
+ const myId = @json(auth()->id());
+ const myName = @json(auth()->user()->name ?? 'User');
+ const root = document.getElementById('releaseRemoteCursors');
+ if (!myId || !root) return;
+ const cursors = new Map();
+ let channel = null, attached = false, lastSent = 0, lastX = null, lastY = null;
+ function remove(id) { const key=String(id), state=cursors.get(key); if(state) {state.el.remove();cursors.delete(key);} }
+ function update(data) {
+  if (!data || data.user_id == null || String(data.user_id) === String(myId)) return;
+  const x=Number(data.x), y=Number(data.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+  const id=String(data.user_id);
+  let state=cursors.get(id);
+  if (!state) {
+   const el=document.createElement('div'); el.className='release-remote-cursor';
+   const arrow=document.createElement('div'); arrow.className='release-remote-cursor-arrow';
+   const name=document.createElement('div'); name.className='release-remote-cursor-name';
+   el.append(arrow,name);root.appendChild(el);
+   state={el,name,lastMove:0};cursors.set(id,state);
+  }
+  state.name.textContent=String(data.name || 'User');
+  state.el.style.left=x+'px';state.el.style.top=y+'px';
+  state.lastMove=Date.now();state.el.classList.remove('is-idle');
+ }
+ function onMove(event) {
+  if (!channel || !channel.subscribed) return;
+  const now=Date.now(), x=event.clientX, y=event.clientY;
+  if (now-lastSent < 150) return;
+  if (lastX !== null && Math.hypot(x-lastX,y-lastY) < 5) return;
+  lastSent=now;lastX=x;lastY=y;
+  try { channel.trigger('client-upah-cursor',{user_id:myId,name:myName,x,y}); }
+  catch(err) { console.warn('[RELEASE ORDER Cursor] Send failed',err); }
+ }
+ function attach() {
+  if (attached) return true;
+  const shared=window.upahRealtimeChannel;
+  if (!shared || typeof shared.bind !== 'function') return false;
+  channel=shared;attached=true;
+  channel.bind('client-upah-cursor',update);
+  channel.bind('pusher:member_removed',function(member){ if(member)remove(member.id); });
+  document.addEventListener('mousemove',onMove,{passive:true});
+  console.log('[RELEASE ORDER Cursor] Attached to',channel.name);
+  return true;
+ }
+ if (!attach()) {
+  let attempts=0;
+  const wait=setInterval(function(){ if(attach() || ++attempts >= 100)clearInterval(wait); },100);
+ }
+ const idle=setInterval(function(){const now=Date.now();cursors.forEach(function(state){state.el.classList.toggle('is-idle',now-state.lastMove>5000);});},1000);
+ window.addEventListener('beforeunload',function(){clearInterval(idle);document.removeEventListener('mousemove',onMove);if(channel)channel.unbind('client-upah-cursor',update);});
+})();
+</script>
+@endsection
