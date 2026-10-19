@@ -554,6 +554,9 @@ class RndController extends Controller
 
 
         $markBinding('po_folder_db_lookup');
+        // Default false: PO yang sudah ada tidak dibuat ulang pada request ini.
+        $poFolderJustCreated = false;
+
         $poFolder = RndArchiveFolder::query()
 
 
@@ -842,8 +845,36 @@ class RndController extends Controller
 
 
 
+                // A Drive folder ID must map to exactly one DB folder row.
+                // Reuse the existing row only when it belongs to this article.
+                // Never silently assign another article to the same Drive folder.
+                $existingByDriveId = RndArchiveFolder::query()
+                    ->where('google_drive_folder_id', $driveFolderId)
+                    ->first();
+                if ($existingByDriveId) {
+                    if ((int) $existingByDriveId->po_id === (int) $po->id
+                        && (int) $existingByDriveId->detail_po_id === (int) $item->id
+                        && $existingByDriveId->folder_type === 'article') {
+                        return $existingByDriveId;
+                    }
+                    Log::warning('RND Drive folder already bound to another DB record', [
+                        'drive_folder_id' => $driveFolderId,
+                        'existing_db_folder_id' => $existingByDriveId->id,
+                        'existing_po_id' => $existingByDriveId->po_id,
+                        'existing_detail_po_id' => $existingByDriveId->detail_po_id,
+                        'requested_po_id' => $po->id,
+                        'requested_detail_po_id' => $item->id,
+                    ]);
+                    throw new \RuntimeException(
+                        'Folder Google Drive sudah terhubung ke artikel lain (DB folder ID '
+                        . $existingByDriveId->id . '). Tidak membuat relasi duplikat. '
+                        . 'Periksa metadata folder dan artikel sebelum melanjutkan.'
+                    );
+                }
+
                 $markBinding('article_db_create');
-                return RndArchiveFolder::create([
+                try {
+                    return RndArchiveFolder::create([
 
                     'parent_id' => $poFolder->id,
 
@@ -861,7 +892,21 @@ class RndController extends Controller
 
                     'created_by' => auth()->id(),
 
-                ]);
+                    ]);
+                } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+                    // Concurrent request / different cache lock driver: check the winner.
+                    $winner = RndArchiveFolder::query()
+                        ->where('google_drive_folder_id', $driveFolderId)->first();
+                    if ($winner && (int) $winner->po_id === (int) $po->id
+                        && (int) $winner->detail_po_id === (int) $item->id
+                        && $winner->folder_type === 'article') {
+                        return $winner;
+                    }
+                    throw new \RuntimeException(
+                        'Folder Google Drive sudah dipakai oleh metadata artikel lain. '
+                        . 'Periksa rnd_archive_folders sebelum mencoba kembali.', 0, $e
+                    );
+                }
 
             });
 

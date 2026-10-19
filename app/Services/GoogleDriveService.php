@@ -11,6 +11,7 @@ use Google\Service\Drive;
 use Google\Service\Drive\DriveFile;
 
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 use RuntimeException;
 
@@ -323,6 +324,8 @@ class GoogleDriveService
 
     ): array {
 
+        $uploadStartedAt = microtime(true);
+
         if (!is_file($localPath) || !is_readable($localPath)) {
 
             throw new RuntimeException(
@@ -347,6 +350,12 @@ class GoogleDriveService
 
         }
 
+        $uploadMode = ($fileSize > 0 && $fileSize <= 8 * 1024 * 1024) ? 'multipart' : 'resumable';
+        Log::info('RND Drive upload START', [
+            'mode' => $uploadMode,
+            'size_mb' => round($fileSize / 1048576, 2),
+        ]);
+
         // Small photos: a single multipart request avoids the resumable
         // session setup and per-chunk round trips on shared hosting.
         // Keep the limit bounded to avoid high PHP memory usage.
@@ -360,12 +369,19 @@ class GoogleDriveService
                     'name' => $fileName,
                     'parents' => [$folderId],
                 ]);
+                $driveRequestAt = microtime(true);
                 $result = $this->drive->files->create($file, [
                     'data' => $contents,
                     'mimeType' => $mimeType,
                     'uploadType' => 'multipart',
                     'fields' => 'id,name,mimeType,webViewLink,parents,size',
                     'supportsAllDrives' => true,
+                ]);
+                Log::info('RND Drive upload COMPLETE', [
+                    'mode' => 'multipart',
+                    'size_mb' => round($fileSize / 1048576, 2),
+                    'drive_request_ms' => round((microtime(true) - $driveRequestAt) * 1000),
+                    'total_ms' => round((microtime(true) - $uploadStartedAt) * 1000),
                 ]);
                 $id = $result->getId();
                 if (!$id) {
@@ -380,6 +396,12 @@ class GoogleDriveService
                     'size' => $result->getSize(),
                 ];
             } catch (Throwable $e) {
+                Log::warning('RND Drive upload FAILED', [
+                    'mode' => 'multipart',
+                    'size_mb' => round($fileSize / 1048576, 2),
+                    'total_ms' => round((microtime(true) - $uploadStartedAt) * 1000),
+                    'error_class' => get_class($e),
+                ]);
                 throw new RuntimeException(
                     'Upload Google Drive gagal: ' . $e->getMessage(),
                     (int) $e->getCode(),
@@ -399,6 +421,8 @@ class GoogleDriveService
         $chunkSize = 16 * 1024 * 1024; // 16 MB: fewer round-trips for large files
 
         $deferWasEnabled = false;
+        $chunkIndex = 0;
+        $chunkNetworkMs = 0;
 
         try {
 
@@ -494,7 +518,16 @@ class GoogleDriveService
 
                 }
 
+                $chunkIndex++;
+                $chunkStartedAt = microtime(true);
                 $result = $media->nextChunk($chunk);
+                $elapsedMs = round((microtime(true) - $chunkStartedAt) * 1000);
+                $chunkNetworkMs += $elapsedMs;
+                Log::info('RND Drive upload CHUNK', [
+                    'chunk' => $chunkIndex,
+                    'chunk_mb' => round(strlen($chunk) / 1048576, 2),
+                    'request_ms' => $elapsedMs,
+                ]);
 
             }
 
@@ -508,6 +541,13 @@ class GoogleDriveService
 
             }
 
+            Log::info('RND Drive upload COMPLETE', [
+                'mode' => 'resumable',
+                'size_mb' => round($fileSize / 1048576, 2),
+                'chunks' => $chunkIndex,
+                'chunk_request_ms' => $chunkNetworkMs,
+                'total_ms' => round((microtime(true) - $uploadStartedAt) * 1000),
+            ]);
             $id = $result->getId();
 
             if (empty($id)) {
@@ -537,6 +577,14 @@ class GoogleDriveService
             ];
 
         } catch (Throwable $e) {
+            Log::warning('RND Drive upload FAILED', [
+                'mode' => 'resumable',
+                'size_mb' => round($fileSize / 1048576, 2),
+                'chunks' => $chunkIndex,
+                'total_ms' => round((microtime(true) - $uploadStartedAt) * 1000),
+                'error_class' => get_class($e),
+            ]);
+
 
             throw new RuntimeException(
 
