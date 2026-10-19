@@ -5561,54 +5561,97 @@
                 link.remove();
             }
 
+            // JSZip is loaded only when requested. No server-side ZIP request.
+            let rndJsZipPromise = null;
+            function rndLoadJsZip() {
+                if (window.JSZip) return Promise.resolve(window.JSZip);
+                if (!rndJsZipPromise) rndJsZipPromise = new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+                    script.onload = () => window.JSZip ? resolve(window.JSZip) : reject(new Error('JSZip tidak tersedia.'));
+                    script.onerror = () => reject(new Error('Gagal memuat JSZip. Periksa koneksi atau CSP hosting.'));
+                    document.head.appendChild(script);
+                }).catch(error => { rndJsZipPromise = null; throw error; });
+                return rndJsZipPromise;
+            }
             async function rndSubmitZip(mode, selectedIds = [], folderId = null) {
                 if (!activeArchiveUrl || !activeFolderDbId) return alert('Folder arsip belum siap.');
                 if (rndOperationBusy) return;
                 rndOperationBusy = true;
-                const started = Date.now();
-                const timer = setInterval(() => {
-                    const seconds = Math.floor((Date.now() - started) / 1000);
-                    if (!rndOperationOverlay.hidden) document.getElementById('rndOperationDetail').textContent =
-                        seconds + ' detik berlalu · menunggu server membuat ZIP';
-                }, 1000);
-                rndOperationShow('Membuat ZIP', 'Mengambil file Google Drive dan menyusun arsip ZIP...', null,
-                    'Proses berjalan di server; persentase belum tersedia.');
                 try {
+                    rndOperationShow('Menyiapkan ZIP', 'Membaca daftar file dan subfolder...', null, 'Menyiapkan manifest');
+                    const JSZip = await rndLoadJsZip();
                     const form = new FormData();
                     form.append('_token', document.querySelector('meta[name="csrf-token"]').content);
                     form.append('folder_id', activeFolderDbId);
                     form.append('mode', mode);
                     if (folderId) form.append('target_folder_id', folderId);
                     selectedIds.forEach(id => form.append('file_ids[]', id));
-                    const response = await fetch(driveEndpoint('/download-zip'), {
-                        method: 'POST', body: form, credentials: 'same-origin',
-                        headers: {'Accept': 'application/zip, application/octet-stream, application/json'}
+                    const manifestResponse = await fetch(driveEndpoint('/zip-manifest'), {
+                        method: 'POST', body: form, credentials: 'same-origin', headers: {'Accept':'application/json'}
                     });
-                    if (!response.ok) {
-                        const body = await response.text();
-                        let message = 'Gagal membuat ZIP (HTTP ' + response.status + ').';
-                        try { const json = JSON.parse(body); message = json.message || message; } catch (_) {}
-                        throw new Error(message);
+                    const manifest = await manifestResponse.json();
+                    if (!manifestResponse.ok) throw new Error(manifest.message || 'Gagal membaca isi folder.');
+                    const zip = new JSZip();
+                    const files = manifest.items.filter(x => x.type === 'file');
+                    manifest.items.filter(x => x.type === 'folder').forEach(x => zip.folder(x.path));
+                    if (!manifest.items.length) throw new Error('Folder kosong.');
+                    const seen = new Set();
+                    function uniquePath(path) {
+                        let candidate = path, n = 2;
+                        while (seen.has(candidate.toLowerCase())) {
+                            const slash = path.lastIndexOf('/');
+                            const dot = path.lastIndexOf('.');
+                            const stem = dot > slash ? path.slice(0, dot) : path;
+                            const ext = dot > slash ? path.slice(dot) : '';
+                            candidate = stem + ' (' + n++ + ')' + ext;
+                        }
+                        seen.add(candidate.toLowerCase());
+                        return candidate;
                     }
-                    rndOperationShow('Mengunduh ZIP', 'ZIP sudah dibuat. Menyiapkan unduhan browser...', null);
-                    const blob = await response.blob();
+                    // Small batches prevent flooding PHP and keep progress truthful.
+                    let completed = 0;
+                    let cursor = 0;
+                    async function worker() {
+                        while (cursor < files.length) {
+                            const item = files[cursor++];
+                            const url = driveEndpoint('/zip-file');
+                            const body = new FormData();
+                            body.append('_token', document.querySelector('meta[name="csrf-token"]').content);
+                            body.append('folder_id', activeFolderDbId);
+                            body.append('file_id', item.id);
+                            const response = await fetch(url, {method:'POST', body, credentials:'same-origin'});
+                            if (!response.ok) throw new Error('Gagal mengambil ' + item.path + ' (HTTP ' + response.status + ')');
+                            const blob = await response.blob();
+                            zip.file(uniquePath(item.path), blob);
+                            completed++;
+                            rndOperationShow('Mengambil gambar', completed + ' dari ' + files.length + ' file berhasil diambil',
+                                files.length ? Math.round(completed / files.length * 80) : 80, completed + ' / ' + files.length);
+                        }
+                    }
+                    await Promise.all(Array.from({length: Math.min(3, files.length)}, () => worker()));
+                    rndOperationShow('Membuat ZIP', 'Mengompresi file di browser...', 80, 'Kompresi dimulai');
+                    const blob = await zip.generateAsync({type:'blob', compression:'DEFLATE', compressionOptions:{level:3}}, metadata => {
+                        rndOperationShow('Membuat ZIP', 'Mengompresi file di browser...', 80 + Math.round(metadata.percent * .2),
+                            Math.round(metadata.percent) + '% kompresi');
+                    });
                     const url = URL.createObjectURL(blob);
                     const anchor = document.createElement('a');
                     anchor.href = url;
-                    anchor.download = rndZipFilenameFromResponse(response);
-                    document.body.appendChild(anchor); anchor.click(); anchor.remove();
+                    anchor.download = manifest.name || 'Sample Pictures.zip';
+                    document.body.appendChild(anchor);
+                    anchor.click();
+                    anchor.remove();
                     setTimeout(() => URL.revokeObjectURL(url), 60000);
-                    explorerNotify('ZIP berhasil disiapkan: ' + anchor.download);
+                    explorerNotify('ZIP berhasil: ' + anchor.download);
                 } catch (error) {
                     explorerNotify(error.message || 'Download ZIP gagal.');
                     alert(error.message || 'Download ZIP gagal.');
-                } finally {
-                    clearInterval(timer); rndOperationBusy = false; rndOperationHide();
-                }
+                } finally { rndOperationBusy = false; rndOperationHide(); }
             }
 
             function rndDownloadSelectedPhotos(chosen) {
-                chosen = (chosen || []).filter(item => item && item.type !== 'folder' && item.id);
+                chosen = (chosen || []).filter(item => item && item.id);
                 if (!chosen.length) return;
                 rndSubmitZip('selected', chosen.map(item => String(item.id)));
             }
@@ -5642,12 +5685,12 @@
                     return;
                 }
                 const label = document.createElement('strong');
-                label.textContent = count + ' foto dipilih';
+                label.textContent = count + ' item dipilih';
                 const download = document.createElement('button');
                 download.type = 'button';
                 download.textContent = 'Download terpilih (' + count + ')';
                 download.addEventListener('click', () => {
-                    const chosen = driveCurrentItems.filter(x => rndMultiSelectedIds.has(String(x.id)) && x.type !== 'folder');
+                    const chosen = driveCurrentItems.filter(x => rndMultiSelectedIds.has(String(x.id)));
                     rndDownloadSelectedPhotos(chosen);
                 });
                 const removeSelected = document.createElement('button');
@@ -6182,7 +6225,7 @@
                     download.textContent = 'Download';
                     download.onclick = () => {
                         const chosen = rndMultiSelectedIds.has(String(item.id))
-                            ? driveCurrentItems.filter(x => x.type !== 'folder' && rndMultiSelectedIds.has(String(x.id)))
+                            ? driveCurrentItems.filter(x => rndMultiSelectedIds.has(String(x.id)))
                             : [item];
                         rndDownloadSelectedPhotos(chosen);
                         menu.remove();

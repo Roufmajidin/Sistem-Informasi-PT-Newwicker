@@ -74,103 +74,109 @@ Route::get('/approval/bypass_config/{token}', [
 // ==========================================================
 Route::middleware('auth')->group(function () {
     // mikrotik
-Route::get('/network', [NetworkController::class, 'index'])
-    ->name('network.index');
-Route::get('/network/wifi-users', [NetworkController::class, 'wifiUsers'])
-    ->name('network.wifi-users');
-Route::get('/network/realtime', [NetworkController::class, 'realtime'])
-    ->name('network.realtime');
+    Route::get('/network', [NetworkController::class, 'index'])
+        ->name('network.index');
+    Route::get('/network/wifi-users', [NetworkController::class, 'wifiUsers'])
+        ->name('network.wifi-users');
+    Route::get('/network/realtime', [NetworkController::class, 'realtime'])
+        ->name('network.realtime');
     Route::get('/network/debug-wifi', [NetworkController::class, 'debugWifi'])
-    ->name('network.debug-wifi');
-Route::get('/test-mikrotik', function (MikrotikService $mikrotik) {
-    return response()->json([
-        'success' => true,
-        'interfaces' => $mikrotik->getInterfaces(),
-    ]);
-});
-
-// RND - Sample Pictures
-Route::prefix('rnd')
-    ->name('rnd.')
-    ->controller(RndController::class)
-    ->group(function () {
-
-        // Halaman utama Sample Pictures
-        Route::get('/sample-pictures', 'samplePictures')
-            ->name('sample-pictures');
-
-        // Daftar artikel berdasarkan PO
-        Route::get(
-            '/sample-pictures/{po}/items',
-            'samplePicturesItems'
-        )->name('sample-pictures.items');
-
-        // Membuka root folder artikel
-        Route::get(
-            '/sample-pictures/{po}/items/{detailPo}/archive',
-            'openArticleArchive'
-        )->name('sample-pictures.archive');
-
-        // Membaca isi folder aktif
-        Route::get(
-            '/sample-pictures/{po}/items/{detailPo}/archive/folders/{folder}',
-            'browseArchiveFolder'
-        )->name('sample-pictures.archive.browse');
-
-        // Membuat subfolder
-        Route::post(
-            '/sample-pictures/{po}/items/{detailPo}/archive/folders',
-            'createArchiveFolder'
-        )->name('sample-pictures.archive.folder.create');
-
-        // Rename folder atau file
-        Route::patch(
-            '/sample-pictures/{po}/items/{detailPo}/archive/items/{folder}',
-            'renameArchiveItem'
-        )->name('sample-pictures.archive.item.rename');
-
-        // Menghapus folder atau file ke Trash
-        Route::delete(
-            '/sample-pictures/{po}/items/{detailPo}/archive/items/{folder}',
-            'deleteArchiveItem'
-        )->name('sample-pictures.archive.item.delete');
-
-        // Upload foto
-        Route::post(
-            '/sample-pictures/{po}/items/{detailPo}/archive/upload',
-            'uploadArticlePhotos'
-        )->name('sample-pictures.archive.upload');
-
-        // Download ZIP: foto terpilih atau folder
-        Route::post(
-            '/sample-pictures/{po}/items/{detailPo}/archive/download-zip',
-            'downloadArchiveZip'
-        )->name('sample-pictures.archive.download-zip');
-
-        // Halaman detail PO lama
-        Route::get(
-            '/sample-pictures/{po}',
-            'samplePicturesDetail'
-        )->name('sample-pictures.detail');
-
-        // Memindahkan folder atau file
-        Route::post(
-            '/sample-pictures/{po}/items/{detailPo}/archive/items/{folder}/move',
-            'moveArchiveItem'
-        )->name('sample-pictures.archive.item.move');
-
-        // Menyalin file
-        Route::post(
-            '/sample-pictures/{po}/items/{detailPo}/archive/items/{folder}/copy',
-            'copyArchiveItem'
-        )->name('sample-pictures.archive.item.copy');
+        ->name('network.debug-wifi');
+    Route::get('/test-mikrotik', function (MikrotikService $mikrotik) {
+        return response()->json([
+            'success' => true,
+            'interfaces' => $mikrotik->getInterfaces(),
+        ]);
     });
+
+    // RND - Sample Pictures
+    Route::prefix('rnd')
+        ->name('rnd.')
+        ->controller(RndController::class)
+        ->group(function () {
+
+            // Halaman utama Sample Pictures
+            Route::get('/sample-pictures', 'samplePictures')
+                ->name('sample-pictures');
+
+            // Daftar artikel berdasarkan PO
+            Route::get(
+                '/sample-pictures/{po}/items',
+                'samplePicturesItems'
+            )->name('sample-pictures.items');
+
+            // Membuka root folder artikel
+            Route::get(
+                '/sample-pictures/{po}/items/{detailPo}/archive',
+                'openArticleArchive'
+            )->name('sample-pictures.archive');
+
+            // Membaca isi folder aktif
+            Route::get(
+                '/sample-pictures/{po}/items/{detailPo}/archive/folders/{folder}',
+                'browseArchiveFolder'
+            )->name('sample-pictures.archive.browse');
+
+            // Membuat subfolder
+            Route::post(
+                '/sample-pictures/{po}/items/{detailPo}/archive/folders',
+                'createArchiveFolder'
+            )->name('sample-pictures.archive.folder.create');
+
+            // Rename folder atau file
+            Route::patch(
+                '/sample-pictures/{po}/items/{detailPo}/archive/items/{folder}',
+                'renameArchiveItem'
+            )->name('sample-pictures.archive.item.rename');
+
+            // Menghapus folder atau file ke Trash
+            Route::delete(
+                '/sample-pictures/{po}/items/{detailPo}/archive/items/{folder}',
+                'deleteArchiveItem'
+            )->name('sample-pictures.archive.item.delete');
+
+            // Upload foto
+            Route::post(
+                '/sample-pictures/{po}/items/{detailPo}/archive/upload',
+                'uploadArticlePhotos'
+            )->name('sample-pictures.archive.upload');
+
+            // Download ZIP: foto terpilih atau folder
+            Route::post(
+                '/sample-pictures/{po}/items/{detailPo}/archive/download-zip',
+                'downloadArchiveZip'
+            )->name('sample-pictures.archive.download-zip');
+
+            // Halaman detail PO lama
+            Route::get(
+                '/sample-pictures/{po}',
+                'samplePicturesDetail'
+            )->name('sample-pictures.detail');
+
+            // Memindahkan folder atau file
+            Route::post(
+                '/sample-pictures/{po}/items/{detailPo}/archive/items/{folder}/move',
+                'moveArchiveItem'
+            )->name('sample-pictures.archive.item.move');
+
+            // Menyalin file
+            Route::post(
+                '/sample-pictures/{po}/items/{detailPo}/archive/items/{folder}/copy',
+                'copyArchiveItem'
+            )->name('sample-pictures.archive.item.copy');
+            Route::post('/sample-pictures/{po}/items/{detailPo}/archive/zip-manifest', 'browserZipManifest')
+                ->name('sample-pictures.archive.zip-manifest');
+
+            Route::post('/sample-pictures/{po}/items/{detailPo}/archive/zip-file', 'browserZipFile')
+                ->name('sample-pictures.archive.zip-file');
+
+        });
 
     // finance
     Route::get(
-    '/payment-request-saved/{id}/export-excel-2up',
-    [SpkController::class, 'exportte']
-)->name('payment-request-saved.export.excel.2up');
+        '/payment-request-saved/{id}/export-excel-2up',
+        [SpkController::class, 'exportte']
+    )->name('payment-request-saved.export.excel.2up');
 
     Route::get('/finance', [FinanceController::class, 'index'])
         ->name('finance.index');
@@ -265,14 +271,14 @@ Route::prefix('rnd')
         '/pengajuan_purchasing/{id}/export',
         [PurchasingController::class, 'exportpurchasing']
     )->name('pengajuan_purchasing.export');
-// ==========================================================
+    // ==========================================================
 // SOFIAN
 // ==========================================================
 
-// ==========================================================
+    // ==========================================================
 // EXPORT
 // ==========================================================
-Route::get(
+    Route::get(
         '/loberon',
         [LobController::class, 'index']
     )->name('loberon.index');
@@ -292,269 +298,269 @@ Route::get(
         [LobController::class, 'destroy']
     )->name('loberon.destroy');
     Route::put(
-    '/export/loberon/update',
-    [EdController::class, 'updateLoberon']
-)->name('export.loberon.update');
-Route::get(
-    '/export/{id}/si',
-    [EdController::class, 'si']
-)->name('export.si');
+        '/export/loberon/update',
+        [EdController::class, 'updateLoberon']
+    )->name('export.loberon.update');
+    Route::get(
+        '/export/{id}/si',
+        [EdController::class, 'si']
+    )->name('export.si');
 
 
-Route::put(
-    '/export/{id}/si/update',
-    [EdController::class, 'updateSiField']
-)->name('export.si.update');
+    Route::put(
+        '/export/{id}/si/update',
+        [EdController::class, 'updateSiField']
+    )->name('export.si.update');
 
 
-Route::put(
-    '/export/{id}/si/update-hs-code',
-    [EdController::class, 'updateSiHsCode']
-)->name('export.si.update.hs');
-Route::get(
-    '/export/{id}/si/excel',
-    [EdController::class, 'downloadSiExcel']
-)->name('export.si.excel');
+    Route::put(
+        '/export/{id}/si/update-hs-code',
+        [EdController::class, 'updateSiHsCode']
+    )->name('export.si.update.hs');
+    Route::get(
+        '/export/{id}/si/excel',
+        [EdController::class, 'downloadSiExcel']
+    )->name('export.si.excel');
 
 
-Route::get(
-    '/export/{id}/si/pdf',
-    [EdController::class, 'downloadSiPdf']
-)->name('export.si.pdf');
+    Route::get(
+        '/export/{id}/si/pdf',
+        [EdController::class, 'downloadSiPdf']
+    )->name('export.si.pdf');
 
-// Download Packing List
-Route::get(
-    '/export/{id}/IPLEX',
-    [SofianController::class, 'downloadPackingList']
-)->name('export.packing-list');
+    // Download Packing List
+    Route::get(
+        '/export/{id}/IPLEX',
+        [SofianController::class, 'downloadPackingList']
+    )->name('export.packing-list');
 
-// Download Invoice List
-Route::get(
-    '/export/{id}/INVEX',
-    [SofianController::class, 'downloadInvoiceList']
-)->name('export.inv-list');
+    // Download Invoice List
+    Route::get(
+        '/export/{id}/INVEX',
+        [SofianController::class, 'downloadInvoiceList']
+    )->name('export.inv-list');
 
-// Custom Invoice
-Route::get(
-    '/export/{id}/custom-invoice',
-    [SofianController::class, 'customInvoice']
-)->name('export.custom-invoice');
+    // Custom Invoice
+    Route::get(
+        '/export/{id}/custom-invoice',
+        [SofianController::class, 'customInvoice']
+    )->name('export.custom-invoice');
 
-// Custom Commercial Invoice
-Route::get(
-    '/export/{id}/custom-commercial',
-    [SofianController::class, 'downloadCustomCommercial']
-)->name('export.custom-commercial');
+    // Custom Commercial Invoice
+    Route::get(
+        '/export/{id}/custom-commercial',
+        [SofianController::class, 'downloadCustomCommercial']
+    )->name('export.custom-commercial');
 
-// Export Stock
-Route::get(
-    '/export/stock',
-    [EdController::class, 'stock']
-)->name('export.stock');
+    // Export Stock
+    Route::get(
+        '/export/stock',
+        [EdController::class, 'stock']
+    )->name('export.stock');
 
-// Export Documents
-Route::get(
-    '/export/doc_exports',
-    [EdController::class, 'docExports']
-)->name('export.docExports');
+    // Export Documents
+    Route::get(
+        '/export/doc_exports',
+        [EdController::class, 'docExports']
+    )->name('export.docExports');
 
-// Custom Invoice Data
-Route::get(
-    '/export/{id}/custom-invoice/data',
-    [EdController::class, 'customInvoiceData']
-)->name('export.custom-invoice.data');
+    // Custom Invoice Data
+    Route::get(
+        '/export/{id}/custom-invoice/data',
+        [EdController::class, 'customInvoiceData']
+    )->name('export.custom-invoice.data');
 
-// Update Custom Invoice Description
-Route::patch(
-    '/export/{id}/custom-invoice/description',
-    [SofianController::class, 'updateCustomDescription']
-)->name('export.custom-invoice.description');
+    // Update Custom Invoice Description
+    Route::patch(
+        '/export/{id}/custom-invoice/description',
+        [SofianController::class, 'updateCustomDescription']
+    )->name('export.custom-invoice.description');
 
 
-// ==========================================================
+    // ==========================================================
 // AR BUYER
 // ==========================================================
 
-// Halaman AR Buyer
-Route::get(
-    '/ar_buyer',
-    [SofianController::class, 'arBuyer']
-)->name('ar.buyer');
+    // Halaman AR Buyer
+    Route::get(
+        '/ar_buyer',
+        [SofianController::class, 'arBuyer']
+    )->name('ar.buyer');
 
-// Update field AR
+    // Update field AR
 // {id} = ExportAr ID
-Route::put(
-    '/ar_buyer/{id}',
-    [SofianController::class, 'updateArField']
-)->name('ar.buyer.update');
+    Route::put(
+        '/ar_buyer/{id}',
+        [SofianController::class, 'updateArField']
+    )->name('ar.buyer.update');
 
-// Update field IPL dari AR
+    // Update field IPL dari AR
 // {id} = ExportIpl ID
-Route::put(
-    '/ar_buyer/ipl/{id}',
-    [SofianController::class, 'updateArIplField']
-)->name('ar.buyer.ipl.update');
+    Route::put(
+        '/ar_buyer/ipl/{id}',
+        [SofianController::class, 'updateArIplField']
+    )->name('ar.buyer.ipl.update');
 
-// ==========================================================
+    // ==========================================================
 // ADD PAYMENT
 // {arId} = ExportAr ID
 // ==========================================================
 // INI ROUTE BARU
-Route::put(
-    '/ar_buyer/{arId}/payment',
-    [SofianController::class, 'addArPayment']
-)->name('ar.buyer.payment.add');
+    Route::put(
+        '/ar_buyer/{arId}/payment',
+        [SofianController::class, 'addArPayment']
+    )->name('ar.buyer.payment.add');
 
-// ==========================================================
+    // ==========================================================
 // UPDATE EXISTING PAYMENT
 // {id} = ExportArPayment ID
 // ROUTE LAMA TETAP DIPERTAHANKAN
 // ==========================================================
-Route::put(
-    '/ar_buyer/payment/{id}',
-    [SofianController::class, 'updateArPaymentField']
-)->name('ar.buyer.payment.update');
+    Route::put(
+        '/ar_buyer/payment/{id}',
+        [SofianController::class, 'updateArPaymentField']
+    )->name('ar.buyer.payment.update');
 
 
-// ==========================================================
+    // ==========================================================
 // EXPORT IPL
 // ==========================================================
 
-// Halaman utama Export
-Route::get(
-    '/export/index',
-    [EdController::class, 'index']
-)->name('export.index');
+    // Halaman utama Export
+    Route::get(
+        '/export/index',
+        [EdController::class, 'index']
+    )->name('export.index');
 
-// Search PO
-Route::get(
-    '/export/search-po',
-    [EdController::class, 'searchPo']
-)->name('export.search-po');
+    // Search PO
+    Route::get(
+        '/export/search-po',
+        [EdController::class, 'searchPo']
+    )->name('export.search-po');
 
-// Update IPL
-Route::put(
-    '/export/{id}',
-    [EdController::class, 'updateIpl']
-)->name('export.updateIpl');
+    // Update IPL
+    Route::put(
+        '/export/{id}',
+        [EdController::class, 'updateIpl']
+    )->name('export.updateIpl');
 
-// Edit IPL
-Route::get(
-    '/export/{id}/edit',
-    [EdController::class, 'edit']
-)->name('export.ipl.edit');
+    // Edit IPL
+    Route::get(
+        '/export/{id}/edit',
+        [EdController::class, 'edit']
+    )->name('export.ipl.edit');
 
-// PO Items
-Route::get(
-    '/export/po-items/{id}',
-    [EdController::class, 'poItems']
-);
+    // PO Items
+    Route::get(
+        '/export/po-items/{id}',
+        [EdController::class, 'poItems']
+    );
 
-// Save IPL
-Route::post(
-    '/export/save-ipl',
-    [EdController::class, 'saveIpl']
-)->name('export.saveIpl');
+    // Save IPL
+    Route::post(
+        '/export/save-ipl',
+        [EdController::class, 'saveIpl']
+    )->name('export.saveIpl');
 
-// IPL
-Route::get(
-    '/export/ipl',
-    [EdController::class, 'ipl']
-)->name('export.ipl');
+    // IPL
+    Route::get(
+        '/export/ipl',
+        [EdController::class, 'ipl']
+    )->name('export.ipl');
 
-// download cipl
-Route::get(
-    '/export/{id}/loberon/cipl',
-    [EdController::class, 'downloadCipl']
-)->name('export.loberon.downloadCipl');
+    // download cipl
+    Route::get(
+        '/export/{id}/loberon/cipl',
+        [EdController::class, 'downloadCipl']
+    )->name('export.loberon.downloadCipl');
 
-// ==========================================================
+    // ==========================================================
 // EXPORT DOCUMENT
 // ==========================================================
 
-// History
-Route::get(
-    '/export/history',
-    [EdController::class, 'history']
-)->name('export.document.index');
+    // History
+    Route::get(
+        '/export/history',
+        [EdController::class, 'history']
+    )->name('export.document.index');
 
-// Edit Document
-Route::get(
-    '/export/document/{id}/edit',
-    [EdController::class, 'editDoc']
-)->name('export.document.edit');
+    // Edit Document
+    Route::get(
+        '/export/document/{id}/edit',
+        [EdController::class, 'editDoc']
+    )->name('export.document.edit');
 
-// Update Document
-Route::put(
-    '/export/document/{id}',
-    [EdController::class, 'update']
-)->name('export.document.update');
+    // Update Document
+    Route::put(
+        '/export/document/{id}',
+        [EdController::class, 'update']
+    )->name('export.document.update');
 
-// Check Detail PO
-Route::get(
-    '/export/check-detail/{detail_po_id}',
-    [EdController::class, 'check']
-)->name('export.check');
+    // Check Detail PO
+    Route::get(
+        '/export/check-detail/{detail_po_id}',
+        [EdController::class, 'check']
+    )->name('export.check');
 
-// Document List
-Route::get(
-    '/export/document/list',
-    [EdController::class, 'documentList']
-)->name('export.document.list');
+    // Document List
+    Route::get(
+        '/export/document/list',
+        [EdController::class, 'documentList']
+    )->name('export.document.list');
 
-// Document Detail
-Route::get(
-    '/export/document/{id}',
-    [EdController::class, 'documentDetail']
-)->name('export.document.detail');
+    // Document Detail
+    Route::get(
+        '/export/document/{id}',
+        [EdController::class, 'documentDetail']
+    )->name('export.document.detail');
 
-// Save Document
-Route::post(
-    '/export/document',
-    [EdController::class, 'storeDocument']
-)->name('export.document.store');
+    // Save Document
+    Route::post(
+        '/export/document',
+        [EdController::class, 'storeDocument']
+    )->name('export.document.store');
 
-// Delete Export Item
-Route::delete(
-    '/export/item/{id}',
-    [EdController::class, 'deleteItem']
-)->name('export.item.delete');
+    // Delete Export Item
+    Route::delete(
+        '/export/item/{id}',
+        [EdController::class, 'deleteItem']
+    )->name('export.item.delete');
 
 
-// ==========================================================
+    // ==========================================================
 // RELEASE IPL
 // ==========================================================
 
-Route::post(
-    '/export/{id}/release',
-    [EdController::class, 'releaseIpl']
-)->name('export.release');
+    Route::post(
+        '/export/{id}/release',
+        [EdController::class, 'releaseIpl']
+    )->name('export.release');
 
 
-// ==========================================================
+    // ==========================================================
 // PO LIST
 // ==========================================================
 
-// List PO
-Route::get(
-    '/export/po-list',
-    [EdController::class, 'poList']
-)->name('export.po.list');
+    // List PO
+    Route::get(
+        '/export/po-list',
+        [EdController::class, 'poList']
+    )->name('export.po.list');
 
-// Detail PO
-Route::get(
-    '/export/po-detail/{id}',
-    [EdController::class, 'poDetail']
-)->name('export.po.detail');
-Route::get('/test/insert-ar-legacy', [SofianController::class, 'insertDummyArLegacy'])
-    ->name('test.insert.ar.legacy');
-// AR LAMA — NEW
-Route::post('/ar_buyer/legacy/mass', [SofianController::class, 'addArLegacyMass'])
-    ->name('ar_buyer.legacy.mass');
-Route::put(
-    '/ar_buyer/legacy/{id}',
-    [SofianController::class, 'updateArLegacyField']
-)->name('ar.buyer.legacy.update');
+    // Detail PO
+    Route::get(
+        '/export/po-detail/{id}',
+        [EdController::class, 'poDetail']
+    )->name('export.po.detail');
+    Route::get('/test/insert-ar-legacy', [SofianController::class, 'insertDummyArLegacy'])
+        ->name('test.insert.ar.legacy');
+    // AR LAMA — NEW
+    Route::post('/ar_buyer/legacy/mass', [SofianController::class, 'addArLegacyMass'])
+        ->name('ar_buyer.legacy.mass');
+    Route::put(
+        '/ar_buyer/legacy/{id}',
+        [SofianController::class, 'updateArLegacyField']
+    )->name('ar.buyer.legacy.update');
 
     // end
     // pusher
@@ -1114,7 +1120,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/bom/{id}/export-excel', [BomController::class, 'exportExcel'])->name('bom.export.excel');
 
     // siti
-Route::get('/mutasi', [ProduksiController::class, 'mutasi'])->name('mutasi.index');
+    Route::get('/mutasi', [ProduksiController::class, 'mutasi'])->name('mutasi.index');
     Route::get('/mutasi/{id}', [ProduksiController::class, 'mutasidetail'])
         ->name('mutasi.detail');
     Route::get('/mutasi/timeline/detail', [ProduksiController::class, 'mutasiTimelineDetail'])
@@ -1251,10 +1257,10 @@ Route::get('/mutasi', [ProduksiController::class, 'mutasi'])->name('mutasi.index
     Route::get('/it-dashboard/data', [ITController::class, 'data'])
         ->name('it.data');
     Route::get('/it-access-control', [ItController::class, 'accessControl'])
-    ->name('it.access-control');
+        ->name('it.access-control');
 
     Route::post('/it-access-control/update', [ItController::class, 'updateAccess'])
-    ->name('it.access-update');
+        ->name('it.access-update');
     Route::post('/it-access-module/store', [ItController::class, 'storeModule'])
         ->name('it.module.store');
 

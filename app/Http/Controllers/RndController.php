@@ -2658,4 +2658,82 @@ class RndController extends Controller
         }
     }
 
+
+    /** List a bounded folder tree for browser-side ZIP generation. */
+    public function browserZipManifest(Request $request, Po $po, DetailPo $detailPo, GoogleDriveService $drive)
+    {
+        $data = $request->validate([
+            'folder_id' => ['required','integer'],
+            'mode' => ['required','in:selected,folder'],
+            'file_ids' => ['array','max:200'],
+            'file_ids.*' => ['string','max:200'],
+            'target_folder_id' => ['nullable','integer'],
+        ]);
+        $active = $this->resolveArticleArchiveFolder($po, $detailPo, $data['folder_id'], $drive);
+        $description = trim((string) ($this->getArticleInfo($detailPo)['description'] ?? '')) ?: 'Article-' . $detailPo->id;
+        $clean = static fn (string $v) => mb_substr(trim(preg_replace('/[\\x00-\\x1F\\x7F\\\\\/:*?"<>|]+/u', '-', $v), ' .-') ?: 'File', 0, 120);
+        $items = [];
+        $totalBytes = 0;
+        $walk = function (array $item, string $prefix, int $depth) use (&$walk, &$items, &$totalBytes, $drive, $clean) {
+            if ($depth > 15) abort(422, 'Subfolder terlalu dalam.');
+            $name = $clean((string) ($item['name'] ?? 'File'));
+            $path = $prefix . $name;
+            if (($item['type'] ?? '') === 'folder') {
+                $items[] = ['type' => 'folder', 'path' => $path . '/'];
+                foreach ($drive->listFolderContents((string) $item['id']) as $child) $walk($child, $path . '/', $depth + 1);
+            } else {
+                $totalBytes += (int) ($item['size'] ?? 0);
+                if ($totalBytes > 300 * 1024 * 1024) abort(422, 'Maksimal 300 MB untuk ZIP browser.');
+                $items[] = ['type' => 'file', 'id' => (string) $item['id'], 'path' => $path, 'size' => (int) ($item['size'] ?? 0)];
+            }
+            if (count($items) > 250) abort(422, 'Maksimal 250 item per ZIP.');
+        };
+        if ($data['mode'] === 'folder') {
+            $target = RndArchiveFolder::query()->whereKey($data['target_folder_id'] ?? 0)
+                ->where('parent_id', $active->id)->where('po_id', $po->id)->where('detail_po_id', $detailPo->id)->firstOrFail();
+            $rootName = $target->folder_name . ' - ' . $description;
+            // Root folder contents appear directly in the downloaded ZIP.
+            foreach ($drive->listFolderContents($target->google_drive_folder_id) as $item) $walk($item, '', 0);
+        } else {
+            $rootName = $description;
+            $available = collect($drive->listFolderContents($active->google_drive_folder_id))->keyBy('id');
+            $ids = array_unique($data['file_ids'] ?? []);
+            abort_unless(count($ids) > 0, 422, 'Pilih file atau folder.');
+            foreach ($ids as $id) {
+                abort_unless($available->has($id), 403, 'Item bukan anggota folder aktif.');
+                $walk($available->get($id), '', 0);
+            }
+        }
+        return response()->json(['name' => $clean($rootName) . '.zip', 'items' => $items, 'total_bytes' => $totalBytes]);
+    }
+
+    /** One short request per binary file, restricted to the article's Drive subtree. */
+    public function browserZipFile(Request $request, Po $po, DetailPo $detailPo, GoogleDriveService $drive)
+    {
+        $data = $request->validate(['folder_id' => ['required','integer'], 'file_id' => ['required','string','max:200']]);
+        $active = $this->resolveArticleArchiveFolder($po, $detailPo, $data['folder_id'], $drive);
+        $root = $this->ensureArticleFolder($po, $detailPo, $drive);
+        $id = $data['file_id'];
+        $visited = [];
+        $cursor = $id;
+        $allowed = false;
+        for ($depth = 0; $depth < 18; $depth++) {
+            if (isset($visited[$cursor])) break;
+            $visited[$cursor] = true;
+            $metadata = $drive->getArchiveItem($cursor);
+            if ($cursor === $id) abort_if(($metadata['mime_type'] ?? '') === 'application/vnd.google-apps.folder', 422, 'Bukan file.');
+            $parents = $metadata['parents'] ?? [];
+            if (in_array($root->google_drive_folder_id, $parents, true)) { $allowed = true; break; }
+            if (!$parents) break;
+            $cursor = (string) $parents[0];
+        }
+        abort_unless($allowed, 403, 'File di luar folder artikel.');
+        $dir = storage_path('app/rnd-browser-zip');
+        if (!is_dir($dir) && !mkdir($dir, 0700, true) && !is_dir($dir)) abort(500);
+        $path = tempnam($dir, 'rnd-');
+        try { $drive->downloadFileToPath($id, $path); }
+        catch (\Throwable $e) { @unlink($path); throw $e; }
+        return response()->download($path, 'file.bin', ['Cache-Control' => 'no-store'])->deleteFileAfterSend(true);
+    }
+
 }
