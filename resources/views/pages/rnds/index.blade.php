@@ -485,7 +485,7 @@
                     <div class="rnd-binding-spinner" aria-hidden="true"></div>
                     <strong>Menyiapkan arsip artikel...</strong>
                     <p id="rndArchiveBindingMessage">Menghubungkan folder artikel dengan Google Drive. Mohon tunggu.</p>
-                    <span><i class="fa fa-info-circle"></i> Proses sedang berjalan</span>
+                    <span><i class="fa fa-info-circle"></i> Proses sedang berjalan, halaman tidak macet.</span>
                 </div>
             </div>
 
@@ -6223,9 +6223,17 @@
                 selectedFiles.textContent = files.length + ' foto dipilih: ' +
 
                     files.map(file => file.name).join(', ');
-                previewLocalFiles(files);
+                // Jangan decode/membuat thumbnail saat file dipilih.
+                // Preview baru ditampilkan setelah seluruh batch diproses.
+                previewThumbs.replaceChildren();
+                showPreview('', '', 'Menunggu upload selesai');
+                const waitingPreview = document.createElement('div');
+                waitingPreview.className = 'rnd-preview-thumb-waiting';
+                waitingPreview.setAttribute('role', 'status');
+                waitingPreview.textContent = 'Waiting completed upload — ' + files.length + ' foto siap diunggah. Preview muncul setelah 100%.';
+                previewThumbs.appendChild(waitingPreview);
 
-                setUploadMessage('');
+                setUploadMessage('Foto siap diunggah. Preview akan muncul setelah proses mencapai 100%.');
 
             });
 
@@ -6378,21 +6386,17 @@
                 const successful = [];
                 const failed = [];
 
-                // Kartu foto sementara langsung ditampilkan transparan selama upload.
-                const pendingUploadItems = new Map();
-                files.forEach((file, index) => {
-                    const tempId = 'pending-upload-' + Date.now() + '-' + index;
-                    let previewUrl = '';
-                    try { previewUrl = URL.createObjectURL(file); } catch (_) {}
-                    pendingUploadItems.set(file, { id: tempId, previewUrl });
-                    driveCurrentItems.unshift({
-                        id: tempId, name: file.name, type: 'file',
-                        thumbnail_url: previewUrl, mime_type: file.type || 'image/jpeg',
-                        size: file.size, __pending: true,
-                        __pendingLabel: 'Menunggu upload...'
-                    });
-                });
-                renderDriveItemsStable();
+                // Mode ringan: tidak menambahkan placeholder gambar, object URL,
+                // atau merender ulang grid saat upload masih berjalan.
+                const uploadedBatchItems = [];
+                const originalUploadFolderId = activeFolderDbId;
+                previewThumbs.replaceChildren();
+                showPreview('', '', 'Waiting completed upload');
+                const pendingText = document.createElement('div');
+                pendingText.className = 'rnd-preview-thumb-waiting';
+                pendingText.setAttribute('role', 'status');
+                pendingText.textContent = 'Waiting completed upload — preview foto muncul setelah 100%.';
+                previewThumbs.appendChild(pendingText);
 
                 const formatBytes = bytes => {
                     if (!bytes) return '0 KB';
@@ -6403,7 +6407,7 @@
 
                 // Satu request per giliran agar PHP worker shared hosting tidak terbebani.
                 try {
-                    const MAX_PARALLEL_UPLOADS = 1;
+                    const MAX_PARALLEL_UPLOADS = 5;
                     let nextFileIndex = 0;
                     let processedCount = 0;
                     let runningCount = 0;
@@ -6467,15 +6471,10 @@
                                 successful.push(file.name);
                                 fileProgress[index] = 1;
                                 filePhases[index] = 'Selesai';
-                                const pending = pendingUploadItems.get(file);
-                                if (pending) {
-                                    removeDriveItem(pending.id);
-                                    if (pending.previewUrl) URL.revokeObjectURL(pending.previewUrl);
-                                    pendingUploadItems.delete(file);
-                                }
+                                // Simpan metadata dalam memori. Jangan refresh grid per foto.
                                 for (const uploaded of (result.uploaded || [])) {
                                     if (uploaded.drive_id) {
-                                        upsertDriveItem({
+                                        uploadedBatchItems.push({
                                             id: uploaded.drive_id,
                                             database_id: uploaded.id,
                                             name: uploaded.name || file.name,
@@ -6494,12 +6493,6 @@
                                 failed.push({ name: file.name, message });
                                 fileProgress[index] = 1;
                                 filePhases[index] = 'Gagal';
-                                const pending = pendingUploadItems.get(file);
-                                if (pending) {
-                                    removeDriveItem(pending.id);
-                                    if (pending.previewUrl) URL.revokeObjectURL(pending.previewUrl);
-                                    pendingUploadItems.delete(file);
-                                }
                                 console.error('Upload gagal untuk ' + file.name, error);
                             } finally {
                                 runningCount--;
@@ -6513,6 +6506,23 @@
                         { length: Math.min(MAX_PARALLEL_UPLOADS, files.length) },
                         () => uploadWorker()
                     ));
+
+                    // Semua request sudah selesai: render preview grid HANYA SEKALI.
+                    // Jangan mengubah folder lain bila pengguna sempat bernavigasi.
+                    if (String(activeFolderDbId) === String(originalUploadFolderId)) {
+                        const knownIds = new Set(driveCurrentItems.map(item => String(item.id)));
+                        for (const item of uploadedBatchItems) {
+                            if (!knownIds.has(String(item.id))) {
+                                driveCurrentItems.unshift(item);
+                                knownIds.add(String(item.id));
+                            }
+                        }
+                        renderDriveItemsStable();
+                    }
+                    previewThumbs.replaceChildren();
+                    showPreview('', '', 'Upload selesai');
+                    // Preview grid sudah diperbarui. Tidak memuat ulang semua thumbnail
+                    // dari server pada setiap foto, dan tidak mengulang request upload.
 
                     photoInput.value = '';
                     selectedFiles.textContent = 'Selesai. Berhasil ' + successful.length +
@@ -6537,13 +6547,15 @@
                         progressText.textContent = 'Semua foto berhasil diunggah.';
                     }
 
-                    // Grid sudah diperbarui per foto sukses, tanpa reload dan tanpa reset preview.
-                    // Jika ada file tanpa drive_id dari backend lama, gunakan Refresh manual.
+                    // Grid diperbarui sekali setelah semua foto diproses.
+                    // Jika backend tidak mengirim drive_id, gunakan Refresh manual.
 
 
                 } catch (error) {
                     console.error('Proses upload gagal:', error);
                     setUploadMessage(error.message || 'Proses upload gagal.', 'error');
+                    previewThumbs.replaceChildren();
+                    showPreview('', '', 'Upload tidak selesai');
                 } finally {
                     syncUploadLayer();
                     uploadLayer.hidden = true;
