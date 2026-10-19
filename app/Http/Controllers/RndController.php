@@ -461,6 +461,18 @@ class RndController extends Controller
 
 
     ): RndArchiveFolder {
+        $bindingStarted = microtime(true);
+        $bindingPhase = 'start';
+        $bindingLast = $bindingStarted;
+        $bindingTimings = [];
+        $markBinding = static function (string $phase) use (&$bindingPhase, &$bindingLast, &$bindingTimings): void {
+            $now = microtime(true);
+            $bindingTimings[$bindingPhase . '_ms'] = (int) round(($now - $bindingLast) * 1000);
+            $bindingPhase = $phase;
+            $bindingLast = $now;
+        };
+        try {
+
 
 
 
@@ -488,6 +500,7 @@ class RndController extends Controller
 
 
 
+        $markBinding('article_info');
         $info = $this->getArticleInfo($item);
 
 
@@ -540,6 +553,7 @@ class RndController extends Controller
 
 
 
+        $markBinding('po_folder_db_lookup');
         $poFolder = RndArchiveFolder::query()
 
 
@@ -584,6 +598,7 @@ class RndController extends Controller
 
             // Hindari folder buyer duplikat; gunakan lock untuk request bersamaan.
 
+            $markBinding('buyer_folder_lock_and_drive');
             $buyerFolderId = Cache::lock('rnd_buyer_folder:' . sha1($rootId . '|' . mb_strtolower($buyerName)), 30)
 
                 ->block(15, function () use ($drive, $rootId, $buyerName) {
@@ -608,6 +623,7 @@ class RndController extends Controller
 
             // Reuse PO folder bila sudah dibuat di Buyer (mis. setelah retry).
 
+            $markBinding('buyer_folder_resolved');
             $driveFolder = null;
 
             foreach ($drive->listFolderContents($buyerFolderId) as $candidate) {
@@ -632,6 +648,9 @@ class RndController extends Controller
 
 
 
+            $poFolderJustCreated = true;
+
+            $markBinding('po_folder_db_create');
             $poFolder = RndArchiveFolder::create([
 
 
@@ -676,11 +695,29 @@ class RndController extends Controller
 
 
 
+        // Folder artikel yang sudah tercatat dapat langsung digunakan tanpa
+        // melakukan operasi jaringan (termasuk migrasi PO lama) pada request ini.
+        // Migrasi PO lama tetap berlangsung saat folder artikel baru dibuat.
+        $markBinding('existing_article_db_lookup');
+        $existingArticleFolder = RndArchiveFolder::query()
+            ->where('po_id', $po->id)
+            ->where('detail_po_id', $item->id)
+            ->where('folder_type', 'article')
+            ->first();
+        if ($existingArticleFolder && trim((string) $existingArticleFolder->google_drive_folder_id) !== '') {
+            return $existingArticleFolder;
+        }
+
         // Rapikan PO lama secara bertahap hanya ketika artikelnya dibuka.
 
         // Jika gagal, arsip tetap bisa dibuka dari folder lamanya.
 
-        $this->groupExistingPoFolderByBuyer($po, $poFolder, $drive);
+        // Folder PO baru sudah dibuat di bawah Buyer, tidak perlu migrasi lagi.
+        // Folder PO lama tetap ditangani oleh migrasi kompatibilitas.
+        if (!$poFolderJustCreated) {
+            $markBinding('po_folder_migration');
+            $this->groupExistingPoFolderByBuyer($po, $poFolder, $drive);
+        }
 
 
 
@@ -701,9 +738,15 @@ class RndController extends Controller
 
 
 
+        $markBinding('article_lock_wait_and_work');
         $articleFolder = Cache::lock('rnd_article_folder:' . $po->id . ':' . $item->id, 60)
 
-            ->block(15, function () use ($po, $item, $drive, $poFolder, $folderName) {
+            ->block(15, function () use ($po, $item, $drive, $poFolder, $folderName, $bindingStarted, $markBinding) {
+                $markBinding('article_lock_acquired');
+                Log::info('RND article lock acquired', [
+                    'po_id' => $po->id, 'detail_po_id' => $item->id,
+                    'elapsed_from_start_ms' => (int) round((microtime(true) - $bindingStarted) * 1000),
+                ]);
 
                 $record = RndArchiveFolder::query()
 
@@ -727,9 +770,24 @@ class RndController extends Controller
 
 
 
-                // Periksa folder anak aktual setiap kali artikel dibuka.
+                // Fast path: bila DB sudah punya ID folder artikel, gunakan ID tersebut.
+                // Hindari list seluruh isi folder PO pada setiap buka artikel.
+                // Jika folder di Drive dipindah/hapus manual, operasi file berikutnya
+                // akan mengembalikan error yang bisa ditangani terpisah.
+                if ($record && trim((string) $record->google_drive_folder_id) !== '') {
+                    return $record;
+                }
 
+                // DB belum mempunyai folder: cari di Drive sebelum create agar
+                // retry tidak membuat folder duplikat.
+                $driveLookupStarted = microtime(true);
+                $markBinding('article_drive_lookup');
                 $children = $drive->listFolderContents($poDriveId);
+                $markBinding('article_drive_lookup_done');
+                Log::info('RND article folder lookup timing', [
+                    'po_id' => $po->id, 'detail_po_id' => $item->id,
+                    'drive_lookup_ms' => (int) round((microtime(true) - $driveLookupStarted) * 1000),
+                ]);
 
                 $matches = array_values(array_filter($children, static function ($child) use ($folderName) {
 
@@ -742,40 +800,8 @@ class RndController extends Controller
 
 
                 if ($record) {
-
-                    $recordDriveId = (string) $record->google_drive_folder_id;
-
-                    // Jika ID DB masih cocok dengan folder di PO, gunakan ID itu.
-
-                    foreach ($children as $child) {
-
-                        if (($child['type'] ?? '') === 'folder'
-
-                            && (string) ($child['id'] ?? '') === $recordDriveId) {
-
-                            return $record;
-
-                        }
-
-                    }
-
-                    // Folder mungkin dipindah manual atau akses berubah: jangan
-
-                    // diam-diam membuat folder baru / mengganti ID metadata.
-
-                    throw new \RuntimeException(
-
-                        'Folder artikel di database tidak ditemukan di dalam PO Google Drive. '
-
-                        . 'Periksa ID folder artikel ' . $recordDriveId
-
-                        . ' dan folder PO ' . $poDriveId . '. Tidak ada folder baru dibuat.'
-
-                    );
-
+                    throw new \RuntimeException('Folder artikel sudah ada di database tetapi Google Drive Folder ID kosong. Periksa metadata sebelum membuat folder baru.');
                 }
-
-
 
                 if (count($matches) > 1) {
 
@@ -801,7 +827,14 @@ class RndController extends Controller
 
                 } else {
 
+                    $driveCreateStarted = microtime(true);
+                    $markBinding('article_drive_create');
                     $created = $drive->createFolder($folderName, $poDriveId);
+                    $markBinding('article_drive_create_done');
+                    Log::info('RND article folder create timing', [
+                        'po_id' => $po->id, 'detail_po_id' => $item->id,
+                        'drive_create_ms' => (int) round((microtime(true) - $driveCreateStarted) * 1000),
+                    ]);
 
                     $driveFolderId = (string) $created['id'];
 
@@ -809,6 +842,7 @@ class RndController extends Controller
 
 
 
+                $markBinding('article_db_create');
                 return RndArchiveFolder::create([
 
                     'parent_id' => $poFolder->id,
@@ -833,10 +867,20 @@ class RndController extends Controller
 
 
 
+        $markBinding('complete');
         return $articleFolder;
 
 
 
+        } finally {
+            $markBinding('finished');
+            Log::info('RND article binding full timing', [
+                'po_id' => $po->id,
+                'detail_po_id' => $item->id,
+                'total_ms' => (int) round((microtime(true) - $bindingStarted) * 1000),
+                'phases' => $bindingTimings,
+            ]);
+        }
     }
 
 
@@ -1253,9 +1297,13 @@ class RndController extends Controller
 
             // sebenarnya folder Drive berisi file yang belum tercatat di DB.
 
+            $openListStarted = microtime(true);
             $driveItems = $drive->listFolderContents($folder->google_drive_folder_id);
+            Log::info('RND archive open Drive listing timing', ['detail_po_id' => $detailPo->id, 'ms' => (int) round((microtime(true) - $openListStarted) * 1000)]);
 
+            $openSyncStarted = microtime(true);
             $this->syncDriveFilesToDatabase($folder, $driveItems);
+            Log::info('RND archive open DB sync timing', ['detail_po_id' => $detailPo->id, 'ms' => (int) round((microtime(true) - $openSyncStarted) * 1000)]);
 
 
 
