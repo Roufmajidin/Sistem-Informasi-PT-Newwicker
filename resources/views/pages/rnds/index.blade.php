@@ -485,7 +485,7 @@
                     <div class="rnd-binding-spinner" aria-hidden="true"></div>
                     <strong>Menyiapkan arsip artikel...</strong>
                     <p id="rndArchiveBindingMessage">Menghubungkan folder artikel dengan Google Drive. Mohon tunggu.</p>
-                    <span><i class="fa fa-info-circle"></i> Proses sedang berjalan ..</span>
+                    <span><i class="fa fa-info-circle"></i> Proses sedang berjalan, halaman tidak macet.</span>
                 </div>
             </div>
 
@@ -2071,6 +2071,19 @@
         .rnd-batch-download-links a { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:9px; border-radius:6px; background:#eff6ff; color:#1d4ed8; text-decoration:none; }
         .rnd-batch-download-links a:hover { background:#dbeafe; }
 
+
+        .rnd-operation-overlay[hidden] { display:none !important; }
+        .rnd-operation-overlay { position:fixed; inset:0; z-index:2147483600; background:rgba(15,23,42,.55); display:flex; align-items:center; justify-content:center; padding:20px; }
+        .rnd-operation-dialog { width:min(440px,100%); background:#fff; border-radius:14px; padding:28px; text-align:center; box-shadow:0 18px 70px rgba(0,0,0,.25); color:#1e293b; }
+        .rnd-operation-dialog strong { display:block; margin:12px 0; font-size:18px; }
+        .rnd-operation-dialog p { font-size:12px; line-height:1.6; color:#64748b; }
+        .rnd-operation-dialog small { display:block; margin-top:10px; color:#64748b; }
+        .rnd-operation-spinner { width:38px; height:38px; border:4px solid #dbeafe; border-top-color:#2563eb; border-radius:50%; animation:rnd-op-spin .8s linear infinite; margin:auto; }
+        @keyframes rnd-op-spin { to { transform:rotate(360deg); } }
+        .rnd-operation-track { height:9px; border-radius:20px; background:#e2e8f0; overflow:hidden; margin-top:18px; }
+        #rndOperationFill { height:100%; background:#2563eb; border-radius:20px; transition:width .2s; }
+        #rndOperationFill.indeterminate { animation:rnd-op-slide 1.5s ease-in-out infinite alternate; }
+        @keyframes rnd-op-slide { from { transform:translateX(-110%); } to { transform:translateX(310%); } }
 
         .rnd-photo-grid {
 
@@ -5473,6 +5486,57 @@
             viewListButton.addEventListener('click', () => applyRndViewMode('list'));
             applyRndViewMode(rndViewMode);
 
+            // Operation overlay: ZIP uses elapsed-time/indeterminate progress because
+            // the existing synchronous endpoint does not expose server progress.
+            const rndOperationOverlay = document.createElement('div');
+            rndOperationOverlay.className = 'rnd-operation-overlay';
+            rndOperationOverlay.hidden = true;
+            rndOperationOverlay.innerHTML = `<div class="rnd-operation-dialog" role="status" aria-live="polite"><div class="rnd-operation-spinner"></div><strong id="rndOperationTitle">Memproses...</strong><p id="rndOperationMessage"></p><div class="rnd-operation-track"><div id="rndOperationFill"></div></div><small id="rndOperationDetail"></small></div>`;
+            document.body.appendChild(rndOperationOverlay);
+            let rndOperationBusy = false;
+            function rndOperationShow(title, message, percent = null, detail = '') {
+                rndOperationOverlay.hidden = false;
+                document.getElementById('rndOperationTitle').textContent = title;
+                document.getElementById('rndOperationMessage').textContent = message;
+                const fill = document.getElementById('rndOperationFill');
+                fill.classList.toggle('indeterminate', percent === null);
+                fill.style.width = percent === null ? '35%' : Math.max(0, Math.min(100, percent)) + '%';
+                document.getElementById('rndOperationDetail').textContent = detail;
+            }
+            function rndOperationHide() { rndOperationOverlay.hidden = true; }
+            function rndZipFilenameFromResponse(response) {
+                const header = response.headers.get('Content-Disposition') || '';
+                const utf = header.match(/filename\*=UTF-8''([^;]+)/i);
+                if (utf) { try { return decodeURIComponent(utf[1]); } catch (_) {} }
+                const plain = header.match(/filename="?([^";]+)"?/i);
+                return plain ? plain[1] : 'Sample Pictures.zip';
+            }
+            async function rndDeleteItems(items) {
+                if (rndOperationBusy || !items.length) return;
+                if (!confirm('Pindahkan ' + items.length + ' item terpilih ke Trash Google Drive?')) return;
+                rndOperationBusy = true;
+                let done = 0;
+                const failures = [];
+                try {
+                    rndOperationShow('Menghapus item', 'Menyiapkan proses hapus...', 0, '0 / ' + items.length);
+                    for (const item of items) {
+                        rndOperationShow('Menghapus item', 'Memproses: ' + item.name, Math.round(done / items.length * 100), done + ' / ' + items.length);
+                        try {
+                            await fetchJson(driveEndpoint('/items/' + encodeURIComponent(item.id)), {
+                                method: 'DELETE', headers: {'Content-Type':'application/json'},
+                                body: JSON.stringify({parent_folder_id: activeFolderDbId})
+                            });
+                            rndMultiSelectedIds.delete(String(item.id));
+                            removeDriveItem(item.id);
+                        } catch (error) { failures.push(item.name + ': ' + (error.message || 'Gagal')); }
+                        done++;
+                        rndOperationShow('Menghapus item', 'Memproses penghapusan...', Math.round(done / items.length * 100), done + ' / ' + items.length);
+                    }
+                } finally { rndOperationBusy = false; rndOperationHide(); rndUpdateMultiToolbar(); }
+                explorerNotify((done - failures.length) + ' berhasil dihapus.' + (failures.length ? ' ' + failures.length + ' gagal.' : ''));
+                if (failures.length) alert('Gagal menghapus:\n' + failures.slice(0, 10).join('\n'));
+            }
+
             // Selection is based on Drive IDs; a photo preview click remains independent.
             const rndMultiSelectedIds = new Set();
             const rndMultiToolbar = document.createElement('div');
@@ -5497,26 +5561,50 @@
                 link.remove();
             }
 
-            function rndSubmitZip(mode, selectedIds = [], folderId = null) {
+            async function rndSubmitZip(mode, selectedIds = [], folderId = null) {
                 if (!activeArchiveUrl || !activeFolderDbId) return alert('Folder arsip belum siap.');
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = driveEndpoint('/download-zip');
-                form.target = '_blank';
-                form.style.display = 'none';
-                const field = (name, value) => {
-                    const input = document.createElement('input');
-                    input.type = 'hidden'; input.name = name; input.value = value;
-                    form.appendChild(input);
-                };
-                field('_token', document.querySelector('meta[name="csrf-token"]').content);
-                field('folder_id', activeFolderDbId);
-                field('mode', mode);
-                if (folderId) field('target_folder_id', folderId);
-                selectedIds.forEach(id => field('file_ids[]', id));
-                document.body.appendChild(form);
-                form.submit();
-                form.remove();
+                if (rndOperationBusy) return;
+                rndOperationBusy = true;
+                const started = Date.now();
+                const timer = setInterval(() => {
+                    const seconds = Math.floor((Date.now() - started) / 1000);
+                    if (!rndOperationOverlay.hidden) document.getElementById('rndOperationDetail').textContent =
+                        seconds + ' detik berlalu · menunggu server membuat ZIP';
+                }, 1000);
+                rndOperationShow('Membuat ZIP', 'Mengambil file Google Drive dan menyusun arsip ZIP...', null,
+                    'Proses berjalan di server; persentase belum tersedia.');
+                try {
+                    const form = new FormData();
+                    form.append('_token', document.querySelector('meta[name="csrf-token"]').content);
+                    form.append('folder_id', activeFolderDbId);
+                    form.append('mode', mode);
+                    if (folderId) form.append('target_folder_id', folderId);
+                    selectedIds.forEach(id => form.append('file_ids[]', id));
+                    const response = await fetch(driveEndpoint('/download-zip'), {
+                        method: 'POST', body: form, credentials: 'same-origin',
+                        headers: {'Accept': 'application/zip, application/octet-stream, application/json'}
+                    });
+                    if (!response.ok) {
+                        const body = await response.text();
+                        let message = 'Gagal membuat ZIP (HTTP ' + response.status + ').';
+                        try { const json = JSON.parse(body); message = json.message || message; } catch (_) {}
+                        throw new Error(message);
+                    }
+                    rndOperationShow('Mengunduh ZIP', 'ZIP sudah dibuat. Menyiapkan unduhan browser...', null);
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    const anchor = document.createElement('a');
+                    anchor.href = url;
+                    anchor.download = rndZipFilenameFromResponse(response);
+                    document.body.appendChild(anchor); anchor.click(); anchor.remove();
+                    setTimeout(() => URL.revokeObjectURL(url), 60000);
+                    explorerNotify('ZIP berhasil disiapkan: ' + anchor.download);
+                } catch (error) {
+                    explorerNotify(error.message || 'Download ZIP gagal.');
+                    alert(error.message || 'Download ZIP gagal.');
+                } finally {
+                    clearInterval(timer); rndOperationBusy = false; rndOperationHide();
+                }
             }
 
             function rndDownloadSelectedPhotos(chosen) {
@@ -5527,12 +5615,32 @@
 
             function rndUpdateMultiToolbar() {
                 for (const id of Array.from(rndMultiSelectedIds)) {
-                    if (!driveCurrentItems.some(x => x.type !== 'folder' && String(x.id) === id)) rndMultiSelectedIds.delete(id);
+                    if (!driveCurrentItems.some(x => String(x.id) === id)) rndMultiSelectedIds.delete(id);
                 }
                 const count = rndMultiSelectedIds.size;
-                rndMultiToolbar.hidden = count === 0;
+                rndMultiToolbar.hidden = false;
                 rndMultiToolbar.replaceChildren();
-                if (!count) return;
+                const selectAll = document.createElement('button');
+                selectAll.type = 'button';
+                const allItems = driveCurrentItems.filter(x => x.id && !x.__pending);
+                const allChecked = allItems.length > 0 && allItems.every(x => rndMultiSelectedIds.has(String(x.id)));
+                selectAll.textContent = allChecked ? 'Batalkan Semua' : 'Pilih Semua (' + allItems.length + ')';
+                selectAll.onclick = () => {
+                    if (allChecked) rndMultiSelectedIds.clear();
+                    else allItems.forEach(x => rndMultiSelectedIds.add(String(x.id)));
+                    renderDriveItemsStable();
+                };
+                rndMultiToolbar.appendChild(selectAll);
+                if (!count) {
+                    if (explorerClipboard) {
+                        const pasteOnly = document.createElement('button');
+                        pasteOnly.type = 'button';
+                        pasteOnly.textContent = 'Paste ke Folder Ini';
+                        pasteOnly.onclick = () => explorerPaste({id: activeFolderDbId, name: driveCurrentPath.textContent.trim()});
+                        rndMultiToolbar.appendChild(pasteOnly);
+                    }
+                    return;
+                }
                 const label = document.createElement('strong');
                 label.textContent = count + ' foto dipilih';
                 const download = document.createElement('button');
@@ -5542,6 +5650,11 @@
                     const chosen = driveCurrentItems.filter(x => rndMultiSelectedIds.has(String(x.id)) && x.type !== 'folder');
                     rndDownloadSelectedPhotos(chosen);
                 });
+                const removeSelected = document.createElement('button');
+                removeSelected.type = 'button';
+                removeSelected.textContent = 'Hapus Terpilih (' + count + ')';
+                removeSelected.style.color = '#b91c1c';
+                removeSelected.onclick = () => rndDeleteItems(driveCurrentItems.filter(x => rndMultiSelectedIds.has(String(x.id))));
                 const clear = document.createElement('button');
                 clear.type = 'button';
                 clear.textContent = 'Batal pilih';
@@ -5549,11 +5662,28 @@
                     rndMultiSelectedIds.clear();
                     renderDriveItemsStable();
                 });
-                rndMultiToolbar.append(label, download, clear);
+                const cut = document.createElement('button');
+                cut.type = 'button';
+                cut.textContent = 'Cut / Pindahkan (' + count + ')';
+                cut.onclick = () => {
+                    explorerClipboard = {
+                        mode: 'move',
+                        items: driveCurrentItems.filter(x => rndMultiSelectedIds.has(String(x.id)))
+                            .map(x => ({...x, parent_folder_id: activeFolderDbId}))
+                    };
+                    explorerNotify(count + ' item di-cut. Buka folder tujuan lalu klik Paste di toolbar atau menu folder.');
+                    rndUpdateMultiToolbar();
+                };
+                const pasteHere = document.createElement('button');
+                pasteHere.type = 'button';
+                pasteHere.textContent = 'Paste ke Folder Ini';
+                pasteHere.disabled = !explorerClipboard;
+                pasteHere.onclick = () => explorerPaste({id: activeFolderDbId, name: driveCurrentPath.textContent.trim()});
+                rndMultiToolbar.append(label, download, cut, pasteHere, removeSelected, clear);
             }
 
             function rndToggleMultiPhoto(item) {
-                if (!item || item.type === 'folder' || !item.id) return;
+                if (!item || !item.id) return;
                 const id = String(item.id);
                 if (rndMultiSelectedIds.has(id)) rndMultiSelectedIds.delete(id);
                 else rndMultiSelectedIds.add(id);
@@ -5680,7 +5810,7 @@
                     if (item.type !== 'folder' && card.dataset.fileKey === rndSelectedDriveId) card.classList
                         .add('rnd-drive-selected');
 
-                    if (item.type !== 'folder' && !item.__pending) {
+                    if (!item.__pending) {
                         const circle = document.createElement('button');
                         circle.type = 'button';
                         circle.className = 'rnd-photo-multiselect';
@@ -5978,9 +6108,38 @@
                 }
             }
 
-            function explorerPaste(target) {
-                if (!explorerClipboard) return explorerNotify('Clipboard kosong. Pilih item lalu Ctrl+C.');
-                explorerRequest(explorerClipboard.item, target, 'copy');
+            async function explorerPaste(target) {
+                if (!explorerClipboard) return explorerNotify('Clipboard kosong. Pilih item lalu Cut atau Copy.');
+                const clipboard = explorerClipboard;
+                const items = clipboard.items || (clipboard.item ? [clipboard.item] : []);
+                const operation = clipboard.mode === 'move' ? 'move' : 'copy';
+                if (!items.length) return;
+                if (operation === 'move' && !confirm('Pindahkan ' + items.length + ' item ke folder tujuan?')) return;
+                let done = 0;
+                for (const item of items) {
+                    if (explorerBusy || uploadInProgress) break;
+                    // Keep failed items in the clipboard for retry.
+                    try {
+                        const response = await fetchJson(driveEndpoint('/items/' + encodeURIComponent(item.id) + '/' + operation), {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({target_folder_id: target.id, parent_folder_id: item.parent_folder_id})
+                        });
+                        done++;
+                        if (operation === 'move') removeDriveItem(item.id);
+                        else if (String(target.id) === String(activeFolderDbId) && response?.item?.id) upsertDriveItem(response.item);
+                    } catch (error) {
+                        explorerNotify(done + '/' + items.length + ' berhasil. Gagal pada ' + item.name + ': ' + (error.message || 'error'));
+                        if (operation === 'move') explorerClipboard = {mode: 'move', items: items.slice(done)};
+                        return;
+                    }
+                }
+                if (operation === 'move') {
+                    explorerClipboard = null;
+                    rndMultiSelectedIds.clear();
+                    renderDriveItemsStable();
+                }
+                explorerNotify(done + ' item berhasil ' + (operation === 'move' ? 'dipindahkan.' : 'disalin.'));
             }
 
             function explorerContextMenu(event, card) {
@@ -5993,16 +6152,31 @@
                 const copy = document.createElement('button');
                 copy.textContent = 'Copy  Ctrl+C';
                 copy.onclick = () => {
-                    explorerClipboard = {
-                        item: {
-                            ...item,
-                            parent_folder_id: activeFolderDbId
-                        }
-                    };
+                    explorerClipboard = {mode: 'copy', item: {...item, parent_folder_id: activeFolderDbId}};
                     explorerNotify('Copied: ' + item.name);
                     menu.remove();
                 };
                 menu.appendChild(copy);
+                const cutItem = document.createElement('button');
+                cutItem.textContent = 'Cut / Move  Ctrl+X';
+                cutItem.onclick = () => {
+                    const chosen = rndMultiSelectedIds.has(String(item.id))
+                        ? driveCurrentItems.filter(x => rndMultiSelectedIds.has(String(x.id))) : [item];
+                    explorerClipboard = {mode: 'move', items: chosen.map(x => ({...x, parent_folder_id: activeFolderDbId}))};
+                    explorerNotify(chosen.length + ' item di-cut. Buka folder tujuan lalu Paste.');
+                    rndUpdateMultiToolbar();
+                    menu.remove();
+                };
+                menu.appendChild(cutItem);
+                const deleteItem = document.createElement('button');
+                deleteItem.textContent = 'Hapus ke Trash';
+                deleteItem.onclick = () => {
+                    const chosen = rndMultiSelectedIds.has(String(item.id))
+                        ? driveCurrentItems.filter(x => rndMultiSelectedIds.has(String(x.id))) : [item];
+                    menu.remove(); rndDeleteItems(chosen);
+                };
+                menu.appendChild(deleteItem);
+
                 if (item.type !== 'folder') {
                     const download = document.createElement('button');
                     download.textContent = 'Download';
@@ -6116,6 +6290,14 @@
                         }
                     };
                     explorerNotify('Copied: ' + explorerSelected.name + '. Open destination and press Ctrl+V.');
+                }
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'x' && explorerSelected) {
+                    e.preventDefault();
+                    const chosen = rndMultiSelectedIds.has(String(explorerSelected.id))
+                        ? driveCurrentItems.filter(x => rndMultiSelectedIds.has(String(x.id))) : [explorerSelected];
+                    explorerClipboard = {mode: 'move', items: chosen.map(x => ({...x, parent_folder_id: activeFolderDbId}))};
+                    explorerNotify(chosen.length + ' item di-cut. Buka folder tujuan lalu Ctrl+V.');
+                    rndUpdateMultiToolbar();
                 }
                 if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v' && explorerClipboard &&
                     activeFolderDbId) {
