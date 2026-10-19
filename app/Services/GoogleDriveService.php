@@ -11,6 +11,7 @@ use Google\Service\Drive;
 use Google\Service\Drive\DriveFile;
 
 use Illuminate\Support\Facades\Storage;
+
 use Illuminate\Support\Facades\Log;
 
 use RuntimeException;
@@ -253,7 +254,7 @@ class GoogleDriveService
 
             'url' => $created->getWebViewLink()
 
-                ?: 'https://drive.google.com/drive/folders/' . $id,
+                ?: 'https\://drive.google.com/drive/folders/' . $id,
 
         ];
 
@@ -270,46 +271,85 @@ class GoogleDriveService
      */
 
     /** Start a resumable session; the OAuth access token never goes to the browser. */
+
     public function startBrowserUpload(string $fileName, string $folderId, string $mimeType, int $size): string
+
     {
+
         if ($size < 1 || $size > 25 * 1024 * 1024 || trim($folderId) === '') {
+
             throw new RuntimeException('Parameter upload tidak valid.');
+
         }
+
         $accessToken = $this->client->getAccessToken()['access_token'] ?? null;
+
         if (!$accessToken) throw new RuntimeException('Access token Google Drive tidak tersedia.');
+
         $response = $this->client->getHttpClient()->request('POST',
-            'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,name,mimeType,size,parents,trashed', [
+
+            'https\://www\.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,name,mimeType,size,parents,trashed', [
+
                 'headers' => [
+
                     'Authorization' => 'Bearer ' . $accessToken,
+
                     'Content-Type' => 'application/json; charset=UTF-8',
+
                     'X-Upload-Content-Type' => $mimeType,
+
                     'X-Upload-Content-Length' => (string) $size,
+
                 ],
+
                 'json' => ['name' => $fileName, 'parents' => [$folderId], 'mimeType' => $mimeType],
+
                 'http_errors' => true,
+
                 'timeout' => 35,
+
             ]);
+
         $url = $response->getHeaderLine('Location');
-        if (!$url || !str_starts_with($url, 'https://www.googleapis.com/')) {
+
+        if (!$url || !str_starts_with($url, 'https\://www\.googleapis.com/')) {
+
             throw new RuntimeException('Google Drive tidak memberikan URL sesi upload yang valid.');
+
         }
+
         return $url;
+
     }
 
     /** Verify the Drive object before the application records it. */
+
     public function verifyBrowserUpload(string $id, string $folderId, string $name, int $size): array
+
     {
+
         $f = $this->drive->files->get($id, [
+
             'fields' => 'id,name,mimeType,size,parents,trashed,webViewLink',
+
             'supportsAllDrives' => true,
+
         ]);
+
         if ($f->getTrashed() || $f->getName() !== $name ||
+
             !in_array($folderId, $f->getParents() ?: [], true) ||
+
             (int) $f->getSize() !== $size) {
+
             throw new RuntimeException('File Google Drive tidak sesuai sesi upload.');
+
         }
+
         return ['id' => $f->getId(), 'name' => $f->getName(),
+
             'mime_type' => $f->getMimeType(), 'size' => (int) $f->getSize()];
+
     }
 
     public function uploadFile(
@@ -351,63 +391,119 @@ class GoogleDriveService
         }
 
         $uploadMode = ($fileSize > 0 && $fileSize <= 8 * 1024 * 1024) ? 'multipart' : 'resumable';
+
         Log::info('RND Drive upload START', [
+
             'mode' => $uploadMode,
+
             'size_mb' => round($fileSize / 1048576, 2),
+
         ]);
 
         // Small photos: a single multipart request avoids the resumable
+
         // session setup and per-chunk round trips on shared hosting.
+
         // Keep the limit bounded to avoid high PHP memory usage.
+
         if ($fileSize > 0 && $fileSize <= 8 * 1024 * 1024) {
+
             try {
+
                 $contents = file_get_contents($localPath);
+
                 if ($contents === false) {
+
                     throw new RuntimeException('File gagal dibaca untuk upload.');
+
                 }
+
                 $file = new DriveFile([
+
                     'name' => $fileName,
+
                     'parents' => [$folderId],
+
                 ]);
+
                 $driveRequestAt = microtime(true);
+
                 $result = $this->drive->files->create($file, [
+
                     'data' => $contents,
+
                     'mimeType' => $mimeType,
+
                     'uploadType' => 'multipart',
+
                     'fields' => 'id,name,mimeType,webViewLink,parents,size',
+
                     'supportsAllDrives' => true,
+
                 ]);
+
                 Log::info('RND Drive upload COMPLETE', [
+
                     'mode' => 'multipart',
+
                     'size_mb' => round($fileSize / 1048576, 2),
+
                     'drive_request_ms' => round((microtime(true) - $driveRequestAt) * 1000),
+
                     'total_ms' => round((microtime(true) - $uploadStartedAt) * 1000),
+
                 ]);
+
                 $id = $result->getId();
+
                 if (!$id) {
+
                     throw new RuntimeException('Google Drive tidak mengembalikan ID file.');
+
                 }
+
                 return [
+
                     'id' => $id,
+
                     'name' => $result->getName(),
+
                     'mime_type' => $result->getMimeType(),
+
                     'url' => $result->getWebViewLink()
-                        ?: 'https://drive.google.com/file/d/' . $id . '/view',
+
+                        ?: 'https\://drive.google.com/file/d/' . $id . '/view',
+
                     'size' => $result->getSize(),
+
                 ];
+
             } catch (Throwable $e) {
+
                 Log::warning('RND Drive upload FAILED', [
+
                     'mode' => 'multipart',
+
                     'size_mb' => round($fileSize / 1048576, 2),
+
                     'total_ms' => round((microtime(true) - $uploadStartedAt) * 1000),
+
                     'error_class' => get_class($e),
+
                 ]);
+
                 throw new RuntimeException(
+
                     'Upload Google Drive gagal: ' . $e->getMessage(),
+
                     (int) $e->getCode(),
+
                     $e
+
                 );
+
             }
+
         }
 
         $handle = fopen($localPath, 'rb');
@@ -421,7 +517,9 @@ class GoogleDriveService
         $chunkSize = 16 * 1024 * 1024; // 16 MB: fewer round-trips for large files
 
         $deferWasEnabled = false;
+
         $chunkIndex = 0;
+
         $chunkNetworkMs = 0;
 
         try {
@@ -519,14 +617,23 @@ class GoogleDriveService
                 }
 
                 $chunkIndex++;
+
                 $chunkStartedAt = microtime(true);
+
                 $result = $media->nextChunk($chunk);
+
                 $elapsedMs = round((microtime(true) - $chunkStartedAt) * 1000);
+
                 $chunkNetworkMs += $elapsedMs;
+
                 Log::info('RND Drive upload CHUNK', [
+
                     'chunk' => $chunkIndex,
+
                     'chunk_mb' => round(strlen($chunk) / 1048576, 2),
+
                     'request_ms' => $elapsedMs,
+
                 ]);
 
             }
@@ -542,12 +649,19 @@ class GoogleDriveService
             }
 
             Log::info('RND Drive upload COMPLETE', [
+
                 'mode' => 'resumable',
+
                 'size_mb' => round($fileSize / 1048576, 2),
+
                 'chunks' => $chunkIndex,
+
                 'chunk_request_ms' => $chunkNetworkMs,
+
                 'total_ms' => round((microtime(true) - $uploadStartedAt) * 1000),
+
             ]);
+
             $id = $result->getId();
 
             if (empty($id)) {
@@ -570,21 +684,27 @@ class GoogleDriveService
 
                 'url' => $result->getWebViewLink()
 
-                    ?: 'https://drive.google.com/file/d/' . $id . '/view',
+                    ?: 'https\://drive.google.com/file/d/' . $id . '/view',
 
                 'size' => $result->getSize(),
 
             ];
 
         } catch (Throwable $e) {
-            Log::warning('RND Drive upload FAILED', [
-                'mode' => 'resumable',
-                'size_mb' => round($fileSize / 1048576, 2),
-                'chunks' => $chunkIndex,
-                'total_ms' => round((microtime(true) - $uploadStartedAt) * 1000),
-                'error_class' => get_class($e),
-            ]);
 
+            Log::warning('RND Drive upload FAILED', [
+
+                'mode' => 'resumable',
+
+                'size_mb' => round($fileSize / 1048576, 2),
+
+                'chunks' => $chunkIndex,
+
+                'total_ms' => round((microtime(true) - $uploadStartedAt) * 1000),
+
+                'error_class' => get_class($e),
+
+            ]);
 
             throw new RuntimeException(
 
@@ -638,9 +758,9 @@ class GoogleDriveService
 
             $escapedFolderId = str_replace(
 
-                ["\\", "'"],
+                ["\\\\", "'"],
 
-                ["\\\\", "\\'"],
+                ["\\\\\\\\", "\\\\'"],
 
                 $folderId
 
@@ -696,9 +816,9 @@ class GoogleDriveService
 
                             $isFolder
 
-                                ? 'https://drive.google.com/drive/folders/' . $id
+                                ? 'https\://drive.google.com/drive/folders/' . $id
 
-                                : 'https://drive.google.com/file/d/' . $id . '/view'
+                                : 'https\://drive.google.com/file/d/' . $id . '/view'
 
                         ),
 
@@ -772,9 +892,9 @@ class GoogleDriveService
 
                     $updated->getMimeType() === 'application/vnd.google-apps.folder'
 
-                        ? 'https://drive.google.com/drive/folders/' . $id
+                        ? 'https\://drive.google.com/drive/folders/' . $id
 
-                        : 'https://drive.google.com/file/d/' . $id . '/view'
+                        : 'https\://drive.google.com/file/d/' . $id . '/view'
 
                 ),
 
@@ -876,6 +996,29 @@ class GoogleDriveService
 
         return ['id'=>$f->getId(),'name'=>$f->getName(), 'mime_type'=>$f->getMimeType(), 'size'=>$f->getSize()];
 
+    }
+
+    /** Stream a Google Drive binary file to disk without loading it fully into PHP memory. */
+    public function downloadFileToPath(string $fileId, string $destination): void
+    {
+        if (!preg_match('/^[a-zA-Z0-9_-]{10,200}$/', $fileId)) {
+            throw new RuntimeException('Google Drive file ID tidak valid.');
+        }
+        $token = $this->client->getAccessToken()['access_token'] ?? null;
+        if (!$token) throw new RuntimeException('Token Google Drive tidak tersedia.');
+        $url = 'https://www.googleapis.com/drive/v3/files/' . rawurlencode($fileId) . '?alt=media&supportsAllDrives=true';
+        try {
+            $this->client->getHttpClient()->request('GET', $url, [
+                'headers' => ['Authorization' => 'Bearer ' . $token],
+                'sink' => $destination,
+                'http_errors' => true,
+                'connect_timeout' => 20,
+                'timeout' => 240,
+            ]);
+        } catch (Throwable $e) {
+            @unlink($destination);
+            throw new RuntimeException('Download file Google Drive gagal: ' . $e->getMessage(), 0, $e);
+        }
     }
 
 }

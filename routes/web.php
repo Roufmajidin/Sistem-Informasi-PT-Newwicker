@@ -95,11 +95,15 @@ Route::prefix('rnd')
     ->controller(RndController::class)
     ->group(function () {
 
+        // Halaman utama Sample Pictures
         Route::get('/sample-pictures', 'samplePictures')
             ->name('sample-pictures');
 
-        Route::get('/sample-pictures/{po}/items', 'samplePicturesItems')
-            ->name('sample-pictures.items');
+        // Daftar artikel berdasarkan PO
+        Route::get(
+            '/sample-pictures/{po}/items',
+            'samplePicturesItems'
+        )->name('sample-pictures.items');
 
         // Membuka root folder artikel
         Route::get(
@@ -125,25 +129,41 @@ Route::prefix('rnd')
             'renameArchiveItem'
         )->name('sample-pictures.archive.item.rename');
 
-        // Memindahkan folder atau file ke Trash
+        // Menghapus folder atau file ke Trash
         Route::delete(
             '/sample-pictures/{po}/items/{detailPo}/archive/items/{folder}',
             'deleteArchiveItem'
         )->name('sample-pictures.archive.item.delete');
 
-        // Upload ke root artikel atau folder aktif
+        // Upload foto
         Route::post(
             '/sample-pictures/{po}/items/{detailPo}/archive/upload',
             'uploadArticlePhotos'
         )->name('sample-pictures.archive.upload');
 
+        // Download ZIP: foto terpilih atau folder
+        Route::post(
+            '/sample-pictures/{po}/items/{detailPo}/archive/download-zip',
+            'downloadArchiveZip'
+        )->name('sample-pictures.archive.download-zip');
+
         // Halaman detail PO lama
-        Route::get('/sample-pictures/{po}', 'samplePicturesDetail')
-            ->name('sample-pictures.detail');
-            Route::post('/sample-pictures/{po}/items/{detailPo}/archive/items/{folder}/move',
-'moveArchiveItem')->name('sample-pictures.archive.item.move');
-Route::post('/sample-pictures/{po}/items/{detailPo}/archive/items/{folder}/copy',
-'copyArchiveItem')->name('sample-pictures.archive.item.copy');
+        Route::get(
+            '/sample-pictures/{po}',
+            'samplePicturesDetail'
+        )->name('sample-pictures.detail');
+
+        // Memindahkan folder atau file
+        Route::post(
+            '/sample-pictures/{po}/items/{detailPo}/archive/items/{folder}/move',
+            'moveArchiveItem'
+        )->name('sample-pictures.archive.item.move');
+
+        // Menyalin file
+        Route::post(
+            '/sample-pictures/{po}/items/{detailPo}/archive/items/{folder}/copy',
+            'copyArchiveItem'
+        )->name('sample-pictures.archive.item.copy');
     });
 
     // finance

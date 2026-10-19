@@ -485,7 +485,7 @@
                     <div class="rnd-binding-spinner" aria-hidden="true"></div>
                     <strong>Menyiapkan arsip artikel...</strong>
                     <p id="rndArchiveBindingMessage">Menghubungkan folder artikel dengan Google Drive. Mohon tunggu.</p>
-                    <span><i class="fa fa-info-circle"></i> Proses sedang berjalan, halaman tidak macet.</span>
+                    <span><i class="fa fa-info-circle"></i> Proses sedang berjalan ..</span>
                 </div>
             </div>
 
@@ -2049,6 +2049,27 @@
             white-space: nowrap;
         }
 
+
+
+
+        /* Multi-select photos: separate from single-photo preview selection. */
+        .rnd-drive-item { position: relative; }
+        .rnd-photo-multiselect { position:absolute; z-index:8; top:6px; left:6px; width:19px; height:19px; border-radius:50%; border:1.5px solid #94a3b8; background:rgba(255,255,255,.95); display:flex; align-items:center; justify-content:center; cursor:pointer; color:transparent; box-shadow:0 2px 7px rgba(15,23,42,.18); }
+        .rnd-photo-multiselect:hover { border-color:#2563eb; }
+        .rnd-photo-multiselect i { font-size:10px; line-height:1; }
+        .rnd-photo-multiselect[aria-pressed="true"] { background:#2563eb; border-color:#2563eb; color:white; }
+        .rnd-drive-item.rnd-multi-selected { outline:3px solid #2563eb; outline-offset:-3px; background:#eff6ff; }
+        .rnd-multi-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:9px 12px; margin:8px 0; border:1px solid #bfdbfe; border-radius:10px; background:#eff6ff; color:#1e40af; font-size:12px; }
+        .rnd-multi-toolbar[hidden] { display:none !important; }
+        .rnd-multi-toolbar button { border:1px solid #93c5fd; border-radius:7px; padding:6px 10px; background:#fff; color:#1e40af; cursor:pointer; }
+        .rnd-multi-toolbar button:hover { background:#dbeafe; }
+        .rnd-batch-download-panel { position:fixed; z-index:2147483000; right:20px; bottom:20px; width:min(380px,calc(100vw - 40px)); max-height:70vh; overflow:auto; padding:15px; background:#fff; border:1px solid #bfdbfe; border-radius:12px; box-shadow:0 10px 38px rgba(15,23,42,.24); color:#1e293b; font-size:12px; }
+        .rnd-batch-download-panel > strong { font-size:14px; color:#1d4ed8; }
+        .rnd-batch-download-panel > button { float:right; border:1px solid #cbd5e1; border-radius:6px; background:white; padding:4px 9px; cursor:pointer; }
+        .rnd-batch-download-panel p { clear:both; padding-top:8px; color:#475569; }
+        .rnd-batch-download-links { display:flex; flex-direction:column; gap:5px; margin-top:10px; }
+        .rnd-batch-download-links a { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:9px; border-radius:6px; background:#eff6ff; color:#1d4ed8; text-decoration:none; }
+        .rnd-batch-download-links a:hover { background:#dbeafe; }
 
 
         .rnd-photo-grid {
@@ -5340,6 +5361,7 @@
                     const data = await fetchJson(driveEndpoint('/folders/' + encodeURIComponent(folderDbId)));
                     activeFolderDbId = data.active_folder.id;
                     driveBreadcrumbs = data.breadcrumbs || [];
+                    rndMultiSelectedIds.clear();
                     driveCurrentItems = data.items || [];
                     fileSearch.value = '';
                     rndSelectedDriveId = null;
@@ -5451,6 +5473,102 @@
             viewListButton.addEventListener('click', () => applyRndViewMode('list'));
             applyRndViewMode(rndViewMode);
 
+            // Selection is based on Drive IDs; a photo preview click remains independent.
+            const rndMultiSelectedIds = new Set();
+            const rndMultiToolbar = document.createElement('div');
+            rndMultiToolbar.className = 'rnd-multi-toolbar';
+            rndMultiToolbar.hidden = true;
+            driveItems.parentNode.insertBefore(rndMultiToolbar, driveItems);
+
+            // Google Drive download URLs are cross-origin. Browsers can block automatic
+            // multiple downloads; keep a clickable per-file fallback visible to users.
+            function rndDriveDownloadUrl(item) {
+                return 'https://drive.google.com/uc?export=download&id=' + encodeURIComponent(item.id);
+            }
+
+            function rndDownloadDriveFile(item) {
+                if (!item || item.type === 'folder' || !item.id) return;
+                const link = document.createElement('a');
+                link.href = rndDriveDownloadUrl(item);
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+            }
+
+            function rndSubmitZip(mode, selectedIds = [], folderId = null) {
+                if (!activeArchiveUrl || !activeFolderDbId) return alert('Folder arsip belum siap.');
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = driveEndpoint('/download-zip');
+                form.target = '_blank';
+                form.style.display = 'none';
+                const field = (name, value) => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden'; input.name = name; input.value = value;
+                    form.appendChild(input);
+                };
+                field('_token', document.querySelector('meta[name="csrf-token"]').content);
+                field('folder_id', activeFolderDbId);
+                field('mode', mode);
+                if (folderId) field('target_folder_id', folderId);
+                selectedIds.forEach(id => field('file_ids[]', id));
+                document.body.appendChild(form);
+                form.submit();
+                form.remove();
+            }
+
+            function rndDownloadSelectedPhotos(chosen) {
+                chosen = (chosen || []).filter(item => item && item.type !== 'folder' && item.id);
+                if (!chosen.length) return;
+                rndSubmitZip('selected', chosen.map(item => String(item.id)));
+            }
+
+            function rndUpdateMultiToolbar() {
+                for (const id of Array.from(rndMultiSelectedIds)) {
+                    if (!driveCurrentItems.some(x => x.type !== 'folder' && String(x.id) === id)) rndMultiSelectedIds.delete(id);
+                }
+                const count = rndMultiSelectedIds.size;
+                rndMultiToolbar.hidden = count === 0;
+                rndMultiToolbar.replaceChildren();
+                if (!count) return;
+                const label = document.createElement('strong');
+                label.textContent = count + ' foto dipilih';
+                const download = document.createElement('button');
+                download.type = 'button';
+                download.textContent = 'Download terpilih (' + count + ')';
+                download.addEventListener('click', () => {
+                    const chosen = driveCurrentItems.filter(x => rndMultiSelectedIds.has(String(x.id)) && x.type !== 'folder');
+                    rndDownloadSelectedPhotos(chosen);
+                });
+                const clear = document.createElement('button');
+                clear.type = 'button';
+                clear.textContent = 'Batal pilih';
+                clear.addEventListener('click', () => {
+                    rndMultiSelectedIds.clear();
+                    renderDriveItemsStable();
+                });
+                rndMultiToolbar.append(label, download, clear);
+            }
+
+            function rndToggleMultiPhoto(item) {
+                if (!item || item.type === 'folder' || !item.id) return;
+                const id = String(item.id);
+                if (rndMultiSelectedIds.has(id)) rndMultiSelectedIds.delete(id);
+                else rndMultiSelectedIds.add(id);
+                driveItems.querySelectorAll('.rnd-drive-item').forEach(card => {
+                    const checked = rndMultiSelectedIds.has(String(card.dataset.fileKey));
+                    card.classList.toggle('rnd-multi-selected', checked);
+                    const circle = card.querySelector('.rnd-photo-multiselect');
+                    if (circle) {
+                        circle.setAttribute('aria-pressed', checked ? 'true' : 'false');
+                        circle.innerHTML = checked ? '<i class="fa fa-check"></i>' : '';
+                    }
+                });
+                rndUpdateMultiToolbar();
+            }
+
             // Preview foto Google Drive: tetap di panel kiri, tanpa navigasi keluar.
             let rndSelectedDriveId = null;
 
@@ -5539,6 +5657,7 @@
                     !keyword || normalizeArchiveSearch(item.name).includes(keyword));
                 fileSearchCount.textContent = 'Found ' + visibleDriveItems.length + ' records';
                 driveItems.replaceChildren();
+                rndUpdateMultiToolbar();
                 driveItems.classList.add('rnd-drive-items-modern');
                 if (!visibleDriveItems.length) {
                     const empty = document.createElement('div');
@@ -5560,6 +5679,25 @@
                     }
                     if (item.type !== 'folder' && card.dataset.fileKey === rndSelectedDriveId) card.classList
                         .add('rnd-drive-selected');
+
+                    if (item.type !== 'folder' && !item.__pending) {
+                        const circle = document.createElement('button');
+                        circle.type = 'button';
+                        circle.className = 'rnd-photo-multiselect';
+                        circle.title = 'Pilih foto untuk tindakan bersama';
+                        const checked = rndMultiSelectedIds.has(String(item.id));
+                        circle.setAttribute('aria-label', 'Pilih ' + (item.name || 'foto'));
+                        circle.setAttribute('aria-pressed', checked ? 'true' : 'false');
+                        if (checked) {
+                            circle.innerHTML = '<i class="fa fa-check"></i>';
+                            card.classList.add('rnd-multi-selected');
+                        }
+                        circle.addEventListener('click', event => {
+                            event.stopPropagation();
+                            rndToggleMultiPhoto(item);
+                        });
+                        card.appendChild(circle);
+                    }
 
                     const preview = document.createElement('div');
                     preview.className = 'rnd-drive-preview';
@@ -5606,8 +5744,15 @@
                     name.title = item.name || '';
                     const meta = document.createElement('div');
                     meta.className = 'rnd-drive-item-meta';
-                    meta.textContent = item.type === 'folder' ? 'Folder' : (driveSize(item.size) || item
-                        .mime_type || 'Foto');
+                    if (item.type === 'folder') {
+                        const date = item.created_time ? new Date(item.created_time) : null;
+                        const formatted = date && !isNaN(date.getTime())
+                            ? new Intl.DateTimeFormat('en-GB', {day:'2-digit', month:'short', year:'numeric', timeZone:'Asia/Jakarta'}).format(date)
+                            : '—';
+                        meta.textContent = 'Folder · Created: ' + formatted;
+                    } else {
+                        meta.textContent = driveSize(item.size) || item.mime_type || 'Foto';
+                    }
                     info.append(name, meta);
                     card.append(preview, topActions, info);
 
@@ -5858,6 +6003,27 @@
                     menu.remove();
                 };
                 menu.appendChild(copy);
+                if (item.type !== 'folder') {
+                    const download = document.createElement('button');
+                    download.textContent = 'Download';
+                    download.onclick = () => {
+                        const chosen = rndMultiSelectedIds.has(String(item.id))
+                            ? driveCurrentItems.filter(x => x.type !== 'folder' && rndMultiSelectedIds.has(String(x.id)))
+                            : [item];
+                        rndDownloadSelectedPhotos(chosen);
+                        menu.remove();
+                    };
+                    menu.appendChild(download);
+                }
+                if (item.type === 'folder' && item.database_id) {
+                    const zipDownload = document.createElement('button');
+                    zipDownload.textContent = 'Download ZIP';
+                    zipDownload.onclick = () => {
+                        rndSubmitZip('folder', [], item.database_id);
+                        menu.remove();
+                    };
+                    menu.appendChild(zipDownload);
+                }
                 if (item.type === 'folder' && item.database_id) {
                     const paste = document.createElement('button');
                     paste.textContent = 'Paste into folder  Ctrl+V';
