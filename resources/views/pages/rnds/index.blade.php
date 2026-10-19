@@ -27,10 +27,10 @@
 
         <div class="rnd-page-header">
 
+         
 
 
-
-            {{-- 
+{{-- 
             <div class="rnd-cloud-badge">
 
                 <span></span> Cloud Storage
@@ -71,8 +71,8 @@
 
 
 
-                <input type="text" name="search" value="{{ $search ?? '' }}"
-                    placeholder="Cari PO, Article Code, nama barang, atau nama file..." autocomplete="off">
+                <input type="text" name="search" value="{{ $search ?? '' }}" placeholder="Cari PO, Article Code, nama barang, atau nama file..."
+                    autocomplete="off">
 
 
 
@@ -390,8 +390,7 @@
 
             <div class="rnd-inline-search">
                 <i class="fa fa-search"></i>
-                <input id="rndArticleSearch" type="search" placeholder="Cari Article Code atau nama barang..."
-                    autocomplete="off">
+                <input id="rndArticleSearch" type="search" placeholder="Cari Article Code atau nama barang..." autocomplete="off">
                 <span id="rndArticleSearchCount" aria-live="polite">Found 0 records</span>
             </div>
 
@@ -480,6 +479,16 @@
                 </div>
             </div>
 
+            {{-- Loading focus while Laravel prepares/binds the article folder --}}
+            <div id="rndArchiveBindingOverlay" class="rnd-binding-overlay" role="status" aria-live="polite" aria-busy="true" hidden>
+                <div class="rnd-binding-card">
+                    <div class="rnd-binding-spinner" aria-hidden="true"></div>
+                    <strong>Menyiapkan arsip artikel...</strong>
+                    <p id="rndArchiveBindingMessage">Menghubungkan folder artikel dengan Google Drive. Mohon tunggu.</p>
+                    <span><i class="fa fa-info-circle"></i> Proses sedang berjalan</span>
+                </div>
+            </div>
+
             {{-- DUAL PANE: PREVIEW KIRI, FILE MANAGER KANAN --}}
             <div class="rnd-archive-workspace">
                 <aside class="rnd-preview-pane">
@@ -522,8 +531,7 @@
                         </div>
                         <div class="rnd-inline-search">
                             <i class="fa fa-search"></i>
-                            <input id="rndFileSearch" type="search" placeholder="Cari nama file atau folder aktif..."
-                                autocomplete="off">
+                            <input id="rndFileSearch" type="search" placeholder="Cari nama file atau folder aktif..." autocomplete="off">
                             <span id="rndFileSearchCount" aria-live="polite">Found 0 records</span>
                         </div>
                         <div id="rndDriveItems" class="rnd-drive-items">
@@ -2427,16 +2435,14 @@
             pointer-events: none;
             position: relative;
         }
-
         .rnd-drive-item.is-pending::after {
             content: "";
             position: absolute;
             inset: 0;
             z-index: 4;
-            background: rgba(255, 255, 255, .18);
+            background: rgba(255,255,255,.18);
             border-radius: inherit;
         }
-
         .rnd-pending-overlay {
             position: absolute;
             z-index: 5;
@@ -2449,16 +2455,13 @@
             gap: 6px;
             padding: 6px 8px;
             border-radius: 8px;
-            background: rgba(255, 255, 255, .94);
+            background: rgba(255,255,255,.94);
             color: #475569;
-            box-shadow: 0 2px 8px rgba(15, 23, 42, .10);
+            box-shadow: 0 2px 8px rgba(15,23,42,.10);
             font-size: 10px;
             font-weight: 700;
         }
-
-        .rnd-drive-item.is-pending .rnd-drive-preview img {
-            opacity: .55;
-        }
+        .rnd-drive-item.is-pending .rnd-drive-preview img { opacity: .55; }
 
         #rndDriveNewFolder {
             background: #1769e8 !important;
@@ -3295,9 +3298,9 @@
 
 
         /* ==========================================================
-                   R&D ARCHIVE MODAL V3 - COMPACT SECOND SCREEN
-                   Visual-only overrides. Existing IDs/events remain intact.
-                   ========================================================== */
+               R&D ARCHIVE MODAL V3 - COMPACT SECOND SCREEN
+               Visual-only overrides. Existing IDs/events remain intact.
+               ========================================================== */
         .rnd-drawer {
             height: min(900px, calc(100dvh - 32px)) !important;
             padding: 18px 20px !important;
@@ -4794,54 +4797,12 @@
                 grid-template-columns: repeat(2, minmax(0, 1fr)) !important
             }
         }
-
-        .rnd-detail-table tbody tr.rnd-search-highlight td {
-            background: #fff1b8 !important;
-            border-top: 1px solid #f5c542;
-            border-bottom: 1px solid #f5c542;
-        }
-
-        .rnd-detail-table tbody tr.rnd-search-highlight td:first-child {
-            box-shadow: inset 4px 0 #eab308;
-        }
-
-        .rnd-search-result {
-            margin: 0 0 14px;
-            padding: 11px 14px;
-            border-radius: 9px;
-            background: #eff6ff;
-            color: #1d4ed8;
-            font-size: 12px;
-        }
-
-        .rnd-inline-search {
-            display: flex;
-            align-items: center;
-            gap: 9px;
-            padding: 10px 12px;
-            margin-bottom: 12px;
-            border: 1px solid #e2e8f0;
-            border-radius: 9px;
-            background: #fff;
-            color: #64748b;
-        }
-
-        .rnd-inline-search input {
-            flex: 1;
-            min-width: 0;
-            border: 0;
-            outline: 0;
-            background: transparent;
-            font-size: 12px;
-            color: #17243a;
-        }
-
-        .rnd-inline-search span {
-            font-size: 11px;
-            white-space: nowrap;
-            font-weight: 700;
-            color: #2563eb;
-        }
+        .rnd-detail-table tbody tr.rnd-search-highlight td { background: #fff1b8 !important; border-top: 1px solid #f5c542; border-bottom: 1px solid #f5c542; }
+        .rnd-detail-table tbody tr.rnd-search-highlight td:first-child { box-shadow: inset 4px 0 #eab308; }
+        .rnd-search-result { margin: 0 0 14px; padding: 11px 14px; border-radius: 9px; background: #eff6ff; color: #1d4ed8; font-size: 12px; }
+        .rnd-inline-search { display: flex; align-items: center; gap: 9px; padding: 10px 12px; margin-bottom: 12px; border: 1px solid #e2e8f0; border-radius: 9px; background: #fff; color: #64748b; }
+        .rnd-inline-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font-size: 12px; color: #17243a; }
+        .rnd-inline-search span { font-size: 11px; white-space: nowrap; font-weight: 700; color: #2563eb; }
     </style>
 
 
@@ -4895,6 +4856,15 @@
             const archiveSubtitle = document.getElementById('rndArchiveSubtitle');
 
             const folderStatus = document.getElementById('rndArchiveFolderStatus');
+            const bindingOverlay = document.getElementById('rndArchiveBindingOverlay');
+            const bindingMessage = document.getElementById('rndArchiveBindingMessage');
+            let bindingSequence = 0;
+            function setArchiveBinding(active, message) {
+                if (!bindingOverlay) return;
+                bindingOverlay.hidden = !active;
+                if (message && bindingMessage) bindingMessage.textContent = message;
+            }
+
 
             const driveLink = document.getElementById('rndOpenDriveFolder');
 
@@ -5067,6 +5037,9 @@
 
 
             function closeArchive() {
+                bindingSequence++;
+                setArchiveBinding(false);
+
 
                 if (activeRequest) {
 
@@ -5211,12 +5184,8 @@
                     renderItems(result.items || []);
                     if (highlightedArticleKey) {
                         requestAnimationFrame(() => {
-                            const row = detailBody.querySelector('tr[data-article-key="' +
-                                highlightedArticleKey + '"]');
-                            if (row) row.scrollIntoView({
-                                behavior: 'smooth',
-                                block: 'center'
-                            });
+                            const row = detailBody.querySelector('tr[data-article-key="' + highlightedArticleKey + '"]');
+                            if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         });
                     }
 
@@ -5276,8 +5245,7 @@
 
 
                 detailBody.innerHTML = items.map(function(item, index) {
-                    const itemKey = String(item.id ?? item.article_code ?? index).replace(/[^a-zA-Z0-9_-]/g,
-                        '_');
+                    const itemKey = String(item.id ?? item.article_code ?? index).replace(/[^a-zA-Z0-9_-]/g, '_');
                     const highlighted = highlightedArticleKey === itemKey;
 
                     const code = escapeHtml(item.article_code || '-');
@@ -5334,7 +5302,7 @@
 
                             data-description="${description}"
 
-                            ${item.article_code ? '' : 'disabled'}>
+                            ${(String(item.article_code || '').trim() || String(item.description || '').trim()) ? '' : 'disabled'}>
 
                             <i class="fa fa-folder-open"></i> Buka
 
@@ -5803,7 +5771,7 @@
                     return;
                 }
                 if (operation === 'move' && String(item.parent_folder_id || activeFolderDbId) === String(target
-                        .id)) {
+                    .id)) {
                     explorerNotify('Item sudah berada di folder tersebut.');
                     return;
                 }
@@ -6011,11 +5979,8 @@
 
                 const tempId = 'pending-folder-' + Date.now();
                 driveCurrentItems.unshift({
-                    id: tempId,
-                    name: name.trim(),
-                    type: 'folder',
-                    __pending: true,
-                    __pendingLabel: 'Membuat folder...'
+                    id: tempId, name: name.trim(), type: 'folder',
+                    __pending: true, __pendingLabel: 'Membuat folder...'
                 });
                 renderDriveItemsStable();
                 driveNewFolder.disabled = true;
@@ -6042,6 +6007,8 @@
             });
 
             async function openArticleArchive(button) {
+                const myBindingSequence = ++bindingSequence;
+
 
                 if (uploadInProgress) return;
 
@@ -6059,6 +6026,8 @@
                 detailSection.hidden = true;
 
                 archivePanel.hidden = false;
+                setArchiveBinding(true, 'Memeriksa dan menghubungkan folder artikel di Google Drive. Mohon tunggu...');
+
 
 
 
@@ -6070,7 +6039,7 @@
 
                 folderStatus.innerHTML =
 
-                    '<i class="fa fa-circle-o-notch fa-spin"></i> Preparind Directory...';
+                    '<i class="fa fa-circle-o-notch fa-spin"></i> Menyiapkan direktori artikel...';
 
 
 
@@ -6131,6 +6100,7 @@
                     renderArchiveFiles(result.files || []);
                     if (result.folder && result.folder.database_id) {
                         activeRootFolderDbId = result.folder.database_id;
+                        setArchiveBinding(true, 'Folder ditemukan. Sedang memuat daftar foto dan subfolder...');
                         await loadDriveFolder(activeRootFolderDbId);
                     } else {
                         driveItems.innerHTML =
@@ -6154,6 +6124,8 @@
 
                     fileCount.textContent = '0 foto';
 
+                } finally {
+                    if (myBindingSequence === bindingSequence) setArchiveBinding(false);
                 }
 
             }
@@ -6313,7 +6285,7 @@
 
             // XHR diperlukan untuk membaca progres upload browser -> hosting.
             // fetch() tidak menyediakan event upload progress yang kompatibel secara luas.
-            function uploadPhotoWithProgress(url, formData, onProgress, timeoutMs = 180000) {
+            function uploadPhotoWithProgress(url, formData, onProgress, timeoutMs = 600000) {
                 return new Promise((resolve, reject) => {
                     const xhr = new XMLHttpRequest();
                     xhr.open('POST', url, true);
@@ -6329,9 +6301,8 @@
                     xhr.upload.addEventListener('load', () => onProgress(1, 1));
                     xhr.onload = () => {
                         let data;
-                        try {
-                            data = JSON.parse(xhr.responseText);
-                        } catch (_) {
+                        try { data = JSON.parse(xhr.responseText); }
+                        catch (_) {
                             reject(new Error(xhr.status === 419 ? 'Sesi berakhir. Refresh halaman.' :
                                 'Respons server bukan JSON (HTTP ' + xhr.status + ').'));
                             return;
@@ -6341,75 +6312,15 @@
                         } else resolve(data);
                     };
                     xhr.onerror = () => reject(new Error('Koneksi ke hosting terputus.'));
-                    xhr.ontimeout = () => reject(new Error('Waktu upload habis (3 menit).'));
+                    xhr.ontimeout = () => reject(new Error('Waktu respons server habis. Periksa foto di aplikasi sebelum mencoba ulang.'));
                     xhr.onabort = () => reject(new Error('Upload dibatalkan.'));
                     xhr.send(formData);
                 });
             }
 
-            // Direct-to-Drive session. If browser/CORS blocks the Drive PUT, show
-            // a clear error rather than silently re-uploading and risking duplicates.
-            async function directUploadPhoto(url, file, folderId, onProgress) {
-                const token = document.querySelector('meta[name="csrf-token"]')?.content;
-                const send = async (body) => {
-                    const res = await fetch(url, {
-                        method: 'POST',
-                        credentials: 'same-origin',
-                        headers: {
-                            'Accept': 'application/json',
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': token || '',
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        body: JSON.stringify(body)
-                    });
-                    const data = await res.json();
-                    if (!res.ok || data.success === false) {
-                        throw new Error(data.message || 'HTTP ' + res.status);
-                    }
-                    return data;
-                };
-                const start = await send({
-                    direct_action: 'start',
-                    folder_id: folderId || null,
-                    name: file.name,
-                    size: file.size,
-                    mime_type: file.type
-                });
-                const uploaded = await new Promise((resolve, reject) => {
-                    const xhr = new XMLHttpRequest();
-                    xhr.open('PUT', start.session_url, true);
-                    xhr.timeout = 300000;
-                    xhr.setRequestHeader('Content-Type', file.type);
-                    xhr.upload.onprogress = e => {
-                        if (e.lengthComputable) onProgress(e.loaded, e.total);
-                    };
-                    xhr.onload = () => {
-                        if (xhr.status < 200 || xhr.status >= 300) {
-                            reject(new Error('Google Drive menolak upload (HTTP ' + xhr.status + ').'));
-                            return;
-                        }
-                        try {
-                            resolve(JSON.parse(xhr.responseText));
-                        } catch (_) {
-                            reject(new Error('Respons Google Drive tidak valid.'));
-                        }
-                    };
-                    xhr.onerror = () => reject(new Error(
-                        'Browser gagal menghubungi Google Drive langsung. Periksa CORS di DevTools; ' +
-                        'gunakan upload lama bila endpoint Google tidak mengizinkan request browser.'
-                        ));
-                    xhr.ontimeout = () => reject(new Error('Transfer langsung ke Google Drive timeout.'));
-                    xhr.send(file);
-                });
-                if (!uploaded.id) throw new Error('Google Drive tidak mengembalikan ID file.');
-                onProgress(1, 1);
-                return send({
-                    direct_action: 'finish',
-                    ticket: start.ticket,
-                    drive_id: uploaded.id
-                });
-            }
+            // Shared-hosting-safe upload: browser -> Laravel -> Google Drive.
+            // Direct Google Drive PUT is intentionally disabled because browser CORS
+            // can hide a successful upload response and cause misleading failures.
 
             const uploadLayer = document.getElementById('rndUploadLayer');
             const layerPercent = document.getElementById('rndLayerPercent');
@@ -6472,21 +6383,12 @@
                 files.forEach((file, index) => {
                     const tempId = 'pending-upload-' + Date.now() + '-' + index;
                     let previewUrl = '';
-                    try {
-                        previewUrl = URL.createObjectURL(file);
-                    } catch (_) {}
-                    pendingUploadItems.set(file, {
-                        id: tempId,
-                        previewUrl
-                    });
+                    try { previewUrl = URL.createObjectURL(file); } catch (_) {}
+                    pendingUploadItems.set(file, { id: tempId, previewUrl });
                     driveCurrentItems.unshift({
-                        id: tempId,
-                        name: file.name,
-                        type: 'file',
-                        thumbnail_url: previewUrl,
-                        mime_type: file.type || 'image/jpeg',
-                        size: file.size,
-                        __pending: true,
+                        id: tempId, name: file.name, type: 'file',
+                        thumbnail_url: previewUrl, mime_type: file.type || 'image/jpeg',
+                        size: file.size, __pending: true,
                         __pendingLabel: 'Menunggu upload...'
                     });
                 });
@@ -6499,10 +6401,9 @@
                         Math.max(1, Math.round(bytes / 1024)) + ' KB';
                 };
 
-                // Maksimal 2 request bersamaan untuk mengurangi total waktu batch,
-                // tanpa membanjiri server hosting atau Google Drive.
+                // Satu request per giliran agar PHP worker shared hosting tidak terbebani.
                 try {
-                    const MAX_PARALLEL_UPLOADS = 2;
+                    const MAX_PARALLEL_UPLOADS = 1;
                     let nextFileIndex = 0;
                     let processedCount = 0;
                     let runningCount = 0;
@@ -6517,18 +6418,16 @@
                         const percentage = Math.min(99, Math.floor(weighted / totalBytes * 100));
                         const done = processedCount === files.length;
                         progressBar.style.width = (done ? 100 : percentage) + '%';
-                        const savingCount = filePhases.filter(p => p === 'Verifikasi database').length;
+                        const savingCount = filePhases.filter(p => p === 'Menyimpan ke Google Drive').length;
                         progressText.textContent = done ?
                             'Selesai memproses ' + processedCount + '/' + files.length + ' foto' :
-                            'Upload langsung ke Google Drive ' + percentage + '% · ' +
-                            (savingCount ? savingCount + ' foto sedang disimpan ke Google Drive · ' :
-                                '') +
+                            'Upload melalui hosting ' + percentage + '% · ' +
+                            (savingCount ? savingCount + ' foto sedang disimpan ke Google Drive · ' : '') +
                             'Selesai ' + processedCount + '/' + files.length;
                         setUploadMessage(
                             'Berhasil ' + successful.length + ' · Gagal ' + failed.length +
                             ' · Aktif ' + runningCount + ' · ' +
-                            (savingCount ? 'Memverifikasi hasil di Laravel' :
-                                'Mengirim langsung ke Google Drive'),
+                            (savingCount ? 'Menunggu konfirmasi Google Drive' : 'Mengirim foto ke hosting'),
                             failed.length ? 'error' : ''
                         );
                         uploadButton.innerHTML =
@@ -6545,19 +6444,18 @@
                                 'Mengunggah ' + file.name + ' (' + formatBytes(file.size) + ')';
                             try {
                                 const formData = new FormData();
-                                if (activeFolderDbId) formData.append('folder_id',
-                                activeFolderDbId);
+                                if (activeFolderDbId) formData.append('folder_id', activeFolderDbId);
                                 formData.append('photos[]', file, file.name);
 
-                                filePhases[index] = 'Mengirim langsung ke Drive';
+                                filePhases[index] = 'Mengirim ke hosting';
                                 updateBatchProgress();
-                                const result = await directUploadPhoto(
-                                    activeUploadUrl, file, activeFolderDbId,
+                                const result = await uploadPhotoWithProgress(
+                                    activeUploadUrl, formData,
                                     (loaded, total) => {
                                         fileProgress[index] = Math.max(fileProgress[index],
                                             0.9 * Math.min(1, loaded / Math.max(total, 1)));
                                         if (fileProgress[index] >= 0.9) {
-                                            filePhases[index] = 'Verifikasi database';
+                                            filePhases[index] = 'Menyimpan ke Google Drive';
                                         }
                                         updateBatchProgress();
                                     }
@@ -6585,19 +6483,15 @@
                                             mime_type: file.type || 'image/jpeg',
                                             size: file.size,
                                             url: 'https://drive.google.com/file/d/' +
-                                                encodeURIComponent(uploaded.drive_id) +
-                                                '/view'
+                                                encodeURIComponent(uploaded.drive_id) + '/view'
                                         });
                                     }
                                 }
                             } catch (error) {
                                 const message = error.name === 'AbortError' ?
-                                    'Waktu upload habis (3 menit).' :
+                                    'Waktu respons server habis. Periksa foto sebelum mengulang.' :
                                     (error.message || 'Upload gagal.');
-                                failed.push({
-                                    name: file.name,
-                                    message
-                                });
+                                failed.push({ name: file.name, message });
                                 fileProgress[index] = 1;
                                 filePhases[index] = 'Gagal';
                                 const pending = pendingUploadItems.get(file);
@@ -6615,9 +6509,8 @@
                         }
                     };
 
-                    await Promise.all(Array.from({
-                            length: Math.min(MAX_PARALLEL_UPLOADS, files.length)
-                        },
+                    await Promise.all(Array.from(
+                        { length: Math.min(MAX_PARALLEL_UPLOADS, files.length) },
                         () => uploadWorker()
                     ));
 
@@ -6637,7 +6530,7 @@
                         );
                         progressText.textContent =
                             'Selesai dengan ' + failed.length +
-                            ' kegagalan. Pilih ulang hanya file yang gagal.';
+                            ' kegagalan. Periksa daftar foto sebelum mencoba ulang agar tidak duplikat.';
                     } else {
                         setUploadMessage('Semua ' + successful.length + ' foto berhasil diunggah.',
                             'success');
@@ -6723,10 +6616,7 @@
                             const originalIndex = (result.items || []).indexOf(matched);
                             const key = String(matched.id ?? matched.article_code ?? originalIndex)
                                 .replace(/[^a-zA-Z0-9_-]/g, '_');
-                            await openDrawer(button, {
-                                articleKeyword: initialSearchKeyword,
-                                highlightKey: key
-                            });
+                            await openDrawer(button, { articleKeyword: initialSearchKeyword, highlightKey: key });
                             return;
                         }
                     } catch (error) {
@@ -6735,9 +6625,7 @@
                 }
             }
             if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', autoOpenMatchingArticle, {
-                    once: true
-                });
+                document.addEventListener('DOMContentLoaded', autoOpenMatchingArticle, { once: true });
             } else {
                 autoOpenMatchingArticle();
             }
@@ -7127,7 +7015,7 @@
                 bottom: 10px
             }
         }
-
+    
         /* RND Drive list: truncate long names and place list cards side-by-side */
         #rndDriveItems.rnd-list-mode {
             display: grid !important;
@@ -7209,7 +7097,34 @@
                 grid-template-columns: minmax(0, 1fr) !important;
             }
         }
-    </style>
+
+        /* Make the article-directory binding step unmistakable. */
+        #rndArchivePanel { position: relative !important; }
+        #rndArchiveBindingOverlay[hidden] { display: none !important; }
+        .rnd-binding-overlay {
+            position: absolute; inset: 0; z-index: 75;
+            display: flex; align-items: center; justify-content: center;
+            padding: 22px; background: rgba(242, 247, 255, .88);
+            backdrop-filter: blur(3px);
+        }
+        .rnd-binding-card {
+            width: min(440px, 100%); text-align: center;
+            background: #fff; border: 1px solid #d9e5f6;
+            border-radius: 18px; padding: 32px 24px;
+            box-shadow: 0 18px 45px rgba(25, 56, 100, .14);
+        }
+        .rnd-binding-spinner {
+            width: 48px; height: 48px; margin: 0 auto 18px;
+            border: 5px solid #dce9ff; border-top-color: #1462e8;
+            border-radius: 50%; animation: rndBindingSpin .85s linear infinite;
+        }
+        @keyframes rndBindingSpin { to { transform: rotate(360deg); } }
+        .rnd-binding-card strong { display: block; font-size: 17px; color: #12366d; }
+        .rnd-binding-card p { margin: 10px 0 15px; color: #4d6585; font-size: 13px; line-height: 1.6; }
+        .rnd-binding-card span { color: #617899; font-size: 12px; }
+        @media (prefers-reduced-motion: reduce) { .rnd-binding-spinner { animation-duration: 2s; } }
+
+</style>
     <div id="rndFullscreenViewer" hidden role="dialog" aria-modal="true" aria-label="Foto layar penuh">
         <div class="rnd-fv-toolbar">
             <span id="rndFvTitle" class="rnd-fv-title">Foto</span>
@@ -7368,7 +7283,7 @@
                     open(src, name);
                 }
             }, true);
-        
+            // Also support double-clicking the large preview or locally selected photo.
             stage?.addEventListener('dblclick', e => {
                 const selected = stage.querySelector('img');
                 if (selected?.src) {

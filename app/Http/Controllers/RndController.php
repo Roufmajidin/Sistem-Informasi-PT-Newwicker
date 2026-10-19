@@ -51,6 +51,9 @@ use Throwable;
 
 
 class RndController extends Controller
+
+
+
 {
 
 
@@ -68,6 +71,7 @@ class RndController extends Controller
 
 
     public function samplePictures(Request $request)
+
     {
 
         $search = trim((string) $request->input('search', ''));
@@ -87,7 +91,7 @@ class RndController extends Controller
             ->when($search !== '', function ($query) use ($search) {
 
                 // Case-insensitive, partial match, termasuk frasa seperti "floor lamp".
-    
+
                 $like = '%' . addcslashes(mb_strtolower($search), '%_\\') . '%';
 
 
@@ -101,7 +105,7 @@ class RndController extends Controller
                         ->orWhereHas('detailPos', function ($detail) use ($like) {
 
                             // JSON detail memuat article_code, article_nr_, nw_code, nw_description.
-        
+
                             $detail->whereRaw('LOWER(CAST(detail AS CHAR)) LIKE ?', [$like]);
 
                         })
@@ -109,7 +113,7 @@ class RndController extends Controller
                         ->orWhereHas('detailPos', function ($detail) use ($like) {
 
                             // Mencari nama file di folder artikel DAN subfoldernya.
-        
+
                             $detail->whereExists(function ($sub) use ($like) {
 
                                 $sub->selectRaw('1')
@@ -146,19 +150,22 @@ class RndController extends Controller
 
 
 
-    /**
+/**
 
 
 
-         * Normalisasi kolom detail artikel menjadi array.
+     * Normalisasi kolom detail artikel menjadi array.
 
 
 
-         */
+     */
 
 
 
     private function getItemDetail(DetailPo $item): array
+
+
+
     {
 
 
@@ -204,6 +211,9 @@ class RndController extends Controller
 
 
     private function getArticleInfo(DetailPo $item): array
+
+
+
     {
 
 
@@ -312,8 +322,7 @@ class RndController extends Controller
 
         $sourceId = trim((string) $poFolder->google_drive_folder_id);
 
-        if ($rootId === '' || $sourceId === '')
-            return;
+        if ($rootId === '' || $sourceId === '') return;
 
 
 
@@ -323,22 +332,17 @@ class RndController extends Controller
 
                 $source = $drive->getArchiveItem($sourceId);
 
-                if (
-                    ($source['trashed'] ?? true)
+                if (($source['trashed'] ?? true)
 
-                    || ($source['mime_type'] ?? '') !== 'application/vnd.google-apps.folder'
-                )
-                    return;
+                    || ($source['mime_type'] ?? '') !== 'application/vnd.google-apps.folder') return;
 
                 $parents = $source['parents'] ?? [];
 
-                if (count($parents) !== 1)
-                    return;
+                if (count($parents) !== 1) return;
 
                 // Only legacy PO folders directly in RND root can be moved.
 
-                if ($parents[0] !== $rootId)
-                    return;
+                if ($parents[0] !== $rootId) return;
 
 
 
@@ -346,15 +350,13 @@ class RndController extends Controller
 
                 $buyer = trim(preg_replace('/\s+/u', ' ', preg_replace('/[\x00-\x1F\x7F]/u', ' ', $buyer)));
 
-                if ($buyer === '')
-                    $buyer = 'BUYER TANPA NAMA';
+                if ($buyer === '') $buyer = 'BUYER TANPA NAMA';
 
 
 
-                $matches = array_values(array_filter(
-                    $drive->listFolderContents($rootId),
+                $matches = array_values(array_filter($drive->listFolderContents($rootId),
 
-                    fn($entry) => ($entry['type'] ?? '') === 'folder'
+                    fn ($entry) => ($entry['type'] ?? '') === 'folder'
 
                         && mb_strtolower(trim((string) ($entry['name'] ?? ''))) === mb_strtolower($buyer)
 
@@ -378,15 +380,13 @@ class RndController extends Controller
 
                 foreach ($drive->listFolderContents($buyerId) as $child) {
 
-                    if (
-                        ($child['type'] ?? '') === 'folder'
+                    if (($child['type'] ?? '') === 'folder'
 
                         && ($child['id'] ?? '') !== $sourceId
 
                         && mb_strtolower(trim((string) ($child['name'] ?? '')))
 
-                        === mb_strtolower(trim((string) ($source['name'] ?? $po->order_no)))
-                    ) {
+                            === mb_strtolower(trim((string) ($source['name'] ?? $po->order_no)))) {
 
                         Log::warning('RND PO destination collision; migration skipped', ['po_id' => $po->id, 'buyer' => $buyer]);
 
@@ -402,9 +402,7 @@ class RndController extends Controller
 
                 Log::info('RND legacy PO folder grouped under Buyer', [
 
-                    'po_id' => $po->id,
-                    'buyer' => $buyer,
-                    'drive_folder_id' => $sourceId,
+                    'po_id' => $po->id, 'buyer' => $buyer, 'drive_folder_id' => $sourceId,
 
                 ]);
 
@@ -494,7 +492,7 @@ class RndController extends Controller
 
 
 
-        if ($info['article_code'] === '') {
+        if ($info['article_code'] === '' && $info['description'] === '') {
 
 
 
@@ -502,7 +500,7 @@ class RndController extends Controller
 
 
 
-                'Kode artikel kosong. Periksa data detail PO.'
+                'Kode artikel dan description kosong. Isi minimal description untuk membuat folder.'
 
 
 
@@ -526,8 +524,7 @@ class RndController extends Controller
 
         $buyerName = trim(preg_replace('/\s+/u', ' ', $buyerName));
 
-        if ($buyerName === '')
-            $buyerName = 'BUYER TANPA NAMA';
+        if ($buyerName === '') $buyerName = 'BUYER TANPA NAMA';
 
 
 
@@ -581,8 +578,7 @@ class RndController extends Controller
 
             $rootId = (string) config('services.google_drive.root_folder_id');
 
-            if ($rootId === '')
-                throw new \RuntimeException('Google Drive root folder belum dikonfigurasi.');
+            if ($rootId === '') throw new \RuntimeException('Google Drive root folder belum dikonfigurasi.');
 
 
 
@@ -594,11 +590,9 @@ class RndController extends Controller
 
                     foreach ($drive->listFolderContents($rootId) as $candidate) {
 
-                        if (
-                            ($candidate['type'] ?? '') === 'folder'
+                        if (($candidate['type'] ?? '') === 'folder'
 
-                            && mb_strtolower(trim($candidate['name'] ?? '')) === mb_strtolower($buyerName)
-                        ) {
+                            && mb_strtolower(trim($candidate['name'] ?? '')) === mb_strtolower($buyerName)) {
 
                             return $candidate['id'];
 
@@ -618,11 +612,9 @@ class RndController extends Controller
 
             foreach ($drive->listFolderContents($buyerFolderId) as $candidate) {
 
-                if (
-                    ($candidate['type'] ?? '') === 'folder'
+                if (($candidate['type'] ?? '') === 'folder'
 
-                    && trim($candidate['name'] ?? '') === trim((string) $po->order_no)
-                ) {
+                    && trim($candidate['name'] ?? '') === trim((string) $po->order_no)) {
 
                     $driveFolder = ['id' => $candidate['id']];
 
@@ -700,14 +692,11 @@ class RndController extends Controller
 
          */
 
-        $folderName = $info['article_code'];
-
-        if ($info['description'] !== '') {
-
-            $folderName .= ' - ' . $info['description'];
-
-        }
-
+        // Jika kode tersedia, gunakan kode saja. Jika tidak, gunakan description.
+        // Folder yang sudah tercatat di DB tetap memakai folder ID lama.
+        $folderName = $info['article_code'] !== ''
+            ? $info['article_code']
+            : $info['description'];
         $folderName = Str::limit($folderName, 180, '');
 
 
@@ -739,7 +728,7 @@ class RndController extends Controller
 
 
                 // Periksa folder anak aktual setiap kali artikel dibuka.
-    
+
                 $children = $drive->listFolderContents($poDriveId);
 
                 $matches = array_values(array_filter($children, static function ($child) use ($folderName) {
@@ -757,14 +746,12 @@ class RndController extends Controller
                     $recordDriveId = (string) $record->google_drive_folder_id;
 
                     // Jika ID DB masih cocok dengan folder di PO, gunakan ID itu.
-    
+
                     foreach ($children as $child) {
 
-                        if (
-                            ($child['type'] ?? '') === 'folder'
+                        if (($child['type'] ?? '') === 'folder'
 
-                            && (string) ($child['id'] ?? '') === $recordDriveId
-                        ) {
+                            && (string) ($child['id'] ?? '') === $recordDriveId) {
 
                             return $record;
 
@@ -773,9 +760,9 @@ class RndController extends Controller
                     }
 
                     // Folder mungkin dipindah manual atau akses berubah: jangan
-    
+
                     // diam-diam membuat folder baru / mengganti ID metadata.
-    
+
                     throw new \RuntimeException(
 
                         'Folder artikel di database tidak ditemukan di dalam PO Google Drive. '
@@ -792,7 +779,7 @@ class RndController extends Controller
 
                 if (count($matches) > 1) {
 
-                    $ids = implode(', ', array_map(static fn($f) => (string) $f['id'], $matches));
+                    $ids = implode(', ', array_map(static fn ($f) => (string) $f['id'], $matches));
 
                     throw new \RuntimeException(
 
@@ -867,6 +854,9 @@ class RndController extends Controller
 
 
     private function getArchiveFolderIds(int $folderId): array
+
+
+
     {
 
 
@@ -936,6 +926,9 @@ class RndController extends Controller
 
 
     private function countArticlePhotos(RndArchiveFolder $folder): int
+
+
+
     {
 
 
@@ -989,6 +982,9 @@ class RndController extends Controller
 
 
     public function samplePicturesItems(Po $po)
+
+
+
     {
 
 
@@ -1432,12 +1428,12 @@ class RndController extends Controller
      */
 
     private function syncDriveFilesToDatabase(RndArchiveFolder $folder, array $items): void
+
     {
 
         foreach ($items as $item) {
 
-            if (($item['type'] ?? '') !== 'file' || empty($item['id']))
-                continue;
+            if (($item['type'] ?? '') !== 'file' || empty($item['id'])) continue;
 
             $existing = RndArchiveFile::query()
 
@@ -1449,8 +1445,7 @@ class RndController extends Controller
 
                     Log::warning('RND file Drive tercatat di folder DB berbeda; tidak dipindahkan otomatis', [
 
-                        'drive_file_id' => $item['id'],
-                        'expected_folder_id' => $folder->id,
+                        'drive_file_id' => $item['id'], 'expected_folder_id' => $folder->id,
 
                         'actual_folder_id' => $existing->folder_id,
 
@@ -1538,8 +1533,7 @@ class RndController extends Controller
                 abort_unless($folder->google_drive_folder_id, 409, 'ID folder Drive kosong.');
                 return $folder;
             }
-            if (!$cursor->parent_id)
-                break;
+            if (!$cursor->parent_id) break;
             $cursor = RndArchiveFolder::query()
                 ->whereKey($cursor->parent_id)
                 ->where('po_id', $po->id)
@@ -1547,115 +1541,6 @@ class RndController extends Controller
                 ->first();
         }
         abort(403, 'Folder bukan bagian dari arsip artikel ini.');
-    }
-
-    /** Browser-direct upload handshake on the EXISTING photo-upload route. */
-    private function handleDirectPhotoUpload(Request $request, Po $po, DetailPo $detailPo, GoogleDriveService $drive)
-    {
-        abort_unless((int) $detailPo->po_id === (int) $po->id, 404);
-        $action = $request->input('direct_action');
-        if ($action === 'start') {
-            $data = $request->validate([
-                'folder_id' => ['nullable', 'integer'],
-                'name' => ['required', 'string', 'max:255'],
-                'size' => ['required', 'integer', 'min:1', 'max:26214400'],
-                'mime_type' => ['required', 'in:image/jpeg,image/png,image/webp'],
-            ]);
-            $folder = $this->resolveUploadFolderFast($po, $detailPo, $data['folder_id'] ?? null, $drive);
-            $driveName = (string) Str::uuid() . '.' . match ($data['mime_type']) {
-                'image/png' => 'png', 'image/webp' => 'webp', default => 'jpg'
-            };
-            $sessionUrl = $drive->startBrowserUpload(
-                $driveName,
-                $folder->google_drive_folder_id,
-                $data['mime_type'],
-                (int) $data['size']
-            );
-            $ticket = (string) Str::uuid();
-            Cache::put('rnd_direct_upload:' . $ticket, [
-                'user_id' => auth()->id(),
-                'po_id' => $po->id,
-                'detail_po_id' => $detailPo->id,
-                'folder_id' => $folder->id,
-                'drive_folder_id' => $folder->google_drive_folder_id,
-                'drive_name' => $driveName,
-                'original_name' => $data['name'],
-                'size' => (int) $data['size'],
-                'mime_type' => $data['mime_type'],
-            ], now()->addMinutes(30));
-            return response()->json([
-                'success' => true,
-                'ticket' => $ticket,
-                'session_url' => $sessionUrl
-            ]);
-        }
-        if ($action === 'finish') {
-            $data = $request->validate([
-                'ticket' => ['required', 'uuid'],
-                'drive_id' => ['required', 'string', 'max:255'],
-            ]);
-            $cacheKey = 'rnd_direct_upload:' . $data['ticket'];
-            $session = Cache::get($cacheKey);
-            abort_unless(
-                $session && (int) $session['user_id'] === (int) auth()->id()
-                && (int) $session['po_id'] === (int) $po->id
-                && (int) $session['detail_po_id'] === (int) $detailPo->id,
-                403,
-                'Sesi upload tidak ditemukan atau sudah kedaluwarsa.'
-            );
-            // Lock prevents duplicate DB records from repeated finish requests.
-            return Cache::lock('rnd_direct_finish:' . $data['ticket'], 20)->block(
-                10,
-                function () use ($drive, $data, $session, $cacheKey) {
-                    $existing = RndArchiveFile::query()->where('google_drive_file_id', $data['drive_id'])
-                        ->where('folder_id', $session['folder_id'])->first();
-                    if ($existing) {
-                        Cache::forget($cacheKey);
-                        return response()->json([
-                            'success' => true,
-                            'uploaded' => [
-                                [
-                                    'id' => $existing->id,
-                                    'drive_id' => $existing->google_drive_file_id,
-                                    'name' => $existing->original_name,
-                                ]
-                            ]
-                        ]);
-                    }
-                    $verified = $drive->verifyBrowserUpload(
-                        $data['drive_id'],
-                        $session['drive_folder_id'],
-                        $session['drive_name'],
-                        $session['size']
-                    );
-                    abort_unless(
-                        $verified['mime_type'] === $session['mime_type'],
-                        422,
-                        'Tipe file tidak sesuai sesi upload.'
-                    );
-                    $record = RndArchiveFile::create([
-                        'folder_id' => $session['folder_id'],
-                        'original_name' => $session['original_name'],
-                        'google_drive_file_id' => $verified['id'],
-                        'mime_type' => $verified['mime_type'],
-                        'file_size' => $verified['size'],
-                        'uploaded_by' => auth()->id(),
-                    ]);
-                    Cache::forget($cacheKey);
-                    return response()->json([
-                        'success' => true,
-                        'uploaded' => [
-                            [
-                                'id' => $record->id,
-                                'drive_id' => $record->google_drive_file_id,
-                                'name' => $record->original_name,
-                            ]
-                        ]
-                    ]);
-                }
-            );
-        }
-        abort(422, 'Aksi direct upload tidak dikenal.');
     }
 
     public function uploadArticlePhotos(
@@ -1681,10 +1566,6 @@ class RndController extends Controller
     ) {
 
 
-
-        if ($request->filled('direct_action')) {
-            return $this->handleDirectPhotoUpload($request, $po, $detailPo, $drive);
-        }
 
         $validated = $request->validate([
 
@@ -2207,6 +2088,9 @@ class RndController extends Controller
 
 
     public function samplePicturesDetail(Po $po)
+
+
+
     {
 
 
@@ -3886,6 +3770,9 @@ class RndController extends Controller
 
 
     public function moveArchiveItem(Request $request, Po $po, DetailPo $detailPo, string $folder, GoogleDriveService $drive)
+
+
+
     {
 
 
@@ -4087,6 +3974,9 @@ class RndController extends Controller
 
 
     public function copyArchiveItem(Request $request, Po $po, DetailPo $detailPo, string $folder, GoogleDriveService $drive)
+
+
+
     {
 
 
