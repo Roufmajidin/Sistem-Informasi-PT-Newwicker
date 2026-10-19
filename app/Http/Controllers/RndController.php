@@ -2704,35 +2704,56 @@ class RndController extends Controller
                 $walk($available->get($id), '', 0);
             }
         }
+        // Each manifest item carries an encrypted, short-lived authorization ticket.
+        // The manifest already validated folder membership; don't traverse Drive parents again for each image.
+        foreach ($items as &$entry) {
+            if ($entry['type'] !== 'file') continue;
+            $entry['ticket'] = \Illuminate\Support\Facades\Crypt::encryptString(json_encode([
+                'id' => $entry['id'], 'po' => (int) $po->id,
+                'article' => (int) $detailPo->id, 'folder' => (int) $active->id,
+                'expires' => time() + 1800,
+            ]));
+        }
+        unset($entry);
         return response()->json(['name' => $clean($rootName) . '.zip', 'items' => $items, 'total_bytes' => $totalBytes]);
     }
 
-    /** One short request per binary file, restricted to the article's Drive subtree. */
+    /** Download a manifest-authorized binary without repeated Drive parent lookups. */
     public function browserZipFile(Request $request, Po $po, DetailPo $detailPo, GoogleDriveService $drive)
     {
-        $data = $request->validate(['folder_id' => ['required','integer'], 'file_id' => ['required','string','max:200']]);
-        $active = $this->resolveArticleArchiveFolder($po, $detailPo, $data['folder_id'], $drive);
-        $root = $this->ensureArticleFolder($po, $detailPo, $drive);
-        $id = $data['file_id'];
-        $visited = [];
-        $cursor = $id;
-        $allowed = false;
-        for ($depth = 0; $depth < 18; $depth++) {
-            if (isset($visited[$cursor])) break;
-            $visited[$cursor] = true;
-            $metadata = $drive->getArchiveItem($cursor);
-            if ($cursor === $id) abort_if(($metadata['mime_type'] ?? '') === 'application/vnd.google-apps.folder', 422, 'Bukan file.');
-            $parents = $metadata['parents'] ?? [];
-            if (in_array($root->google_drive_folder_id, $parents, true)) { $allowed = true; break; }
-            if (!$parents) break;
-            $cursor = (string) $parents[0];
+        $data = $request->validate([
+            'folder_id' => ['required', 'integer'],
+            'ticket' => ['required', 'string', 'max:4096'],
+        ]);
+        abort_unless((int) $detailPo->po_id === (int) $po->id, 404);
+        $active = RndArchiveFolder::query()->whereKey($data['folder_id'])
+            ->where('po_id', $po->id)->where('detail_po_id', $detailPo->id)->firstOrFail();
+        try {
+            $ticket = json_decode(\Illuminate\Support\Facades\Crypt::decryptString($data['ticket']), true, 512, JSON_THROW_ON_ERROR);
+        } catch (\Throwable $e) {
+            abort(403, 'Tiket unduhan tidak valid. Silakan ulangi Download ZIP.');
         }
-        abort_unless($allowed, 403, 'File di luar folder artikel.');
+        abort_unless(
+            is_array($ticket)
+            && (int) ($ticket['po'] ?? 0) === (int) $po->id
+            && (int) ($ticket['article'] ?? 0) === (int) $detailPo->id
+            && (int) ($ticket['folder'] ?? 0) === (int) $active->id
+            && (int) ($ticket['expires'] ?? 0) >= time()
+            && preg_match('/^[a-zA-Z0-9_-]{10,200}$/', (string) ($ticket['id'] ?? '')),
+            403, 'Tiket unduhan kedaluwarsa atau tidak sesuai artikel.'
+        );
         $dir = storage_path('app/rnd-browser-zip');
         if (!is_dir($dir) && !mkdir($dir, 0700, true) && !is_dir($dir)) abort(500);
         $path = tempnam($dir, 'rnd-');
-        try { $drive->downloadFileToPath($id, $path); }
-        catch (\Throwable $e) { @unlink($path); throw $e; }
+        try {
+            $drive->downloadFileToPath((string) $ticket['id'], $path);
+        } catch (\Throwable $e) {
+            @unlink($path);
+            \Illuminate\Support\Facades\Log::warning('RND browser ZIP file failed', [
+                'article' => $detailPo->id, 'file' => $ticket['id'], 'error' => $e->getMessage(),
+            ]);
+            return response()->json(['message' => 'Gagal mengambil file dari Google Drive. Coba ulangi.'], 502);
+        }
         return response()->download($path, 'file.bin', ['Cache-Control' => 'no-store'])->deleteFileAfterSend(true);
     }
 

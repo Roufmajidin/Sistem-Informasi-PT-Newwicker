@@ -5619,17 +5619,36 @@
                             const body = new FormData();
                             body.append('_token', document.querySelector('meta[name="csrf-token"]').content);
                             body.append('folder_id', activeFolderDbId);
-                            body.append('file_id', item.id);
-                            const response = await fetch(url, {method:'POST', body, credentials:'same-origin'});
-                            if (!response.ok) throw new Error('Gagal mengambil ' + item.path + ' (HTTP ' + response.status + ')');
-                            const blob = await response.blob();
+                            body.append('ticket', item.ticket);
+                            let blob = null;
+                            let lastError = null;
+                            for (let attempt = 1; attempt <= 3; attempt++) {
+                                const controller = new AbortController();
+                                const timer = setTimeout(() => controller.abort(), 45000);
+                                try {
+                                    const response = await fetch(url, {method:'POST', body, credentials:'same-origin', signal:controller.signal, headers:{'Accept':'application/octet-stream'}});
+                                    if (!response.ok) {
+                                        let detail = '';
+                                        try { detail = (await response.json()).message || ''; } catch (_) {}
+                                        throw new Error('HTTP ' + response.status + (detail ? ': ' + detail : ''));
+                                    }
+                                    blob = await response.blob();
+                                    if (item.size > 0 && blob.size === 0) throw new Error('File kosong dari server');
+                                    break;
+                                } catch (error) {
+                                    lastError = error;
+                                    if (attempt < 3) await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+                                } finally { clearTimeout(timer); }
+                            }
+                            if (!blob) throw new Error('Gagal mengambil ' + item.path + ' setelah 3 percobaan: ' + (lastError?.message || 'Koneksi gagal'));
+
                             zip.file(uniquePath(item.path), blob);
                             completed++;
                             rndOperationShow('Mengambil gambar', completed + ' dari ' + files.length + ' file berhasil diambil',
                                 files.length ? Math.round(completed / files.length * 80) : 80, completed + ' / ' + files.length);
                         }
                     }
-                    await Promise.all(Array.from({length: Math.min(3, files.length)}, () => worker()));
+                    await Promise.all(Array.from({length: Math.min(2, files.length)}, () => worker()));
                     rndOperationShow('Membuat ZIP', 'Mengompresi file di browser...', 80, 'Kompresi dimulai');
                     const blob = await zip.generateAsync({type:'blob', compression:'DEFLATE', compressionOptions:{level:3}}, metadata => {
                         rndOperationShow('Membuat ZIP', 'Mengompresi file di browser...', 80 + Math.round(metadata.percent * .2),

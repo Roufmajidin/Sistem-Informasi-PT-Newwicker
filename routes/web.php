@@ -60,10 +60,10 @@ Route::middleware('auth')->prefix('google-drive')->group(function () {
         'callback',
     ])->name('google-drive.callback');
 });
-Route::get(
-    '/qc/getPoDetail/{kategoriId}/{detailPo}/{poId}',
-    [QcController::class, 'getDataApi']
-)->middleware('auth:sanctum');
+// Route::get(
+//     '/qc/getPoDetail/{kategoriId}/{detailPo}/{poId}',
+//     [QcController::class, 'getDataApi']
+// )->middleware('auth:sanctum');
 Route::get('/approval/bypass_config/{token}', [
     SpkController::class,
     'magicApproval'
