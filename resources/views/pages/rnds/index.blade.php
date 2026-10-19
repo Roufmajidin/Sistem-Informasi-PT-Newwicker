@@ -6254,6 +6254,41 @@
 
 
 
+            // XHR diperlukan untuk membaca progres upload browser -> hosting.
+            // fetch() tidak menyediakan event upload progress yang kompatibel secara luas.
+            function uploadPhotoWithProgress(url, formData, onProgress, timeoutMs = 180000) {
+                return new Promise((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', url, true);
+                    xhr.timeout = timeoutMs;
+                    xhr.withCredentials = true;
+                    xhr.setRequestHeader('Accept', 'application/json');
+                    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                    const token = document.querySelector('meta[name="csrf-token"]')?.content;
+                    if (token) xhr.setRequestHeader('X-CSRF-TOKEN', token);
+                    xhr.upload.addEventListener('progress', event => {
+                        if (event.lengthComputable) onProgress(event.loaded, event.total);
+                    });
+                    xhr.upload.addEventListener('load', () => onProgress(1, 1));
+                    xhr.onload = () => {
+                        let data;
+                        try { data = JSON.parse(xhr.responseText); }
+                        catch (_) {
+                            reject(new Error(xhr.status === 419 ? 'Sesi berakhir. Refresh halaman.' :
+                                'Respons server bukan JSON (HTTP ' + xhr.status + ').'));
+                            return;
+                        }
+                        if (xhr.status < 200 || xhr.status >= 300) {
+                            reject(new Error(data.message || 'HTTP ' + xhr.status));
+                        } else resolve(data);
+                    };
+                    xhr.onerror = () => reject(new Error('Koneksi ke hosting terputus.'));
+                    xhr.ontimeout = () => reject(new Error('Waktu upload habis (3 menit).'));
+                    xhr.onabort = () => reject(new Error('Upload dibatalkan.'));
+                    xhr.send(formData);
+                });
+            }
+
             const uploadLayer = document.getElementById('rndUploadLayer');
             const layerPercent = document.getElementById('rndLayerPercent');
             const layerBar = document.getElementById('rndLayerBar');
@@ -6340,19 +6375,27 @@
                     let nextFileIndex = 0;
                     let processedCount = 0;
                     let runningCount = 0;
-
+                    // 0..0.9: browser -> hosting, 0.9: menunggu Google Drive,
+                    // 1.0: respons sukses dari backend. Progress total berbobot ukuran file.
+                    const fileProgress = files.map(() => 0);
+                    const filePhases = files.map(() => 'Menunggu giliran');
+                    const totalBytes = files.reduce((sum, file) => sum + Math.max(file.size, 1), 0);
                     const updateBatchProgress = () => {
-                        const percentage = Math.round((processedCount / files.length) * 100);
-                        progressBar.style.width = percentage + '%';
-                        progressText.textContent =
-                            'Diproses ' + processedCount + '/' + files.length +
-                            ' · Aktif ' + runningCount +
-                            ' · Berhasil ' + successful.length +
-                            ' · Gagal ' + failed.length;
+                        const weighted = files.reduce((sum, file, index) =>
+                            sum + Math.max(file.size, 1) * fileProgress[index], 0);
+                        const percentage = Math.min(99, Math.floor(weighted / totalBytes * 100));
+                        const done = processedCount === files.length;
+                        progressBar.style.width = (done ? 100 : percentage) + '%';
+                        const savingCount = filePhases.filter(p => p === 'Menyimpan ke Google Drive').length;
+                        progressText.textContent = done ?
+                            'Selesai memproses ' + processedCount + '/' + files.length + ' foto' :
+                            'Upload ke hosting ' + percentage + '% · ' +
+                            (savingCount ? savingCount + ' foto sedang disimpan ke Google Drive · ' : '') +
+                            'Selesai ' + processedCount + '/' + files.length;
                         setUploadMessage(
-                            'Progres ' + processedCount + '/' + files.length +
-                            ' foto · Berhasil ' + successful.length +
-                            ' · Gagal ' + failed.length,
+                            'Berhasil ' + successful.length + ' · Gagal ' + failed.length +
+                            ' · Aktif ' + runningCount + ' · ' +
+                            (savingCount ? 'Menunggu konfirmasi Google Drive' : 'Mengirim file ke hosting'),
                             failed.length ? 'error' : ''
                         );
                         uploadButton.innerHTML =
@@ -6372,24 +6415,26 @@
                                 if (activeFolderDbId) formData.append('folder_id', activeFolderDbId);
                                 formData.append('photos[]', file, file.name);
 
-                                const controller = new AbortController();
-                                const timeout = setTimeout(() => controller.abort(), 180000);
-                                let result;
-                                try {
-                                    result = await fetchJson(activeUploadUrl, {
-                                        method: 'POST',
-                                        headers: { 'X-CSRF-TOKEN': csrf ? csrf.content : '' },
-                                        body: formData,
-                                        signal: controller.signal
-                                    });
-                                } finally {
-                                    clearTimeout(timeout);
-                                }
+                                filePhases[index] = 'Mengirim ke hosting';
+                                updateBatchProgress();
+                                const result = await uploadPhotoWithProgress(
+                                    activeUploadUrl, formData,
+                                    (loaded, total) => {
+                                        fileProgress[index] = Math.max(fileProgress[index],
+                                            0.9 * Math.min(1, loaded / Math.max(total, 1)));
+                                        if (fileProgress[index] >= 0.9) {
+                                            filePhases[index] = 'Menyimpan ke Google Drive';
+                                        }
+                                        updateBatchProgress();
+                                    }
+                                );
 
                                 if (result && result.success === false) {
                                     throw new Error(result.message || 'Server menolak file.');
                                 }
                                 successful.push(file.name);
+                                fileProgress[index] = 1;
+                                filePhases[index] = 'Selesai';
                                 const pending = pendingUploadItems.get(file);
                                 if (pending) {
                                     removeDriveItem(pending.id);
@@ -6415,6 +6460,8 @@
                                     'Waktu upload habis (3 menit).' :
                                     (error.message || 'Upload gagal.');
                                 failed.push({ name: file.name, message });
+                                fileProgress[index] = 1;
+                                filePhases[index] = 'Gagal';
                                 const pending = pendingUploadItems.get(file);
                                 if (pending) {
                                     removeDriveItem(pending.id);
