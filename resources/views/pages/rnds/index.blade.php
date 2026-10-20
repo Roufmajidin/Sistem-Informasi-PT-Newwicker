@@ -6817,7 +6817,7 @@
 
                 // Satu request per giliran agar PHP worker shared hosting tidak terbebani.
                 try {
-                    const MAX_PARALLEL_UPLOADS = 1;
+                    const MAX_PARALLEL_UPLOADS = 5;
                     let nextFileIndex = 0;
                     let processedCount = 0;
                     let runningCount = 0;

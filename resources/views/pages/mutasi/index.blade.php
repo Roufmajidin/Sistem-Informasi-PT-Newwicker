@@ -987,7 +987,7 @@
 
 
                         <td>
-                            <input type="number"
+                            <input type="text"
                                 class="form-control form-control-sm qty"
                                 value="${row.qty}">
                         </td>
