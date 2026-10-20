@@ -1,528 +1,422 @@
 <?php
 
-    namespace App\Services;
+namespace App\Services;
 
-    use Google\Client;
+use Google\Client;
 
-    use Google\Http\MediaFileUpload;
+use Google\Http\MediaFileUpload;
 
-    use Google\Service\Drive;
+use Google\Service\Drive;
 
-    use Google\Service\Drive\DriveFile;
+use Google\Service\Drive\DriveFile;
 
-    use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Storage;
 
-    use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Log;
 
-    use RuntimeException;
+use RuntimeException;
 
-    use Throwable;
+use Throwable;
 
-    class GoogleDriveService
+class GoogleDriveService
+
+{
+
+    private Client $client;
+
+    private Drive $drive;
+
+    private string $tokenPath = 'google-drive-token.json';
+
+    public function __construct()
 
     {
 
-        private Client $client;
+        $this->client = new Client();
 
-        private Drive $drive;
+        $this->client->setClientId(
 
-        private string $tokenPath = 'google-drive-token.json';
+            config('services.google_drive.client_id')
 
-        public function __construct()
+        );
 
-        {
+        $this->client->setClientSecret(
 
-            $this->client = new Client();
+            config('services.google_drive.client_secret')
 
-            $this->client->setClientId(
+        );
 
-                config('services.google_drive.client_id')
+        $this->client->setRedirectUri(
+
+            config('services.google_drive.redirect_uri')
+
+        );
+
+        $this->client->setScopes([Drive::DRIVE]);
+
+        $this->loadToken();
+
+        $this->drive = new Drive($this->client);
+
+    }
+
+    /**
+
+     * Membaca token dari storage server dan refresh otomatis jika kedaluwarsa.
+
+     */
+
+    private function loadToken(): void
+
+    {
+
+        $storage = Storage::disk('local');
+
+        if (!$storage->exists($this->tokenPath)) {
+
+            throw new RuntimeException(
+
+                'Token Google Drive tidak ditemukan. Admin IT perlu menghubungkan Google Drive terlebih dahulu.'
 
             );
-
-            $this->client->setClientSecret(
-
-                config('services.google_drive.client_secret')
-
-            );
-
-            $this->client->setRedirectUri(
-
-                config('services.google_drive.redirect_uri')
-
-            );
-
-            $this->client->setScopes([Drive::DRIVE]);
-
-            $this->loadToken();
-
-            $this->drive = new Drive($this->client);
 
         }
 
-        /**
+        $token = json_decode($storage->get($this->tokenPath), true);
 
-        * Membaca token dari storage server dan refresh otomatis jika kedaluwarsa.
+        if (!is_array($token) || empty($token['access_token'])) {
 
-        */
+            throw new RuntimeException('File token Google Drive tidak valid.');
 
-        private function loadToken(): void
+        }
 
-        {
+        $this->client->setAccessToken($token);
 
-            $storage = Storage::disk('local');
+        if (!$this->client->isAccessTokenExpired()) {
 
-            if (!$storage->exists($this->tokenPath)) {
+            return;
 
-                throw new RuntimeException(
+        }
 
-                    'Token Google Drive tidak ditemukan. Admin IT perlu menghubungkan Google Drive terlebih dahulu.'
+        $refreshToken = $token['refresh_token']
 
-                );
+            ?? $this->client->getRefreshToken();
 
-            }
+        if (empty($refreshToken)) {
 
-            $token = json_decode($storage->get($this->tokenPath), true);
+            throw new RuntimeException(
 
-            if (!is_array($token) || empty($token['access_token'])) {
-
-                throw new RuntimeException('File token Google Drive tidak valid.');
-
-            }
-
-            $this->client->setAccessToken($token);
-
-            if (!$this->client->isAccessTokenExpired()) {
-
-                return;
-
-            }
-
-            $refreshToken = $token['refresh_token']
-
-                ?? $this->client->getRefreshToken();
-
-            if (empty($refreshToken)) {
-
-                throw new RuntimeException(
-
-                    'Refresh token tidak tersedia. Periksa koneksi Google Drive akun IT.'
-
-                );
-
-            }
-
-            $newToken = $this->client->fetchAccessTokenWithRefreshToken($refreshToken);
-
-            if (
-
-                !is_array($newToken) ||
-
-                isset($newToken['error']) ||
-
-                empty($newToken['access_token'])
-
-            ) {
-
-                $error = is_array($newToken)
-
-                    ? (
-
-                        $newToken['error_description']
-
-                        ?? $newToken['error']
-
-                        ?? 'Respons Google tidak valid.'
-
-                    )
-
-                    : 'Respons Google tidak valid.';
-
-                throw new RuntimeException('Refresh token gagal: ' . $error);
-
-            }
-
-            // Google tidak selalu mengembalikan refresh token baru.
-
-            if (empty($newToken['refresh_token'])) {
-
-                $newToken['refresh_token'] = $refreshToken;
-
-            }
-
-            $updatedToken = array_merge($token, $newToken);
-
-            $this->client->setAccessToken($updatedToken);
-
-            $updatedToken = $this->client->getAccessToken();
-
-            if (empty($updatedToken['refresh_token'])) {
-
-                $updatedToken['refresh_token'] = $refreshToken;
-
-            }
-
-            $json = json_encode(
-
-                $updatedToken,
-
-                JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
+                'Refresh token tidak tersedia. Periksa koneksi Google Drive akun IT.'
 
             );
 
-            if ($json === false) {
+        }
 
-                throw new RuntimeException(
+        $newToken = $this->client->fetchAccessTokenWithRefreshToken($refreshToken);
 
-                    'Token Google gagal dikonversi menjadi JSON.'
+        if (
 
-                );
+            !is_array($newToken) ||
 
-            }
+            isset($newToken['error']) ||
 
-            if (!$storage->put($this->tokenPath, $json)) {
+            empty($newToken['access_token'])
 
-                throw new RuntimeException(
+        ) {
 
-                    'Token baru gagal disimpan di storage server.'
+            $error = is_array($newToken)
 
-                );
+                ? (
 
-            }
+                    $newToken['error_description']
+
+                    ?? $newToken['error']
+
+                    ?? 'Respons Google tidak valid.'
+
+                )
+
+                : 'Respons Google tidak valid.';
+
+            throw new RuntimeException('Refresh token gagal: ' . $error);
 
         }
 
-        /**
+        // Google tidak selalu mengembalikan refresh token baru.
 
-        * Membuat folder di Google Drive.
+        if (empty($newToken['refresh_token'])) {
 
-        */
+            $newToken['refresh_token'] = $refreshToken;
 
-        public function createFolder(
+        }
 
-            string $name,
+        $updatedToken = array_merge($token, $newToken);
 
-            ?string $parentFolderId = null
+        $this->client->setAccessToken($updatedToken);
 
-        ): array {
+        $updatedToken = $this->client->getAccessToken();
 
-            $parentFolderId = $parentFolderId
+        if (empty($updatedToken['refresh_token'])) {
 
-                ?: config('services.google_drive.root_folder_id');
+            $updatedToken['refresh_token'] = $refreshToken;
 
-            if (!$parentFolderId) {
+        }
 
-                throw new RuntimeException(
+        $json = json_encode(
 
-                    'GOOGLE_DRIVE_ROOT_FOLDER_ID belum dikonfigurasi.'
+            $updatedToken,
 
-                );
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
 
-            }
+        );
 
-            $folder = new DriveFile([
+        if ($json === false) {
 
-                'name' => $name,
+            throw new RuntimeException(
 
-                'mimeType' => 'application/vnd.google-apps.folder',
-
-                'parents' => [$parentFolderId],
-
-            ]);
-
-            $created = $this->drive->files->create(
-
-                $folder,
-
-                [
-
-                    'fields' => 'id,name,mimeType,webViewLink,parents',
-
-                    'supportsAllDrives' => true,
-
-                ]
+                'Token Google gagal dikonversi menjadi JSON.'
 
             );
 
-            $id = $created->getId();
+        }
 
-            return [
+        if (!$storage->put($this->tokenPath, $json)) {
 
-                'id' => $id,
+            throw new RuntimeException(
 
-                'name' => $created->getName(),
+                'Token baru gagal disimpan di storage server.'
 
-                'url' => $created->getWebViewLink()
-
-                    ?: 'https\://drive.google.com/drive/folders/' . $id,
-
-            ];
+            );
 
         }
 
-        /**
+    }
 
-        * Upload file menggunakan resumable upload dan potongan 5 MB.
+    /**
 
-        *
+     * Membuat folder di Google Drive.
 
-        * Tidak membaca seluruh file ke memori sekaligus.
+     */
 
-        */
+    public function createFolder(
 
-        /** Start a resumable session; the OAuth access token never goes to the browser. */
+        string $name,
 
-        public function startBrowserUpload(string $fileName, string $folderId, string $mimeType, int $size): string
+        ?string $parentFolderId = null
 
-        {
+    ): array {
 
-            if ($size < 1 || $size > 25 * 1024 * 1024 || trim($folderId) === '') {
+        $parentFolderId = $parentFolderId
 
-                throw new RuntimeException('Parameter upload tidak valid.');
+            ?: config('services.google_drive.root_folder_id');
 
-            }
+        if (!$parentFolderId) {
 
-            $accessToken = $this->client->getAccessToken()['access_token'] ?? null;
+            throw new RuntimeException(
 
-            if (!$accessToken) throw new RuntimeException('Access token Google Drive tidak tersedia.');
+                'GOOGLE_DRIVE_ROOT_FOLDER_ID belum dikonfigurasi.'
 
-            $response = $this->client->getHttpClient()->request('POST',
-
-                'https\://www\.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,name,mimeType,size,parents,trashed', [
-
-                    'headers' => [
-
-                        'Authorization' => 'Bearer ' . $accessToken,
-
-                        'Content-Type' => 'application/json; charset=UTF-8',
-
-                        'X-Upload-Content-Type' => $mimeType,
-
-                        'X-Upload-Content-Length' => (string) $size,
-
-                    ],
-
-                    'json' => ['name' => $fileName, 'parents' => [$folderId], 'mimeType' => $mimeType],
-
-                    'http_errors' => true,
-
-                    'timeout' => 35,
-
-                ]);
-
-            $url = $response->getHeaderLine('Location');
-
-            if (!$url || !str_starts_with($url, 'https\://www\.googleapis.com/')) {
-
-                throw new RuntimeException('Google Drive tidak memberikan URL sesi upload yang valid.');
-
-            }
-
-            return $url;
+            );
 
         }
 
-        /** Verify the Drive object before the application records it. */
+        $folder = new DriveFile([
 
-        public function verifyBrowserUpload(string $id, string $folderId, string $name, int $size): array
+            'name' => $name,
 
-        {
+            'mimeType' => 'application/vnd.google-apps.folder',
 
-            $f = $this->drive->files->get($id, [
+            'parents' => [$parentFolderId],
 
-                'fields' => 'id,name,mimeType,size,parents,trashed,webViewLink',
+        ]);
+
+        $created = $this->drive->files->create(
+
+            $folder,
+
+            [
+
+                'fields' => 'id,name,mimeType,webViewLink,parents',
 
                 'supportsAllDrives' => true,
 
-            ]);
+            ]
 
-            if ($f->getTrashed() || $f->getName() !== $name ||
+        );
 
-                !in_array($folderId, $f->getParents() ?: [], true) ||
+        $id = $created->getId();
 
-                (int) $f->getSize() !== $size) {
+        return [
 
-                throw new RuntimeException('File Google Drive tidak sesuai sesi upload.');
+            'id' => $id,
 
-            }
+            'name' => $created->getName(),
 
-            return ['id' => $f->getId(), 'name' => $f->getName(),
+            'url' => $created->getWebViewLink()
 
-                'mime_type' => $f->getMimeType(), 'size' => (int) $f->getSize()];
+                ?: 'https\://drive.google.com/drive/folders/' . $id,
+
+        ];
+
+    }
+
+    /**
+
+     * Upload file menggunakan resumable upload dan potongan 5 MB.
+
+     *
+
+     * Tidak membaca seluruh file ke memori sekaligus.
+
+     */
+
+    /** Start a resumable session; the OAuth access token never goes to the browser. */
+
+    public function startBrowserUpload(string $fileName, string $folderId, string $mimeType, int $size): string
+
+    {
+
+        if ($size < 1 || $size > 25 * 1024 * 1024 || trim($folderId) === '') {
+
+            throw new RuntimeException('Parameter upload tidak valid.');
 
         }
 
-        public function uploadFile(
+        $accessToken = $this->client->getAccessToken()['access_token'] ?? null;
 
-            string $localPath,
+        if (!$accessToken) throw new RuntimeException('Access token Google Drive tidak tersedia.');
 
-            string $fileName,
+        $response = $this->client->getHttpClient()->request('POST',
 
-            string $folderId,
+            'https\://www\.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,name,mimeType,size,parents,trashed', [
 
-            string $mimeType
+                'headers' => [
 
-        ): array {
+                    'Authorization' => 'Bearer ' . $accessToken,
 
-            $uploadStartedAt = microtime(true);
+                    'Content-Type' => 'application/json; charset=UTF-8',
 
-            if (!is_file($localPath) || !is_readable($localPath)) {
+                    'X-Upload-Content-Type' => $mimeType,
 
-                throw new RuntimeException(
+                    'X-Upload-Content-Length' => (string) $size,
 
-                    'File lokal tidak ditemukan atau tidak dapat dibaca.'
+                ],
 
-                );
+                'json' => ['name' => $fileName, 'parents' => [$folderId], 'mimeType' => $mimeType],
 
-            }
+                'http_errors' => true,
 
-            if (trim($folderId) === '') {
-
-                throw new RuntimeException('ID folder Google Drive tidak valid.');
-
-            }
-
-            $fileSize = filesize($localPath);
-
-            if ($fileSize === false) {
-
-                throw new RuntimeException('Ukuran file tidak dapat dibaca.');
-
-            }
-
-            $uploadMode = ($fileSize > 0 && $fileSize <= 8 * 1024 * 1024) ? 'multipart' : 'resumable';
-
-            Log::info('RND Drive upload START', [
-
-                'mode' => $uploadMode,
-
-                'size_mb' => round($fileSize / 1048576, 2),
+                'timeout' => 35,
 
             ]);
 
-            // Small photos: a single multipart request avoids the resumable
+        $url = $response->getHeaderLine('Location');
 
-            // session setup and per-chunk round trips on shared hosting.
+        if (!$url || !str_starts_with($url, 'https\://www\.googleapis.com/')) {
 
-            // Keep the limit bounded to avoid high PHP memory usage.
+            throw new RuntimeException('Google Drive tidak memberikan URL sesi upload yang valid.');
 
-            if ($fileSize > 0 && $fileSize <= 8 * 1024 * 1024) {
+        }
 
-                try {
+        return $url;
 
-                    $contents = file_get_contents($localPath);
+    }
 
-                    if ($contents === false) {
+    /** Verify the Drive object before the application records it. */
 
-                        throw new RuntimeException('File gagal dibaca untuk upload.');
+    public function verifyBrowserUpload(string $id, string $folderId, string $name, int $size): array
 
-                    }
+    {
 
-                    $file = new DriveFile([
+        $f = $this->drive->files->get($id, [
 
-                        'name' => $fileName,
+            'fields' => 'id,name,mimeType,size,parents,trashed,webViewLink',
 
-                        'parents' => [$folderId],
+            'supportsAllDrives' => true,
 
-                    ]);
+        ]);
 
-                    $driveRequestAt = microtime(true);
+        if ($f->getTrashed() || $f->getName() !== $name ||
 
-                    $result = $this->drive->files->create($file, [
+            !in_array($folderId, $f->getParents() ?: [], true) ||
 
-                        'data' => $contents,
+            (int) $f->getSize() !== $size) {
 
-                        'mimeType' => $mimeType,
+            throw new RuntimeException('File Google Drive tidak sesuai sesi upload.');
 
-                        'uploadType' => 'multipart',
+        }
 
-                        'fields' => 'id,name,mimeType,webViewLink,parents,size',
+        return ['id' => $f->getId(), 'name' => $f->getName(),
 
-                        'supportsAllDrives' => true,
+            'mime_type' => $f->getMimeType(), 'size' => (int) $f->getSize()];
 
-                    ]);
+    }
 
-                    Log::info('RND Drive upload COMPLETE', [
+    public function uploadFile(
 
-                        'mode' => 'multipart',
+        string $localPath,
 
-                        'size_mb' => round($fileSize / 1048576, 2),
+        string $fileName,
 
-                        'drive_request_ms' => round((microtime(true) - $driveRequestAt) * 1000),
+        string $folderId,
 
-                        'total_ms' => round((microtime(true) - $uploadStartedAt) * 1000),
+        string $mimeType
 
-                    ]);
+    ): array {
 
-                    $id = $result->getId();
+        $uploadStartedAt = microtime(true);
 
-                    if (!$id) {
+        if (!is_file($localPath) || !is_readable($localPath)) {
 
-                        throw new RuntimeException('Google Drive tidak mengembalikan ID file.');
+            throw new RuntimeException(
 
-                    }
+                'File lokal tidak ditemukan atau tidak dapat dibaca.'
 
-                    return [
+            );
 
-                        'id' => $id,
+        }
 
-                        'name' => $result->getName(),
+        if (trim($folderId) === '') {
 
-                        'mime_type' => $result->getMimeType(),
+            throw new RuntimeException('ID folder Google Drive tidak valid.');
 
-                        'url' => $result->getWebViewLink()
+        }
 
-                            ?: 'https\://drive.google.com/file/d/' . $id . '/view',
+        $fileSize = filesize($localPath);
 
-                        'size' => $result->getSize(),
+        if ($fileSize === false) {
 
-                    ];
+            throw new RuntimeException('Ukuran file tidak dapat dibaca.');
 
-                } catch (Throwable $e) {
+        }
 
-                    Log::warning('RND Drive upload FAILED', [
+        $uploadMode = ($fileSize > 0 && $fileSize <= 8 * 1024 * 1024) ? 'multipart' : 'resumable';
 
-                        'mode' => 'multipart',
+        Log::info('RND Drive upload START', [
 
-                        'size_mb' => round($fileSize / 1048576, 2),
+            'mode' => $uploadMode,
 
-                        'total_ms' => round((microtime(true) - $uploadStartedAt) * 1000),
+            'size_mb' => round($fileSize / 1048576, 2),
 
-                        'error_class' => get_class($e),
+        ]);
 
-                    ]);
+        // Small photos: a single multipart request avoids the resumable
 
-                    throw new RuntimeException(
+        // session setup and per-chunk round trips on shared hosting.
 
-                        'Upload Google Drive gagal: ' . $e->getMessage(),
+        // Keep the limit bounded to avoid high PHP memory usage.
 
-                        (int) $e->getCode(),
-
-                        $e
-
-                    );
-
-                }
-
-            }
-
-            $handle = fopen($localPath, 'rb');
-
-            if ($handle === false) {
-
-                throw new RuntimeException('File gagal dibuka untuk upload.');
-
-            }
-
-            $chunkSize = 16 * 1024 * 1024; // 16 MB: fewer round-trips for large files
-
-            $deferWasEnabled = false;
-
-            $chunkIndex = 0;
-
-            $chunkNetworkMs = 0;
+        if ($fileSize > 0 && $fileSize <= 8 * 1024 * 1024) {
 
             try {
+
+                $contents = file_get_contents($localPath);
+
+                if ($contents === false) {
+
+                    throw new RuntimeException('File gagal dibaca untuk upload.');
+
+                }
 
                 $file = new DriveFile([
 
@@ -532,131 +426,29 @@
 
                 ]);
 
-                /*
+                $driveRequestAt = microtime(true);
 
-                * Mode defer diperlukan agar request Drive tidak langsung
+                $result = $this->drive->files->create($file, [
 
-                * dieksekusi sebelum MediaFileUpload mengirimkan chunk.
+                    'data' => $contents,
 
-                */
+                    'mimeType' => $mimeType,
 
-                $this->client->setDefer(true);
+                    'uploadType' => 'multipart',
 
-                $deferWasEnabled = true;
+                    'fields' => 'id,name,mimeType,webViewLink,parents,size',
 
-                $request = $this->drive->files->create(
+                    'supportsAllDrives' => true,
 
-                    $file,
-
-                    [
-
-                        'uploadType' => 'resumable',
-
-                        'fields' => 'id,name,mimeType,webViewLink,parents,size',
-
-                        'supportsAllDrives' => true,
-
-                    ]
-
-                );
-
-                $media = new MediaFileUpload(
-
-                    $this->client,
-
-                    $request,
-
-                    $mimeType,
-
-                    null,
-
-                    true,
-
-                    $chunkSize
-
-                );
-
-                $media->setFileSize($fileSize);
-
-                $result = false;
-
-                /*
-
-                * File dibaca per chunk, sehingga penggunaan memori lebih kecil.
-
-                */
-
-                while (!$result && !feof($handle)) {
-
-                    $chunk = fread($handle, $chunkSize);
-
-                    if ($chunk === false) {
-
-                        throw new RuntimeException(
-
-                            'Gagal membaca potongan file untuk upload.'
-
-                        );
-
-                    }
-
-                    if ($chunk === '' && feof($handle)) {
-
-                        break;
-
-                    }
-
-                    if ($chunk === '') {
-
-                        throw new RuntimeException(
-
-                            'Pembacaan file kosong sebelum upload selesai.'
-
-                        );
-
-                    }
-
-                    $chunkIndex++;
-
-                    $chunkStartedAt = microtime(true);
-
-                    $result = $media->nextChunk($chunk);
-
-                    $elapsedMs = round((microtime(true) - $chunkStartedAt) * 1000);
-
-                    $chunkNetworkMs += $elapsedMs;
-
-                    Log::info('RND Drive upload CHUNK', [
-
-                        'chunk' => $chunkIndex,
-
-                        'chunk_mb' => round(strlen($chunk) / 1048576, 2),
-
-                        'request_ms' => $elapsedMs,
-
-                    ]);
-
-                }
-
-                if ($result === false) {
-
-                    throw new RuntimeException(
-
-                        'Upload Google Drive belum menghasilkan respons selesai.'
-
-                    );
-
-                }
+                ]);
 
                 Log::info('RND Drive upload COMPLETE', [
 
-                    'mode' => 'resumable',
+                    'mode' => 'multipart',
 
                     'size_mb' => round($fileSize / 1048576, 2),
 
-                    'chunks' => $chunkIndex,
-
-                    'chunk_request_ms' => $chunkNetworkMs,
+                    'drive_request_ms' => round((microtime(true) - $driveRequestAt) * 1000),
 
                     'total_ms' => round((microtime(true) - $uploadStartedAt) * 1000),
 
@@ -664,13 +456,9 @@
 
                 $id = $result->getId();
 
-                if (empty($id)) {
+                if (!$id) {
 
-                    throw new RuntimeException(
-
-                        'Google Drive tidak mengembalikan ID file setelah upload.'
-
-                    );
+                    throw new RuntimeException('Google Drive tidak mengembalikan ID file.');
 
                 }
 
@@ -694,11 +482,9 @@
 
                 Log::warning('RND Drive upload FAILED', [
 
-                    'mode' => 'resumable',
+                    'mode' => 'multipart',
 
                     'size_mb' => round($fileSize / 1048576, 2),
-
-                    'chunks' => $chunkIndex,
 
                     'total_ms' => round((microtime(true) - $uploadStartedAt) * 1000),
 
@@ -716,159 +502,57 @@
 
                 );
 
-            } finally {
-
-                if (is_resource($handle)) {
-
-                    fclose($handle);
-
-                }
-
-                if ($deferWasEnabled) {
-
-                    $this->client->setDefer(false);
-
-                }
-
             }
 
         }
 
-        /**
+        $handle = fopen($localPath, 'rb');
 
-        * Membaca folder Google Drive, hanya anak langsungnya.
+        if ($handle === false) {
 
-        */
-
-        public function listFolderContents(string $folderId): array
-
-        {
-
-            if (trim($folderId) === '') {
-
-                throw new RuntimeException('ID folder Google Drive kosong.');
-
-            }
-
-            $items = [];
-
-            $pageToken = null;
-
-            do {
-
-                $escapedFolderId = str_replace(
-
-                    ["\\\\", "'"],
-
-                    ["\\\\\\\\", "\\\\'"],
-
-                    $folderId
-
-                );
-
-                $params = [
-
-                    'q' => "'" . $escapedFolderId . "' in parents and trashed = false",
-
-                    'pageSize' => 1000,
-
-                    'orderBy' => 'folder,name',
-
-                    'fields' => 'nextPageToken,files(id,name,mimeType,size,webViewLink,createdTime,modifiedTime,parents)',
-
-                    'supportsAllDrives' => true,
-
-                    'includeItemsFromAllDrives' => true,
-
-                ];
-
-                if ($pageToken) {
-
-                    $params['pageToken'] = $pageToken;
-
-                }
-
-                $result = $this->drive->files->listFiles($params);
-
-                foreach ($result->getFiles() as $file) {
-
-                    $isFolder = $file->getMimeType()
-
-                        === 'application/vnd.google-apps.folder';
-
-                    $id = $file->getId();
-
-                    $items[] = [
-
-                        'id' => $id,
-
-                        'name' => $file->getName(),
-
-                        'type' => $isFolder ? 'folder' : 'file',
-
-                        'mime_type' => $file->getMimeType(),
-
-                        'size' => $file->getSize(),
-
-                        'url' => $file->getWebViewLink()
-
-                            ?: (
-
-                                $isFolder
-
-                                    ? 'https\://drive.google.com/drive/folders/' . $id
-
-                                    : 'https\://drive.google.com/file/d/' . $id . '/view'
-
-                            ),
-
-                        'created_time' => $file->getCreatedTime(),
-
-                        'modified_time' => $file->getModifiedTime(),
-
-                    ];
-
-                }
-
-                $pageToken = $result->getNextPageToken();
-
-            } while ($pageToken);
-
-            return $items;
+            throw new RuntimeException('File gagal dibuka untuk upload.');
 
         }
 
-        /**
+        $chunkSize = 16 * 1024 * 1024; // 16 MB: fewer round-trips for large files
 
-        * Mengganti nama file atau folder di Google Drive.
+        $deferWasEnabled = false;
 
-        */
+        $chunkIndex = 0;
 
-        public function renameItem(string $itemId, string $newName): array
+        $chunkNetworkMs = 0;
 
-        {
+        try {
 
-            $newName = trim($newName);
+            $file = new DriveFile([
 
-            if ($newName === '') {
+                'name' => $fileName,
 
-                throw new \InvalidArgumentException(
+                'parents' => [$folderId],
 
-                    'Nama file atau folder tidak boleh kosong.'
+            ]);
 
-                );
+            /*
 
-            }
+             * Mode defer diperlukan agar request Drive tidak langsung
 
-            $updated = $this->drive->files->update(
+             * dieksekusi sebelum MediaFileUpload mengirimkan chunk.
 
-                $itemId,
+             */
 
-                new DriveFile(['name' => $newName]),
+            $this->client->setDefer(true);
+
+            $deferWasEnabled = true;
+
+            $request = $this->drive->files->create(
+
+                $file,
 
                 [
 
-                    'fields' => 'id,name,mimeType,webViewLink,parents',
+                    'uploadType' => 'resumable',
+
+                    'fields' => 'id,name,mimeType,webViewLink,parents,size',
 
                     'supportsAllDrives' => true,
 
@@ -876,149 +560,491 @@
 
             );
 
-            $id = $updated->getId();
+            $media = new MediaFileUpload(
+
+                $this->client,
+
+                $request,
+
+                $mimeType,
+
+                null,
+
+                true,
+
+                $chunkSize
+
+            );
+
+            $media->setFileSize($fileSize);
+
+            $result = false;
+
+            /*
+
+             * File dibaca per chunk, sehingga penggunaan memori lebih kecil.
+
+             */
+
+            while (!$result && !feof($handle)) {
+
+                $chunk = fread($handle, $chunkSize);
+
+                if ($chunk === false) {
+
+                    throw new RuntimeException(
+
+                        'Gagal membaca potongan file untuk upload.'
+
+                    );
+
+                }
+
+                if ($chunk === '' && feof($handle)) {
+
+                    break;
+
+                }
+
+                if ($chunk === '') {
+
+                    throw new RuntimeException(
+
+                        'Pembacaan file kosong sebelum upload selesai.'
+
+                    );
+
+                }
+
+                $chunkIndex++;
+
+                $chunkStartedAt = microtime(true);
+
+                $result = $media->nextChunk($chunk);
+
+                $elapsedMs = round((microtime(true) - $chunkStartedAt) * 1000);
+
+                $chunkNetworkMs += $elapsedMs;
+
+                Log::info('RND Drive upload CHUNK', [
+
+                    'chunk' => $chunkIndex,
+
+                    'chunk_mb' => round(strlen($chunk) / 1048576, 2),
+
+                    'request_ms' => $elapsedMs,
+
+                ]);
+
+            }
+
+            if ($result === false) {
+
+                throw new RuntimeException(
+
+                    'Upload Google Drive belum menghasilkan respons selesai.'
+
+                );
+
+            }
+
+            Log::info('RND Drive upload COMPLETE', [
+
+                'mode' => 'resumable',
+
+                'size_mb' => round($fileSize / 1048576, 2),
+
+                'chunks' => $chunkIndex,
+
+                'chunk_request_ms' => $chunkNetworkMs,
+
+                'total_ms' => round((microtime(true) - $uploadStartedAt) * 1000),
+
+            ]);
+
+            $id = $result->getId();
+
+            if (empty($id)) {
+
+                throw new RuntimeException(
+
+                    'Google Drive tidak mengembalikan ID file setelah upload.'
+
+                );
+
+            }
 
             return [
 
                 'id' => $id,
 
-                'name' => $updated->getName(),
+                'name' => $result->getName(),
 
-                'mime_type' => $updated->getMimeType(),
+                'mime_type' => $result->getMimeType(),
 
-                'url' => $updated->getWebViewLink()
+                'url' => $result->getWebViewLink()
 
-                    ?: (
+                    ?: 'https\://drive.google.com/file/d/' . $id . '/view',
 
-                        $updated->getMimeType() === 'application/vnd.google-apps.folder'
-
-                            ? 'https\://drive.google.com/drive/folders/' . $id
-
-                            : 'https\://drive.google.com/file/d/' . $id . '/view'
-
-                    ),
+                'size' => $result->getSize(),
 
             ];
 
-        }
+        } catch (Throwable $e) {
 
-        /**
+            Log::warning('RND Drive upload FAILED', [
 
-        * Memindahkan file/folder ke Trash Google Drive, bukan menghapus permanen.
+                'mode' => 'resumable',
 
-        */
+                'size_mb' => round($fileSize / 1048576, 2),
 
-        public function trashItem(string $itemId): bool
+                'chunks' => $chunkIndex,
 
-        {
+                'total_ms' => round((microtime(true) - $uploadStartedAt) * 1000),
 
-            $this->drive->files->update(
+                'error_class' => get_class($e),
 
-                $itemId,
+            ]);
 
-                new DriveFile(['trashed' => true]),
+            throw new RuntimeException(
 
-                [
+                'Upload Google Drive gagal: ' . $e->getMessage(),
 
-                    'fields' => 'id,trashed',
+                (int) $e->getCode(),
 
-                    'supportsAllDrives' => true,
-
-                ]
+                $e
 
             );
 
-            return true;
+        } finally {
 
-        }
+            if (is_resource($handle)) {
 
-        /** Metadata asli diperlukan agar parent Drive diverifikasi sebelum perubahan. */
-
-        public function getArchiveItem(string $id): array
-
-        {
-
-            $f = $this->drive->files->get($id, [
-
-                'fields' => 'id,name,mimeType,parents,trashed', 'supportsAllDrives' => true,
-
-            ]);
-
-            return ['id'=>$f->getId(), 'name'=>$f->getName(), 'mime_type'=>$f->getMimeType(),
-
-                'parents'=>$f->getParents() ?: [], 'trashed'=>(bool)$f->getTrashed()];
-
-        }
-
-        public function moveArchiveItem(string $id, string $from, string $to): array
-
-        {
-
-            $metadata = $this->getArchiveItem($id);
-
-            if ($metadata['trashed'] || !in_array($from, $metadata['parents'], true)) {
-
-                throw new \RuntimeException('Item tidak lagi berada di folder asal. Refresh arsip.');
+                fclose($handle);
 
             }
 
-            if ($from === $to) throw new \InvalidArgumentException('Folder asal dan tujuan sama.');
+            if ($deferWasEnabled) {
 
-            $f = $this->drive->files->update($id, new DriveFile(), [
-
-                'addParents'=>$to, 'removeParents'=>$from,
-
-                'fields'=>'id,name,mimeType,parents', 'supportsAllDrives'=>true,
-
-            ]);
-
-            return ['id'=>$f->getId(), 'name'=>$f->getName()];
-
-        }
-
-        public function copyArchiveItem(string $id, string $targetId, ?string $name = null): array
-
-        {
-
-            $metadata = $this->getArchiveItem($id);
-
-            if ($metadata['trashed'] || $metadata['mime_type'] === 'application/vnd.google-apps.folder') {
-
-                throw new \InvalidArgumentException('Penyalinan folder belum didukung.');
+                $this->client->setDefer(false);
 
             }
 
-            $f = $this->drive->files->copy($id, new DriveFile([
-
-                'name'=>$name ?: $metadata['name'], 'parents'=>[$targetId],
-
-            ]), ['fields'=>'id,name,mimeType,size,parents','supportsAllDrives'=>true]);
-
-            return ['id'=>$f->getId(),'name'=>$f->getName(), 'mime_type'=>$f->getMimeType(), 'size'=>$f->getSize()];
-
-        }
-
-        /** Stream a Google Drive binary file to disk without loading it fully into PHP memory. */
-        public function downloadFileToPath(string $fileId, string $destination): void
-        {
-            if (!preg_match('/^[a-zA-Z0-9_-]{10,200}$/', $fileId)) {
-                throw new RuntimeException('Google Drive file ID tidak valid.');
-            }
-            $token = $this->client->getAccessToken()['access_token'] ?? null;
-            if (!$token) throw new RuntimeException('Token Google Drive tidak tersedia.');
-            $url = 'https://www.googleapis.com/drive/v3/files/' . rawurlencode($fileId) . '?alt=media&supportsAllDrives=true';
-            try {
-                $this->client->getHttpClient()->request('GET', $url, [
-                    'headers' => ['Authorization' => 'Bearer ' . $token],
-                    'sink' => $destination,
-                    'http_errors' => true,
-                    'connect_timeout' => 20,
-                    'timeout' => 240,
-                ]);
-            } catch (Throwable $e) {
-                @unlink($destination);
-                throw new RuntimeException('Download file Google Drive gagal: ' . $e->getMessage(), 0, $e);
-            }
         }
 
     }
+
+    /**
+
+     * Membaca folder Google Drive, hanya anak langsungnya.
+
+     */
+
+    public function listFolderContents(string $folderId): array
+
+    {
+
+        if (trim($folderId) === '') {
+
+            throw new RuntimeException('ID folder Google Drive kosong.');
+
+        }
+
+        $items = [];
+
+        $pageToken = null;
+
+        do {
+
+            $escapedFolderId = str_replace(
+
+                ["\\\\", "'"],
+
+                ["\\\\\\\\", "\\\\'"],
+
+                $folderId
+
+            );
+
+            $params = [
+
+                'q' => "'" . $escapedFolderId . "' in parents and trashed = false",
+
+                'pageSize' => 1000,
+
+                'orderBy' => 'folder,name',
+
+                'fields' => 'nextPageToken,files(id,name,mimeType,size,webViewLink,createdTime,modifiedTime,parents)',
+
+                'supportsAllDrives' => true,
+
+                'includeItemsFromAllDrives' => true,
+
+            ];
+
+            if ($pageToken) {
+
+                $params['pageToken'] = $pageToken;
+
+            }
+
+            $result = $this->drive->files->listFiles($params);
+
+            foreach ($result->getFiles() as $file) {
+
+                $isFolder = $file->getMimeType()
+
+                    === 'application/vnd.google-apps.folder';
+
+                $id = $file->getId();
+
+                $items[] = [
+
+                    'id' => $id,
+
+                    'name' => $file->getName(),
+
+                    'type' => $isFolder ? 'folder' : 'file',
+
+                    'mime_type' => $file->getMimeType(),
+
+                    'size' => $file->getSize(),
+
+                    'url' => $file->getWebViewLink()
+
+                        ?: (
+
+                            $isFolder
+
+                                ? 'https\://drive.google.com/drive/folders/' . $id
+
+                                : 'https\://drive.google.com/file/d/' . $id . '/view'
+
+                        ),
+
+                    'created_time' => $file->getCreatedTime(),
+
+                    'modified_time' => $file->getModifiedTime(),
+
+                ];
+
+            }
+
+            $pageToken = $result->getNextPageToken();
+
+        } while ($pageToken);
+
+        return $items;
+
+    }
+
+    /**
+
+     * Mengganti nama file atau folder di Google Drive.
+
+     */
+
+    public function renameItem(string $itemId, string $newName): array
+
+    {
+
+        $newName = trim($newName);
+
+        if ($newName === '') {
+
+            throw new \InvalidArgumentException(
+
+                'Nama file atau folder tidak boleh kosong.'
+
+            );
+
+        }
+
+        $updated = $this->drive->files->update(
+
+            $itemId,
+
+            new DriveFile(['name' => $newName]),
+
+            [
+
+                'fields' => 'id,name,mimeType,webViewLink,parents',
+
+                'supportsAllDrives' => true,
+
+            ]
+
+        );
+
+        $id = $updated->getId();
+
+        return [
+
+            'id' => $id,
+
+            'name' => $updated->getName(),
+
+            'mime_type' => $updated->getMimeType(),
+
+            'url' => $updated->getWebViewLink()
+
+                ?: (
+
+                    $updated->getMimeType() === 'application/vnd.google-apps.folder'
+
+                        ? 'https\://drive.google.com/drive/folders/' . $id
+
+                        : 'https\://drive.google.com/file/d/' . $id . '/view'
+
+                ),
+
+        ];
+
+    }
+
+    /**
+
+     * Memindahkan file/folder ke Trash Google Drive, bukan menghapus permanen.
+
+     */
+
+    public function trashItem(string $itemId): bool
+
+    {
+
+        $this->drive->files->update(
+
+            $itemId,
+
+            new DriveFile(['trashed' => true]),
+
+            [
+
+                'fields' => 'id,trashed',
+
+                'supportsAllDrives' => true,
+
+            ]
+
+        );
+
+        return true;
+
+    }
+
+    /** Metadata asli diperlukan agar parent Drive diverifikasi sebelum perubahan. */
+
+    public function getArchiveItem(string $id): array
+
+    {
+
+        $f = $this->drive->files->get($id, [
+
+            'fields' => 'id,name,mimeType,parents,trashed', 'supportsAllDrives' => true,
+
+        ]);
+
+        return ['id'=>$f->getId(), 'name'=>$f->getName(), 'mime_type'=>$f->getMimeType(),
+
+            'parents'=>$f->getParents() ?: [], 'trashed'=>(bool)$f->getTrashed()];
+
+    }
+
+    public function moveArchiveItem(string $id, string $from, string $to): array
+
+    {
+
+        $metadata = $this->getArchiveItem($id);
+
+        if ($metadata['trashed'] || !in_array($from, $metadata['parents'], true)) {
+
+            throw new \RuntimeException('Item tidak lagi berada di folder asal. Refresh arsip.');
+
+        }
+
+        if ($from === $to) throw new \InvalidArgumentException('Folder asal dan tujuan sama.');
+
+        $f = $this->drive->files->update($id, new DriveFile(), [
+
+            'addParents'=>$to, 'removeParents'=>$from,
+
+            'fields'=>'id,name,mimeType,parents', 'supportsAllDrives'=>true,
+
+        ]);
+
+        return ['id'=>$f->getId(), 'name'=>$f->getName()];
+
+    }
+
+    public function copyArchiveItem(string $id, string $targetId, ?string $name = null): array
+
+    {
+
+        $metadata = $this->getArchiveItem($id);
+
+        if ($metadata['trashed'] || $metadata['mime_type'] === 'application/vnd.google-apps.folder') {
+
+            throw new \InvalidArgumentException('Penyalinan folder belum didukung.');
+
+        }
+
+        $f = $this->drive->files->copy($id, new DriveFile([
+
+            'name'=>$name ?: $metadata['name'], 'parents'=>[$targetId],
+
+        ]), ['fields'=>'id,name,mimeType,size,parents','supportsAllDrives'=>true]);
+
+        return ['id'=>$f->getId(),'name'=>$f->getName(), 'mime_type'=>$f->getMimeType(), 'size'=>$f->getSize()];
+
+    }
+
+    /**
+     * Open a Google Drive file as a readable HTTP stream, without a temporary disk copy.
+     * Access token stays on the server. Caller must authorize the file ID first.
+     */
+    public function openDownloadStream(string $fileId): \Psr\Http\Message\ResponseInterface
+    {
+        if (!preg_match('/^[a-zA-Z0-9_-]{10,200}$/', $fileId)) {
+            throw new RuntimeException('Google Drive file ID tidak valid.');
+        }
+        $token = $this->client->getAccessToken()['access_token'] ?? null;
+        if (!$token) throw new RuntimeException('Token Google Drive tidak tersedia.');
+        $url = 'https://www.googleapis.com/drive/v3/files/' . rawurlencode($fileId)
+            . '?alt=media&supportsAllDrives=true';
+        try {
+            return $this->client->getHttpClient()->request('GET', $url, [
+                'headers' => ['Authorization' => 'Bearer ' . $token],
+                'stream' => true,
+                'http_errors' => true,
+                'connect_timeout' => 15,
+                'timeout' => 180,
+            ]);
+        } catch (Throwable $e) {
+            throw new RuntimeException('Google Drive gagal membuka file: ' . $e->getMessage(), 0, $e);
+        }
+    }
+
+    /** Stream a Google Drive binary file to disk without loading it fully into PHP memory. */
+    public function downloadFileToPath(string $fileId, string $destination): void
+    {
+        if (!preg_match('/^[a-zA-Z0-9_-]{10,200}$/', $fileId)) {
+            throw new RuntimeException('Google Drive file ID tidak valid.');
+        }
+        $token = $this->client->getAccessToken()['access_token'] ?? null;
+        if (!$token) throw new RuntimeException('Token Google Drive tidak tersedia.');
+        $url = 'https://www.googleapis.com/drive/v3/files/' . rawurlencode($fileId) . '?alt=media&supportsAllDrives=true';
+        try {
+            $this->client->getHttpClient()->request('GET', $url, [
+                'headers' => ['Authorization' => 'Bearer ' . $token],
+                'sink' => $destination,
+                'http_errors' => true,
+                'connect_timeout' => 20,
+                'timeout' => 240,
+            ]);
+        } catch (Throwable $e) {
+            @unlink($destination);
+            throw new RuntimeException('Download file Google Drive gagal: ' . $e->getMessage(), 0, $e);
+        }
+    }
+
+}

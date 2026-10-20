@@ -2669,7 +2669,7 @@ class RndController extends Controller
             'file_ids.*' => ['string','max:200'],
             'target_folder_id' => ['nullable','integer'],
         ]);
-        $active = $this->resolveUploadFolderFast($po, $detailPo, $data['folder_id'], $drive);
+        $active = $this->resolveArticleArchiveFolder($po, $detailPo, $data['folder_id'], $drive);
         $description = trim((string) ($this->getArticleInfo($detailPo)['description'] ?? '')) ?: 'Article-' . $detailPo->id;
         $clean = static fn (string $v) => mb_substr(trim(preg_replace('/[\\x00-\\x1F\\x7F\\\\\/:*?"<>|]+/u', '-', $v), ' .-') ?: 'File', 0, 120);
         $items = [];
@@ -2696,26 +2696,12 @@ class RndController extends Controller
             foreach ($drive->listFolderContents($target->google_drive_folder_id) as $item) $walk($item, '', 0);
         } else {
             $rootName = $description;
-            $ids = array_values(array_unique($data['file_ids'] ?? []));
+            $available = collect($drive->listFolderContents($active->google_drive_folder_id))->keyBy('id');
+            $ids = array_unique($data['file_ids'] ?? []);
             abort_unless(count($ids) > 0, 422, 'Pilih file atau folder.');
-            // Fast path: files already synced to the active DB folder need no Google Drive listing.
-            $known = RndArchiveFile::query()->where('folder_id', $active->id)
-                ->whereIn('google_drive_file_id', $ids)->get()->keyBy('google_drive_file_id');
-            $unresolved = array_values(array_filter($ids, static fn ($id) => !$known->has($id)));
-            $driveItems = [];
-            if ($unresolved) {
-                // Only inspect Drive if an item is absent from our local folder index.
-                $driveItems = collect($drive->listFolderContents($active->google_drive_folder_id))->keyBy('id')->all();
-            }
             foreach ($ids as $id) {
-                if ($known->has($id)) {
-                    $file = $known->get($id);
-                    $walk(['type' => 'file', 'id' => $id,
-                        'name' => $file->original_name, 'size' => (int) $file->file_size], '', 0);
-                } else {
-                    abort_unless(isset($driveItems[$id]), 403, 'Item bukan anggota folder aktif.');
-                    $walk($driveItems[$id], '', 0);
-                }
+                abort_unless($available->has($id), 403, 'Item bukan anggota folder aktif.');
+                $walk($available->get($id), '', 0);
             }
         }
         // Each manifest item carries an encrypted, short-lived authorization ticket.
@@ -2756,19 +2742,46 @@ class RndController extends Controller
             && preg_match('/^[a-zA-Z0-9_-]{10,200}$/', (string) ($ticket['id'] ?? '')),
             403, 'Tiket unduhan kedaluwarsa atau tidak sesuai artikel.'
         );
-        $dir = storage_path('app/rnd-browser-zip');
-        if (!is_dir($dir) && !mkdir($dir, 0700, true) && !is_dir($dir)) abort(500);
-        $path = tempnam($dir, 'rnd-');
+        // Start the Drive request BEFORE returning headers, so API errors remain JSON.
+        // Stream bytes directly to browser: no second copy in storage/app.
         try {
-            $drive->downloadFileToPath((string) $ticket['id'], $path);
+            $upstream = $drive->openDownloadStream((string) $ticket['id']);
         } catch (\Throwable $e) {
-            @unlink($path);
-            \Illuminate\Support\Facades\Log::warning('RND browser ZIP file failed', [
+            \Illuminate\Support\Facades\Log::warning('RND browser ZIP upstream failed', [
                 'article' => $detailPo->id, 'file' => $ticket['id'], 'error' => $e->getMessage(),
             ]);
-            return response()->json(['message' => 'Gagal mengambil file dari Google Drive. Coba ulangi.'], 502);
+            return response()->json(['message' => 'Gagal mengambil file dari Google Drive. Silakan coba lagi.'], 502);
         }
-        return response()->download($path, 'file.bin', ['Cache-Control' => 'no-store'])->deleteFileAfterSend(true);
+        $headers = [
+            'Content-Type' => 'application/octet-stream',
+            'Content-Disposition' => 'attachment; filename="file.bin"',
+            'Cache-Control' => 'private, no-store, no-transform',
+            'X-Accel-Buffering' => 'no',
+        ];
+        $length = $upstream->getHeaderLine('Content-Length');
+        if ($length !== '' && ctype_digit($length)) $headers['Content-Length'] = $length;
+        return response()->stream(function () use ($upstream, $detailPo) {
+            $body = $upstream->getBody();
+            try {
+                while (!$body->eof()) {
+                    $chunk = $body->read(65536);
+                    if ($chunk === '') {
+                        if ($body->eof()) break;
+                        continue;
+                    }
+                    echo $chunk;
+                    if (ob_get_level() > 0) @ob_flush();
+                    flush();
+                    if (connection_aborted()) break;
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('RND browser ZIP stream interrupted', [
+                    'article' => $detailPo->id, 'error' => $e->getMessage(),
+                ]);
+            } finally {
+                $body->close();
+            }
+        }, 200, $headers);
     }
 
 }
