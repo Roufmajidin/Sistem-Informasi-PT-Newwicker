@@ -485,7 +485,7 @@
                     <div class="rnd-binding-spinner" aria-hidden="true"></div>
                     <strong>Menyiapkan arsip artikel...</strong>
                     <p id="rndArchiveBindingMessage">Menghubungkan folder artikel dengan Google Drive. Mohon tunggu.</p>
-                    <span><i class="fa fa-info-circle"></i> Proses sedang berjalan, halaman tidak macet.</span>
+                    <span><i class="fa fa-info-circle"></i> Proses sedang berjalan</span>
                 </div>
             </div>
 
@@ -5624,7 +5624,7 @@
                             let lastError = null;
                             for (let attempt = 1; attempt <= 3; attempt++) {
                                 const controller = new AbortController();
-                                const timer = setTimeout(() => controller.abort(), 45000);
+                                const timer = setTimeout(() => controller.abort('ZIP_TIMEOUT_90S'), 90000);
                                 try {
                                     const response = await fetch(url, {method:'POST', body, credentials:'same-origin', signal:controller.signal, headers:{'Accept':'application/octet-stream'}});
                                     if (!response.ok) {
@@ -5636,7 +5636,7 @@
                                     if (item.size > 0 && blob.size === 0) throw new Error('File kosong dari server');
                                     break;
                                 } catch (error) {
-                                    lastError = error;
+                                    lastError = controller.signal.aborted ? new Error('Timeout 90 detik saat mengambil file dari hosting') : error;
                                     if (attempt < 3) await new Promise(resolve => setTimeout(resolve, attempt * 1000));
                                 } finally { clearTimeout(timer); }
                             }
@@ -5649,10 +5649,10 @@
                         }
                     }
                     await Promise.all(Array.from({length: Math.min(2, files.length)}, () => worker()));
-                    rndOperationShow('Membuat ZIP', 'Mengompresi file di browser...', 80, 'Kompresi dimulai');
-                    const blob = await zip.generateAsync({type:'blob', compression:'DEFLATE', compressionOptions:{level:3}}, metadata => {
-                        rndOperationShow('Membuat ZIP', 'Mengompresi file di browser...', 80 + Math.round(metadata.percent * .2),
-                            Math.round(metadata.percent) + '% kompresi');
+                    rndOperationShow('Membuat ZIP', 'Menggabungkan file menjadi ZIP tanpa kompresi ulang...', 80, 'Pembuatan ZIP dimulai');
+                    const blob = await zip.generateAsync({type:'blob', compression:'STORE'}, metadata => {
+                        rndOperationShow('Membuat ZIP', 'Menggabungkan file menjadi ZIP tanpa kompresi ulang...', 80 + Math.round(metadata.percent * .2),
+                            Math.round(metadata.percent) + '% pembuatan ZIP');
                     });
                     const url = URL.createObjectURL(blob);
                     const anchor = document.createElement('a');
