@@ -169,7 +169,7 @@ Route::middleware('auth')->group(function () {
 
             Route::post('/sample-pictures/{po}/items/{detailPo}/archive/zip-file', 'browserZipFile')
                 ->name('sample-pictures.archive.zip-file');
-
+  
         });
 
     // finance
@@ -1130,6 +1130,10 @@ Route::middleware('auth')->group(function () {
         [ProduksiController::class, 'saveTimeline']
     )
         ->name('mutasi.timeline.save');
+          Route::delete('/mutasi/timeline/{id}', [ProduksiController::class, 'destroyMutasiTimeline'])
+    ->whereNumber('id')
+    ->name('mutasi.timeline.destroy');
+
     Route::post('/bom/{bom}/toggle-release', [BomController::class, 'toggleRelease'])
         ->name('bom.toggleRelease');
 

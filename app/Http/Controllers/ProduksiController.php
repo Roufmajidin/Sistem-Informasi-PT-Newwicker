@@ -423,6 +423,31 @@ class ProduksiController extends Controller
             'message' => 'Timeline berhasil disimpan.'
         ]);
     }
+   
+public function destroyMutasiTimeline(\Illuminate\Http\Request $request, int $id)
+{
+    $data = $request->validate([
+        'spk_id' => ['required', 'integer'],
+        'detail_po_id' => ['required', 'integer'],
+    ]);
+
+    $timeline = ProductionTimeline::query()
+        ->whereKey($id)
+        ->where('spk_id', $data['spk_id'])
+        ->where('detail_po_id', $data['detail_po_id'])
+        ->firstOrFail();
+
+    // Pastikan user memiliki izin hapus melalui middleware/policy.
+    $timeline->delete();
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Data mutasi berhasil dihapus.',
+        'deleted_id' => $id,
+    ]);
+}
+
+
 
     // search
     public function mutasiSearch(Request $request)

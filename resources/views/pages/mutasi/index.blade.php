@@ -615,20 +615,22 @@
                 }
 
 
-                // Service keluar mengurangi Qty In efektif; service masuk mengembalikannya.
+                // Ringkasan pengiriman rangka dan service berdasarkan timeline item.
                 function renderServiceSummary(timeline = []) {
-                    const keluar = (timeline || []).filter(r => String(r.type || '').toLowerCase() === 'service_keluar')
-                        .reduce((sum, r) => sum + Number(r.qty || 0), 0);
-                    const masuk = (timeline || []).filter(r => String(r.type || '').toLowerCase() === 'service_masuk')
-                        .reduce((sum, r) => sum + Number(r.qty || 0), 0);
-                    const sisa = keluar - masuk;
+                    const total = type => (timeline || [])
+                        .filter(r => String(r.type || '').toLowerCase() === type)
+                        .reduce((sum, r) => sum + (Number(r.qty) || 0), 0);
+                    const rangka = total('kirim_rangka');
+                    const keluar = total('service_keluar');
+                    const masuk = total('service_masuk');
+                    const belumKembali = Math.max(0, keluar - masuk);
                     return `<div class="rnd-service-summary">
-                        <div class="rnd-service-heading"><i class="fas fa-tools"></i> Rouf Ganteng</div>
+                        <div class="rnd-service-heading"><i class="fas fa-tools"></i> Monitoring Rangka & Service</div>
                         <div class="rnd-service-grid">
-                            <div><small>Total Service</small><strong>${formatNumber(keluar)}</strong></div>
-                            <div><small>Keluar</small><strong>${formatNumber(keluar)}</strong></div>
-                            <div><small>Masuk</small><strong>${formatNumber(masuk)}</strong></div>
-                            <div><small>Belum Kembali</small><strong class="${sisa > 0 ? 'text-danger' : 'text-success'}">${formatNumber(sisa)}</strong></div>
+                            <div><small>Kirim Rangka</small><strong>${formatNumber(rangka)}</strong></div>
+                            <div><small>Service Keluar</small><strong>${formatNumber(keluar)}</strong></div>
+                            <div><small>Service Masuk</small><strong>${formatNumber(masuk)}</strong></div>
+                            <div><small>Belum Kembali</small><strong class="${belumKembali > 0 ? 'text-danger' : 'text-success'}">${formatNumber(belumKembali)}</strong></div>
                         </div>
                     </div>`;
                 }
@@ -926,6 +928,7 @@
                     $.ajax({
                         url: '/mutasi/timeline/detail',
                         type: 'GET',
+                        cache: false,
                         data: {
                             spk_id: currentSpkId,
                             detail_po_id: detailPoId
@@ -1196,12 +1199,63 @@
                     }
                 });
 
-                // hapus row
-                $(document).on('click', '.hapus-row', function() {
+                // Baris baru dihapus lokal; baris tersimpan dihapus melalui endpoint Laravel.
+                $(document).on('click', '.hapus-row', async function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const $button = $(this);
+                    const $row = $button.closest('tr');
+                    const rowId = $row.attr('data-id');
+                    const detailPoId = $row.attr('data-detail-po-id');
+                    const result = await Swal.fire({
+                        title: 'Are you sure?',
+                        text: 'Data mutasi yang dihapus tidak dapat dikembalikan.',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Ya, Hapus',
+                        cancelButtonText: 'Batal',
+                        confirmButtonColor: '#dc3545',
+                        reverseButtons: true
+                    });
+                    if (!result.isConfirmed) return;
 
-                    $(this).closest('tr').remove();
-                    refreshMutasiSummary();
+                    if (!rowId) {
+                        $row.remove();
+                        $('#tbodyTimeline tr').each(function(i) {
+                            $(this).children('td').first().text(i + 1);
+                        });
+                        refreshMutasiSummary();
+                        Swal.fire({icon: 'success', title: 'Baris dibatalkan', timer: 1500, showConfirmButton: false});
+                        return;
+                    }
 
+                    $button.prop('disabled', true);
+                    try {
+                        const deleteResponse = await $.ajax({
+                            url: "{{ url('/mutasi/timeline') }}/" + encodeURIComponent(rowId),
+                            type: 'DELETE',
+                            headers: {'X-CSRF-TOKEN': "{{ csrf_token() }}"},
+                            data: {spk_id: currentSpkId, detail_po_id: detailPoId}
+                        });
+                        if (deleteResponse?.success !== true) {
+                            throw {responseJSON: {message: 'Server tidak mengonfirmasi penghapusan.'}};
+                        }
+                        // Hapus row langsung agar UI responsif, kemudian sinkronkan dari DB.
+                        $row.remove();
+                        refreshMutasiSummary();
+                        document.dispatchEvent(new CustomEvent('mutasi:timeline-changed', {detail: {spkId: currentSpkId}}));
+                        if (String($('#itemSelect').val()) === String(detailPoId)) {
+                            $('#itemSelect').trigger('change');
+                        }
+                        Swal.fire({icon: 'success', title: 'Mutasi berhasil dihapus', timer: 1700, showConfirmButton: false});
+                    } catch (xhr) {
+                        $button.prop('disabled', false);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal menghapus',
+                            text: xhr.responseJSON?.message || 'Data belum dihapus. Periksa endpoint DELETE di Laravel.'
+                        });
+                    }
                 });
 
                 function refreshMutasiSummary() {
@@ -1324,6 +1378,7 @@
                             // Tetap di modal dan refresh item yang sedang dipilih.
                             // Event change memuat ulang timeline dari database,
                             // menampilkan skeleton loading, lalu menghitung ulang ringkasan.
+                            document.dispatchEvent(new CustomEvent('mutasi:timeline-changed', {detail: {spkId: currentSpkId}}));
                             const selectedDetailPoId = $('#itemSelect').val();
                             if (selectedDetailPoId) {
                                 $('#itemSelect').trigger('change');
@@ -1431,6 +1486,18 @@
 
 
                     const cache = {};
+
+                    // Invalidasi hover setelah Save/Delete supaya Qty In tidak stale.
+                    document.addEventListener('mutasi:timeline-changed', function(event) {
+                        const spkId = String(event.detail?.spkId || '');
+                        if (!spkId) return;
+                        delete cache[spkId];
+                        if (cache.timeline) {
+                            Object.keys(cache.timeline).forEach(function(key) {
+                                if (key.startsWith(spkId + ':')) delete cache.timeline[key];
+                            });
+                        }
+                    });
 
                     let activeRow = null;
 

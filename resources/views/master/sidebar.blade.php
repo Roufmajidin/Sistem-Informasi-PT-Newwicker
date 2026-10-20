@@ -377,6 +377,8 @@
                                      <span class="nav-icon"><i class="material-icons">&#xe5c3;</i></span>
                                      <span class="nav-text">Purchasing</span>
                                  </a>
+                                     <li><a href="/produksi/mn"><span class="nav-text">Monitoring Produksi</span></a></li>
+
                                  <ul class="nav-sub">
                                      <li><a href="/semua-spk"><span class="nav-text">SPK</span></a></li>
                                      <li><a href="/spk/request-r"><span class="nav-text">Draft payment SPK</span></a></li>
@@ -886,6 +888,12 @@
                              @endif
                          @endauth
                      @endauth
+                        <li>
+                         <a href="/bom">
+                             <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                             <span class="nav-text">B O M</span>
+                         </a>
+                     </li>
                      <li>
                          <a href="/inventory">
                              <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
