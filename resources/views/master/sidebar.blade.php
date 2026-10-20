@@ -813,7 +813,12 @@
             <span class="nav-text">Absen Sekarang</span>
         </a>
     </li>
-
+    <li>
+                         <a href="/bom">
+                             <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                             <span class="nav-text">B O M</span>
+                         </a>
+                     </li>
     <li>
         <a href="/marketing-release-order">
             <span class="nav-icon">
@@ -888,12 +893,7 @@
                              @endif
                          @endauth
                      @endauth
-                        <li>
-                         <a href="/bom">
-                             <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
-                             <span class="nav-text">B O M</span>
-                         </a>
-                     </li>
+                    
                      <li>
                          <a href="/inventory">
                              <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
