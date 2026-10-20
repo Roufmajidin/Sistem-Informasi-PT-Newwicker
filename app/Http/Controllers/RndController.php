@@ -1342,7 +1342,7 @@ class RndController extends Controller
 
                     );
 
-                    $driveFileName = Str::uuid() . '.' . $extension;
+                    $driveFileName = $originalName;
 
                     // Ukur transfer ke Google Drive secara terpisah.
 

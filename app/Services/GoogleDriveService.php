@@ -998,32 +998,6 @@ class GoogleDriveService
 
     }
 
-    /**
-     * Open a Google Drive file as a readable HTTP stream, without a temporary disk copy.
-     * Access token stays on the server. Caller must authorize the file ID first.
-     */
-    public function openDownloadStream(string $fileId): \Psr\Http\Message\ResponseInterface
-    {
-        if (!preg_match('/^[a-zA-Z0-9_-]{10,200}$/', $fileId)) {
-            throw new RuntimeException('Google Drive file ID tidak valid.');
-        }
-        $token = $this->client->getAccessToken()['access_token'] ?? null;
-        if (!$token) throw new RuntimeException('Token Google Drive tidak tersedia.');
-        $url = 'https://www.googleapis.com/drive/v3/files/' . rawurlencode($fileId)
-            . '?alt=media&supportsAllDrives=true';
-        try {
-            return $this->client->getHttpClient()->request('GET', $url, [
-                'headers' => ['Authorization' => 'Bearer ' . $token],
-                'stream' => true,
-                'http_errors' => true,
-                'connect_timeout' => 15,
-                'timeout' => 180,
-            ]);
-        } catch (Throwable $e) {
-            throw new RuntimeException('Google Drive gagal membuka file: ' . $e->getMessage(), 0, $e);
-        }
-    }
-
     /** Stream a Google Drive binary file to disk without loading it fully into PHP memory. */
     public function downloadFileToPath(string $fileId, string $destination): void
     {
