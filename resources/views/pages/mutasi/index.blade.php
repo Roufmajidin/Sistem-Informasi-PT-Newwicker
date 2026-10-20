@@ -974,7 +974,7 @@
                                 <option value="kirim_rangka" ${row.type=='kirim_rangka'?'selected':''}>Kirim Rangka</option>
 
 
-                                <option value="service_masuk" ${row.type=='service_masuk'?'selected':''}>Service</option>
+                                <option value="service_masuk" ${row.type=='service_masuk'?'selected':''}>Service Masuk</option>
                                 <option value="service_keluar" ${row.type=='service_keluar'?'selected':''}>Service Keluar</option>
 
 
