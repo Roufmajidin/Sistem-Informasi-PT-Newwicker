@@ -1321,7 +1321,13 @@
                                 title: 'ikan hiu ikan hiu, love you'
                             });
 
-                            $('#modalSpk').modal('hide');
+                            // Tetap di modal dan refresh item yang sedang dipilih.
+                            // Event change memuat ulang timeline dari database,
+                            // menampilkan skeleton loading, lalu menghitung ulang ringkasan.
+                            const selectedDetailPoId = $('#itemSelect').val();
+                            if (selectedDetailPoId) {
+                                $('#itemSelect').trigger('change');
+                            }
 
                         },
 
