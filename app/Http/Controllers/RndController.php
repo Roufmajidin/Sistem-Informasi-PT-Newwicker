@@ -2669,7 +2669,7 @@ class RndController extends Controller
             'file_ids.*' => ['string','max:200'],
             'target_folder_id' => ['nullable','integer'],
         ]);
-        $active = $this->resolveArticleArchiveFolder($po, $detailPo, $data['folder_id'], $drive);
+        $active = $this->resolveUploadFolderFast($po, $detailPo, $data['folder_id'], $drive);
         $description = trim((string) ($this->getArticleInfo($detailPo)['description'] ?? '')) ?: 'Article-' . $detailPo->id;
         $clean = static fn (string $v) => mb_substr(trim(preg_replace('/[\\x00-\\x1F\\x7F\\\\\/:*?"<>|]+/u', '-', $v), ' .-') ?: 'File', 0, 120);
         $items = [];
@@ -2696,12 +2696,26 @@ class RndController extends Controller
             foreach ($drive->listFolderContents($target->google_drive_folder_id) as $item) $walk($item, '', 0);
         } else {
             $rootName = $description;
-            $available = collect($drive->listFolderContents($active->google_drive_folder_id))->keyBy('id');
-            $ids = array_unique($data['file_ids'] ?? []);
+            $ids = array_values(array_unique($data['file_ids'] ?? []));
             abort_unless(count($ids) > 0, 422, 'Pilih file atau folder.');
+            // Fast path: files already synced to the active DB folder need no Google Drive listing.
+            $known = RndArchiveFile::query()->where('folder_id', $active->id)
+                ->whereIn('google_drive_file_id', $ids)->get()->keyBy('google_drive_file_id');
+            $unresolved = array_values(array_filter($ids, static fn ($id) => !$known->has($id)));
+            $driveItems = [];
+            if ($unresolved) {
+                // Only inspect Drive if an item is absent from our local folder index.
+                $driveItems = collect($drive->listFolderContents($active->google_drive_folder_id))->keyBy('id')->all();
+            }
             foreach ($ids as $id) {
-                abort_unless($available->has($id), 403, 'Item bukan anggota folder aktif.');
-                $walk($available->get($id), '', 0);
+                if ($known->has($id)) {
+                    $file = $known->get($id);
+                    $walk(['type' => 'file', 'id' => $id,
+                        'name' => $file->original_name, 'size' => (int) $file->file_size], '', 0);
+                } else {
+                    abort_unless(isset($driveItems[$id]), 403, 'Item bukan anggota folder aktif.');
+                    $walk($driveItems[$id], '', 0);
+                }
             }
         }
         // Each manifest item carries an encrypted, short-lived authorization ticket.
