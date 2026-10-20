@@ -466,7 +466,7 @@
                     </div>
                 </div>
                 <div id="rndArchiveFolderStatus" class="rnd-folder-status" role="status">
-                    <i class="fa fa-circle-o-notch fa-spin"></i> Menyiapkan folder Google Drive...
+                    <i class="fa fa-circle-o-notch fa-spin"></i> Menyiapkan folder Database...
                 </div>
                 <div class="rnd-archive-navigation">
                     <button type="button" id="rndBackToItems" class="rnd-back-button">
@@ -484,8 +484,8 @@
                 <div class="rnd-binding-card">
                     <div class="rnd-binding-spinner" aria-hidden="true"></div>
                     <strong>Menyiapkan arsip artikel...</strong>
-                    <p id="rndArchiveBindingMessage">Menghubungkan folder artikel dengan Google Drive. Mohon tunggu.</p>
-                    <span><i class="fa fa-info-circle"></i> Proses sedang berjalan, halaman tidak macet.</span>
+                    <p id="rndArchiveBindingMessage">Menghubungkan folder artikel ke database. Mohon tunggu.</p>
+                    <span><i class="fa fa-info-circle"></i> Proses sedang berjalan.</span>
                 </div>
             </div>
 
@@ -628,7 +628,7 @@
 
                             <h4>Foto Tersimpan</h4>
 
-                            <p>File yang telah berhasil disimpan ke Google Drive.</p>
+                            <p>File yang telah berhasil disimpan ke Database.</p>
 
                         </div>
 
@@ -5428,7 +5428,7 @@
                 img.alt = name || 'Preview foto';
                 img.onerror = () => {
                     previewStage.innerHTML =
-                        '<div class="rnd-preview-placeholder"><i class="fa fa-file-image-o"></i><strong>Preview tidak tersedia</strong><span>File tetap dapat dibuka melalui Google Drive.</span></div>';
+                        '<div class="rnd-preview-placeholder"><i class="fa fa-file-image-o"></i><strong>Preview tidak tersedia</strong><span>Harap Refresh.</span></div>';
                 };
                 previewStage.appendChild(img);
             }
@@ -5513,7 +5513,7 @@
             }
             async function rndDeleteItems(items) {
                 if (rndOperationBusy || !items.length) return;
-                if (!confirm('Pindahkan ' + items.length + ' item terpilih ke Trash Google Drive?')) return;
+                if (!confirm('Pindahkan ' + items.length + ' item terpilih ke Trash?')) return;
                 rndOperationBusy = true;
                 let done = 0;
                 const failures = [];
@@ -6015,7 +6015,7 @@
                     remove.innerHTML = '<i class="fa fa-trash"></i> Hapus';
                     remove.addEventListener('click', async event => {
                         event.stopPropagation();
-                        if (!confirm(`Pindahkan "${item.name}" ke Trash Google Drive?`)) return;
+                        if (!confirm(`Pindahkan "${item.name}" ke Trash?`)) return;
                         try {
                             await fetchJson(driveEndpoint('/items/' + encodeURIComponent(item
                                 .id)), {
@@ -6436,7 +6436,7 @@
                 detailSection.hidden = true;
 
                 archivePanel.hidden = false;
-                setArchiveBinding(true, 'Memeriksa dan menghubungkan folder artikel di Google Drive. Mohon tunggu...');
+                setArchiveBinding(true, 'Memeriksa dan menghubungkan folder artikel di Database. Mohon tunggu...');
 
 
 
@@ -6832,16 +6832,16 @@
                         const percentage = Math.min(99, Math.floor(weighted / totalBytes * 100));
                         const done = processedCount === files.length;
                         progressBar.style.width = (done ? 100 : percentage) + '%';
-                        const savingCount = filePhases.filter(p => p === 'Menyimpan ke Google Drive').length;
+                        const savingCount = filePhases.filter(p => p === 'Menyimpan ke Database').length;
                         progressText.textContent = done ?
                             'Selesai memproses ' + processedCount + '/' + files.length + ' foto' :
                             'Upload melalui hosting ' + percentage + '% · ' +
-                            (savingCount ? savingCount + ' foto sedang disimpan ke Google Drive · ' : '') +
+                            (savingCount ? savingCount + ' foto sedang disimpan ke Database · ' : '') +
                             'Selesai ' + processedCount + '/' + files.length;
                         setUploadMessage(
                             'Berhasil ' + successful.length + ' · Gagal ' + failed.length +
                             ' · Aktif ' + runningCount + ' · ' +
-                            (savingCount ? 'Menunggu konfirmasi Google Drive' : 'Mengirim foto ke hosting'),
+                            (savingCount ? 'Menunggu konfirmasi Database' : 'Mengirim foto ke hosting'),
                             failed.length ? 'error' : ''
                         );
                         uploadButton.innerHTML =
@@ -6869,7 +6869,7 @@
                                         fileProgress[index] = Math.max(fileProgress[index],
                                             0.9 * Math.min(1, loaded / Math.max(total, 1)));
                                         if (fileProgress[index] >= 0.9) {
-                                            filePhases[index] = 'Menyimpan ke Google Drive';
+                                            filePhases[index] = 'Menyimpan ke Database';
                                         }
                                         updateBatchProgress();
                                     }
