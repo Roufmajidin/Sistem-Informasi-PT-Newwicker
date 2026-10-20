@@ -294,7 +294,7 @@ class ProduksiController extends Controller
 
                         $detail = $detailPo->detail;
 
-                      
+
                         if (is_string($detail)) {
                             $detail = json_decode(
                                 $detail,
@@ -344,31 +344,78 @@ class ProduksiController extends Controller
         ]);
     }
     // save mutasi
+
     public function saveTimeline(Request $request)
     {
-        foreach ($request->rows as $row) {
+        $validated = $request->validate([
+            'rows' => 'required|array|min:1',
+            'rows.*.id' => 'nullable|integer',
+            'rows.*.spk_id' => 'required|integer',
+            'rows.*.detail_po_id' => 'required|integer',
+            'rows.*.sup_id' => 'nullable|integer',
+            'rows.*.qty' => 'required|numeric|min:0',
+            'rows.*.type' => 'required|in:in,kirim_rangka,service_keluar,service_masuk',
+            'rows.*.remark' => 'nullable|string|max:255',
+            'rows.*.date' => 'required|date_format:Y-m-d',
+        ]);
 
-            // Ambil SPK untuk mendapatkan po_id
+        foreach ($validated['rows'] as $row) {
             $spk = Spk::findOrFail($row['spk_id']);
 
-            ProductionTimeline::updateOrCreate(
+            $existing = !empty($row['id'])
+                ? ProductionTimeline::findOrFail($row['id'])
+                : null;
 
-                [
-                    'id' => $row['id'] ?: null,
-                ],
+            if (
+                $existing && (
+                    (int) $existing->spk_id !== (int) $spk->id ||
+                    (int) $existing->detail_po_id !== (int) $row['detail_po_id']
+                )
+            ) {
+                abort(422, 'Baris timeline tidak sesuai dengan SPK dan item.');
+            }
 
-                [
-                    'po_id' => $spk->po_id,
-                    'spk_id' => $row['spk_id'],
-                    'detail_po_id' => $row['detail_po_id'],
-                    'sup_id' => $row['sup_id'],
-                    'qty' => $row['qty'],
-                    'type' => $row['type'],
-                    'remark' => $row['remark'],
-                    'date' => $row['date'] . ' ' . $row['time'],
-                ]
+            $spkItems = collect($spk->data['items'] ?? []);
 
+            abort_unless(
+                $spkItems->contains(
+                    fn($item) =>
+                        (int) ($item['detail_po_id'] ?? 0) ===
+                        (int) $row['detail_po_id']
+                ),
+                422,
+                'Item tidak terdaftar pada SPK.'
             );
+
+            $dateOnly = $row['date'];
+            $oldDate = trim((string) ($existing->date ?? ''));
+
+            // Pertahankan jam historis jika tanggal tidak berubah.
+            $oldTime = (
+                preg_match(
+                    '/^\d{4}-\d{2}-\d{2}\s+(\d{2}:\d{2}(?::\d{2})?)/',
+                    $oldDate,
+                    $matches
+                ) &&
+                substr($oldDate, 0, 10) === $dateOnly
+            ) ? $matches[1] : '00:00:00';
+
+            $values = [
+                'po_id' => $spk->po_id,
+                'spk_id' => $spk->id,
+                'detail_po_id' => $row['detail_po_id'],
+                'sup_id' => $row['sup_id'] ?? 0,
+                'qty' => $row['qty'],
+                'type' => $row['type'],
+                'remark' => $row['remark'] ?? '',
+                'date' => $dateOnly . ' ' . $oldTime,
+            ];
+
+            if ($existing) {
+                $existing->update($values);
+            } else {
+                ProductionTimeline::create($values);
+            }
         }
 
         return response()->json([
@@ -376,6 +423,7 @@ class ProduksiController extends Controller
             'message' => 'Timeline berhasil disimpan.'
         ]);
     }
+
     // search
     public function mutasiSearch(Request $request)
     {

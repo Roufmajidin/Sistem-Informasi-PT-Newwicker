@@ -72,8 +72,7 @@
 
                             @endphp
 
-                            <tr class="pilih-spk"
-                                data-id="{{ $spk->id }}"
+                            <tr class="pilih-spk" data-id="{{ $spk->id }}"
                                 data-items-b64="{{ base64_encode(json_encode($spk->data['items'] ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) }}"
                                 style="cursor:pointer"
                                 data-search="{{ strtolower(
@@ -167,7 +166,7 @@
                         <div class="item-picker-wrap">
                             <div class="item-picker-label">
                                 <div class="item-picker-label-left">
-                                   
+
                                     <div>
                                         {{-- <div class="item-picker-title">Pilih Item</div> --}}
                                         <div class="item-picker-subtitle">
@@ -178,16 +177,11 @@
                             </div>
 
                             <div class="item-select-shell item-select-shell-photo">
-                                <span class="item-select-leading-icon item-select-photo-preview" id="itemSelectPhotoPreview">
-                                    <img
-                                        id="itemSelectPhoto"
-                                        src="{{ asset('storage/rouf.jpeg') }}"
-                                        alt="Foto item"
-                                        style="display:block;"
-                                    >
-                                    <i class="fa fa-cube"
-                                       id="itemSelectPhotoPlaceholder"
-                                       style="display:none;"></i>
+                                <span class="item-select-leading-icon item-select-photo-preview"
+                                    id="itemSelectPhotoPreview">
+                                    <img id="itemSelectPhoto" src="{{ asset('storage/rouf.jpeg') }}" alt="Foto item"
+                                        style="display:block;">
+                                    <i class="fa fa-cube" id="itemSelectPhotoPlaceholder" style="display:none;"></i>
                                 </span>
 
                                 <select id="itemSelect" class="form-select item-select">
@@ -321,9 +315,8 @@
                         | existing. Hanya IN / SERVICE MASUK yang menambah Qty In.
                         */
 
-                        if (type === 'in' || type === 'service_masuk') {
-                            qtyIn += Number(row.qty || 0);
-                        }
+                        if (type === 'in' || type === 'service_masuk') qtyIn += Number(row.qty || 0);
+                        if (type === 'service_keluar') qtyIn -= Number(row.qty || 0);
 
                     });
 
@@ -365,10 +358,7 @@
                         | HANYA MUTASI MASUK
                         |--------------------------------------------------------------------------
                         */
-                        if (
-                            type !== 'in' &&
-                            type !== 'service_masuk'
-                        ) {
+                        if (!['in', 'service_masuk', 'service_keluar'].includes(type)) {
                             return;
                         }
 
@@ -394,7 +384,7 @@
                         if (!remark) {
 
                             if (componentIndex === 0) {
-                                qtyIn += qty;
+                                qtyIn += type === 'service_keluar' ? -qty : qty;
                             }
 
                             return;
@@ -422,7 +412,7 @@
                         */
 
                         if (remark === target) {
-                            qtyIn += qty;
+                            qtyIn += type === 'service_keluar' ? -qty : qty;
                         }
 
                     });
@@ -625,6 +615,24 @@
                 }
 
 
+                // Service keluar mengurangi Qty In efektif; service masuk mengembalikannya.
+                function renderServiceSummary(timeline = []) {
+                    const keluar = (timeline || []).filter(r => String(r.type || '').toLowerCase() === 'service_keluar')
+                        .reduce((sum, r) => sum + Number(r.qty || 0), 0);
+                    const masuk = (timeline || []).filter(r => String(r.type || '').toLowerCase() === 'service_masuk')
+                        .reduce((sum, r) => sum + Number(r.qty || 0), 0);
+                    const sisa = keluar - masuk;
+                    return `<div class="rnd-service-summary">
+                        <div class="rnd-service-heading"><i class="fas fa-tools"></i> Rouf Ganteng</div>
+                        <div class="rnd-service-grid">
+                            <div><small>Total Service</small><strong>${formatNumber(keluar)}</strong></div>
+                            <div><small>Keluar</small><strong>${formatNumber(keluar)}</strong></div>
+                            <div><small>Masuk</small><strong>${formatNumber(masuk)}</strong></div>
+                            <div><small>Belum Kembali</small><strong class="${sisa > 0 ? 'text-danger' : 'text-success'}">${formatNumber(sisa)}</strong></div>
+                        </div>
+                    </div>`;
+                }
+
                 function renderItemInfo(item, detailPoId, timeline = []) {
 
                     const components =
@@ -797,10 +805,12 @@
                                 </div>
 
 
+                                ${renderServiceSummary(timeline)}
+
                                 <div class="component-note">
                                     <i class="fas fa-circle-info"></i>
-                                    Qty In setiap komponen mengikuti
-                                    <strong>Remark</strong> pada timeline.
+                                    Masuk − Service Keluar + Service Masuk.
+                                  
                                 </div>
 
                             </div>
@@ -816,7 +826,8 @@
                     if (!photo) return '';
                     photo = String(photo).trim();
                     if (!photo) return '';
-                    if (photo.startsWith('http://') || photo.startsWith('https://') || photo.startsWith('data:image/')) return photo;
+                    if (photo.startsWith('http://') || photo.startsWith('https://') || photo.startsWith('data:image/'))
+                return photo;
                     if (photo.startsWith('//')) return window.location.protocol + photo;
                     if (photo.startsWith('/')) return photo;
                     if (photo.startsWith('storage/')) return '/' + photo;
@@ -852,15 +863,46 @@
                     }
                     $box.find('.item-select-photo-name-title').text(item.nama || item.name || '-');
                     $box.find('.item-select-photo-name-meta').text(
-                        [item.kode || '', item.qty !== undefined && item.qty !== null ? (formatNumber(item.qty) + (item.satuan ? ' ' + item.satuan : '')) : '']
-                            .filter(Boolean).join(' • ')
+                        [item.kode || '', item.qty !== undefined && item.qty !== null ? (formatNumber(item.qty) + (item.satuan ?
+                            ' ' + item.satuan : '')) : '']
+                        .filter(Boolean).join(' • ')
                     );
                     $box.show();
                 }
 
+                let mutasiItemRequestSequence = 0;
+
+                function showMutasiItemLoading() {
+                    const skeleton = `
+                        <div class="mutasi-loading-grid" aria-live="polite" aria-label="Memuat detail item">
+                            <div class="mutasi-loading-panel">
+                                <div class="mutasi-skeleton short"></div>
+                                <div class="mutasi-skeleton medium"></div>
+                                <div class="mutasi-skeleton"></div>
+                                <div class="mutasi-skeleton"></div>
+                                <div class="mutasi-skeleton"></div>
+                            </div>
+                            <div class="mutasi-loading-panel">
+                                <div class="mutasi-skeleton short"></div>
+                                <div class="mutasi-skeleton medium"></div>
+                                <div class="mutasi-skeleton"></div>
+                                <div class="mutasi-skeleton"></div>
+                                <div class="mutasi-skeleton"></div>
+                            </div>
+                        </div>`;
+                    $('#itemInfo').html(skeleton);
+                    $('#timelineTable').html(
+                        '<div class="mutasi-loading-timeline"><span class="spinner-border spinner-border-sm" role="status"></span> Memuat timeline mutasi...</div>'
+                    );
+                }
                 $('#itemSelect').on('change', function() {
 
+                    const requestSequence = ++mutasiItemRequestSequence;
                     let detailPoId = $(this).val();
+                    if (!detailPoId) {
+                        $('#itemInfo, #timelineTable').empty();
+                        return;
+                    }
 
                     let index = $(this).find(':selected').data('index');
 
@@ -878,7 +920,7 @@
                     | selesai diambil supaya Qty In bisa ikut ditampilkan.
                     */
 
-                    renderItemInfo(item, detailPoId, 0);
+                    showMutasiItemLoading();
 
                     // AJAX kedua
                     $.ajax({
@@ -889,6 +931,7 @@
                             detail_po_id: detailPoId
                         },
                         success: function(res) {
+                            if (requestSequence !== mutasiItemRequestSequence) return;
 
                             let html = `
                 <table class="table table-bordered table-sm">
@@ -896,7 +939,6 @@
                         <tr>
                             <th width="50">No</th>
                             <th width="160">Tanggal</th>
-                            <th width="100">Jam</th>
                             <th width="150">Type</th>
                             <th width="100">Qty</th>
                             <th width="100">Remark</th>
@@ -911,7 +953,6 @@
                                 let datetime = row.date ? row.date.split(' ') : ['', ''];
 
                                 let tanggal = datetime[0];
-                                let jam = datetime[1] ?? '';
 
                                 html += `
                     <tr data-id="${row.id}" data-detail-po-id="${escapeHtml(detailPoId)}">
@@ -922,12 +963,6 @@
                             <input type="date"
                                 class="form-control form-control-sm tanggal"
                                 value="${tanggal}">
-                        </td>
-
-                        <td>
-                            <input type="time"
-                                class="form-control form-control-sm jam"
-                                value="${jam}">
                         </td>
 
                         <td>
@@ -956,7 +991,7 @@
                             <td>
                             <input type="text"
                                 class="form-control form-control-sm remark"
-                                value="${row.remark}">
+                                value="${escapeHtml(!row.remark || ['null', 'undefined'].includes(String(row.remark).toLowerCase()) ? '' : row.remark)}">
                         </td>
 
                         <td class="text-center">
@@ -1012,7 +1047,14 @@
                             $('#timelineTable').html(html);
                         },
                         error: function(xhr) {
-                            console.log(xhr.responseText);
+                            if (requestSequence !== mutasiItemRequestSequence) return;
+                            console.error('Gagal mengambil timeline mutasi:', xhr.responseText);
+                            $('#itemInfo').html(
+                                '<div class="alert alert-warning mb-0">Detail item belum dapat dimuat. Silakan pilih item kembali.</div>'
+                                );
+                            $('#timelineTable').html(
+                                '<div class="alert alert-warning mb-0">Gagal memuat timeline. Periksa koneksi lalu coba lagi.</div>'
+                                );
                         }
                     });
 
@@ -1070,10 +1112,6 @@
             </td>
 
             <td>
-                <input type="time" class="form-control form-control-sm jam">
-            </td>
-
-            <td>
                 <select class="form-select form-select-sm type">
 
                     <option value="in">Masuk</option>
@@ -1106,6 +1144,7 @@
         </tr>
     `);
 
+                    refreshMutasiSummary();
                     // Toast ketika berhasil menambah baris
                     const Toast = Swal.mixin({
                         toast: true,
@@ -1127,12 +1166,61 @@
 
                 });
 
+                // Alur keyboard: tanggal -> dropdown Type -> Qty -> Remark.
+                // showPicker tersedia pada Chrome modern; fallback tetap fokus select.
+                $(document).on('change', '#tbodyTimeline .tanggal', function() {
+                    const select = $(this).closest('tr').find('.type')[0];
+                    if (!select) return;
+                    select.focus();
+                    if (typeof select.showPicker === 'function') {
+                        try {
+                            select.showPicker();
+                        } catch (_) {
+                            /* browser may restrict programmatic picker */ }
+                    }
+                });
+                $(document).on('change', '#tbodyTimeline .type', function() {
+                    $(this).closest('tr').find('.qty').trigger('focus').trigger('select');
+                });
+                $(document).on('keydown', '#tbodyTimeline .qty', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        $(this).closest('tr').find('.remark').trigger('focus');
+                    }
+                });
+                $(document).on('keydown', '#tbodyTimeline .remark', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const next = $(this).closest('tr').next('tr').find('.tanggal');
+                        if (next.length) next.trigger('focus');
+                    }
+                });
+
                 // hapus row
                 $(document).on('click', '.hapus-row', function() {
 
                     $(this).closest('tr').remove();
+                    refreshMutasiSummary();
 
                 });
+
+                function refreshMutasiSummary() {
+                    const index = $('#itemSelect').find(':selected').data('index');
+                    const item = items[index];
+                    if (!item) return;
+                    const detailPoId = $('#itemSelect').val();
+                    const timeline = $('#tbodyTimeline tr').map(function() {
+                        return {
+                            type: $(this).find('.type').val(),
+                            qty: $(this).find('.qty').val(),
+                            remark: $(this).find('.remark').val()
+                        };
+                    }).get();
+                    renderItemInfo(item, detailPoId, timeline);
+                }
+                $(document).on('input change', '#tbodyTimeline .qty, #tbodyTimeline .type, #tbodyTimeline .remark',
+                    refreshMutasiSummary);
+
                 // save data
                 $(document).on('click', '#btnSave', function() {
 
@@ -1166,9 +1254,7 @@
 
                             remark: $(this).find('.remark').val(),
 
-                            date: $(this).find('.tanggal').val(),
-
-                            time: $(this).find('.jam').val()
+                            date: $(this).find('.tanggal').val()
 
                         });
 
@@ -1261,34 +1347,34 @@
 
                 function resetModal() {
 
-    items = [];
-    currentSpkId = null;
-    currentSupId = null;
-    supplierName = '';
+                    items = [];
+                    currentSpkId = null;
+                    currentSupId = null;
+                    supplierName = '';
 
-    $('#judulSpk').text('Detail SPK');
+                    $('#judulSpk').text('Detail SPK');
 
-    $('#itemSelect').html('<option value="">Pilih Item...</option>');
+                    $('#itemSelect').html('<option value="">Pilih Item...</option>');
 
-    $('#itemInfo').empty();
+                    $('#itemInfo').empty();
 
-    $('#timelineTable').empty();
+                    $('#timelineTable').empty();
 
-    // Reset select ke option pertama
-    $('#itemSelect').prop('selectedIndex', 0);
+                    // Reset select ke option pertama
+                    $('#itemSelect').prop('selectedIndex', 0);
 
-    // Reset foto item
-    $('#itemSelectPhoto')
-        .attr('src', "{{ asset('storage/rouf.jpeg') }}")
-        .show();
+                    // Reset foto item
+                    $('#itemSelectPhoto')
+                        .attr('src', "{{ asset('storage/rouf.jpeg') }}")
+                        .show();
 
-    $('#itemSelectPhotoPlaceholder').hide();
+                    $('#itemSelectPhotoPlaceholder').hide();
 
-    $('#itemSelectPhotoName').hide();
+                    $('#itemSelectPhotoName').hide();
 
-    // Hapus blok/highlight SPK sebelumnya
-    $('#tbodySpk tr.pilih-spk').removeClass('active');
-}
+                    // Hapus blok/highlight SPK sebelumnya
+                    $('#tbodySpk tr.pilih-spk').removeClass('active');
+                }
                 $('#modalSpk').on('hidden.bs.modal', function() {
 
                     resetModal();
@@ -1311,18 +1397,18 @@
 
             <script>
                 /*
-                |--------------------------------------------------------------------------
-                | SPK HOVER PREVIEW + IN
-                |--------------------------------------------------------------------------
-                | - Items + Qty dibaca langsung dari data SPK.
-                | - IN diambil dari endpoint timeline yang SUDAH WORK.
-                | - Menggunakan fetch native, bukan $.ajax().
-                | - Tidak menggunakan $.ajax().then().catch().
-                | - Tidak mengubah click/modal existing.
-                |--------------------------------------------------------------------------
-                */
+                            |--------------------------------------------------------------------------
+                            | SPK HOVER PREVIEW + IN
+                            |--------------------------------------------------------------------------
+                            | - Items + Qty dibaca langsung dari data SPK.
+                            | - IN diambil dari endpoint timeline yang SUDAH WORK.
+                            | - Menggunakan fetch native, bukan $.ajax().
+                            | - Tidak menggunakan $.ajax().then().catch().
+                            | - Tidak mengubah click/modal existing.
+                            |--------------------------------------------------------------------------
+                            */
 
-                (function () {
+                (function() {
 
                     const preview =
                         document.getElementById('spkHoverPreview');
@@ -1353,9 +1439,9 @@
                             document.createElement('div');
 
                         div.textContent =
-                            value == null
-                                ? ''
-                                : String(value);
+                            value == null ?
+                            '' :
+                            String(value);
 
                         return div.innerHTML;
 
@@ -1425,9 +1511,7 @@
 
 
                         for (
-                            let i = 0;
-                            i < binary.length;
-                            i++
+                            let i = 0; i < binary.length; i++
                         ) {
 
                             bytes[i] =
@@ -1455,17 +1539,15 @@
                                 '';
 
                             for (
-                                let i = 0;
-                                i < binary.length;
-                                i++
+                                let i = 0; i < binary.length; i++
                             ) {
 
                                 encodedText +=
                                     '%' +
                                     ('00' +
                                         binary
-                                            .charCodeAt(i)
-                                            .toString(16)
+                                        .charCodeAt(i)
+                                        .toString(16)
                                     ).slice(-2);
 
                             }
@@ -1483,9 +1565,9 @@
                             JSON.parse(json);
 
 
-                        return Array.isArray(items)
-                            ? items
-                            : [];
+                        return Array.isArray(items) ?
+                            items :
+                            [];
 
                     }
 
@@ -1519,7 +1601,7 @@
                         let displayIndex = 0;
 
                         items.forEach(
-                            function (item) {
+                            function(item) {
 
                                 /*
                                 | Jika item mempunyai custom_columns / komponen,
@@ -1537,7 +1619,7 @@
                                 if (hasComponents) {
 
                                     item.hover_components.forEach(
-                                        function (component) {
+                                        function(component) {
 
                                             const name =
                                                 component.name ||
@@ -1744,7 +1826,7 @@
                         activeRow = row;
                         clearTimeout(hoverTimer);
 
-                        hoverTimer = setTimeout(async function () {
+                        hoverTimer = setTimeout(async function() {
 
                             if (activeRow !== row) return;
 
@@ -1803,38 +1885,37 @@
                                 }
 
                                 return fetch(
-                                    '/mutasi/timeline/detail?spk_id=' +
-                                    encodeURIComponent(spkId) +
-                                    '&detail_po_id=' +
-                                    encodeURIComponent(detailPoId),
-                                    {
-                                        method: 'GET',
-                                        credentials: 'same-origin',
-                                        headers: {
-                                            'Accept': 'application/json',
-                                            'X-Requested-With': 'XMLHttpRequest'
+                                        '/mutasi/timeline/detail?spk_id=' +
+                                        encodeURIComponent(spkId) +
+                                        '&detail_po_id=' +
+                                        encodeURIComponent(detailPoId), {
+                                            method: 'GET',
+                                            credentials: 'same-origin',
+                                            headers: {
+                                                'Accept': 'application/json',
+                                                'X-Requested-With': 'XMLHttpRequest'
+                                            }
                                         }
-                                    }
-                                )
-                                .then(function(response) {
-                                    if (!response.ok) {
-                                        throw new Error('HTTP ' + response.status);
-                                    }
-                                    return response.json();
-                                })
-                                .then(function(res) {
-                                    const timeline = Array.isArray(res.timeline)
-                                        ? res.timeline
-                                        : [];
+                                    )
+                                    .then(function(response) {
+                                        if (!response.ok) {
+                                            throw new Error('HTTP ' + response.status);
+                                        }
+                                        return response.json();
+                                    })
+                                    .then(function(res) {
+                                        const timeline = Array.isArray(res.timeline) ?
+                                            res.timeline :
+                                            [];
 
-                                    if (!cache.timeline) cache.timeline = {};
-                                    cache.timeline[cacheKey] = timeline;
+                                        if (!cache.timeline) cache.timeline = {};
+                                        cache.timeline[cacheKey] = timeline;
 
-                                    return timeline;
-                                })
-                                .catch(function() {
-                                    return [];
-                                });
+                                        return timeline;
+                                    })
+                                    .catch(function() {
+                                        return [];
+                                    });
                             });
 
                             const timelines = await Promise.all(timelinePromises);
@@ -1852,20 +1933,21 @@
                                         .trim()
                                         .toLowerCase();
 
-                                    if (type === 'in' || type === 'service_masuk') {
-                                        qtyIn += Number(timelineRow.qty || 0);
-                                    }
+                                    if (type === 'in' || type === 'service_masuk') qtyIn += Number(
+                                        timelineRow.qty || 0);
+                                    if (type === 'service_keluar') qtyIn -= Number(timelineRow
+                                        .qty || 0);
                                 });
 
                                 item.qty_in = qtyIn;
 
-                                const customColumns = Array.isArray(item.custom_columns)
-                                    ? item.custom_columns
-                                    : [];
+                                const customColumns = Array.isArray(item.custom_columns) ?
+                                    item.custom_columns :
+                                    [];
 
-                                item.hover_components = customColumns.length > 0
-                                    ? getComponentRows(item, timeline)
-                                    : null;
+                                item.hover_components = customColumns.length > 0 ?
+                                    getComponentRows(item, timeline) :
+                                    null;
                             });
 
                             cache[spkId] = items;
@@ -1892,14 +1974,11 @@
                             activeRow.getBoundingClientRect();
 
 
-                        const event =
-                            {
-                                clientX:
-                                    rect.right,
+                        const event = {
+                            clientX: rect.right,
 
-                                clientY:
-                                    rect.top
-                            };
+                            clientY: rect.top
+                        };
 
 
                         movePreview(
@@ -1917,7 +1996,7 @@
 
                     document.addEventListener(
                         'mouseover',
-                        function (event) {
+                        function(event) {
 
                             const row =
                                 event.target.closest(
@@ -1955,7 +2034,7 @@
 
                     document.addEventListener(
                         'mousemove',
-                        function (event) {
+                        function(event) {
 
                             if (!activeRow) {
                                 return;
@@ -2003,7 +2082,7 @@
 
                     document.addEventListener(
                         'mouseout',
-                        function (event) {
+                        function(event) {
 
                             if (!activeRow) {
                                 return;
@@ -2011,24 +2090,20 @@
 
 
                             const fromRow =
-                                event.target.closest
-                                    ?
-                                    event.target.closest(
-                                        'tr.pilih-spk'
-                                    )
-                                    :
-                                    null;
+                                event.target.closest ?
+                                event.target.closest(
+                                    'tr.pilih-spk'
+                                ) :
+                                null;
 
 
                             const toRow =
                                 event.relatedTarget &&
-                                event.relatedTarget.closest
-                                    ?
-                                    event.relatedTarget.closest(
-                                        'tr.pilih-spk'
-                                    )
-                                    :
-                                    null;
+                                event.relatedTarget.closest ?
+                                event.relatedTarget.closest(
+                                    'tr.pilih-spk'
+                                ) :
+                                null;
 
 
                             if (
@@ -2067,7 +2142,7 @@
 
                     window.addEventListener(
                         'scroll',
-                        function () {
+                        function() {
 
                             activeRow =
                                 null;
@@ -2086,26 +2161,27 @@
 
             <style>
                 /* =========================================================
-                   SPK HOVER PREVIEW
-                   ========================================================= */
-#tbodySpk tr.pilih-spk {
-    cursor: pointer;
-    transition: all 0.15s ease;
-}
+                       SPK HOVER PREVIEW
+                       ========================================================= */
+                #tbodySpk tr.pilih-spk {
+                    cursor: pointer;
+                    transition: all 0.15s ease;
+                }
 
-#tbodySpk tr.pilih-spk.active td {
-    background-color: #fff3cd !important;
-    color: #000 !important;
-}
+                #tbodySpk tr.pilih-spk.active td {
+                    background-color: #fff3cd !important;
+                    color: #000 !important;
+                }
 
-#tbodySpk tr.pilih-spk.active {
-    background-color: #fff3cd !important;
-    box-shadow: inset 4px 0 0 #ffc107;
-}
+                #tbodySpk tr.pilih-spk.active {
+                    background-color: #fff3cd !important;
+                    box-shadow: inset 4px 0 0 #ffc107;
+                }
 
-#tbodySpk tr.pilih-spk.active:hover td {
-    background-color: #ffe69c !important;
-}
+                #tbodySpk tr.pilih-spk.active:hover td {
+                    background-color: #ffe69c !important;
+                }
+
                 #spkHoverPreview {
                     position: fixed;
                     display: none;
@@ -2231,8 +2307,8 @@
 
 
                 /* =========================================================
-                               STICKY HEADER
-                               ========================================================= */
+                                   STICKY HEADER
+                                   ========================================================= */
 
                 .spk-table-wrap {
                     max-height: calc(100vh - 220px);
@@ -2271,8 +2347,8 @@
                 }
 
                 /* =========================================================
-                                   ITEM DETAIL + COMPONENTS
-                                   ========================================================= */
+                                       ITEM DETAIL + COMPONENTS
+                                       ========================================================= */
 
                 .item-detail-grid {
                     display: grid;
@@ -2497,8 +2573,8 @@
                 }
 
                 /* =========================================================
-                   ITEM PICKER
-                   ========================================================= */
+                       ITEM PICKER
+                       ========================================================= */
 
                 .item-picker-wrap {
                     margin-bottom: 18px;
@@ -2550,7 +2626,10 @@
                     line-height: 1.35;
                 }
 
-                .item-select-shell-photo { position: relative; }
+                .item-select-shell-photo {
+                    position: relative;
+                }
+
                 .item-select-shell-photo .item-select-photo-preview {
                     width: 46px;
                     height: 46px;
@@ -2563,15 +2642,32 @@
                     background: #f3f5f7;
                     color: #64748b;
                 }
+
                 .item-select-shell-photo .item-select-photo-preview img {
-                    width: 100%; height: 100%; object-fit: cover; display: block;
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                    display: block;
                 }
+
                 .item-select-photo-name {
-                    margin-top: 6px; padding-left: 54px;
-                    display: flex; flex-direction: column; line-height: 1.25;
+                    margin-top: 6px;
+                    padding-left: 54px;
+                    display: flex;
+                    flex-direction: column;
+                    line-height: 1.25;
                 }
-                .item-select-photo-name-title { font-size: 11px; font-weight: 700; color: #1f2937; }
-                .item-select-photo-name-meta { font-size: 10px; color: #64748b; }
+
+                .item-select-photo-name-title {
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: #1f2937;
+                }
+
+                .item-select-photo-name-meta {
+                    font-size: 10px;
+                    color: #64748b;
+                }
 
                 .item-select-shell {
                     position: relative;
@@ -2631,7 +2727,7 @@
                         0 4px 12px rgba(15, 23, 42, .05);
                 }
 
-                #itemSelect.item-select:focus + .item-select-arrow {
+                #itemSelect.item-select:focus+.item-select-arrow {
                     color: #4f73d9;
                     transform: translateY(-50%) rotate(180deg);
                 }
@@ -2672,8 +2768,8 @@
 
 
                 /* =========================================================
-                   MICRO UI IMPROVEMENT + PERFORMANCE
-                   ========================================================= */
+                       MICRO UI IMPROVEMENT + PERFORMANCE
+                       ========================================================= */
                 .spk-table-wrap {
                     contain: layout paint;
                     border-radius: 12px;
@@ -2735,6 +2831,681 @@
 
                     .modal-custom .modal-body {
                         padding: 12px;
+                    }
+                }
+
+                /* Mutasi detail enhancement: same layout, refreshed inputs and summary */
+                #timelineTable>table {
+                    min-width: 730px;
+                    border-collapse: separate;
+                    border-spacing: 0;
+                    border: 1px solid #e3eaf3;
+                    border-radius: 12px;
+                    overflow: hidden;
+                }
+
+                #timelineTable>table thead th {
+                    background: #2b3e50;
+                    color: #fff;
+                    font-size: 11px;
+                    font-weight: 700;
+                    padding: 12px;
+                    border-color: #405568;
+                }
+
+                #timelineTable>table tbody td {
+                    padding: 8px 10px;
+                    vertical-align: middle;
+                    border-color: #eaf0f6;
+                }
+
+                #timelineTable>table tbody tr:hover {
+                    background: #f5f9ff;
+                }
+
+                #timelineTable .tanggal,
+                #timelineTable .type,
+                #timelineTable .qty,
+                #timelineTable .remark {
+                    min-height: 36px;
+                    border: 1px solid #dce5f0;
+                    border-radius: 7px;
+                    font-size: 12px;
+                }
+
+                #timelineTable .tanggal:focus,
+                #timelineTable .type:focus,
+                #timelineTable .qty:focus,
+                #timelineTable .remark:focus {
+                    border-color: #4d88f3;
+                    box-shadow: 0 0 0 3px rgba(59, 130, 246, .12);
+                }
+
+                .rnd-service-summary {
+                    margin: 12px 14px 14px;
+                    padding: 13px;
+                    border: 1px solid #dce7f4;
+                    border-radius: 11px;
+                    background: #f8fbff;
+                }
+
+                .rnd-service-heading {
+                    font-size: 12px;
+                    font-weight: 800;
+                    color: #263b54;
+                    margin-bottom: 11px;
+                }
+
+                .rnd-service-heading i {
+                    margin-right: 7px;
+                    color: #3168b7;
+                }
+
+                .rnd-service-grid {
+                    display: grid;
+                    grid-template-columns: repeat(4, minmax(0, 1fr));
+                    gap: 8px;
+                }
+
+                .rnd-service-grid>div {
+                    border: 1px solid #e4eaf2;
+                    border-radius: 8px;
+                    background: white;
+                    padding: 10px;
+                }
+
+                .rnd-service-grid small {
+                    display: block;
+                    color: #7b8ba3;
+                    font-size: 10px;
+                    margin-bottom: 4px;
+                }
+
+                .rnd-service-grid strong {
+                    color: #23374e;
+                    font-size: 17px;
+                }
+
+                @media(max-width: 650px) {
+                    .rnd-service-grid {
+                        grid-template-columns: repeat(2, minmax(0, 1fr));
+                    }
+                }
+
+
+                /* ===== MODAL MUTASI: VISUAL REFRESH ONLY ===== */
+                #modalSpk .modal-dialog.modal-custom {
+                    width: min(1160px, calc(100% - 32px));
+                    max-width: 1160px;
+                    margin: 24px auto;
+                }
+
+                #modalSpk .modal-content {
+                    min-height: 0;
+                    max-height: calc(100dvh - 48px);
+                    display: flex;
+                    flex-direction: column;
+                    overflow: hidden;
+                    border: 1px solid #e4eaf2;
+                    border-radius: 18px;
+                    background: #fff;
+                    box-shadow: 0 24px 75px rgba(15, 23, 42, .18);
+                }
+
+                #modalSpk .modal-header {
+                    flex: 0 0 auto;
+                    padding: 18px 24px;
+                    border-bottom: 1px solid #e8edf4;
+                    background: #fff;
+                }
+
+                #modalSpk .modal-title {
+                    color: #172b45;
+                    font-size: 18px;
+                    font-weight: 750;
+                    letter-spacing: -.3px;
+                }
+
+                #modalSpk .btn-close {
+                    padding: 9px;
+                    border-radius: 10px;
+                    background-color: #f0f4f8;
+                    opacity: .8;
+                }
+
+                #modalSpk .modal-body {
+                    flex: 1 1 auto;
+                    overflow-y: auto;
+                    overscroll-behavior: contain;
+                    padding: 22px 24px 26px;
+                    background: #f7f9fc;
+                }
+
+                #modalSpk .item-picker-wrap {
+                    padding: 16px 18px;
+                    margin-bottom: 16px;
+                    border: 1px solid #e3eaf4;
+                    border-radius: 14px;
+                    background: #fff;
+                    box-shadow: 0 2px 9px rgba(27, 45, 70, .025);
+                }
+
+                #modalSpk .item-picker-subtitle {
+                    color: #64748b;
+                    font-size: 12px;
+                    font-weight: 500;
+                    margin-bottom: 9px;
+                }
+
+                #modalSpk .item-select-shell {
+                    border: 1px solid #dbe4f0;
+                    border-radius: 11px;
+                    background: #fff;
+                    box-shadow: none;
+                    transition: border-color .15s, box-shadow .15s;
+                }
+
+                #modalSpk .item-select-shell:focus-within {
+                    border-color: #5285e8;
+                    box-shadow: 0 0 0 3px rgba(59, 130, 246, .1);
+                }
+
+                #modalSpk .item-select {
+                    min-height: 48px;
+                    font-size: 13px;
+                    font-weight: 600;
+                    color: #27364b;
+                }
+
+                #modalSpk .item-detail-grid {
+                    grid-template-columns: minmax(260px, .85fr) minmax(0, 1.25fr);
+                    gap: 16px;
+                    align-items: stretch;
+                }
+
+                #modalSpk .item-detail-card {
+                    border: 1px solid #e3eaf3;
+                    border-radius: 14px;
+                    box-shadow: 0 2px 10px rgba(27, 45, 70, .025);
+                }
+
+                #modalSpk .item-detail-card-header {
+                    padding: 16px 18px;
+                    background: #fff;
+                    border-bottom: 1px solid #eef1f6;
+                }
+
+                #modalSpk .item-detail-eyebrow {
+                    color: #7789a3;
+                    font-size: 10px;
+                    font-weight: 750;
+                    letter-spacing: .65px;
+                    text-transform: uppercase;
+                }
+
+                #modalSpk .item-detail-title {
+                    margin-top: 5px;
+                    color: #172b45;
+                    font-size: 15px;
+                    font-weight: 750;
+                    line-height: 1.35;
+                }
+
+                #modalSpk .item-detail-row {
+                    min-height: 43px;
+                    padding: 10px 18px;
+                    border-bottom: 1px solid #f0f3f8;
+                    font-size: 12px;
+                }
+
+                #modalSpk .item-detail-row strong {
+                    font-size: 12px;
+                    color: #26374c;
+                }
+
+                #modalSpk .component-table th {
+                    background: #f8fafc;
+                    color: #71819a;
+                    padding: 11px 14px;
+                    font-size: 10px;
+                }
+
+                #modalSpk .component-table td {
+                    padding: 13px 14px;
+                    font-size: 12px;
+                }
+
+                #modalSpk .component-name {
+                    color: #26374c;
+                    font-size: 13px;
+                }
+
+                #modalSpk .rnd-service-summary {
+                    margin: 14px 16px;
+                    padding: 14px;
+                    border: 1px solid #e5ebf4;
+                    border-radius: 12px;
+                    background: #fafcff;
+                }
+
+                #modalSpk .rnd-service-heading {
+                    font-size: 12px;
+                    margin-bottom: 10px;
+                }
+
+                #modalSpk .rnd-service-grid {
+                    gap: 9px;
+                }
+
+                #modalSpk .rnd-service-grid>div {
+                    padding: 11px 12px;
+                    border: 1px solid #e6ecf5;
+                    border-radius: 10px;
+                }
+
+                #modalSpk .rnd-service-grid small {
+                    font-size: 10px;
+                }
+
+                #modalSpk .rnd-service-grid strong {
+                    font-size: 19px;
+                }
+
+                #modalSpk .rnd-service-grid>div:last-child strong {
+                    color: #dc4758;
+                }
+
+                #modalSpk .component-note {
+                    padding: 11px 16px;
+                    font-size: 10px;
+                    color: #73839a;
+                    background: #fff;
+                }
+
+                #modalSpk>.modal-dialog hr,
+                #modalSpk .modal-body>hr {
+                    border: 0;
+                    border-top: 1px solid #e5ebf3;
+                    opacity: 1;
+                    margin: 18px 0;
+                }
+
+                #modalSpk #timelineTable {
+                    overflow-x: auto;
+                    border-radius: 12px;
+                }
+
+                #modalSpk #timelineTable>table {
+                    min-width: 700px;
+                    width: 100%;
+                    border: 1px solid #e2e9f2;
+                    border-radius: 12px;
+                    background: #fff;
+                }
+
+                #modalSpk #timelineTable>table thead th {
+                    padding: 13px 12px;
+                    background: #34465c;
+                    font-size: 11px;
+                }
+
+                #modalSpk #timelineTable>table tbody td {
+                    padding: 10px 9px;
+                }
+
+                #modalSpk #timelineTable .tanggal,
+                #modalSpk #timelineTable .type,
+                #modalSpk #timelineTable .qty,
+                #modalSpk #timelineTable .remark {
+                    width: 100%;
+                    min-height: 38px;
+                    padding: 7px 10px;
+                    border-radius: 8px;
+                    background: #fff;
+                    font-size: 12px;
+                }
+
+                #modalSpk #timelineTable .btn {
+                    border-radius: 8px;
+                }
+
+                @media (max-width: 900px) {
+                    #modalSpk .item-detail-grid {
+                        grid-template-columns: 1fr;
+                    }
+
+                    #modalSpk .modal-dialog.modal-custom {
+                        width: calc(100% - 20px);
+                        margin: 10px auto;
+                    }
+
+                    #modalSpk .modal-content {
+                        max-height: calc(100dvh - 20px);
+                    }
+
+                    #modalSpk .modal-header {
+                        padding: 15px 17px;
+                    }
+
+                    #modalSpk .modal-body {
+                        padding: 15px;
+                    }
+                }
+
+                @media (max-width: 600px) {
+                    #modalSpk .rnd-service-grid {
+                        grid-template-columns: repeat(2, minmax(0, 1fr));
+                    }
+
+                    #modalSpk .item-picker-wrap {
+                        padding: 13px;
+                    }
+
+                    #modalSpk .item-detail-card-header {
+                        padding: 13px;
+                    }
+
+                    #modalSpk .item-detail-row {
+                        padding: 9px 13px;
+                    }
+                }
+
+
+                /* ===== WIDER MODAL + COMPACT CONTENT (CSS ONLY) ===== */
+                @media (min-width: 901px) {
+                    #modalSpk .modal-dialog.modal-custom {
+                        width: calc(100vw - 48px) !important;
+                        max-width: 1480px !important;
+                        margin: 16px auto !important;
+                    }
+
+                    #modalSpk .modal-content {
+                        max-height: calc(100dvh - 32px);
+                    }
+
+                    #modalSpk .item-detail-grid {
+                        grid-template-columns: minmax(280px, .75fr) minmax(0, 1.55fr);
+                        gap: 12px;
+                    }
+                }
+
+                #modalSpk .modal-header {
+                    padding: 12px 20px;
+                }
+
+                #modalSpk .modal-title {
+                    font-size: 16px;
+                }
+
+                #modalSpk .modal-body {
+                    padding: 14px 18px 18px;
+                }
+
+                #modalSpk .item-picker-wrap {
+                    padding: 10px 14px;
+                    margin-bottom: 11px;
+                    border-radius: 10px;
+                }
+
+                #modalSpk .item-picker-subtitle {
+                    margin-bottom: 5px;
+                    font-size: 11px;
+                }
+
+                #modalSpk .item-select {
+                    min-height: 39px;
+                }
+
+                #modalSpk #itemSelect.item-select {
+                    min-height: 39px;
+                }
+
+                #modalSpk .item-select-photo-name {
+                    margin-top: 3px;
+                }
+
+                #modalSpk .item-detail-card {
+                    border-radius: 10px;
+                }
+
+                #modalSpk .item-detail-card-header {
+                    padding: 10px 13px;
+                }
+
+                #modalSpk .item-detail-title {
+                    font-size: 13px;
+                    margin-top: 2px;
+                }
+
+                #modalSpk .item-detail-eyebrow {
+                    font-size: 9px;
+                }
+
+                #modalSpk .item-detail-row {
+                    min-height: 32px;
+                    padding: 6px 12px;
+                    font-size: 11px;
+                }
+
+                #modalSpk .item-detail-row strong {
+                    font-size: 11px;
+                }
+
+                #modalSpk .component-table th {
+                    padding: 8px 11px;
+                    font-size: 9px;
+                }
+
+                #modalSpk .component-table td {
+                    padding: 9px 11px;
+                    font-size: 11px;
+                }
+
+                #modalSpk .component-name {
+                    font-size: 11px;
+                }
+
+                #modalSpk .rnd-service-summary {
+                    margin: 8px 11px 9px;
+                    padding: 9px 11px;
+                    border-radius: 9px;
+                    background: #f8fbff;
+                }
+
+                #modalSpk .rnd-service-heading {
+                    margin-bottom: 6px;
+                    font-size: 11px;
+                }
+
+                #modalSpk .rnd-service-grid {
+                    gap: 6px;
+                }
+
+                #modalSpk .rnd-service-grid>div {
+                    padding: 7px 9px;
+                    border-radius: 7px;
+                }
+
+                #modalSpk .rnd-service-grid small {
+                    margin-bottom: 2px;
+                    font-size: 9px;
+                }
+
+                #modalSpk .rnd-service-grid strong {
+                    font-size: 15px;
+                    line-height: 1.2;
+                }
+
+                #modalSpk .component-note {
+                    padding: 8px 11px;
+                    font-size: 10px;
+                }
+
+                #modalSpk .modal-body>hr {
+                    margin: 12px 0;
+                }
+
+                #modalSpk #timelineTable>table thead th {
+                    padding: 9px 10px;
+                }
+
+                #modalSpk #timelineTable>table tbody td {
+                    padding: 6px 8px;
+                }
+
+                @media (max-width: 900px) {
+                    #modalSpk .modal-dialog.modal-custom {
+                        width: calc(100% - 16px);
+                        margin: 8px auto;
+                    }
+
+                    #modalSpk .modal-body {
+                        padding: 12px;
+                    }
+                }
+
+
+                /* Compact top selector and attach visually to the detail cards */
+                #modalSpk .modal-body {
+                    padding-top: 5px !important;
+                }
+
+                #modalSpk .item-picker-wrap {
+                    margin-top: 0 !important;
+                    margin-bottom: 3px !important;
+                    padding: 6px 10px 4px !important;
+                    border-radius: 10px 10px 4px 4px !important;
+                    box-shadow: none !important;
+                }
+
+                #modalSpk .item-picker-label {
+                    margin: 0 !important;
+                    padding: 0 !important;
+                }
+
+                #modalSpk .item-picker-subtitle {
+                    margin: 0 0 2px !important;
+                    line-height: 1.15 !important;
+                }
+
+                #modalSpk .item-select-shell {
+                    min-height: 34px !important;
+                }
+
+                #modalSpk #itemSelect.item-select {
+                    min-height: 34px !important;
+                    padding-top: 4px !important;
+                    padding-bottom: 4px !important;
+                }
+
+                #modalSpk .item-select-photo-name {
+                    margin-top: 1px !important;
+                }
+
+                #modalSpk .item-select-photo-name-title,
+                #modalSpk .item-select-photo-name-meta {
+                    line-height: 1.1 !important;
+                }
+
+                #modalSpk .item-detail-grid {
+                    gap: 9px !important;
+                }
+
+                /* Sticky header for timeline table within its scrollable region */
+                #modalSpk #timelineTable {
+                    max-height: min(58vh, 530px);
+                    overflow: auto !important;
+                    position: relative;
+                }
+
+                #modalSpk #timelineTable>table {
+                    border-collapse: separate !important;
+                    border-spacing: 0 !important;
+                }
+
+                #modalSpk #timelineTable>table thead th {
+                    position: sticky !important;
+                    top: 0 !important;
+                    z-index: 5 !important;
+                    background: #34465c !important;
+                    box-shadow: 0 1px 0 #dce5f0;
+                }
+
+                #modalSpk .component-table-wrap {
+                    max-height: 300px;
+                    overflow: auto;
+                }
+
+                #modalSpk .component-table thead th {
+                    position: sticky;
+                    top: 0;
+                    z-index: 3;
+                    background: #f8fafc;
+                }
+
+                #modalSpk .mutasi-loading-grid {
+                    display: grid;
+                    grid-template-columns: minmax(0, .75fr) minmax(0, 1.55fr);
+                    gap: 9px;
+                    margin-top: 0;
+                }
+
+                #modalSpk .mutasi-loading-panel {
+                    min-height: 170px;
+                    padding: 14px;
+                    border: 1px solid #e4ebf5;
+                    border-radius: 10px;
+                    background: #fff;
+                }
+
+                #modalSpk .mutasi-skeleton {
+                    height: 12px;
+                    margin: 13px 0;
+                    border-radius: 5px;
+                    background: linear-gradient(90deg, #edf1f7 25%, #f9fbfe 50%, #edf1f7 75%);
+                    background-size: 200% 100%;
+                    animation: mutasiSkeletonPulse 1.3s ease-in-out infinite;
+                }
+
+                #modalSpk .mutasi-skeleton.short {
+                    width: 32%;
+                    height: 9px;
+                }
+
+                #modalSpk .mutasi-skeleton.medium {
+                    width: 58%;
+                    height: 17px;
+                }
+
+                #modalSpk .mutasi-loading-timeline {
+                    padding: 15px;
+                    background: #fff;
+                    border: 1px solid #e4ebf5;
+                    border-radius: 9px;
+                    display: flex;
+                    gap: 10px;
+                    align-items: center;
+                    color: #64748b;
+                    font-size: 12px;
+                }
+
+                @keyframes mutasiSkeletonPulse {
+                    from {
+                        background-position: 200% 0;
+                    }
+
+                    to {
+                        background-position: -200% 0;
+                    }
+                }
+
+                @media (max-width: 900px) {
+                    #modalSpk .mutasi-loading-grid {
+                        grid-template-columns: 1fr;
+                    }
+
+                    #modalSpk .mutasi-loading-panel {
+                        min-height: 110px;
                     }
                 }
             </style>
