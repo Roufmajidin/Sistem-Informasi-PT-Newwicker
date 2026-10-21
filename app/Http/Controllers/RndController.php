@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
 use Illuminate\Support\Str;
-
+use App\Models\RndUploadTask;
 use Throwable;
 
 class RndController extends Controller
@@ -1254,277 +1254,77 @@ class RndController extends Controller
 
     }
 
-    public function uploadArticlePhotos(
-
-        Request $request,
-
-        Po $po,
-
-        DetailPo $detailPo,
-
-        GoogleDriveService $drive
-
-    ) {
-
+    // Upload buffer: hanya satu file pending/processing di disk hosting.
+    public function uploadArticlePhotos(Request $request, Po $po, DetailPo $detailPo, GoogleDriveService $drive)
+    {
         $validated = $request->validate([
-
             'folder_id' => ['nullable', 'integer'],
-
-            // UI mengirim satu file per request agar progress dan kegagalan terisolasi.
-
-            // Tetap menerima sampai 50 file jika endpoint dipanggil langsung.
-
-            'photos' => ['required', 'array', 'min:1', 'max:50'],
-
-            'photos.*' => [
-
-                'required',
-
-                'image',
-
-                'mimes:jpg,jpeg,png,webp',
-
-                'max:25600',
-
-            ],
-
+            'photos' => ['required', 'array', 'size:1'],
+            'photos.0' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:25600'],
         ]);
-
-        $startedAt = microtime(true);
-
-        $folder = null;
-
-        $uploaded = [];
-
-        $failed = [];
-
-        try {
-
-            $folder = $this->resolveUploadFolderFast(
-
-                $po,
-
-                $detailPo,
-
-                $validated['folder_id'] ?? null,
-
-                $drive
-
-            );
-
-            foreach ($request->file('photos', []) as $index => $photo) {
-
-                $fileStartedAt = microtime(true);
-
-                $originalName = $photo->getClientOriginalName();
-
-                try {
-
-                    if (!$photo->isValid()) {
-
-                        throw new \RuntimeException(
-
-                            'File gagal diterima server (upload error: ' . $photo->getError() . ').'
-
-                        );
-
-                    }
-
-                    $mimeType = $photo->getMimeType() ?: 'application/octet-stream';
-
-                    $extension = strtolower(
-
-                        $photo->guessExtension()
-
-                        ?: $photo->getClientOriginalExtension()
-
-                        ?: 'jpg'
-
-                    );
-
-                    $driveFileName = $originalName;
-
-                    // Ukur transfer ke Google Drive secara terpisah.
-
-                    $driveStartedAt = microtime(true);
-
-                    $driveFile = $drive->uploadFile(
-
-                        $photo->getRealPath(),
-
-                        $driveFileName,
-
-                        $folder->google_drive_folder_id,
-
-                        $mimeType
-
-                    );
-
-                    $driveDurationMs = (int) round(
-
-                        (microtime(true) - $driveStartedAt) * 1000
-
-                    );
-
-                    if (empty($driveFile['id'])) {
-
-                        throw new \RuntimeException('Google Drive tidak mengembalikan ID file.');
-
-                    }
-
-                    $dbStartedAt = microtime(true);
-
-                    $savedFile = RndArchiveFile::create([
-
-                        'folder_id' => $folder->id,
-
-                        'original_name' => $originalName,
-
-                        'google_drive_file_id' => $driveFile['id'],
-
-                        'mime_type' => $driveFile['mime_type'] ?? $mimeType,
-
-                        'file_size' => (int) ($driveFile['size'] ?? $photo->getSize()),
-
-                        'uploaded_by' => auth()->id(),
-
-                    ]);
-
-                    $dbDurationMs = (int) round(
-
-                        (microtime(true) - $dbStartedAt) * 1000
-
-                    );
-
-                    $uploaded[] = [
-
-                        'id' => $savedFile->id,
-
-                        'drive_id' => $savedFile->google_drive_file_id,
-
-                        'name' => $savedFile->original_name,
-
-                    ];
-
-                    Log::info('RND photo uploaded', [
-
-                        'po_id' => $po->id,
-
-                        'detail_po_id' => $detailPo->id,
-
-                        'folder_id' => $folder->id,
-
-                        'file' => $originalName,
-
-                        'file_size_bytes' => (int) ($photo->getSize() ?? 0),
-
-                        'drive_upload_ms' => $driveDurationMs,
-
-                        'database_save_ms' => $dbDurationMs,
-
-                        'total_file_ms' => (int) round((microtime(true) - $fileStartedAt) * 1000),
-
-                    ]);
-
-                } catch (Throwable $fileError) {
-
-                    $failed[] = [
-
-                        'name' => $originalName,
-
-                        'message' => $fileError->getMessage(),
-
-                    ];
-
-                    Log::error('RND upload satu foto gagal', [
-
-                        'po_id' => $po->id,
-
-                        'detail_po_id' => $detailPo->id,
-
-                        'folder_id' => $folder->id,
-
-                        'file' => $originalName,
-
-                        'file_size_bytes' => (int) ($photo->getSize() ?? 0),
-
-                        'total_file_ms' => (int) round((microtime(true) - $fileStartedAt) * 1000),
-
-                        'error' => $fileError->getMessage(),
-
-                    ]);
-
-                }
-
-            }
-
-            Cache::forget('rnd_drive_folder_items:' . $folder->google_drive_folder_id);
-
-            $count = RndArchiveFile::where('folder_id', $folder->id)->count();
-
-            $success = count($uploaded) > 0 && count($failed) === 0;
-
-            return response()->json([
-
-                'success' => $success,
-
-                'partial' => count($uploaded) > 0 && count($failed) > 0,
-
-                'message' => count($uploaded) . ' foto berhasil, ' . count($failed) . ' gagal.',
-
-                'uploaded' => $uploaded,
-
-                'failed' => $failed,
-
-                'file_count' => $count,
-
-                'folder' => [
-
-                    'database_id' => $folder->id,
-
-                    'drive_id' => $folder->google_drive_folder_id,
-
-                ],
-
-                'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
-
-            ], count($uploaded) > 0 ? 200 : (count($failed) > 0 ? 500 : 200));
-
-        } catch (Throwable $e) {
-
-            Log::error('RND uploadArticlePhotos gagal', [
-
-                'po_id' => $po->id,
-
-                'detail_po_id' => $detailPo->id,
-
-                'folder_id' => $folder?->id,
-
-                'error' => $e->getMessage(),
-
-            ]);
-
-            return response()->json([
-
-                'success' => false,
-
-                'message' => config('app.debug')
-
-                    ? $e->getMessage()
-
-                    : 'Gagal mengunggah foto. Periksa log Laravel.',
-
-            ], 500);
-
+        $photo = $request->file('photos')[0];
+        $userId = auth()->id();
+        if (!$userId) abort(401);
+
+        // Lock lintas request pada server yang sama; jangan menerima file kedua
+        // sampai job pertama selesai dan temporary file terhapus.
+        $lockPath = storage_path('app/rnd_upload_buffer.lock');
+        $lock = fopen($lockPath, 'c');
+        if (!$lock || !flock($lock, LOCK_EX)) {
+            return response()->json(['message' => 'Buffer upload sedang sibuk.', 'retryable' => true], 429);
         }
-
+        try {
+            $busy = \App\Models\RndUploadTask::whereIn('status', ['queued', 'processing'])->exists();
+            if ($busy) {
+                return response()->json(['message' => 'Menunggu slot upload Google Drive.', 'retryable' => true], 429);
+            }
+            $folder = $this->resolveUploadFolderFast($po, $detailPo, $validated['folder_id'] ?? null, $drive);
+            $uuid = (string) \Illuminate\Support\Str::uuid();
+            $path = $photo->storeAs('rnd-drive-buffer', $uuid . '.upload', 'local');
+            if (!$path) throw new \RuntimeException('Tidak dapat menyimpan file sementara.');
+            try {
+                $task = \App\Models\RndUploadTask::create([
+                    'id' => $uuid,
+                    'user_id' => $userId,
+                    'folder_id' => $folder->id,
+                    'original_name' => basename(str_replace('\\', '/', $photo->getClientOriginalName())),
+                    'mime_type' => $photo->getMimeType() ?: 'application/octet-stream',
+                    'file_size' => (int) $photo->getSize(),
+                    'local_path' => $path,
+                    'status' => 'queued',
+                ]);
+                \App\Jobs\ProcessRndDriveUpload::dispatch($task->id)->onQueue('drive-uploads');
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Storage::disk('local')->delete($path);
+                throw $e;
+            }
+            return response()->json(['success' => true, 'queued' => true, 'task_id' => $task->id], 202);
+        } finally {
+            flock($lock, LOCK_UN);
+            fclose($lock);
+        }
     }
 
-    /**
+    public function uploadSlotStatus(Request $request)
+    {
+        if (!auth()->check()) abort(401);
+        return response()->json(['available' => !\App\Models\RndUploadTask::whereIn('status', ['queued', 'processing'])->exists()]);
+    }
 
-     * Halaman detail PO lama, tetap dipertahankan.
-
-     */
+    public function uploadTaskStatus(Request $request, string $taskId)
+    {
+        $task = \App\Models\RndUploadTask::whereKey($taskId)
+            ->where('user_id', auth()->id())->firstOrFail();
+        return response()->json([
+            'status' => $task->status,
+            'message' => $task->error_message,
+            'uploaded' => $task->status === 'done' ? [[
+                'id' => $task->archive_file_id,
+                'drive_id' => $task->google_drive_file_id,
+                'name' => $task->original_name,
+            ]] : [],
+        ]);
+    }
 
     public function samplePicturesDetail(Po $po)
 

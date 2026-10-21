@@ -89,87 +89,137 @@ Route::middleware('auth')->group(function () {
         ]);
     });
 
+
     // RND - Sample Pictures
     Route::prefix('rnd')
         ->name('rnd.')
         ->controller(RndController::class)
         ->group(function () {
 
-            // Halaman utama Sample Pictures
+            // ==========================================
+            // HALAMAN UTAMA
+            // ==========================================
             Route::get('/sample-pictures', 'samplePictures')
                 ->name('sample-pictures');
 
-            // Daftar artikel berdasarkan PO
+            // ==========================================
+            // QUEUE UPLOAD - TARUH SEBELUM {po}
+            // ==========================================
+    
+            // Mengecek apakah slot buffer upload tersedia
+            Route::get(
+                '/sample-pictures/upload-slot',
+                'uploadSlotStatus'
+            )->name('sample-pictures.upload-slot');
+
+            // Mengecek status upload berdasarkan Task ID
+            Route::get(
+                '/sample-pictures/upload-tasks/{taskId}',
+                'uploadTaskStatus'
+            )->name('sample-pictures.upload-task-status');
+
+            // ==========================================
+            // DAFTAR ARTIKEL BERDASARKAN PO
+            // ==========================================
             Route::get(
                 '/sample-pictures/{po}/items',
                 'samplePicturesItems'
             )->name('sample-pictures.items');
 
-            // Membuka root folder artikel
+            // ==========================================
+            // ARCHIVE - ROOT FOLDER ARTIKEL
+            // ==========================================
             Route::get(
                 '/sample-pictures/{po}/items/{detailPo}/archive',
                 'openArticleArchive'
             )->name('sample-pictures.archive');
 
-            // Membaca isi folder aktif
+            // ==========================================
+            // ARCHIVE - BROWSE FOLDER
+            // ==========================================
             Route::get(
                 '/sample-pictures/{po}/items/{detailPo}/archive/folders/{folder}',
                 'browseArchiveFolder'
             )->name('sample-pictures.archive.browse');
 
-            // Membuat subfolder
+            // ==========================================
+            // ARCHIVE - CREATE FOLDER
+            // ==========================================
             Route::post(
                 '/sample-pictures/{po}/items/{detailPo}/archive/folders',
                 'createArchiveFolder'
             )->name('sample-pictures.archive.folder.create');
 
-            // Rename folder atau file
+            // ==========================================
+            // ARCHIVE - RENAME ITEM
+            // ==========================================
             Route::patch(
                 '/sample-pictures/{po}/items/{detailPo}/archive/items/{folder}',
                 'renameArchiveItem'
             )->name('sample-pictures.archive.item.rename');
 
-            // Menghapus folder atau file ke Trash
+            // ==========================================
+            // ARCHIVE - DELETE ITEM
+            // ==========================================
             Route::delete(
                 '/sample-pictures/{po}/items/{detailPo}/archive/items/{folder}',
                 'deleteArchiveItem'
             )->name('sample-pictures.archive.item.delete');
 
-            // Upload foto
+            // ==========================================
+            // ARCHIVE - UPLOAD FOTO
+            // ==========================================
             Route::post(
                 '/sample-pictures/{po}/items/{detailPo}/archive/upload',
                 'uploadArticlePhotos'
             )->name('sample-pictures.archive.upload');
 
-            // Download ZIP: foto terpilih atau folder
+            // ==========================================
+            // ARCHIVE - DOWNLOAD ZIP
+            // ==========================================
             Route::post(
                 '/sample-pictures/{po}/items/{detailPo}/archive/download-zip',
                 'downloadArchiveZip'
             )->name('sample-pictures.archive.download-zip');
 
-            // Halaman detail PO lama
-            Route::get(
-                '/sample-pictures/{po}',
-                'samplePicturesDetail'
-            )->name('sample-pictures.detail');
-
-            // Memindahkan folder atau file
+            // ==========================================
+            // ARCHIVE - MOVE ITEM
+            // ==========================================
             Route::post(
                 '/sample-pictures/{po}/items/{detailPo}/archive/items/{folder}/move',
                 'moveArchiveItem'
             )->name('sample-pictures.archive.item.move');
 
-            // Menyalin file
+            // ==========================================
+            // ARCHIVE - COPY ITEM
+            // ==========================================
             Route::post(
                 '/sample-pictures/{po}/items/{detailPo}/archive/items/{folder}/copy',
                 'copyArchiveItem'
             )->name('sample-pictures.archive.item.copy');
-            Route::post('/sample-pictures/{po}/items/{detailPo}/archive/zip-manifest', 'browserZipManifest')
-                ->name('sample-pictures.archive.zip-manifest');
 
-            Route::post('/sample-pictures/{po}/items/{detailPo}/archive/zip-file', 'browserZipFile')
-                ->name('sample-pictures.archive.zip-file');
-  
+            // ==========================================
+            // ARCHIVE - BROWSER ZIP
+            // ==========================================
+            Route::post(
+                '/sample-pictures/{po}/items/{detailPo}/archive/zip-manifest',
+                'browserZipManifest'
+            )->name('sample-pictures.archive.zip-manifest');
+
+            Route::post(
+                '/sample-pictures/{po}/items/{detailPo}/archive/zip-file',
+                'browserZipFile'
+            )->name('sample-pictures.archive.zip-file');
+
+            // ==========================================
+            // HALAMAN DETAIL PO
+            // TARUH PALING BAWAH
+            // ==========================================
+            Route::get(
+                '/sample-pictures/{po}',
+                'samplePicturesDetail'
+            )->name('sample-pictures.detail');
+
         });
 
     // finance
@@ -1130,9 +1180,9 @@ Route::middleware('auth')->group(function () {
         [ProduksiController::class, 'saveTimeline']
     )
         ->name('mutasi.timeline.save');
-          Route::delete('/mutasi/timeline/{id}', [ProduksiController::class, 'destroyMutasiTimeline'])
-    ->whereNumber('id')
-    ->name('mutasi.timeline.destroy');
+    Route::delete('/mutasi/timeline/{id}', [ProduksiController::class, 'destroyMutasiTimeline'])
+        ->whereNumber('id')
+        ->name('mutasi.timeline.destroy');
 
     Route::post('/bom/{bom}/toggle-release', [BomController::class, 'toggleRelease'])
         ->name('bom.toggleRelease');

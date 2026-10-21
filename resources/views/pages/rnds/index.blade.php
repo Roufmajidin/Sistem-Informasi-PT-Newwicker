@@ -6769,7 +6769,7 @@
             const pendingJobs = [];
             const retryJobs = [];
             let activeJobs = 0;
-            const MAX_PARALLEL_UPLOADS = 5; // Ubah ke 4 bila ingin paralel lagi.
+            const MAX_PARALLEL_UPLOADS = 1; // Ubah ke 4 bila ingin paralel lagi.
             const MAX_RETRIES_PER_FILE = 2;
             let expandedTaskId = null;
             let nextTaskId = 1;
@@ -6834,6 +6834,19 @@
                 let succeeded = false;
                 let failure = null;
                 try {
+                    // Tunggu buffer kosong SEBELUM mengirim file besar ke hosting.
+                    const slotUrl = @json(url('/rnd/sample-pictures/upload-slot'));
+                    const slotWaitStart = Date.now();
+                    while (true) {
+                        const check = await fetch(slotUrl, {headers: {'Accept': 'application/json'}, credentials: 'same-origin'});
+                        if (!check.ok) throw new Error('Gagal memeriksa slot upload (HTTP ' + check.status + ').');
+                        const slot = await check.json();
+                        if (slot.available) break;
+                        if (Date.now() - slotWaitStart > 30 * 60 * 1000) {
+                            throw new Error('Buffer upload sibuk lebih dari 30 menit. Hubungi admin.');
+                        }
+                        await new Promise(resolve => setTimeout(resolve, 4000));
+                    }
                     const data = new FormData();
                     data.append('folder_id', task.folderId);
                     data.append('photos[]', file, file.name);
@@ -6849,6 +6862,30 @@
                         // Hanya respons eksplisit 429/408 yang boleh diulang otomatis.
                         err.safeRetry = result?.retryable === true;
                         throw err;
+                    }
+                    // Queue upload: 202 berarti file diterima hosting, BELUM masuk Drive.
+                    if (result?.queued && result?.task_id) {
+                        const statusUrl = @json(url('/rnd/sample-pictures/upload-tasks')) + '/' + encodeURIComponent(result.task_id);
+                        const startedWaiting = Date.now();
+                        while (true) {
+                            if (Date.now() - startedWaiting > 20 * 60 * 1000) {
+                                throw new Error('Status queue belum selesai setelah 20 menit. Periksa task di server sebelum retry.');
+                            }
+                            await new Promise(resolve => setTimeout(resolve, 4000));
+                            const response = await fetch(statusUrl, {
+                                headers: {'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
+                                credentials: 'same-origin'
+                            });
+                            if (!response.ok) throw new Error('Tidak dapat membaca status upload (HTTP ' + response.status + ').');
+                            const state = await response.json();
+                            if (state.status === 'done') {
+                                result.uploaded = state.uploaded || [];
+                                break;
+                            }
+                            if (state.status === 'failed') {
+                                throw new Error(state.message || 'Gagal mengirim ke Google Drive.');
+                            }
+                        }
                     }
                     succeeded = true;
                     task.success++;
