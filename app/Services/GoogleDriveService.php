@@ -272,84 +272,47 @@ class GoogleDriveService
 
     /** Start a resumable session; the OAuth access token never goes to the browser. */
 
+    /** Start a resumable session; the OAuth access token never goes to the browser. */
     public function startBrowserUpload(string $fileName, string $folderId, string $mimeType, int $size): string
-
     {
-
         if ($size < 1 || $size > 25 * 1024 * 1024 || trim($folderId) === '') {
-
             throw new RuntimeException('Parameter upload tidak valid.');
-
         }
-
         $accessToken = $this->client->getAccessToken()['access_token'] ?? null;
-
         if (!$accessToken) throw new RuntimeException('Access token Google Drive tidak tersedia.');
-
         $response = $this->client->getHttpClient()->request('POST',
-
-            'https\://www\.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,name,mimeType,size,parents,trashed', [
-
+            'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,name,mimeType,size,parents,trashed', [
                 'headers' => [
-
                     'Authorization' => 'Bearer ' . $accessToken,
-
                     'Content-Type' => 'application/json; charset=UTF-8',
-
                     'X-Upload-Content-Type' => $mimeType,
-
                     'X-Upload-Content-Length' => (string) $size,
-
                 ],
-
                 'json' => ['name' => $fileName, 'parents' => [$folderId], 'mimeType' => $mimeType],
-
                 'http_errors' => true,
-
                 'timeout' => 35,
-
             ]);
-
         $url = $response->getHeaderLine('Location');
-
-        if (!$url || !str_starts_with($url, 'https\://www\.googleapis.com/')) {
-
+        if (!$url || !str_starts_with($url, 'https://www.googleapis.com/')) {
             throw new RuntimeException('Google Drive tidak memberikan URL sesi upload yang valid.');
-
         }
-
         return $url;
-
     }
 
     /** Verify the Drive object before the application records it. */
-
     public function verifyBrowserUpload(string $id, string $folderId, string $name, int $size): array
-
     {
-
         $f = $this->drive->files->get($id, [
-
             'fields' => 'id,name,mimeType,size,parents,trashed,webViewLink',
-
             'supportsAllDrives' => true,
-
         ]);
-
         if ($f->getTrashed() || $f->getName() !== $name ||
-
             !in_array($folderId, $f->getParents() ?: [], true) ||
-
             (int) $f->getSize() !== $size) {
-
             throw new RuntimeException('File Google Drive tidak sesuai sesi upload.');
-
         }
-
         return ['id' => $f->getId(), 'name' => $f->getName(),
-
             'mime_type' => $f->getMimeType(), 'size' => (int) $f->getSize()];
-
     }
 
     public function uploadFile(

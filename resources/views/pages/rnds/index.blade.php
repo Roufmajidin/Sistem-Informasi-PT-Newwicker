@@ -669,7 +669,7 @@
         aria-labelledby="rndLayerTitle">
         <div class="rnd-upload-layer-card" role="status" aria-live="polite">
             <div class="rnd-layer-icon"><i class="fa fa-cloud-upload"></i></div>
-            <div class="rnd-task-head"><h3 id="rndLayerTitle">Mengunggah Foto</h3><button type="button" id="rndMinimizeUpload" title="Minimize upload"><i class="fa fa-window-minimize"></i> Minimize</button></div>
+            <h3 id="rndLayerTitle">Mengunggah Foto</h3>
             <p id="rndLayerFilename">Menyiapkan file...</p>
             <div class="rnd-layer-ring" id="rndLayerRing"><span id="rndLayerPercent">0%</span></div>
             <div class="rnd-layer-track">
@@ -680,27 +680,14 @@
         </div>
     </div>
 
-    <div id="rndTaskDock" class="rnd-task-dock" hidden>
-        <button type="button" id="rndTaskDockToggle"><i class="fa fa-cloud-upload"></i> Upload berjalan <span id="rndTaskDockCount">0</span></button>
-        <div id="rndTaskDockList" class="rnd-task-dock-list"></div>
-    </div>
     <style>
-        .rnd-task-head {display:flex;align-items:center;justify-content:space-between;gap:10px}
-        .rnd-task-head h3 {margin:0}
-        #rndMinimizeUpload {border:1px solid #cbd5e1;border-radius:7px;background:#fff;padding:7px 10px;cursor:pointer;font-size:11px}
-        .rnd-task-dock {position:fixed;z-index:2147483599;right:20px;bottom:20px;width:min(350px,calc(100vw - 30px));background:white;border:1px solid #bfdbfe;border-radius:12px;box-shadow:0 8px 32px #0003;padding:12px}
-        .rnd-task-dock[hidden] {display:none!important}
-        #rndTaskDockToggle {width:100%;border:0;background:#eff6ff;color:#1d4ed8;border-radius:8px;padding:10px;cursor:pointer;font-weight:700}
-        .rnd-task-dock-list {max-height:180px;overflow:auto;font-size:11px;color:#334155}
-        .rnd-task-dock-list div {padding:8px 4px;border-bottom:1px solid #e2e8f0}
-
         .rnd-page,
 
-        .rnd-page *,
+        .rnd-page \*,
 
         .rnd-drawer,
 
-        .rnd-drawer * {
+        .rnd-drawer \* {
 
             box-sizing: border-box;
 
@@ -1332,7 +1319,7 @@
 
 
 
-        /* DRAWER */ .rnd-backdrop {
+        /\ DRAWER \/ .rnd-backdrop {
 
             position: fixed;
 
@@ -1666,7 +1653,7 @@
 
 
 
-        /* ARCHIVE */ .rnd-archive-panel {
+        /\ ARCHIVE \/ .rnd-archive-panel {
 
             flex: 1;
 
@@ -1815,7 +1802,7 @@
 
 
 
-        /* UPLOAD FORM */ #rndUploadForm {
+        /\ UPLOAD FORM \/ #rndUploadForm {
 
             display: block !important;
 
@@ -1915,7 +1902,7 @@
 
 
 
-        /* FIX UTAMA: TOMBOL TIDAK BOLEH HILANG */ #rndUploadForm .rnd-upload-actions {
+        /\ FIX UTAMA: TOMBOL TIDAK BOLEH HILANG \/ #rndUploadForm .rnd-upload-actions {
 
             display: flex !important;
 
@@ -5519,7 +5506,7 @@
             function rndOperationHide() { rndOperationOverlay.hidden = true; }
             function rndZipFilenameFromResponse(response) {
                 const header = response.headers.get('Content-Disposition') || '';
-                const utf = header.match(/filename*=UTF-8''([^;]+)/i);
+                const utf = header.match(/filename\*=UTF-8''([^;]+)/i);
                 if (utf) { try { return decodeURIComponent(utf[1]); } catch (_) {} }
                 const plain = header.match(/filename="?([^";]+)"?/i);
                 return plain ? plain[1] : 'Sample Pictures.zip';
@@ -6739,9 +6726,7 @@
                             return;
                         }
                         if (xhr.status < 200 || xhr.status >= 300) {
-                            const err = new Error(data.message || 'HTTP ' + xhr.status);
-                            err.httpStatus = xhr.status;
-                            reject(err);
+                            reject(new Error(data.message || 'HTTP ' + xhr.status));
                         } else resolve(data);
                     };
                     xhr.onerror = () => reject(new Error('Koneksi ke hosting terputus.'));
@@ -6752,226 +6737,316 @@
             }
 
             // Shared-hosting-safe upload: browser -> Laravel -> Google Drive.
-            // Direct Google Drive PUT is intentionally disabled because browser CORS
-            // can hide a successful upload response and cause misleading failures.
+            // Direct-to-Drive session. If browser/CORS blocks the Drive PUT, show
+            // a clear error rather than silently re-uploading and risking duplicates.
+            async function directUploadPhoto(url, file, folderId, onProgress) {
+                const token = document.querySelector('meta[name="csrf-token"]')?.content;
+                const send = async (body) => {
+                    const res = await fetch(url, {
+                        method: 'POST', credentials: 'same-origin',
+                        headers: {'Accept': 'application/json', 'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': token || '', 'X-Requested-With': 'XMLHttpRequest'},
+                        body: JSON.stringify(body)
+                    });
+                    const data = await res.json();
+                    if (!res.ok || data.success === false) {
+                        throw new Error(data.message || 'HTTP ' + res.status);
+                    }
+                    return data;
+                };
+                const start = await send({direct_action:'start', folder_id:folderId || null,
+                    name:file.name, size:file.size, mime_type:file.type});
+                // Google returns a session URL after Laravel initializes the upload.
+                // Never log or expose the full session URL: it can authorize uploads.
+                let sessionEndpoint;
+                try {
+                    sessionEndpoint = new URL(start.session_url);
+                } catch (_) {
+                    throw new Error('Server tidak mengembalikan URL sesi Google Drive yang valid.');
+                }
+                if (sessionEndpoint.protocol !== 'https:' ||
+                    !['www.googleapis.com', 'googleapis.com'].includes(sessionEndpoint.hostname) ||
+                    !sessionEndpoint.pathname.startsWith('/upload/drive/')) {
+                    throw new Error('URL sesi upload tidak sesuai endpoint Google Drive.');
+                }
+                const uploaded = await new Promise((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('PUT', start.session_url, true);
+                    xhr.timeout = 300000;
+                    xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+                    xhr.upload.onprogress = e => {
+                        if (e.lengthComputable) onProgress(e.loaded, e.total);
+                    };
+                    xhr.onload = () => {
+                        if (xhr.status < 200 || xhr.status >= 300) {
+                            reject(new Error('Google Drive menolak transfer (HTTP ' + xhr.status + ').'));
+                            return;
+                        }
+                        try { resolve(JSON.parse(xhr.responseText)); }
+                        catch (_) { reject(new Error('Respons Google Drive tidak berisi JSON yang valid.')); }
+                    };
+                    xhr.onerror = () => {
+                        // Status 0 means the browser did not expose an HTTP response.
+                        // It can be caused by CORS/preflight, network, or browser blocking.
+                        console.error('Drive PUT failed', {
+                            status: xhr.status,
+                            readyState: xhr.readyState,
+                            sessionHost: sessionEndpoint.hostname,
+                            sessionPath: sessionEndpoint.pathname,
+                            origin: window.location.origin
+                        });
+                        reject(new Error('Request PUT ke Google Drive gagal sebelum respons HTTP tersedia. ' +
+                            'Periksa Console untuk pesan CORS/preflight atau gangguan jaringan. ' +
+                            'Periksa apakah foto sudah ada di Drive sebelum mencoba ulang.'));
+                    };
+                    xhr.ontimeout = () => reject(new Error(
+                        'Transfer ke Google Drive timeout. Periksa Drive sebelum mencoba ulang.'));
+                    xhr.onabort = () => reject(new Error('Transfer ke Google Drive dibatalkan.'));
+                    xhr.send(file);
+                });
+                if (!uploaded.id) throw new Error('Google Drive tidak mengembalikan ID file.');
+                onProgress(1, 1);
+                return send({direct_action:'finish', ticket:start.ticket, drive_id:uploaded.id});
+            }
 
-            // Background upload manager: 4 active requests TOTAL, across all folders/batches.
+
             const uploadLayer = document.getElementById('rndUploadLayer');
             const layerPercent = document.getElementById('rndLayerPercent');
             const layerBar = document.getElementById('rndLayerBar');
             const layerRing = document.getElementById('rndLayerRing');
             const layerFilename = document.getElementById('rndLayerFilename');
             const layerStats = document.getElementById('rndLayerStats');
-            const taskDock = document.getElementById('rndTaskDock');
-            const taskDockCount = document.getElementById('rndTaskDockCount');
-            const taskDockList = document.getElementById('rndTaskDockList');
-            const tasks = [];
-            const pendingJobs = [];
-            const retryJobs = [];
-            let activeJobs = 0;
-            const MAX_PARALLEL_UPLOADS = 2; // Dua request browser maksimum; server membatasi buffer global dua foto.
-            const MAX_RETRIES_PER_FILE = 2;
-            let expandedTaskId = null;
-            let nextTaskId = 1;
 
-            function refreshTaskUi() {
-                const current = tasks.find(t => t.id === expandedTaskId);
-                uploadLayer.hidden = !current;
-                if (current) {
-                    const pct = Math.round(current.progress);
-                    layerPercent.textContent = pct + '%';
-                    layerBar.style.width = pct + '%';
-                    layerRing.style.background = 'conic-gradient(#1769e8 ' + pct + '%,#e9f0fa ' + pct + '%)';
-                    layerFilename.textContent = current.label + ' · ' + current.done + '/' + current.files.length + ' file';
-                    layerStats.textContent = 'Berhasil ' + current.success + ' · Gagal ' + current.failed.length +
-                        (current.finished ? ' · Selesai' : ' · Berjalan / menunggu retry');
-                }
-                taskDock.hidden = tasks.length === 0;
-                taskDockCount.textContent = tasks.filter(t => !t.finished).length;
-                taskDockList.replaceChildren();
-                tasks.slice(-10).reverse().forEach(t => {
-                    const entry = document.createElement('div');
-                    entry.textContent = t.label + ' — ' + t.done + '/' + t.files.length +
-                        ' (' + Math.round(t.progress) + '%) · berhasil ' + t.success +
-                        ', gagal ' + t.failed.length + (t.finished ? ' · Selesai' : '');
-                    entry.style.cursor = 'pointer';
-                    entry.title = t.failed.length ? t.failed.map(f => f.name + ': ' + f.message).join('\n') : 'Klik untuk melihat detail upload';
-                    entry.onclick = () => { expandedTaskId = t.id; refreshTaskUi(); };
-                    taskDockList.appendChild(entry);
-                });
+            function syncUploadLayer() {
+                const value = Math.max(0, Math.min(100, parseFloat(progressBar.style.width) || 0));
+                layerPercent.textContent = Math.round(value) + '%';
+                layerBar.style.width = value + '%';
+                layerRing.style.background = 'conic-gradient(#1769e8 ' + value + '%,#e9f0fa ' + value + '%)';
+                layerFilename.textContent = progressText.textContent || 'Mengunggah foto...';
+                layerStats.textContent = uploadMessage.textContent || 'Sedang diproses...';
             }
-            document.getElementById('rndMinimizeUpload').addEventListener('click', () => {
-                expandedTaskId = null;
-                refreshTaskUi();
+            const layerObserver = new MutationObserver(syncUploadLayer);
+            layerObserver.observe(progressText, {
+                childList: true,
+                characterData: true,
+                subtree: true
             });
-            document.getElementById('rndTaskDockToggle').addEventListener('click', () => {
-                expandedTaskId = null;
-                refreshTaskUi();
+            layerObserver.observe(uploadMessage, {
+                childList: true,
+                characterData: true,
+                subtree: true
+            });
+            layerObserver.observe(progressBar, {
+                attributes: true,
+                attributeFilter: ['style']
             });
 
-            function pumpUploads() {
-                // Selalu selesaikan semua percobaan pertama terlebih dahulu.
-                // Retry hanya berjalan setelah tidak ada request awal yang aktif/menunggu.
-                while (activeJobs < MAX_PARALLEL_UPLOADS) {
-                    const job = pendingJobs.length ? pendingJobs.shift() : retryJobs.shift();
-                    if (!job) break;
-                    activeJobs++;
-                    runUploadJob(job).finally(() => { activeJobs--; pumpUploads(); });
-                }
-            }
-
-            function canSafelyRetryUpload(error) {
-                // Timeout, koneksi putus, 5xx dan respons bukan JSON bisa berarti
-                // Google Drive sudah menyimpan foto, walau browser tidak mendapat ACK.
-                // Jangan otomatis retry kondisi ambigu agar tidak membuat duplikat.
-                const message = String(error?.message || '');
-                return error?.httpStatus === 429 || error?.httpStatus === 408 ||
-                    /^HTTP (429|408)(?:\D|$)/.test(message) ||
-                    /(?:terlalu banyak permintaan|rate limit|quota exceeded|temporarily unavailable)/i.test(message);
-            }
-
-            async function runUploadJob({task, file, index, attempt = 0}) {
-                let succeeded = false;
-                let failure = null;
-                try {
-                    // Tunggu buffer kosong SEBELUM mengirim file besar ke hosting.
-                    const slotUrl = @json(url('/rnd/sample-pictures/upload-slot'));
-                    const slotWaitStart = Date.now();
-                    while (true) {
-                        const check = await fetch(slotUrl, {headers: {'Accept': 'application/json'}, credentials: 'same-origin'});
-                        if (!check.ok) throw new Error('Gagal memeriksa slot upload (HTTP ' + check.status + ').');
-                        const slot = await check.json();
-                        if (slot.available) break;
-                        if (Date.now() - slotWaitStart > 30 * 60 * 1000) {
-                            throw new Error('Buffer upload sibuk lebih dari 30 menit. Hubungi admin.');
-                        }
-                        await new Promise(resolve => setTimeout(resolve, 4000));
-                    }
-                    const data = new FormData();
-                    data.append('folder_id', task.folderId);
-                    data.append('photos[]', file, file.name);
-                    const result = await uploadPhotoWithProgress(task.url, data, (loaded, total) => {
-                        // Maksimum 90% sampai server mengonfirmasi penyimpanan.
-                        task.fileProgress[index] = Math.max(task.fileProgress[index],
-                            0.9 * Math.min(1, loaded / Math.max(total, 1)));
-                        recalcTaskProgress(task);
-                    });
-                    if (result?.success === false || (result?.failed || []).length) {
-                        const failureMessage = result?.message || result.failed?.[0]?.error || 'Upload ditolak server';
-                        const err = new Error(failureMessage);
-                        // Hanya respons eksplisit 429/408 yang boleh diulang otomatis.
-                        err.safeRetry = result?.retryable === true;
-                        throw err;
-                    }
-                    // Queue upload: 202 berarti file diterima hosting, BELUM masuk Drive.
-                    if (result?.queued && result?.task_id) {
-                        const statusUrl = @json(url('/rnd/sample-pictures/upload-tasks')) + '/' + encodeURIComponent(result.task_id);
-                        const startedWaiting = Date.now();
-                        while (true) {
-                            if (Date.now() - startedWaiting > 20 * 60 * 1000) {
-                                throw new Error('Status queue belum selesai setelah 20 menit. Periksa task di server sebelum retry.');
-                            }
-                            await new Promise(resolve => setTimeout(resolve, 4000));
-                            const response = await fetch(statusUrl, {
-                                headers: {'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
-                                credentials: 'same-origin'
-                            });
-                            if (!response.ok) throw new Error('Tidak dapat membaca status upload (HTTP ' + response.status + ').');
-                            const state = await response.json();
-                            if (state.status === 'done') {
-                                result.uploaded = state.uploaded || [];
-                                break;
-                            }
-                            if (state.status === 'failed') {
-                                throw new Error(state.message || 'Gagal mengirim ke Google Drive.');
-                            }
-                        }
-                    }
-                    succeeded = true;
-                    task.success++;
-                    for (const uploaded of result?.uploaded || []) {
-                        if (uploaded.drive_id) task.uploadedItems.push({
-                            id: uploaded.drive_id, database_id: uploaded.id,
-                            name: uploaded.name || file.name, type: 'file',
-                            mime_type: file.type, size: file.size,
-                            url: 'https://drive.google.com/file/d/' + encodeURIComponent(uploaded.drive_id) + '/view'
-                        });
-                    }
-                } catch (error) {
-                    failure = error;
-                    console.error('Upload gagal:', file.name, error);
-                } finally {
-                    if (failure && attempt < MAX_RETRIES_PER_FILE &&
-                        (failure.safeRetry === true || canSafelyRetryUpload(failure))) {
-                        // Jangan hitung sebagai selesai; ulang setelah antrean utama habis.
-                        retryJobs.push({task, file, index, attempt: attempt + 1});
-                        task.retryPending++;
-                        task.fileProgress[index] = 0;
-                    } else {
-                        if (failure) {
-                            task.failed.push({name: file.name, message: failure.message || 'Gagal upload'});
-                        }
-                        task.done++;
-                        task.fileProgress[index] = 1;
-                    }
-                    if (attempt > 0) task.retryPending = Math.max(0, task.retryPending - 1);
-                    recalcTaskProgress(task);
-                    if (task.done === task.files.length) completeUploadTask(task);
-                }
-            }
-
-            function recalcTaskProgress(task) {
-                const total = task.files.reduce((sum, f) => sum + Math.max(f.size, 1), 0);
-                const completed = task.files.reduce((sum, f, i) =>
-                    sum + Math.max(f.size, 1) * task.fileProgress[i], 0);
-                task.progress = task.done === task.files.length ? 100 : Math.min(99, completed / total * 100);
-                refreshTaskUi();
-            }
-
-            function completeUploadTask(task) {
-                task.finished = true;
-                // Tutup hanya modal batch yang baru selesai. Batch lain tetap berjalan.
-                // Hasil (termasuk file gagal) tetap tersedia di panel task dock.
-                if (expandedTaskId === task.id) {
-                    expandedTaskId = null;
-                }
-                // Only change the grid if the user is STILL viewing the original folder.
-                if (String(activeFolderDbId) === String(task.folderId) &&
-                    String(activeUploadUrl) === String(task.url)) {
-                    const ids = new Set(driveCurrentItems.map(item => String(item.id)));
-                    task.uploadedItems.forEach(item => {
-                        if (!ids.has(String(item.id))) { driveCurrentItems.unshift(item); ids.add(String(item.id)); }
-                    });
-                    renderDriveItemsStable();
-                    setUploadMessage('Upload selesai: berhasil ' + task.success + ', gagal ' + task.failed.length + '.',
-                        task.failed.length ? 'error' : 'success');
-                }
-                refreshTaskUi();
-            }
-
-            uploadForm.addEventListener('submit', function(event) {
+            uploadForm.addEventListener('submit', async function(event) {
                 event.preventDefault();
+                if (uploadInProgress) return;
+
                 const files = Array.from(photoInput.files || []);
                 try {
-                    if (!activeUploadUrl || !activeFolderDbId) throw new Error('Buka folder artikel dahulu.');
+                    if (!activeUploadUrl) throw new Error('Buka artikel terlebih dahulu.');
                     validatePhotos(files);
-                } catch (error) { setUploadMessage(error.message, 'error'); return; }
-                const task = {
-                    id: nextTaskId++, url: activeUploadUrl, folderId: activeFolderDbId,
-                    label: driveCurrentPath.textContent.trim() || 'Folder ' + activeFolderDbId,
-                    files, fileProgress: files.map(() => 0), uploadedItems: [],
-                    success: 0, failed: [], done: 0, retryPending: 0,
-                    progress: 0, finished: false
+                } catch (error) {
+                    setUploadMessage(error.message, 'error');
+                    return;
+                }
+
+                uploadInProgress = true;
+                uploadButton.disabled = true;
+                photoInput.disabled = true;
+                uploadProgress.hidden = false;
+                progressBar.style.width = '0%';
+                uploadLayer.hidden = false;
+                syncUploadLayer();
+
+                const csrf = document.querySelector('meta[name="csrf-token"]');
+                const successful = [];
+                const failed = [];
+
+                // Mode ringan: tidak menambahkan placeholder gambar, object URL,
+                // atau merender ulang grid saat upload masih berjalan.
+                const uploadedBatchItems = [];
+                const originalUploadFolderId = activeFolderDbId;
+                previewThumbs.replaceChildren();
+                showPreview('', '', 'Waiting completed upload');
+                const pendingText = document.createElement('div');
+                pendingText.className = 'rnd-preview-thumb-waiting';
+                pendingText.setAttribute('role', 'status');
+                pendingText.textContent = 'Waiting completed upload — preview foto muncul setelah 100%.';
+                previewThumbs.appendChild(pendingText);
+
+                const formatBytes = bytes => {
+                    if (!bytes) return '0 KB';
+                    return bytes >= 1024 * 1024 ?
+                        (bytes / (1024 * 1024)).toFixed(1) + ' MB' :
+                        Math.max(1, Math.round(bytes / 1024)) + ' KB';
                 };
-                tasks.push(task);
-                expandedTaskId = task.id;
-                photoInput.value = '';
-                selectedFiles.textContent = 'Batch ' + files.length + ' foto masuk antrean. Boleh pindah folder dan upload lagi.';
-                setUploadMessage('Upload berjalan di background. Klik Minimize untuk melanjutkan pekerjaan.', '');
-                files.forEach((file, index) => pendingJobs.push({task, file, index}));
-                refreshTaskUi();
-                pumpUploads();
+
+                // Satu request per giliran agar PHP worker shared hosting tidak terbebani.
+                try {
+                    const MAX_PARALLEL_UPLOADS = 2;
+                    let nextFileIndex = 0;
+                    let processedCount = 0;
+                    let runningCount = 0;
+                    // 0..0.9: browser -> hosting, 0.9: menunggu Google Drive,
+                    // 1.0: respons sukses dari backend. Progress total berbobot ukuran file.
+                    const fileProgress = files.map(() => 0);
+                    const filePhases = files.map(() => 'Menunggu giliran');
+                    const totalBytes = files.reduce((sum, file) => sum + Math.max(file.size, 1), 0);
+                    const updateBatchProgress = () => {
+                        const weighted = files.reduce((sum, file, index) =>
+                            sum + Math.max(file.size, 1) * fileProgress[index], 0);
+                        const percentage = Math.min(99, Math.floor(weighted / totalBytes * 100));
+                        const done = processedCount === files.length;
+                        progressBar.style.width = (done ? 100 : percentage) + '%';
+                        const savingCount = filePhases.filter(p => p === 'Verifikasi database').length;
+                        progressText.textContent = done ?
+                            'Selesai memproses ' + processedCount + '/' + files.length + ' foto' :
+                            'Upload langsung ke Google Drive ' + percentage + '% · ' +
+                            (savingCount ? savingCount + ' foto sedang disimpan ke Database · ' : '') +
+                            'Selesai ' + processedCount + '/' + files.length;
+                        setUploadMessage(
+                            'Berhasil ' + successful.length + ' · Gagal ' + failed.length +
+                            ' · Aktif ' + runningCount + ' · ' +
+                            (savingCount ? 'Menunggu konfirmasi Database' : 'Mengirim foto langsung ke Google Drive'),
+                            failed.length ? 'error' : ''
+                        );
+                        uploadButton.innerHTML =
+                            '<i class="fa fa-circle-o-notch fa-spin"></i><span>Upload ' +
+                            processedCount + '/' + files.length + '</span>';
+                    };
+
+                    const uploadWorker = async () => {
+                        while (nextFileIndex < files.length) {
+                            const index = nextFileIndex++;
+                            const file = files[index];
+                            runningCount++;
+                            progressText.textContent =
+                                'Mengunggah ' + file.name + ' (' + formatBytes(file.size) + ')';
+                            try {
+                                const formData = new FormData();
+                                if (activeFolderDbId) formData.append('folder_id', activeFolderDbId);
+                                formData.append('photos[]', file, file.name);
+
+                                filePhases[index] = 'Mengirim langsung ke Drive';
+                                updateBatchProgress();
+                                const result = await directUploadPhoto(
+                                    activeUploadUrl, file, activeFolderDbId,
+                                    (loaded, total) => {
+                                        fileProgress[index] = Math.max(fileProgress[index],
+                                            0.9 * Math.min(1, loaded / Math.max(total, 1)));
+                                        if (fileProgress[index] >= 0.9) {
+                                            filePhases[index] = 'Verifikasi database';
+                                        }
+                                        updateBatchProgress();
+                                    }
+                                );
+
+                                if (result && result.success === false) {
+                                    throw new Error(result.message || 'Server menolak file.');
+                                }
+                                successful.push(file.name);
+                                fileProgress[index] = 1;
+                                filePhases[index] = 'Selesai';
+                                // Simpan metadata dalam memori. Jangan refresh grid per foto.
+                                for (const uploaded of (result.uploaded || [])) {
+                                    if (uploaded.drive_id) {
+                                        uploadedBatchItems.push({
+                                            id: uploaded.drive_id,
+                                            database_id: uploaded.id,
+                                            name: uploaded.name || file.name,
+                                            type: 'file',
+                                            mime_type: file.type || 'image/jpeg',
+                                            size: file.size,
+                                            url: 'https://drive.google.com/file/d/' +
+                                                encodeURIComponent(uploaded.drive_id) + '/view'
+                                        });
+                                    }
+                                }
+                            } catch (error) {
+                                const message = error.name === 'AbortError' ?
+                                    'Waktu respons server habis. Periksa foto sebelum mengulang.' :
+                                    (error.message || 'Upload gagal.');
+                                failed.push({ name: file.name, message });
+                                fileProgress[index] = 1;
+                                filePhases[index] = 'Gagal';
+                                console.error('Upload gagal untuk ' + file.name, error);
+                            } finally {
+                                runningCount--;
+                                processedCount++;
+                                updateBatchProgress();
+                            }
+                        }
+                    };
+
+                    await Promise.all(Array.from(
+                        { length: Math.min(MAX_PARALLEL_UPLOADS, files.length) },
+                        () => uploadWorker()
+                    ));
+
+                    // Semua request sudah selesai: render preview grid HANYA SEKALI.
+                    // Jangan mengubah folder lain bila pengguna sempat bernavigasi.
+                    if (String(activeFolderDbId) === String(originalUploadFolderId)) {
+                        const knownIds = new Set(driveCurrentItems.map(item => String(item.id)));
+                        for (const item of uploadedBatchItems) {
+                            if (!knownIds.has(String(item.id))) {
+                                driveCurrentItems.unshift(item);
+                                knownIds.add(String(item.id));
+                            }
+                        }
+                        renderDriveItemsStable();
+                    }
+                    previewThumbs.replaceChildren();
+                    showPreview('', '', 'Upload selesai');
+                    // Preview grid sudah diperbarui. Tidak memuat ulang semua thumbnail
+                    // dari server pada setiap foto, dan tidak mengulang request upload.
+
+                    photoInput.value = '';
+                    selectedFiles.textContent = 'Selesai. Berhasil ' + successful.length +
+                        ' foto, gagal ' + failed.length + ' foto.';
+
+                    if (failed.length) {
+                        const details = failed.slice(0, 5).map(item =>
+                            item.name + ': ' + item.message
+                        ).join(' | ');
+                        setUploadMessage(
+                            'Upload selesai sebagian. Berhasil ' + successful.length +
+                            ', gagal ' + failed.length + '. ' + details +
+                            (failed.length > 5 ? ' | dan ' + (failed.length - 5) + ' lainnya.' : ''),
+                            'error'
+                        );
+                        progressText.textContent =
+                            'Selesai dengan ' + failed.length +
+                            ' kegagalan. Periksa daftar foto sebelum mencoba ulang agar tidak duplikat.';
+                    } else {
+                        setUploadMessage('Semua ' + successful.length + ' foto berhasil diunggah.',
+                            'success');
+                        progressText.textContent = 'Semua foto berhasil diunggah.';
+                    }
+
+                    // Grid diperbarui sekali setelah semua foto diproses.
+                    // Jika backend tidak mengirim drive_id, gunakan Refresh manual.
+
+
+                } catch (error) {
+                    console.error('Proses upload gagal:', error);
+                    setUploadMessage(error.message || 'Proses upload gagal.', 'error');
+                    previewThumbs.replaceChildren();
+                    showPreview('', '', 'Upload tidak selesai');
+                } finally {
+                    syncUploadLayer();
+                    uploadLayer.hidden = true;
+                    uploadInProgress = false;
+                    uploadButton.disabled = false;
+                    photoInput.disabled = false;
+                    uploadButton.innerHTML =
+                        '<i class="fa fa-cloud-upload"></i><span>Upload Foto</span>';
+                }
             });
+
 
             async function refreshArchive() {
 
