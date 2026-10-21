@@ -4966,6 +4966,8 @@
             const driveItems = document.getElementById('rndDriveItems');
             let activeRootFolderDbId = null;
             let activeFolderDbId = null;
+            let activeFolderGoogleDriveId = null;
+            let activeFolderGoogleDriveUrl = null;
             let driveBreadcrumbs = [];
             let driveCurrentItems = [];
 
@@ -5121,6 +5123,8 @@
                 activeUploadUrl = null;
                 activeRootFolderDbId = null;
                 activeFolderDbId = null;
+                activeFolderGoogleDriveId = null;
+                activeFolderGoogleDriveUrl = null;
                 driveBreadcrumbs = [];
 
 
@@ -5400,6 +5404,9 @@
                 try {
                     const data = await fetchJson(driveEndpoint('/folders/' + encodeURIComponent(folderDbId)));
                     activeFolderDbId = data.active_folder.id;
+                    activeFolderGoogleDriveId = data.active_folder.drive_id || data.active_folder.google_drive_folder_id || null;
+                    // Fallback: sebagian versi controller hanya mengirim URL folder.
+                    activeFolderGoogleDriveUrl = data.active_folder.url || data.active_folder.webViewLink || null;
                     driveBreadcrumbs = data.breadcrumbs || [];
                     rndMultiSelectedIds.clear();
                     driveCurrentItems = data.items || [];
@@ -5410,9 +5417,13 @@
                     renderDriveItems();
                     driveCurrentPath.textContent = data.active_folder.name || 'Folder aktif';
                     driveBack.disabled = driveBreadcrumbs.length <= 1;
-                    if (data.active_folder.url) {
-                        driveLink.href = data.active_folder.url;
+                    const directFolderUrl = rndActiveFolderGoogleDriveUrl();
+                    if (directFolderUrl) {
+                        driveLink.href = directFolderUrl;
                         driveLink.hidden = false;
+                    } else {
+                        driveLink.removeAttribute('href');
+                        driveLink.hidden = true;
                     }
                 } catch (e) {
                     driveItems.replaceChildren();
@@ -5580,6 +5591,21 @@
                     : 'https://drive.google.com/file/d/' + id + '/view';
             }
 
+            function rndActiveFolderGoogleDriveUrl() {
+                const normalize = value => String(value || '').replace(/\\/g, '').trim();
+                const fromUrl = value => {
+                    const clean = normalize(value);
+                    const match = clean.match(/(?:https?:\/\/)?drive\.google\.com\/drive\/(?:u\/\d+\/)?folders\/([A-Za-z0-9_-]+)/i);
+                    return match ? 'https://drive.google.com/drive/folders/' + match[1] : null;
+                };
+                const id = normalize(activeFolderGoogleDriveId);
+                if (/^[A-Za-z0-9_-]{10,}$/.test(id)) {
+                    return 'https://drive.google.com/drive/folders/' + encodeURIComponent(id);
+                }
+                return fromUrl(activeFolderGoogleDriveUrl) ||
+                    fromUrl(driveLink && driveLink.getAttribute('href')) || null;
+            }
+
             function rndOpenGoogleDrive(url) {
                 if (!url || !/^https:\/\/drive\.google\.com\//i.test(url)) {
                     alert('Link Google Drive tidak tersedia. Coba Refresh folder.');
@@ -5604,11 +5630,7 @@
                 }
                 // Google Drive tidak mendukung preselect banyak file lewat URL.
                 // Semua item yang dipilih di File Manager berada pada folder aktif.
-                const active = driveBreadcrumbs[driveBreadcrumbs.length - 1];
-                const folderDriveId = active && (active.google_drive_folder_id || active.drive_id || active.url);
-                const url = (typeof folderDriveId === 'string' && folderDriveId.startsWith('https://drive.google.com/'))
-                    ? folderDriveId
-                    : (driveLink && /^https:\/\/drive\.google\.com\//i.test(driveLink.href) ? driveLink.href : null);
+                const url = rndActiveFolderGoogleDriveUrl();
                 if (!url) {
                     alert('Link folder Google Drive belum tersedia. Klik Refresh lalu coba lagi.');
                     return;
@@ -5641,13 +5663,9 @@
                 folderDownload.type = 'button';
                 folderDownload.innerHTML = '<i class="fa fa-download" aria-hidden="true"></i> Download';
                 folderDownload.title = 'Buka folder aktif di Google Drive (tab baru)';
-                folderDownload.disabled = !activeFolderDbId || !driveLink || driveLink.hidden;
+                folderDownload.disabled = !rndActiveFolderGoogleDriveUrl();
                 folderDownload.addEventListener('click', () => {
-                    if (!driveLink || driveLink.hidden) {
-                        alert('Link folder Google Drive belum tersedia. Coba Refresh.');
-                        return;
-                    }
-                    rndOpenGoogleDrive(driveLink.href);
+                    rndOpenGoogleDrive(rndActiveFolderGoogleDriveUrl());
                 });
                 rndMultiToolbar.appendChild(folderDownload);
                 if (!count) {
@@ -6340,11 +6358,7 @@
                     .id);
             });
             document.getElementById('rndDriveDownloadCurrent').addEventListener('click', () => {
-                if (!activeFolderDbId || !driveLink || driveLink.hidden) {
-                    alert('Folder Google Drive belum siap.');
-                    return;
-                }
-                rndOpenGoogleDrive(driveLink.href);
+                rndOpenGoogleDrive(rndActiveFolderGoogleDriveUrl());
             });
             driveRefresh.addEventListener('click', () => {
                 if (activeFolderDbId) loadDriveFolder(activeFolderDbId);
@@ -6396,6 +6410,8 @@
                 activeUploadUrl = button.dataset.uploadUrl;
                 activeRootFolderDbId = null;
                 activeFolderDbId = null;
+                activeFolderGoogleDriveId = null;
+                activeFolderGoogleDriveUrl = null;
                 driveBreadcrumbs = [];
 
 
