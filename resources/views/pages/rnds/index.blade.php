@@ -6739,7 +6739,9 @@
                             return;
                         }
                         if (xhr.status < 200 || xhr.status >= 300) {
-                            reject(new Error(data.message || 'HTTP ' + xhr.status));
+                            const err = new Error(data.message || 'HTTP ' + xhr.status);
+                            err.httpStatus = xhr.status;
+                            reject(err);
                         } else resolve(data);
                     };
                     xhr.onerror = () => reject(new Error('Koneksi ke hosting terputus.'));
@@ -6765,8 +6767,10 @@
             const taskDockList = document.getElementById('rndTaskDockList');
             const tasks = [];
             const pendingJobs = [];
+            const retryJobs = [];
             let activeJobs = 0;
-            const MAX_PARALLEL_UPLOADS = 1;
+            const MAX_PARALLEL_UPLOADS = 1; // Ubah ke 4 bila ingin paralel lagi.
+            const MAX_RETRIES_PER_FILE = 2;
             let expandedTaskId = null;
             let nextTaskId = 1;
 
@@ -6780,7 +6784,7 @@
                     layerRing.style.background = 'conic-gradient(#1769e8 ' + pct + '%,#e9f0fa ' + pct + '%)';
                     layerFilename.textContent = current.label + ' · ' + current.done + '/' + current.files.length + ' file';
                     layerStats.textContent = 'Berhasil ' + current.success + ' · Gagal ' + current.failed.length +
-                        (current.finished ? ' · Selesai' : ' · Berjalan di tab ini');
+                        (current.finished ? ' · Selesai' : ' · Berjalan / menunggu retry');
                 }
                 taskDock.hidden = tasks.length === 0;
                 taskDockCount.textContent = tasks.filter(t => !t.finished).length;
@@ -6806,26 +6810,47 @@
             });
 
             function pumpUploads() {
-                while (activeJobs < MAX_PARALLEL_UPLOADS && pendingJobs.length) {
-                    const job = pendingJobs.shift();
+                // Selalu selesaikan semua percobaan pertama terlebih dahulu.
+                // Retry hanya berjalan setelah tidak ada request awal yang aktif/menunggu.
+                while (activeJobs < MAX_PARALLEL_UPLOADS) {
+                    const job = pendingJobs.length ? pendingJobs.shift() : retryJobs.shift();
+                    if (!job) break;
                     activeJobs++;
                     runUploadJob(job).finally(() => { activeJobs--; pumpUploads(); });
                 }
             }
 
-            async function runUploadJob({task, file, index}) {
+            function canSafelyRetryUpload(error) {
+                // Timeout, koneksi putus, 5xx dan respons bukan JSON bisa berarti
+                // Google Drive sudah menyimpan foto, walau browser tidak mendapat ACK.
+                // Jangan otomatis retry kondisi ambigu agar tidak membuat duplikat.
+                const message = String(error?.message || '');
+                return error?.httpStatus === 429 || error?.httpStatus === 408 ||
+                    /^HTTP (429|408)(?:\D|$)/.test(message) ||
+                    /(?:terlalu banyak permintaan|rate limit|quota exceeded|temporarily unavailable)/i.test(message);
+            }
+
+            async function runUploadJob({task, file, index, attempt = 0}) {
+                let succeeded = false;
+                let failure = null;
                 try {
                     const data = new FormData();
                     data.append('folder_id', task.folderId);
                     data.append('photos[]', file, file.name);
                     const result = await uploadPhotoWithProgress(task.url, data, (loaded, total) => {
+                        // Maksimum 90% sampai server mengonfirmasi penyimpanan.
                         task.fileProgress[index] = Math.max(task.fileProgress[index],
                             0.9 * Math.min(1, loaded / Math.max(total, 1)));
                         recalcTaskProgress(task);
                     });
                     if (result?.success === false || (result?.failed || []).length) {
-                        throw new Error(result?.message || result.failed?.[0]?.error || 'Upload ditolak server');
+                        const failureMessage = result?.message || result.failed?.[0]?.error || 'Upload ditolak server';
+                        const err = new Error(failureMessage);
+                        // Hanya respons eksplisit 429/408 yang boleh diulang otomatis.
+                        err.safeRetry = result?.retryable === true;
+                        throw err;
                     }
+                    succeeded = true;
                     task.success++;
                     for (const uploaded of result?.uploaded || []) {
                         if (uploaded.drive_id) task.uploadedItems.push({
@@ -6836,11 +6861,23 @@
                         });
                     }
                 } catch (error) {
-                    task.failed.push({name: file.name, message: error.message || 'Gagal upload'});
+                    failure = error;
                     console.error('Upload gagal:', file.name, error);
                 } finally {
-                    task.fileProgress[index] = 1;
-                    task.done++;
+                    if (failure && attempt < MAX_RETRIES_PER_FILE &&
+                        (failure.safeRetry === true || canSafelyRetryUpload(failure))) {
+                        // Jangan hitung sebagai selesai; ulang setelah antrean utama habis.
+                        retryJobs.push({task, file, index, attempt: attempt + 1});
+                        task.retryPending++;
+                        task.fileProgress[index] = 0;
+                    } else {
+                        if (failure) {
+                            task.failed.push({name: file.name, message: failure.message || 'Gagal upload'});
+                        }
+                        task.done++;
+                        task.fileProgress[index] = 1;
+                    }
+                    if (attempt > 0) task.retryPending = Math.max(0, task.retryPending - 1);
                     recalcTaskProgress(task);
                     if (task.done === task.files.length) completeUploadTask(task);
                 }
@@ -6886,7 +6923,8 @@
                     id: nextTaskId++, url: activeUploadUrl, folderId: activeFolderDbId,
                     label: driveCurrentPath.textContent.trim() || 'Folder ' + activeFolderDbId,
                     files, fileProgress: files.map(() => 0), uploadedItems: [],
-                    success: 0, failed: [], done: 0, progress: 0, finished: false
+                    success: 0, failed: [], done: 0, retryPending: 0,
+                    progress: 0, finished: false
                 };
                 tasks.push(task);
                 expandedTaskId = task.id;
