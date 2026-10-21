@@ -6766,7 +6766,7 @@
             const tasks = [];
             const pendingJobs = [];
             let activeJobs = 0;
-            const MAX_PARALLEL_UPLOADS = 4;
+            const MAX_PARALLEL_UPLOADS = 1;
             let expandedTaskId = null;
             let nextTaskId = 1;
 
