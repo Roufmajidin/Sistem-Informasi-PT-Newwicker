@@ -682,6 +682,16 @@
         </div>
     </div>
 
+    {{-- Daftar foto gagal, ditampilkan di samping modal progress upload --}}
+    <aside id="rndUploadFailures" class="rnd-upload-failures" hidden aria-label="Foto gagal diunggah">
+        <div class="rnd-upload-failures-head">
+            <strong><i class="fa fa-exclamation-circle"></i> Upload Gagal <span id="rndUploadFailuresCount">0</span></strong>
+            <button type="button" id="rndUploadFailuresClose" aria-label="Tutup daftar gagal"><i class="fa fa-times"></i></button>
+        </div>
+        <p>Tekan ikon <i class="fa fa-paper-plane"></i> untuk mengirim ulang foto yang gagal.</p>
+        <div id="rndUploadFailuresList" class="rnd-upload-failures-list"></div>
+    </aside>
+
     <style>
         .rnd-page,
 
@@ -2053,6 +2063,21 @@
 
 
 
+
+        /* Sidebar kegagalan upload di sebelah modal progress. */
+        .rnd-upload-failures[hidden] { display:none !important; }
+        .rnd-upload-failures { position:fixed; z-index:2147483601; top:50%; left:calc(50% + 245px); transform:translateY(-50%); width:min(320px,calc(100vw - 24px)); max-height:75vh; overflow:hidden; display:flex; flex-direction:column; background:#fff; border:1px solid #fecaca; border-radius:13px; box-shadow:0 15px 55px rgba(15,23,42,.28); padding:13px; color:#334155; }
+        .rnd-upload-failures-head { display:flex; align-items:center; justify-content:space-between; gap:8px; color:#b91c1c; font-size:13px; }
+        .rnd-upload-failures-head button { border:0; background:transparent; cursor:pointer; color:#64748b; padding:4px 6px; }
+        .rnd-upload-failures p { font-size:11px; color:#64748b; line-height:1.5; margin:8px 0; }
+        .rnd-upload-failures-list { overflow-y:auto; min-height:0; }
+        .rnd-upload-failure-row { display:flex; align-items:flex-start; gap:8px; padding:9px 0; border-top:1px solid #fee2e2; }
+        .rnd-upload-failure-info { min-width:0; flex:1; }
+        .rnd-upload-failure-info strong { display:block; overflow-wrap:anywhere; font-size:11px; }
+        .rnd-upload-failure-info small { display:block; margin-top:3px; color:#b91c1c; overflow-wrap:anywhere; font-size:10px; line-height:1.4; }
+        .rnd-upload-failure-retry { flex-shrink:0; border:1px solid #bfdbfe; border-radius:8px; background:#eff6ff; color:#1d4ed8; width:32px; height:32px; cursor:pointer; }
+        .rnd-upload-failure-retry:disabled { opacity:.45; cursor:not-allowed; }
+        @media(max-width:850px) { .rnd-upload-failures { left:50%; top:auto; bottom:12px; transform:translateX(-50%); width:min(430px,calc(100vw - 24px)); max-height:30vh; } }
 
         /* Multi-select photos: separate from single-photo preview selection. */
         .rnd-drive-item { position: relative; }
@@ -6765,6 +6790,61 @@
             }
 
 
+            // File objects disimpan di memori selama tab ini terbuka agar retry tidak
+            // meminta pengguna memilih ulang file. Tidak menyimpan token/URL sesi Drive.
+            const uploadFailurePanel = document.getElementById('rndUploadFailures');
+            const uploadFailureList = document.getElementById('rndUploadFailuresList');
+            const uploadFailureCount = document.getElementById('rndUploadFailuresCount');
+            const uploadFailureRecords = new Map();
+            let retryFolderId = null;
+            let uploadFailureDismissed = false;
+            function drawUploadFailures() {
+                uploadFailureList.replaceChildren();
+                uploadFailureCount.textContent = String(uploadFailureRecords.size);
+                uploadFailurePanel.hidden = uploadFailureDismissed || !uploadFailureRecords.size;
+                for (const [key, item] of uploadFailureRecords) {
+                    const row = document.createElement('div');
+                    row.className = 'rnd-upload-failure-row';
+                    const info = document.createElement('div');
+                    info.className = 'rnd-upload-failure-info';
+                    const name = document.createElement('strong');
+                    name.textContent = item.file.name;
+                    const reason = document.createElement('small');
+                    reason.textContent = item.message;
+                    info.append(name, reason);
+                    const retry = document.createElement('button');
+                    retry.type = 'button';
+                    retry.className = 'rnd-upload-failure-retry';
+                    retry.title = 'Kirim ulang ' + item.file.name;
+                    retry.setAttribute('aria-label', 'Kirim ulang ' + item.file.name);
+                    retry.innerHTML = '<i class="fa fa-paper-plane"></i>';
+                    retry.disabled = uploadInProgress;
+                    retry.addEventListener('click', () => {
+                        if (uploadInProgress) return;
+                        if (String(activeFolderDbId) !== String(item.folderId)) {
+                            alert('Buka kembali folder asal foto ini sebelum mencoba ulang.');
+                            return;
+                        }
+                        if (item.uncertain && !confirm('Status upload ' + item.file.name +
+                            ' belum dapat dipastikan. Periksa dulu di Google Drive agar tidak duplikat. Tetap kirim ulang?')) return;
+                        const transfer = new DataTransfer();
+                        transfer.items.add(item.file);
+                        photoInput.value = '';
+                        photoInput.files = transfer.files;
+                        uploadFailureRecords.delete(key);
+                        uploadFailureDismissed = false;
+                        drawUploadFailures();
+                        uploadForm.requestSubmit();
+                    });
+                    row.append(info, retry);
+                    uploadFailureList.append(row);
+                }
+            }
+            document.getElementById('rndUploadFailuresClose').addEventListener('click', () => {
+                uploadFailureDismissed = true;
+                drawUploadFailures();
+            });
+
             const uploadLayer = document.getElementById('rndUploadLayer');
             const layerPercent = document.getElementById('rndLayerPercent');
             const layerBar = document.getElementById('rndLayerBar');
@@ -6810,6 +6890,8 @@
                 }
 
                 uploadInProgress = true;
+                uploadFailureDismissed = false;
+                drawUploadFailures();
                 uploadButton.disabled = true;
                 photoInput.disabled = true;
                 uploadProgress.hidden = false;
@@ -6904,6 +6986,8 @@
                                     throw new Error(result.message || 'Server menolak file.');
                                 }
                                 successful.push(file.name);
+                                uploadFailureRecords.delete(file.name + '|' + file.size + '|' + file.lastModified + '|' + String(originalUploadFolderId));
+                                drawUploadFailures();
                                 fileProgress[index] = 1;
                                 filePhases[index] = 'Selesai';
                                 // Simpan metadata dalam memori. Jangan refresh grid per foto.
@@ -6926,6 +7010,10 @@
                                     'Waktu respons server habis. Periksa foto sebelum mengulang.' :
                                     (error.message || 'Upload gagal.');
                                 failed.push({ name: file.name, message });
+                                const uncertain = /verifikasi|periksa|timeout|waktu respons|belum bisa|duplikat/i.test(message);
+                                uploadFailureRecords.set(file.name + '|' + file.size + '|' + file.lastModified + '|' + String(originalUploadFolderId),
+                                    {file, message, folderId: originalUploadFolderId, uncertain});
+                                drawUploadFailures();
                                 fileProgress[index] = 1;
                                 filePhases[index] = 'Gagal';
                                 console.error('Upload gagal untuk ' + file.name, error);
@@ -6995,6 +7083,7 @@
                     syncUploadLayer();
                     uploadLayer.hidden = true;
                     uploadInProgress = false;
+                    drawUploadFailures();
                     uploadButton.disabled = false;
                     photoInput.disabled = false;
                     uploadButton.innerHTML =
