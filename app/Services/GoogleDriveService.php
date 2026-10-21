@@ -1046,4 +1046,29 @@ class GoogleDriveService
         }
     }
 
+    /** Open Google Drive media as a streamed HTTP response, without local disk buffering. */
+    public function openDownloadStream(string $fileId): \Psr\Http\Message\ResponseInterface
+    {
+        if (!preg_match('/^[a-zA-Z0-9_-]{10,200}$/', $fileId)) {
+            throw new \RuntimeException('Google Drive file ID tidak valid.');
+        }
+
+        $token = $this->client->getAccessToken()['access_token'] ?? null;
+        if (!$token) {
+            throw new \RuntimeException('Token Google Drive tidak tersedia.');
+        }
+
+        return $this->client->getHttpClient()->request('GET',
+            'https://www.googleapis.com/drive/v3/files/' . rawurlencode($fileId) . '?alt=media&supportsAllDrives=true',
+            [
+                'headers' => ['Authorization' => 'Bearer ' . $token],
+                'stream' => true,
+                'http_errors' => true,
+                'connect_timeout' => 20,
+                'timeout' => 240,
+            ]
+        );
+    }
+
+
 }

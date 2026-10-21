@@ -7657,7 +7657,7 @@
             <img id="rndFvImage" alt="Foto fullscreen" draggable="false">
             <div id="rndFvError" class="rnd-fv-error" hidden>Foto tidak dapat ditampilkan. Pastikan gambar dapat diakses
                 dari browser.</div>
-            <div class="rnd-fv-hint">Scroll untuk zoom · Drag untuk geser · Esc untuk tutup</div>
+            <div class="rnd-fv-hint">Scroll / cubit 2 jari untuk zoom · Geser foto · Esc untuk tutup</div>
         </div>
     </div>
     <script>
@@ -7704,6 +7704,7 @@
                 dx = 0;
                 dy = 0;
                 dragging = false;
+                activePointers.clear();
                 error.hidden = true;
                 img.style.display = 'block';
                 img.removeAttribute('src');
@@ -7720,6 +7721,7 @@
                 img.removeAttribute('src');
                 document.body.style.overflow = oldOverflow;
                 dragging = false;
+                activePointers.clear();
                 canvas.classList.remove('is-panning');
                 lastFocus?.focus?.();
             }
@@ -7747,24 +7749,73 @@
             }, {
                 passive: false
             });
+            // Touch: one finger pans, two fingers pinch-to-zoom.
+            // Pointer Events also keep desktop mouse dragging functional.
+            const activePointers = new Map();
+            let pinchDistance = 0;
+            let pinchZoom = 1;
+            let lastTapAt = 0;
+            const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+            function pinchStart() {
+                if (activePointers.size !== 2) return;
+                const [a, b] = [...activePointers.values()];
+                pinchDistance = Math.max(1, distance(a, b));
+                pinchZoom = zoom;
+                dragging = false;
+                canvas.classList.remove('is-panning');
+            }
             canvas.addEventListener('pointerdown', e => {
-                if (e.button !== 0) return;
+                if (e.pointerType === 'mouse' && e.button !== 0) return;
+                if (e.pointerType === 'touch') e.preventDefault();
+                activePointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+                try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+                if (activePointers.size === 2) { pinchStart(); return; }
+                if (activePointers.size !== 1) return;
+                if (e.pointerType === 'touch') {
+                    const now = Date.now();
+                    if (now - lastTapAt < 320) {
+                        if (zoom > 1.1) { zoom = 1; dx = dy = 0; draw(); }
+                        else {
+                            const r = canvas.getBoundingClientRect();
+                            setZoom(2.5, e.clientX-r.left, e.clientY-r.top);
+                        }
+                        lastTapAt = 0;
+                        dragging = false;
+                        return;
+                    }
+                    lastTapAt = now;
+                }
                 dragging = true;
                 startX = e.clientX - dx;
                 startY = e.clientY - dy;
-                canvas.setPointerCapture(e.pointerId);
                 canvas.classList.add('is-panning');
             });
             canvas.addEventListener('pointermove', e => {
-                if (!dragging) return;
+                if (!activePointers.has(e.pointerId)) return;
+                activePointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+                if (activePointers.size === 2) {
+                    const [a, b] = [...activePointers.values()];
+                    const r = canvas.getBoundingClientRect();
+                    const cx = (a.x+b.x)/2-r.left, cy = (a.y+b.y)/2-r.top;
+                    setZoom(pinchZoom * distance(a,b)/Math.max(1,pinchDistance), cx, cy);
+                    return;
+                }
+                if (!dragging || activePointers.size !== 1) return;
                 dx = e.clientX - startX;
                 dy = e.clientY - startY;
                 draw();
             });
-
-            function endPan() {
+            function endPan(e) {
+                activePointers.delete(e.pointerId);
                 dragging = false;
                 canvas.classList.remove('is-panning');
+                if (activePointers.size === 1) {
+                    const point = [...activePointers.values()][0];
+                    startX = point.x - dx;
+                    startY = point.y - dy;
+                    dragging = true;
+                }
+                if (activePointers.size === 2) pinchStart();
             }
             canvas.addEventListener('pointerup', endPan);
             canvas.addEventListener('pointercancel', endPan);

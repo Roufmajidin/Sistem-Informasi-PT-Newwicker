@@ -2776,7 +2776,7 @@ class RndController extends Controller
                 foreach ($drive->listFolderContents((string) $item['id']) as $child) $walk($child, $path . '/', $depth + 1);
             } else {
                 $totalBytes += (int) ($item['size'] ?? 0);
-                if ($totalBytes > 300 * 1024 * 1024) abort(422, 'Maksimal 300 MB untuk ZIP browser.');
+                if ($totalBytes > 1024 * 1024 * 1024) abort(422, 'Maksimal 1 GB untuk ZIP browser. Untuk file besar gunakan laptop dengan RAM cukup atau unduh per folder.');
                 $items[] = ['type' => 'file', 'id' => (string) $item['id'], 'path' => $path, 'size' => (int) ($item['size'] ?? 0)];
             }
             if (count($items) > 250) abort(422, 'Maksimal 250 item per ZIP.');
