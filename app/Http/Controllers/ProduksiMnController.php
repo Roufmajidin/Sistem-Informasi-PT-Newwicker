@@ -1518,7 +1518,7 @@ class ProduksiMnController extends Controller
 
     // fix on 31/08/26
 
-    public function index(Request $request)
+   public function index(Request $request)
     {
         $poList = $this->getMonitoringPoList($request);
 
@@ -2940,6 +2940,9 @@ class ProduksiMnController extends Controller
 
         return $result;
     }
+
+
+
 
 
 
