@@ -6769,7 +6769,7 @@
             const pendingJobs = [];
             const retryJobs = [];
             let activeJobs = 0;
-            const MAX_PARALLEL_UPLOADS = 1; // Ubah ke 4 bila ingin paralel lagi.
+            const MAX_PARALLEL_UPLOADS = 2; // Dua request browser maksimum; server membatasi buffer global dua foto.
             const MAX_RETRIES_PER_FILE = 2;
             let expandedTaskId = null;
             let nextTaskId = 1;

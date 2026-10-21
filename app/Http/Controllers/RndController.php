@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
 use Illuminate\Support\Str;
-use App\Models\RndUploadTask;
+
 use Throwable;
 
 class RndController extends Controller
@@ -1254,7 +1254,7 @@ class RndController extends Controller
 
     }
 
-    // Upload buffer: hanya satu file pending/processing di disk hosting.
+    // Upload buffer: maksimal dua file queued/processing di disk hosting.
     public function uploadArticlePhotos(Request $request, Po $po, DetailPo $detailPo, GoogleDriveService $drive)
     {
         $validated = $request->validate([
@@ -1266,15 +1266,14 @@ class RndController extends Controller
         $userId = auth()->id();
         if (!$userId) abort(401);
 
-        // Lock lintas request pada server yang sama; jangan menerima file kedua
-        // sampai job pertama selesai dan temporary file terhapus.
+        // Lock lintas request: batasi maksimum dua task aktif secara atomik.
         $lockPath = storage_path('app/rnd_upload_buffer.lock');
         $lock = fopen($lockPath, 'c');
         if (!$lock || !flock($lock, LOCK_EX)) {
             return response()->json(['message' => 'Buffer upload sedang sibuk.', 'retryable' => true], 429);
         }
         try {
-            $busy = \App\Models\RndUploadTask::whereIn('status', ['queued', 'processing'])->exists();
+            $busy = \App\Models\RndUploadTask::whereIn('status', ['queued', 'processing'])->count() >= 2;
             if ($busy) {
                 return response()->json(['message' => 'Menunggu slot upload Google Drive.', 'retryable' => true], 429);
             }
@@ -1308,7 +1307,7 @@ class RndController extends Controller
     public function uploadSlotStatus(Request $request)
     {
         if (!auth()->check()) abort(401);
-        return response()->json(['available' => !\App\Models\RndUploadTask::whereIn('status', ['queued', 'processing'])->exists()]);
+        return response()->json(['available' => \App\Models\RndUploadTask::whereIn('status', ['queued', 'processing'])->count() < 2]);
     }
 
     public function uploadTaskStatus(Request $request, string $taskId)
