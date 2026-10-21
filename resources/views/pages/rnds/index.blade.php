@@ -6791,7 +6791,7 @@
                         ' (' + Math.round(t.progress) + '%) · berhasil ' + t.success +
                         ', gagal ' + t.failed.length + (t.finished ? ' · Selesai' : '');
                     entry.style.cursor = 'pointer';
-                    entry.title = 'Klik untuk melihat detail upload';
+                    entry.title = t.failed.length ? t.failed.map(f => f.name + ': ' + f.message).join('\n') : 'Klik untuk melihat detail upload';
                     entry.onclick = () => { expandedTaskId = t.id; refreshTaskUi(); };
                     taskDockList.appendChild(entry);
                 });
@@ -6856,6 +6856,11 @@
 
             function completeUploadTask(task) {
                 task.finished = true;
+                // Tutup hanya modal batch yang baru selesai. Batch lain tetap berjalan.
+                // Hasil (termasuk file gagal) tetap tersedia di panel task dock.
+                if (expandedTaskId === task.id) {
+                    expandedTaskId = null;
+                }
                 // Only change the grid if the user is STILL viewing the original folder.
                 if (String(activeFolderDbId) === String(task.folderId) &&
                     String(activeUploadUrl) === String(task.url)) {
