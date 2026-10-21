@@ -6769,7 +6769,9 @@
                     !sessionEndpoint.pathname.startsWith('/upload/drive/')) {
                     throw new Error('URL sesi upload tidak sesuai endpoint Google Drive.');
                 }
-                const uploaded = await new Promise((resolve, reject) => {
+                let uploaded;
+                try {
+                    uploaded = await new Promise((resolve, reject) => {
                     const xhr = new XMLHttpRequest();
                     xhr.open('PUT', start.session_url, true);
                     xhr.timeout = 300000;
@@ -6803,7 +6805,32 @@
                         'Transfer ke Google Drive timeout. Periksa Drive sebelum mencoba ulang.'));
                     xhr.onabort = () => reject(new Error('Transfer ke Google Drive dibatalkan.'));
                     xhr.send(file);
-                });
+                    });
+                } catch (transferError) {
+                    // CORS/status 0 can hide a successful Drive commit. Poll the backend,
+                    // which checks the ticket in Drive without uploading the file again.
+                    for (let attempt = 0; attempt < 5; attempt++) {
+                        await new Promise(resolve => setTimeout(resolve, 1200 * (attempt + 1)));
+                        let response;
+                        try {
+                            response = await fetch(url, {
+                                method: 'POST', credentials: 'same-origin',
+                                headers: {'Accept':'application/json', 'Content-Type':'application/json',
+                                    'X-CSRF-TOKEN': token || '', 'X-Requested-With':'XMLHttpRequest'},
+                                body: JSON.stringify({direct_action:'recover', ticket:start.ticket})
+                            });
+                        } catch (_) { continue; }
+                        const data = await response.json().catch(() => null);
+                        if (response.ok && data?.success === true) {
+                            onProgress(1, 1);
+                            return data;
+                        }
+                        if (response.status !== 202) {
+                            throw new Error(data?.message || 'Verifikasi upload gagal (HTTP ' + response.status + ').');
+                        }
+                    }
+                    throw new Error('Foto belum bisa diverifikasi di Google Drive. Jangan upload ulang sebelum mengecek folder. ' + transferError.message);
+                }
                 if (!uploaded.id) throw new Error('Google Drive tidak mengembalikan ID file.');
                 onProgress(1, 1);
                 return send({direct_action:'finish', ticket:start.ticket, drive_id:uploaded.id});

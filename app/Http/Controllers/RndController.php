@@ -1267,12 +1267,13 @@ class RndController extends Controller
                 'mime_type' => ['required', 'in:image/jpeg,image/png,image/webp'],
             ]);
             $folder = $this->resolveUploadFolderFast($po, $detailPo, $data['folder_id'] ?? null, $drive);
-            $driveName = (string) Str::uuid() . '.' . match ($data['mime_type']) {
-                'image/png' => 'png', 'image/webp' => 'webp', default => 'jpg'
-            };
-            $sessionUrl = $drive->startBrowserUpload($driveName, $folder->google_drive_folder_id,
-                $data['mime_type'], (int) $data['size']);
+            // Simpan nama asli di Drive; ticket UUID menjadi identitas upload unik.
+            $driveName = basename(str_replace('\\', '/', $data['name']));
+            $driveName = trim(preg_replace('/[\x00-\x1F\x7F]/u', '', $driveName));
+            abort_if($driveName === '' || in_array($driveName, ['.', '..'], true), 422, 'Nama foto tidak valid.');
             $ticket = (string) Str::uuid();
+            $sessionUrl = $drive->startBrowserUpload($driveName, $folder->google_drive_folder_id,
+                $data['mime_type'], (int) $data['size'], $ticket);
             Cache::put('rnd_direct_upload:' . $ticket, [
                 'user_id' => auth()->id(), 'po_id' => $po->id, 'detail_po_id' => $detailPo->id,
                 'folder_id' => $folder->id, 'drive_folder_id' => $folder->google_drive_folder_id,
@@ -1282,10 +1283,10 @@ class RndController extends Controller
             return response()->json(['success' => true, 'ticket' => $ticket,
                 'session_url' => $sessionUrl]);
         }
-        if ($action === 'finish') {
+        if ($action === 'finish' || $action === 'recover') {
             $data = $request->validate([
                 'ticket' => ['required', 'uuid'],
-                'drive_id' => ['required', 'string', 'max:255'],
+                'drive_id' => ['nullable', 'string', 'max:255'],
             ]);
             $cacheKey = 'rnd_direct_upload:' . $data['ticket'];
             $session = Cache::get($cacheKey);
@@ -1296,7 +1297,18 @@ class RndController extends Controller
             // Lock prevents duplicate DB records from repeated finish requests.
             return Cache::lock('rnd_direct_finish:' . $data['ticket'], 20)->block(10,
                 function () use ($drive, $data, $session, $cacheKey) {
-                    $existing = RndArchiveFile::query()->where('google_drive_file_id', $data['drive_id'])
+                    // Recovery: Google dapat menyimpan file walaupun browser kehilangan respons akibat CORS.
+                    // Cari HANYA file dengan ticket khusus sesi ini, bukan sekadar nama yang bisa sama.
+                    $driveId = $data['drive_id'] ?? null;
+                    if (!$driveId) {
+                        $found = $drive->findBrowserUploadByTicket($data['ticket'], $session['drive_folder_id']);
+                        if (!$found) {
+                            return response()->json(['success' => false, 'pending' => true,
+                                'message' => 'Foto belum terkonfirmasi di Google Drive.'], 202);
+                        }
+                        $driveId = $found['id'];
+                    }
+                    $existing = RndArchiveFile::query()->where('google_drive_file_id', $driveId)
                         ->where('folder_id', $session['folder_id'])->first();
                     if ($existing) {
                         Cache::forget($cacheKey);
@@ -1305,8 +1317,8 @@ class RndController extends Controller
                             'name' => $existing->original_name,
                         ]]]);
                     }
-                    $verified = $drive->verifyBrowserUpload($data['drive_id'],
-                        $session['drive_folder_id'], $session['drive_name'], $session['size']);
+                    $verified = $drive->verifyBrowserUpload($driveId,
+                        $session['drive_folder_id'], $session['drive_name'], $session['size'], $data['ticket']);
                     abort_unless($verified['mime_type'] === $session['mime_type'], 422,
                         'Tipe file tidak sesuai sesi upload.');
                     $record = RndArchiveFile::create([
@@ -1419,7 +1431,11 @@ class RndController extends Controller
 
                     );
 
-                    $driveFileName = Str::uuid() . '.' . $extension;
+                    $driveFileName = basename(str_replace('\\', '/', $originalName));
+                    $driveFileName = trim(preg_replace('/[\x00-\x1F\x7F]/u', '', $driveFileName));
+                    if ($driveFileName === '' || in_array($driveFileName, ['.', '..'], true)) {
+                        throw new \RuntimeException('Nama foto tidak valid.');
+                    }
 
                     // Ukur transfer ke Google Drive secara terpisah.
 

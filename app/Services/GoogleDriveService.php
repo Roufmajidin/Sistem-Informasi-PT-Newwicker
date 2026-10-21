@@ -254,7 +254,7 @@ class GoogleDriveService
 
             'url' => $created->getWebViewLink()
 
-                ?: 'https\://drive.google.com/drive/folders/' . $id,
+                ?: 'https://drive.google.com/drive/folders/' . $id,
 
         ];
 
@@ -272,47 +272,109 @@ class GoogleDriveService
 
     /** Start a resumable session; the OAuth access token never goes to the browser. */
 
-    /** Start a resumable session; the OAuth access token never goes to the browser. */
-    public function startBrowserUpload(string $fileName, string $folderId, string $mimeType, int $size): string
+    public function startBrowserUpload(string $fileName, string $folderId, string $mimeType, int $size, string $ticket): string
+
     {
+
         if ($size < 1 || $size > 25 * 1024 * 1024 || trim($folderId) === '') {
+
             throw new RuntimeException('Parameter upload tidak valid.');
+
         }
+
         $accessToken = $this->client->getAccessToken()['access_token'] ?? null;
+
         if (!$accessToken) throw new RuntimeException('Access token Google Drive tidak tersedia.');
-        $response = $this->client->getHttpClient()->request('POST',
+
+        $response = (new \GuzzleHttp\Client(['timeout' => 35, 'http_errors' => true]))->request('POST',
+
             'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,name,mimeType,size,parents,trashed', [
+
                 'headers' => [
+
                     'Authorization' => 'Bearer ' . $accessToken,
+
                     'Content-Type' => 'application/json; charset=UTF-8',
+
                     'X-Upload-Content-Type' => $mimeType,
+
                     'X-Upload-Content-Length' => (string) $size,
+
                 ],
-                'json' => ['name' => $fileName, 'parents' => [$folderId], 'mimeType' => $mimeType],
+
+                'json' => ['name' => $fileName, 'parents' => [$folderId], 'mimeType' => $mimeType,
+                    'appProperties' => ['rnd_upload_ticket' => $ticket]],
+
                 'http_errors' => true,
+
                 'timeout' => 35,
+
             ]);
+
         $url = $response->getHeaderLine('Location');
-        if (!$url || !str_starts_with($url, 'https://www.googleapis.com/')) {
+
+        if (!$url || !preg_match('~^https://[a-z0-9.-]+\.googleapis\.com/upload/~i', $url)) {
+
             throw new RuntimeException('Google Drive tidak memberikan URL sesi upload yang valid.');
+
         }
+
         return $url;
+
+    }
+
+    /** Find a completed upload by its private Drive appProperty, never by filename alone. */
+    public function findBrowserUploadByTicket(string $ticket, string $folderId): ?array
+    {
+        if (!preg_match('/^[a-f0-9-]{36}$/i', $ticket)) {
+            throw new RuntimeException('Ticket upload tidak valid.');
+        }
+        $folderEscaped = str_replace(["\\", "'"], ["\\\\", "\\'"], $folderId);
+        $result = $this->drive->files->listFiles([
+            'q' => "'{$folderEscaped}' in parents and trashed = false and appProperties has { key='rnd_upload_ticket' and value='{$ticket}' }",
+            'fields' => 'nextPageToken,files(id,name,mimeType,size,parents,appProperties,trashed)',
+            'pageSize' => 10,
+            'supportsAllDrives' => true,
+            'includeItemsFromAllDrives' => true,
+        ]);
+        $files = $result->getFiles();
+        if (count($files) > 1) {
+            throw new RuntimeException('Ditemukan lebih dari satu file untuk ticket upload.');
+        }
+        if (!$files) return null;
+        return ['id' => $files[0]->getId()];
     }
 
     /** Verify the Drive object before the application records it. */
-    public function verifyBrowserUpload(string $id, string $folderId, string $name, int $size): array
+
+    public function verifyBrowserUpload(string $id, string $folderId, string $name, int $size, string $ticket): array
+
     {
+
         $f = $this->drive->files->get($id, [
-            'fields' => 'id,name,mimeType,size,parents,trashed,webViewLink',
+
+            'fields' => 'id,name,mimeType,size,parents,trashed,webViewLink,appProperties',
+
             'supportsAllDrives' => true,
+
         ]);
+
         if ($f->getTrashed() || $f->getName() !== $name ||
+
             !in_array($folderId, $f->getParents() ?: [], true) ||
-            (int) $f->getSize() !== $size) {
+
+            (int) $f->getSize() !== $size ||
+
+            ($f->getAppProperties()['rnd_upload_ticket'] ?? null) !== $ticket) {
+
             throw new RuntimeException('File Google Drive tidak sesuai sesi upload.');
+
         }
+
         return ['id' => $f->getId(), 'name' => $f->getName(),
+
             'mime_type' => $f->getMimeType(), 'size' => (int) $f->getSize()];
+
     }
 
     public function uploadFile(
@@ -435,7 +497,7 @@ class GoogleDriveService
 
                     'url' => $result->getWebViewLink()
 
-                        ?: 'https\://drive.google.com/file/d/' . $id . '/view',
+                        ?: 'https://drive.google.com/file/d/' . $id . '/view',
 
                     'size' => $result->getSize(),
 
@@ -647,7 +709,7 @@ class GoogleDriveService
 
                 'url' => $result->getWebViewLink()
 
-                    ?: 'https\://drive.google.com/file/d/' . $id . '/view',
+                    ?: 'https://drive.google.com/file/d/' . $id . '/view',
 
                 'size' => $result->getSize(),
 
@@ -779,9 +841,9 @@ class GoogleDriveService
 
                             $isFolder
 
-                                ? 'https\://drive.google.com/drive/folders/' . $id
+                                ? 'https://drive.google.com/drive/folders/' . $id
 
-                                : 'https\://drive.google.com/file/d/' . $id . '/view'
+                                : 'https://drive.google.com/file/d/' . $id . '/view'
 
                         ),
 
@@ -855,9 +917,9 @@ class GoogleDriveService
 
                     $updated->getMimeType() === 'application/vnd.google-apps.folder'
 
-                        ? 'https\://drive.google.com/drive/folders/' . $id
+                        ? 'https://drive.google.com/drive/folders/' . $id
 
-                        : 'https\://drive.google.com/file/d/' . $id . '/view'
+                        : 'https://drive.google.com/file/d/' . $id . '/view'
 
                 ),
 
