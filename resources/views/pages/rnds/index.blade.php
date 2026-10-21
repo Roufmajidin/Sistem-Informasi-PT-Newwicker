@@ -567,7 +567,7 @@
 
                             <strong>Klik untuk memilih foto</strong>
 
-                            <span>JPG, JPEG, PNG atau WEBP · Maksimal 25 MB per foto · Maksimal 50 foto per batch</span>
+                            <span>JPG, JPEG, PNG atau WEBP · Maksimal 25 MB per foto · Tanpa batas jumlah foto per batch</span>
 
 
 
@@ -6592,12 +6592,6 @@
                 }
 
 
-
-                if (files.length > 50) {
-
-                    throw new Error('Maksimal 50 foto dalam satu kali upload.');
-
-                }
 
 
 
