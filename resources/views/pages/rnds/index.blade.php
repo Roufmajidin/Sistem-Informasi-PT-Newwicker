@@ -517,6 +517,8 @@
                                     Baru</button>
                                 <button type="button" id="rndDriveRefresh"><i class="fa fa-refresh"></i>
                                     Refresh</button>
+                                <button type="button" id="rndDriveDownloadCurrent"><i class="fa fa-download"></i>
+                                    Download</button>
                             </div>
                         </div>
                         <nav id="rndDriveBreadcrumb" class="rnd-drive-breadcrumb" aria-label="Lokasi folder"></nav>
@@ -5544,16 +5546,23 @@
             rndMultiToolbar.hidden = true;
             driveItems.parentNode.insertBefore(rndMultiToolbar, driveItems);
 
-            // Google Drive download URLs are cross-origin. Browsers can block automatic
-            // multiple downloads; keep a clickable per-file fallback visible to users.
-            function rndDriveDownloadUrl(item) {
-                return 'https://drive.google.com/uc?export=download&id=' + encodeURIComponent(item.id);
+            // Download diarahkan ke antarmuka Google Drive, tanpa ZIP / transfer file via Laravel.
+            function rndGoogleDriveUrl(item) {
+                if (!item || !item.id) return null;
+                const id = encodeURIComponent(String(item.id));
+                return item.type === 'folder'
+                    ? 'https://drive.google.com/drive/folders/' + id
+                    : 'https://drive.google.com/file/d/' + id + '/view';
             }
 
-            function rndDownloadDriveFile(item) {
-                if (!item || item.type === 'folder' || !item.id) return;
+            function rndOpenGoogleDrive(url) {
+                if (!url || !/^https:\/\/drive\.google\.com\//i.test(url)) {
+                    alert('Link Google Drive tidak tersedia. Coba Refresh folder.');
+                    return;
+                }
+                // Navigasi langsung dari event klik; tanpa proxy Laravel.
                 const link = document.createElement('a');
-                link.href = rndDriveDownloadUrl(item);
+                link.href = url;
                 link.target = '_blank';
                 link.rel = 'noopener noreferrer';
                 document.body.appendChild(link);
@@ -5561,118 +5570,26 @@
                 link.remove();
             }
 
-            // JSZip is loaded only when requested. No server-side ZIP request.
-            let rndJsZipPromise = null;
-            function rndLoadJsZip() {
-                if (window.JSZip) return Promise.resolve(window.JSZip);
-                if (!rndJsZipPromise) rndJsZipPromise = new Promise((resolve, reject) => {
-                    const script = document.createElement('script');
-                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-                    script.onload = () => window.JSZip ? resolve(window.JSZip) : reject(new Error('JSZip tidak tersedia.'));
-                    script.onerror = () => reject(new Error('Gagal memuat JSZip. Periksa koneksi atau CSP hosting.'));
-                    document.head.appendChild(script);
-                }).catch(error => { rndJsZipPromise = null; throw error; });
-                return rndJsZipPromise;
-            }
-            async function rndSubmitZip(mode, selectedIds = [], folderId = null) {
-                if (!activeArchiveUrl || !activeFolderDbId) return alert('Folder arsip belum siap.');
-                if (rndOperationBusy) return;
-                rndOperationBusy = true;
-                try {
-                    rndOperationShow('Menyiapkan ZIP', 'Membaca daftar file dan subfolder...', null, 'Menyiapkan manifest');
-                    const JSZip = await rndLoadJsZip();
-                    const form = new FormData();
-                    form.append('_token', document.querySelector('meta[name="csrf-token"]').content);
-                    form.append('folder_id', activeFolderDbId);
-                    form.append('mode', mode);
-                    if (folderId) form.append('target_folder_id', folderId);
-                    selectedIds.forEach(id => form.append('file_ids[]', id));
-                    const manifestResponse = await fetch(driveEndpoint('/zip-manifest'), {
-                        method: 'POST', body: form, credentials: 'same-origin', headers: {'Accept':'application/json'}
-                    });
-                    const manifest = await manifestResponse.json();
-                    if (!manifestResponse.ok) throw new Error(manifest.message || 'Gagal membaca isi folder.');
-                    const zip = new JSZip();
-                    const files = manifest.items.filter(x => x.type === 'file');
-                    manifest.items.filter(x => x.type === 'folder').forEach(x => zip.folder(x.path));
-                    if (!manifest.items.length) throw new Error('Folder kosong.');
-                    const seen = new Set();
-                    function uniquePath(path) {
-                        let candidate = path, n = 2;
-                        while (seen.has(candidate.toLowerCase())) {
-                            const slash = path.lastIndexOf('/');
-                            const dot = path.lastIndexOf('.');
-                            const stem = dot > slash ? path.slice(0, dot) : path;
-                            const ext = dot > slash ? path.slice(dot) : '';
-                            candidate = stem + ' (' + n++ + ')' + ext;
-                        }
-                        seen.add(candidate.toLowerCase());
-                        return candidate;
-                    }
-                    // Small batches prevent flooding PHP and keep progress truthful.
-                    let completed = 0;
-                    let cursor = 0;
-                    async function worker() {
-                        while (cursor < files.length) {
-                            const item = files[cursor++];
-                            const url = driveEndpoint('/zip-file');
-                            const body = new FormData();
-                            body.append('_token', document.querySelector('meta[name="csrf-token"]').content);
-                            body.append('folder_id', activeFolderDbId);
-                            body.append('ticket', item.ticket);
-                            let blob = null;
-                            let lastError = null;
-                            for (let attempt = 1; attempt <= 2; attempt++) {
-                                const controller = new AbortController();
-                                const timer = setTimeout(() => controller.abort(new Error('Timeout 90 detik')), 90000);
-                                try {
-                                    const response = await fetch(url, {method:'POST', body, credentials:'same-origin', signal:controller.signal, headers:{'Accept':'application/octet-stream'}});
-                                    if (!response.ok) {
-                                        let detail = '';
-                                        try { detail = (await response.json()).message || ''; } catch (_) {}
-                                        throw new Error('HTTP ' + response.status + (detail ? ': ' + detail : ''));
-                                    }
-                                    blob = await response.blob();
-                                    if (item.size > 0 && blob.size === 0) throw new Error('File kosong dari server');
-                                    break;
-                                } catch (error) {
-                                    lastError = error;
-                                    if (attempt < 2) await new Promise(resolve => setTimeout(resolve, attempt * 1000));
-                                } finally { clearTimeout(timer); }
-                            }
-                            if (!blob) throw new Error('Gagal mengambil ' + item.path + ' setelah 2 percobaan: ' + (lastError?.message || 'Koneksi gagal'));
-
-                            zip.file(uniquePath(item.path), blob);
-                            completed++;
-                            rndOperationShow('Mengambil gambar', completed + ' dari ' + files.length + ' file berhasil diambil',
-                                files.length ? Math.round(completed / files.length * 80) : 80, completed + ' / ' + files.length);
-                        }
-                    }
-                    await Promise.all(Array.from({length: Math.min(2, files.length)}, () => worker()));
-                    rndOperationShow('Membuat ZIP', 'Menggabungkan foto menjadi ZIP...', 80, 'Pembuatan ZIP dimulai');
-                    const blob = await zip.generateAsync({type:'blob', compression:'STORE'}, metadata => {
-                        rndOperationShow('Membuat ZIP', 'Menggabungkan foto menjadi ZIP...', 80 + Math.round(metadata.percent * .2),
-                            Math.round(metadata.percent) + '% ZIP');
-                    });
-                    const url = URL.createObjectURL(blob);
-                    const anchor = document.createElement('a');
-                    anchor.href = url;
-                    anchor.download = manifest.name || 'Sample Pictures.zip';
-                    document.body.appendChild(anchor);
-                    anchor.click();
-                    anchor.remove();
-                    setTimeout(() => URL.revokeObjectURL(url), 60000);
-                    explorerNotify('ZIP berhasil: ' + anchor.download);
-                } catch (error) {
-                    explorerNotify(error.message || 'Download ZIP gagal.');
-                    alert(error.message || 'Download ZIP gagal.');
-                } finally { rndOperationBusy = false; rndOperationHide(); }
-            }
-
             function rndDownloadSelectedPhotos(chosen) {
-                chosen = (chosen || []).filter(item => item && item.id);
+                chosen = (chosen || []).filter(item => item && item.id && !item.__pending);
                 if (!chosen.length) return;
-                rndSubmitZip('selected', chosen.map(item => String(item.id)));
+                if (chosen.length === 1) {
+                    rndOpenGoogleDrive(rndGoogleDriveUrl(chosen[0]));
+                    return;
+                }
+                // Google Drive tidak mendukung preselect banyak file lewat URL.
+                // Semua item yang dipilih di File Manager berada pada folder aktif.
+                const active = driveBreadcrumbs[driveBreadcrumbs.length - 1];
+                const folderDriveId = active && (active.google_drive_folder_id || active.drive_id || active.url);
+                const url = (typeof folderDriveId === 'string' && folderDriveId.startsWith('https://drive.google.com/'))
+                    ? folderDriveId
+                    : (driveLink && /^https:\/\/drive\.google\.com\//i.test(driveLink.href) ? driveLink.href : null);
+                if (!url) {
+                    alert('Link folder Google Drive belum tersedia. Klik Refresh lalu coba lagi.');
+                    return;
+                }
+                rndOpenGoogleDrive(url);
+                explorerNotify(chosen.length + ' item dipilih. Silakan pilih file yang sama di tab Google Drive untuk download.');
             }
 
             function rndUpdateMultiToolbar() {
@@ -5981,6 +5898,16 @@
                         });
                         actions.appendChild(open);
                     }
+                    const downloadDirect = document.createElement('button');
+                    downloadDirect.type = 'button';
+                    downloadDirect.innerHTML = '<i class="fa fa-download"></i> Download';
+                    downloadDirect.addEventListener('click', event => {
+                        event.stopPropagation();
+                        const chosen = rndMultiSelectedIds.has(String(item.id))
+                            ? driveCurrentItems.filter(x => rndMultiSelectedIds.has(String(x.id))) : [item];
+                        rndDownloadSelectedPhotos(chosen);
+                    });
+                    actions.appendChild(downloadDirect);
                     const rename = document.createElement('button');
                     rename.type = 'button';
                     rename.innerHTML = '<i class="fa fa-pencil"></i> Rename';
@@ -6252,13 +6179,13 @@
                     menu.appendChild(download);
                 }
                 if (item.type === 'folder' && item.database_id) {
-                    const zipDownload = document.createElement('button');
-                    zipDownload.textContent = 'Download ZIP';
-                    zipDownload.onclick = () => {
-                        rndSubmitZip('folder', [], item.database_id);
+                    const folderDownload = document.createElement('button');
+                    folderDownload.textContent = 'Download';
+                    folderDownload.onclick = () => {
+                        rndOpenGoogleDrive(rndGoogleDriveUrl(item));
                         menu.remove();
                     };
-                    menu.appendChild(zipDownload);
+                    menu.appendChild(folderDownload);
                 }
                 if (item.type === 'folder' && item.database_id) {
                     const paste = document.createElement('button');
@@ -6378,6 +6305,13 @@
             driveBack.addEventListener('click', () => {
                 if (driveBreadcrumbs.length > 1) loadDriveFolder(driveBreadcrumbs[driveBreadcrumbs.length - 2]
                     .id);
+            });
+            document.getElementById('rndDriveDownloadCurrent').addEventListener('click', () => {
+                if (!activeFolderDbId || !driveLink || driveLink.hidden) {
+                    alert('Folder Google Drive belum siap.');
+                    return;
+                }
+                rndOpenGoogleDrive(driveLink.href);
             });
             driveRefresh.addEventListener('click', () => {
                 if (activeFolderDbId) loadDriveFolder(activeFolderDbId);
