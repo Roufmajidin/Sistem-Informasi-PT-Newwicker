@@ -800,6 +800,13 @@
                                                                         </span>
                                                                     </span>
 
+                                                                    {{-- Rumus NET IN: informasi untuk semua kategori dengan kolom IN. --}}
+                                                                    <span class="spk-list-tooltip-formula"
+                                                                        style="display:block; padding:5px 9px; font-size:10px; font-weight:600; color:#166534; background:#f0fdf4; border-bottom:1px solid #dcfce7; white-space:nowrap;">
+                                                                        R = NET IN = TOTAL IN − SERVICE KELUAR + SERVICE
+                                                                        MASUK
+                                                                    </span>
+
                                                                     <span class="spk-list-tooltip-scroll">
                                                                         <table class="spk-list-table">
                                                                             <thead>
@@ -812,6 +819,11 @@
                                                                                     <th class="col-description">
                                                                                         KETERANGAN</th>
                                                                                     <th class="col-total">TOTAL IN</th>
+                                                                                    <th class="col-total">SERVICE KELUAR
+                                                                                    </th>
+                                                                                    <th class="col-total">SERVICE MASUK
+                                                                                    </th>
+                                                                                    <th class="col-total">NET IN</th>
                                                                                 </tr>
                                                                             </thead>
                                                                             <tbody>
@@ -925,6 +937,19 @@
                                                                                         </td>
 
                                                                                         <td class="col-total"
+                                                                                            title="Total IN asli sebelum koreksi service">
+                                                                                            {{ $formatQty($spkInfo['in_awal'] ?? 0) }}
+                                                                                        </td>
+                                                                                        <td class="col-total"
+                                                                                            title="Qty Service Keluar">
+                                                                                            {{ $formatQty($spkInfo['service_keluar'] ?? 0) }}
+                                                                                        </td>
+                                                                                        <td class="col-total"
+                                                                                            title="Qty Service Masuk">
+                                                                                            {{ $formatQty($spkInfo['service_masuk'] ?? 0) }}
+                                                                                        </td>
+                                                                                        <td class="col-total"
+                                                                                            title="NET IN setelah Service Keluar dan Service Masuk"
                                                                                             data-tooltip-in-value="{{ $formatQty(
                                                                                                 $categoryKey === 'anyam'
                                                                                                     ? collect($spkInfo['components'] ?? [])->sum(fn($component) => (float) ($component['qty_in'] ?? 0))

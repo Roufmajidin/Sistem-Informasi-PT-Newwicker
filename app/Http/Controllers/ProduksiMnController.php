@@ -1738,7 +1738,9 @@ class ProduksiMnController extends Controller
                     THEN COALESCE(qty, 0)
                     ELSE 0
                 END
-            ) as total_in
+            ) as total_in,
+            SUM(CASE WHEN LOWER(TRIM(type)) = "service_keluar" THEN COALESCE(qty, 0) ELSE 0 END) as total_service_keluar,
+            SUM(CASE WHEN LOWER(TRIM(type)) = "service_masuk" THEN COALESCE(qty, 0) ELSE 0 END) as total_service_masuk
         ')
             ->whereNotNull('spk_id')
             ->whereIn('spk_id', $spkIds)
@@ -1764,7 +1766,9 @@ class ProduksiMnController extends Controller
                     THEN COALESCE(qty, 0)
                     ELSE 0
                 END
-            ) as total_in
+            ) as total_in,
+            SUM(CASE WHEN LOWER(TRIM(type)) = "service_keluar" THEN COALESCE(qty, 0) ELSE 0 END) as total_service_keluar,
+            SUM(CASE WHEN LOWER(TRIM(type)) = "service_masuk" THEN COALESCE(qty, 0) ELSE 0 END) as total_service_masuk
         ')
             ->whereNotNull('spk_id')
             ->whereNotNull('detail_po_id')
@@ -1880,6 +1884,15 @@ class ProduksiMnController extends Controller
                         $inventory = $inventoryTotals[$key] ?? null;
 
                         $totalIn = (float) ($inventory->total_in ?? 0);
+                        // Hanya ANYAM: IN bersih = IN - service keluar + service masuk.
+                        // Kategori lain tetap menggunakan perhitungan semula.
+                        if ($kategoriSpk === 'ANYAM') {
+                            $totalIn = max(0, $totalIn
+                                - (float) ($inventory->total_service_keluar ?? 0)
+                                + (float) ($inventory->total_service_masuk ?? 0));
+                        }
+                        $serviceKeluar = (float) ($inventory->total_service_keluar ?? 0);
+                        $serviceMasuk = (float) ($inventory->total_service_masuk ?? 0);
                         $totalPassed = (float) ($inspection->total_passed ?? 0);
                         $totalRejected = (float) ($inspection->total_rejected ?? 0);
 
@@ -2431,6 +2444,7 @@ class ProduksiMnController extends Controller
                                                     )
                                                 )
                                                 !== 'in'
+                                                && !in_array(strtolower(trim((string) ($row->type ?? ''))), ['service_keluar', 'service_masuk'], true)
                                             ) {
                                                 return false;
                                             }
@@ -2491,10 +2505,16 @@ class ProduksiMnController extends Controller
                                         }
                                     );
 
-                                    $component['qty_in'] =
-                                        (float) $processRows->sum(
-                                            'total_in'
-                                        );
+                                    $component['qty_in'] = max(0, (float) $processRows->sum(function ($row) {
+                                        $type = strtolower(trim((string) ($row->type ?? '')));
+                                        if ($type === 'service_keluar') {
+                                            return -(float) ($row->total_service_keluar ?? 0);
+                                        }
+                                        if ($type === 'service_masuk') {
+                                            return (float) ($row->total_service_masuk ?? 0);
+                                        }
+                                        return (float) ($row->total_in ?? 0);
+                                    }));
 
                                     $component['passed'] =
                                         $totalPassed;
@@ -2724,6 +2744,9 @@ class ProduksiMnController extends Controller
 
                             $itemData['spks'][] = [
                                 'spk_id' => $spk->id,
+                                'in_awal' => (float) ($inventory->total_in ?? 0),
+                                'service_keluar' => $serviceKeluar,
+                                'service_masuk' => $serviceMasuk,
                                 'no_spk' => $spkData['no_spk'] ?? '-',
                                 'sub_name' => $subName,
                                 'supplier' => $spkData['sup'] ?? '-',
@@ -2759,7 +2782,10 @@ class ProduksiMnController extends Controller
 
                                 $itemData['spks'][] = [
                                     'spk_id' => $spk->id,
-                                    'no_spk' => $spkData['no_spk'] ?? '-',
+                                    'in_awal' => (float) ($inventory->total_in ?? 0),
+                                'service_keluar' => $serviceKeluar,
+                                'service_masuk' => $serviceMasuk,
+                                'no_spk' => $spkData['no_spk'] ?? '-',
                                     'sub_name' => $subName,
                                     'supplier' => $spkData['sup'] ?? '-',
                                     'kategori' => $spkData['kategori'] ?? '-',
@@ -2783,6 +2809,9 @@ class ProduksiMnController extends Controller
                         } elseif ($isPackagingComposite) {
                             $itemData['spks'][] = [
                                 'spk_id' => $spk->id,
+                                'in_awal' => (float) ($inventory->total_in ?? 0),
+                                'service_keluar' => $serviceKeluar,
+                                'service_masuk' => $serviceMasuk,
                                 'no_spk' => $spkData['no_spk'] ?? '-',
                                 'sub_name' => $subName,
                                 'supplier' => $spkData['sup'] ?? '-',
@@ -2806,6 +2835,9 @@ class ProduksiMnController extends Controller
                         } else {
                             $itemData['spks'][] = [
                                 'spk_id' => $spk->id,
+                                'in_awal' => (float) ($inventory->total_in ?? 0),
+                                'service_keluar' => $serviceKeluar,
+                                'service_masuk' => $serviceMasuk,
                                 'no_spk' => $spkData['no_spk'] ?? '-',
                                 'sub_name' => $subName,
                                 'supplier' => $spkData['sup'] ?? '-',
