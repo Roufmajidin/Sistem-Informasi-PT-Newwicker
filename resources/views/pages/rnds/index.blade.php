@@ -5635,6 +5635,21 @@
                     renderDriveItemsStable();
                 };
                 rndMultiToolbar.appendChild(selectAll);
+                // Tombol Download selalu tampil di samping Pilih Semua.
+                // Membuka folder Google Drive yang sedang aktif, tanpa ZIP via hosting.
+                const folderDownload = document.createElement('button');
+                folderDownload.type = 'button';
+                folderDownload.innerHTML = '<i class="fa fa-download" aria-hidden="true"></i> Download';
+                folderDownload.title = 'Buka folder aktif di Google Drive (tab baru)';
+                folderDownload.disabled = !activeFolderDbId || !driveLink || driveLink.hidden;
+                folderDownload.addEventListener('click', () => {
+                    if (!driveLink || driveLink.hidden) {
+                        alert('Link folder Google Drive belum tersedia. Coba Refresh.');
+                        return;
+                    }
+                    rndOpenGoogleDrive(driveLink.href);
+                });
+                rndMultiToolbar.appendChild(folderDownload);
                 if (!count) {
                     if (explorerClipboard) {
                         const pasteOnly = document.createElement('button');
@@ -5647,13 +5662,6 @@
                 }
                 const label = document.createElement('strong');
                 label.textContent = count + ' item dipilih';
-                const download = document.createElement('button');
-                download.type = 'button';
-                download.textContent = 'Download terpilih (' + count + ')';
-                download.addEventListener('click', () => {
-                    const chosen = driveCurrentItems.filter(x => rndMultiSelectedIds.has(String(x.id)));
-                    rndDownloadSelectedPhotos(chosen);
-                });
                 const removeSelected = document.createElement('button');
                 removeSelected.type = 'button';
                 removeSelected.textContent = 'Hapus Terpilih (' + count + ')';
@@ -5683,7 +5691,7 @@
                 pasteHere.textContent = 'Paste ke Folder Ini';
                 pasteHere.disabled = !explorerClipboard;
                 pasteHere.onclick = () => explorerPaste({id: activeFolderDbId, name: driveCurrentPath.textContent.trim()});
-                rndMultiToolbar.append(label, download, cut, pasteHere, removeSelected, clear);
+                rndMultiToolbar.append(label, cut, pasteHere, removeSelected, clear);
             }
 
             function rndToggleMultiPhoto(item) {
