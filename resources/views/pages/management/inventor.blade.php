@@ -1158,19 +1158,21 @@
 
                         res.payments.forEach(function(pay) {
 
-                            const nilai =
-                                parseInt(
-                                    pay.payment_request_amount ||
-                                    pay.amount ||
-                                    0
-                                );
+                            // Angsuran adalah pembayaran pengurang saldo,
+                            // termasuk jika nilai tersimpan memakai tanda minus.
+                            const isAngsuran = String(pay.payment_type || pay.type || pay.note || '')
+                                .trim().toLowerCase() === 'angsuran';
+                            const nilaiRaw = parseFloat(
+                                pay.payment_request_amount || pay.amount || 0
+                            ) || 0;
+                            const nilai = isAngsuran ? Math.abs(nilaiRaw) : nilaiRaw;
 
                             /*
                             |--------------------------------------------------------------------------
                             | UPAH
                             |--------------------------------------------------------------------------
                             */
-                            if (isUpahSpk) {
+                            if (isUpahSpk && !isAngsuran) {
 
                                 upahEvents.push({
                                     type: 'upah',
@@ -1249,6 +1251,7 @@
                                 type: 'payment',
                                 date: pay.date || '',
                                 pay: pay,
+                                isAngsuran: isAngsuran,
                                 nilai: nilai
                             });
 
@@ -1398,12 +1401,14 @@
                                 </td>
 
                                 <td>
-                                    ${pay.note ?? '-'}
+                                    ${event.isAngsuran ? 'Angsuran' : (pay.note ?? '-')}
                                 </td>
 
                                 <td>
-                                    Rp ${Number(
-                                        pay.amount || nilai || 0
+                                    ${event.isAngsuran ? '' : ''}Rp ${Number(
+                                        event.isAngsuran
+                                            ? Math.abs(nilai)
+                                            : (pay.amount || nilai || 0)
                                     ).toLocaleString('id-ID')}
                                 </td>
 

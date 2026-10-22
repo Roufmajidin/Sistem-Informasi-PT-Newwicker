@@ -2782,9 +2782,9 @@ class ProduksiMnController extends Controller
                                 $itemData['spks'][] = [
                                     'spk_id' => $spk->id,
                                     'in_awal' => (float) ($inventory->total_in ?? 0),
-                                'service_keluar' => $serviceKeluar,
-                                'service_masuk' => $serviceMasuk,
-                                'no_spk' => $spkData['no_spk'] ?? '-',
+                                    'service_keluar' => $serviceKeluar,
+                                    'service_masuk' => $serviceMasuk,
+                                    'no_spk' => $spkData['no_spk'] ?? '-',
                                     'sub_name' => $subName,
                                     'supplier' => $spkData['sup'] ?? '-',
                                     'kategori' => $spkData['kategori'] ?? '-',
@@ -3437,7 +3437,7 @@ class ProduksiMnController extends Controller
             )
         );
     }
-      public function inventorDetail($id)
+    public function inventorDetail($id)
     {
         $spk = Spk::findOrFail($id);
 
@@ -3748,7 +3748,9 @@ class ProduksiMnController extends Controller
                         $payment['date'] ?? null,
 
                     'note' =>
-                        $payment['note'] ?? '-',
+                        $payment['note'] ?? $payment['payment_type'] ?? $payment['type'] ?? '-',
+                    'payment_type' =>
+                        $payment['payment_type'] ?? $payment['type'] ?? $payment['note'] ?? null,
                     'finance_approved' =>
                         $payment['finance_approved'] ?? false,
                     'amount' =>

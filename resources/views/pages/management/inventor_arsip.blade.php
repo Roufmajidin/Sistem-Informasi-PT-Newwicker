@@ -962,7 +962,10 @@
                         let totalReturnBahan = 0;
                         res.payments.forEach((pay, i) => {
 
-                            let nilai = parseInt(pay.payment_request_amount || 0);
+                            const isAngsuran = String(pay.payment_type || pay.type || pay.note || '')
+                                .trim().toLowerCase() === 'angsuran';
+                            const nilaiRaw = parseFloat(pay.payment_request_amount || pay.amount || 0) || 0;
+                            let nilai = isAngsuran ? Math.abs(nilaiRaw) : nilaiRaw;
 
                             if (pay.note == 'bahan') {
 
@@ -1001,12 +1004,12 @@
                             </td>
 
                             <td>
-                                ${pay.note ?? '-'}
+                                ${isAngsuran ? 'Angsuran' : (pay.note ?? '-')}
                             </td>
 
                             <td>
-                                Rp ${Number(
-                                    pay.amount || 0
+                                ${isAngsuran ? '' : ''}Rp ${Number(
+                                    isAngsuran ? Math.abs(pay.amount || nilai || 0) : (pay.amount || 0)
                                 ).toLocaleString('id-ID')}
                             </td>
 
