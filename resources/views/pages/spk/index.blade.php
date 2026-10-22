@@ -7804,16 +7804,22 @@
             const rows = Array.from(section.querySelectorAll('table tbody tr.bahan-baku-row'));
             if (!rows.length) return '';
             const headings = ['No', 'Tanggal', 'Tipe', 'Bahan', 'Potong Bahan', 'Harga', 'Total', 'Keterangan'];
-            const th = headings.map(h => `<th style="background:#26374d;color:#fff;border:1px solid #d5dce5;padding:5px 4px;text-align:center;">${excelEscape(h)}</th>`).join('');
+            // Lebar kolom eksplisit: nama bahan panjang akan turun baris,
+            // bukan menimpa kolom Potong Bahan.
+            const widths = ['4%', '11%', '8%', '24%', '16%', '11%', '12%', '14%'];
+            const cols = widths.map(w => `<col style="width:${w};">`).join('');
+            const cellStyle = 'border:1px solid #d5dce5;padding:6px 5px;vertical-align:top;white-space:normal !important;overflow-wrap:anywhere !important;word-break:break-word !important;overflow:visible;line-height:1.35;height:auto;max-width:0;';
+            const th = headings.map(h => `<th style="background:#26374d;color:#fff;border:1px solid #d5dce5;padding:5px 4px;text-align:center;white-space:normal;overflow-wrap:anywhere;word-break:break-word;">${excelEscape(h)}</th>`).join('');
             const body = rows.map(row => {
                 const cells = Array.from(row.children).slice(0, 8).map(td =>
-                    `<td style="border:1px solid #d5dce5;padding:5px 4px;vertical-align:top;overflow-wrap:anywhere;">${excelEscape(cleanText(td.innerText))}</td>`
+                    `<td style="${cellStyle}"><div style="display:block;width:100%;min-width:0;white-space:normal;overflow-wrap:anywhere;word-break:break-word;">${excelEscape(cleanText(td.innerText))}</div></td>`
                 ).join('');
-                return `<tr>${cells}</tr>`;
+                return `<tr style="height:auto;">${cells}</tr>`;
             }).join('');
-            return `<div class="spk-excel-bahan" style="margin-top:12px;width:100%;break-inside:avoid;">
+            return `<div class="spk-excel-bahan" style="margin-top:12px;width:100%;break-inside:avoid;overflow:visible;">
                 <div style="background:#50b95a;color:#fff;font-weight:700;font-size:10px;padding:7px 9px;">LIST BAHAN BAKU PENGAMBILAN / PEMOTONGAN BAHAN</div>
-                <table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:8px;">
+                <table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:8px;white-space:normal;">
+                    <colgroup>${cols}</colgroup>
                     <thead><tr>${th}</tr></thead><tbody>${body}</tbody>
                 </table></div>`;
         }
