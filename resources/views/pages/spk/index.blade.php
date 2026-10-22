@@ -3057,6 +3057,7 @@
                                             <td>
                                                 <select class="payment-type">
                                                     <option value="">-- Pilih --</option>
+                                                    <option value="angsuran" {{ ($pay['note'] ?? '') == 'angsuran' ? 'selected' : '' }}>Angsuran</option>
                                                     <option value="dp"
                                                         {{ ($pay['note'] ?? '') == 'dp' ? 'selected' : '' }}>DP
                                                     </option>
@@ -3110,6 +3111,7 @@
                                         <td>
                                             <select class="payment-type">
                                                 <option value="">-- Pilih --</option>
+                                                <option value="angsuran">Angsuran</option>
                                                 <option value="dp">DP</option>
                                                 <option value="pelunasan">Pelunasan</option>
                                                 <option value="bahan">Bahan</option>
@@ -6178,7 +6180,8 @@
                 <td>
                     <select class="payment-type">
                         <option value="">-- Pilih --</option>
-                        <option value="dp">DP</option>
+                        <option value="angsuran">Angsuran</option>
+                                                <option value="dp">DP</option>
                         <option value="bahan">Bahan</option>
                         <option value="return_bahan">Return Bahan</option>
                         <option value="kasbon">Kasbon</option>
@@ -6209,6 +6212,7 @@
                     case 'return_bahan':
                         totalPayment -= amount;
                         break;
+                    case 'angsuran':
                     case 'dp':
                     case 'bahan':
                     case 'kasbon':
@@ -6573,6 +6577,7 @@
                 totalBahan = 0,
                 totalReturnBahan = 0,
                 totalPelunasan = 0,
+                totalAngsuran = 0,
                 totalKasbon = 0;
 
             document.querySelectorAll('.payment-row').forEach(row => {
@@ -6583,6 +6588,7 @@
 
                 if (type === 'ppn') totalPpn += amount;
                 if (type === 'dp') totalDp += amount;
+                if (type === 'angsuran') totalAngsuran += amount;
                 if (type === 'bahan') totalBahan += amount;
                 if (type === 'return_bahan') totalReturnBahan += amount;
                 if (type === 'pelunasan') totalPelunasan += amount;
@@ -6591,7 +6597,7 @@
 
             let bahanBersih = Math.max(0, totalBahan - totalReturnBahan);
             let grandTotalSetelahPpn = grandTotal + totalPpn;
-            let sisaPelunasan = grandTotalSetelahPpn - totalDp - bahanBersih - totalKasbon - totalPelunasan;
+            let sisaPelunasan = grandTotalSetelahPpn - totalDp - bahanBersih - totalKasbon - totalPelunasan - totalAngsuran;
 
             let summary = `
                 <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
@@ -6615,6 +6621,9 @@
             if (totalKasbon > 0) {
                 summary +=
                     `<div style="display:flex; justify-content:space-between; margin-bottom:3px; color:#dc2626;"><span>Total Kasbon:</span> <b>Rp ${formatRupiah(totalKasbon)}</b></div>`;
+            }
+            if (totalAngsuran > 0) {
+                summary += `<div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span>Total Angsuran (-):</span><b>Rp ${formatRupiah(totalAngsuran)}</b></div>`;
             }
             if (totalPelunasan > 0) {
                 summary +=
@@ -7786,8 +7795,31 @@
         `;
         }
 
+        // Daftar pemotongan/pengambilan bahan khusus hasil screenshot JPEG dan Salin.
+        function renderBahanBakuExport() {
+            const section = Array.from(document.querySelectorAll('.spk-sub-card')).find(el =>
+                el.querySelector('.spk-sub-title-green')?.textContent.includes('LIST BAHAN BAKU PENGAMBILAN')
+            );
+            if (!section) return '';
+            const rows = Array.from(section.querySelectorAll('table tbody tr.bahan-baku-row'));
+            if (!rows.length) return '';
+            const headings = ['No', 'Tanggal', 'Tipe', 'Bahan', 'Potong Bahan', 'Harga', 'Total', 'Keterangan'];
+            const th = headings.map(h => `<th style="background:#26374d;color:#fff;border:1px solid #d5dce5;padding:5px 4px;text-align:center;">${excelEscape(h)}</th>`).join('');
+            const body = rows.map(row => {
+                const cells = Array.from(row.children).slice(0, 8).map(td =>
+                    `<td style="border:1px solid #d5dce5;padding:5px 4px;vertical-align:top;overflow-wrap:anywhere;">${excelEscape(cleanText(td.innerText))}</td>`
+                ).join('');
+                return `<tr>${cells}</tr>`;
+            }).join('');
+            return `<div class="spk-excel-bahan" style="margin-top:12px;width:100%;break-inside:avoid;">
+                <div style="background:#50b95a;color:#fff;font-weight:700;font-size:10px;padding:7px 9px;">LIST BAHAN BAKU PENGAMBILAN / PEMOTONGAN BAHAN</div>
+                <table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:8px;">
+                    <thead><tr>${th}</tr></thead><tbody>${body}</tbody>
+                </table></div>`;
+        }
+
         function buildExcelLikeSpk(data) {
-            const logo = 'https://newwicker.my.id/assets/images/NEWWICKER%20WHITE.png';
+            const logo = @json(asset('/assets/images/logo.png'));
 
             const approvalSignatures = getApprovalSignatureData();
             const spacerHeight = 0;
@@ -7992,6 +8024,8 @@
                         </table>
                     </div>
                 </div>
+
+                ${renderBahanBakuExport()}
 
                 <table class="spk-excel-signature">
                     <tr>
@@ -8510,7 +8544,7 @@
         <!-- kiri -->
         <div>
             <img
-                src="${window.location.origin}/assets/images/NEWWICKER WHITE.png"
+                src="{{ asset('/assets/images/logo.png') }}"
                 style="
                     width:220px;
                     height:auto;
