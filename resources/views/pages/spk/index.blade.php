@@ -7819,7 +7819,7 @@
         }
 
         function buildExcelLikeSpk(data) {
-            const logo = @json(asset('/assets/images/logo.png'));
+            const logo = @json(asset('/assets/images/newwicker.jpg'));
 
             const approvalSignatures = getApprovalSignatureData();
             const spacerHeight = 0;
@@ -8544,7 +8544,7 @@
         <!-- kiri -->
         <div>
             <img
-                src="{{ asset('/assets/images/logo.png') }}"
+                src="{{ asset('/assets/images/newwicker.jpg') }}"
                 style="
                     width:220px;
                     height:auto;
