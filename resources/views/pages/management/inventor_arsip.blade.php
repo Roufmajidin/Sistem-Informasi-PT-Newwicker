@@ -367,8 +367,12 @@
                                 {{-- PAYMENT --}}
                                 @if (!$hideHarga)
                                     <div class="card border-0 shadow-sm">
-                                        <div class="card-header bg-success text-white fw-bold">
-                                            LIST PAYMENT
+                                        <div class="card-header bg-success text-white fw-bold d-flex justify-content-between align-items-center">
+                                            <span>LIST PAYMENT</span>
+                                            <a id="goToSpkLink" href="#" target="_blank" rel="noopener noreferrer"
+                                               class="btn btn-sm btn-light fw-bold" title="Buka SPK di tab baru">
+                                                <i class="fa fa-external-link"></i> GO TO SPK
+                                            </a>
                                         </div>
                                         <div class="card-body p-0">
                                             <div class="table-responsive">
@@ -602,6 +606,8 @@
             $(document).on('click', '.btn-detail', function(e) {
                 e.stopPropagation();
                 let spkId = $(this).data('id');
+                if (!spkId) return;
+                $('#goToSpkLink').attr('href', `/spk/edit/${encodeURIComponent(spkId)}`);
                 $.get(`/inventor/spk/${spkId}`, function(res) {
                     /*
                     |--------------------------------------------------------------------------
@@ -906,6 +912,21 @@
                         }
 
                     });
+                    // PPN: gunakan total dari endpoint inventorDetail sebagai sumber utama.
+                    // Subtotal lama tetap dipakai sebagai fallback agar SPK lama tidak terganggu.
+                    const subtotalSpk = totalSpk;
+                    const ppnEnabled = res.ppn_enabled === true || res.ppn_enabled === 1 || res.ppn_enabled === '1';
+                    const ppnRate = ppnEnabled ? Number(res.ppn_rate ?? 0) : 0;
+                    const ppnAmount = ppnEnabled
+                        ? Number(res.ppn_amount ?? Math.round(subtotalSpk * ppnRate / 100))
+                        : 0;
+                    const apiTotal = Number(res.grand_total_with_ppn);
+                    totalSpk = ppnEnabled && Number.isFinite(apiTotal) && apiTotal > 0
+                        ? apiTotal
+                        : subtotalSpk + ppnAmount;
+                    const ppnInfo = ppnEnabled
+                        ? `PPN ${ppnRate}%: Rp ${ppnAmount.toLocaleString('id-ID')}`
+                        : '-';
                     let saldo = totalSpk;
                     // =========================
                     // BARIS TOTAL SPK
@@ -925,7 +946,7 @@
             Rp
             ${saldo.toLocaleString()}
         </td>
-        <td></td>
+        <td>${ppnInfo}</td>
     </tr>
     `;
                     // =========================

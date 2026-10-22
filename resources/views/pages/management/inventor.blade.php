@@ -386,8 +386,12 @@
                                 {{-- PAYMENT --}}
                                 @if (!$hideHarga)
                                     <div class="card border-0 shadow-sm">
-                                        <div class="card-header bg-success text-white fw-bold">
+                                        <div class="card-header bg-success text-white fw-bold d-flex justify-content-between align-items-center">
                                             LIST PAYMENT
+                                            <a id="goToSpkLink" href="#" target="_blank" rel="noopener noreferrer"
+                                               class="btn btn-sm text-white fw-bold" title="Buka SPK di tab baru">
+                                                <i class="fa fa-external-link"></i> GO TO SPK
+                                            </a>
                                         </div>
                                         <div class="card-body p-0">
                                             <div class="table-responsive">
@@ -626,6 +630,8 @@
             $(document).on('click', '.btn-detail', function(e) {
                 e.stopPropagation();
                 let spkId = $(this).data('id');
+                if (!spkId) return;
+                $('#goToSpkLink').attr('href', `/spk/edit/${encodeURIComponent(spkId)}`);
                 $.get(`/inventor/spk/${spkId}`, function(res) {
                     /*
                     |--------------------------------------------------------------------------
@@ -1039,6 +1045,15 @@
 
                     });
 
+                    // PPN dari data SPK, bukan tarif hardcode.
+                    const ppnRate = res.ppn_enabled ? Number(res.ppn_rate || 0) : 0;
+                    const subtotalSpk = totalSpk;
+                    const ppnAmount = Math.round((subtotalSpk * ppnRate / 100) * 100) / 100;
+                    totalSpk = subtotalSpk + ppnAmount;
+                    const ppnInfo = ppnRate > 0
+                        ? `PPN ${ppnRate}%: Rp ${ppnAmount.toLocaleString('id-ID')}`
+                        : '';
+
                     let saldo = totalSpk;
                     let totalPayment = 0;
                     let totalReturnBahan = 0;
@@ -1330,10 +1345,10 @@
                             </td>
                             <td>
                                 ${
-                                    keteranganSpk
+                                    (keteranganSpk || ppnInfo)
                                         ? `
                                                                     <span class="badge bg-warning text-dark">
-                                                                        ${keteranganSpk}
+                                                                        ${[keteranganSpk, ppnInfo].filter(Boolean).join(' | ')}
                                                                     </span>
                                                                   `
                                         : '-'

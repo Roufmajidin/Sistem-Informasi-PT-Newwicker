@@ -1,19 +1,12 @@
 <div class="row mb-3">
 
-  <div class="col-md-4">
+    <div class="col-md-4">
 
         <div class="input-group">
 
-            <input
-                type="text"
-                id="searchMaterial"
-                class="form-control"
-                placeholder="Cari material...">
+            <input type="text" id="searchMaterial" class="form-control" placeholder="Cari material...">
 
-            <button
-                class="btn btn-outline-secondary"
-                id="sortMaterial"
-                title="Sort Nama">
+            <button class="btn btn-outline-secondary" id="sortMaterial" title="Sort Nama">
 
                 <i class="fa fa-sort-alpha-asc"></i>
 
@@ -25,10 +18,7 @@
 
     <div class="col-md-8 text-end">
 
-        <button
-            type="button"
-            id="btnOpenModal"
-            class="btn btn-primary btn-sm">
+        <button type="button" id="btnOpenModal" class="btn btn-primary btn-sm">
 
             Tambha material
 
@@ -41,9 +31,7 @@
 </div>
 <div class="table-wrapper">
 
-    <table
-    id="materialTable"
-    class="table table-bordered table-striped mb-0">
+    <table id="materialTable" class="table table-bordered table-striped mb-0">
 
         <thead>
             <tr>
@@ -58,7 +46,6 @@
         <tbody>
 
             @forelse($materialPrices ?? [] as $item)
-
                 <tr>
 
                     <td>{{ $loop->iteration }}</td>
@@ -78,8 +65,7 @@
 
                     <td>
                         <input type="number" class="form-control update-field" data-id="{{ $item->id }}"
-                            data-column="harga"
-                            value="{{ number_format($item->harga,0,',','.') }}">
+                            data-column="harga" value="{{ number_format($item->harga, 0, ',', '.') }}">
 
                         <small class="save-status text-muted" style="display:none;">
                             Press Enter to save
@@ -113,7 +99,6 @@
                         Belum ada data
                     </td>
                 </tr>
-
             @endforelse
 
         </tbody>
@@ -124,123 +109,123 @@
 {{-- <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script> --}}
 
 <script>
-  // =========================
-// SEARCH
-// =========================
-$('#searchMaterial').on('keyup', function () {
+    // =========================
+    // SEARCH
+    // =========================
+    $('#searchMaterial').on('keyup', function() {
 
-    let keyword = $(this).val().toLowerCase();
+        let keyword = $(this).val().toLowerCase();
 
-    $('#materialTable tbody tr').each(function () {
+        $('#materialTable tbody tr').each(function() {
 
-        let material = (
-            $(this)
-            .find('[data-column="nama_material"]')
-            .val() || ''
-        ).toLowerCase();
+            let material = (
+                $(this)
+                .find('[data-column="nama_material"]')
+                .val() || ''
+            ).toLowerCase();
 
-        let satuan = (
-            $(this)
-            .find('[data-column="satuan"]')
-            .val() || ''
-        ).toLowerCase();
+            let satuan = (
+                $(this)
+                .find('[data-column="satuan"]')
+                .val() || ''
+            ).toLowerCase();
 
-        if (
-            material.includes(keyword) ||
-            satuan.includes(keyword)
-        ) {
-            $(this).show();
-        } else {
-            $(this).hide();
-        }
+            if (
+                material.includes(keyword) ||
+                satuan.includes(keyword)
+            ) {
+                $(this).show();
+            } else {
+                $(this).hide();
+            }
+
+        });
 
     });
 
-});
+    // =========================
+    // SORT
+    // =========================
 
-// =========================
-// SORT
-// =========================
+    let asc = true;
 
-let asc = true;
+    $('#sortMaterial').on('click', function() {
 
-$('#sortMaterial').on('click', function () {
+        let btn = $(this);
 
-    let btn = $(this);
-
-    btn.prop('disabled', true);
-
-    btn.html(
-        '<span class="spinner-border spinner-border-sm"></span>'
-    );
-
-    setTimeout(function () {
-
-        let tbody = $('#materialTable tbody');
-
-        let rows = tbody.find('tr').filter(function () {
-
-            return $(this)
-                .find('[data-column="nama_material"]')
-                .length;
-
-        }).get();
-
-        rows.sort(function (a, b) {
-
-            let nameA = (
-                $(a)
-                .find('[data-column="nama_material"]')
-                .val() || ''
-            ).toLowerCase();
-
-            let nameB = (
-                $(b)
-                .find('[data-column="nama_material"]')
-                .val() || ''
-            ).toLowerCase();
-
-            return asc
-                ? nameA.localeCompare(nameB)
-                : nameB.localeCompare(nameA);
-
-        });
-
-        $.each(rows, function (_, row) {
-
-            tbody.append(row);
-
-        });
-
-        asc = !asc;
+        btn.prop('disabled', true);
 
         btn.html(
-
-            asc
-                ? '<i class="fa fa-sort-alpha-asc"></i>'
-                : '<i class="fa fa-sort-alpha-desc"></i>'
-
+            '<span class="spinner-border spinner-border-sm"></span>'
         );
 
-        btn.prop('disabled', false);
+        setTimeout(function() {
 
-    }, 200);
+            let tbody = $('#materialTable tbody');
 
-});
-    $('#btnOpenModal').click(function(e){
+            let rows = tbody.find('tr').filter(function() {
 
-    e.preventDefault();
-    e.stopPropagation();
+                return $(this)
+                    .find('[data-column="nama_material"]')
+                    .length;
 
-  const modal = new bootstrap.Modal(
-    document.getElementById('modalAddHarga')
-);
+            }).get();
 
-modal.show();
+            rows.sort(function(a, b) {
 
-});
+                let nameA = (
+                    $(a)
+                    .find('[data-column="nama_material"]')
+                    .val() || ''
+                ).toLowerCase();
+
+                let nameB = (
+                    $(b)
+                    .find('[data-column="nama_material"]')
+                    .val() || ''
+                ).toLowerCase();
+
+                return asc ?
+                    nameA.localeCompare(nameB) :
+                    nameB.localeCompare(nameA);
+
+            });
+
+            $.each(rows, function(_, row) {
+
+                tbody.append(row);
+
+            });
+
+            asc = !asc;
+
+            btn.html(
+
+                asc ?
+                '<i class="fa fa-sort-alpha-asc"></i>' :
+                '<i class="fa fa-sort-alpha-desc"></i>'
+
+            );
+
+            btn.prop('disabled', false);
+
+        }, 200);
+
+    });
+    $('#btnOpenModal').click(function(e) {
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        const modal = new bootstrap.Modal(
+            document.getElementById('modalAddHarga')
+        );
+
+        modal.show();
+
+    });
     // SAVE
-    $(document).on('click', '#btn-save-material', function () {
+    $(document).on('click', '#btn-save-material', function() {
         // alert("klik")
         let materials = $('#bulk_material').val();
 
@@ -263,7 +248,7 @@ modal.show();
 
             },
 
-            success: function (res) {
+            success: function(res) {
 
                 if (res.success) {
 
@@ -279,7 +264,7 @@ modal.show();
 
     });
     // DELETE
-    $(document).on('click', '.btn-delete', function () {
+    $(document).on('click', '.btn-delete', function() {
 
         if (!confirm('Hapus material ini ?')) {
             return;
@@ -297,7 +282,7 @@ modal.show();
                 _token: "{{ csrf_token() }}"
             },
 
-            success: function (res) {
+            success: function(res) {
 
                 location.reload();
 
@@ -307,7 +292,7 @@ modal.show();
 
     });
     // UPDATE
-    $(document).on('keypress', '.update-field', function (e) {
+    $(document).on('keypress', '.update-field', function(e) {
 
         if (e.which != 13) {
             return;
@@ -344,12 +329,12 @@ modal.show();
 
             },
 
-            success: function () {
+            success: function() {
 
                 status
                     .text('Saved ✓');
 
-                setTimeout(function () {
+                setTimeout(function() {
 
                     status.fadeOut();
 
@@ -362,14 +347,14 @@ modal.show();
     });
     // cari
 
-    $('#searchMaterial').on('keyup', function () {
+    $('#searchMaterial').on('keyup', function() {
 
         let keyword = $(this).val().toLowerCase();
 
-        $('table tbody tr').each(function () {
+        $('table tbody tr').each(function() {
 
             let material = $(this)
-              .find('[data-column="nama"]')
+                .find('[data-column="nama"]')
 
                 .val()
                 .toLowerCase();
@@ -394,7 +379,7 @@ modal.show();
     });
 
     // helper
-    $(document).on('input', '.update-field', function () {
+    $(document).on('input', '.update-field', function() {
 
         $(this)
             .closest('td')
@@ -404,7 +389,6 @@ modal.show();
             .css('opacity', '.6');
 
     });
-
 </script>
 <style>
     .save-status {
@@ -433,19 +417,21 @@ modal.show();
         background: #243447;
         color: white;
     }
-.table-wrapper th:first-child,
-.table-wrapper td:first-child {
-    position: sticky;
-    left: 0;
-    background: white;
-    z-index: 5;
-}
 
-.table-wrapper thead th:first-child {
-    background: #243447;
-    z-index: 15;
-}
-.table-wrapper {
-    height: calc(100vh - 250px);
-}
+    .table-wrapper th:first-child,
+    .table-wrapper td:first-child {
+        position: sticky;
+        left: 0;
+        background: white;
+        z-index: 5;
+    }
+
+    .table-wrapper thead th:first-child {
+        background: #243447;
+        z-index: 15;
+    }
+
+    .table-wrapper {
+        height: calc(100vh - 250px);
+    }
 </style>

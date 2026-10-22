@@ -3165,6 +3165,10 @@ class ProduksiMnController extends Controller
                     return $total;
                 });
 
+                // Tambahkan PPN hanya jika diaktifkan pada SPK.
+                $ppnRate = !empty($data['ppn_enabled']) ? (float) ($data['ppn_rate'] ?? 0) : 0;
+                $totalSpk += round($totalSpk * $ppnRate / 100, 2);
+
                 $totalPayment = collect($data['payments'] ?? [])->sum(function ($pay) {
                     return floatval($pay['amount'] ?? 0);
                 });
@@ -3370,6 +3374,10 @@ class ProduksiMnController extends Controller
                     return $total;
                 });
 
+                // Tambahkan PPN hanya jika diaktifkan pada SPK.
+                $ppnRate = !empty($data['ppn_enabled']) ? (float) ($data['ppn_rate'] ?? 0) : 0;
+                $totalSpk += round($totalSpk * $ppnRate / 100, 2);
+
                 $totalPayment = collect($data['payments'] ?? [])->sum(function ($pay) {
                     return floatval($pay['amount'] ?? 0);
                 });
@@ -3429,7 +3437,7 @@ class ProduksiMnController extends Controller
             )
         );
     }
-    public function inventorDetail($id)
+      public function inventorDetail($id)
     {
         $spk = Spk::findOrFail($id);
 
@@ -3677,10 +3685,23 @@ class ProduksiMnController extends Controller
 
         }
 
+        // PPN: data lama dapat memiliki ppn_enabled=true tetapi ppn_rate=0.
+        // Fallback 11% HANYA untuk data lama tersebut; tarif positif yang tersimpan
+        // tetap dipakai. Sesuaikan tarif fallback dengan kebijakan SPK perusahaan.
+        $ppnEnabled = filter_var($data['ppn_enabled'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $storedPpnRate = (float) ($data['ppn_rate'] ?? 0);
+        $ppnRate = $ppnEnabled ? ($storedPpnRate > 0 ? $storedPpnRate : 11.0) : 0.0;
+        $ppnAmount = $ppnEnabled ? round($grandTotal * $ppnRate / 100, 2) : 0.0;
+        $grandTotalWithPpn = $grandTotal + $ppnAmount;
+
         return response()->json([
             'can_edit_harga' => auth()->id() == 171,
 
             'grand_total' => $grandTotal,
+            'ppn_enabled' => $ppnEnabled,
+            'ppn_rate' => $ppnRate,
+            'ppn_amount' => $ppnAmount,
+            'grand_total_with_ppn' => $grandTotalWithPpn,
 
             'bahan_baku' => $bahanBaku,
 
