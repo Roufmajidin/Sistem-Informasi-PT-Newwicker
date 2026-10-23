@@ -1,3 +1,4 @@
+
 <?php
 
 namespace App\Exports;
@@ -11,7 +12,6 @@ use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithColumnFormatting;
 use Maatwebsite\Excel\Concerns\WithStyles;
-use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class LaporanStokExport implements
@@ -75,8 +75,12 @@ class LaporanStokExport implements
             )
             ->select(
                 'stoks.*',
-                DB::raw('COALESCE(transaction_summary.total_in, 0) AS total_in'),
-                DB::raw('COALESCE(transaction_summary.total_out, 0) AS total_out')
+                DB::raw(
+                    'COALESCE(transaction_summary.total_in, 0) AS total_in'
+                ),
+                DB::raw(
+                    'COALESCE(transaction_summary.total_out, 0) AS total_out'
+                )
             )
 
             // Filter jenis barang
@@ -162,15 +166,22 @@ class LaporanStokExport implements
     }
 
     /**
-     * Format angka pada kolom Excel.
+     * Format angka Excel.
+     *
+     * Maksimal 3 desimal, tanpa nol desimal yang tidak diperlukan.
+     * Contoh:
+     * 1.600 -> 1.6
+     * 1.500 -> 1.5
+     * 1.125 -> 1.125
+     * 10.000 -> 10
      */
     public function columnFormats(): array
     {
         return [
-            'F' => '#,##0.00',
-            'G' => '#,##0.000',
-            'H' => '#,##0.000',
-            'I' => '#,##0.000',
+            'F' => '#,##0.##',
+            'G' => '#,##0.###',
+            'H' => '#,##0.###',
+            'I' => '#,##0.###',
             'J' => 'yyyy-mm-dd',
         ];
     }
@@ -181,7 +192,9 @@ class LaporanStokExport implements
     public function styles(Worksheet $sheet)
     {
         // Header tebal
-        $sheet->getStyle('A1:L1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:L1')
+            ->getFont()
+            ->setBold(true);
 
         // Warna latar header
         $sheet->getStyle('A1:L1')
