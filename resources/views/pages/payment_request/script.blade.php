@@ -1,5 +1,12 @@
 {{-- script --}}
 <script>
+    // Format tanggal API tanpa menggeser hari akibat timezone.
+    function formatPaymentDateDMY(value) {
+        if (!value) return '';
+        const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
+        return match ? `${match[3]}/${match[2]}/${match[1]}` : String(value);
+    }
+
     $(document).on(
         'change',
         '.ainun-recon-check',
@@ -210,11 +217,17 @@
             $.get(
                 `/payment-request-saved/${draftId}/detail`,
                 function(res) {
-                    let requestDate = res.request_date ?? '';
-                    let needDate = res.need_date ?? '';
+                    let requestDate = formatPaymentDateDMY(res.request_date);
+                    let needDate = formatPaymentDateDMY(res.need_date);
+                    const detailSpks = (res.items || []).map(x => x.spk_no || x.no_spk || '').join(' ');
+                    const detailSpkMatch = detailSpks.match(/\/(NWS|NWD|NWR|NW)(?=\s|\/|-|$)/i);
+                    const currentDraftCode = String(res.production_code || $('.draft-row.active-row').attr(
+                        'data-production-code') || (detailSpkMatch ? detailSpkMatch[1] : '')).toUpperCase();
+                    const currentDepartment = ['NWS', 'NWD', 'NWR'].includes(currentDraftCode) ?
+                        'RND Engineering' : 'Purchasing';
                     let html = `
 <div id="printArea">
-     <div class="alert alert-info mb-3 no-print">
+     <div class="alert alert-info mb-3 no-print print-instructions">
 
         <i class="fa fa-info-circle"></i>
 
@@ -311,7 +324,7 @@
                     border:1px solid black;
                     padding:4px;
                 ">
-                <input type="text" value="Purchasing" style="
+                <input type="text" value="${currentDepartment}" style="
                         width:100%;
                         border:none;
                         outline:none;
@@ -324,6 +337,7 @@
     {{-- print BUTTON --}}
   <button
     id="btn-print"
+    class="no-print"
     type="button"
     style="
         background:#111827;
@@ -345,7 +359,7 @@
                     </div>
                     <div class="card-body">
                         <table
-                            class="table table-bordered">
+                            class="table table-bordered payment-print-table">
                             <thead>
                                 <tr>
                                     <th>No</th>
@@ -355,12 +369,12 @@
                                     <th>Payment</th>
                                     <th>Description</th>
                                     <th>Keterangan</th>
-                                    <th>Quantity</th>
-                                    <th>sat</th>
-                                    <th>Unit price</th>
+                                    <th>Qty</th>
+                                    <th>Sat</th>
+                                    <th>Unit Price</th>
                                 <th>Amount</th>
                                 <th>Status</th>
-                                <th>adjusment finance</th>
+                                <th class="finance-adjustment-column">Recon Fin</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -380,7 +394,7 @@
         <tr style="font-size:11px;">
             <td>${index + 1}</td>
             <td>${item.no_po ?? ''}</td>
-            <td>${item.tanggal ?? ''}</td>
+            <td>${formatPaymentDateDMY(item.tanggal)}</td>
             <td>${item.supplier ?? ''}</td>
             <td>Transfer</td>
             <td>
@@ -389,14 +403,14 @@
                 </a>
             </td>
             <td>${item.payment_note ?? ''}</td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td>
-                Rp ${Number(item.payment_amount || 0).toLocaleString('id-ID')}
-            </td>
+            <td class="text-center">1</td>
+            <td class="text-center">-</td>
+            <td class="text-end">Rp ${Number(item.payment_amount || 0).toLocaleString('id-ID')}</td>
+            <td class="text-end">Rp ${Number(item.payment_amount || 0).toLocaleString('id-ID')}</td>
             <td>Urgent</td>
-         <td>
+         <td class="finance-adjustment-column"
+             data-original-amount="${Number(item.payment_amount || 0)}"
+             data-recon-amount="${Number(item.payment_request_amount ?? item.payment_amount ?? 0)}">
             ${
                 res.is_finance
                 ? `
@@ -416,43 +430,16 @@
         </tr>
     `;
                     });
-                    let remainingAmount =
-                        grandTotal - totalPaymentRequest;
+                    let remainingAmount = grandTotal - totalPaymentRequest;
                     html += `
-<tr
-    style="
-        font-weight:bold;
-        background:#fff3cd;
-    ">
-    <td colspan="10" align="right">
-        TOTAL PAYMENT REQUEST
-    </td>
-
-    <td align="right">
-        Rp ${totalPaymentRequest.toLocaleString('id-ID')}
-    </td>
-
-    <td></td>
-</tr>
-
-<tr
-    style="
-        font-weight:bold;
-        background:#d1e7dd;
-        font-size:13px;
-    ">
-    <td colspan="10" align="right">
-        SISA PEMBAYARAN
-    </td>
-
-    <td align="right">
-        Rp ${remainingAmount.toLocaleString('id-ID')}
-    </td>
-
-    <td></td>
-</tr>
-
-`;
+                        <tr class="print-total-row" style="font-weight:bold;background:#fff3cd;">
+                            <td colspan="10" style="text-align:right;">TOTAL PAYMENT REQUEST</td>
+                            <td style="text-align:right;">Rp ${totalPaymentRequest.toLocaleString('id-ID')}</td>
+                            <td colspan="2"></td>
+                        </tr>
+                      
+                        </tbody></table></div></div>
+                    `;
                     html += `
 
 <div
@@ -490,8 +477,20 @@
             </td>
 
 `;
-                    res.approvals.forEach(function(approval) {
-                        console.log(res.approvals);
+                    // NW tetap lengkap; NWS (termasuk NWD/NWR) tanpa Vivi.
+                    const rowCode = String($('.draft-row.active-row').attr('data-production-code') || '')
+                        .toUpperCase();
+                    const itemSpk = (res.items || []).map(item => item.spk_no || item.no_spk || '').join(' ');
+                    const spkMatch = itemSpk.match(/\/(NWS|NWD|NWR|NW)(?=\s|\/|-|$)/i);
+                    const detailCode = String(res.production_code || rowCode || (spkMatch ? spkMatch[1] : ''))
+                        .toUpperCase();
+                    const isNwsGroup = ['NWS', 'NWD', 'NWR'].includes(detailCode);
+                    const visibleApprovals = (res.approvals || []).filter(function(approval) {
+                        return !(isNwsGroup && (Number(approval.user_id) === 171 || /\bvivi\b/i.test(
+                            String(approval.name || '')) || /head purchasing/i.test(String(
+                            approval.role || ''))));
+                    });
+                    visibleApprovals.forEach(function(approval) {
                         html += `
 
         <td width="12.5%">
@@ -579,6 +578,9 @@
 
                     });
 
+                    // Tutup row/table signature sebelum tombol finance.
+                    html += `</tr></table></div>`;
+
                     // =========================================================
                     // ADD TO DRAFT FINANCE
                     // =========================================================
@@ -605,23 +607,63 @@
                         </div>
                     `;
 
+                    html += `</div>`; // #printArea
                     $('#draftDetailArea').html(html);
 
                     setTimeout(function() {
-
                         const wrapper = $('.draft-wrapper')[0];
-
                         if (wrapper) {
-                            $(wrapper).animate({
+                            $(wrapper).stop(true).animate({
                                 scrollLeft: wrapper.clientWidth
-                            }, 500);
+                            }, 500, function() {
+                                $(document).trigger('paymentDetailSlideReady', [String(
+                                    draftId)]);
+                            });
+                        } else {
+                            $(document).trigger('paymentDetailSlideReady', [String(draftId)]);
                         }
-
                     }, 200);
                 }
-            );
+            ).fail(function(xhr) {
+                $(document).trigger('paymentDetailLoadFailed', [String(draftId), xhr]);
+            });
         }
     );
+    // Loading khusus saat membuka detail melalui ?request= / ?no_req=.
+    // Tidak memengaruhi klik Detail biasa atau AJAX lain.
+    function magicDetailLoading(show, message) {
+        let el = document.getElementById('magic-detail-loading');
+        if (!el && show) {
+            el = document.createElement('div');
+            el.id = 'magic-detail-loading';
+            el.setAttribute('role', 'status');
+            el.setAttribute('aria-live', 'polite');
+            el.style.cssText =
+                'position:fixed;inset:0;z-index:99999;background:rgba(248,250,252,.94);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px);';
+            el.innerHTML =
+                '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:30px 38px;text-align:center;box-shadow:0 12px 40px rgba(16,24,40,.10);font-family:Arial,sans-serif;min-width:270px;">' +
+                '<div style="width:42px;height:42px;border:4px solid #e5e7eb;border-top-color:#2563eb;border-radius:50%;animation:magicDetailSpin .75s linear infinite;margin:0 auto 17px;"></div>' +
+                '<div style="font-size:15px;font-weight:700;color:#1f2937;">Menyiapkan Payment Request</div>' +
+                '<div id="magic-detail-loading-text" style="font-size:12px;color:#667085;margin-top:8px;">Memuat detail pengajuan...</div></div>';
+            if (!document.getElementById('magic-detail-loading-style')) {
+                const style = document.createElement('style');
+                style.id = 'magic-detail-loading-style';
+                style.textContent = '@keyframes magicDetailSpin { to { transform:rotate(360deg); } }';
+                document.head.appendChild(style);
+            }
+            document.body.appendChild(el);
+        }
+        if (el) {
+            if (show) {
+                el.style.display = 'flex';
+                const msg = document.getElementById('magic-detail-loading-text');
+                if (msg && message) msg.textContent = message;
+            } else {
+                el.remove();
+            }
+        }
+    }
+
     $(window).on('load', function() {
 
         const params = new URLSearchParams(window.location.search);
@@ -635,6 +677,20 @@
         if (!requestNo) {
             return;
         }
+
+        magicDetailLoading(true, 'Mencari draft ' + requestNo + '...');
+        // Batas aman: overlay tidak akan menutup halaman selamanya.
+        const loadingFallback = setTimeout(function() {
+            $(document).off('.magicAuto');
+            magicDetailLoading(false);
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Detail belum siap',
+                    text: 'Proses memuat terlalu lama. Silakan coba lagi melalui daftar Payment Request.'
+                });
+            }
+        }, 15000);
 
         console.log('Magic Link Request:', requestNo);
 
@@ -714,6 +770,9 @@
                 const $target =
                     $(target);
 
+                // Saved draft selalu dibuka di tab Payment Request.
+                // Jangan klik Draft NW/NWS: tab tersebut khusus checklist yang belum disimpan.
+
                 /*
                 | Tandai row
                 */
@@ -725,33 +784,37 @@
                     .addClass('active-row');
 
                 /*
-                | Trigger handler Detail
+                | Loading selesai setelah AJAX berhasil, HTML terpasang,
+                | DAN animasi slider sudah selesai.
                 */
-                $target.trigger('click');
-
-                /*
-                |--------------------------------------------------------------------------
-                | 4. Setelah detail muncul → scroll ke detail
-                |--------------------------------------------------------------------------
-                */
-
-                setTimeout(function() {
-
-                    const detail =
-                        document.getElementById(
-                            'draftDetailArea'
-                        );
-
-                    if (detail) {
-
-                        detail.scrollIntoView({
-                            behavior: 'smooth',
-                            block: 'start'
+                const draftId = String($target.attr('data-id'));
+                const cleanup = function() {
+                    $(document).off('paymentDetailSlideReady.magicAuto');
+                    $(document).off('paymentDetailLoadFailed.magicAuto');
+                    clearTimeout(loadingFallback);
+                };
+                $(document).on('paymentDetailSlideReady.magicAuto', function(event, readyId) {
+                    if (String(readyId) !== draftId) return;
+                    cleanup();
+                    magicDetailLoading(false);
+                });
+                $(document).on('paymentDetailLoadFailed.magicAuto', function(event, failedId) {
+                    if (String(failedId) !== draftId) return;
+                    cleanup();
+                    magicDetailLoading(false);
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal memuat detail',
+                            text: 'Silakan kembali ke daftar Payment Request dan coba lagi.'
                         });
-
+                    } else {
+                        alert('Gagal memuat detail. Silakan coba lagi.');
                     }
+                });
 
-                }, 700);
+                magicDetailLoading(true, 'Memuat data dan menyiapkan detail...');
+                $target.trigger('click');
 
                 return;
             }
@@ -770,6 +833,15 @@
                     'Request tidak ditemukan:',
                     requestNo
                 );
+                clearTimeout(loadingFallback);
+                magicDetailLoading(false);
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Draft tidak ditemukan',
+                        text: 'Nomor draft pada link tidak tersedia di daftar Payment Request.'
+                    });
+                }
 
             }
 
@@ -1030,117 +1102,133 @@
 
         }
     );
-    $(document).on(
-        'click',
-        '#btn-print',
-        function() {
+    $(document).on('click', '#btn-print', function () {
+        const original = document.getElementById('printArea');
+        if (!original) return;
 
-            let printContents =
-                $('#printArea').html();
-
-            let printWindow =
-                window.open(
-                    '',
-                    '',
-                    'width=1200,height=900'
-                );
-
-            printWindow.document.write(`
-            <html>
-            <head>
-
-                <title>
-                    Payment Request
-                </title>
-
-                <style>
-
-                    @page{
-                        size:A4 landscape;
-                        margin:10mm;
-                    }
-
-                    body{
-                        font-family:Arial;
-                        font-size:11px;
-                    }
-
-                    table{
-                        width:100%;
-                        border-collapse:collapse;
-                    }
-
-                    th,
-                    td{
-                        border:1px solid #000;
-                        padding:4px;
-                        font-size:11px;
-                    }
-
-                    .signature-section{
-                        page-break-inside:avoid;
-                    }
- #btn-print
-{
- display:none !important;}
-                </style>
-
-            </head>
-
-            <body>
-
-                ${printContents}
-
-            </body>
-
-            </html>
-        `);
-
-            printWindow.document.close();
-
-            printWindow.focus();
-
-            setTimeout(function() {
-                printWindow.print();
-
-                printWindow.close();
-
-            }, 500);
-
+        const printWindow = window.open('', '_blank', 'width=1200,height=900');
+        if (!printWindow) {
+            if (typeof Swal !== 'undefined') Swal.fire('Pop-up diblokir', 'Izinkan pop-up untuk mencetak.', 'warning');
+            return;
         }
-    );
 
-    // hint
-    $(window).on('load', function() {
-
-        const noReq = new URLSearchParams(
-            window.location.search
-        ).get('no_req');
-
-        if (!noReq) return;
-
-        setTimeout(function() {
-
-            const btn = $('.btn-detail-draft')
-                .filter(function() {
-
-                    return (
-                        String(
-                            $(this).data('request')
-                        ).trim() === noReq.trim()
-                    );
-
-                });
-
-            if (btn.length) {
-
-                btn.trigger('click');
-
+        // Clone agar tombol, input, dan approval interaktif pada layar tidak berubah.
+        const copy = original.cloneNode(true);
+        copy.querySelectorAll('.no-print, .print-instructions, #btn-print, .btn-approve, .btn-add-finance-draft, .btn-add-draft-finance').forEach(el => el.remove());
+        // CEO tidak dicetak, tetapi tetap ada pada halaman approval.
+        copy.querySelectorAll('.signature-section td').forEach(td => {
+            const label = td.querySelector('div')?.textContent?.trim() || '';
+            const text = td.textContent || '';
+            if (/^CEO$/i.test(label) || /\bCEO\b/i.test(text)) td.remove();
+        });
+        // Recon Fin hanya dicetak untuk baris dengan nominal recon berbeda.
+        // Jika semua nominal sama, hilangkan kolom sepenuhnya.
+        const reconCells = Array.from(copy.querySelectorAll('.payment-print-table tbody td.finance-adjustment-column'));
+        const hasChangedRecon = reconCells.some(td => {
+            const original = Number(td.dataset.originalAmount || 0);
+            const input = td.querySelector('.finance-adjustment');
+            const recon = Number(input ? input.value : td.dataset.reconAmount);
+            return Number.isFinite(recon) && Math.abs(original - recon) > 0.005;
+        });
+        reconCells.forEach(td => {
+            const original = Number(td.dataset.originalAmount || 0);
+            const input = td.querySelector('.finance-adjustment');
+            const recon = Number(input ? input.value : td.dataset.reconAmount);
+            if (!hasChangedRecon || !Number.isFinite(recon) || Math.abs(original - recon) <= 0.005) {
+                td.remove();
+            } else {
+                td.textContent = 'Rp ' + recon.toLocaleString('id-ID');
+                td.classList.add('recon-changed');
             }
+        });
+        // Untuk recon sebagian baris, pertahankan sel kosong agar tabel tetap sejajar.
+        if (hasChangedRecon) {
+            const bodyRows = copy.querySelectorAll('.payment-print-table tbody tr:not(.print-total-row)');
+            bodyRows.forEach(tr => {
+                if (!tr.querySelector('td.finance-adjustment-column')) {
+                    const empty = document.createElement('td');
+                    empty.className = 'finance-adjustment-column';
+                    tr.appendChild(empty);
+                }
+            });
+        } else {
+            copy.querySelectorAll('.payment-print-table th.finance-adjustment-column').forEach(th => th.remove());
+        }
+        const totalRow = copy.querySelector('.payment-print-table .print-total-row');
+        if (totalRow) {
+            const lastCell = totalRow.lastElementChild;
+            if (lastCell) lastCell.colSpan = hasChangedRecon ? 2 : 1;
+        }
+        // Ubah semua input menjadi teks hanya pada salinan print.
+        copy.querySelectorAll('input').forEach(input => {
+            const span = document.createElement('span');
+            span.textContent = input.value || '';
+            input.replaceWith(span);
+        });
+        copy.querySelectorAll('a').forEach(link => {
+            const span = document.createElement('span');
+            span.textContent = link.textContent;
+            link.replaceWith(span);
+        });
+        // Timestamp print tetap memakai waktu lokal browser.
+        const stamp = new Date().toLocaleString('en-US', {
+            month:'numeric', day:'numeric', year:'numeric',
+            hour:'numeric', minute:'2-digit', hour12:true
+        }) + ' || Printed on ERP';
+        const header = document.createElement('div');
+        header.className = 'erp-print-header';
+        header.textContent = stamp;
+        copy.prepend(header);
 
-        }, 1000);
-
+        printWindow.document.open();
+        printWindow.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Payment Request</title>
+        <style>
+          @page { size:A4 landscape; margin:0; }
+          * { box-sizing:border-box; }
+          body { margin:0; padding:12mm 11mm; font-family:Arial,sans-serif; font-size:10px; color:#111; }
+          .erp-print-header { text-align:right; font-size:9px; margin-bottom:8px; }
+          #printArea, #printArea > div { width:100%; max-width:100%; }
+          table { width:100%; border-collapse:collapse; }
+          th,td { border:1px solid #333; padding:4px; vertical-align:middle; }
+          .payment-print-table { table-layout:fixed; font-size:8px; }
+          .payment-print-table th,.payment-print-table td { padding:4px 3px; font-size:8px; overflow-wrap:anywhere; word-break:normal; }
+          .payment-print-table th:nth-child(1) {width:3%;}
+          .payment-print-table th:nth-child(2) {width:10%;}
+          .payment-print-table th:nth-child(3) {width:7%;}
+          .payment-print-table th:nth-child(4) {width:10%;}
+          .payment-print-table th:nth-child(5) {width:7%;}
+          .payment-print-table th:nth-child(6) {width:16%;}
+          .payment-print-table th:nth-child(7) {width:10%;}
+          .payment-print-table th:nth-child(8) {width:4%;}
+          .payment-print-table th:nth-child(9) {width:4%;}
+          .payment-print-table th:nth-child(10) {width:8%;}
+          .payment-print-table th:nth-child(11) {width:8%;}
+          .payment-print-table th:nth-child(12) {width:6%;}
+          .payment-print-table th:nth-child(13) {width:7%;}
+          .payment-print-table .recon-changed {font-weight:700;}
+          .payment-print-table td:nth-child(10),.payment-print-table td:nth-child(11) { text-align:right; }
+          .print-total-row td {font-weight:bold;}
+          .signature-section {margin-top:24px !important;break-inside:avoid;page-break-inside:avoid;}
+          .signature-section table {table-layout:fixed;}
+          .signature-section td {text-align:center;vertical-align:top;font-size:9px;}
+          .signature-section img {max-width:90px;max-height:45px;object-fit:contain;}
+          tr {break-inside:avoid;page-break-inside:avoid;}
+          .no-print,.print-instructions,#btn-print,.btn-approve,.btn-add-finance-draft,.btn-add-draft-finance {display:none !important;}
+          .card {border:0 !important;} .card-header {padding:5px 0 !important;}
+          .card-body {padding:0 !important;} h5 {margin:4px 0 7px;}
+        </style></head><body>${copy.outerHTML}</body></html>`);
+        printWindow.document.close();
+        // Tunggu gambar/logo agar tidak hilang pada print.
+        const images = Array.from(printWindow.document.images);
+        Promise.all(images.map(img => img.complete ? Promise.resolve() : new Promise(resolve => {
+            img.onload = resolve; img.onerror = resolve;
+        }))).then(() => {
+            printWindow.focus();
+            printWindow.print();
+            printWindow.onafterprint = () => printWindow.close();
+        });
     });
+
 </script>
 <style>
     @media print {
@@ -1275,6 +1363,16 @@
                     currentApprovals = [];
                 }
 
+
+                // Hanya filter tampilan pilihan approver untuk kelompok NWS.
+                const magicCode = String(button.attr('data-production-code') || '').toUpperCase();
+                if (['NWS', 'NWD', 'NWR'].includes(magicCode)) {
+                    currentApprovals = currentApprovals.filter(function(approval) {
+                        return Number(approval.user_id) !== 171 && !/\bvivi\b/i.test(String(approval
+                            .name || approval.user_name || '')) && !/head purchasing/i.test(
+                            String(approval.role || ''));
+                    });
+                }
 
                 console.log(
                     'Magic Approval:',
@@ -2240,161 +2338,169 @@
 
 
 <script>
-/*
+    /*
 |--------------------------------------------------------------------------
 | LOADING DOWNLOAD EXCEL 2-UP PER SUBKON
 |--------------------------------------------------------------------------
 | Menampilkan status saat server menyiapkan Excel dan persentase nyata
 | ketika browser mulai menerima file.
 */
-(function () {
-    if (window.__paymentRequestExcelLoadingBound) return;
-    window.__paymentRequestExcelLoadingBound = true;
+    (function() {
+        if (window.__paymentRequestExcelLoadingBound) return;
+        window.__paymentRequestExcelLoadingBound = true;
 
-    function getFilename(disposition) {
-        if (!disposition) return 'payment-request.xlsx';
+        function getFilename(disposition) {
+            if (!disposition) return 'payment-request.xlsx';
 
-        var utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
-        if (utf8Match && utf8Match[1]) {
-            try { return decodeURIComponent(utf8Match[1].replace(/["']/g, '')); }
-            catch (e) {}
-        }
-
-        var match = disposition.match(/filename="?([^";]+)"?/i);
-        return match && match[1] ? match[1] : 'payment-request.xlsx';
-    }
-
-    function showProgress(percent, message, indeterminate) {
-        var bar = document.getElementById('excelDownloadProgressBar');
-        var label = document.getElementById('excelDownloadProgressPercent');
-        var status = document.getElementById('excelDownloadProgressStatus');
-
-        if (bar) {
-            bar.style.width = percent + '%';
-            bar.setAttribute('aria-valuenow', percent);
-            bar.classList.toggle('progress-bar-striped', !!indeterminate);
-            bar.classList.toggle('progress-bar-animated', !!indeterminate);
-        }
-        if (label) label.textContent = indeterminate ? 'Memproses…' : percent + '%';
-        if (status) status.textContent = message;
-    }
-
-    document.addEventListener('click', function (event) {
-        var link = event.target.closest('a[href*="/export-excel-2up"]');
-        if (!link) return;
-
-        // Jangan mengambil alih link yang dibuka di tab baru atau dengan modifier.
-        if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey ||
-            (link.target && link.target !== '_self')) return;
-
-        event.preventDefault();
-        if (link.dataset.excelLoading === '1') return;
-
-        link.dataset.excelLoading = '1';
-        var originalHtml = link.innerHTML;
-        var originalTitle = link.getAttribute('title');
-
-        link.style.pointerEvents = 'none';
-        link.style.opacity = '0.65';
-        link.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
-        link.setAttribute('aria-busy', 'true');
-
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                title: 'Menyiapkan Excel',
-                html:
-                    '<div id="excelDownloadProgressStatus" style="margin-bottom:12px;">' +
-                    'Server sedang membuat file Excel…</div>' +
-                    '<div class="progress" style="height:18px;border-radius:9px;overflow:hidden;">' +
-                    '<div id="excelDownloadProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" ' +
-                    'role="progressbar" style="width:3%;transition:width .2s;" aria-valuemin="0" aria-valuemax="100" aria-valuenow="3"></div>' +
-                    '</div>' +
-                    '<div id="excelDownloadProgressPercent" style="margin-top:8px;font-weight:600;">Memproses…</div>',
-                allowOutsideClick: false,
-                allowEscapeKey: false,
-                showConfirmButton: false,
-                didOpen: function () { Swal.showLoading(); }
-            });
-        }
-
-        var xhr = new XMLHttpRequest();
-        xhr.open('GET', link.href, true);
-        xhr.responseType = 'blob';
-        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-
-        // Progress download aktual; sebelum respons mulai, tampilkan status proses.
-        xhr.onprogress = function (e) {
-            if (e.lengthComputable && e.total > 0) {
-                var percent = Math.min(100, Math.round((e.loaded / e.total) * 100));
-                showProgress(percent, 'Mengunduh file Excel…', false);
-            } else {
-                showProgress(3, 'Server sedang menyiapkan / mengirim file Excel…', true);
+            var utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+            if (utf8Match && utf8Match[1]) {
+                try {
+                    return decodeURIComponent(utf8Match[1].replace(/["']/g, ''));
+                } catch (e) {}
             }
-        };
 
-        xhr.onload = function () {
-            var contentType = (xhr.getResponseHeader('Content-Type') || '').toLowerCase();
+            var match = disposition.match(/filename="?([^";]+)"?/i);
+            return match && match[1] ? match[1] : 'payment-request.xlsx';
+        }
 
-            if (xhr.status >= 200 && xhr.status < 300 &&
-                xhr.response && xhr.response.size > 0 &&
-                !contentType.includes('text/html') &&
-                !contentType.includes('application/json')) {
+        function showProgress(percent, message, indeterminate) {
+            var bar = document.getElementById('excelDownloadProgressBar');
+            var label = document.getElementById('excelDownloadProgressPercent');
+            var status = document.getElementById('excelDownloadProgressStatus');
 
-                showProgress(100, 'Excel selesai. Menyiapkan unduhan…', false);
-
-                var filename = getFilename(xhr.getResponseHeader('Content-Disposition'));
-                var blobUrl = window.URL.createObjectURL(xhr.response);
-                var downloadLink = document.createElement('a');
-                downloadLink.href = blobUrl;
-                downloadLink.download = filename;
-                document.body.appendChild(downloadLink);
-                downloadLink.click();
-                downloadLink.remove();
-
-                setTimeout(function () { window.URL.revokeObjectURL(blobUrl); }, 30000);
-
-                if (typeof Swal !== 'undefined') {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Excel siap',
-                        text: 'File berhasil dibuat dan unduhan sudah dimulai.',
-                        timer: 1400,
-                        showConfirmButton: false
-                    });
-                }
-            } else {
-                var message = 'Gagal mengunduh Excel. Silakan coba kembali.';
-                if (xhr.status === 401 || xhr.status === 403) {
-                    message = 'Sesi atau izin akses tidak valid. Silakan login ulang.';
-                }
-                if (typeof Swal !== 'undefined') {
-                    Swal.fire({ icon: 'error', title: 'Download gagal', text: message });
-                } else {
-                    alert(message);
-                }
+            if (bar) {
+                bar.style.width = percent + '%';
+                bar.setAttribute('aria-valuenow', percent);
+                bar.classList.toggle('progress-bar-striped', !!indeterminate);
+                bar.classList.toggle('progress-bar-animated', !!indeterminate);
             }
-        };
+            if (label) label.textContent = indeterminate ? 'Memproses…' : percent + '%';
+            if (status) status.textContent = message;
+        }
 
-        xhr.onerror = function () {
+        document.addEventListener('click', function(event) {
+            var link = event.target.closest('a[href*="/export-excel-2up"]');
+            if (!link) return;
+
+            // Jangan mengambil alih link yang dibuka di tab baru atau dengan modifier.
+            if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey ||
+                (link.target && link.target !== '_self')) return;
+
+            event.preventDefault();
+            if (link.dataset.excelLoading === '1') return;
+
+            link.dataset.excelLoading = '1';
+            var originalHtml = link.innerHTML;
+            var originalTitle = link.getAttribute('title');
+
+            link.style.pointerEvents = 'none';
+            link.style.opacity = '0.65';
+            link.innerHTML = '<i class="fa fa-spinner fa-spin"></i>';
+            link.setAttribute('aria-busy', 'true');
+
             if (typeof Swal !== 'undefined') {
                 Swal.fire({
-                    icon: 'error',
-                    title: 'Koneksi bermasalah',
-                    text: 'File Excel tidak berhasil diunduh. Periksa koneksi lalu coba kembali.'
+                    title: 'Menyiapkan Excel',
+                    html: '<div id="excelDownloadProgressStatus" style="margin-bottom:12px;">' +
+                        'Server sedang membuat file Excel…</div>' +
+                        '<div class="progress" style="height:18px;border-radius:9px;overflow:hidden;">' +
+                        '<div id="excelDownloadProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" ' +
+                        'role="progressbar" style="width:3%;transition:width .2s;" aria-valuemin="0" aria-valuemax="100" aria-valuenow="3"></div>' +
+                        '</div>' +
+                        '<div id="excelDownloadProgressPercent" style="margin-top:8px;font-weight:600;">Memproses…</div>',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    showConfirmButton: false,
+                    didOpen: function() {
+                        Swal.showLoading();
+                    }
                 });
             }
-        };
 
-        xhr.onloadend = function () {
-            link.dataset.excelLoading = '0';
-            link.style.pointerEvents = '';
-            link.style.opacity = '';
-            link.innerHTML = originalHtml;
-            link.removeAttribute('aria-busy');
-            if (originalTitle) link.setAttribute('title', originalTitle);
-        };
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', link.href, true);
+            xhr.responseType = 'blob';
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
 
-        xhr.send();
-    });
-})();
+            // Progress download aktual; sebelum respons mulai, tampilkan status proses.
+            xhr.onprogress = function(e) {
+                if (e.lengthComputable && e.total > 0) {
+                    var percent = Math.min(100, Math.round((e.loaded / e.total) * 100));
+                    showProgress(percent, 'Mengunduh file Excel…', false);
+                } else {
+                    showProgress(3, 'Server sedang menyiapkan / mengirim file Excel…', true);
+                }
+            };
+
+            xhr.onload = function() {
+                var contentType = (xhr.getResponseHeader('Content-Type') || '').toLowerCase();
+
+                if (xhr.status >= 200 && xhr.status < 300 &&
+                    xhr.response && xhr.response.size > 0 &&
+                    !contentType.includes('text/html') &&
+                    !contentType.includes('application/json')) {
+
+                    showProgress(100, 'Excel selesai. Menyiapkan unduhan…', false);
+
+                    var filename = getFilename(xhr.getResponseHeader('Content-Disposition'));
+                    var blobUrl = window.URL.createObjectURL(xhr.response);
+                    var downloadLink = document.createElement('a');
+                    downloadLink.href = blobUrl;
+                    downloadLink.download = filename;
+                    document.body.appendChild(downloadLink);
+                    downloadLink.click();
+                    downloadLink.remove();
+
+                    setTimeout(function() {
+                        window.URL.revokeObjectURL(blobUrl);
+                    }, 30000);
+
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Excel siap',
+                            text: 'File berhasil dibuat dan unduhan sudah dimulai.',
+                            timer: 1400,
+                            showConfirmButton: false
+                        });
+                    }
+                } else {
+                    var message = 'Gagal mengunduh Excel. Silakan coba kembali.';
+                    if (xhr.status === 401 || xhr.status === 403) {
+                        message = 'Sesi atau izin akses tidak valid. Silakan login ulang.';
+                    }
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Download gagal',
+                            text: message
+                        });
+                    } else {
+                        alert(message);
+                    }
+                }
+            };
+
+            xhr.onerror = function() {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Koneksi bermasalah',
+                        text: 'File Excel tidak berhasil diunduh. Periksa koneksi lalu coba kembali.'
+                    });
+                }
+            };
+
+            xhr.onloadend = function() {
+                link.dataset.excelLoading = '0';
+                link.style.pointerEvents = '';
+                link.style.opacity = '';
+                link.innerHTML = originalHtml;
+                link.removeAttribute('aria-busy');
+                if (originalTitle) link.setAttribute('title', originalTitle);
+            };
+
+            xhr.send();
+        });
+    })();
 </script>

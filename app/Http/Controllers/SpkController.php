@@ -894,6 +894,7 @@ class SpkController extends Controller
             )
         );
     }
+
     //     public function index(Request $request, $id)
 // {
 //     $viewOnly = $request->is('spk/views/*');
@@ -6107,23 +6108,75 @@ class SpkController extends Controller
      * TEST DUMMY EVENT
      * ===============================
      */
+
+
     public function paymentstore(Request $request)
     {
         DB::beginTransaction();
+
         try {
-            $spk = Spk::findOrFail(
-                $request->spk_id
-            );
+
+            // =====================================================
+            // GET SPK
+            // =====================================================
+
+            $spk = Spk::findOrFail($request->spk_id);
+
             $pay = $request->payment;
+
             $data = $spk->data;
-            $payments =
-                collect($data['payments'] ?? []);
-            // =========================
+
+            $payments = collect($data['payments'] ?? []);
+
+            // =====================================================
+            // PRODUCTION CODE OTOMATIS DARI NOMOR SPK
+            //
+            // NW  => NW
+            // NWS => NWS
+            // NWD => NWS
+            // NWR => NWS
+            // =====================================================
+
+            $noSpk = $data['no_spk'] ?? '';
+
+            $productionCode = null;
+
+            if (
+                preg_match(
+                    '/\/(NWS|NWD|NWR|NW)(?=\s|\/|-|$)/i',
+                    $noSpk,
+                    $matches
+                )
+            ) {
+
+                $spkCode = strtoupper($matches[1]);
+
+                if (
+                    in_array(
+                        $spkCode,
+                        ['NWS', 'NWD', 'NWR']
+                    )
+                ) {
+
+                    $productionCode = 'NWS';
+
+                } else {
+
+                    $productionCode = 'NW';
+
+                }
+            }
+
+            // =====================================================
             // FORMAT DATE
-            // =========================
+            // =====================================================
+
             $paymentDate = null;
+
             if (!empty($pay['date'])) {
+
                 try {
+
                     $paymentDate =
                         strlen($pay['date']) == 8
                         ? Carbon::createFromFormat(
@@ -6134,153 +6187,219 @@ class SpkController extends Controller
                             'd/m/Y',
                             $pay['date']
                         );
+
                 } catch (\Exception $e) {
+
                     $paymentDate = null;
+
                 }
             }
+
             // =====================================================
             // UNCHECK
             // =====================================================
+
             if (!$pay['is_request']) {
-                // =========================
+
+                // =================================================
                 // FIND PR BY PAYMENT ID
-                // =========================
+                // =================================================
+
                 $pr = PaymentRequest::where(
                     'payment_id',
                     $pay['payment_id']
                 )->first();
-                // =========================
-                // DELETE PR
-                // =========================
+
+                // =================================================
+                // DELETE PAYMENT REQUEST
+                // =================================================
+
                 if ($pr) {
-                    // sementara bebas delete dulu
+
+                    // Mengikuti behavior existing
                     $pr->delete();
+
                 }
-                // =========================
-                // UPDATE JSON
-                // =========================
-                $updatedPayments =
-                    $payments->map(function ($item) use ($pay) {
+
+                // =================================================
+                // UPDATE JSON SPK
+                // =================================================
+
+                $updatedPayments = $payments
+                    ->map(function ($item) use ($pay) {
+
                         if (
                             $item['payment_id']
-                            ==
-                            $pay['payment_id']
+                            == $pay['payment_id']
                         ) {
+
                             $item['is_request'] = false;
+
                             $item['pr_id'] = null;
+
                         }
+
                         return $item;
+
                     })
-                        ->values()
-                        ->toArray();
-                $data['payments'] =
-                    $updatedPayments;
+                    ->values()
+                    ->toArray();
+
+                $data['payments'] = $updatedPayments;
+
                 $spk->update([
                     'data' => $data,
                 ]);
+
                 DB::commit();
+
                 return response()->json([
                     'success' => true,
-                    'message' =>
-                        'Request dibatalkan',
+                    'message' => 'Request dibatalkan',
                 ]);
             }
+
             // =====================================================
             // CHECKLIST
             // =====================================================
-            $currentPayment =
-                $payments->firstWhere(
-                    'payment_id',
-                    $pay['payment_id']
-                );
-            // =========================
-            // SUDAH ADA PR?
-            // =========================
-            if (
-                !empty($currentPayment['pr_id'])
-            ) {
+
+            $currentPayment = $payments->firstWhere(
+                'payment_id',
+                $pay['payment_id']
+            );
+
+            // =====================================================
+            // CHECK EXISTING PAYMENT REQUEST
+            // =====================================================
+
+            if (!empty($currentPayment['pr_id'])) {
+
                 DB::commit();
+
                 return response()->json([
                     'success' => true,
-                    'message' =>
-                        'PR sudah ada',
+                    'message' => 'PR sudah ada',
+                    'pr_id' => $currentPayment['pr_id'],
                 ]);
             }
-            // =========================
-            // CREATE PR
-            // =========================
+
+            // =====================================================
+            // CREATE PAYMENT REQUEST
+            // =====================================================
+
             $pr = PaymentRequest::create([
-                'spk_id' =>
-                    $spk->id,
-                'payment_id' =>
-                    $pay['payment_id'],
-                'request_no' =>
-                    $this->generateRequestNo(),
-                'no_spk' =>
-                    $request->no_spk,
-                'no_po' =>
-                    $spk->data['no_po'] ?? null,
-                'supplier' =>
-                    $spk->data['sup'] ?? null,
-                'kategori' =>
-                    $spk->data['kategori'] ?? null,
-                // PAYMENT
-                'payment_type' =>
-                    $pay['note'],
-                // 'total_amount' =>
-                // (int) $pay['amount'],
-                'payment_date' =>
-                    $paymentDate,
-                'note' =>
-                    $pay['note_tambahan'] ?? null,
-                // REQUEST
-                'request_date' =>
-                    now(),
-                'status' =>
-                    'draft',
-                'created_by' =>
-                    auth()->id(),
-                'spk_snapshot' =>
-                    $spk->data,
+
+                // =================================================
+                // SPK INFORMATION
+                // =================================================
+
+                'spk_id' => $spk->id,
+
+                'payment_id' => $pay['payment_id'],
+
+                'request_no' => $this->generateRequestNo(),
+
+                'no_spk' => $noSpk,
+
+                // =================================================
+                // PRODUCTION CODE
+                // =================================================
+
+                'production_code' => $productionCode,
+
+                // =================================================
+                // OTHER SPK INFORMATION
+                // =================================================
+
+                'no_po' => $data['no_po'] ?? null,
+
+                'supplier' => $data['sup'] ?? null,
+
+                'kategori' => $data['kategori'] ?? null,
+
+                // =================================================
+                // PAYMENT INFORMATION
+                // =================================================
+
+                'payment_type' => $pay['note'],
+
+                // Total amount tetap mengikuti existing
+                // 'total_amount' => (int) $pay['amount'],
+
+                'payment_date' => $paymentDate,
+
+                'note' => $pay['note_tambahan'] ?? null,
+
+                // =================================================
+                // REQUEST INFORMATION
+                // =================================================
+
+                'request_date' => now(),
+
+                'status' => 'draft',
+
+                'created_by' => auth()->id(),
+
+                'spk_snapshot' => $data,
+
             ]);
-            // =========================
-            // UPDATE JSON
-            // =========================
-            $updatedPayments =
-                $payments->map(function ($item) use ($pay, $pr) {
+
+            // =====================================================
+            // UPDATE JSON SPK
+            // =====================================================
+
+            $updatedPayments = $payments
+                ->map(function ($item) use ($pay, $pr) {
+
                     if (
                         $item['payment_id']
-                        ==
-                        $pay['payment_id']
+                        == $pay['payment_id']
                     ) {
+
                         $item['is_request'] = true;
-                        $item['pr_id'] =
-                            $pr->id;
+
+                        $item['pr_id'] = $pr->id;
+
                     }
+
                     return $item;
+
                 })
-                    ->values()
-                    ->toArray();
-            $data['payments'] =
-                $updatedPayments;
+                ->values()
+                ->toArray();
+
+            $data['payments'] = $updatedPayments;
+
             $spk->update([
                 'data' => $data,
             ]);
+
             DB::commit();
+
+            // =====================================================
+            // RESPONSE SUCCESS
+            // =====================================================
+
             return response()->json([
                 'success' => true,
-                'message' =>
-                    'PR berhasil dibuat',
+                'message' => 'PR berhasil dibuat',
                 'pr_id' => $pr->id,
+                'production_code' => $productionCode,
             ]);
+
         } catch (\Throwable $e) {
+
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
             ], 500);
+
         }
     }
+
+
     public function saveDraftRequest(
         Request $request
     ) {
@@ -6601,6 +6720,14 @@ class SpkController extends Controller
                     'spk_no' =>
                         $spkData['no_spk'] ?? '-',
 
+                    'production_code' => (function () use ($spkData, $request) {
+                        $no = $spkData['no_spk'] ?? $request->no_spk ?? '';
+                        if (preg_match('/\/(NWS|NWD|NWR|NW)(?=\s|\/|-|$)/i', $no, $m)) {
+                            return strtoupper($m[1]) === 'NW' ? 'NW' : 'NWS';
+                        }
+                        return strtoupper($request->production_code ?? '');
+                    })(),
+
                     'no_po' =>
                         $spkData['no_po'] ?? '-',
 
@@ -6846,6 +6973,15 @@ class SpkController extends Controller
                 |
                 */
 
+                // Klasifikasi saved draft lama jika production_code masih kosong.
+                $draftCode = strtoupper(trim($draft->production_code ?? ''));
+                if (!in_array($draftCode, ['NW', 'NWS'], true)) {
+                    $firstSpk = $paymentRequests->first()['spk_no'] ?? '';
+                    if (preg_match('/\/(NWS|NWD|NWR|NW)(?=\s|\/|-|$)/i', $firstSpk, $m)) {
+                        $draftCode = strtoupper($m[1]) === 'NW' ? 'NW' : 'NWS';
+                    }
+                }
+
                 $approvals = PaymentRequestApproval::with([
                     'user.karyawan.divisi'
                 ])
@@ -6869,6 +7005,13 @@ class SpkController extends Controller
                 | yang statusnya Pending.
                 |
                 */
+
+                if ($draftCode === 'NWS') {
+                    $approvals = $approvals->reject(function ($approval) {
+                        return (int) $approval->user_id === 171
+                            || strcasecmp(trim((string) $approval->role), 'Head Purchasing') === 0;
+                    })->values();
+                }
 
                 $pendingApproval = $approvals
 
@@ -7029,6 +7172,13 @@ class SpkController extends Controller
 
                     'request_no' =>
                         $draft->request_no,
+
+                    'production_code' => $draftCode,
+                    'created_by' => $draft->created_by,
+                    'made_by' => (function () use ($draft) {
+                        $creator = \App\Models\User::find($draft->created_by);
+                        return $creator?->name ?: ($creator?->karyawan?->nama ?? '-');
+                    })(),
 
                     'request_date' =>
                         $draft->request_date,
@@ -7492,152 +7642,103 @@ class SpkController extends Controller
             ], 500);
         }
     }
-    public function saveDraftGroup(
-        Request $request
-    ) {
 
-        $request->validate([
-
-            'ids' => 'required|array',
-
-            'request_date' =>
-                'required|date',
-
-            'need_date' =>
-                'required|date',
+    public function saveDraftGroup(Request $request)
+    {
+        $validated = $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'required|integer|distinct',
+            'request_date' => 'required|date',
+            'need_date' => 'required|date',
         ]);
 
-        $paymentRequests =
-            PaymentRequest::whereIn(
-                'id',
-                $request->ids
-            )->get();
+        return DB::transaction(function () use ($validated) {
+            $ids = array_map('intval', $validated['ids']);
+            $paymentRequests = PaymentRequest::with('spk')
+                ->whereIn('id', $ids)
+                ->lockForUpdate()
+                ->get();
 
-        $grandTotal = 0;
+            if ($paymentRequests->count() !== count($ids)) {
+                return response()->json(['success' => false, 'message' => 'Payment Request tidak lengkap.'], 422);
+            }
+            if ($paymentRequests->contains(fn($pr) => $pr->status !== 'draft')) {
+                return response()->json(['success' => false, 'message' => 'Ada Payment Request yang sudah diproses.'], 422);
+            }
 
-        foreach ($paymentRequests as $paymentRequest) {
+            $codes = $paymentRequests->map(function ($pr) {
+                $data = $pr->spk?->data ?? [];
+                if (is_string($data))
+                    $data = json_decode($data, true) ?: [];
+                $noSpk = $pr->no_spk ?: ($data['no_spk'] ?? '');
+                if (preg_match('/\/(NWS|NWD|NWR|NW)(?=\s|\/|-|$)/i', $noSpk, $match)) {
+                    return strtoupper($match[1]) === 'NW' ? 'NW' : 'NWS';
+                }
+                $code = strtoupper(trim($pr->production_code ?? ''));
+                return $code === 'NW' ? 'NW' : (in_array($code, ['NWS', 'NWD', 'NWR'], true) ? 'NWS' : null);
+            })->unique()->values();
 
-            $spkData = is_string(
-                $paymentRequest->spk->data
-            )
-                ? json_decode(
-                    $paymentRequest->spk->data,
-                    true
-                )
-                : $paymentRequest->spk->data;
+            if ($codes->count() !== 1 || !in_array($codes->first(), ['NW', 'NWS'], true)) {
+                return response()->json(['success' => false, 'message' => 'NW dan NWS tidak boleh dicampur atau kode SPK tidak dikenali.'], 422);
+            }
+            $productionCode = $codes->first();
 
-            $payment = collect(
-                $spkData['payments'] ?? []
-            )->firstWhere(
-                    'payment_id',
-                    $paymentRequest->payment_id
-                );
+            $grandTotal = 0;
+            foreach ($paymentRequests as $pr) {
+                if (!$pr->spk) {
+                    return response()->json(['success' => false, 'message' => 'SPK tidak ditemukan.'], 422);
+                }
+                $spkData = $pr->spk->data;
+                if (is_string($spkData))
+                    $spkData = json_decode($spkData, true) ?: [];
+                $payment = collect($spkData['payments'] ?? [])->firstWhere('payment_id', $pr->payment_id);
+                if (!$payment) {
+                    return response()->json(['success' => false, 'message' => 'Payment ID tidak ditemukan pada SPK.'], 422);
+                }
+                $grandTotal += (float) ($payment['amount'] ?? 0);
+            }
 
-            $grandTotal += (float) (
-                $payment['amount'] ?? 0
-            );
-        }
-
-        $saved =
-            PaymentRequestSaved::create([
-
-                'request_no' =>
-                    'DR-' .
-                    now()->format('ymdHis'),
-
-                'request_date' =>
-                    $request->request_date,
-
-                'need_date' =>
-                    $request->need_date,
-
-                'payment_request_ids' =>
-                    $request->ids,
-
-                'grand_total' =>
-                    $grandTotal,
-
-                'status' =>
-                    'Diajukan',
-
-                'created_by' =>
-                    auth()->id(),
+            $saved = PaymentRequestSaved::create([
+                'request_no' => 'DR-' . now()->format('ymdHis') . str_pad((string) random_int(0, 999), 3, '0', STR_PAD_LEFT),
+                'request_date' => $validated['request_date'],
+                'need_date' => $validated['need_date'],
+                'payment_request_ids' => $ids,
+                'grand_total' => $grandTotal,
+                'production_code' => $productionCode,
+                'status' => 'Diajukan',
+                'created_by' => auth()->id(),
             ]);
-        // user tap
-        $approvers = [
 
-            [
-                'user_id' => 171,
-                'step' => 1,
-                'role' => 'Head Purchasing'
-            ],
-
-            [
-                'user_id' => 178,
-                'step' => 2,
-                'role' => 'Production Manager'
-            ],
-            [
-                'user_id' => 191,
-                'step' => 3,
-                'role' => 'Director'
-            ],
-            [
-                'user_id' => 141,
-                'step' => 4,
-                'role' => 'General Manager'
-            ],
-            [
-                'user_id' => 134,
-                'step' => 5,
-                'role' => 'Finance'
-            ],
-
-
-            [
-                'user_id' => 190,
-                'step' => 6,
-                'role' => 'CEO'
-            ],
-
-        ];
-
-        foreach ($approvers as $approval) {
-
-            PaymentRequestApproval::create([
-
-                'payment_request_saved_id' => $saved->id,
-
-                'user_id' => $approval['user_id'],
-
-                'step' => $approval['step'],
-
-                'role' => $approval['role'],
-
-                'status' => 'Pending'
-
-            ]);
-        }
-        PaymentRequest::whereIn(
-            'id',
-            $request->ids
-        )->update([
-
-                    'status' =>
-                        'saved'
+            $approvers = [
+                ['user_id' => 171, 'role' => 'Head Purchasing'],
+                ['user_id' => 178, 'role' => 'Production Manager'],
+                ['user_id' => 191, 'role' => 'Director'],
+                ['user_id' => 141, 'role' => 'General Manager'],
+                ['user_id' => 134, 'role' => 'Finance'],
+                ['user_id' => 190, 'role' => 'CEO'],
+            ];
+            if ($productionCode === 'NWS') {
+                $approvers = array_values(array_filter($approvers, fn($a) => (int) $a['user_id'] !== 171));
+            }
+            foreach ($approvers as $index => $approval) {
+                PaymentRequestApproval::create([
+                    'payment_request_saved_id' => $saved->id,
+                    'user_id' => $approval['user_id'],
+                    'step' => $index + 1,
+                    'role' => $approval['role'],
+                    'status' => 'Pending',
                 ]);
-
-        return response()->json([
-
-            'success' => true,
-
-            'message' =>
-                'Draft berhasil dibuat',
-
-            'id' =>
-                $saved->id,
-        ]);
+            }
+            PaymentRequest::whereIn('id', $ids)->update(['status' => 'saved', 'production_code' => $productionCode]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Draft berhasil dibuat',
+                'id' => $saved->id,
+                'production_code' => $productionCode,
+            ]);
+        });
     }
+
     public function detailDraft($id)
     {
         $draft = PaymentRequestSaved::findOrFail($id);
@@ -7652,6 +7753,23 @@ class SpkController extends Controller
             ->where('payment_request_saved_id', $draft->id)
             ->orderBy('step')
             ->get();
+
+        $draftProductionCode = strtoupper(trim((string) $draft->production_code));
+        if (!in_array($draftProductionCode, ['NW', 'NWS'], true)) {
+            $firstPr = PaymentRequest::with('spk')
+                ->whereIn('id', $draft->payment_request_ids ?? [])->first();
+            $spkData = $firstPr?->spk?->data ?? [];
+            if (is_string($spkData))
+                $spkData = json_decode($spkData, true) ?: [];
+            $spkNo = $firstPr?->no_spk ?: ($spkData['no_spk'] ?? '');
+            if (preg_match('/\/(NWS|NWD|NWR|NW)(?=\s|\/|-|$)/i', $spkNo, $match)) {
+                $draftProductionCode = strtoupper($match[1]) === 'NW' ? 'NW' : 'NWS';
+            }
+        }
+        if ($draftProductionCode === 'NWS') {
+            $approvals = $approvals->reject(fn($a) => (int) $a->user_id === 171
+                || strcasecmp(trim((string) $a->role), 'Head Purchasing') === 0)->values();
+        }
 
         /*
         |--------------------------------------------------------------------------
@@ -8130,6 +8248,17 @@ class SpkController extends Controller
         return response()->json([
             'id' => $draft->id,
             'request_no' => $draft->request_no,
+            'production_code' => (function () use ($draft, $items) {
+                $code = strtoupper(trim($draft->production_code ?? ''));
+                if (in_array($code, ['NW', 'NWS'], true))
+                    return $code;
+                $no = $items->first()['spk_no'] ?? '';
+                if (preg_match('/\/(NWS|NWD|NWR|NW)(?=\s|\/|-|$)/i', $no, $m)) {
+                    return strtoupper($m[1]) === 'NW' ? 'NW' : 'NWS';
+                }
+                return '';
+            })(),
+            'department' => $draftProductionCode === 'NWS' ? 'RND Engineering' : 'Purchasing',
             'request_date' => $draft->request_date,
             'need_date' => $draft->need_date,
             'grand_total' => $draft->grand_total,
@@ -8152,6 +8281,9 @@ class SpkController extends Controller
             }),
         ]);
     }
+    // payment request draft
+   
+
     // payment request draft
     private function generateRequestNo()
     {
@@ -8288,7 +8420,7 @@ class SpkController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'SPK berhasil diajukan'
+            'message' => 'jalan jalan kebekasi, Rouf ganteng bgt si'
         ]);
     }
     // approve sign in pengajuan spk
@@ -8977,5 +9109,13 @@ class SpkController extends Controller
                 'Pragma' => 'public',
             ]
         );
+    }
+    private function getProductionCode(?string $noSpk): ?string
+    {
+        if (preg_match('/\/(NWS|NW)(?=\s|\/|-|$)/i', $noSpk ?? '', $match)) {
+            return strtoupper($match[1]);
+        }
+
+        return null;
     }
 }

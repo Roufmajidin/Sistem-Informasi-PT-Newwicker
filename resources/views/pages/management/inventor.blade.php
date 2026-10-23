@@ -1895,112 +1895,70 @@
                 });
             });
             // NWS filter
-            $(document).on('change', '#filterSpkType', function() {
-                let value = $(this).val().trim().toUpperCase();
-                $('table tbody tr').show();
-                $('table tbody tr').each(function() {
-                    let text = $(this)
-                        .find('td:eq(1)')
-                        .text()
-                        .trim()
-                        .toUpperCase();
-                    // ambil bagian setelah /
-                    let parts = text.split('/');
-                    // contoh:
-                    // 26-0010/NWS 26 - 31/05/2026
-                    // hasil => NWS
-                    let prefix = '';
-                    if (parts.length > 1) {
-                        prefix = parts[1].trim().split(' ')[0];
-                    }
-                    // semua
-                    if (value === '') {
-                        $(this).show();
-                        return;
-                    }
-                    // filter
-                    if (prefix === value) {
-                        $(this).show();
-                    } else {
-                        $(this).hide();
-                    }
-                });
-            });
         </script>
         <script>
-            $(document).on('keyup', '#searchSpk', function() {
-                let keyword = $(this).val().toLowerCase();
-                $('.inventor-table tbody tr').each(function() {
-                    let rowText = $(this)
-                        .text()
-                        .toLowerCase();
-                    $(this).toggle(
-                        rowText.indexOf(keyword) > -1
-                    );
-                });
-            });
         </script>
         <script>
-            $(document).on('click', '.btn-ajukan', function() {
+            // Filter gabungan agar pilihan tidak saling me-reset.
+            function applySpkFilters() {
+                const status = $('#filterStatus').val();
+                const type = ($('#filterSpkType').val() || '').toUpperCase();
+                const supplier = ($('#searchSub').val() || '').trim().toLowerCase();
+                const keyword = ($('#searchSpk').val() || '').trim().toLowerCase();
 
-                let id = $(this).data('id');
-                let spk = $(this).data('spk');
-
-                Swal.fire({
-                    title: 'jalan jalan ke bekasi, pulangnya beli ikan, lanjutkan??',
-                    html: `
-                SPK No <b>${spk}</b>
-                akan diajukan?
-            `,
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonText: 'Ya',
-                    cancelButtonText: 'Cancel'
-                }).then((result) => {
-
-                    if (result.isConfirmed) {
-
-                        $.post(
-                            `/spk/${id}/submit-signature`, {
-                                _token: $('meta[name="csrf-token"]')
-                                    .attr('content')
-                            },
-                            function(res) {
-
-                                Swal.fire({
-                                    icon: 'success',
-                                    title: 'Berhasil',
-                                    text: res.message
-                                }).then(() => {
-                                    location.reload();
-                                });
-
-                            }
-                        );
-
-                    }
-
+                $('.inventor-table tbody tr.spk-row').each(function() {
+                    const $row = $(this);
+                    const rowStatus = String($row.attr('data-status') || '').toLowerCase();
+                    const spkText = $row.find('td:eq(1)').text().trim().toUpperCase();
+                    const spkType = (spkText.split('/')[1] || '').trim().split(/\s+/)[0];
+                    const supplierText = $row.find('td:eq(2)').text().toLowerCase();
+                    const searchText = ($row.find('td:eq(1)').text() + ' ' +
+                        $row.find('.po-col').text()).toLowerCase();
+                    $row.toggle((!status || rowStatus === status) &&
+                        (!type || spkType === type) &&
+                        (!supplier || supplierText.includes(supplier)) &&
+                        (!keyword || searchText.includes(keyword)));
                 });
+            }
 
-            });
-            // tr fiter kategorir diajkuan/blm
-            $(document).on('change', '#filterStatus', function() {
+            // Menggantikan handler filter lama tanpa mengganggu handler lain.
+            $(document).off('change', '#filterStatus');
+            $(document).off('change', '#filterSpkType');
+            $(document).off('keyup', '#searchSpk');
+            $('#searchSub').off('input');
+            $(document).on('change', '#filterStatus, #filterSpkType', applySpkFilters);
+            $(document).on('input', '#searchSpk, #searchSub', applySpkFilters);
 
-                let status = $(this).val();
+            $(document).on('click', '.btn-ajukan', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const $button = $(this);
+                if ($button.prop('disabled')) return;
+                const id = $button.data('id');
+                const $row = $button.closest('tr.spk-row');
+                $button.prop('disabled', true).text('Memproses...');
 
-                $('.inventor-table tbody tr').each(function() {
-
-                    let rowStatus = $(this).data('status');
-
-                    if (status == '') {
-                        $(this).show();
-                    } else {
-                        $(this).toggle(rowStatus == status);
+                $.ajax({
+                    url: `/spk/${encodeURIComponent(id)}/submit-signature`,
+                    type: 'POST',
+                    data: { _token: $('meta[name="csrf-token"]').attr('content') },
+                    success: function(res) {
+                        $row.attr('data-status', 'diajukan').data('status', 'diajukan');
+                        $button.remove();
+                        applySpkFilters();
+                        Swal.fire({ toast: true, position: 'top-end', icon: 'success',
+                            title: res.message || 'Rouf Ganteng',
+                            showConfirmButton: false, timer: 1800, timerProgressBar: true });
+                    },
+                    error: function(xhr) {
+                        $button.prop('disabled', false).text('Ajukan');
+                        Swal.fire({ toast: true, position: 'top-end', icon: 'error',
+                            title: xhr.responseJSON?.message || 'Gagal mengajukan SPK',
+                            showConfirmButton: false, timer: 3000 });
                     }
-
                 });
-
             });
+            applySpkFilters();
             // update vivi
             $(document).on('keypress', '.harga-vivi-input', function(e) {
 
@@ -2049,25 +2007,6 @@
                     } else {
                         $(this).hide();
                     }
-
-                });
-
-            });
-            $('#searchSub').on('input', function() {
-
-                let keyword = $(this).val().toLowerCase();
-
-                $('.inventor-table tbody tr').each(function() {
-
-                    let supplier = $(this)
-                        .find('td:eq(2)')
-                        .text()
-                        .trim()
-                        .toLowerCase();
-
-                    $(this).toggle(
-                        keyword === '' || supplier.includes(keyword)
-                    );
 
                 });
 

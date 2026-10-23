@@ -653,6 +653,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/cad', [CadController::class, 'all'])->name('cad.all');
     Route::get('/laporan', [LaporanController::class, 'index'])
         ->name('laporan.index');
+    Route::get('/laporan/export-excel', [LaporanController::class, 'exportExcel'])
+    ->name('laporan.export');
     Route::get('/laporan/warehouse-history', [LaporanController::class, 'warehouseHistory'])
         ->name('laporan.warehouse-history');
 

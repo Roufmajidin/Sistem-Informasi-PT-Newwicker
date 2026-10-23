@@ -16,13 +16,18 @@
                     </button>
                 </li>
                 <li class="nav-item">
-                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#payment-request-tab">
-                        Draft Request
+                    <button class="nav-link active draft-production-tab" data-bs-toggle="tab" data-bs-target="#payment-request-tab" data-production-filter="NW">
+                        Draft NW
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link draft-production-tab" data-bs-toggle="tab" data-bs-target="#payment-request-tab" data-production-filter="NWS">
+                        Draft NWS
                     </button>
                 </li>
             </ul>
             <div class="tab-content">
-                <div class="tab-pane fade" id="payment-request-tab">
+                <div class="tab-pane fade show active" id="payment-request-tab">
                     <div style="
             background:white;
             padding:20px;
@@ -144,7 +149,7 @@
                     font-weight:bold;
                     cursor:pointer;
                 ">
-                                ðŸ’¾ Save Draft Request
+                                💾 Save Draft Request
                             </button>
                         </div>
                         {{-- TABLE --}}
@@ -194,7 +199,7 @@
                                     </th>
                                     <th class="pr-th">
                                         Status
-
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -204,7 +209,15 @@
                                     $no = 1;
                                 @endphp
                                 @foreach ($requests as $row)
-                                                        <tr>
+                                    @php
+                                        $spkNumber = $row['spk_no'] ?? $row['no_spk'] ?? '';
+                                        $rawCode = strtoupper(trim($row['production_code'] ?? ''));
+                                        if (preg_match('/\/(NWS|NWD|NWR|NW)(?=\s|\/|-|$)/i', $spkNumber, $codeMatch)) {
+                                            $rawCode = strtoupper($codeMatch[1]);
+                                        }
+                                        $rowProductionCode = in_array($rawCode, ['NWS', 'NWD', 'NWR'], true) ? 'NWS' : $rawCode;
+                                    @endphp
+                                                        <tr class="draft-payment-row" data-production-code="{{ $rowProductionCode }}" data-payment-amount="{{ $row['payment_amount'] ?? 0 }}">
                                                             <td class="pr-td" align="center">
                                                                 <input type="checkbox" class="request-check-item" value="{{ $row['id'] }}">
                                                             </td>
@@ -232,10 +245,10 @@
                                                                 {{ strtoupper($row['payment_note']) }}
                                                             </td>
                                                             <td class="pr-td">
-                                                                {{ $row['payment_note'] }}
+                                                                1
                                                             </td>
                                                             <td class="pr-td" align="center">
-                                                                1
+                                                                -
                                                             </td>
                                                             <td class="pr-td" align="right">
                                                                 Rp
@@ -264,7 +277,7 @@
                                         Rp {{ number_format($totalDraft, 0, ',', '.') }}
                                     </th>
 
-                                    <th colspan="3"></th>
+                                    <th colspan="1"></th>
                                 </tr>
                             </tfoot>
                         </table>
@@ -469,11 +482,11 @@
                 <!-- tab2 -->
                 <!-- {{ print_r($draftRequests, true) }} -->
 
-                <div class="tab-pane fade show active" id="draft-request-tab">
+                <div class="tab-pane fade" id="draft-request-tab">
                     <div class="card">
                         <div class="card-header payment-request-card-header">
                             <div class="payment-request-title-row">
-                                <button type="button" id="btnBackDraftList" class="btn-back-draft" style="display:none;"
+                                <button type="button" id="btnBackDraftList" class="btn-back-draft btn-secondary" style="display:none;"
                                     title="Back to Payment Requests">
                                     <i class="fa fa-arrow-left"></i>
                                     <span>Back</span>
@@ -483,12 +496,12 @@
                                     Payment Requests
                                 </h5>
                             </div>
-
+{{-- 
                             <small class="text-success">
                                 <i class="fa fa-info-circle"></i>
                                 Klik <b>Detail</b> pada pengajuan paling atas <b>(NEW)</b>. Setelah halaman detail terbuka,
                                 scroll ke bawah untuk melakukan <b>Approve</b>.
-                            </small>
+                            </small> --}}
                         </div>
 
                         <div class="card-body">
@@ -500,6 +513,8 @@
                                             <tr>
                                                 <th>No</th>
                                                 <th>Draft No</th>
+                                                <th>Type</th>
+                                                <th>Made By</th>
                                                 <th class="pr-th">
                                                     Added Kreditor
                                                 </th>
@@ -508,14 +523,13 @@
                                                 <th>Total baris</th>
                                                 <th>Grand Total</th>
                                                 <th>Status</th>
-                                                </th>
 
                                                 <th>Pending Sign</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             @forelse($draftRequests as $draft)
-                                                                                        <tr class="draft-row" data-id="{{ $draft['id'] }}">
+                                                                                        <tr class="draft-row" data-id="{{ $draft['id'] }}" data-production-code="{{ strtoupper($draft['production_code'] ?? '') }}">
                                                                                             <td>
                                                                                                 {{ $loop->iteration }}
                                                                                             </td>
@@ -535,6 +549,7 @@
                                                                                                             class="draft-action-btn draft-magic-btn btn-magic-approval"
                                                                                                             data-id="{{ $draft['id'] }}"
                                                                                                             data-request="{{ $draft['request_no'] }}"
+                                                                                                            data-production-code="{{ strtoupper($draft['production_code'] ?? '') }}"
                                                                                                             data-approvals='@json($draft['approvals'])'
                                                                                                             title="Generate Approval Link"
                                                                                                             aria-label="Generate Approval Link">
@@ -585,6 +600,16 @@
                                                                                                 </div>
                                                                                             </td>
                                                                                             <td class="text-center">
+                                                                                                @php
+                                                                                                    $draftType = strtoupper(trim($draft['production_code'] ?? ''));
+                                                                                                    $draftType = in_array($draftType, ['NWS', 'NWD', 'NWR'], true) ? 'NWS' : $draftType;
+                                                                                                @endphp
+                                                                                                <span class="badge {{ $draftType === 'NWS' ? 'bg-info text-dark' : ($draftType === 'NW' ? 'bg-primary' : 'bg-secondary') }}">
+                                                                                                    {{ $draftType ?: '-' }}
+                                                                                                </span>
+                                                                                            </td>
+                                                                                            <td>{{ $draft['made_by'] ?? '-' }}</td>
+                                                                                            <td class="text-center">
                                                                                                 <input type="checkbox" class="ainun-recon-check"
                                                                                                     data-id="{{ $draft['id'] }}" {{ $draft['ainun_saved_recon'] ? 'checked' : '' }}>
                                                                                             </td>
@@ -614,13 +639,16 @@
                                                                                         </tr>
                                             @empty
                                                 <tr>
-                                                    <td colspan="8" class="text-center">
+                                                    <td colspan="11" class="text-center">
                                                         Belum ada draft request
                                                     </td>
                                                 </tr>
                                             @endforelse
                                         </tbody>
                                     </table>
+                                    <div id="draftProductionEmpty" class="alert alert-info text-center mt-2" style="display:none;">
+                                        Belum ada draft untuk kelompok ini.
+                                    </div>
                                 </div>
                                 <div class="draft-detail" id="draftDetailArea">
 
@@ -750,6 +778,15 @@
         </div>
 
     </div>
+    {{-- PRINT SUPPORT: tampilan layar tetap menggunakan CSS semula --}}
+    <style>
+        @media print {
+            .no-print, .print-instructions, .btn-add-finance-draft, #btn-print,
+            .btn-approve, .btn-add-draft-finance { display:none !important; }
+            .payment-print-table { width:100%; table-layout:fixed; border-collapse:collapse; }
+            .payment-print-table th, .payment-print-table td { overflow-wrap:anywhere; }
+        }
+    </style>
     <style>
         /* =========================================================
        MAGIC APPROVAL MODAL
@@ -2232,7 +2269,7 @@
                 let needDate =
                     $('#need_date').val();
                 let ids = [];
-                $('.request-check-item:checked')
+                $('#payment-request-tab .draft-payment-row:visible .request-check-item:checked')
                     .each(function () {
                         ids.push($(this).val());
                     });
@@ -3842,6 +3879,47 @@
                     }
                 });
             });
+        })();
+    </script>
+    <script>
+        // Draft NW / NWS: filter item checklist sebelum disimpan.
+        (function () {
+            function showDraftGroup(code) {
+                let total = 0;
+                let count = 0;
+                $('#payment-request-tab .draft-payment-row').each(function () {
+                    const row = $(this);
+                    const match = row.attr('data-production-code') === code;
+                    row.toggle(match);
+                    row.find('.request-check-item').prop('checked', false);
+                    if (match) {
+                        count++;
+                        total += Number(row.attr('data-payment-amount') || 0);
+                    }
+                });
+                $('#check-all-request').prop('checked', false);
+                $('#draftPaymentEmpty').remove();
+                if (count === 0) {
+                    $('#payment-request-tab .draft-payment-row').first().closest('tbody').append(
+                        '<tr id="draftPaymentEmpty"><td colspan="13" class="text-center py-3">Belum ada Payment Request untuk Draft ' + code + '</td></tr>'
+                    );
+                }
+                $('#payment-request-tab tfoot .table-success th').eq(1)
+                    .text('Rp ' + total.toLocaleString('id-ID'));
+            }
+
+            $(document).on('click', '.draft-production-tab', function () {
+                const code = $(this).attr('data-production-filter');
+                showDraftGroup(code);
+            });
+
+            // Checklist "Select All" hanya untuk baris di tab aktif.
+            $(document).off('change', '#check-all-request').on('change', '#check-all-request', function () {
+                $('#payment-request-tab .draft-payment-row:visible .request-check-item')
+                    .prop('checked', $(this).is(':checked'));
+            });
+
+            $(function () { showDraftGroup('NW'); });
         })();
     </script>
 

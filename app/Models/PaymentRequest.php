@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class PaymentRequest extends Model
 {
     protected $fillable = [
-
+        'production_code',
         'spk_id',
         'request_no',
         'no_spk',
@@ -49,12 +49,12 @@ class PaymentRequest extends Model
     // }
 
     public function spk()
-{
-    return $this->belongsTo(
-        Spk::class,
-        'spk_id'
-    );
-}
+    {
+        return $this->belongsTo(
+            Spk::class,
+            'spk_id'
+        );
+    }
 
     // =========================
     // HELPER

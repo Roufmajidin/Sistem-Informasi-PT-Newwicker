@@ -14,6 +14,8 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\Models\MonitoringInvoice;
 use App\Models\InvLama;
 use App\Models\SpkLama;
+use App\Exports\LaporanStokExport;
+
 class LaporanController extends Controller
 {
     public function index(Request $request)
@@ -4158,5 +4160,16 @@ class LaporanController extends Controller
             'count' => $count,
         ]);
     }
+public function exportExcel(Request $request)
+{
+    $jenis = $request->query('jenis');
+    $search = $request->query('search');
 
+    $namaFile = 'laporan-stok-' . now()->format('Y-m-d-His') . '.xlsx';
+
+    return Excel::download(
+        new LaporanStokExport($jenis, $search),
+        $namaFile
+    );
+}
 }
