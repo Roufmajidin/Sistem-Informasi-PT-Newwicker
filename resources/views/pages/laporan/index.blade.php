@@ -26,80 +26,64 @@
 
             <div class="box-body">
 
-              {{-- BARIS FILTER DAN TOMBOL --}}
-<div class="row mb-3 align-items-end">
+                {{-- BARIS FILTER DAN TOMBOL --}}
+                <div class="row mb-3 align-items-end">
 
-    {{-- FILTER JENIS --}}
-    <div class="col-md-3">
-        <label>Jenis Barang</label>
-        <select id="filterJenis" class="form-control">
-            <option value="">Semua Jenis</option>
-            <option value="bahan baku"
-                {{ request('jenis') == 'bahan baku' ? 'selected' : '' }}>
-                Bahan Baku
-            </option>
-            <option value="bahan penolong"
-                {{ request('jenis') == 'bahan penolong' ? 'selected' : '' }}>
-                Bahan Penolong
-            </option>
-            <option value="bahan penolong alat"
-                {{ request('jenis') == 'bahan penolong alat' ? 'selected' : '' }}>
-                Bahan Penolong Alat
-            </option>
-            <option value="bahan finishing"
-                {{ request('jenis') == 'bahan finishing' ? 'selected' : '' }}>
-                Bahan Finishing
-            </option>
-        </select>
-    </div>
+                    {{-- FILTER JENIS --}}
+                    <div class="col-md-3">
+                        <label>Jenis Barang</label>
+                        <select id="filterJenis" class="form-control">
+                            <option value="">Semua Jenis</option>
+                            <option value="bahan baku" {{ request('jenis') == 'bahan baku' ? 'selected' : '' }}>
+                                Bahan Baku
+                            </option>
+                            <option value="bahan penolong" {{ request('jenis') == 'bahan penolong' ? 'selected' : '' }}>
+                                Bahan Penolong
+                            </option>
+                            <option value="bahan penolong alat"
+                                {{ request('jenis') == 'bahan penolong alat' ? 'selected' : '' }}>
+                                Bahan Penolong Alat
+                            </option>
+                            <option value="bahan finishing" {{ request('jenis') == 'bahan finishing' ? 'selected' : '' }}>
+                                Bahan Finishing
+                            </option>
+                        </select>
+                    </div>
 
-    {{-- SEARCH --}}
-    <div class="col-md-2">
-        <label>Cari Barang</label>
-        <input
-            type="text"
-            id="searchBarang"
-            class="form-control"
-            placeholder="Cari nama barang..."
-            value="{{ request('search', '') }}"
-            autocomplete="off">
-    </div>
+                    {{-- SEARCH --}}
+                    <div class="col-md-2">
+                        <label>Cari Barang</label>
+                        <input type="text" id="searchBarang" class="form-control" placeholder="Cari nama barang..."
+                            value="{{ request('search', '') }}" autocomplete="off">
+                    </div>
 
-    {{-- HISTORY DAN EXPORT --}}
-    <div class="col-md-4">
-        <div class="d-flex align-items-center flex-wrap"
-             style="gap: 8px;">
+                    {{-- HISTORY DAN EXPORT --}}
+                    <div class="col-md-4">
+                        <div class="d-flex align-items-center flex-wrap" style="gap: 8px;">
 
-            <a href="/laporan/warehouse-history"
-               class="btn btn-primary"
-               style="white-space: nowrap;">
-                <i class="fa fa-history"></i>
-                History
-            </a>
+                            <a href="/laporan/warehouse-history" class="btn btn-primary" style="white-space: nowrap;">
+                                <i class="fa fa-history"></i>
+                                History
+                            </a>
 
-            <a href="{{ route('laporan.export', request()->only(['jenis', 'search'])) }}"
-               class="btn btn-success"
-               id="btnExportExcel"
-               style="white-space: nowrap;">
-                <i class="fa fa-file-excel-o"></i>
-                Export Excel
-            </a>
+                            <a href="{{ route('laporan.export', request()->only(['jenis', 'search'])) }}"
+                                class="btn btn-success" id="btnExportExcel" style="white-space: nowrap;">
+                                <i class="fa fa-file-excel-o"></i>
+                                Export Excel
+                            </a>
 
-        </div>
-    </div>
+                        </div>
+                    </div>
 
-    {{-- TAMBAH BARIS --}}
-    <div class="col-md-3 text-md-right mt-2 mt-md-0">
-        <button
-            type="button"
-            class="btn btn-primary"
-            id="addRowss">
-            <i class="fa fa-plus"></i>
-            Tambah Baris
-        </button>
-    </div>
+                    {{-- TAMBAH BARIS --}}
+                    <div class="col-md-3 text-md-right mt-2 mt-md-0">
+                        <button type="button" class="btn btn-primary" id="addRowss">
+                            <i class="fa fa-plus"></i>
+                            Tambah Baris
+                        </button>
+                    </div>
 
-</div>
+                </div>
 
 
                 {{-- ================================================================
@@ -186,6 +170,7 @@
                                     </thead>
 
 
+
                                     <tbody id="tableBody">
 
                                         @forelse($stoks ?? [] as $key => $stok)
@@ -196,30 +181,22 @@
                                                     {{ $key + 1 }}
                                                 </td>
 
-
                                                 {{-- KODE BARANG --}}
                                                 <td>
-
                                                     <input type="hidden" class="id" value="{{ $stok->id }}">
 
                                                     <input type="text" class="form-control kode_barang"
                                                         value="{{ $stok->kode_barang }}">
-
                                                 </td>
-
 
                                                 {{-- NAMA BARANG --}}
                                                 <td>
-
                                                     <input type="text" class="form-control nama_barang"
                                                         value="{{ $stok->nama_barang }}">
-
                                                 </td>
-
 
                                                 {{-- JENIS --}}
                                                 <td>
-
                                                     <select class="form-control jenis">
 
                                                         <option value="bahan baku"
@@ -243,98 +220,75 @@
                                                         </option>
 
                                                     </select>
-
                                                 </td>
-
 
                                                 {{-- SATUAN --}}
                                                 <td>
-
                                                     <input type="text" class="form-control satuan"
                                                         value="{{ $stok->satuan }}">
-
                                                 </td>
-
 
                                                 {{-- HARGA --}}
                                                 <td>
-
                                                     <input type="text" class="form-control harga"
                                                         value="{{ !empty($stok->harga) ? number_format($stok->harga, 0, ',', '.') : '' }}">
-
                                                 </td>
 
-
-                                                {{-- SALDO --}}
                                                 {{-- SALDO --}}
                                                 <td>
-
                                                     <input type="number" step="0.001" class="form-control stok_awal"
-                                                        value="{{ $stok->saldo ?? 0 }}">
-
+                                                        value="{{ number_format((float) ($stok->saldo ?? 0), 3, '.', '') }}">
                                                 </td>
-
 
                                                 {{-- STOK IN --}}
                                                 <td>
-
-                                                    {{ number_format($stok->total_in ?? 0, 2, '.', ',') }}
-
+                                                    {{ number_format((float) ($stok->total_in ?? 0), 3, '.', ',') }}
                                                 </td>
-
 
                                                 {{-- STOK OUT --}}
                                                 <td>
-
-                                                    {{ number_format($stok->total_out ?? 0, 2, '.', ',') }}
-
+                                                    {{ number_format((float) ($stok->total_out ?? 0), 3, '.', ',') }}
                                                 </td>
-
 
                                                 {{-- TANGGAL --}}
                                                 <td>
-
                                                     <input type="date" class="form-control tanggal"
                                                         value="{{ date('Y-m-d') }}">
-
                                                 </td>
-
 
                                                 {{-- AKSI --}}
                                                 <td width="120">
-
-                                                    <button type="button" class="btn btn-success btn-sm btn-save">
-
+                                                    <button type="button" class="btn btn-success btn-sm btn-save"
+                                                        title="Simpan">
                                                         <i class="fa fa-save"></i>
-
                                                     </button>
 
-
-                                                    <button type="button" class="btn btn-danger btn-sm remove-row">
-
+                                                    <button type="button" class="btn btn-danger btn-sm remove-row"
+                                                        title="Hapus">
                                                         <i class="fa fa-trash"></i>
-
                                                     </button>
-
                                                 </td>
-
 
                                                 {{-- DETAIL --}}
                                                 <td>
-
                                                     <a href="{{ route('laporan.detail', $stok->id) }}"
                                                         class="btn btn-info btn-sm">
                                                         Detail
                                                     </a>
-
                                                 </td>
 
                                             </tr>
 
                                         @empty
+                                            <tr>
+                                                <td colspan="12" class="text-center">
+                                                    Tidak ada data barang.
+                                                </td>
+                                            </tr>
                                         @endforelse
 
                                     </tbody>
+
 
                                 </table>
 
