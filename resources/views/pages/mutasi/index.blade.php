@@ -4081,7 +4081,13 @@
                             var active = hasSelection && i === index;
                             tab.classList.toggle('is-active', active);
                             tab.setAttribute('aria-selected', active ? 'true':'false');
-                            if (active && shouldScroll) tab.scrollIntoView({behavior:'smooth',block:'nearest',inline:'nearest'});
+                            if (active && shouldScroll && window.matchMedia('(max-width: 767.98px)').matches) {
+                                // Align the clicked item to the LEFT edge of the horizontal strip.
+                                // Scroll the strip only: scrollIntoView can also move the whole modal.
+                                var targetLeft = tab.offsetLeft - track.offsetLeft;
+                                var maxLeft = Math.max(0, track.scrollWidth - track.clientWidth);
+                                track.scrollTo({left: Math.min(Math.max(0, targetLeft), maxLeft), behavior:'smooth'});
+                            }
                         });
                         updateNextButton();
                     }
