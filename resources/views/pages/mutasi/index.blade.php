@@ -9,7 +9,7 @@
     <div id="mutasiPagePreloader" role="status" aria-live="polite">
         <div class="mutasi-preloader-card">
             <div class="spinner-border text-primary" aria-hidden="true"></div>
-            <strong>Memuat Monitoring Pemasukkan barang jadi</strong>
+            <strong>Memuat Monitoring SPK</strong>
             <small>Menyiapkan tampilan...</small>
         </div>
     </div>
@@ -22,7 +22,7 @@
                 <div>
                     <h4 class="mb-0 fw-bold">
                         <i class="fas fa-boxes text-primary me-2"></i>
-                        Monitoring Pemasukkan Barang Jadi
+                        Monitoring SPK
                     </h4>
                     <small class="text-muted">
                         Cari berdasarkan PO, Buyer, Supplier, Item, atau No SPK
@@ -33,12 +33,15 @@
 
                     <div class="input-group">
 
-                        <span class="input-group-text bg-white">
-                            <i class="fas fa-search text-secondary"></i>
-                        </span>
+                        <button type="button" id="mobileSearchButton" class="input-group-text bg-white mutasi-search-button"
+                            aria-label="Fokus pencarian SPK" title="Cari SPK">
+                            <i class="fas fa-search text-secondary" aria-hidden="true"></i>
+                        </button>
 
                         <input type="text" id="searchSpk" class="form-control border-start-0"
                             placeholder="Cari PO, Buyer, Supplier, Item...">
+                        <button type="button" id="mobileSearchClear" aria-label="Hapus pencarian" title="Hapus pencarian"
+                            style="display:none" class="btn btn-light border mobile-search-clear">&times;</button>
 
                     </div>
 
@@ -167,8 +170,8 @@
                     <div class="modal-header">
                         <h5 class="modal-title" id="judulSpk">Detail SPK</h5>
 
-                        <button type="button" class="close" id="mutasiMobileClose" data-bs-dismiss="modal"
-                            data-dismiss="modal" aria-label="Tutup detail SPK"></button>
+                        <button type="button" class="close mutasi-close-button" id="mutasiMobileClose"
+                            data-dismiss="modal" aria-label="Tutup detail SPK"><span aria-hidden="true">&times;</span></button>
                     </div>
 
                     <div class="modal-body">
@@ -3852,6 +3855,7 @@
                         width:32px !important; height:32px !important; min-width:32px; opacity:1 !important;
                         cursor:pointer; pointer-events:auto !important; background-color:#f1f5fa;
                         border-radius:50%; }
+                    #modalSpk #mutasiMobileClose span { font-size:25px; line-height:1; color:#334155; }
                     #modalSpk #mobileItemNext { cursor:pointer; pointer-events:auto !important; }
                 }
                 /* V12: keep focused transaction inputs visible above the mobile keyboard */
@@ -4065,6 +4069,7 @@
                             track.appendChild(button);
                         });
                         syncActiveMobileTab(false);
+                        requestAnimationFrame(updateNextButton);
                     };
                     function syncActiveMobileTab(shouldScroll) {
                         var track = document.getElementById('mobileItemTabsTrack');
@@ -4083,32 +4088,42 @@
                     window.syncMutasiMobileActiveTab = function() { syncActiveMobileTab(true); };
                     function updateNextButton() {
                         var next = document.getElementById('mobileItemNext');
-                        var count = document.querySelectorAll('#mobileItemTabsTrack .mobile-item-tab').length;
-                        if (next) next.disabled = count < 2;
+                        var track = document.getElementById('mobileItemTabsTrack');
+                        if (!next || !track) return;
+                        var canScroll = track.scrollWidth > track.clientWidth + 2;
+                        var atEnd = track.scrollLeft + track.clientWidth >= track.scrollWidth - 3;
+                        next.disabled = !canScroll || atEnd;
+                        next.setAttribute('aria-disabled', next.disabled ? 'true' : 'false');
                     }
                     function selectNextMobileItem() {
                         var track = document.getElementById('mobileItemTabsTrack');
-                        var tabs = track ? Array.from(track.querySelectorAll('.mobile-item-tab')) : [];
-                        if (tabs.length < 2) return;
-                        var activeIndex = tabs.findIndex(function(el){ return el.classList.contains('is-active'); });
-                        var nextTab = tabs[(activeIndex + 1) % tabs.length];
-                        nextTab.click(); // Reuse the existing AJAX detail handler
-                        nextTab.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+                        if (!track) return;
+                        // Arrow only scrolls the tab strip; it must NOT change the selected item.
+                        var step = Math.max(110, Math.round(track.clientWidth * 0.72));
+                        track.scrollBy({left:step,behavior:'smooth'});
+                        window.setTimeout(updateNextButton, 350);
                     }
                     function closeMutasiDetail() {
                         var modal = document.getElementById('modalSpk');
                         if (!modal) return;
-                        if (window.bootstrap && window.bootstrap.Modal) {
-                            window.bootstrap.Modal.getOrCreateInstance(modal).hide();
-                        } else if (window.jQuery && typeof window.jQuery.fn.modal === 'function') {
+                        // The existing page opens this modal through jQuery/Bootstrap.
+                        // Use that same instance to close it and trigger hidden.bs.modal.
+                        if (window.jQuery && typeof window.jQuery.fn.modal === 'function') {
                             window.jQuery(modal).modal('hide');
-                        } else {
-                            modal.classList.remove('show');
-                            modal.style.display = 'none';
-                            document.body.classList.remove('modal-open');
-                            document.querySelectorAll('.modal-backdrop').forEach(function(el){el.remove();});
+                        } else if (window.bootstrap && window.bootstrap.Modal) {
+                            var instance = window.bootstrap.Modal.getInstance(modal);
+                            if (instance) instance.hide();
+                            else window.bootstrap.Modal.getOrCreateInstance(modal).hide();
                         }
                     }
+                    // Delegated listener works even if mobile UI is rebuilt.
+                    document.addEventListener('click', function(e) {
+                        var button = e.target.closest('#mutasiMobileClose');
+                        if (!button) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        closeMutasiDetail();
+                    }, true);
                     document.addEventListener('DOMContentLoaded',function(){
                         buildMobileSpkCards();
                         document.getElementById('searchSpk')?.addEventListener('input',syncMobileSearch);
@@ -4116,12 +4131,32 @@
                             syncActiveMobileTab(true);
                         });
                         document.getElementById('mobileItemTabsTrack')?.addEventListener('scroll',updateNextButton,{passive:true});
-                        document.getElementById('mobileItemNext')?.addEventListener('click',selectNextMobileItem);
-                        document.getElementById('mutasiMobileClose')?.addEventListener('click',function(e){
-                            e.preventDefault();
-                            e.stopPropagation();
-                            closeMutasiDetail();
+                        // Handle arrow clicks even if the tabbar is rebuilt dynamically.
+                        document.addEventListener('click',function(event){
+                            if (!event.target.closest('#mobileItemNext')) return;
+                            event.preventDefault();
+                            selectNextMobileItem();
+                        },true);
+                        var search = document.getElementById('searchSpk');
+                        document.getElementById('mobileSearchButton')?.addEventListener('click',function(){
+                            if (!search) return;
+                            search.focus();
+                            if (typeof search.select === 'function' && search.value) search.select();
                         });
+                        var clear = document.getElementById('mobileSearchClear');
+                        function updateSearchClear(){
+                            if(clear) clear.style.display = search && search.value ? 'inline-flex':'none';
+                        }
+                        search?.addEventListener('input',updateSearchClear);
+                        clear?.addEventListener('click',function(){
+                            if(!search) return;
+                            search.value='';
+                            search.dispatchEvent(new Event('input',{bubbles:true}));
+                            search.dispatchEvent(new Event('keyup',{bubbles:true}));
+                            search.focus();
+                            updateSearchClear();
+                        });
+                        updateSearchClear();
                         window.addEventListener('resize',updateNextButton);
                         $('#modalSpk').on('shown.bs.modal',function(){
                             updateNextButton();
@@ -4133,6 +4168,30 @@
                 })();
             </script>
 
+
+            <style>
+                @media (max-width:767.98px) {
+                    .container-fluid.py-4 > .card-header.bg-white {
+                        position:sticky !important; top:0 !important; z-index:1030 !important;
+                        background:#fff !important;
+                    }
+                    .container-fluid.py-4 > .card-header.bg-white .input-group { display:flex; align-items:stretch; }
+                    .container-fluid.py-4 > .card-header.bg-white #searchSpk { flex:1 1 auto; min-width:0; }
+                    #mobileSearchClear { align-items:center; justify-content:center; width:35px; padding:0;
+                        color:#52617a; font-size:20px; border-radius:0 7px 7px 0; }
+                    .mutasi-search-button { display:flex; align-items:center; justify-content:center;
+                        width:43px; min-width:43px; padding:0; border:1px solid #dce5f2;
+                        border-right:0; border-radius:10px 0 0 10px; cursor:pointer;
+                        color:#2563eb; touch-action:manipulation; }
+                    .mutasi-search-button i { font-size:16px; color:#2563eb !important; }
+                    .mutasi-search-button:focus-visible { outline:2px solid #2563eb; outline-offset:2px; }
+                    #modalSpk #mobileItemNext { position:relative; z-index:20; touch-action:manipulation;
+                        display:flex; align-items:center; justify-content:center; cursor:pointer; }
+                    #modalSpk #mobileItemNext i { font-size:13px; }
+                    #modalSpk #mobileItemNext:disabled { cursor:default; opacity:.35; }
+                }
+                @media (min-width:768px) { #mobileSearchClear { display:none !important; } }
+            </style>
             {{-- Mobile timeline: read-only UI. Desktop editing is unchanged. --}}
             <style>
                 @media (max-width: 767.98px) {
