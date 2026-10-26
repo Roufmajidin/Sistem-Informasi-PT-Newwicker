@@ -5,499 +5,180 @@
     @include('pages.marketing.style')
 
     <style>
-        /* =========================================================
-                       RELEASE ORDER - DETAIL TABLE UI
-                       ========================================================= */
-        #detail-view .box-body {
-            padding-bottom: 12px;
-        }
-
-        #detail-view .table-info {
-            margin-bottom: 12px;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 4px 14px rgba(31, 52, 95, .06);
-        }
-
-        #detail-view .table-info td {
-            padding: 9px 14px;
-            border-color: #e8ecf4;
-        }
-
-        #detail-view .table-info td:first-child {
-            width: 190px;
-            background: #f6f8fc;
-            color: #52607a;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: .45px;
-        }
-
-        #detail-view .table-info td:last-child {
-            color: #17233d;
-            font-weight: 600;
-        }
-
-        #btn-back {
-            border: 0;
-            border-radius: 8px;
-            padding: 7px 12px;
-            font-weight: 600;
-        }
-
-        #detail-action-bar {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin: 0 0 12px 0;
-        }
-
-        #btn-add-item {
-            border: 0;
-            border-radius: 8px;
-            padding: 8px 14px;
-            box-shadow: 0 4px 10px rgba(13, 110, 253, .14);
-        }
-
-        #detail-table tbody tr.new-item-row td {
-            background: #eef6ff !important;
-            border-top: 2px solid #0d6efd !important;
-            border-bottom: 2px solid #b9d8ff !important;
-        }
-
-        #detail-table tbody tr.new-item-row td:first-child {
-            box-shadow: inset 5px 0 0 #0d6efd;
-        }
-
-        #detail-table tbody tr.new-item-row .new-item-input {
-            min-width: 70px;
-            height: 34px;
-            border: 1px solid #7aa7e8;
-            background: #fff;
-            box-shadow: 0 0 0 2px rgba(13, 110, 253, .05);
-        }
-
-        #detail-table tbody tr.new-item-row .new-item-input:focus {
-            border-color: #0d6efd;
-            box-shadow: 0 0 0 3px rgba(13, 110, 253, .12);
-        }
-
-        .new-item-field-wrap,
-        .new-item-photo-wrap {
-            position: relative;
-        }
-
-        .new-item-badge {
-            display: inline-block;
-            margin-bottom: 4px;
-            padding: 2px 6px;
-            border-radius: 999px;
-            background: #0d6efd;
-            color: #fff;
-            font-size: 9px;
-            font-weight: 800;
-            letter-spacing: .5px;
-        }
-
-        .new-image-editor {
-            min-width: 92px;
-            text-align: center;
-            outline: none;
-            cursor: pointer;
-        }
-
-        .new-image-editor.paste-target {
-            box-shadow: 0 0 0 2px rgba(13, 110, 253, .18);
-            border-radius: 8px;
-        }
-
-        .new-act-placeholder {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 22px;
-            color: #aab3c2;
-            font-size: 16px;
-            font-weight: 700;
-        }
-
-        .new-image-preview {
-            width: 76px;
-            height: 58px;
-            margin: 0 auto 5px;
-            border: 1px dashed #9db5d5;
-            border-radius: 8px;
-            background: #f8fbff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            color: #7a8aa3;
-            font-size: 9px;
-        }
-
-        .new-image-preview img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
-
-        .new-image-actions {
-            display: flex;
-            justify-content: center;
-            gap: 3px;
-            flex-wrap: wrap;
-        }
-
-        .new-image-actions .btn {
-            font-size: 9px;
-            padding: 3px 6px;
-        }
-
-        .paste-success {
-            position: absolute;
-            right: 3px;
-            bottom: 3px;
-            padding: 2px 5px;
-            border-radius: 5px;
-            background: #198754;
-            color: #fff;
-            font-size: 9px;
-            font-weight: 700;
-        }
-
-        #btn-save-all {
-            margin: 0 0 12px 0;
-            border: 0;
-            border-radius: 8px;
-            padding: 8px 14px;
-            box-shadow: 0 4px 10px rgba(25, 135, 84, .14);
-        }
-
-        /* Horizontal + vertical scroll area.
-                       Sticky THEAD tetap bekerja saat body table discroll. */
-        .freeze-wrapper {
-            position: relative;
-            width: 100%;
-            max-height: 68vh;
-            overflow: auto;
-            border: 1px solid #dfe5ef;
-            border-radius: 12px;
-            background: #fff;
-            box-shadow: 0 5px 18px rgba(31, 52, 95, .07);
-            scrollbar-width: thin;
-            scrollbar-color: #aab5c9 #f1f4f8;
-        }
-
-        .freeze-wrapper::-webkit-scrollbar {
-            width: 9px;
-            height: 10px;
-        }
-
-        .freeze-wrapper::-webkit-scrollbar-track {
-            background: #f1f4f8;
-        }
-
-        .freeze-wrapper::-webkit-scrollbar-thumb {
-            background: #aab5c9;
-            border-radius: 10px;
-            border: 2px solid #f1f4f8;
-        }
-
-        /* =========================================================
-                       TOP HORIZONTAL SCROLL INDICATOR
-                       Scrollbar tambahan yang selalu terlihat tepat di bawah
-                       2 baris header ketika tabel mempunyai banyak kolom.
-                       Posisi ini disinkronkan dengan .freeze-wrapper.
-                       ========================================================= */
-        .detail-scroll-top {
-            position: sticky;
-            top: 68px;
-            left: 1px;
-            right: 1px;
-            height: 13px;
-            margin-bottom: -13px;
-            overflow-x: auto;
-            overflow-y: hidden;
-            z-index: 35;
-            background: rgba(255, 255, 255, .96);
-            border-bottom: 1px solid #dfe5ef;
-            scrollbar-width: thin;
-            scrollbar-color: #7f8da8 #eef2f7;
-        }
-
-        .detail-scroll-top::-webkit-scrollbar {
-            height: 10px;
-        }
-
-        .detail-scroll-top::-webkit-scrollbar-track {
-            background: #eef2f7;
-        }
-
-        .detail-scroll-top::-webkit-scrollbar-thumb {
-            background: #7f8da8;
-            border-radius: 10px;
-            border: 2px solid #eef2f7;
-        }
-
-        .detail-scroll-top-inner {
-            height: 1px;
-        }
-
-        @media (max-width: 768px) {
-            .detail-scroll-top {
-                top: 62px;
-            }
-        }
-
-        #detail-table {
-            margin: 0;
-            width: max-content;
-            min-width: 100%;
-            table-layout: fixed;
-            border-collapse: separate;
-            border-spacing: 0;
-            color: #25324b;
-            font-size: 12px;
-        }
-
-        #detail-table th,
-        #detail-table td {
-            border-right: 1px solid #e3e8f0;
-            border-bottom: 1px solid #e8ecf2;
-            vertical-align: middle;
-        }
-
-        #detail-table thead th {
-            position: sticky;
-            background: #2f437f;
-            color: #fff;
-            text-align: center;
-            vertical-align: middle;
-            font-weight: 700;
-            white-space: nowrap;
-            z-index: 20;
-            box-shadow: 0 1px 0 rgba(255, 255, 255, .08);
-        }
-
-        #detail-table thead .header-top th {
-            top: 0;
-            height: 38px;
-            padding: 7px 10px;
-            font-size: 11px;
-            letter-spacing: .35px;
-        }
-
-        #detail-table thead .header-bottom th {
-            top: 38px;
-            height: 30px;
-            padding: 5px 8px;
-            font-size: 11px;
-            z-index: 21;
-        }
-
-        #detail-table thead .dimension-group {
-            letter-spacing: .55px;
-            border-left: 1px solid rgba(255, 255, 255, .22);
-            border-right: 1px solid rgba(255, 255, 255, .22);
-        }
-
-        #detail-table thead .dimension-sub {
-            width: 56px !important;
-            min-width: 56px !important;
-            max-width: 56px !important;
-        }
-
-        #detail-table thead .item-group {
-            background: #344b8c;
-        }
-
-        #detail-table thead .packing-group {
-            background: #344b8c;
-        }
-
-        #detail-table tbody td {
-            height: 58px;
-            padding: 8px 10px;
-            background: #fff;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        #detail-table tbody tr:nth-child(even) td {
-            background: #f9fbfd;
-        }
-
-        #detail-table tbody tr:hover td {
-            background: #eef4ff;
-        }
-
-        #detail-table tbody tr.editing td {
-            background: #fff8e1 !important;
-        }
-
-        #detail-table thead .inch-group {
-            background: #226c82;
-        }
-
-        #detail-table tbody td[data-key$="_inch"] {
-            background: #f0f9fc;
-        }
-
-        #detail-table .dimension-cell {
-            text-align: center;
-            font-variant-numeric: tabular-nums;
-            font-weight: 600;
-            color: #33415f;
-        }
-
-        #detail-table .number-cell {
-            text-align: right;
-            font-variant-numeric: tabular-nums;
-        }
-
-        #detail-table .description-cell {
-            text-align: left;
-            font-weight: 600;
-            color: #17233d;
-        }
-
-        #detail-table .photo-cell {
-            text-align: center;
-        }
-
-        #detail-table .photo-cell img {
-            display: block;
-            width: 54px;
-            height: 54px;
-            object-fit: contain;
-            margin: auto;
-            border-radius: 8px;
-            background: #f7f8fb;
-            border: 1px solid #e5e9f0;
-        }
-
-        #detail-table .cell-text {
-            display: inline-block;
-            max-width: 100%;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            vertical-align: middle;
-        }
-
-        #detail-table .inline-input {
-            min-width: 70px;
-            height: 32px;
-            padding: 4px 7px;
-            border-radius: 6px;
-            border: 1px solid #b8c4d8;
-            font-size: 12px;
-        }
-
-        #detail-table .inline-input:focus {
-            border-color: #2f437f;
-            box-shadow: 0 0 0 2px rgba(47, 67, 127, .12);
-        }
-
-        #detail-table .btn-xs {
-            margin: 2px;
-            border-radius: 6px;
-            font-size: 10px;
-            font-weight: 700;
-        }
-
-        #detail-table tfoot td {
-            position: sticky;
-            bottom: 0;
-            z-index: 10;
-            padding: 9px 10px;
-            font-weight: 700;
-            white-space: nowrap;
-        }
-
-        /* Keep first visible detail column readable on horizontal scroll.
-                       This does not alter the existing horizontal scrolling behavior. */
-        #detail-table .sticky-col {
-            position: sticky;
-            left: 0;
-            z-index: 22;
-            background: #fff !important;
-            box-shadow: 5px 0 10px -10px rgba(20, 35, 65, .5);
-        }
-
-        #detail-table thead .sticky-col {
-            z-index: 30;
-            background: #2f437f !important;
-        }
-
-        #detail-table tbody tr:nth-child(even) .sticky-col {
-            background: #f9fbfd !important;
-        }
-
-        #detail-table tbody tr:hover .sticky-col {
-            background: #eef4ff !important;
-        }
-
-        @media (max-width: 768px) {
-            .freeze-wrapper {
-                max-height: 64vh;
-                border-radius: 8px;
-            }
-
-            #detail-table {
-                font-size: 11px;
-            }
-
-            #detail-table thead .header-top th {
-                height: 34px;
-                font-size: 10px;
-            }
-
-            #detail-table thead .header-bottom th {
-                top: 34px;
-                height: 28px;
-            }
-        }
-
-        /* Chat shortcut: animated typing caret, isolated from table styles */
-        #chatModal .modal-dialog {
-            max-width: 680px;
-        }
-
-        #chatModal #chat-input:focus {
-            border-color: #2f437f;
-            box-shadow: 0 0 0 2px rgba(47, 67, 127, .12);
-            caret-color: #2f437f;
-        }
-
-        #chatModal .release-chat-caret {
-            display: inline-block;
-            width: 2px;
-            height: 13px;
-            background: #2f437f;
-            vertical-align: -2px;
-            margin-left: 3px;
-            animation: releaseChatBlink .85s steps(1) infinite;
-        }
-
-        @keyframes releaseChatBlink {
-            50% {
-                opacity: 0;
-            }
-        }
+    /* New independent UI layer; existing JS, DOM IDs, routes and handlers remain untouched. */
+    #detail-view { --ui-ink:#18253b; --ui-muted:#69788e; --ui-line:#e7ebf1; --ui-brand:#2563eb; --ui-soft:#f7f9fc; color:var(--ui-ink); }
+    #detail-view > .col-sm-12 > .box { background:transparent; box-shadow:none; border:0; }
+    #detail-view .box-body { padding:14px 16px 8px; }
+    #detail-view #btn-back { background:white; color:#334155; border:1px solid var(--ui-line); border-radius:9px; padding:9px 13px; font-size:12px; font-weight:600; box-shadow:none; }
+    #detail-view #btn-back:hover { background:#f1f5f9; }
+    #detail-view hr { border-color:var(--ui-line); margin:14px 0; }
+    #detail-view .table-info { display:block; border:1px solid var(--ui-line); border-radius:14px; background:white; padding:9px; margin:12px 0 8px; box-shadow:0 3px 16px rgba(15,23,42,.035); }
+    #detail-view .table-info tbody { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
+    #detail-view .table-info tr { display:flex; flex-direction:column; background:var(--ui-soft); padding:10px 12px; border-radius:9px; min-width:0; }
+    #detail-view .table-info td { display:block; border:0 !important; padding:0 !important; width:auto !important; background:transparent !important; overflow-wrap:anywhere; }
+    #detail-view .table-info td:first-child { color:var(--ui-muted); font-size:10px; text-transform:uppercase; font-weight:700; letter-spacing:.05em; margin-bottom:4px; }
+    #detail-view .table-info td:last-child { font-size:13px; font-weight:700; color:var(--ui-ink); }
+    #detail-action-bar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:12px 0; padding:0 3px; }
+    #detail-action-bar .btn { border-radius:9px; padding:9px 14px; font-size:12px; font-weight:700; border:1px solid transparent; box-shadow:none; }
+    #btn-save-all { background:#2563eb; color:white; }
+    #btn-save-all:hover { background:#1d4ed8; }
+    #btn-add-item { background:#fff; border-color:#cbd5e1 !important; color:#334155; }
+    #btn-add-item:hover { background:#f8fafc; }
+    #detail-view .freeze-wrapper { position:relative; width:100%; max-height:min(68vh,680px); overflow:auto; border:1px solid var(--ui-line); border-radius:13px; background:white; box-shadow:0 4px 18px rgba(15,23,42,.045); scrollbar-width:thin; scrollbar-color:#bac5d4 #f4f6fa; }
+    /* Top scrollbar hidden: avoids overlap with the two-level sticky header. Native horizontal scrollbar remains. */
+    #detail-view .detail-scroll-top { display:none !important; }
+    #detail-view .detail-scroll-top-inner { height:1px; }
+    #detail-table { width:max-content; min-width:0; margin:0; table-layout:fixed; border-collapse:separate; border-spacing:0; font-size:11px; line-height:1.35; color:#334155; }
+    #detail-table th, #detail-table td { border:0 !important; border-bottom:1px solid #edf0f5 !important; vertical-align:middle; }
+    #detail-table thead th { position:sticky; background:#f6f8fb !important; color:#475569 !important; z-index:20; font-size:10px; font-weight:750; letter-spacing:.02em; white-space:nowrap; text-align:left; box-shadow:0 1px 0 #e4e9f1; }
+    #detail-table thead .header-top th { top:0; height:34px; padding:8px 9px; }
+    #detail-table thead .header-bottom th { top:34px; height:26px; padding:5px 8px; z-index:21; }
+    #detail-table thead .header-top th[rowspan="2"] { vertical-align:middle; }
+    #detail-table thead .dimension-group { text-align:center; background:#eef2f8 !important; }
+    #detail-table tbody td { height:52px; padding:5px 9px; background:#fff !important; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    #detail-table tbody tr:nth-child(even) td { background:#fcfdff !important; }
+    #detail-table tbody tr:hover td { background:#f1f6ff !important; }
+    #detail-table tbody tr.editing td { background:#fff8e7 !important; }
+    #detail-table tbody tr.new-item-row td { background:#eff6ff !important; border-top:1px solid #93c5fd !important; }
+    #detail-table .description-cell { font-weight:700; color:#1e293b; }
+    #detail-table .dimension-cell { text-align:center; font-variant-numeric:tabular-nums; padding-left:3px !important; padding-right:3px !important; }
+    /* Dimension groups: compact numeric cells and clear group boundaries. */
+    #detail-table thead .dimension-group { background:#e9f0fa !important; color:#29436c !important; font-size:10px; letter-spacing:.01em; text-align:center; border-left:2px solid #c6d5e8 !important; }
+    #detail-table thead .dimension-sub { background:#f2f6fc !important; text-align:center; padding:4px 2px !important; font-weight:700; color:#49617e; }
+    #detail-table td[data-key="item_w"], #detail-table td[data-key="pack_w"],
+    #detail-table td[data-key="item_w_inch"], #detail-table td[data-key="pack_w_inch"] { border-left:2px solid #c6d5e8 !important; }
+    #detail-table td[data-key^="item_"]:not([data-key="item_w"]):not([data-key="item_d"]):not([data-key="item_h"]),
+    #detail-table td[data-key^="pack_"] { font-variant-numeric:tabular-nums; }
+    #detail-table tbody td[data-key="article_nr_"], #detail-table tbody td[data-key="article_nr_nw"] { padding-left:7px; padding-right:5px; }
+
+    #detail-table .number-cell { text-align:right; font-variant-numeric:tabular-nums; }
+    #detail-table .photo-cell { text-align:center; }
+    #detail-table .photo-cell img { width:42px; height:42px; object-fit:contain; display:block; margin:auto; border-radius:8px; background:#f8fafc; border:1px solid #e8edf4; }
+    #detail-table .cell-text { display:block; width:100%; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:middle; }
+    #detail-table td[data-key] { min-width:0; max-width:0; }
+    #detail-table td[data-key] .cell-text { cursor:default; }
+    #detail-table td[data-key="act"] { overflow:visible; }
+    #detail-table .btn-xs { border-radius:7px; font-size:10px; font-weight:700; padding:4px 7px; margin:1px; border:0; }
+    #detail-table .btn-primary { background:#2563eb; }
+    #detail-table .btn-warning { background:#f5ad42; color:#583b11; }
+    #detail-table .inline-input, #detail-table .new-item-input { min-width:65px; height:30px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:6px; background:white; font-size:11px; }
+    #detail-table .inline-input:focus, #detail-table .new-item-input:focus { border-color:#2563eb; box-shadow:0 0 0 2px #dbeafe; outline:none; }
+    /* Freeze only PHOTO and DESCRIPTION, each with its own exact left offset. */
+    #detail-table th.freeze-photo, #detail-table td.freeze-photo {
+        position:sticky !important; left:44px !important; min-width:72px;
+        width:72px; max-width:72px; background:#fff !important;
+        z-index:12; box-shadow:1px 0 0 #e2e8f0;
+    }
+    #detail-table th.freeze-description, #detail-table td.freeze-description {
+        position:sticky !important; left:116px !important; width:220px;
+        min-width:220px; max-width:220px; background:#fff !important;
+        z-index:11; box-shadow:2px 0 5px -3px rgba(15,23,42,.22);
+    }
+    #detail-table thead th.freeze-photo, #detail-table thead th.freeze-description {
+        z-index:35 !important; background:#f6f8fb !important;
+    }
+    #detail-table tbody tr:nth-child(even) td.freeze-photo,
+    #detail-table tbody tr:nth-child(even) td.freeze-description { background:#fcfdff !important; }
+    #detail-table tbody tr:hover td.freeze-photo,
+    #detail-table tbody tr:hover td.freeze-description { background:#f1f6ff !important; }
+    #detail-table tbody tr.editing td.freeze-photo,
+    #detail-table tbody tr.editing td.freeze-description { background:#fff8e7 !important; }
+    #detail-table tbody td.freeze-description { text-align:left; }
+    #detail-table .sticky-col { /* legacy class retained for JS compatibility */ }
+    /* Summary is OUTSIDE the scrollable table, always visible under it. */
+    #detail-view .po-summary-outside { display:grid; gap:0; margin-top:0; border:1px solid #e2e8f0;
+        border-top:0; border-radius:0 0 12px 12px; overflow:hidden; background:white; }
+    #detail-view .po-summary-line { display:flex; justify-content:flex-end; align-items:center;
+        gap:20px; padding:9px 16px; border-bottom:1px solid rgba(15,23,42,.06); font-size:12px; }
+    #detail-view .po-summary-line:last-child { border-bottom:0; }
+    #detail-view .po-summary-label { font-weight:650; text-align:right; flex:1; }
+    #detail-view .po-summary-value { font-weight:800; min-width:145px; text-align:right; font-variant-numeric:tabular-nums; }
+    #detail-view .footer-cbm { background:#f1f5f9; color:#334155; }
+    #detail-view .footer-fob { background:#eaf6ef; color:#166534; }
+    #detail-view .footer-discount { background:#fff0f0; color:#b42318; }
+    #detail-view .footer-grand { background:#e7f0ff; color:#1d4ed8; }
+    #detail-view .freeze-wrapper { border-radius:12px 12px 0 0; }
+    .new-item-field-wrap,.new-item-photo-wrap { position:relative; }
+    .new-item-badge { display:inline-block; font-size:9px; padding:2px 5px; background:#2563eb; color:white; border-radius:5px; }
+    .new-image-editor { min-width:82px; text-align:center; outline:none; cursor:pointer; }
+    .new-image-editor.paste-target { outline:2px solid #60a5fa; border-radius:8px; }
+    .new-image-preview { width:66px; height:52px; margin:0 auto 4px; border:1px dashed #cbd5e1; border-radius:7px; display:flex; align-items:center; justify-content:center; overflow:hidden; font-size:9px; color:#64748b; }
+    .new-image-preview img { width:100%; height:100%; object-fit:contain; }
+    .new-image-actions { display:flex; justify-content:center; gap:3px; flex-wrap:wrap; }
+    .new-image-actions .btn { font-size:9px; padding:3px 5px; }
+    .paste-success { position:absolute; bottom:2px; right:2px; background:#16a34a; color:white; font-size:9px; border-radius:4px; padding:2px 4px; }
+    .new-act-placeholder { color:#94a3b8; }
+    #chatModal .modal-dialog { max-width:680px; }
+    #chatModal .release-chat-caret { display:inline-block; width:2px; height:13px; margin-left:3px; vertical-align:-2px; background:#2563eb; animation:releaseChatBlink .85s steps(1) infinite; }
+    @keyframes releaseChatBlink { 50% { opacity:0; } }
+    @media(max-width:900px) { #detail-view .table-info tbody { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+    @media(max-width:600px) { #detail-view .box-body { padding:10px 8px; } #detail-view .table-info tbody { grid-template-columns:1fr 1fr; } #detail-view .table-info tr { padding:8px; } #detail-view .freeze-wrapper { max-height:65vh; } #detail-table tbody td { height:48px; padding:4px 7px; } }
+
+    /* UI vNext: compact, clean toolbar and readable detail summary */
+    .po-heading {display:flex;align-items:center;gap:12px;}
+    .po-heading-icon {width:38px;height:38px;border-radius:11px;background:#eaf1ff;color:#2563eb;display:flex;align-items:center;justify-content:center;font-size:17px;}
+    .po-heading h2 {margin:0 0 3px;font-size:19px;font-weight:750;letter-spacing:-.025em;color:#15263d;}
+    .po-heading small {font-size:11px;color:#7b899c;}
+    .po-filter-toolbar {display:flex!important;align-items:end!important;gap:16px!important;justify-content:space-between!important;margin:8px 0 16px;padding:16px!important;background:#f8fafc;border:1px solid #e8edf4;border-radius:13px;}
+    .po-filter-toolbar > div:first-child {max-width:440px!important;flex:1;}
+    .po-filter-toolbar > div:last-child {width:150px!important;}
+    .po-filter-toolbar .form-control {height:38px;border:1px solid #dce4ef;border-radius:9px;background:white;font-size:12px;box-shadow:none;}
+    .po-filter-toolbar .form-control:focus {border-color:#93b4f6;box-shadow:0 0 0 3px rgba(37,99,235,.08);}
+    #detail-view .po-detail-heading {display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #e9edf4;}
+    #detail-view .po-detail-eyebrow {color:#2563eb;font-size:10px;font-weight:800;letter-spacing:.12em;}
+    #detail-view .po-detail-heading h3 {margin:3px 0;font-size:19px;font-weight:750;color:#15263d;}
+    #detail-view .po-detail-heading p {margin:0;color:#8490a3;font-size:11px;}
+    #detail-view .detail-scroll-top {display:block!important;width:100%;height:16px;overflow-x:auto;overflow-y:hidden;background:#f8fafc;border:1px solid #e4eaf2;border-bottom:0;border-radius:12px 12px 0 0;scrollbar-width:thin;scrollbar-color:#9aacc6 #edf2f8;}
+    #detail-view .detail-scroll-top-inner {height:1px;}
+    #detail-view .freeze-wrapper {border-radius:0!important;}
+    #detail-view .po-summary-outside {display:grid!important;position:relative;z-index:1;min-height:0;}
+    #detail-view .po-summary-outside:empty {display:none!important;}
+    #detail-view .po-summary-line {min-height:35px;padding:8px 16px;}
+    #detail-view .po-summary-label {flex:0 1 210px;}
+    #detail-view .po-summary-value {min-width:120px;}
+    @media(max-width:650px) {.po-filter-toolbar{align-items:stretch!important;flex-direction:column;}.po-filter-toolbar>div:first-child,.po-filter-toolbar>div:last-child{width:100%!important;max-width:none!important;}#detail-view .po-detail-heading{align-items:flex-start;}}
+    /* Hide list filters only while the PO detail view is active. */
+    .po-filter-toolbar.po-filter-hidden { display:none !important; }
+
+    /* Numbering visual only: never added to editable detail fields or API payloads. */
+    #detail-table tbody { counter-reset: po-row; }
+    #detail-table tbody tr:not(.new-item-row) { counter-increment: po-row; }
+    #detail-table .po-row-number::before { content: counter(po-row); }
+    #detail-table th.freeze-no, #detail-table td.freeze-no {
+        position:sticky !important; left:0 !important; width:44px; min-width:44px;
+        max-width:44px; z-index:13; text-align:center; background:#fff !important;
+        font-variant-numeric:tabular-nums; color:#64748b;
+        box-shadow:1px 0 0 #e2e8f0;
+    }
+    #detail-table thead th.freeze-no { z-index:36 !important; background:#f6f8fb !important; }
+    #detail-table tbody tr:nth-child(even) td.freeze-no { background:#fcfdff !important; }
+    #detail-table tbody tr:hover td.freeze-no { background:#f1f6ff !important; }
+    #detail-table tbody tr.editing td.freeze-no { background:#fff8e7 !important; }
+    /* Remove excess whitespace above the Release PFI filter section. */
+    .padding > .box > .box-body { padding-top:4px !important; }
+    .padding > .box > .box-header { margin-bottom:0 !important; padding-bottom:4px !important; min-height:0 !important; }
+    .padding > .box > .box-body > .po-filter-toolbar { margin-top:0 !important; }
     </style>
     <div class="padding">
         <div class="box">
             <div class="box-header">
-                <h2>Release PFI</h2>
-                <small>___</small>
+              @section('btn')
+            <div>
+
+                <h4 class="upah-title">
+                    Release PFI
+                </h4>
+
+                <div class="upah-subtitle">
+                    
+                </div>
+
             </div>
-            <input type="hidden" id="role" value="{{ auth()->user()->role }}">
+        @endsection
+        </div>   <input type="hidden" id="role" value="{{ auth()->user()->role }}">
             <input type="hidden" id="id" value="{{ auth()->user()->role }}">
             <div class="box-body">
-                <div class="box-header d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div class="box-header d-flex justify-content-between align-items-center flex-wrap gap-3 po-filter-toolbar">
 
                     {{-- LEFT : SEARCH --}}
                     <div style="max-width:350px; width:100%;">
@@ -552,6 +233,8 @@
 
                                             </th>
                                             <th>Company Name</th>
+                                            <th width="120">Action</th>
+
                                             <th>Country</th>
 
                                             <th>Release date</th>
@@ -565,7 +248,6 @@
                                             <th>DO Released</th>
                                             <th>Remark</th>
 
-                                            <th width="120">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody id="po-table-body">
@@ -577,6 +259,7 @@
                                     </tbody>
                                 </table>
                             </div>
+
                         </div>
                     </div>
                 </div>
@@ -584,10 +267,7 @@
                     <div class="col-sm-12">
                         <div class="box">
                             <div class="box-body">
-                                <button class="btn btn-default btn-sm" id="btn-back">
-                                    ← Show All Order Release
-                                </button>
-                                <hr>
+                                <div class="po-detail-heading"><div><div class="po-detail-eyebrow">PURCHASE ORDER</div><h3>Order Details</h3><p>Informasi pesanan dan rincian produk</p></div><button class="btn btn-default btn-sm" id="btn-back"><i class="fa fa-arrow-left"></i> All Orders</button></div>
                                 @php
                                     $user = auth()->user();
                                     $divisi = optional($user->karyawan->divisi)->nama;
@@ -632,16 +312,16 @@
                                     </button>
                                 @endif
                             </div>
+                            <div class="detail-scroll-top" id="detail-scroll-top" aria-label="Scroll kolom tabel ke kanan dan kiri">
+                                <div class="detail-scroll-top-inner" id="detail-scroll-top-inner"></div>
+                            </div>
                             <div class="freeze-wrapper">
-                                <div class="detail-scroll-top" id="detail-scroll-top" aria-label="Horizontal table scroll">
-                                    <div class="detail-scroll-top-inner" id="detail-scroll-top-inner"></div>
-                                </div>
                                 <table class="table table-bordered table-striped" id="detail-table">
                                     <thead id="detail-table-head"></thead>
                                     <tbody id="detail-item-table"></tbody>
-                                    <tfoot id="detail-table-foot"></tfoot>
                                 </table>
                             </div>
+                            <div id="detail-table-foot" class="po-summary-outside" aria-label="Ringkasan PO"></div>
                         </div>
                     </div>
                 </div>
@@ -736,6 +416,7 @@
                             .on('click', function() {
                                 $('#detail-view').hide();
                                 $('#default-table').show();
+                                $('.po-filter-toolbar').removeClass('po-filter-hidden');
                             });
                         $('#filter-spk-type')
                             .off('change')
@@ -764,6 +445,7 @@
                         const syncWidth = () => {
                             topInner.style.width = table.scrollWidth + 'px';
                             topScroll.scrollLeft = wrapper.scrollLeft;
+                            topScroll.style.display = table.scrollWidth > wrapper.clientWidth + 2 ? 'block' : 'none';
                         };
 
                         topScroll.onscroll = function() {
@@ -980,7 +662,14 @@
                             ${editableTd('order_no',po.order_no,po.id)}
 
                             ${editableTd('company_name',po.company_name,po.id)}
+ <td>
+                                <button class="btn btn-success btn-xs btn-view"
+                                    data-id="${po.id}">
+                                    View
+                                </button>
 
+                                ${deleteButton}
+                            </td>
                             ${editableTd('country',po.country,po.id)}
 
                             ${editableTd('release_date',po.release_date,po.id,'date')}
@@ -1007,14 +696,7 @@
 
                             ${editableTd('remark',po.remark,po.id)}
 
-                            <td>
-                                <button class="btn btn-success btn-xs btn-view"
-                                    data-id="${po.id}">
-                                    View
-                                </button>
-
-                                ${deleteButton}
-                            </td>
+                           
 
                         </tr>
                         `;
@@ -1169,6 +851,7 @@
                             .then(res => {
                                 $('#default-table').hide();
                                 $('#detail-view').show();
+                                $('.po-filter-toolbar').addClass('po-filter-hidden');
                                 $('#d-order').text(res.po.order_no);
                                 $('#d-company').text(res.po.company_name);
                                 $('#d-ship').text(res.po.shipment_date ?? '-');
@@ -1222,15 +905,18 @@
                                 // =====================================================
                                 // HEADER PRIORITY
                                 // =====================================================
+                                // Urutan mengikuti kolom A:S pada file Excel referensi.
+                                // ACT tetap disisipkan sebelum QTY oleh logika yang sudah ada.
                                 const priority = [
                                     'no_', 'photo', 'description', 'article_nr_', 'article_nr_nw',
-                                    'nw_code', 'sub_category', 'qty', 'remark', 'cushion', 'glass',
+                                    'nw_code', 'sub_category', 'remark',
                                     'item_w', 'item_d', 'item_h',
-                                    'item_w_inch', 'item_d_inch', 'item_h_inch',
                                     'pack_w', 'pack_d', 'pack_h',
+                                    'composition', 'finishing', 'qty', 'cbm',
+                                    'fob_jakarta_in_usd', 'total_cbm', 'value_in_usd',
+                                    'item_w_inch', 'item_d_inch', 'item_h_inch',
                                     'pack_w_inch', 'pack_d_inch', 'pack_h_inch',
-                                    'composition', 'finishing', 'cbm', 'total_cbm',
-                                    'value_in_usd', 'fob_jakarta_in_usd'
+                                    'cushion', 'glass'
                                 ];
 
                                 const role = $('#role').val();
@@ -1254,12 +940,15 @@
                                 }
 
                                 // =====================================================
-                                // INSERT ACT COLUMN BEFORE QTY
+                                // INSERT ACT DIRECTLY AFTER ARTICLE NR
                                 // =====================================================
-                                let qtyIndex = keys.indexOf('qty');
-                                if (qtyIndex !== -1) {
-                                    keys.splice(qtyIndex, 0, 'act');
-                                }
+                                keys = keys.filter(k => k !== 'act');
+                                const articleIndex = keys.indexOf('article_nr_') >= 0
+                                    ? keys.indexOf('article_nr_')
+                                    : (keys.indexOf('article_nr_nw') >= 0
+                                        ? keys.indexOf('article_nr_nw')
+                                        : keys.indexOf('nw_code'));
+                                keys.splice(articleIndex >= 0 ? articleIndex + 1 : Math.min(2, keys.length), 0, 'act');
 
                                 // =====================================================
                                 // INDEX
@@ -1301,6 +990,10 @@
                                     keys = keys.filter(key => !group.includes(key));
                                     keys.splice(firstIndex, 0, ...present);
                                 }
+                                // Keep the frozen pair at the very beginning, including when NO exists.
+                                const frozenKeys = ['photo', 'description'].filter(k => keys.includes(k));
+                                keys = [...frozenKeys, ...keys.filter(k => !frozenKeys.includes(k))];
+
                                 // Hitung ulang index setelah alias dan pengurutan kolom.
                                 descIndex = keys.indexOf('description');
                                 cbmIndex = keys.includes('total_cbm') ? keys.indexOf('total_cbm') : keys.indexOf('cbm');
@@ -1318,36 +1011,36 @@
                                 // =====================================================
                                 const columnWidth = key => {
                                     const widths = {
-                                        no_: 58,
-                                        photo: 82,
+                                        no_: 38,
+                                        photo: 72,
                                         description: 220,
-                                        article_nr_: 120,
-                                        article_nr_nw: 120,
-                                        nw_code: 110,
-                                        sub_category: 130,
-                                        act: 115,
-                                        qty: 70,
-                                        remark: 180,
-                                        cushion: 90,
-                                        glass: 80,
-                                        item_w: 56,
-                                        item_d: 56,
-                                        item_h: 56,
+                                        article_nr_: 92,
+                                        article_nr_nw: 92,
+                                        nw_code: 95,
+                                        sub_category: 105,
+                                        act: 112,
+                                        qty: 48,
+                                        remark: 135,
+                                        cushion: 75,
+                                        glass: 65,
+                                        item_w: 58,
+                                        item_d: 58,
+                                        item_h: 58,
                                         item_w_inch: 66,
                                         item_d_inch: 66,
                                         item_h_inch: 66,
-                                        pack_w: 56,
-                                        pack_d: 56,
-                                        pack_h: 56,
+                                        pack_w: 58,
+                                        pack_d: 58,
+                                        pack_h: 58,
                                         pack_w_inch: 66,
                                         pack_d_inch: 66,
                                         pack_h_inch: 66,
-                                        composition: 180,
-                                        finishing: 180,
+                                        composition: 130,
+                                        finishing: 130,
                                         cbm: 78,
                                         total_cbm: 92,
-                                        value_in_usd: 125,
-                                        fob_jakarta_in_usd: 145
+                                        value_in_usd: 105,
+                                        fob_jakarta_in_usd: 120
                                     };
 
                                     return widths[key] || 120;
@@ -1363,7 +1056,10 @@
                                         `<col style="width:${columnWidth(k)}px;min-width:${columnWidth(k)}px;">`
                                     );
                                 });
+                                colgroup.prepend('<col style="width:44px;min-width:44px;">');
                                 $('#detail-table').prepend(colgroup);
+                                // Explicit pixel width prevents browsers from stretching columns to fill the viewport.
+                                $('#detail-table').css('width', (44 + keys.reduce((sum, key) => sum + columnWidth(key), 0)) + 'px');
 
                                 // =====================================================
                                 // HEADER 2 LEVEL
@@ -1416,11 +1112,12 @@
                                         });
                                         return;
                                     }
-                                    const cls = i === descIndex ? 'sticky-col' : '';
+                                    const cls = k === 'photo' ? 'freeze-photo' : (k === 'description' ? 'freeze-description sticky-col' : '');
                                     const label = k === 'act' ? 'ACT' : k.replaceAll('_', ' ').toUpperCase();
                                     headerTop.append(`<th rowspan="2" class="${cls}">${escapeHtml(label)}</th>`);
                                 });
 
+                                headerTop.prepend('<th rowspan="2" class="freeze-no">NO</th>');
                                 thead.append(headerTop);
                                 thead.append(headerBottom);
                                 // =========================
@@ -1441,7 +1138,7 @@
                                         '';
                                     let articleCode = encodeURIComponent(rawCode);
                                     keys.forEach((key, i) => {
-                                        let cls = (i === descIndex) ? 'sticky-col' : '';
+                                        let cls = key === 'photo' ? 'freeze-photo' : (key === 'description' ? 'freeze-description sticky-col' : '');
                                         // 🔥 ACT COLUMN
                                         if (key === 'act') {
                                             let rawCode =
@@ -1518,9 +1215,7 @@
                                             if (key === 'total_cbm') totalCbm += parseFloat(value);
                                         }
                                         // FORMAT PRICE
-                                        if (key === 'value_in_usd' || key === 'fob_jakarta_in_usd') {
-                                            totalPrice += parseFloat(value || 0);
-                                        }
+                                        // Total FOB dihitung sekali setelah semua baris dirender.
                                         // INCH: pembulatan hanya pada tampilan, nilai asli tetap disimpan.
                                         const isInchDimension = activeInchKeys.includes(key);
                                         const rawInchValue = isInchDimension ? value : null;
@@ -1535,42 +1230,80 @@
                                             .startsWith('http')) {
                                             td.html(`<img src="${value}" alt="Photo">`);
                                         } else {
-                                            td.html(`<span class="cell-text">${value}</span>`);
+                                            td.html(`<span class="cell-text">${escapeHtml(value)}</span>`);
+                                            if (!isInchDimension) td.attr('title', String(value ?? ''));
                                         }
                                         row.append(td);
                                     });
+                                    row.prepend('<td class="freeze-no po-row-number"></td>');
                                     tbody.append(row);
                                 });
-                                // =========================
-                                // FOOTER
-                                // =========================
-                                // TOTAL CBM harus tampil untuk SEMUA ROLE.
-                                // TOTAL FOB PRICE tetap khusus marketing.
-                                // Sebelumnya priceIndex = -1 pada role non-marketing
-                                // menyebabkan emptyTds(-1) dan footer gagal dirender.
-                                let footerHtml = '';
-
-                                if (cbmIndex >= 0) {
-                                    footerHtml += `
-                <tr style="font-weight:bold;background:#f4f6f9">
-                    ${emptyTds(cbmIndex)}
-                    <td>TOTAL CBM</td>
-                    <td>${isNaN(totalCbm) ? '0.00' : totalCbm.toFixed(1)}</td>
-                    ${emptyTds(Math.max(0, keys.length - cbmIndex - 2))}
-                </tr>`;
+                                // =============================================
+                                // SUMMARY: 4 sticky rows, mengikuti grid Excel
+                                // =============================================
+                                const numberValue = raw => {
+                                    if (raw === null || raw === undefined || raw === '') return 0;
+                                    const value = String(raw).replace(/,/g, '');
+                                    return Number.isFinite(Number(value)) ? Number(value) : 0;
+                                };
+                                const cbmField = keys.includes('total_cbm') ? 'total_cbm' : 'cbm';
+                                const priceField = 'value_in_usd'; // Total FOB Price = SUM(value_in_usd), bukan FOB per unit
+                                // Satu kolom sumber saja supaya nilai FOB tidak terhitung dua kali.
+                                totalCbm = res.items.reduce((sum, item) =>
+                                    sum + numberValue((item.detail || {})[cbmField]), 0);
+                                totalPrice = res.items.reduce((sum, item) =>
+                                    sum + numberValue((item.detail || {}).value_in_usd), 0);
+                                const discountAmount = totalPrice * 0.02;
+                                const grandTotal = totalPrice - discountAmount;
+                                const money = value => Number(value).toLocaleString('en-US', {
+                                    minimumFractionDigits: 2, maximumFractionDigits: 2
+                                });
+                                const footerRows = [];
+                                function addSummaryRow(cls, label, value, targetKey) {
+                                    const index = keys.indexOf(targetKey);
+                                    if (index < 0) return;
+                                    // Satu TD per kolom: grid footer sama persis dengan header/body.
+                                    let cells = keys.map((key, i) => {
+                                        if (i === index) return `<td class="footer-value">${escapeHtml(value)}</td>`;
+                                        if (i === index - 1) return `<td class="footer-label">${escapeHtml(label)}</td>`;
+                                        return '<td></td>';
+                                    });
+                                    // Bila kolom target pertama, label ditempatkan di value cell.
+                                    if (index === 0) cells[0] = `<td class="footer-value">${escapeHtml(label + ': ' + value)}</td>`;
+                                    footerRows.push({cls, cells: cells.join('')});
                                 }
-
-                                if (role === 'marketing' && priceIndex >= 0) {
-                                    footerHtml += `
-                <tr style="font-weight:bold;background:#e8f5e9">
-                    ${emptyTds(priceIndex)}
-                    <td>TOTAL FOB PRICE</td>
-                    <td>${totalPrice.toLocaleString('id-ID')}</td>
-                    ${emptyTds(Math.max(0, keys.length - priceIndex - 2))}
-                </tr>`;
+                                if (keys.includes(cbmField)) {
+                                    addSummaryRow('footer-cbm', 'Total CBM', totalCbm.toFixed(2), cbmField);
                                 }
+                                if (role === 'marketing' && keys.includes(priceField)) {
+                                    addSummaryRow('footer-fob', 'Total FOB Price', money(totalPrice), priceField);
+                                    // addSummaryRow('footer-discount', 'Discount 2%', '- ' + money(discountAmount), priceField);
+                                    addSummaryRow('footer-grand', 'Total FOB Price', money(grandTotal), priceField);
+                                }
+                                // Summary is a separate panel, not part of the scrollable table.
+                                foot.html(footerRows.map(row => {
+                                    const label = row.cls === 'footer-cbm' ? 'Total CBM' :
+                                        row.cls === 'footer-discount' ? 'Discount 2%' : 'Total FOB Price';
+                                    const value = row.cls === 'footer-cbm' ? totalCbm.toFixed(2) :
+                                        row.cls === 'footer-fob' ? money(totalPrice) :
+                                        row.cls === 'footer-discount' ? '- ' + money(discountAmount) : money(grandTotal);
+                                    return `<div class="po-summary-line ${row.cls}">
+                                        <span class="po-summary-label">${label}</span>
+                                        <span class="po-summary-value">${value}</span>
+                                    </div>`;
+                                }).join(''));
+                                // Refresh scrollbar width after dynamic columns and rows render.
+                                requestAnimationFrame(() => {
+                                    const wrapper = document.querySelector('#detail-view .freeze-wrapper');
+                                    const bar = document.getElementById('detail-scroll-top');
+                                    const inner = document.getElementById('detail-scroll-top-inner');
+                                    const table = document.getElementById('detail-table');
+                                    if (wrapper && bar && inner && table) {
+                                        inner.style.width = table.scrollWidth + 'px';
+                                        bar.style.display = table.scrollWidth > wrapper.clientWidth + 2 ? 'block' : 'none';
+                                    }
+                                });
 
-                                foot.html(footerHtml);
                             });
                     });
                     /* =====================================================
@@ -1742,7 +1475,7 @@
                         const row = $('<tr class="editable-row editing new-item-row" data-id="new"></tr>');
 
                         keys.forEach((key, index) => {
-                            const cls = (key === 'description') ? 'sticky-col' : '';
+                            const cls = key === 'photo' ? 'freeze-photo' : (key === 'description' ? 'freeze-description sticky-col' : '');
                             let html = buildNewItemInput(key);
 
                             if (key === 'no_') {
@@ -1773,6 +1506,7 @@
                             row.append(`<td class="${cls}" data-key="${key}">${html}</td>`);
                         });
 
+                        row.prepend('<td class="freeze-no"><span class="new-item-badge">NEW</span></td>');
                         tbody.prepend(row);
 
                         // Scroll kembali ke bagian paling atas agar baris baru terlihat.
