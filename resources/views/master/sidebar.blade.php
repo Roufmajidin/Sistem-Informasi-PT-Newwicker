@@ -546,14 +546,14 @@
                                      <li>
                                          <a href="/produksi/inventor">
                                              <!-- <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span> -->
-                                             <span class="nav-text">Mutasi Barang jadi</span>
+                                             <span class="nav-text">Running SPK</span>
                                          </a>
                                      </li>
                                      <li><a href="/bom-produksi"><span class="nav-text">COG</span></a></li>
                                      <li>
                                          <a href="/qc/laporan">
                                              <!-- <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span> -->
-                                             <span class="nav-text">Monitoring in/o</span>
+                                             <span class="nav-text">Qc Pass</span>
                                          </a>
                                      </li>
                                  </ul>
@@ -575,10 +575,10 @@
                                      <li><a href="/upah/transaksi"><span class="nav-text">Rekap Upah</span></a></li>
                                      <li><a href="/subkon/"><span class="nav-text">Subkon</span></a></li>
                                      <li>
-                                         <a href="/produksi/in_out_barang_jadi">
+                                         {{-- <a href="/produksi/in_out_barang_jadi">
                                              <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
                                              <span class="nav-text">monitoring (admin)</span>
-                                         </a>
+                                         </a> --}}
                                  </ul>
                              </li>
                              <!--    <li>-->
