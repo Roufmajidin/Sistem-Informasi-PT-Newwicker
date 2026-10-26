@@ -98,7 +98,7 @@ class SpkController extends Controller
         ];
         return view('spk.show', compact('spk'));
     }
-    public function index(Request $request, $id)
+      public function index(Request $request, $id)
     {
         $viewOnly = $request->is('spk/views/*');
 
@@ -171,6 +171,25 @@ class SpkController extends Controller
                 if (!is_array($item)) {
                     $item = [];
                 }
+
+                // Fallback kode untuk SPK lama yang belum memiliki kode.
+                // Kode tersimpan yang valid tetap dipertahankan.
+                $kode = trim((string) ($item['kode'] ?? ''));
+                if ($kode === '' || $kode === '-') {
+                    $detailId = $item['detail_po_id'] ?? $item['detail_id'] ?? null;
+                    if ($detailId) {
+                        $detailPo = DetailPo::find($detailId);
+                        $detail = $detailPo?->detail ?? [];
+                        if (!is_array($detail)) {
+                            $detail = [];
+                        }
+                        $article = trim((string) ($detail['article_nr_'] ?? ''));
+                        $nwCode = trim((string) ($detail['nw_code'] ?? ''));
+                        $kode = ($article !== '' && $article !== '-') ? $article
+                            : (($nwCode !== '' && $nwCode !== '-') ? $nwCode : '-');
+                    }
+                }
+                $item['kode'] = ($kode !== '' ? $kode : '-');
 
                 // =================================================
                 // SATUAN
@@ -749,9 +768,12 @@ class SpkController extends Controller
                     'detail_id' =>
                         $d->id ?? null,
 
-                    'kode' =>
-                        $detail['article_nr_']
-                        ?? '-',
+                    'kode' => (function () use ($detail) {
+                        $article = trim((string) ($detail['article_nr_'] ?? ''));
+                        $nwCode = trim((string) ($detail['nw_code'] ?? ''));
+                        return ($article !== '' && $article !== '-') ? $article
+                            : (($nwCode !== '' && $nwCode !== '-') ? $nwCode : '-');
+                    })(),
 
                     'nama' =>
                         $detail['description']
@@ -894,6 +916,7 @@ class SpkController extends Controller
             )
         );
     }
+
 
     //     public function index(Request $request, $id)
 // {
@@ -8282,7 +8305,7 @@ class SpkController extends Controller
         ]);
     }
     // payment request draft
-   
+
 
     // payment request draft
     private function generateRequestNo()
