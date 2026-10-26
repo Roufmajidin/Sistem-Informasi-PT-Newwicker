@@ -2598,10 +2598,12 @@
                             <button id="btnSaveSpk" class="btn-spk-save">
                                 💾 Save SPK
                             </button>
-                            @if ($status != 'finished')
-                                <button class="btn-spk-status btn-status-spk" data-status="closed">
-                                    🔒 Close SPK
+                            {{-- if any bahan, then List bahan --}}
+                              <button class="btn-spk-status" data-status="closed">
+                                   Add List Bahan
                                 </button>
+                            @if ($status != 'finished')
+                              
                                 <button id="btnCleanUnchecked" class="btn-spk-clean" style="display:none">
                                     🗑 Bersihkan
                                 </button>

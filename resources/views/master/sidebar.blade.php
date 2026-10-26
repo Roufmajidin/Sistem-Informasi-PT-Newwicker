@@ -30,19 +30,19 @@
                      </li>
 
                      {{-- 🔹 Role: HRD --}}
-                      <li>
-                                 <a href="/karyawan-scan">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
-                                     <span class="nav-text">Absen Sekarang</span>
-                                 </a>
-                             </li>
-                             <li>
-                                 <a href="{{ route('absen.riwayat') }}">
-                                     <span class="nav-icon"><i class="material-icons">&#xe192;</i></span>
-                                     <span class="nav-text">Riwayat Absen</span>
-                                 </a>
+                     <li>
+                         <a href="/karyawan-scan">
+                             <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                             <span class="nav-text">Absen Sekarang</span>
+                         </a>
+                     </li>
+                     <li>
+                         <a href="{{ route('absen.riwayat') }}">
+                             <span class="nav-icon"><i class="material-icons">&#xe192;</i></span>
+                             <span class="nav-text">Riwayat Absen</span>
+                         </a>
 
-                             </li>
+                     </li>
                      @php
                          use App\Models\Karyawan;
 
@@ -438,7 +438,7 @@
                                              </span>
                                          </a>
                                      </li>
-                                      <li>
+                                     <li>
                                          <a href="/rnd/sample-pictures">
                                              <span class="nav-text">
                                                  Samples Picture
@@ -482,11 +482,11 @@
                              <!-- </li>
 
 
-                                                                         <a href="/request">
-                                                                             <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
-                                                                             <span class="nav-text">Agenda</span>
-                                                                         </a>
-                                                                     </li> -->
+                                                                             <a href="/request">
+                                                                                 <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                                                                 <span class="nav-text">Agenda</span>
+                                                                             </a>
+                                                                         </li> -->
 
                              <li>
                                  <a href="/request">
@@ -532,7 +532,7 @@
                                      <span class="nav-text">Release PFI</span>
                                  </a>
                              <li>
-                                     <li><a href="/produksi/mn"><span class="nav-text">Monitoring Produksi</span></a></li>
+                             <li><a href="/produksi/mn"><span class="nav-text">Monitoring Produksi</span></a></li>
 
                              <li>
                                  <a>
@@ -719,7 +719,7 @@
                                  </a>
                              </li>
 
-                              <li>
+                             <li>
                                  <a href="/cad">
                                      <span class="nav-icon">
                                          <i class="material-icons">&#xe85e;</i>
@@ -784,94 +784,102 @@
                                  </ul>
                              </li>
                          @endif
-                    
-@if (Auth::user()->role === 'rnd')
-    @php
-        $email = strtolower(trim(Auth::user()->email));
 
-        // Sesuaikan dengan email Hafiz yang terdaftar
-        $isHafiz = $email === 'hafizha@gmail.com';
-        $isYatno = $email === 'riyatno@gmail.com';
+                         @if (Auth::user()->role === 'rnd')
+                             @php
+                                 $email = strtolower(trim(Auth::user()->email));
 
-        $isLimitedUser = $isHafiz || $isYatno;
-    @endphp
+                                 // Sesuaikan dengan email Hafiz yang terdaftar
+                                 $isHafiz = $email === 'hafizha@gmail.com';
+                                 $isYatno = $email === 'riyatno@gmail.com';
 
-    {{-- MENU UNTUK SEMUA USER RND --}}
-    <li>
-        <a href="{{ route('absen.riwayat') }}">
-            <span class="nav-icon">
-                <i class="material-icons">&#xe192;</i>
-            </span>
-            <span class="nav-text">Riwayat Absen</span>
-        </a>
-    </li>
+                                 $isLimitedUser = $isHafiz || $isYatno;
+                             @endphp
 
-    <li>
-        <a href="/karyawan-scan">
-            <span class="nav-icon">
-                <i class="material-icons">&#xe85e;</i>
-            </span>
-            <span class="nav-text">Absen Sekarang</span>
-        </a>
-    </li>
-    <li>
-                         <a href="/bom">
-                             <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
-                             <span class="nav-text">B O M</span>
-                         </a>
-                     </li>
-    <li>
-        <a href="/marketing-release-order">
-            <span class="nav-icon">
-                <i class="material-icons">&#xe85e;</i>
-            </span>
-            <span class="nav-text">Release PFI</span>
-        </a>
-    </li>
+                             {{-- MENU UNTUK SEMUA USER RND --}}
+                             <li>
+                                 <a href="{{ route('absen.riwayat') }}">
+                                     <span class="nav-icon">
+                                         <i class="material-icons">&#xe192;</i>
+                                     </span>
+                                     <span class="nav-text">Riwayat Absen</span>
+                                 </a>
+                             </li>
 
-    {{-- HANYA USER RND SELAIN HAFIZ DAN YATNO --}}
-    @if (!$isLimitedUser)
-        <li>
-            <a href="/semua-spk?spk=rnd_spk">
-                <span class="nav-icon">
-                    <i class="material-icons">&#xe85e;</i>
-                </span>
-                <span class="nav-text">SPK SAMPLES</span>
-            </a>
-        </li>
+                             <li>
+                                 <a href="/karyawan-scan">
+                                     <span class="nav-icon">
+                                         <i class="material-icons">&#xe85e;</i>
+                                     </span>
+                                     <span class="nav-text">Absen Sekarang</span>
+                                 </a>
+                             </li>
+                             <li>
+                                 <a href="/bom">
+                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                     <span class="nav-text">B O M</span>
+                                 </a>
+                             </li>
+                             <li>
+                                 <a href="/marketing-release-order">
+                                     <span class="nav-icon">
+                                         <i class="material-icons">&#xe85e;</i>
+                                     </span>
+                                     <span class="nav-text">Release PFI</span>
+                                 </a>
+                             </li>
 
-        <li>
-            <a href="/produksi/inventor">
-                <span class="nav-icon">
-                    <i class="material-icons">&#xe85e;</i>
-                </span>
-                <span class="nav-text">SPK Monitoring</span>
-            </a>
-        </li>
-    @endif
+                             {{-- HANYA USER RND SELAIN HAFIZ DAN YATNO --}}
+                             @if (!$isLimitedUser)
+                                 <li>
+                                     <a href="/spk/request-r">
+                                         <span class="nav-icon">
+                                             <i class="material-icons">&#xe85e;</i>
+                                         </span>
+                                         <span class="nav-text">Draft Pengajuan</span>
+                                     </a>
+                                 </li>
+                                 <li>
+                                     <a href="/semua-spk">
+                                         <span class="nav-icon">
+                                             <i class="material-icons">&#xe85e;</i>
+                                         </span>
+                                         <span class="nav-text">SPK SAMPLES</span>
+                                     </a>
+                                 </li>
 
-    {{-- SEMUA USER RND --}}
-    <li>
-        <a href="/rnd/sample-pictures">
-            <span class="nav-icon">
-                <i class="material-icons">&#xe85e;</i>
-            </span>
-            <span class="nav-text">Samples Picture</span>
-        </a>
-    </li>
+                                 <li>
+                                     <a href="/produksi/inventor">
+                                         <span class="nav-icon">
+                                             <i class="material-icons">&#xe85e;</i>
+                                         </span>
+                                         <span class="nav-text">SPK Monitoring</span>
+                                     </a>
+                                 </li>
+                             @endif
 
-    {{-- YATNO DAN USER RND LAINNYA, KECUALI HAFIZ --}}
-    @if (!$isHafiz)
-        <li>
-            <a href="/cad">
-                <span class="nav-icon">
-                    <i class="material-icons">&#xe85e;</i>
-                </span>
-                <span class="nav-text">CAD Drawing</span>
-            </a>
-        </li>
-    @endif
-@endif
+                             {{-- SEMUA USER RND --}}
+                             <li>
+                                 <a href="/rnd/sample-pictures">
+                                     <span class="nav-icon">
+                                         <i class="material-icons">&#xe85e;</i>
+                                     </span>
+                                     <span class="nav-text">Samples Picture</span>
+                                 </a>
+                             </li>
+
+                             {{-- YATNO DAN USER RND LAINNYA, KECUALI HAFIZ --}}
+                             @if (!$isHafiz)
+                                 <li>
+                                     <a href="/cad">
+                                         <span class="nav-icon">
+                                             <i class="material-icons">&#xe85e;</i>
+                                         </span>
+                                         <span class="nav-text">CAD Drawing</span>
+                                     </a>
+                                 </li>
+                             @endif
+                         @endif
 
                          @auth
                              @if (auth()->user()->role == 'factory' || auth()->user()->role == 'coo')
@@ -894,7 +902,7 @@
                              @endif
                          @endauth
                      @endauth
-                    
+
                      <li>
                          <a href="/inventory">
                              <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>

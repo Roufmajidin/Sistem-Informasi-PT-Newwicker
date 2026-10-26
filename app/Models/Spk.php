@@ -58,4 +58,7 @@ class Spk extends Model
         return $this->hasMany(TransaksiStok::class);
     }
 
+    // TODO:: add relasi to grade_bahan tabel
+    // create mode
+    // spk function index()
 }
