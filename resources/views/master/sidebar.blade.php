@@ -840,6 +840,14 @@
                                      </a>
                                  </li>
                                  <li>
+                                     <a href="/supplier">
+                                         <span class="nav-icon">
+                                             <i class="material-icons">&#xe85e;</i>
+                                         </span>
+                                         <span class="nav-text">Suppliers</span>
+                                     </a>
+                                 </li>
+                                 <li>
                                      <a href="/semua-spk">
                                          <span class="nav-icon">
                                              <i class="material-icons">&#xe85e;</i>
