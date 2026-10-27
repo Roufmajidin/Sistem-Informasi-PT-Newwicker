@@ -75,7 +75,7 @@
 <body>
 <div class="page">
     <aside class="intro" style="display:none">
-        <div class="brand"><img src="{{ asset('assets/images/logo.png') }}" alt="Logo NewWicker" class="brand-logo"> NewWicker</div>
+        {{-- <div class="brand"><img src="{{ asset('assets/images/logo.png') }}" alt="Logo NewWicker" class="brand-logo"> NewWicker</div> --}}
         <div class="intro-content">
             <div class="eyebrow">Internal Management System</div>
             <h1>Satu platform.<br>Kerja lebih terarah.</h1>
@@ -85,7 +85,7 @@
     </aside>
     <main class="form-side">
         <div class="form-inner">
-            <div class="mobile-brand" style="display:flex"><img src="{{ asset('assets/images/logo.png') }}" alt="Logo NewWicker" class="brand-logo"></div>
+            {{-- <div class="mobile-brand" style="display:flex"><img src="{{ asset('assets/images/logo.png') }}" alt="Logo NewWicker" class="brand-logo"></div> --}}
             <h2>Selamat datang</h2>
             <p class="form-subtitle">Masuk ke akun Anda untuk melanjutkan.</p>
             @if ($errors->any())
@@ -101,8 +101,8 @@
                 @csrf
                 <input type="hidden" name="redirect" value="{{ request('redirect', old('redirect')) }}">
                 <div class="field">
-                    <label class="form-label" for="email">Alamat email</label>
-                    <input type="email" name="email" id="email" class="form-control" placeholder="nama@perusahaan.com" value="{{ old('email') }}" autocomplete="username" required autofocus>
+                    <label class="form-label" for="email">Email</label>
+                    <input type="email" name="email" id="email" class="form-control" placeholder="your@gmail.com" value="{{ old('email') }}" autocomplete="username" required autofocus>
                 </div>
                 <div class="field">
                     <label class="form-label" for="password">Password</label>
