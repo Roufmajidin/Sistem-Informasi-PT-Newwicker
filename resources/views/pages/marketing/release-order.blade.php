@@ -158,6 +158,42 @@
     .padding > .box > .box-body { padding-top:4px !important; }
     .padding > .box > .box-header { margin-bottom:0 !important; padding-bottom:4px !important; min-height:0 !important; }
     .padding > .box > .box-body > .po-filter-toolbar { margin-top:0 !important; }
+
+        /* Enter-to-search hint: presentation only, no automatic search request. */
+        #release-enter-hint {
+            display: none; margin-top: 6px; padding: 5px 10px;
+            color: #4b628a; font-size: 12px; line-height: 1.5;
+            background: #eef4ff; border: 1px solid #dbe7fc;
+            border-radius: 6px; width: fit-content;
+        }
+        #release-enter-hint.is-visible { display: block; }
+        #release-enter-hint kbd {
+            display: inline-block; padding: 1px 6px; margin-left: 3px;
+            border: 1px solid #c8d5ec; border-radius: 4px;
+            background: #fff; color: #253e6a; font-size: 11px;
+            font-family: inherit; box-shadow: 0 1px 0 #c8d5ec;
+        }
+        /* Release PFI: loading layer only over the PO listing. */
+        #default-table { position: relative; }
+        #release-po-loading {
+            position: absolute; inset: 0; z-index: 20;
+            background: rgba(255, 255, 255, .78);
+            display: none; align-items: center; justify-content: center;
+            min-height: 150px;
+        }
+        #release-po-loading.is-active { display: flex; }
+        .release-po-loading-card {
+            display: flex; align-items: center; gap: 12px;
+            padding: 14px 20px; border-radius: 10px;
+            background: #fff; box-shadow: 0 4px 22px rgba(0,0,0,.12);
+            color: #2d4379; font-weight: 600;
+        }
+        .release-po-spinner {
+            width: 23px; height: 23px; border: 3px solid #dce6f7;
+            border-top-color: #2d4379; border-radius: 50%;
+            animation: release-po-spin .75s linear infinite;
+        }
+        @keyframes release-po-spin { to { transform: rotate(360deg); } }
     </style>
     <div class="padding">
         <div class="box">
@@ -183,7 +219,11 @@
                     {{-- LEFT : SEARCH --}}
                     <div style="max-width:350px; width:100%;">
 
-                        <input type="text" id="search-qc" class="form-control" placeholder="Search PO / Item / Vendor">
+                        <div class="release-search-line">
+                            <input type="text" id="search-qc" class="form-control" placeholder="Search PO / Product Name / Article Code" autocomplete="off">
+                            <span id="release-found-counter" class="release-found-counter" style="display:none" aria-live="polite"></span>
+                        </div>
+                        <div id="release-enter-hint" role="status" aria-live="polite">Press <kbd>Enter</kbd> to search</div>
 
                     </div>
 
@@ -216,6 +256,9 @@
                 <!--    </a>-->
                 <!--</div>-->
                 <div class="row" id="default-table">
+                    <div id="release-po-loading" role="status" aria-live="polite" aria-label="Memuat daftar PO">
+                        <div class="release-po-loading-card"><span class="release-po-spinner" aria-hidden="true"></span><span>Memuat data PO...</span></div>
+                    </div>
                     <div class="col-sm-12">
                         <div class="box">
                             <div class="table-responsive po-wrapper">
@@ -400,15 +443,41 @@
                         /* ===== LOAD TABLE ===== */
                         loadPoTable();
                         initDetailTopScroll();
+                        // Pencarian hanya dijalankan dengan Enter; hint muncul saat berhenti mengetik.
+                        let releaseHintTimer = null;
+                        const releaseHint = document.getElementById('release-enter-hint');
+                        const hideReleaseHint = () => {
+                            clearTimeout(releaseHintTimer);
+                            if (releaseHint) releaseHint.classList.remove('is-visible');
+                        };
                         $('#search-qc')
-                            .off('keyup')
-                            .on('keyup', function() {
-
-                                loadPoTable(
-                                    this.value,
-                                    $('#filter-spk-type').val()
-                                );
-
+                            .off('keyup.releaseSearch input.releaseSearch keydown.releaseSearch')
+                            .on('input.releaseSearch', function() {
+                                hideReleaseHint();
+                                const typed = this.value.trim();
+                                if (!typed) {
+                                    // Kosong = kembali ke tampilan awal seperti sebelumnya.
+                                    if (releaseAppliedKeyword !== '') {
+                                        releaseAppliedKeyword = '';
+                                        loadPoTable('', $('#filter-spk-type').val());
+                                    }
+                                    return;
+                                }
+                                if (typed === releaseAppliedKeyword) return;
+                                // Hint saja, tidak mengirim AJAX selama user mengetik.
+                                releaseHintTimer = setTimeout(() => {
+                                    const current = $('#search-qc').val().trim();
+                                    if (current && current !== releaseAppliedKeyword && releaseHint) {
+                                        releaseHint.classList.add('is-visible');
+                                    }
+                                }, 600);
+                            })
+                            .on('keydown.releaseSearch', function(event) {
+                                if (event.key !== 'Enter' || event.isComposing) return;
+                                event.preventDefault();
+                                hideReleaseHint();
+                                releaseAppliedKeyword = this.value.trim();
+                                loadPoTable(releaseAppliedKeyword, $('#filter-spk-type').val());
                             });
                         /* ===== BACK BUTTON ===== */
                         $('#btn-back')
@@ -423,7 +492,7 @@
                             .on('change', function() {
 
                                 loadPoTable(
-                                    $('#search-qc').val(),
+                                    releaseAppliedKeyword,
                                     $(this).val()
                                 );
 
@@ -619,90 +688,95 @@
     `;
                     }
 
+                    // Search JSON PO; keep original PO renderer and handlers.
+                    let releaseAppliedKeyword = '';
+                    let releaseSearchSequence = 0;
+                    let releaseSearchAbort = null;
+                    function releaseEscapeHtml(value) {
+                        return String(value ?? '').replace(/[&<>"']/g, ch =>
+                            ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+                    }
                     function loadPoTable(keyword = '', type = '') {
-                        fetch(
-                                `{{ route('marketing.ajax.po') }}
-?q=${encodeURIComponent(keyword)}
-&type=${encodeURIComponent(type)}
-&sort=${orderSort}`
-                            )
-                            .then(res => res.json())
-                            .then(data => {
-                                data.forEach(po => {
-                                    console.log(po.shipment_date);
-                                });
-                                const tbody = document.getElementById('po-table-body');
-
-                                if (!tbody) return;
+                        const seq = ++releaseSearchSequence;
+                        const loadingLayer = document.getElementById('release-po-loading');
+                        if (loadingLayer) loadingLayer.classList.add('is-active');
+                        const term = String(keyword || '').trim();
+                        const counter = document.getElementById('release-found-counter');
+                        if (releaseSearchAbort) releaseSearchAbort.abort();
+                        releaseSearchAbort = new AbortController();
+                        const signal = releaseSearchAbort.signal;
+                        if (counter) {
+                            counter.style.display = term ? 'inline-block' : 'none';
+                            if (term) counter.textContent = 'Searching...';
+                        }
+                        // Existing endpoint retains sorting, type filtering and full PO fields.
+                        const oldUrl = `{{ route('marketing.ajax.po') }}?q=${encodeURIComponent(term)}&type=${encodeURIComponent(type)}&sort=${encodeURIComponent(orderSort)}`;
+                        const listPromise = fetch(oldUrl, {signal}).then(r => {if (!r.ok) throw Error('PO list failed'); return r.json();});
+                        const matchPromise = term ? fetch(`{{ route('marketing.release-order.search') }}?q=${encodeURIComponent(term)}&type=${encodeURIComponent(type)}`, {signal})
+                            .then(r => {if (!r.ok) throw Error('JSON search failed'); return r.json();}) : Promise.resolve({data:[],total_po:0});
+                        Promise.all([listPromise,matchPromise]).then(([normalPos,found]) => {
+                            if (seq !== releaseSearchSequence) return;
+                            const tbody = document.getElementById('po-table-body');
+                            if (!tbody) return;
+                            const matchMap = new Map((found.data || []).map(p => [String(p.id),p]));
+                            // Existing API may filter by PO/company. Fetch unfiltered list to include JSON-only matches.
+                            const combined = new Map(normalPos.map(p => [String(p.id),p]));
+                            const extraIds = [...matchMap.keys()].filter(id => !combined.has(id));
+                            const finish = allPos => {
+                                if (seq !== releaseSearchSequence) return;
+                                const termLower = term.toLowerCase();
+                                const rows = term ? allPos.filter(p =>
+                                    String(p.order_no ?? '').toLowerCase().includes(termLower) ||
+                                    String(p.company_name ?? '').toLowerCase().includes(termLower) ||
+                                    matchMap.has(String(p.id))) : allPos;
+                                if (counter && term) counter.textContent = `Found in ${rows.length} POs`;
                                 tbody.innerHTML = '';
-                                if (!data.length) {
-                                    tbody.innerHTML = `
-                    <tr>
-                        <td colspan="4" class="text-center text-muted">
-                            Belum ada data
-                        </td>
-                    </tr>`;
+                                if (!rows.length) {
+                                    tbody.innerHTML = '<tr><td colspan="13" class="text-center text-muted">Belum ada data</td></tr>';
                                     return;
                                 }
-                                data.forEach(po => {
+                                rows.forEach(po => {
                                     let deleteButton = '';
-
                                     if (currentUsername.toLowerCase() === 'rodiyah') {
-                                        deleteButton = `
-            <button
-                class="btn btn-danger btn-xs btn-delete-po"
-                data-id="${po.id}">
-                Delete
-            </button>
-        `;
+                                        deleteButton = `<button class="btn btn-danger btn-xs btn-delete-po" data-id="${po.id}">Delete</button>`;
                                     }
+                                    const matches = matchMap.get(String(po.id))?.matched_items || [];
+                                    const tip = matches.map(item =>
+                                        `${item.description || item.nw_description || '-'} | ${item.article_code || '-'} | Qty: ${item.qty ?? '-'}`).join('\n');
+                                    const badge = matches.length ? `<span class="release-match-badge" title="${releaseEscapeHtml(tip)}">&#128269; ${matches.length} matched item(s)</span>` : '';
+                                    const orderCell = editableTd('order_no',po.order_no,po.id).replace('</td>', `${badge}</td>`);
                                     tbody.innerHTML += `
-                       <tr>
-
-                            ${editableTd('order_no',po.order_no,po.id)}
-
-                            ${editableTd('company_name',po.company_name,po.id)}
- <td>
-                                <button class="btn btn-success btn-xs btn-view"
-                                    data-id="${po.id}">
-                                    View
-                                </button>
-
-                                ${deleteButton}
-                            </td>
-                            ${editableTd('country',po.country,po.id)}
-
-                            ${editableTd('release_date',po.release_date,po.id,'date')}
-
-                            ${editableTd('shipment_date',normalizeDate(po.shipment_date),po.id,'date')}
-
-                            <td>
-                                ${deadlineProgress(
-                                    normalizeDate(po.release_date),
-                                    normalizeDate(po.shipment_date)
-                                )}
-                            </td>
-
-                            ${editableTd('act_ship',po.act_ship,po.id,'date')}
-
-                          ${canSeeValue
-    ? editableTd('value', po.value, po.id, 'number')
-    : ''
-}
-
-                            ${editableTd('cont_numb',po.cont_numb,po.id)}
-
-                            ${editableTd('do_released',po.do_released,po.id)}
-
-                            ${editableTd('remark',po.remark,po.id)}
-
-                           
-
-                        </tr>
-                        `;
+                                       <tr>
+                                            ${orderCell}
+                                            ${editableTd('company_name',po.company_name,po.id)}
+                                            <td><button class="btn btn-success btn-xs btn-view" data-id="${po.id}">View</button>${deleteButton}</td>
+                                            ${editableTd('country',po.country,po.id)}
+                                            ${editableTd('release_date',po.release_date,po.id,'date')}
+                                            ${editableTd('shipment_date',normalizeDate(po.shipment_date),po.id,'date')}
+                                            <td>${deadlineProgress(normalizeDate(po.release_date),normalizeDate(po.shipment_date))}</td>
+                                            ${editableTd('act_ship',po.act_ship,po.id,'date')}
+                                            ${canSeeValue ? editableTd('value', po.value, po.id, 'number') : ''}
+                                            ${editableTd('cont_numb',po.cont_numb,po.id)}
+                                            ${editableTd('do_released',po.do_released,po.id)}
+                                            ${editableTd('remark',po.remark,po.id)}
+                                       </tr>`;
                                 });
-                            })
-                            .catch(err => console.error(err));
+                            };
+                            if (!extraIds.length) return finish(normalPos);
+                            // Reuse old API without keyword to obtain complete row data for JSON matches.
+                            fetch(`{{ route('marketing.ajax.po') }}?q=&type=${encodeURIComponent(type)}&sort=${encodeURIComponent(orderSort)}`, {signal})
+                                .then(r => {if (!r.ok) throw Error('PO fallback failed'); return r.json();})
+                                .then(finish);
+                        }).catch(err => {
+                            if (err.name === 'AbortError' || seq !== releaseSearchSequence) return;
+                            console.error('Release Order search:', err);
+                            if (counter && term) counter.textContent = 'Search failed';
+                        }).finally(() => {
+                            // Request lama tidak boleh menutup loading milik request terbaru.
+                            if (seq === releaseSearchSequence && loadingLayer) {
+                                loadingLayer.classList.remove('is-active');
+                            }
+                        });
                     }
                     /* =====================================================
                        VIEW DETAIL
@@ -1987,7 +2061,7 @@
                             'asc';
 
                         loadPoTable(
-                            $('#search-qc').val(),
+                            releaseAppliedKeyword,
                             $('#filter-spk-type').val()
                         );
 
@@ -3532,7 +3606,12 @@
             .release-remote-cursor.is-idle {
                 opacity: .45;
             }
-        </style>
+        .release-search-line {display:flex;align-items:center;gap:10px;min-width:0}
+     .release-search-line .form-control {flex:1;min-width:0}
+     .release-found-counter {white-space:nowrap;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:9px 11px;border-radius:9px;font-size:11px;font-weight:700}
+     .release-match-badge {display:inline-block;margin:5px 0 0;padding:3px 7px;background:#eaf3ff;border:1px solid #bfdbfe;color:#1d4ed8;border-radius:6px;font-size:10px;font-weight:700;cursor:help;white-space:normal}
+     @media(max-width:650px){.release-search-line{flex-wrap:wrap}}
+     </style>
         <div id="releaseRemoteCursors" aria-hidden="true"></div>
         <script>
             (function() {

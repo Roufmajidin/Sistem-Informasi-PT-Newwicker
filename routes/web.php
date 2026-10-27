@@ -847,6 +847,10 @@ Route::middleware('auth')->group(function () {
         '/marketing/po-item-update-bulk',
         [PoController::class, 'updateItemBulk']
     );
+    Route::get(
+    '/marketing/release-order/search',
+    [PoController::class, 'searchReleaseOrder']
+)->name('marketing.release-order.search');
 
     // add
 
