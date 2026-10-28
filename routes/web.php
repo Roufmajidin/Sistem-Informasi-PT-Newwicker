@@ -1573,7 +1573,8 @@ Route::middleware('auth')->group(function () {
         '/laporan/transaksi/{id}',
         [LaporanController::class, 'deleteTransaksi']
     )->name('laporan.transaksi.delete');
-
+  Route::post('/laporan/opname', [LaporanController::class, 'storeOpname'])
+    ->name('laporan.opname');
 
     Route::post(
         '/spk/bahan-baku/keterangan',

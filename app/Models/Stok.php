@@ -2,7 +2,6 @@
 namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 class Stok extends Model
-
 {
     protected $fillable = [
         'kode_barang',
@@ -12,6 +11,8 @@ class Stok extends Model
         'harga',
         'stok_awal',
         'opname',
+        'is_opname',
+        'opname_at'
     ];
     public function transaksi()
     {

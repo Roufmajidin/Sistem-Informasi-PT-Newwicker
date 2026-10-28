@@ -18,235 +18,128 @@ use App\Exports\LaporanStokExport;
 
 class LaporanController extends Controller
 {
+
     public function index(Request $request)
     {
-        $jenis = $request->jenis;
-        $search = $request->search;
+        $jenis = trim((string) $request->input('jenis', ''));
+        $search = trim((string) $request->input('search', ''));
 
-        /*
-        |--------------------------------------------------------------------------
-        | SUMMARY TRANSAKSI PER BARANG
-        |--------------------------------------------------------------------------
-        |
-        | Semua transaksi dihitung:
-        |
-        | IN  = menambah stok
-        | OUT = mengurangi stok
-        |
-        | Termasuk transaksi OPNAME.
-        |
-        | stok_awal TIDAK digunakan dalam perhitungan saldo.
-        |
-        */
-
-        $transactionSummary = TransaksiStok::query()
-            ->select(
-                'stok_id',
-
-                DB::raw("
-                SUM(
-                    CASE
-                        WHEN tipe = 'in'
-                        THEN qty
-                        ELSE 0
-                    END
-                ) AS total_in
-            "),
-
-                DB::raw("
-                SUM(
-                    CASE
-                        WHEN tipe = 'out'
-                        THEN qty
-                        ELSE 0
-                    END
-                ) AS total_out
-            ")
-            )
-            ->groupBy('stok_id');
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | DATA STOK
-        |--------------------------------------------------------------------------
-        */
-
+        // Filter barang dulu, supaya query transaksi hanya dihitung
+        // untuk 50 barang yang tampil (bukan seluruh database).
         $stoks = Stok::query()
-
-            ->leftJoinSub(
-                $transactionSummary,
-                'transaction_summary',
-                function ($join) {
-
-                    $join->on(
-                        'stoks.id',
-                        '=',
-                        'transaction_summary.stok_id'
-                    );
-
-                }
-            )
-
-            ->select(
-                'stoks.*',
-
-                DB::raw("
-                COALESCE(
-                    transaction_summary.total_in,
-                    0
-                ) AS total_in
-            "),
-
-                DB::raw("
-                COALESCE(
-                    transaction_summary.total_out,
-                    0
-                ) AS total_out
-            ")
-            )
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | FILTER JENIS
-            |--------------------------------------------------------------------------
-            */
-
-            ->when($jenis, function ($q) use ($jenis) {
-
-                $q->where(
-                    'stoks.jenis',
-                    $jenis
-                );
-
+            ->when($jenis !== '', function ($query) use ($jenis) {
+                $query->where('jenis', $jenis);
             })
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | SEARCH
-            |--------------------------------------------------------------------------
-            |
-            | Cari berdasarkan:
-            | - kode barang
-            | - nama barang
-            |
-            */
-
-            ->when($search, function ($q) use ($search) {
-
-                $q->where(function ($query) use ($search) {
-
-                    $query
-
-                        ->where(
-                            'stoks.kode_barang',
-                            'LIKE',
-                            '%' . $search . '%'
-                        )
-
-                        ->orWhere(
-                            'stoks.nama_barang',
-                            'LIKE',
-                            '%' . $search . '%'
-                        );
-
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($sub) use ($search) {
+                    $sub->where('kode_barang', 'like', '%' . $search . '%')
+                        ->orWhere('nama_barang', 'like', '%' . $search . '%');
                 });
-
             })
+            ->orderBy('nama_barang')
+            ->orderBy('id')
+            ->paginate(50)
+            ->withQueryString();
 
+        // Hitung transaksi hanya untuk ID barang pada halaman ini.
+        $ids = $stoks->getCollection()->pluck('id')->all();
+        $totals = collect();
 
-            /*
-            |--------------------------------------------------------------------------
-            | SORTING
-            |--------------------------------------------------------------------------
-            */
+        if (!empty($ids)) {
+            // Belum opname: rumus ORIGINAL = semua IN - semua OUT, tanpa stok_awal.
+            // Sudah opname + cut-off: rumus SEKARANG = stok_awal + mutasi setelah cut-off.
+            $totals = TransaksiStok::query()
+                ->join('stoks', 'stoks.id', '=', 'transaksi_stoks.stok_id')
+                ->whereIn('transaksi_stoks.stok_id', $ids)
+                ->where(function ($query) {
+                    $query->where(function ($q) {
+                        $q->where(function ($status) {
+                            $status->whereNull('stoks.is_opname')
+                                ->orWhere('stoks.is_opname', false)
+                                ->orWhereNull('stoks.opname_at');
+                        });
+                    })->orWhere(function ($q) {
+                        $q->where('stoks.is_opname', true)
+                            ->whereNotNull('stoks.opname_at')
+                            ->whereColumn('transaksi_stoks.created_at', '>', 'stoks.opname_at');
+                    });
+                })
+                // Untuk barang yang sudah opname, transaksi penanda Opname
+                // tidak dihitung ulang sebagai IN/OUT setelah cut-off.
+                ->where(function ($q) {
+                    $q->whereNull('stoks.is_opname')
+                        ->orWhere('stoks.is_opname', false)
+                        ->orWhereNull('stoks.opname_at')
+                        ->orWhereNull('transaksi_stoks.keterangan')
+                        ->orWhere('transaksi_stoks.keterangan', 'not like', '%opname%');
+                })
+                ->select('transaksi_stoks.stok_id')
+                ->selectRaw("SUM(CASE WHEN transaksi_stoks.tipe = 'in' THEN transaksi_stoks.qty ELSE 0 END) AS total_in")
+                ->selectRaw("SUM(CASE WHEN transaksi_stoks.tipe = 'out' THEN transaksi_stoks.qty ELSE 0 END) AS total_out")
+                ->groupBy('transaksi_stoks.stok_id')
+                ->get()
+                ->keyBy('stok_id');
+        }
 
-            ->orderBy(
-                'stoks.nama_barang'
-            )
+        $stoks->getCollection()->transform(function ($stok) use ($totals) {
+            $total = $totals->get($stok->id);
+            $stok->total_in = (float) ($total->total_in ?? 0);
+            $stok->total_out = (float) ($total->total_out ?? 0);
+            $hasOpnameCutoff = (bool) $stok->is_opname && !empty($stok->opname_at);
+            $stok->saldo = ($hasOpnameCutoff ? (float) ($stok->stok_awal ?? 0) : 0)
+                + $stok->total_in - $stok->total_out;
+            return $stok;
+        });
 
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'html' => view('pages.laporan.partials.rows', compact('stoks'))->render(),
+                'pagination' => $stoks->links()->render(),
+                'total' => $stoks->total(),
+                'current_page' => $stoks->currentPage(),
+                'last_page' => $stoks->lastPage(),
+            ]);
+        }
 
-            /*
-            |--------------------------------------------------------------------------
-            | EXECUTE QUERY
-            |--------------------------------------------------------------------------
-            */
+        return view('pages.laporan.index', compact('stoks', 'search', 'jenis'));
+    }
 
-            ->get()
+    // opname 
 
+    public function storeOpname(Request $request)
+    {
+        $validated = $request->validate([
+            'id' => ['required', 'integer', 'exists:stoks,id'],
+            'stok_awal' => ['required', 'numeric', 'min:0'],
+            'opname_at' => [
+                'required',
+                'date_format:Y-m-d H:i:s',
+                'before_or_equal:now',
+            ],
+        ]);
 
-            /*
-            |--------------------------------------------------------------------------
-            | HITUNG SALDO
-            |--------------------------------------------------------------------------
-            |
-            | PENTING:
-            |
-            | stok_awal TIDAK DIGUNAKAN.
-            |
-            | Rumus:
-            |
-            | SALDO = TOTAL IN - TOTAL OUT
-            |
-            | Contoh:
-            |
-            | IN  = 45
-            | OUT = 35
-            |
-            | SALDO = 45 - 35
-            |       = 10
-            |
-            | Kalau ada:
-            |
-            | Opname IN  = 5
-            | Opname OUT = 2
-            |
-            | maka otomatis:
-            |
-            | TOTAL IN  = IN normal + Opname IN
-            | TOTAL OUT = OUT normal + Opname OUT
-            |
-            */
+        $stok = DB::transaction(function () use ($validated) {
+            $stok = Stok::query()
+                ->lockForUpdate()
+                ->findOrFail($validated['id']);
 
-            ->map(function ($stok) {
+            $stok->stok_awal = $validated['stok_awal'];
+            $stok->is_opname = true;
+            $stok->opname_at = $validated['opname_at'];
+            $stok->save();
 
-                $totalIn = (float) ($stok->total_in ?? 0);
+            return $stok;
+        });
 
-                $totalOut = (float) ($stok->total_out ?? 0);
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | SALDO AKHIR
-                |--------------------------------------------------------------------------
-                */
-
-                $stok->saldo =
-                    $totalIn
-                    - $totalOut;
-
-
-                return $stok;
-
-            });
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | RETURN VIEW
-        |--------------------------------------------------------------------------
-        */
-
-        return view(
-            'pages.laporan.index',
-            compact(
-                'stoks',
-                'search',
-                'jenis'
-            )
-        );
+        return response()->json([
+            'success' => true,
+            'is_opname' => true,
+            'id' => $stok->id,
+            'stok_awal' => (float) $stok->stok_awal,
+            'opname_at' => $stok->opname_at,
+            'message' => 'Stock opname berhasil disimpan.',
+        ]);
     }
 
     public function warehouseHistory(Request $request)
@@ -826,92 +719,45 @@ class LaporanController extends Controller
     {
         $stok = Stok::findOrFail($id);
 
-        /*
-        |--------------------------------------------------------------------------
-        | SEMUA TRANSAKSI
-        |--------------------------------------------------------------------------
-        | Digunakan khusus untuk menghitung SALDO SAAT INI.
-        |
-        | Jangan terkena filter tanggal.
-        */
+        // Sama dengan index(): sebelum opname gunakan rumus original.
+        // Setelah opname gunakan stok_awal + transaksi setelah cut-off.
+        $hasOpnameCutoff = (bool) $stok->is_opname && !empty($stok->opname_at);
+        $saldoQuery = TransaksiStok::query()
+            ->where('stok_id', $stok->id);
 
-        $allTransaksi = TransaksiStok::where(
-            'stok_id',
-            $id
-        )
+        if ($hasOpnameCutoff) {
+            $saldoQuery->where('created_at', '>', $stok->opname_at)
+                ->where(function ($q) {
+                    $q->whereNull('keterangan')
+                        ->orWhere('keterangan', 'not like', '%opname%');
+                });
+        }
+
+        $totals = $saldoQuery
+            ->selectRaw("COALESCE(SUM(CASE WHEN tipe = 'in' THEN qty ELSE 0 END), 0) AS total_in")
+            ->selectRaw("COALESCE(SUM(CASE WHEN tipe = 'out' THEN qty ELSE 0 END), 0) AS total_out")
+            ->first();
+
+        $stokTersedia = ($hasOpnameCutoff ? (float) ($stok->stok_awal ?? 0) : 0)
+            + (float) ($totals->total_in ?? 0)
+            - (float) ($totals->total_out ?? 0);
+
+        // Riwayat tetap menampilkan transaksi lama dan baru; filter tanggal hanya untuk tampilan.
+        $transaksi = TransaksiStok::query()
+            ->with(['stok', 'spk'])
+            ->where('stok_id', $stok->id)
+            ->when($request->tanggal_awal, function ($query) use ($request) {
+                $query->whereDate('tanggal', '>=', $request->tanggal_awal);
+            })
+            ->when($request->tanggal_akhir, function ($query) use ($request) {
+                $query->whereDate('tanggal', '<=', $request->tanggal_akhir);
+            })
             ->orderBy('tanggal', 'desc')
             ->get();
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | SALDO SAAT INI
-        |--------------------------------------------------------------------------
-        |
-        | Semua IN menambah.
-        | Semua OUT mengurangi.
-        | Termasuk OPNAME.
-        |
-        | stok_awal TIDAK digunakan.
-        */
-
-        $totalInAll = $allTransaksi
-            ->where('tipe', 'in')
-            ->sum('qty');
-
-        $totalOutAll = $allTransaksi
-            ->where('tipe', 'out')
-            ->sum('qty');
-
-        $stokTersedia =
-            (float) $totalInAll
-            - (float) $totalOutAll;
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | TRANSAKSI UNTUK TAMPILAN HISTORY
-        |--------------------------------------------------------------------------
-        |
-        | Yang terkena filter tanggal hanya riwayatnya.
-        */
-
-        $transaksi = TransaksiStok::where(
-            'stok_id',
-            $id
-        )
-
-            ->when(
-                $request->tanggal_awal,
-                fn($q) => $q->whereDate(
-                    'tanggal',
-                    '>=',
-                    $request->tanggal_awal
-                )
-            )
-
-            ->when(
-                $request->tanggal_akhir,
-                fn($q) => $q->whereDate(
-                    'tanggal',
-                    '<=',
-                    $request->tanggal_akhir
-                )
-            )
-
-            ->orderBy('tanggal', 'desc')
-            ->get();
-
-
-        return view(
-            'pages.laporan.detail',
-            compact(
-                'stok',
-                'transaksi',
-                'stokTersedia'
-            )
-        );
+        return view('pages.laporan.detail', compact('stok', 'transaksi', 'stokTersedia'));
     }
+
     // public function detailBarang(
     //     Request $request,
     //     $id
@@ -961,7 +807,10 @@ class LaporanController extends Controller
         $transaksi = TransaksiStok::where(
             'stok_id',
             $id
-        )
+        )->where(function ($q) {
+            $q->whereNull('keterangan')
+                ->orWhere('keterangan', 'not like', '%opname%');
+        })
 
             ->when(
                 $request->tanggal_awal,
@@ -1073,11 +922,25 @@ class LaporanController extends Controller
 
     //     return response()->json($result);
     // }
+
     public function searchSpk(Request $request)
     {
-        $keyword = $request->q;
+        $keyword = trim((string) $request->input('q', ''));
 
-        $spks = Spk::where('data', 'like', '%' . $keyword . '%')
+        if ($keyword === '') {
+            return response()->json([]);
+        }
+
+        // Pencarian tidak membedakan huruf besar dan kecil.
+        // Tetap mencari pada seluruh isi JSON data,
+        // termasuk no_spk dan supplier (sup).
+        $keywordLower = mb_strtolower($keyword, 'UTF-8');
+
+        $spks = Spk::query()
+            ->whereRaw(
+                'LOWER(CAST(`data` AS CHAR)) LIKE ?',
+                ['%' . $keywordLower . '%']
+            )
             ->latest()
             ->take(10)
             ->get();
@@ -1094,7 +957,6 @@ class LaporanController extends Controller
             |--------------------------------------------------------------------------
             | NORMALISASI ITEMS
             |--------------------------------------------------------------------------
-            | Pastikan items selalu array.
             */
             $items = $data['items'] ?? [];
 
@@ -1122,6 +984,11 @@ class LaporanController extends Controller
                 }
             ));
 
+            /*
+            |--------------------------------------------------------------------------
+            | RESPONSE
+            |--------------------------------------------------------------------------
+            */
             $result[] = [
                 'id' => $spk->id,
                 'no_spk' => $data['no_spk'] ?? '',
@@ -1132,6 +999,7 @@ class LaporanController extends Controller
 
         return response()->json($result);
     }
+
     public function searchBarang(Request $request)
     {
         $q = $request->q;
@@ -3933,7 +3801,10 @@ class LaporanController extends Controller
         $query = TransaksiStok::with([
             'stok',
             'spk',
-        ]);
+        ])->where(function ($q) {
+            $q->whereNull('keterangan')
+                ->orWhere('keterangan', 'not like', '%opname%');
+        });
 
         /*
         |--------------------------------------------------------------------------
@@ -4160,16 +4031,16 @@ class LaporanController extends Controller
             'count' => $count,
         ]);
     }
-public function exportExcel(Request $request)
-{
-    $jenis = $request->query('jenis');
-    $search = $request->query('search');
+    public function exportExcel(Request $request)
+    {
+        $jenis = $request->query('jenis');
+        $search = $request->query('search');
 
-    $namaFile = 'laporan-stok-' . now()->format('Y-m-d-His') . '.xlsx';
+        $namaFile = 'laporan-stok-' . now()->format('Y-m-d-His') . '.xlsx';
 
-    return Excel::download(
-        new LaporanStokExport($jenis, $search),
-        $namaFile
-    );
-}
+        return Excel::download(
+            new LaporanStokExport($jenis, $search),
+            $namaFile
+        );
+    }
 }

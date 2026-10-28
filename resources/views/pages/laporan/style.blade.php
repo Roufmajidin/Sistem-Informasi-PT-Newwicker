@@ -1,4 +1,4 @@
-<style>
+{{-- <style>
     /* Kode Barang */
 .table th:nth-child(2),
 .table td:nth-child(2){
@@ -104,4 +104,4 @@
     padding: .2rem .45rem;
     font-size: 12px;
 }
-</style>
+</style> --}}
