@@ -61,7 +61,9 @@ class LaporanController extends Controller
                     })->orWhere(function ($q) {
                         $q->where('stoks.is_opname', true)
                             ->whereNotNull('stoks.opname_at')
-                            ->whereColumn('transaksi_stoks.created_at', '>', 'stoks.opname_at');
+                            ->whereRaw(
+                                'DATE(transaksi_stoks.tanggal) > DATE(stoks.opname_at)'
+                            );
                     });
                 })
                 // Untuk barang yang sudah opname, transaksi penanda Opname
@@ -726,7 +728,12 @@ class LaporanController extends Controller
             ->where('stok_id', $stok->id);
 
         if ($hasOpnameCutoff) {
-            $saldoQuery->where('created_at', '>', $stok->opname_at)
+            $saldoQuery
+                ->whereDate(
+                    'tanggal',
+                    '>',
+                    Carbon::parse($stok->opname_at)->toDateString()
+                )
                 ->where(function ($q) {
                     $q->whereNull('keterangan')
                         ->orWhere('keterangan', 'not like', '%opname%');
