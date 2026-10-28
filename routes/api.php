@@ -14,6 +14,10 @@ Route::get('/ping', function () {
         'ok' => true
     ]);
 });
+Route::middleware('auth:sanctum')->get(
+    '/qc/po',
+    [QcController::class, 'getPoDashboard']
+);
 Route::middleware('auth:sanctum')->get('/cek-auth', function () {
     return response()->json([
         'id' => auth()->id(),

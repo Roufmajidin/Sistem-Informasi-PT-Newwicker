@@ -35,53 +35,53 @@ class QcController extends Controller
     /**
      * Display a listing of the resource.
      */
-    
-private function findCadForDetailPo(DetailPo $detailPo)
-{
-    // Mendukung detail yang sudah di-cast sebagai array
-    // maupun yang masih berupa JSON string.
-    $data = $detailPo->data ?? $detailPo->detail ?? [];
 
-    if (is_string($data)) {
-        $data = json_decode($data, true) ?: [];
-    }
+    private function findCadForDetailPo(DetailPo $detailPo)
+    {
+        // Mendukung detail yang sudah di-cast sebagai array
+        // maupun yang masih berupa JSON string.
+        $data = $detailPo->data ?? $detailPo->detail ?? [];
 
-    if (!is_array($data)) {
-        $data = [];
-    }
-
-    // Urutan prioritas pencarian.
-    $codes = [
-        $data['article_code'] ?? null,
-        $data['nw_code'] ?? null,
-        $data['article_nr'] ?? null,
-    ];
-
-    $codes = array_values(array_unique(array_filter(
-        array_map(
-            fn ($code) => is_scalar($code)
-                ? trim((string) $code)
-                : '',
-            $codes
-        ),
-        fn ($code) => $code !== ''
-    )));
-
-    foreach ($codes as $code) {
-        $cad = CadModel::query()
-            ->where('article_code', $code)
-            ->orderByDesc('version')
-            ->first();
-
-        if ($cad !== null) {
-            return $cad;
+        if (is_string($data)) {
+            $data = json_decode($data, true) ?: [];
         }
+
+        if (!is_array($data)) {
+            $data = [];
+        }
+
+        // Urutan prioritas pencarian.
+        $codes = [
+            $data['article_code'] ?? null,
+            $data['nw_code'] ?? null,
+            $data['article_nr'] ?? null,
+        ];
+
+        $codes = array_values(array_unique(array_filter(
+            array_map(
+                fn($code) => is_scalar($code)
+                    ? trim((string) $code)
+                    : '',
+                $codes
+            ),
+            fn($code) => $code !== ''
+        )));
+
+        foreach ($codes as $code) {
+            $cad = CadModel::query()
+                ->where('article_code', $code)
+                ->orderByDesc('version')
+                ->first();
+
+            if ($cad !== null) {
+                return $cad;
+            }
+        }
+
+        return null;
     }
 
-    return null;
-}
-
-public function detailPo(Request $request, string $divisi, int $poId)
+    public function detailPo(Request $request, string $divisi, int $poId)
     {
         $inspectionModel = $this->inspectionScheduleModel();
 
@@ -1523,6 +1523,130 @@ public function detailPo(Request $request, string $divisi, int $poId)
                 '0'
             );
     }
+
+    public function getPoDashboard(Request $request)
+    {
+        try {
+            // ================================
+            // PARAMETER REQUEST
+            // ================================
+            $q = trim((string) $request->query('q', ''));
+
+            $divisi = trim((string) $request->query('divisi', ''));
+
+            $page = max(
+                1,
+                (int) $request->query('page', 1)
+            );
+
+            $perPage = max(
+                1,
+                min(100, (int) $request->query('per_page', 20))
+            );
+
+            // ================================
+            // QUERY PO RINGAN
+            // ================================
+            $query = Po::query()
+                ->select([
+                    'id',
+                    'order_no',
+                    'company_name',
+                    'country',
+                    'shipment_date',
+                ]);
+
+            // ================================
+            // SEARCH SERVER-SIDE
+            // ================================
+            // Mencari seluruh PO di database,
+            // bukan hanya PO halaman pertama.
+            // ================================
+            if ($q !== '') {
+                $query->where(function ($builder) use ($q) {
+                    $builder
+                        ->where('order_no', 'LIKE', "%{$q}%")
+                        ->orWhere(
+                            'company_name',
+                            'LIKE',
+                            "%{$q}%"
+                        );
+                });
+            }
+
+            // ================================
+            // FILTER DIVISI
+            // ================================
+            // Normalisasi nilai dari Flutter.
+            // Contoh: "QC Rangka" -> "Rangka".
+            // ================================
+            $divisi = preg_replace(
+                '/^QC\s+/i',
+                '',
+                $divisi
+            );
+
+            // PENTING:
+            // Jika endpoint lama memiliki aturan
+            // filter divisi berdasarkan relasi SPK
+            // atau inspection, pertahankan aturan
+            // tersebut di bagian ini.
+            //
+            // Jangan menambahkan where('divisi')
+            // tanpa memastikan kolomnya tersedia.
+
+            // ================================
+            // SORTING DAN PAGINATION
+            // ================================
+            $paginator = $query
+                ->orderByDesc('id')
+                ->paginate(
+                    $perPage,
+                    ['*'],
+                    'page',
+                    $page
+                );
+
+            // ================================
+            // DATA RESPONSE
+            // ================================
+            $data = $paginator->getCollection()
+                ->map(function ($po) {
+                    return [
+                        'id' => $po->id,
+                        'order_no' => $po->order_no,
+                        'company_name' => $po->company_name,
+                        'country' => $po->country,
+                        'shipment_date' => $po->shipment_date,
+                    ];
+                })
+                ->values();
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $data,
+                'pagination' => [
+                    'current_page' => $paginator->currentPage(),
+                    'last_page' => $paginator->lastPage(),
+                    'per_page' => $paginator->perPage(),
+                    'total' => $paginator->total(),
+                    'has_more' => $paginator->hasMorePages(),
+                ],
+            ], 200);
+
+        } catch (\Throwable $e) {
+            \Log::error('QC PO Dashboard Error', [
+                'message' => $e->getMessage(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal mengambil data PO',
+            ], 500);
+        }
+    }
+
     public function index()
     {
         //
@@ -7537,167 +7661,167 @@ public function detailPo(Request $request, string $divisi, int $poId)
 //             '0'
 //         );
 // }
-   
-public function getPo(Request $request)
-{
-    // =====================================================
-    // 1. PERFORMANCE PROFILING
-    // =====================================================
-    $startTime = microtime(true);
-    $totalQueryTime = 0;
-    $totalQueries = 0;
 
-    // Profiling sementara untuk mencari bottleneck.
-    // Hapus listener ini setelah proses optimasi selesai.
-    DB::listen(function ($query) use (&$totalQueryTime, &$totalQueries) {
-        $totalQueryTime += $query->time;
-        $totalQueries++;
+    public function getPo(Request $request)
+    {
+        // =====================================================
+        // 1. PERFORMANCE PROFILING
+        // =====================================================
+        $startTime = microtime(true);
+        $totalQueryTime = 0;
+        $totalQueries = 0;
 
-        Log::info('QC PO SQL', [
-            'sql' => $query->sql,
-            'time_ms' => round($query->time, 2),
-        ]);
-    });
+        // Profiling sementara untuk mencari bottleneck.
+        // Hapus listener ini setelah proses optimasi selesai.
+        DB::listen(function ($query) use (&$totalQueryTime, &$totalQueries) {
+            $totalQueryTime += $query->time;
+            $totalQueries++;
 
-    // =====================================================
-    // 2. FILTER DIVISI
-    // =====================================================
-    $divisi = strtoupper(trim(
-        (string) $request->query('divisi', '')
-    ));
-
-    // Normalisasi divisi dari Flutter.
-    if ($divisi !== '' && !str_starts_with($divisi, 'QC ')) {
-        $divisi = 'QC ' . $divisi;
-    }
-
-    $mapping = [
-        'QC RANGKA' => [
-            'RANGKA',
-            'LASIO',
-            'BASE SWIVEL',
-            'PLAT BESI',
-            'ACCESSORIES',
-            'AKSESORIES',
-            'AKESOSORIS',
-            'TRIPLEK',
-            'POWDER COATING',
-        ],
-        'QC ANYAM' => [
-            'ANYAM',
-            'DEKOR',
-            'ECENG',
-            'BANANA',
-            'SONGKET',
-            'WEBBING',
-            'SYNTETIC',
-            'ACCESSORIES',
-            'AKSESORIES',
-            'AKESOSORIS',
-        ],
-        'QC UNFINISH' => [
-            'BASKET',
-            'PAKET',
-            'SUB BORONGAN',
-        ],
-    ];
-
-    // =====================================================
-    // 3. QUERY PO RINGAN
-    // =====================================================
-    $query = Po::query()
-        ->select([
-            'id',
-            'order_no',
-            'company_name',
-            'country',
-            'shipment_date',
-        ]);
-
-    // Filter berdasarkan kategori SPK.
-    // Tidak melakukan eager load details, BOM, CAD,
-    // maupun inspection schedule.
-    if (isset($mapping[$divisi])) {
-
-        $keywords = $mapping[$divisi];
-
-        $query->whereHas('spks', function ($spkQuery) use ($keywords) {
-            $spkQuery->where(function ($q) use ($keywords) {
-                foreach ($keywords as $keyword) {
-                    $q->orWhereRaw(
-                        "UPPER(JSON_UNQUOTE(JSON_EXTRACT(`data`, '$.kategori'))) LIKE ?",
-                        ['%' . $keyword . '%']
-                    );
-                }
-            });
+            Log::info('QC PO SQL', [
+                'sql' => $query->sql,
+                'time_ms' => round($query->time, 2),
+            ]);
         });
-    }
 
-    // =====================================================
-    // 4. PAGINATION
-    // =====================================================
-    $perPage = min(
-        max((int) $request->query('per_page', 20), 1),
-        100
-    );
+        // =====================================================
+        // 2. FILTER DIVISI
+        // =====================================================
+        $divisi = strtoupper(trim(
+            (string) $request->query('divisi', '')
+        ));
 
-    $page = max(
-        (int) $request->query('page', 1),
-        1
-    );
+        // Normalisasi divisi dari Flutter.
+        if ($divisi !== '' && !str_starts_with($divisi, 'QC ')) {
+            $divisi = 'QC ' . $divisi;
+        }
 
-    $queryStart = microtime(true);
+        $mapping = [
+            'QC RANGKA' => [
+                'RANGKA',
+                'LASIO',
+                'BASE SWIVEL',
+                'PLAT BESI',
+                'ACCESSORIES',
+                'AKSESORIES',
+                'AKESOSORIS',
+                'TRIPLEK',
+                'POWDER COATING',
+            ],
+            'QC ANYAM' => [
+                'ANYAM',
+                'DEKOR',
+                'ECENG',
+                'BANANA',
+                'SONGKET',
+                'WEBBING',
+                'SYNTETIC',
+                'ACCESSORIES',
+                'AKSESORIES',
+                'AKESOSORIS',
+            ],
+            'QC UNFINISH' => [
+                'BASKET',
+                'PAKET',
+                'SUB BORONGAN',
+            ],
+        ];
 
-    $pos = $query
-        ->orderByDesc('id')
-        ->paginate($perPage, ['*'], 'page', $page);
+        // =====================================================
+        // 3. QUERY PO RINGAN
+        // =====================================================
+        $query = Po::query()
+            ->select([
+                'id',
+                'order_no',
+                'company_name',
+                'country',
+                'shipment_date',
+            ]);
 
-    $paginationTime = round(
-        (microtime(true) - $queryStart) * 1000,
-        2
-    );
+        // Filter berdasarkan kategori SPK.
+        // Tidak melakukan eager load details, BOM, CAD,
+        // maupun inspection schedule.
+        if (isset($mapping[$divisi])) {
 
-    // =====================================================
-    // 5. RESPONSE
-    // =====================================================
-    $responseData = [
-        'status' => 'success',
-        'data' => $pos->items(),
-        'pagination' => [
-            'current_page' => $pos->currentPage(),
-            'last_page' => $pos->lastPage(),
-            'per_page' => $pos->perPage(),
-            'total' => $pos->total(),
-            'has_more' => $pos->hasMorePages(),
-        ],
-    ];
+            $keywords = $mapping[$divisi];
 
-    // =====================================================
-    // 6. PERFORMANCE LOG
-    // =====================================================
-    $duration = round(
-        (microtime(true) - $startTime) * 1000,
-        2
-    );
+            $query->whereHas('spks', function ($spkQuery) use ($keywords) {
+                $spkQuery->where(function ($q) use ($keywords) {
+                    foreach ($keywords as $keyword) {
+                        $q->orWhereRaw(
+                            "UPPER(JSON_UNQUOTE(JSON_EXTRACT(`data`, '$.kategori'))) LIKE ?",
+                            ['%' . $keyword . '%']
+                        );
+                    }
+                });
+            });
+        }
 
-    Log::info('QC PO PERFORMANCE', [
-        'divisi' => $divisi ?: 'ALL',
-        'page' => $page,
-        'per_page' => $perPage,
-        'returned_rows' => $pos->count(),
-        'total_rows' => $pos->total(),
-        'query_count' => $totalQueries,
-        'sql_time_ms' => round($totalQueryTime, 2),
-        'pagination_time_ms' => $paginationTime,
-        'controller_time_ms' => $duration,
-        'memory_mb' => round(
-            memory_get_peak_usage(true) / 1024 / 1024,
+        // =====================================================
+        // 4. PAGINATION
+        // =====================================================
+        $perPage = min(
+            max((int) $request->query('per_page', 20), 1),
+            100
+        );
+
+        $page = max(
+            (int) $request->query('page', 1),
+            1
+        );
+
+        $queryStart = microtime(true);
+
+        $pos = $query
+            ->orderByDesc('id')
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        $paginationTime = round(
+            (microtime(true) - $queryStart) * 1000,
             2
-        ),
-    ]);
+        );
 
-    return response()->json($responseData);
-}
+        // =====================================================
+        // 5. RESPONSE
+        // =====================================================
+        $responseData = [
+            'status' => 'success',
+            'data' => $pos->items(),
+            'pagination' => [
+                'current_page' => $pos->currentPage(),
+                'last_page' => $pos->lastPage(),
+                'per_page' => $pos->perPage(),
+                'total' => $pos->total(),
+                'has_more' => $pos->hasMorePages(),
+            ],
+        ];
+
+        // =====================================================
+        // 6. PERFORMANCE LOG
+        // =====================================================
+        $duration = round(
+            (microtime(true) - $startTime) * 1000,
+            2
+        );
+
+        Log::info('QC PO PERFORMANCE', [
+            'divisi' => $divisi ?: 'ALL',
+            'page' => $page,
+            'per_page' => $perPage,
+            'returned_rows' => $pos->count(),
+            'total_rows' => $pos->total(),
+            'query_count' => $totalQueries,
+            'sql_time_ms' => round($totalQueryTime, 2),
+            'pagination_time_ms' => $paginationTime,
+            'controller_time_ms' => $duration,
+            'memory_mb' => round(
+                memory_get_peak_usage(true) / 1024 / 1024,
+                2
+            ),
+        ]);
+
+        return response()->json($responseData);
+    }
     public function detailPoReports($detailPoId)
     {
         $inspectionModel = $this->inspectionScheduleModel();
