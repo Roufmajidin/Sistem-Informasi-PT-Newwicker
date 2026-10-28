@@ -9,25 +9,17 @@
 
 
     @if (session('success'))
-
         <script>
-
             toastr.success("{{ session('success') }}");
-
         </script>
-
     @endif
 
 
 
     @if (session('error'))
-
         <script>
-
             toastr.error("{{ session('error') }}");
-
         </script>
-
     @endif
 
 
@@ -54,195 +46,172 @@
 
 
 
-              {{-- BARIS FILTER DAN TOMBOL --}}
+                {{-- BARIS FILTER DAN TOMBOL --}}
 
-<div class="row mb-3 align-items-end">
+                <div class="row mb-3 align-items-end">
 
 
 
-    {{-- FILTER JENIS --}}
+                    {{-- FILTER JENIS --}}
 
-    <div class="col-md-3">
+                    <div class="col-md-3">
 
-        <label>Jenis Barang</label>
+                        <label>Jenis Barang</label>
 
-        <select id="filterJenis" class="form-control">
+                        <select id="filterJenis" class="form-control">
 
-            <option value="">Semua Jenis</option>
+                            <option value="">Semua Jenis</option>
 
-            <option value="bahan baku"
+                            <option value="bahan baku" {{ request('jenis') == 'bahan baku' ? 'selected' : '' }}>
 
-                {{ request('jenis') == 'bahan baku' ? 'selected' : '' }}>
+                                Bahan Baku
 
-                Bahan Baku
+                            </option>
 
-            </option>
+                            <option value="bahan penolong" {{ request('jenis') == 'bahan penolong' ? 'selected' : '' }}>
 
-            <option value="bahan penolong"
+                                Bahan Penolong
 
-                {{ request('jenis') == 'bahan penolong' ? 'selected' : '' }}>
+                            </option>
 
-                Bahan Penolong
+                            <option value="bahan penolong alat"
+                                {{ request('jenis') == 'bahan penolong alat' ? 'selected' : '' }}>
 
-            </option>
+                                Bahan Penolong Alat
 
-            <option value="bahan penolong alat"
+                            </option>
 
-                {{ request('jenis') == 'bahan penolong alat' ? 'selected' : '' }}>
+                            <option value="bahan finishing" {{ request('jenis') == 'bahan finishing' ? 'selected' : '' }}>
 
-                Bahan Penolong Alat
+                                Bahan Finishing
 
-            </option>
+                            </option>
 
-            <option value="bahan finishing"
+                        </select>
 
-                {{ request('jenis') == 'bahan finishing' ? 'selected' : '' }}>
+                    </div>
 
-                Bahan Finishing
 
-            </option>
 
-        </select>
+                    {{-- SEARCH --}}
 
-    </div>
+                    <div class="col-md-2">
 
+                        <label>Cari Barang</label>
 
+                        <input type="text" id="searchBarang" class="form-control" placeholder="Cari nama barang..."
+                            value="{{ request('search', '') }}" autocomplete="off">
 
-    {{-- SEARCH --}}
+                    </div>
 
-    <div class="col-md-2">
 
-        <label>Cari Barang</label>
 
-        <input
+                    {{-- HISTORY DAN EXPORT --}}
 
-            type="text"
+                    <div class="col-md-4">
 
-            id="searchBarang"
+                        <div class="d-flex align-items-center flex-wrap" style="gap: 8px;">
 
-            class="form-control"
 
-            placeholder="Cari nama barang..."
 
-            value="{{ request('search', '') }}"
+                            <a href="/laporan/warehouse-history" class="btn btn-primary" style="white-space: nowrap;">
 
-            autocomplete="off">
+                                <i class="fa fa-history"></i>
 
-    </div>
+                                History
 
+                            </a>
 
 
-    {{-- HISTORY DAN EXPORT --}}
 
-    <div class="col-md-4">
+                            <a href="{{ route('laporan.export', request()->only(['jenis', 'search'])) }}"
+                                class="btn btn-success" id="btnExportExcel" style="white-space: nowrap;">
 
-        <div class="d-flex align-items-center flex-wrap"
+                                <i class="fa fa-file-excel-o"></i>
 
-             style="gap: 8px;">
+                                Export Excel
 
+                            </a>
 
+                            {{-- FILTER STATUS STOCK OPNAME --}}
+                            <select id="filterOpname" class="form-control" aria-label="Filter status stock opname"
+                                style="width:auto;min-width:155px;max-width:190px;">
+                                <option value=""
+                                    {{ request('opname') === null || request('opname') === '' ? 'selected' : '' }}>Filter</option>
+                                <option value="has_opname" {{ request('opname') === 'has_opname' ? 'selected' : '' }}>Has
+                                    Opname</option>
+                            </select>
 
-            <a href="/laporan/warehouse-history"
 
-               class="btn btn-primary"
 
-               style="white-space: nowrap;">
+                        </div>
 
-                <i class="fa fa-history"></i>
+                    </div>
 
-                History
 
-            </a>
 
+                    {{-- TAMBAH BARIS --}}
 
+                    <div class="col-md-3 text-md-right mt-2 mt-md-0">
 
-            <a href="{{ route('laporan.export', request()->only(['jenis', 'search'])) }}"
+                        <button type="button" class="btn btn-primary" id="addRowss">
 
-               class="btn btn-success"
+                            <i class="fa fa-plus"></i>
 
-               id="btnExportExcel"
+                           add bahan baku
 
-               style="white-space: nowrap;">
+                        </button>
 
-                <i class="fa fa-file-excel-o"></i>
+                    </div>
 
-                Export Excel
 
-            </a>
 
+                </div>
 
 
-        </div>
 
-    </div>
 
 
 
-    {{-- TAMBAH BARIS --}}
+                {{-- MODAL STOCK OPNAME: backend update harus menerima is_opname/opname_at --}}
+                <div class="modal fade" id="modalOpnameStok" tabindex="-1" role="dialog"
+                    aria-labelledby="modalOpnameStokLabel" aria-hidden="true">
+                    <div class="modal-dialog" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h4 class="modal-title" id="modalOpnameStokLabel">Stock Opname</h4>
+                                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
+                                        aria-hidden="true">&times;</span></button>
+                            </div>
+                            <div class="modal-body">
+                                <p id="opnameNamaBarang" class="font-weight-bold"></p>
+                                <div class="form-group">
+                                    <label>Hasil Opname Fisik (Stok Awal Baru)</label>
+                                    <input type="number" min="0" step="0.001" id="opnameQty" class="form-control"
+                                        required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Tanggal Cut-off Opname</label>
+                                    <input type="datetime-local" id="opnameAt" class="form-control" required>
+                                </div>
+                                <small class="text-muted">Transaksi sebelum cut-off tetap tersimpan, tetapi tidak dihitung
+                                    pada saldo periode baru setelah backend opname diterapkan.</small>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                                <button type="button" class="btn btn-primary" id="btnSubmitOpname">Simpan Opname</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-    <div class="col-md-3 text-md-right mt-2 mt-md-0">
-
-        <button
-
-            type="button"
-
-            class="btn btn-primary"
-
-            id="addRowss">
-
-            <i class="fa fa-plus"></i>
-
-            Tambah Baris
-
-        </button>
-
-    </div>
-
-
-
-</div>
-
-
-
-
-
-                
-{{-- MODAL STOCK OPNAME: backend update harus menerima is_opname/opname_at --}}
-<div class="modal fade" id="modalOpnameStok" tabindex="-1" role="dialog" aria-labelledby="modalOpnameStokLabel" aria-hidden="true">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h4 class="modal-title" id="modalOpnameStokLabel">Stock Opname</h4>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-      </div>
-      <div class="modal-body">
-        <p id="opnameNamaBarang" class="font-weight-bold"></p>
-        <div class="form-group">
-          <label>Hasil Opname Fisik (Stok Awal Baru)</label>
-          <input type="number" min="0" step="0.001" id="opnameQty" class="form-control" required>
-        </div>
-        <div class="form-group">
-          <label>Tanggal Cut-off Opname</label>
-          <input type="datetime-local" id="opnameAt" class="form-control" required>
-        </div>
-        <small class="text-muted">Transaksi sebelum cut-off tetap tersimpan, tetapi tidak dihitung pada saldo periode baru setelah backend opname diterapkan.</small>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
-        <button type="button" class="btn btn-primary" id="btnSubmitOpname">Simpan Opname</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-{{-- ================================================================
+                {{-- ================================================================
 
                  TABLE WRAPPER
 
             ================================================================= --}}
 
                 <div id="wrapperStok"
-
                     style="
 
                     overflow-x:auto;
@@ -256,7 +225,6 @@
 
 
                     <div id="canvasStok"
-
                         style="
 
                         width:2200px;
@@ -270,7 +238,6 @@
 
 
                         <div id="masterPanel"
-
                             style="
 
                             min-width:1300px;
@@ -337,6 +304,12 @@
 
 
 
+                                            <th width="100">
+
+                                                Harga
+
+                                            </th>
+
 
 
                                             <th width="90">
@@ -345,12 +318,6 @@
 
                                             </th>
 
-
-                                            <th width="100">
-
-                                                Harga
-
-                                            </th>
 
 
                                             {{-- <th width="80">
@@ -369,11 +336,6 @@
 
 
 
-                                            <th width="130">
-
-                                                Tanggal
-
-                                            </th>
 
 
 
@@ -405,15 +367,16 @@
 
 
 
-<tbody id="tableBody">
+                                    <tbody id="tableBody">
 
 
 
-    @include('pages.laporan.partials.rows')
+                                        {{-- Saldo tampilan menggunakan format Indonesia dari partial rows; nilai hitung tetap di controller. --}}
+                                        @include('pages.laporan.partials.rows')
 
 
 
-</tbody>
+                                    </tbody>
 
 
 
@@ -457,7 +420,8 @@
 
 \================================================================= --}}
 
-    <div class="stok-pagination d-flex justify-content-between align-items-center flex-wrap" style="gap:12px;margin:14px 0">
+    <div class="stok-pagination d-flex justify-content-between align-items-center flex-wrap"
+        style="gap:12px;margin:14px 0">
         <small id="stokTotalInfo" class="text-muted">Total {{ $stoks->total() }} barang</small>
         <div id="stokPagination">{{ $stoks->links() }}</div>
     </div>
@@ -473,7 +437,6 @@
 
 
     <script>
-
         $(document).ready(function() {
 
 
@@ -616,21 +579,6 @@
 
                         </td>
 
-        <td>
-
-                            <input
-
-                                type="number"
-
-                                step="0.001"
-
-                                class="form-control stok_awal"
-
-                                value="0"
-
-                            >
-
-                        </td>
 
 
                         <td>
@@ -649,14 +597,30 @@
 
 
 
-                
+                        <td>
+
+                            <input
+
+                                type="number"
+
+                                step="0.001"
+
+                                class="form-control stok_awal"
+
+                                value="0"
+
+                            >
+
+                        </td>
+
 
 
                         <!-- <td>0</td> <td>0</td> -->
 
 
 
-                     
+        
+
 
 
                         <td>
@@ -1333,8 +1297,10 @@
                 const url = new URL(window.location.pathname, window.location.origin);
                 const search = ($('#searchBarang').val() || '').trim();
                 const jenis = $('#filterJenis').val() || '';
+                const opname = $('#filterOpname').val() || '';
                 if (search) url.searchParams.set('search', search);
                 if (jenis) url.searchParams.set('jenis', jenis);
+                if (opname) url.searchParams.set('opname', opname);
                 if (page > 1) url.searchParams.set('page', page);
                 return url;
             }
@@ -1363,7 +1329,9 @@
                     url: url.toString(),
                     method: 'GET',
                     dataType: 'json',
-                    headers: {'X-Requested-With': 'XMLHttpRequest'},
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
                     success: function(res) {
                         if (thisRequest !== requestNumber) return;
                         if (!res || typeof res.html !== 'string') {
@@ -1405,6 +1373,11 @@
                 clearTimeout(filterTimer);
                 loadStok(1);
             });
+            $('#filterOpname').off('change.stok').on('change.stok', function() {
+                clearTimeout(filterTimer);
+                loadStok(1);
+            });
+
             $(document).on('click.stokPagination', '#stokPagination a', function(e) {
                 e.preventDefault();
                 const url = new URL($(this).attr('href'), window.location.origin);
@@ -1660,7 +1633,7 @@
 
             // ============================================================
 
-                        // ============================================================
+            // ============================================================
             // EDIT BARIS + OPSI STOCK OPNAME
             // ============================================================
             function setEditMode($row, enabled) {
@@ -1704,7 +1677,11 @@
                 const d = new Date();
                 const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
                 $('#opnameAt').val(local.toISOString().slice(0, 16));
-                if ($.fn.modal) { $('#modalOpnameStok').modal('show'); } else { toastr.error('Bootstrap modal belum tersedia di layout master.'); }
+                if ($.fn.modal) {
+                    $('#modalOpnameStok').modal('show');
+                } else {
+                    toastr.error('Bootstrap modal belum tersedia di layout master.');
+                }
             });
 
             $('#btnSubmitOpname').on('click', function() {
@@ -1730,21 +1707,26 @@
                     success: function(res) {
                         // Jangan tampilkan sukses jika backend belum mengonfirmasi opname.
                         if (!res || res.is_opname !== true) {
-                            toastr.warning('Endpoint update belum mengonfirmasi penyimpanan cut-off opname. Perlu update controller terlebih dahulu.');
+                            toastr.warning(
+                                'Endpoint update belum mengonfirmasi penyimpanan cut-off opname. Perlu update controller terlebih dahulu.'
+                                );
                             return;
                         }
                         $('#modalOpnameStok').modal('hide');
                         toastr.success(res.message || 'Opname berhasil disimpan.');
-                        loadStok(Number(new URLSearchParams(window.location.search).get("page") || 1));
+                        loadStok(Number(new URLSearchParams(window.location.search).get(
+                            "page") || 1));
                     },
                     error: function(xhr) {
                         toastr.error(xhr.responseJSON?.message || 'Gagal menyimpan opname.');
                     },
-                    complete: function() { $btn.prop('disabled', false); }
+                    complete: function() {
+                        $btn.prop('disabled', false);
+                    }
                 });
             });
 
-// INITIAL FILTER: data halaman pertama sudah dirender server.
+            // INITIAL FILTER: data halaman pertama sudah dirender server.
             // Tidak perlu request AJAX tambahan saat pertama dibuka.
 
 
@@ -1752,7 +1734,6 @@
 
 
         });
-
     </script>
 
 
@@ -1763,49 +1744,279 @@
 
 
 
-<style>
-/* Standalone visual styling for the stock report */
-:root { --stok-navy:#162c4d; --stok-blue:#2563eb; --stok-border:#e4eaf2; --stok-muted:#64748b; }
-.padding { padding:22px !important; background:#f5f7fb; min-height:calc(100vh - 90px); }
-.padding > .box { border:1px solid var(--stok-border); background:#fff; border-radius:16px; overflow:hidden; box-shadow:0 8px 30px rgba(22,44,77,.055); }
-.box-header { padding:22px 24px 16px !important; border-bottom:1px solid #edf1f7; background:linear-gradient(110deg,#fff,#f8fbff); }
-.box-header h2 { color:var(--stok-navy); font-size:22px; font-weight:750; margin:0; letter-spacing:-.5px; }
-.box-body { padding:22px 24px 26px !important; }
-.box-body label { color:#41526b; font-weight:650; font-size:12px; margin-bottom:7px; }
-.box-body .row.mb-3 { background:#f8fafc; border:1px solid var(--stok-border); border-radius:12px; padding:16px 8px 10px; margin-bottom:20px !important; }
-.box-body .form-control { border:1px solid #dbe3ed; border-radius:8px; min-height:36px; box-shadow:none; font-size:13px; color:#24364c; background:#fff; }
-.box-body .form-control:focus { border-color:#76a4f9; box-shadow:0 0 0 3px rgba(37,99,235,.10); }
-.box-body .btn, .modal .btn { border-radius:8px; font-size:12px; font-weight:650; padding:8px 12px; box-shadow:none; }
-.box-body .btn-primary,.modal .btn-primary { background:#2563eb; border-color:#2563eb; }
-.box-body .btn-success { background:#079669; border-color:#079669; }
-#wrapperStok { border:1px solid var(--stok-border); border-radius:12px; background:#fff; }
-#masterPanel { padding-right:0 !important; }
-.table-stok-wrapper .table { margin-bottom:0; border-collapse:separate; border-spacing:0; }
-.table-stok-wrapper .table thead th { background:#edf3fb; color:#344a65; border-color:#e0e8f2; font-size:11px; letter-spacing:.3px; text-transform:uppercase; font-weight:750; vertical-align:middle; padding:13px 10px; white-space:nowrap; }
-.table-stok-wrapper .table tbody td { border-color:#edf1f6; padding:8px 9px; vertical-align:middle; font-size:12px; color:#334155; background:#fff; }
-.table-stok-wrapper .table tbody tr:nth-child(even) td { background:#fbfcff; }
-#tableBody tr[data-id]:not(.row-new) { cursor:pointer; transition:background .15s; }
-#tableBody tr[data-id]:not(.row-new):hover td { background:#eef6ff !important; }
-#tableBody tr.stok-edit-active td { background:#eaf2ff !important; border-top:1px solid #93b4f5; border-bottom:1px solid #93b4f5; }
-#tableBody tr.stok-edit-active td:first-child { box-shadow:inset 4px 0 #2563eb; }
-#tableBody .form-control { font-size:12px; min-height:32px; padding:5px 8px; }
-#tableBody input[readonly],#tableBody select:disabled { border-color:transparent; background:transparent; box-shadow:none; color:#334155; opacity:1; -webkit-text-fill-color:#334155; }
-#tableBody input[readonly]:focus { outline:none; }
-#tableBody .btn-sm { padding:6px 9px; margin:2px; }
-#tableBody .btn-opname { background:#7c3aed; border-color:#7c3aed; color:#fff; }
-#tableBody .btn-edit-row { background:#475569; border-color:#475569; color:#fff; }
-#tableBody .row-new td { background:#ecfdf5 !important; }
-#modalOpnameStok .modal-content { border:0; border-radius:16px; overflow:hidden; box-shadow:0 24px 70px rgba(15,23,42,.2); }
-#modalOpnameStok .modal-header { background:linear-gradient(120deg,#173c75,#2563eb); color:white; padding:20px 24px; border:0; }
-#modalOpnameStok .modal-title { font-weight:750; font-size:18px; }
-#modalOpnameStok .modal-header .close { color:white; opacity:.9; text-shadow:none; }
-#modalOpnameStok .modal-body { padding:24px; }
-#modalOpnameStok .modal-body label { display:block; color:#344a65; font-size:12px; font-weight:700; margin-bottom:7px; }
-#modalOpnameStok .modal-body .form-control { border-radius:9px; min-height:42px; border:1px solid #d9e3f0; }
-#modalOpnameStok .modal-footer { padding:14px 24px; background:#f8fafc; border-top:1px solid #edf1f6; }
-#opnameNamaBarang { background:#eff6ff; border-radius:9px; padding:12px 14px; color:#173c75; font-weight:700; }
-@media(max-width:768px) { .padding { padding:10px !important; } .box-header,.box-body { padding:15px !important; } .box-header h2 { font-size:19px; } }
-#tableBody.stok-loading { opacity:.55; pointer-events:none; transition:opacity .12s; }
-#stokPagination .pagination { margin:0; }
-</style>
+    <style>
+        /* Standalone visual styling for the stock report */
+        :root {
+            --stok-navy: #162c4d;
+            --stok-blue: #2563eb;
+            --stok-border: #e4eaf2;
+            --stok-muted: #64748b;
+        }
+
+        .padding {
+            padding: 22px !important;
+            background: #f5f7fb;
+            min-height: calc(100vh - 90px);
+        }
+
+        .padding>.box {
+            border: 1px solid var(--stok-border);
+            background: #fff;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 8px 30px rgba(22, 44, 77, .055);
+        }
+
+        .box-header {
+            padding: 22px 24px 16px !important;
+            border-bottom: 1px solid #edf1f7;
+            background: linear-gradient(110deg, #fff, #f8fbff);
+        }
+
+        .box-header h2 {
+            color: var(--stok-navy);
+            font-size: 22px;
+            font-weight: 750;
+            margin: 0;
+            letter-spacing: -.5px;
+        }
+
+        .box-body {
+            padding: 22px 24px 26px !important;
+        }
+
+        .box-body label {
+            color: #41526b;
+            font-weight: 650;
+            font-size: 12px;
+            margin-bottom: 7px;
+        }
+
+        .box-body .row.mb-3 {
+            background: #f8fafc;
+            border: 1px solid var(--stok-border);
+            border-radius: 12px;
+            padding: 16px 8px 10px;
+            margin-bottom: 20px !important;
+        }
+
+        .box-body .form-control {
+            border: 1px solid #dbe3ed;
+            border-radius: 8px;
+            min-height: 36px;
+            box-shadow: none;
+            font-size: 13px;
+            color: #24364c;
+            background: #fff;
+        }
+
+        .box-body .form-control:focus {
+            border-color: #76a4f9;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, .10);
+        }
+
+        .box-body .btn,
+        .modal .btn {
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 650;
+            padding: 8px 12px;
+            box-shadow: none;
+        }
+
+        .box-body .btn-primary,
+        .modal .btn-primary {
+            background: #2563eb;
+            border-color: #2563eb;
+        }
+
+        .box-body .btn-success {
+            background: #079669;
+            border-color: #079669;
+        }
+
+        #wrapperStok {
+            border: 1px solid var(--stok-border);
+            border-radius: 12px;
+            background: #fff;
+        }
+
+        #masterPanel {
+            padding-right: 0 !important;
+        }
+
+        .table-stok-wrapper .table {
+            margin-bottom: 0;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .table-stok-wrapper .table thead th {
+            background: #edf3fb;
+            color: #344a65;
+            border-color: #e0e8f2;
+            font-size: 11px;
+            letter-spacing: .3px;
+            text-transform: uppercase;
+            font-weight: 750;
+            vertical-align: middle;
+            padding: 13px 10px;
+            white-space: nowrap;
+        }
+
+        .table-stok-wrapper .table tbody td {
+            border-color: #edf1f6;
+            padding: 8px 9px;
+            vertical-align: middle;
+            font-size: 12px;
+            color: #334155;
+            background: #fff;
+        }
+
+        .table-stok-wrapper .table tbody tr:nth-child(even) td {
+            background: #fbfcff;
+        }
+
+        #tableBody tr[data-id]:not(.row-new) {
+            cursor: pointer;
+            transition: background .15s;
+        }
+
+        #tableBody tr[data-id]:not(.row-new):hover td {
+            background: #eef6ff !important;
+        }
+
+        #tableBody tr.stok-edit-active td {
+            background: #eaf2ff !important;
+            border-top: 1px solid #93b4f5;
+            border-bottom: 1px solid #93b4f5;
+        }
+
+        #tableBody tr.stok-edit-active td:first-child {
+            box-shadow: inset 4px 0 #2563eb;
+        }
+
+        #tableBody .form-control {
+            font-size: 12px;
+            min-height: 32px;
+            padding: 5px 8px;
+        }
+
+        #tableBody input[readonly],
+        #tableBody select:disabled {
+            border-color: transparent;
+            background: transparent;
+            box-shadow: none;
+            color: #334155;
+            opacity: 1;
+            -webkit-text-fill-color: #334155;
+        }
+
+        #tableBody input[readonly]:focus {
+            outline: none;
+        }
+
+        #tableBody .btn-sm {
+            padding: 6px 9px;
+            margin: 2px;
+        }
+
+        #tableBody .btn-opname {
+            background: #7c3aed;
+            border-color: #7c3aed;
+            color: #fff;
+        }
+
+        #tableBody .btn-edit-row {
+            background: #475569;
+            border-color: #475569;
+            color: #fff;
+        }
+
+        #tableBody .row-new td {
+            background: #ecfdf5 !important;
+        }
+
+        #modalOpnameStok .modal-content {
+            border: 0;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 24px 70px rgba(15, 23, 42, .2);
+        }
+
+        #modalOpnameStok .modal-header {
+            background: linear-gradient(120deg, #173c75, #2563eb);
+            color: white;
+            padding: 20px 24px;
+            border: 0;
+        }
+
+        #modalOpnameStok .modal-title {
+            font-weight: 750;
+            font-size: 18px;
+        }
+
+        #modalOpnameStok .modal-header .close {
+            color: white;
+            opacity: .9;
+            text-shadow: none;
+        }
+
+        #modalOpnameStok .modal-body {
+            padding: 24px;
+        }
+
+        #modalOpnameStok .modal-body label {
+            display: block;
+            color: #344a65;
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 7px;
+        }
+
+        #modalOpnameStok .modal-body .form-control {
+            border-radius: 9px;
+            min-height: 42px;
+            border: 1px solid #d9e3f0;
+        }
+
+        #modalOpnameStok .modal-footer {
+            padding: 14px 24px;
+            background: #f8fafc;
+            border-top: 1px solid #edf1f6;
+        }
+
+        #opnameNamaBarang {
+            background: #eff6ff;
+            border-radius: 9px;
+            padding: 12px 14px;
+            color: #173c75;
+            font-weight: 700;
+        }
+
+        @media(max-width:768px) {
+            .padding {
+                padding: 10px !important;
+            }
+
+            .box-header,
+            .box-body {
+                padding: 15px !important;
+            }
+
+            .box-header h2 {
+                font-size: 19px;
+            }
+        }
+
+        #tableBody.stok-loading {
+            opacity: .55;
+            pointer-events: none;
+            transition: opacity .12s;
+        }
+
+        #stokPagination .pagination {
+            margin: 0;
+        }
+    </style>
 @endsection
