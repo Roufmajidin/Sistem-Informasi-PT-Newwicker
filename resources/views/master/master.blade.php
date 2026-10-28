@@ -591,7 +591,7 @@
 
                     Swal.fire({
                         icon: 'success',
-                        title: 'jangan sampe lupa password ya..',
+                        title: 'Berhasil reset password.',
                         text: res.message,
                         timer: 2000,
                         showConfirmButton: false
