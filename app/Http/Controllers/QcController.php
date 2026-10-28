@@ -22,6 +22,7 @@ use Illuminate\Support\Str;
 use App\Models\Karyawan;
 use Carbon\Carbon;
 
+
 use App\Models\InspectScheduleTest;
 use App\Models\QcReportTest;
 
@@ -34,6 +35,1494 @@ class QcController extends Controller
     /**
      * Display a listing of the resource.
      */
+    
+private function findCadForDetailPo(DetailPo $detailPo)
+{
+    // Mendukung detail yang sudah di-cast sebagai array
+    // maupun yang masih berupa JSON string.
+    $data = $detailPo->data ?? $detailPo->detail ?? [];
+
+    if (is_string($data)) {
+        $data = json_decode($data, true) ?: [];
+    }
+
+    if (!is_array($data)) {
+        $data = [];
+    }
+
+    // Urutan prioritas pencarian.
+    $codes = [
+        $data['article_code'] ?? null,
+        $data['nw_code'] ?? null,
+        $data['article_nr'] ?? null,
+    ];
+
+    $codes = array_values(array_unique(array_filter(
+        array_map(
+            fn ($code) => is_scalar($code)
+                ? trim((string) $code)
+                : '',
+            $codes
+        ),
+        fn ($code) => $code !== ''
+    )));
+
+    foreach ($codes as $code) {
+        $cad = CadModel::query()
+            ->where('article_code', $code)
+            ->orderByDesc('version')
+            ->first();
+
+        if ($cad !== null) {
+            return $cad;
+        }
+    }
+
+    return null;
+}
+
+public function detailPo(Request $request, string $divisi, int $poId)
+    {
+        $inspectionModel = $this->inspectionScheduleModel();
+
+        /*
+        |--------------------------------------------------------------------------
+        | START TIMER
+        |--------------------------------------------------------------------------
+        */
+
+        $requestStart = microtime(true);
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | USER / DIVISI
+        |--------------------------------------------------------------------------
+        */
+
+        $user = auth()->user();
+
+        $user->loadMissing('karyawan.divisi');
+
+        $requestDivisi = $divisi;
+
+        $divisiQc = strtoupper(
+            trim(
+                $requestDivisi
+                ?: ($user->karyawan?->divisi?->nama ?? '')
+            )
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | HELPER ROUND NUMERIC
+        |--------------------------------------------------------------------------
+        */
+
+        $roundNumeric = static function ($value) {
+
+            if ($value === null || $value === '') {
+                return $value;
+            }
+
+            if (is_int($value)) {
+                return $value;
+            }
+
+            if (is_float($value)) {
+                return (int) round($value);
+            }
+
+            if (!is_string($value)) {
+                return $value;
+            }
+
+            $value = trim($value);
+
+            if ($value === '') {
+                return $value;
+            }
+
+            $normalized = $value;
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | 56,5
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                str_contains($normalized, ',') &&
+                !str_contains($normalized, '.')
+            ) {
+
+                $normalized = str_replace(
+                    ',',
+                    '.',
+                    $normalized
+                );
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | 1.250,5
+            | 1,250.5
+            |--------------------------------------------------------------------------
+            */ elseif (
+                str_contains($normalized, ',') &&
+                str_contains($normalized, '.')
+            ) {
+
+                $lastComma =
+                    strrpos(
+                        $normalized,
+                        ','
+                    );
+
+                $lastDot =
+                    strrpos(
+                        $normalized,
+                        '.'
+                    );
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | Indonesia
+                |--------------------------------------------------------------------------
+                */
+
+                if ($lastComma > $lastDot) {
+
+                    $normalized =
+                        str_replace(
+                            '.',
+                            '',
+                            $normalized
+                        );
+
+                    $normalized =
+                        str_replace(
+                            ',',
+                            '.',
+                            $normalized
+                        );
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | English
+                |--------------------------------------------------------------------------
+                */ else {
+
+                    $normalized =
+                        str_replace(
+                            ',',
+                            '',
+                            $normalized
+                        );
+                }
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | ROUND
+            |--------------------------------------------------------------------------
+            */
+
+            if (is_numeric($normalized)) {
+
+                return (int) round(
+                    (float) $normalized
+                );
+            }
+
+            return $value;
+        };
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | PROTECTED NUMERIC KEYS
+        |--------------------------------------------------------------------------
+        |
+        | Associative lookup lebih cepat daripada in_array()
+        |--------------------------------------------------------------------------
+        */
+
+        $protectedKeys = array_fill_keys([
+
+            'id',
+            'po_id',
+            'spk_id',
+            'detail_po_id',
+            'user_id',
+            'kategori_id',
+            'batch',
+            'version',
+
+            'kode',
+            'article_code',
+            'article_number',
+            'article_nr_',
+            'nw_code',
+
+            'no_spk',
+            'no_po',
+            'nomor_invoice',
+
+            'tanggal',
+            'tanggal_invoice',
+            'tanggal_inspect',
+            'tgl_terima',
+            'tgl_selesai',
+
+            'status',
+            'kategori',
+            'supplier',
+            'material',
+            'nama',
+            'description',
+
+        ], true);
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | NORMALIZE ARRAY
+        |--------------------------------------------------------------------------
+        */
+
+        $normalizeArray = static function (array $data) use (&$normalizeArray, $roundNumeric, $protectedKeys) {
+
+            foreach ($data as $key => $value) {
+
+                /*
+                |--------------------------------------------------------------------------
+                | ARRAY
+                |--------------------------------------------------------------------------
+                */
+
+                if (is_array($value)) {
+
+                    $data[$key] =
+                        $normalizeArray(
+                            $value
+                        );
+
+                    continue;
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | INTEGER / FLOAT
+                |--------------------------------------------------------------------------
+                */
+
+                if (
+                    is_int($value) ||
+                    is_float($value)
+                ) {
+
+                    if (
+                        !isset(
+                        $protectedKeys[$key]
+                    )
+                    ) {
+
+                        $data[$key] =
+                            $roundNumeric(
+                                $value
+                            );
+                    }
+
+                    continue;
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | STRING NUMERIC
+                |--------------------------------------------------------------------------
+                */
+
+                if (
+                    is_string($value) &&
+                    !isset(
+                    $protectedKeys[$key]
+                )
+                ) {
+
+                    $trimmed =
+                        trim($value);
+
+
+                    if ($trimmed === '') {
+                        continue;
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | Hindari is_numeric() terhadap string biasa
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if (
+                        preg_match(
+                            '/^-?[0-9.,]+$/',
+                            $trimmed
+                        )
+                    ) {
+
+                        $candidate =
+                            str_replace(
+                                ',',
+                                '.',
+                                $trimmed
+                            );
+
+
+                        if (
+                            is_numeric(
+                                $candidate
+                            )
+                        ) {
+
+                            $data[$key] =
+                                $roundNumeric(
+                                    $value
+                                );
+                        }
+                    }
+                }
+            }
+
+            return $data;
+        };
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 1. GET PO + RELATION
+        |--------------------------------------------------------------------------
+        */
+
+        $tQuery = microtime(true);
+
+        $pos = Po::with([
+            'details',
+            'spks',
+        ])->whereKey($poId)->get();
+
+        if ($pos->isEmpty()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'PO tidak ditemukan',
+            ], 404);
+        }
+
+        $queryTime =
+            microtime(true) - $tQuery;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 2. FLATTEN DETAILS SEKALI
+        |--------------------------------------------------------------------------
+        */
+
+        $details = $pos
+            ->pluck('details')
+            ->flatten();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 3. DETAIL PO IDS
+        |--------------------------------------------------------------------------
+        */
+
+        $detailPoIds = $details
+            ->pluck('id')
+            ->filter()
+            ->unique()
+            ->values();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 4. ARTICLE NUMBERS
+        |--------------------------------------------------------------------------
+        */
+
+        // Kode alternatif per item; satu query CAD untuk seluruh PO.
+        $codesByDetail = [];
+        foreach ($details as $detail) {
+            $raw = $detail->detail ?? $detail->data ?? [];
+            if (is_string($raw)) {
+                $raw = json_decode($raw, true) ?: [];
+            }
+            if (!is_array($raw)) {
+                $raw = [];
+            }
+            $codes = [];
+            foreach (['article_code', 'nw_code', 'article_nr_', 'article_nr'] as $field) {
+                $code = trim((string) ($raw[$field] ?? ''));
+                if ($code !== '' && !in_array($code, $codes, true)) {
+                    $codes[] = $code;
+                }
+            }
+            $codesByDetail[$detail->id] = $codes;
+        }
+        $articleNumbers = collect($codesByDetail)->flatten()->unique()->values();
+
+        /*
+        |--------------------------------------------------------------------------
+        | 5. BOM
+        |--------------------------------------------------------------------------
+        */
+
+        $tBom = microtime(true);
+
+        $bomMap = collect();
+
+        if (
+            $articleNumbers->isNotEmpty()
+        ) {
+
+            $bomMap =
+                Bom::with([
+                    'groups.items',
+                ])
+                    ->whereIn(
+                        'article_number',
+                        $articleNumbers
+                    )
+                    ->get()
+                    ->keyBy(
+                        'article_number'
+                    );
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | IMPORTANT
+            |--------------------------------------------------------------------------
+            |
+            | Convert BOM ke array SEKALI.
+            |
+            | Struktur tetap sama.
+            |
+            |--------------------------------------------------------------------------
+            */
+
+            $bomMap =
+                $bomMap->map(
+                    static function ($bom) {
+
+                        return $bom->toArray();
+                    }
+                );
+        }
+
+        $bomTime =
+            microtime(true) - $tBom;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 6. CAD
+        |--------------------------------------------------------------------------
+        */
+
+        $tCad = microtime(true);
+
+        $cadMap = collect();
+
+        if (
+            $articleNumbers->isNotEmpty()
+        ) {
+
+            $cadMap =
+                CadModel::whereIn(
+                    'article_code',
+                    $articleNumbers
+                )
+                    ->orderByDesc(
+                        'version'
+                    )
+                    ->get()
+                    ->groupBy(
+                        static function ($item) {
+
+                            return (string) 
+                                $item->article_code;
+                        }
+                    )
+                    ->map(
+                        static function ($items) {
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | Karena sudah ORDER BY version DESC,
+                            | first = version terbaru.
+                            |--------------------------------------------------------------------------
+                            */
+
+                            $item =
+                                $items->first();
+
+
+                            return $item
+                                ? $item->toArray()
+                                : null;
+                        }
+                    );
+        }
+
+        $cadTime =
+            microtime(true) - $tCad;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 7. INSPECTION
+        |--------------------------------------------------------------------------
+        */
+
+        $tInspection = microtime(true);
+
+        $inspectionByDetail = [];
+
+        $inspectionByDetailSpk = [];
+
+
+        if (
+            $detailPoIds->isNotEmpty()
+        ) {
+
+            $inspectionSchedules =
+                $inspectionModel::with([
+                    'kategori',
+                    'user',
+                ])
+                    ->whereIn(
+                        'detail_po_id',
+                        $detailPoIds
+                    )
+                    ->get();
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | INDEX INSPECTION
+            |--------------------------------------------------------------------------
+            */
+
+            foreach (
+                $inspectionSchedules
+                as $inspection
+            ) {
+
+                $detailId =
+                    $inspection->detail_po_id;
+
+                $spkId =
+                    $inspection->spk_id;
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | Convert Eloquent → Array SEKALI
+                |--------------------------------------------------------------------------
+                */
+
+                $inspectionData =
+                    $inspection->toArray();
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | BY DETAIL
+                |--------------------------------------------------------------------------
+                */
+
+                if (
+                    !isset(
+                    $inspectionByDetail[
+                        $detailId
+                    ]
+                )
+                ) {
+
+                    $inspectionByDetail[
+                        $detailId
+                    ] = [];
+                }
+
+
+                $inspectionByDetail[
+                    $detailId
+                ][] =
+                    $inspectionData;
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | BY DETAIL + SPK
+                |--------------------------------------------------------------------------
+                */
+
+                $key =
+                    $detailId .
+                    ':' .
+                    ($spkId ?? 'null');
+
+
+                if (
+                    !isset(
+                    $inspectionByDetailSpk[
+                        $key
+                    ]
+                )
+                ) {
+
+                    $inspectionByDetailSpk[
+                        $key
+                    ] = [
+
+                        'passed' => 0,
+                        'rejected' => 0,
+
+                    ];
+                }
+
+
+                $inspectionByDetailSpk[
+                    $key
+                ]['passed'] +=
+                    (float) (
+                        $inspection->passed
+                        ?? 0
+                    );
+
+
+                $inspectionByDetailSpk[
+                    $key
+                ]['rejected'] +=
+                    (float) (
+                        $inspection->rejected
+                        ?? 0
+                    );
+            }
+        }
+
+
+        $inspectionTime =
+            microtime(true) -
+            $tInspection;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 8. PROCESS PO
+        |--------------------------------------------------------------------------
+        */
+
+        $tProcess = microtime(true);
+
+
+        $pos->each(
+            function ($po) use ($bomMap, $cadMap, $codesByDetail, $inspectionByDetail, $inspectionByDetailSpk, $divisiQc, $roundNumeric) {
+
+                /*
+                |--------------------------------------------------------------------------
+                | INDEX SPK BY DETAIL
+                |--------------------------------------------------------------------------
+                */
+
+                $spksByDetail = [];
+
+                /*
+                |--------------------------------------------------------------------------
+                | META SPK
+                |--------------------------------------------------------------------------
+                */
+
+                $spkMeta = [];
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | PROCESS SPK
+                |--------------------------------------------------------------------------
+                */
+
+                foreach (
+                    $po->spks
+                    as $spk
+                ) {
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | DATA
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $spkData =
+                        $spk->data;
+
+
+                    if (
+                        is_string(
+                            $spkData
+                        )
+                    ) {
+
+                        $decoded =
+                            json_decode(
+                                $spkData,
+                                true
+                            );
+
+
+                        $spkData =
+                            is_array(
+                                $decoded
+                            )
+                            ? $decoded
+                            : [];
+                    }
+
+
+                    if (
+                        !is_array(
+                            $spkData
+                        )
+                    ) {
+
+                        $spkData = [];
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | KATEGORI
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $kategoriSpk =
+                        strtoupper(
+                            trim(
+                                (string) (
+                                    $spkData[
+                                        'kategori'
+                                    ]
+                                    ?? ''
+                                )
+                            )
+                        );
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | FILTER DIVISI
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if (
+                        !$this->matchDivisi(
+                            $divisiQc,
+                            $kategoriSpk
+                        )
+                    ) {
+
+                        continue;
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | ITEMS
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $items =
+                        $spkData[
+                            'items'
+                        ]
+                        ?? [];
+
+
+                    if (
+                        !is_array(
+                            $items
+                        )
+                    ) {
+
+                        continue;
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | SPK ID
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $spkId =
+                        $spk->id;
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | CACHE META
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $spkMeta[
+                        $spkId
+                    ] = [
+
+                        'supplier' =>
+                            $spkData[
+                                'sup'
+                            ] ?? null,
+
+                        'kategori' =>
+                            $spkData[
+                                'kategori'
+                            ] ?? null,
+
+                        'status' =>
+                            $spkData[
+                                'status'
+                            ] ?? null,
+
+                        'no_spk' =>
+                            $spkData[
+                                'no_spk'
+                            ] ?? null,
+
+                        'tgl_terima' =>
+                            $spkData[
+                                'tgl_terima'
+                            ] ?? null,
+
+                        'tgl_selesai' =>
+                            $spkData[
+                                'tgl_selesai'
+                            ] ?? null,
+
+                    ];
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | INDEX ITEM
+                    |--------------------------------------------------------------------------
+                    */
+
+                    foreach (
+                        $items
+                        as $item
+                    ) {
+
+                        $detailId =
+                            $item[
+                                'detail_po_id'
+                            ]
+                            ?? null;
+
+
+                        if (
+                            !$detailId
+                        ) {
+
+                            continue;
+                        }
+
+
+                        $spksByDetail[
+                            $detailId
+                        ][] = [
+
+                            'spk' =>
+                                $spk,
+
+                            'spk_id' =>
+                                $spkId,
+
+                            'item' =>
+                                $item,
+
+                        ];
+                    }
+                }
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | PROCESS DETAILS
+                |--------------------------------------------------------------------------
+                */
+
+                foreach (
+                    $po->details
+                    as $detail
+                ) {
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | DETAIL DATA
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $detailData =
+                        is_array(
+                            $detail->detail
+                        )
+                        ? $detail->detail
+                        : [];
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | ARTICLE
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $article =
+                        (string) (
+                            $detailData[
+                                'article_nr_'
+                            ]
+                            ?? ''
+                        );
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | BOM
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $detail->bom =
+                        (
+                            $article !== '' &&
+                            isset(
+                            $bomMap[
+                                $article
+                            ]
+                        )
+                        )
+                        ? $bomMap[
+                            $article
+                        ]
+                        : null;
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | CAD
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $detail->cad = null;
+                    foreach ($codesByDetail[$detail->id] ?? [] as $code) {
+                        if (isset($cadMap[$code])) {
+                            $detail->cad = $cadMap[$code];
+                            break;
+                        }
+                    }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | INSPECTION
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $detail->inspection_schedules =
+                        $inspectionByDetail[
+                            $detail->id
+                        ]
+                        ?? [];
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | RELATED SPK
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $relatedSpks = [];
+
+
+                    $detailSpks =
+                        $spksByDetail[
+                            $detail->id
+                        ]
+                        ?? [];
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | RELATED SPK LOOP
+                    |--------------------------------------------------------------------------
+                    */
+
+                    foreach (
+                        $detailSpks
+                        as $entry
+                    ) {
+
+                        $spkId =
+                            $entry[
+                                'spk_id'
+                            ];
+
+
+                        $item =
+                            $entry[
+                                'item'
+                            ];
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | META
+                        |--------------------------------------------------------------------------
+                        */
+
+                        $meta =
+                            $spkMeta[
+                                $spkId
+                            ]
+                            ?? [];
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | INSPECTION KEY
+                        |--------------------------------------------------------------------------
+                        */
+
+                        $inspectionKey =
+                            $detail->id .
+                            ':' .
+                            $spkId;
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | INSPECTION SUMMARY
+                        |--------------------------------------------------------------------------
+                        */
+
+                        $inspectionSummary =
+                            $inspectionByDetailSpk[
+                                $inspectionKey
+                            ]
+                            ?? [
+
+                                'passed' => 0,
+                                'rejected' => 0,
+
+                            ];
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | PASSED
+                        |--------------------------------------------------------------------------
+                        */
+
+                        $passed =
+                            $roundNumeric(
+                                $inspectionSummary[
+                                    'passed'
+                                ]
+                            );
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | REJECTED
+                        |--------------------------------------------------------------------------
+                        */
+
+                        $rejected =
+                            $roundNumeric(
+                                $inspectionSummary[
+                                    'rejected'
+                                ]
+                            );
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | QTY
+                        |--------------------------------------------------------------------------
+                        */
+
+                        $qty =
+                            $roundNumeric(
+                                $item[
+                                    'qty'
+                                ]
+                                ?? 0
+                            );
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | HARGA
+                        |--------------------------------------------------------------------------
+                        */
+
+                        $harga =
+                            $roundNumeric(
+                                $item[
+                                    'harga'
+                                ]
+                                ?? 0
+                            );
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | TOTAL
+                        |--------------------------------------------------------------------------
+                        */
+
+                        $total =
+                            $roundNumeric(
+                                $item[
+                                    'total'
+                                ]
+                                ?? 0
+                            );
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | RELATED SPK
+                        |--------------------------------------------------------------------------
+                        */
+
+                        $relatedSpks[] = [
+
+                            'passed' =>
+                                $passed,
+
+                            'rejected' =>
+                                $rejected,
+
+                            'id' =>
+                                $spkId,
+
+                            'supplier' =>
+                                $meta[
+                                    'supplier'
+                                ]
+                                ?? null,
+
+                            'kategori' =>
+                                $meta[
+                                    'kategori'
+                                ]
+                                ?? null,
+
+                            'status' =>
+                                $meta[
+                                    'status'
+                                ]
+                                ?? null,
+
+                            'no_spk' =>
+                                $meta[
+                                    'no_spk'
+                                ]
+                                ?? null,
+
+                            'tgl_terima' =>
+                                $meta[
+                                    'tgl_terima'
+                                ]
+                                ?? null,
+
+                            'tgl_selesai' =>
+                                $meta[
+                                    'tgl_selesai'
+                                ]
+                                ?? null,
+
+                            'material' =>
+                                $item[
+                                    'material'
+                                ]
+                                ?? '',
+
+                            'qty' =>
+                                $qty,
+
+                            'harga' =>
+                                $harga,
+
+                            'total' =>
+                                $total,
+
+                        ];
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | SET RELATED SPK
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $detail->spks =
+                        $relatedSpks;
+                }
+            }
+        );
+
+
+        $processTime =
+            microtime(true) -
+            $tProcess;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 9. ELOQUENT → ARRAY
+        |--------------------------------------------------------------------------
+        |
+        | Tetap menggunakan toArray()
+        | agar field bawaan model + struktur relation tidak berubah.
+        |
+        */
+
+        $tArray = microtime(true);
+
+        $responseData =
+            $pos->first()->toArray();
+
+        $toArrayTime =
+            microtime(true) -
+            $tArray;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 10. NORMALIZE
+        |--------------------------------------------------------------------------
+        */
+
+        $tNormalize = microtime(true);
+
+        $responseData =
+            $normalizeArray(
+                $responseData
+            );
+
+        $normalizeTime =
+            microtime(true) -
+            $tNormalize;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 11. JSON ENCODE
+        |--------------------------------------------------------------------------
+        |
+        | Ukur JSON encoding secara terpisah.
+        |--------------------------------------------------------------------------
+        */
+
+        $tJson = microtime(true);
+
+        $json =
+            json_encode(
+                [
+                    'status' =>
+                        'success',
+
+                    'data' =>
+                        $responseData,
+                ],
+                JSON_UNESCAPED_UNICODE |
+                JSON_UNESCAPED_SLASHES
+            );
+
+        $jsonTime =
+            microtime(true) -
+            $tJson;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | JSON ERROR
+        |--------------------------------------------------------------------------
+        */
+
+        if (
+            $json === false
+        ) {
+
+            return response()->json([
+
+                'status' =>
+                    'error',
+
+                'message' =>
+                    json_last_error_msg(),
+
+            ], 500);
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | TOTAL SERVER TIME
+        |--------------------------------------------------------------------------
+        */
+
+        $totalTime =
+            microtime(true) -
+            $requestStart;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | OPTIONAL LOG
+        |--------------------------------------------------------------------------
+        |
+        | Tidak masuk response API.
+        |
+        | Bisa dihapus setelah selesai testing.
+        |--------------------------------------------------------------------------
+        */
+
+        Log::info(
+            'QC PO DETAIL API PERFORMANCE',
+            [
+
+                'divisi' =>
+                    $divisiQc,
+
+                'query' =>
+                    round(
+                        $queryTime,
+                        4
+                    ),
+
+                'bom' =>
+                    round(
+                        $bomTime,
+                        4
+                    ),
+
+                'cad' =>
+                    round(
+                        $cadTime,
+                        4
+                    ),
+
+                'inspection' =>
+                    round(
+                        $inspectionTime,
+                        4
+                    ),
+
+                'process' =>
+                    round(
+                        $processTime,
+                        4
+                    ),
+
+                'to_array' =>
+                    round(
+                        $toArrayTime,
+                        4
+                    ),
+
+                'normalize' =>
+                    round(
+                        $normalizeTime,
+                        4
+                    ),
+
+                'json' =>
+                    round(
+                        $jsonTime,
+                        4
+                    ),
+
+                'total' =>
+                    round(
+                        $totalTime,
+                        4
+                    ),
+
+                'json_bytes' =>
+                    strlen($json),
+
+                'po_count' =>
+                    $pos->count(),
+
+                'detail_count' =>
+                    $details->count(),
+
+                'article_count' =>
+                    $articleNumbers->count(),
+
+                'detail_po_id_count' =>
+                    $detailPoIds->count(),
+
+            ]
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 12. RESPONSE
+        |--------------------------------------------------------------------------
+        |
+        | JSON sudah di-encode sehingga Laravel tidak perlu
+        | melakukan json_encode() lagi pada payload.
+        |--------------------------------------------------------------------------
+        */
+
+        return response(
+            $json,
+            200
+        )
+            ->header(
+                'Content-Type',
+                'application/json; charset=UTF-8'
+            )
+            ->header(
+                'Cache-Control',
+                'no-cache, no-store, must-revalidate'
+            )
+            ->header(
+                'Pragma',
+                'no-cache'
+            )
+            ->header(
+                'Expires',
+                '0'
+            );
+    }
     public function index()
     {
         //
@@ -6048,1464 +7537,167 @@ class QcController extends Controller
 //             '0'
 //         );
 // }
-    public function getPo()
-    {
-        $inspectionModel = $this->inspectionScheduleModel();
-
-        /*
-        |--------------------------------------------------------------------------
-        | START TIMER
-        |--------------------------------------------------------------------------
-        */
-
-        $requestStart = microtime(true);
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | USER / DIVISI
-        |--------------------------------------------------------------------------
-        */
-
-        $user = auth()->user();
-
-        $user->loadMissing('karyawan.divisi');
-
-        $requestDivisi = request('divisi');
-
-        $divisiQc = strtoupper(
-            trim(
-                $requestDivisi
-                ?: ($user->karyawan?->divisi?->nama ?? '')
-            )
-        );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | HELPER ROUND NUMERIC
-        |--------------------------------------------------------------------------
-        */
-
-        $roundNumeric = static function ($value) {
-
-            if ($value === null || $value === '') {
-                return $value;
-            }
-
-            if (is_int($value)) {
-                return $value;
-            }
-
-            if (is_float($value)) {
-                return (int) round($value);
-            }
-
-            if (!is_string($value)) {
-                return $value;
-            }
-
-            $value = trim($value);
-
-            if ($value === '') {
-                return $value;
-            }
-
-            $normalized = $value;
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | 56,5
-            |--------------------------------------------------------------------------
-            */
-
-            if (
-                str_contains($normalized, ',') &&
-                !str_contains($normalized, '.')
-            ) {
-
-                $normalized = str_replace(
-                    ',',
-                    '.',
-                    $normalized
-                );
-            }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | 1.250,5
-            | 1,250.5
-            |--------------------------------------------------------------------------
-            */ elseif (
-                str_contains($normalized, ',') &&
-                str_contains($normalized, '.')
-            ) {
-
-                $lastComma =
-                    strrpos(
-                        $normalized,
-                        ','
-                    );
-
-                $lastDot =
-                    strrpos(
-                        $normalized,
-                        '.'
-                    );
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | Indonesia
-                |--------------------------------------------------------------------------
-                */
-
-                if ($lastComma > $lastDot) {
-
-                    $normalized =
-                        str_replace(
-                            '.',
-                            '',
-                            $normalized
-                        );
-
-                    $normalized =
-                        str_replace(
-                            ',',
-                            '.',
-                            $normalized
-                        );
-                }
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | English
-                |--------------------------------------------------------------------------
-                */ else {
-
-                    $normalized =
-                        str_replace(
-                            ',',
-                            '',
-                            $normalized
-                        );
-                }
-            }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | ROUND
-            |--------------------------------------------------------------------------
-            */
-
-            if (is_numeric($normalized)) {
-
-                return (int) round(
-                    (float) $normalized
-                );
-            }
-
-            return $value;
-        };
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | PROTECTED NUMERIC KEYS
-        |--------------------------------------------------------------------------
-        |
-        | Associative lookup lebih cepat daripada in_array()
-        |--------------------------------------------------------------------------
-        */
-
-        $protectedKeys = array_fill_keys([
-
-            'id',
-            'po_id',
-            'spk_id',
-            'detail_po_id',
-            'user_id',
-            'kategori_id',
-            'batch',
-            'version',
-
-            'kode',
-            'article_code',
-            'article_number',
-            'article_nr_',
-            'nw_code',
-
-            'no_spk',
-            'no_po',
-            'nomor_invoice',
-
-            'tanggal',
-            'tanggal_invoice',
-            'tanggal_inspect',
-            'tgl_terima',
-            'tgl_selesai',
-
-            'status',
-            'kategori',
-            'supplier',
-            'material',
-            'nama',
-            'description',
-
-        ], true);
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | NORMALIZE ARRAY
-        |--------------------------------------------------------------------------
-        */
-
-        $normalizeArray = static function (array $data) use (&$normalizeArray, $roundNumeric, $protectedKeys) {
-
-            foreach ($data as $key => $value) {
-
-                /*
-                |--------------------------------------------------------------------------
-                | ARRAY
-                |--------------------------------------------------------------------------
-                */
-
-                if (is_array($value)) {
-
-                    $data[$key] =
-                        $normalizeArray(
-                            $value
-                        );
-
-                    continue;
-                }
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | INTEGER / FLOAT
-                |--------------------------------------------------------------------------
-                */
-
-                if (
-                    is_int($value) ||
-                    is_float($value)
-                ) {
-
-                    if (
-                        !isset(
-                        $protectedKeys[$key]
-                    )
-                    ) {
-
-                        $data[$key] =
-                            $roundNumeric(
-                                $value
-                            );
-                    }
-
-                    continue;
-                }
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | STRING NUMERIC
-                |--------------------------------------------------------------------------
-                */
-
-                if (
-                    is_string($value) &&
-                    !isset(
-                    $protectedKeys[$key]
-                )
-                ) {
-
-                    $trimmed =
-                        trim($value);
-
-
-                    if ($trimmed === '') {
-                        continue;
-                    }
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Hindari is_numeric() terhadap string biasa
-                    |--------------------------------------------------------------------------
-                    */
-
-                    if (
-                        preg_match(
-                            '/^-?[0-9.,]+$/',
-                            $trimmed
-                        )
-                    ) {
-
-                        $candidate =
-                            str_replace(
-                                ',',
-                                '.',
-                                $trimmed
-                            );
-
-
-                        if (
-                            is_numeric(
-                                $candidate
-                            )
-                        ) {
-
-                            $data[$key] =
-                                $roundNumeric(
-                                    $value
-                                );
-                        }
-                    }
-                }
-            }
-
-            return $data;
-        };
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | 1. GET PO + RELATION
-        |--------------------------------------------------------------------------
-        */
-
-        $tQuery = microtime(true);
-
-        $pos = Po::with([
-            'details',
-            'spks',
-        ])->get();
-
-        $queryTime =
-            microtime(true) - $tQuery;
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | 2. FLATTEN DETAILS SEKALI
-        |--------------------------------------------------------------------------
-        */
-
-        $details = $pos
-            ->pluck('details')
-            ->flatten();
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | 3. DETAIL PO IDS
-        |--------------------------------------------------------------------------
-        */
-
-        $detailPoIds = $details
-            ->pluck('id')
-            ->filter()
-            ->unique()
-            ->values();
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | 4. ARTICLE NUMBERS
-        |--------------------------------------------------------------------------
-        */
-
-        $articleNumbers = $details
-            ->map(
-                static function ($detail) {
-
-                    $detailData =
-                        is_array($detail->detail)
-                        ? $detail->detail
-                        : [];
-
-
-                    $articleNr =
-                        $detailData[
-                            'article_nr_'
-                        ]
-                        ?? null;
-
-
-                    $nwCode =
-                        $detailData[
-                            'nw_code'
-                        ]
-                        ?? null;
-
-
-                    return $nwCode === null
-                        ? $articleNr
-                        : (
-                            $articleNr
-                            ?? $nwCode
-                        );
-                }
-            )
-            ->filter()
-            ->unique()
-            ->values();
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | 5. BOM
-        |--------------------------------------------------------------------------
-        */
-
-        $tBom = microtime(true);
-
-        $bomMap = collect();
-
-        if (
-            $articleNumbers->isNotEmpty()
-        ) {
-
-            $bomMap =
-                Bom::with([
-                    'groups.items',
-                ])
-                    ->whereIn(
-                        'article_number',
-                        $articleNumbers
-                    )
-                    ->get()
-                    ->keyBy(
-                        'article_number'
-                    );
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | IMPORTANT
-            |--------------------------------------------------------------------------
-            |
-            | Convert BOM ke array SEKALI.
-            |
-            | Struktur tetap sama.
-            |
-            |--------------------------------------------------------------------------
-            */
-
-            $bomMap =
-                $bomMap->map(
-                    static function ($bom) {
-
-                        return $bom->toArray();
-                    }
-                );
-        }
-
-        $bomTime =
-            microtime(true) - $tBom;
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | 6. CAD
-        |--------------------------------------------------------------------------
-        */
-
-        $tCad = microtime(true);
-
-        $cadMap = collect();
-
-        if (
-            $articleNumbers->isNotEmpty()
-        ) {
-
-            $cadMap =
-                CadModel::whereIn(
-                    'article_code',
-                    $articleNumbers
-                )
-                    ->orderByDesc(
-                        'version'
-                    )
-                    ->get()
-                    ->groupBy(
-                        static function ($item) {
-
-                            return (string) 
-                                $item->article_code;
-                        }
-                    )
-                    ->map(
-                        static function ($items) {
-
-                            /*
-                            |--------------------------------------------------------------------------
-                            | Karena sudah ORDER BY version DESC,
-                            | first = version terbaru.
-                            |--------------------------------------------------------------------------
-                            */
-
-                            $item =
-                                $items->first();
-
-
-                            return $item
-                                ? $item->toArray()
-                                : null;
-                        }
-                    );
-        }
-
-        $cadTime =
-            microtime(true) - $tCad;
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | 7. INSPECTION
-        |--------------------------------------------------------------------------
-        */
-
-        $tInspection = microtime(true);
-
-        $inspectionByDetail = [];
-
-        $inspectionByDetailSpk = [];
-
-
-        if (
-            $detailPoIds->isNotEmpty()
-        ) {
-
-            $inspectionSchedules =
-                $inspectionModel::with([
-                    'kategori',
-                    'user',
-                ])
-                    ->whereIn(
-                        'detail_po_id',
-                        $detailPoIds
-                    )
-                    ->get();
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | INDEX INSPECTION
-            |--------------------------------------------------------------------------
-            */
-
-            foreach (
-                $inspectionSchedules
-                as $inspection
-            ) {
-
-                $detailId =
-                    $inspection->detail_po_id;
-
-                $spkId =
-                    $inspection->spk_id;
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | Convert Eloquent → Array SEKALI
-                |--------------------------------------------------------------------------
-                */
-
-                $inspectionData =
-                    $inspection->toArray();
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | BY DETAIL
-                |--------------------------------------------------------------------------
-                */
-
-                if (
-                    !isset(
-                    $inspectionByDetail[
-                        $detailId
-                    ]
-                )
-                ) {
-
-                    $inspectionByDetail[
-                        $detailId
-                    ] = [];
-                }
-
-
-                $inspectionByDetail[
-                    $detailId
-                ][] =
-                    $inspectionData;
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | BY DETAIL + SPK
-                |--------------------------------------------------------------------------
-                */
-
-                $key =
-                    $detailId .
-                    ':' .
-                    ($spkId ?? 'null');
-
-
-                if (
-                    !isset(
-                    $inspectionByDetailSpk[
-                        $key
-                    ]
-                )
-                ) {
-
-                    $inspectionByDetailSpk[
-                        $key
-                    ] = [
-
-                        'passed' => 0,
-                        'rejected' => 0,
-
-                    ];
-                }
-
-
-                $inspectionByDetailSpk[
-                    $key
-                ]['passed'] +=
-                    (float) (
-                        $inspection->passed
-                        ?? 0
-                    );
-
-
-                $inspectionByDetailSpk[
-                    $key
-                ]['rejected'] +=
-                    (float) (
-                        $inspection->rejected
-                        ?? 0
-                    );
-            }
-        }
-
-
-        $inspectionTime =
-            microtime(true) -
-            $tInspection;
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | 8. PROCESS PO
-        |--------------------------------------------------------------------------
-        */
-
-        $tProcess = microtime(true);
-
-
-        $pos->each(
-            function ($po) use ($bomMap, $cadMap, $inspectionByDetail, $inspectionByDetailSpk, $divisiQc, $roundNumeric) {
-
-                /*
-                |--------------------------------------------------------------------------
-                | INDEX SPK BY DETAIL
-                |--------------------------------------------------------------------------
-                */
-
-                $spksByDetail = [];
-
-                /*
-                |--------------------------------------------------------------------------
-                | META SPK
-                |--------------------------------------------------------------------------
-                */
-
-                $spkMeta = [];
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | PROCESS SPK
-                |--------------------------------------------------------------------------
-                */
-
-                foreach (
-                    $po->spks
-                    as $spk
-                ) {
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | DATA
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $spkData =
-                        $spk->data;
-
-
-                    if (
-                        is_string(
-                            $spkData
-                        )
-                    ) {
-
-                        $decoded =
-                            json_decode(
-                                $spkData,
-                                true
-                            );
-
-
-                        $spkData =
-                            is_array(
-                                $decoded
-                            )
-                            ? $decoded
-                            : [];
-                    }
-
-
-                    if (
-                        !is_array(
-                            $spkData
-                        )
-                    ) {
-
-                        $spkData = [];
-                    }
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | KATEGORI
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $kategoriSpk =
-                        strtoupper(
-                            trim(
-                                (string) (
-                                    $spkData[
-                                        'kategori'
-                                    ]
-                                    ?? ''
-                                )
-                            )
-                        );
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | FILTER DIVISI
-                    |--------------------------------------------------------------------------
-                    */
-
-                    if (
-                        !$this->matchDivisi(
-                            $divisiQc,
-                            $kategoriSpk
-                        )
-                    ) {
-
-                        continue;
-                    }
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | ITEMS
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $items =
-                        $spkData[
-                            'items'
-                        ]
-                        ?? [];
-
-
-                    if (
-                        !is_array(
-                            $items
-                        )
-                    ) {
-
-                        continue;
-                    }
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | SPK ID
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $spkId =
-                        $spk->id;
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | CACHE META
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $spkMeta[
-                        $spkId
-                    ] = [
-
-                        'supplier' =>
-                            $spkData[
-                                'sup'
-                            ] ?? null,
-
-                        'kategori' =>
-                            $spkData[
-                                'kategori'
-                            ] ?? null,
-
-                        'status' =>
-                            $spkData[
-                                'status'
-                            ] ?? null,
-
-                        'no_spk' =>
-                            $spkData[
-                                'no_spk'
-                            ] ?? null,
-
-                        'tgl_terima' =>
-                            $spkData[
-                                'tgl_terima'
-                            ] ?? null,
-
-                        'tgl_selesai' =>
-                            $spkData[
-                                'tgl_selesai'
-                            ] ?? null,
-
-                    ];
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | INDEX ITEM
-                    |--------------------------------------------------------------------------
-                    */
-
-                    foreach (
-                        $items
-                        as $item
-                    ) {
-
-                        $detailId =
-                            $item[
-                                'detail_po_id'
-                            ]
-                            ?? null;
-
-
-                        if (
-                            !$detailId
-                        ) {
-
-                            continue;
-                        }
-
-
-                        $spksByDetail[
-                            $detailId
-                        ][] = [
-
-                            'spk' =>
-                                $spk,
-
-                            'spk_id' =>
-                                $spkId,
-
-                            'item' =>
-                                $item,
-
-                        ];
-                    }
-                }
-
-
-                /*
-                |--------------------------------------------------------------------------
-                | PROCESS DETAILS
-                |--------------------------------------------------------------------------
-                */
-
-                foreach (
-                    $po->details
-                    as $detail
-                ) {
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | DETAIL DATA
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $detailData =
-                        is_array(
-                            $detail->detail
-                        )
-                        ? $detail->detail
-                        : [];
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | ARTICLE
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $article =
-                        (string) (
-                            $detailData[
-                                'article_nr_'
-                            ]
-                            ?? ''
-                        );
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | BOM
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $detail->bom =
-                        (
-                            $article !== '' &&
-                            isset(
-                            $bomMap[
-                                $article
-                            ]
-                        )
-                        )
-                        ? $bomMap[
-                            $article
-                        ]
-                        : null;
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | CAD
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $detail->cad =
-                        (
-                            $article !== '' &&
-                            isset(
-                            $cadMap[
-                                $article
-                            ]
-                        )
-                        )
-                        ? $cadMap[
-                            $article
-                        ]
-                        : null;
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | INSPECTION
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $detail->inspection_schedules =
-                        $inspectionByDetail[
-                            $detail->id
-                        ]
-                        ?? [];
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | RELATED SPK
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $relatedSpks = [];
-
-
-                    $detailSpks =
-                        $spksByDetail[
-                            $detail->id
-                        ]
-                        ?? [];
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | RELATED SPK LOOP
-                    |--------------------------------------------------------------------------
-                    */
-
-                    foreach (
-                        $detailSpks
-                        as $entry
-                    ) {
-
-                        $spkId =
-                            $entry[
-                                'spk_id'
-                            ];
-
-
-                        $item =
-                            $entry[
-                                'item'
-                            ];
-
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | META
-                        |--------------------------------------------------------------------------
-                        */
-
-                        $meta =
-                            $spkMeta[
-                                $spkId
-                            ]
-                            ?? [];
-
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | INSPECTION KEY
-                        |--------------------------------------------------------------------------
-                        */
-
-                        $inspectionKey =
-                            $detail->id .
-                            ':' .
-                            $spkId;
-
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | INSPECTION SUMMARY
-                        |--------------------------------------------------------------------------
-                        */
-
-                        $inspectionSummary =
-                            $inspectionByDetailSpk[
-                                $inspectionKey
-                            ]
-                            ?? [
-
-                                'passed' => 0,
-                                'rejected' => 0,
-
-                            ];
-
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | PASSED
-                        |--------------------------------------------------------------------------
-                        */
-
-                        $passed =
-                            $roundNumeric(
-                                $inspectionSummary[
-                                    'passed'
-                                ]
-                            );
-
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | REJECTED
-                        |--------------------------------------------------------------------------
-                        */
-
-                        $rejected =
-                            $roundNumeric(
-                                $inspectionSummary[
-                                    'rejected'
-                                ]
-                            );
-
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | QTY
-                        |--------------------------------------------------------------------------
-                        */
-
-                        $qty =
-                            $roundNumeric(
-                                $item[
-                                    'qty'
-                                ]
-                                ?? 0
-                            );
-
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | HARGA
-                        |--------------------------------------------------------------------------
-                        */
-
-                        $harga =
-                            $roundNumeric(
-                                $item[
-                                    'harga'
-                                ]
-                                ?? 0
-                            );
-
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | TOTAL
-                        |--------------------------------------------------------------------------
-                        */
-
-                        $total =
-                            $roundNumeric(
-                                $item[
-                                    'total'
-                                ]
-                                ?? 0
-                            );
-
-
-                        /*
-                        |--------------------------------------------------------------------------
-                        | RELATED SPK
-                        |--------------------------------------------------------------------------
-                        */
-
-                        $relatedSpks[] = [
-
-                            'passed' =>
-                                $passed,
-
-                            'rejected' =>
-                                $rejected,
-
-                            'id' =>
-                                $spkId,
-
-                            'supplier' =>
-                                $meta[
-                                    'supplier'
-                                ]
-                                ?? null,
-
-                            'kategori' =>
-                                $meta[
-                                    'kategori'
-                                ]
-                                ?? null,
-
-                            'status' =>
-                                $meta[
-                                    'status'
-                                ]
-                                ?? null,
-
-                            'no_spk' =>
-                                $meta[
-                                    'no_spk'
-                                ]
-                                ?? null,
-
-                            'tgl_terima' =>
-                                $meta[
-                                    'tgl_terima'
-                                ]
-                                ?? null,
-
-                            'tgl_selesai' =>
-                                $meta[
-                                    'tgl_selesai'
-                                ]
-                                ?? null,
-
-                            'material' =>
-                                $item[
-                                    'material'
-                                ]
-                                ?? '',
-
-                            'qty' =>
-                                $qty,
-
-                            'harga' =>
-                                $harga,
-
-                            'total' =>
-                                $total,
-
-                        ];
-                    }
-
-
-                    /*
-                    |--------------------------------------------------------------------------
-                    | SET RELATED SPK
-                    |--------------------------------------------------------------------------
-                    */
-
-                    $detail->spks =
-                        $relatedSpks;
-                }
-            }
-        );
-
-
-        $processTime =
-            microtime(true) -
-            $tProcess;
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | 9. ELOQUENT → ARRAY
-        |--------------------------------------------------------------------------
-        |
-        | Tetap menggunakan toArray()
-        | agar field bawaan model + struktur relation tidak berubah.
-        |
-        */
-
-        $tArray = microtime(true);
-
-        $responseData =
-            $pos->toArray();
-
-        $toArrayTime =
-            microtime(true) -
-            $tArray;
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | 10. NORMALIZE
-        |--------------------------------------------------------------------------
-        */
-
-        $tNormalize = microtime(true);
-
-        $responseData =
-            $normalizeArray(
-                $responseData
-            );
-
-        $normalizeTime =
-            microtime(true) -
-            $tNormalize;
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | 11. JSON ENCODE
-        |--------------------------------------------------------------------------
-        |
-        | Ukur JSON encoding secara terpisah.
-        |--------------------------------------------------------------------------
-        */
-
-        $tJson = microtime(true);
-
-        $json =
-            json_encode(
-                [
-                    'status' =>
-                        'success',
-
-                    'data' =>
-                        $responseData,
-                ],
-                JSON_UNESCAPED_UNICODE |
-                JSON_UNESCAPED_SLASHES
-            );
-
-        $jsonTime =
-            microtime(true) -
-            $tJson;
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | JSON ERROR
-        |--------------------------------------------------------------------------
-        */
-
-        if (
-            $json === false
-        ) {
-
-            return response()->json([
-
-                'status' =>
-                    'error',
-
-                'message' =>
-                    json_last_error_msg(),
-
-            ], 500);
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | TOTAL SERVER TIME
-        |--------------------------------------------------------------------------
-        */
-
-        $totalTime =
-            microtime(true) -
-            $requestStart;
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | OPTIONAL LOG
-        |--------------------------------------------------------------------------
-        |
-        | Tidak masuk response API.
-        |
-        | Bisa dihapus setelah selesai testing.
-        |--------------------------------------------------------------------------
-        */
-
-        Log::info(
-            'QC PO API PERFORMANCE',
-            [
-
-                'divisi' =>
-                    $divisiQc,
-
-                'query' =>
-                    round(
-                        $queryTime,
-                        4
-                    ),
-
-                'bom' =>
-                    round(
-                        $bomTime,
-                        4
-                    ),
-
-                'cad' =>
-                    round(
-                        $cadTime,
-                        4
-                    ),
-
-                'inspection' =>
-                    round(
-                        $inspectionTime,
-                        4
-                    ),
-
-                'process' =>
-                    round(
-                        $processTime,
-                        4
-                    ),
-
-                'to_array' =>
-                    round(
-                        $toArrayTime,
-                        4
-                    ),
-
-                'normalize' =>
-                    round(
-                        $normalizeTime,
-                        4
-                    ),
-
-                'json' =>
-                    round(
-                        $jsonTime,
-                        4
-                    ),
-
-                'total' =>
-                    round(
-                        $totalTime,
-                        4
-                    ),
-
-                'json_bytes' =>
-                    strlen($json),
-
-                'po_count' =>
-                    $pos->count(),
-
-                'detail_count' =>
-                    $details->count(),
-
-                'article_count' =>
-                    $articleNumbers->count(),
-
-                'detail_po_id_count' =>
-                    $detailPoIds->count(),
-
-            ]
-        );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | 12. RESPONSE
-        |--------------------------------------------------------------------------
-        |
-        | JSON sudah di-encode sehingga Laravel tidak perlu
-        | melakukan json_encode() lagi pada payload.
-        |--------------------------------------------------------------------------
-        */
-
-        return response(
-            $json,
-            200
-        )
-            ->header(
-                'Content-Type',
-                'application/json; charset=UTF-8'
-            )
-            ->header(
-                'Cache-Control',
-                'no-cache, no-store, must-revalidate'
-            )
-            ->header(
-                'Pragma',
-                'no-cache'
-            )
-            ->header(
-                'Expires',
-                '0'
-            );
+   
+public function getPo(Request $request)
+{
+    // =====================================================
+    // 1. PERFORMANCE PROFILING
+    // =====================================================
+    $startTime = microtime(true);
+    $totalQueryTime = 0;
+    $totalQueries = 0;
+
+    // Profiling sementara untuk mencari bottleneck.
+    // Hapus listener ini setelah proses optimasi selesai.
+    DB::listen(function ($query) use (&$totalQueryTime, &$totalQueries) {
+        $totalQueryTime += $query->time;
+        $totalQueries++;
+
+        Log::info('QC PO SQL', [
+            'sql' => $query->sql,
+            'time_ms' => round($query->time, 2),
+        ]);
+    });
+
+    // =====================================================
+    // 2. FILTER DIVISI
+    // =====================================================
+    $divisi = strtoupper(trim(
+        (string) $request->query('divisi', '')
+    ));
+
+    // Normalisasi divisi dari Flutter.
+    if ($divisi !== '' && !str_starts_with($divisi, 'QC ')) {
+        $divisi = 'QC ' . $divisi;
     }
+
+    $mapping = [
+        'QC RANGKA' => [
+            'RANGKA',
+            'LASIO',
+            'BASE SWIVEL',
+            'PLAT BESI',
+            'ACCESSORIES',
+            'AKSESORIES',
+            'AKESOSORIS',
+            'TRIPLEK',
+            'POWDER COATING',
+        ],
+        'QC ANYAM' => [
+            'ANYAM',
+            'DEKOR',
+            'ECENG',
+            'BANANA',
+            'SONGKET',
+            'WEBBING',
+            'SYNTETIC',
+            'ACCESSORIES',
+            'AKSESORIES',
+            'AKESOSORIS',
+        ],
+        'QC UNFINISH' => [
+            'BASKET',
+            'PAKET',
+            'SUB BORONGAN',
+        ],
+    ];
+
+    // =====================================================
+    // 3. QUERY PO RINGAN
+    // =====================================================
+    $query = Po::query()
+        ->select([
+            'id',
+            'order_no',
+            'company_name',
+            'country',
+            'shipment_date',
+        ]);
+
+    // Filter berdasarkan kategori SPK.
+    // Tidak melakukan eager load details, BOM, CAD,
+    // maupun inspection schedule.
+    if (isset($mapping[$divisi])) {
+
+        $keywords = $mapping[$divisi];
+
+        $query->whereHas('spks', function ($spkQuery) use ($keywords) {
+            $spkQuery->where(function ($q) use ($keywords) {
+                foreach ($keywords as $keyword) {
+                    $q->orWhereRaw(
+                        "UPPER(JSON_UNQUOTE(JSON_EXTRACT(`data`, '$.kategori'))) LIKE ?",
+                        ['%' . $keyword . '%']
+                    );
+                }
+            });
+        });
+    }
+
+    // =====================================================
+    // 4. PAGINATION
+    // =====================================================
+    $perPage = min(
+        max((int) $request->query('per_page', 20), 1),
+        100
+    );
+
+    $page = max(
+        (int) $request->query('page', 1),
+        1
+    );
+
+    $queryStart = microtime(true);
+
+    $pos = $query
+        ->orderByDesc('id')
+        ->paginate($perPage, ['*'], 'page', $page);
+
+    $paginationTime = round(
+        (microtime(true) - $queryStart) * 1000,
+        2
+    );
+
+    // =====================================================
+    // 5. RESPONSE
+    // =====================================================
+    $responseData = [
+        'status' => 'success',
+        'data' => $pos->items(),
+        'pagination' => [
+            'current_page' => $pos->currentPage(),
+            'last_page' => $pos->lastPage(),
+            'per_page' => $pos->perPage(),
+            'total' => $pos->total(),
+            'has_more' => $pos->hasMorePages(),
+        ],
+    ];
+
+    // =====================================================
+    // 6. PERFORMANCE LOG
+    // =====================================================
+    $duration = round(
+        (microtime(true) - $startTime) * 1000,
+        2
+    );
+
+    Log::info('QC PO PERFORMANCE', [
+        'divisi' => $divisi ?: 'ALL',
+        'page' => $page,
+        'per_page' => $perPage,
+        'returned_rows' => $pos->count(),
+        'total_rows' => $pos->total(),
+        'query_count' => $totalQueries,
+        'sql_time_ms' => round($totalQueryTime, 2),
+        'pagination_time_ms' => $paginationTime,
+        'controller_time_ms' => $duration,
+        'memory_mb' => round(
+            memory_get_peak_usage(true) / 1024 / 1024,
+            2
+        ),
+    ]);
+
+    return response()->json($responseData);
+}
     public function detailPoReports($detailPoId)
     {
         $inspectionModel = $this->inspectionScheduleModel();

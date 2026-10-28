@@ -25,7 +25,10 @@ Route::prefix('qc')->middleware('auth:sanctum')->group(function () {
     Route::get('/batches/{jenis}/{detailPoId}/{poId}', [QcController::class, 'getData']);
     Route::get('/po', [QcController::class, 'getPo']);
     Route::get('/checkpoint/{kategoriName}', [QcController::class, 'getCheckpointData']);
-
+    Route::get('/detailpo/{divisi}/{poId}', [
+            QcController::class,
+            'detailPo'
+        ]);
     Route::post('/store/{kategoriName}', [QcController::class, 'insertInspection']);
 
     Route::get('/detail/{id}', [QcController::class, 'show']);
