@@ -304,21 +304,21 @@
 
 
 
-                                            <th width="100">
-
-                                                Harga
-
-                                            </th>
 
 
 
                                             <th width="90">
 
-                                                Saldo
+                                                Stok
 
                                             </th>
 
 
+                                            <th width="100">
+
+                                                Harga
+
+                                            </th>
 
                                             {{-- <th width="80">
 
