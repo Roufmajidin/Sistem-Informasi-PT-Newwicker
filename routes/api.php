@@ -14,10 +14,6 @@ Route::get('/ping', function () {
         'ok' => true
     ]);
 });
-Route::middleware('auth:sanctum')->get(
-    '/qc/po',
-    [QcController::class, 'getPoDashboard']
-);
 Route::middleware('auth:sanctum')->get('/cek-auth', function () {
     return response()->json([
         'id' => auth()->id(),
@@ -25,6 +21,7 @@ Route::middleware('auth:sanctum')->get('/cek-auth', function () {
 });
 // qc
 Route::prefix('qc')->middleware('auth:sanctum')->group(function () {
+Route::get('/pos', [QcController::class, 'getPoDashboard']);
 
     Route::get('/batches/{jenis}/{detailPoId}/{poId}', [QcController::class, 'getData']);
     Route::get('/po', [QcController::class, 'getPo']);

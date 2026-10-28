@@ -1527,12 +1527,15 @@ class QcController extends Controller
     public function getPoDashboard(Request $request)
     {
         try {
-            // ================================
-            // PARAMETER REQUEST
-            // ================================
+            // ============================
+            // REQUEST PARAMETERS
+            // ============================
+
             $q = trim((string) $request->query('q', ''));
 
-            $divisi = trim((string) $request->query('divisi', ''));
+            $divisi = trim(
+                (string) $request->query('divisi', '')
+            );
 
             $page = max(
                 1,
@@ -1544,9 +1547,21 @@ class QcController extends Controller
                 min(100, (int) $request->query('per_page', 20))
             );
 
-            // ================================
-            // QUERY PO RINGAN
-            // ================================
+            // ============================
+            // DEBUG REQUEST
+            // ============================
+
+            Log::info('QC PO SEARCH REQUEST', [
+                'q' => $q,
+                'divisi' => $divisi,
+                'page' => $page,
+                'url' => $request->fullUrl(),
+            ]);
+
+            // ============================
+            // BASE QUERY
+            // ============================
+
             $query = Po::query()
                 ->select([
                     'id',
@@ -1556,48 +1571,33 @@ class QcController extends Controller
                     'shipment_date',
                 ]);
 
-            // ================================
-            // SEARCH SERVER-SIDE
-            // ================================
-            // Mencari seluruh PO di database,
-            // bukan hanya PO halaman pertama.
-            // ================================
+            // ============================
+            // SERVER-SIDE SEARCH
+            // ============================
+
             if ($q !== '') {
                 $query->where(function ($builder) use ($q) {
                     $builder
-                        ->where('order_no', 'LIKE', "%{$q}%")
+                        ->where('order_no', 'LIKE', '%' . $q . '%')
                         ->orWhere(
                             'company_name',
                             'LIKE',
-                            "%{$q}%"
+                            '%' . $q . '%'
                         );
                 });
             }
 
-            // ================================
+            // ============================
             // FILTER DIVISI
-            // ================================
-            // Normalisasi nilai dari Flutter.
-            // Contoh: "QC Rangka" -> "Rangka".
-            // ================================
-            $divisi = preg_replace(
-                '/^QC\s+/i',
-                '',
-                $divisi
-            );
+            // ============================
+            // Pertahankan logika filter divisi
+            // dari function lama di bagian ini.
+            // Jangan menebak nama kolom/relasi.
 
-            // PENTING:
-            // Jika endpoint lama memiliki aturan
-            // filter divisi berdasarkan relasi SPK
-            // atau inspection, pertahankan aturan
-            // tersebut di bagian ini.
-            //
-            // Jangan menambahkan where('divisi')
-            // tanpa memastikan kolomnya tersedia.
+            // ============================
+            // PAGINATION
+            // ============================
 
-            // ================================
-            // SORTING DAN PAGINATION
-            // ================================
             $paginator = $query
                 ->orderByDesc('id')
                 ->paginate(
@@ -1607,24 +1607,25 @@ class QcController extends Controller
                     $page
                 );
 
-            // ================================
-            // DATA RESPONSE
-            // ================================
-            $data = $paginator->getCollection()
-                ->map(function ($po) {
-                    return [
-                        'id' => $po->id,
-                        'order_no' => $po->order_no,
-                        'company_name' => $po->company_name,
-                        'country' => $po->country,
-                        'shipment_date' => $po->shipment_date,
-                    ];
-                })
-                ->values();
+            // ============================
+            // RESPONSE
+            // ============================
 
             return response()->json([
                 'status' => 'success',
-                'data' => $data,
+
+                'data' => $paginator->getCollection()
+                    ->map(function ($po) {
+                        return [
+                            'id' => $po->id,
+                            'order_no' => $po->order_no,
+                            'company_name' => $po->company_name,
+                            'country' => $po->country,
+                            'shipment_date' => $po->shipment_date,
+                        ];
+                    })
+                    ->values(),
+
                 'pagination' => [
                     'current_page' => $paginator->currentPage(),
                     'last_page' => $paginator->lastPage(),
@@ -1632,10 +1633,12 @@ class QcController extends Controller
                     'total' => $paginator->total(),
                     'has_more' => $paginator->hasMorePages(),
                 ],
+
             ], 200);
 
         } catch (\Throwable $e) {
-            \Log::error('QC PO Dashboard Error', [
+
+            Log::error('QC PO DASHBOARD ERROR', [
                 'message' => $e->getMessage(),
                 'line' => $e->getLine(),
             ]);
