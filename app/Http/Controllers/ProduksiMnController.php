@@ -2711,18 +2711,75 @@ class ProduksiMnController extends Controller
                                 | SPK BIASA
                                 |--------------------------------------------------------------------------
                                 */
+                            // } else {
+                            //     $componentQtyIn = $componentCount > 1
+                            //         ? floor($totalIn / $componentCount)
+                            //         : $totalIn;
+
+                            //     foreach ($components as &$component) {
+                            //         $component['qty_in'] = $componentQtyIn;
+                            //         $component['passed'] = $totalPassed;
+                            //         $component['rejected'] = $totalRejected;
+                            //     }
+
+                            //     unset($component);
+                            // }
+
                         } else {
-                            $componentQtyIn = $componentCount > 1
-                                ? floor($totalIn / $componentCount)
-                                : $totalIn;
 
-                            foreach ($components as &$component) {
-                                $component['qty_in'] = $componentQtyIn;
-                                $component['passed'] = $totalPassed;
-                                $component['rejected'] = $totalRejected;
+                            /*
+                            |--------------------------------------------------------------------------
+                            | FIX RANGKA ROTAN
+                            |--------------------------------------------------------------------------
+                            | Qty IN tidak boleh dibagi dengan jumlah komponen.
+                            | Contoh: RANGKA + DEKOR IKAT
+                            | Total IN 14 harus tetap 14, bukan 14 / 2 = 7.
+                            */
+
+                            $isRangkaRotan = str_contains(
+                                strtolower(trim((string) ($spkData['kategori'] ?? ''))),
+                                'rangka rotan'
+                            );
+
+                            if ($isRangkaRotan) {
+
+                                $componentQtyIn = (float) $totalIn;
+
+                                foreach ($components as &$component) {
+
+                                    $componentName = strtoupper(
+                                        trim((string) ($component['name'] ?? ''))
+                                    );
+
+                                    // Default komponen belum memiliki transaksi masuk.
+                                    $component['qty_in'] = 0;
+
+                                    // Total masuk dialokasikan ke komponen RANGKA utama.
+                                    if (str_contains($componentName, 'RANGKA')) {
+                                        $component['qty_in'] = $componentQtyIn;
+                                    }
+
+                                    $component['passed'] = $totalPassed;
+                                    $component['rejected'] = $totalRejected;
+                                }
+
+                                unset($component);
+
+                            } else {
+
+                                // Rumus lama kategori lainnya tetap dipertahankan.
+                                $componentQtyIn = $componentCount > 1
+                                    ? floor($totalIn / $componentCount)
+                                    : $totalIn;
+
+                                foreach ($components as &$component) {
+                                    $component['qty_in'] = $componentQtyIn;
+                                    $component['passed'] = $totalPassed;
+                                    $component['rejected'] = $totalRejected;
+                                }
+
+                                unset($component);
                             }
-
-                            unset($component);
                         }
 
                         $subName = $spkData['sup'] ?? '-';
