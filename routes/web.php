@@ -47,8 +47,22 @@ use App\Http\Controllers\GoogleDriveAuthController;
 // ==========================================================
 // MAGIC APPROVAL LINK - PUBLIC ENTRY POINT
 // ==========================================================
-Route::get('/qc/getPoDetail/{kategoriId}/{detailPo}/{poId}', [QcController::class, 'getDataApi']);
+    Route::get('/spk/edit/{id}', [SpkController::class, 'index'])->name('spk.edit');
 
+Route::get('/qc/getPoDetail/{kategoriId}/{detailPo}/{poId}', [QcController::class, 'getDataApi']);
+Route::get('/spk/magic/{token}', [
+    SpkController::class,
+    'showSpkMagicApproval'
+])
+->name('spk.magic.show');
+
+// Memproses approval melalui Magic Link
+Route::post('/spk/magic/{token}/approve', [
+    SpkController::class,
+    'approveSpkMagic'
+])
+->middleware('throttle:5,1')
+->name('spk.magic.approve');
 Route::middleware('auth')->prefix('google-drive')->group(function () {
     Route::get('/connect', [
         GoogleDriveAuthController::class,
@@ -72,7 +86,28 @@ Route::get('/approval/bypass_config/{token}', [
 // ==========================================================
 // AUTH PROTECTION - ALL INTERNAL ROUTES
 // ==========================================================
+
 Route::middleware('auth')->group(function () {
+    // ==========================================================
+// MAGIC APPROVAL SPK - AUTH
+// ==========================================================
+
+// Mengambil daftar approver SPK
+Route::get('/spk/{spk}/magic-approvers', [
+    SpkController::class,
+    'getSpkMagicApprovers'
+])
+->whereNumber('spk')
+->name('spk.magic.approvers');
+
+// Generate Magic Link SPK
+Route::post('/spk/{spk}/magic-link', [
+    SpkController::class,
+    'generateSpkMagicLink'
+])
+->whereNumber('spk')
+->middleware('throttle:10,1')
+->name('spk.magic.generate');
     // mikrotik
     Route::get('/network', [NetworkController::class, 'index'])
         ->name('network.index');
@@ -1083,7 +1118,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/all-spk', [SpkController::class, 'allspk'])->name('spk.all');
     Route::get('/semua-spk', [SpkController::class, 'spk'])->name('spk.semua');
 
-    Route::get('/spk/edit/{id}', [SpkController::class, 'index'])->name('spk.edit');
 
     Route::post('/spk/update/{spk}', [SpkController::class, 'save'])->name('spk.update');
     Route::post('/spk/create/{po}', [SpkController::class, 'save'])->name('spk.create');

@@ -1,6 +1,12 @@
 @extends('master.master')
 @section('title', 'SPK Pages')
 @section('content')
+    {{-- Bridge nama variabel dari SpkController@index() terbaru. --}}
+    @php
+        $magicAccess = !empty($isMagicApproval);
+        $magicToken = $magicAccess ? ($approvalToken ?? request()->query('approval_token')) : null;
+    @endphp
+
     {{-- @include('pages.spk.stylespk') --}}
 
     <style>
@@ -3280,6 +3286,13 @@
 
 
         <div class="spk-floating-body">
+
+            @if (($spk['mode'] ?? '') === 'edit' && !$viewOnly)
+            <button type="button" class="spk-floating-btn spk-btn-signature" id="btnSpkMagicLink">
+                <span class="spk-btn-icon"><i class="fa fa-link"></i></span>
+                <span><strong>Magic Link</strong><small>Approval SPK</small></span>
+            </button>
+            @endif
 
             <!-- Jump Signature -->
             <button type="button" class="spk-floating-btn spk-btn-signature" id="btnJumpSignature">
@@ -8836,10 +8849,21 @@
         document.addEventListener('click', function(e) {
             const btn = e.target.closest('.btn-sign');
             if (!btn) return;
+            e.preventDefault();
+            e.stopPropagation();
+            if (btn.disabled || btn.dataset.submitting === '1') return;
 
             const id = btn.dataset.id;
             const type = btn.dataset.type;
             if (!id || !type) return;
+
+            // Magic Link: hanya role yang ditetapkan oleh controller boleh approve.
+            const isMagicApproval = @json(!empty($magicAccess) && !empty($magicToken));
+            const magicType = @json(!empty($magicSlot) ? ($magicSlot['type'] ?? null) : null);
+            if (isMagicApproval && type !== magicType) {
+                Swal.fire('Akses ditolak', 'Magic Link ini bukan untuk tahap approval tersebut.', 'warning');
+                return;
+            }
 
             let title = 'Approve?';
             switch (type) {
@@ -8868,12 +8892,21 @@
             }).then((result) => {
                 if (!result.isConfirmed) return;
 
-                fetch(`/spk/signature/${id}`, {
+                const magicApproveUrl = @json(!empty($magicAccess) && !empty($magicToken)
+                    ? route('spk.magic.approve', ['token' => $magicToken])
+                    : null);
+                const approvalUrl = isMagicApproval ? magicApproveUrl : `/spk/signature/${id}`;
+
+                btn.dataset.submitting = '1';
+                btn.disabled = true;
+                fetch(approvalUrl, {
                         method: 'POST',
+                        credentials: 'same-origin',
                         headers: {
                             'Content-Type': 'application/json',
+                            'Accept': 'application/json',
                             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
-                                ?.content || ''
+                                ?.content || @json(csrf_token())
                         },
                         body: JSON.stringify({
                             type: type,
@@ -8881,20 +8914,42 @@
                         })
                     })
                     .then(async response => {
+                        // Magic Link harus mengembalikan JSON, bukan redirect ke halaman auth.
+                        // Redirect yang diikuti fetch bisa terlihat sebagai 401 walaupun DB sudah di-update.
+                        if (isMagicApproval && response.redirected) {
+                            throw new Error('Approval mungkin sudah diproses, tetapi server mengalihkan halaman. Ubah return akhir approveSpkMagic() menjadi response()->json(...) dan periksa tanda tangan sebelum mencoba ulang.');
+                        }
                         const data = await response.json().catch(() => ({}));
-                        if (!response.ok) {
-                            throw new Error(data.message || 'Terjadi kesalahan');
+                        if (!response.ok || (isMagicApproval && data.success !== true)) {
+                            const message = response.status === 419
+                                ? 'Sesi CSRF kedaluwarsa. Muat ulang halaman dan buat Magic Link baru bila diperlukan.'
+                                : response.status === 401
+                                    ? 'Request ditolak sebagai unauthenticated. Periksa middleware route spk.magic.approve.'
+                                    : (data.message || 'Approval gagal (HTTP ' + response.status + ')');
+                            throw new Error(message);
                         }
                         return data;
                     })
                     .then(res => {
+                        if (isMagicApproval) {
+                            // Token sekali pakai: jangan reload URL lama setelah approval.
+                            document.querySelectorAll('.btn-sign').forEach(button => button.disabled = true);
+                            const signed = document.createElement('span');
+                            signed.className = 'badge badge-success';
+                            signed.textContent = 'SIGNED';
+                            btn.replaceWith(signed);
+                        }
                         Swal.fire({
                             icon: 'success',
                             title: 'Berhasil',
                             text: res.message || 'Approval berhasil.'
-                        }).then(() => location.reload());
+                        }).then(() => {
+                            if (!isMagicApproval) location.reload();
+                        });
                     })
                     .catch(err => {
+                        btn.dataset.submitting = '0';
+                        btn.disabled = false;
                         Swal.fire({
                             icon: 'error',
                             title: 'Gagal',
@@ -9632,10 +9687,10 @@
             */
 
             const currentUserId =
-                @json(auth()->id());
+                @json(!empty($isMagicApproval) ? ($magicApprover->id ?? null) : auth()->id());
 
             const currentUserName =
-                @json(auth()->user()->name ?? 'User');
+                @json(!empty($isMagicApproval) ? ($magicApprover->name ?? 'Approver') : (auth()->user()->name ?? 'User'));
 
 
             /*
@@ -10470,4 +10525,113 @@
 
         })();
     </script>
+    @if (($spk['mode'] ?? '') === 'edit' && !$viewOnly)
+    <script>
+    (() => {
+        const trigger = document.getElementById('btnSpkMagicLink');
+        if (!trigger) return;
+        const spkId = @json($spk['id']);
+        const csrf = @json(csrf_token());
+        const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        const css = `
+          .spk-magic-modal.swal2-popup{width:min(520px,calc(100vw - 24px))!important;border-radius:16px!important;padding:23px!important;font-family:inherit;text-align:left}
+          .spk-magic-modal .swal2-title{font-size:19px!important;text-align:left!important;padding:0 0 5px!important;color:#172033}
+          .spk-magic-modal .swal2-html-container{margin:12px 0 0!important;text-align:left!important;overflow:visible!important}
+          .spk-magic-modal .swal2-actions{width:100%;margin:19px 0 0!important;gap:8px;justify-content:flex-end}
+          .spk-magic-modal .swal2-confirm,.spk-magic-modal .swal2-cancel{border-radius:8px!important;font-size:12px!important;padding:10px 16px!important;box-shadow:none!important}
+          .spk-magic-list{display:grid;gap:9px;max-height:min(52vh,380px);overflow-y:auto;padding:2px 3px 2px 0}
+          .spk-magic-option{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid #dce3ed;border-radius:10px;background:#fff;cursor:pointer;transition:background .15s,border-color .15s}
+          .spk-magic-option:not(.is-disabled):hover{background:#f5f8ff;border-color:#8ba9e8}
+          .spk-magic-option:has(input:checked){background:#edf4ff;border-color:#386acb;box-shadow:0 0 0 1px #386acb inset}
+          .spk-magic-option.is-disabled{opacity:.65;cursor:not-allowed;background:#f8fafc}
+          .spk-magic-option input{width:16px;height:16px;accent-color:#3158c9;flex:none;margin:0}
+          .spk-magic-option-info{min-width:0;flex:1;display:grid;gap:3px}
+          .spk-magic-option-info strong{font-size:12px;color:#172033}
+          .spk-magic-option-info small{font-size:11px;color:#64748b;overflow-wrap:anywhere}
+          .spk-magic-state{font-size:10px;font-weight:700;border-radius:20px;padding:5px 8px;white-space:nowrap;background:#fff1dc;color:#95630d}
+          .spk-magic-state.signed{background:#e5f6eb;color:#1e7540}
+          .spk-magic-state.unavailable{background:#e9edf2;color:#697586}
+          .spk-magic-note{font-size:11px;line-height:1.55;color:#64748b;margin:0 0 13px}
+          .spk-magic-url{display:block;width:100%;min-height:72px;resize:none;padding:11px;border:1px solid #dce3ed;border-radius:9px;background:#f8fafc;color:#1e293b;font-size:12px;overflow-wrap:anywhere}
+        `;
+        if (!document.getElementById('spkMagicModalStyle')) {
+            const style = document.createElement('style');
+            style.id = 'spkMagicModalStyle';
+            style.textContent = css;
+            document.head.appendChild(style);
+        }
+        async function readJson(response) {
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(payload.message || (response.status === 403 ? 'Akses ditolak. Periksa izin Magic Link.' : 'Permintaan gagal.'));
+            return payload;
+        }
+        async function copyText(value) {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(value);
+                return;
+            }
+            const temp = document.createElement('textarea');
+            temp.value = value;
+            temp.style.position = 'fixed';
+            temp.style.opacity = '0';
+            document.body.appendChild(temp);
+            temp.select();
+            const success = document.execCommand('copy');
+            temp.remove();
+            if (!success) throw new Error('Salin otomatis gagal. Silakan salin link secara manual.');
+        }
+        trigger.addEventListener('click', async () => {
+            if (trigger.disabled) return;
+            trigger.disabled = true;
+            try {
+                Swal.fire({title:'Mengambil daftar approver',text:'Mohon tunggu...',allowOutsideClick:false,showConfirmButton:false,didOpen:()=>Swal.showLoading(),customClass:{popup:'spk-magic-modal'}});
+                const data = await readJson(await fetch(`/spk/${encodeURIComponent(spkId)}/magic-approvers`, {headers:{'Accept':'application/json'},credentials:'same-origin'}));
+                const approvers = Array.isArray(data.approvers) ? data.approvers : [];
+                const available = approvers.filter(a => a.can_generate);
+                const html = `<p class="spk-magic-note">SPK #${escapeHtml(spkId)} · Pilih approver yang belum tanda tangan untuk membuat link khusus.</p>` +
+                    (approvers.length ? `<div class="spk-magic-list">${approvers.map((a,i) => {
+                        const can = Boolean(a.can_generate);
+                        const status = a.signed ? 'Sudah TTD' : can ? 'Pending' : 'Tidak tersedia';
+                        const state = a.signed ? 'signed' : can ? '' : 'unavailable';
+                        return `<label class="spk-magic-option ${can?'':'is-disabled'}"><input type="radio" name="spkMagicRole" value="${escapeHtml(a.role)}" ${can?'':'disabled'} ${can&&available[0]===a?'checked':''}><span class="spk-magic-option-info"><strong>${escapeHtml(a.label)}</strong><small>${escapeHtml(a.name || 'Belum ditentukan')}</small></span><span class="spk-magic-state ${state}">${status}</span></label>`;
+                    }).join('')}</div>` : '<p class="spk-magic-note">Belum ada data approver untuk SPK ini.</p>');
+                const selected = await Swal.fire({title:'Magic Approval Link',html,customClass:{popup:'spk-magic-modal'},showCancelButton:true,showConfirmButton:available.length>0,confirmButtonText:'<i class="fa fa-link"></i> Generate Link',cancelButtonText:'Tutup',confirmButtonColor:'#3158c9',reverseButtons:true,focusConfirm:false,preConfirm:()=>{
+                    const role = document.querySelector('input[name="spkMagicRole"]:checked');
+                    if (!role) { Swal.showValidationMessage('Pilih approver yang masih pending.'); return false; }
+                    return role.value;
+                }});
+                if (!selected.isConfirmed) return;
+                Swal.fire({title:'Membuat magic link',text:'Mohon tunggu...',allowOutsideClick:false,showConfirmButton:false,didOpen:()=>Swal.showLoading(),customClass:{popup:'spk-magic-modal'}});
+                const generated = await readJson(await fetch(`/spk/${encodeURIComponent(spkId)}/magic-link`, {
+                    method:'POST',credentials:'same-origin',headers:{'Accept':'application/json','Content-Type':'application/json','X-CSRF-TOKEN':csrf},body:JSON.stringify({approval_role:selected.value})
+                }));
+                if (!generated.url) throw new Error('Server tidak mengembalikan URL Magic Link.');
+                const result = await Swal.fire({title:'Magic Link berhasil dibuat',icon:'success',customClass:{popup:'spk-magic-modal'},html:`<p class="spk-magic-note">Link hanya untuk approver terpilih dan berlaku 24 jam. Jangan dibagikan kepada orang lain.</p><textarea id="spkMagicUrl" class="spk-magic-url" readonly>${escapeHtml(generated.url)}</textarea>`,showCancelButton:true,confirmButtonText:'<i class="fa fa-copy"></i> Copy Link',cancelButtonText:'Tutup',confirmButtonColor:'#3158c9',reverseButtons:true,focusConfirm:false,preConfirm:async()=>{
+                    try { await copyText(generated.url); return true; }
+                    catch(e) { Swal.showValidationMessage(e.message); return false; }
+                }});
+                if (result.isConfirmed) Swal.fire({icon:'success',title:'Link berhasil disalin',timer:1400,showConfirmButton:false,customClass:{popup:'spk-magic-modal'}});
+            } catch (error) {
+                Swal.fire({icon:'error',title:'Magic Link gagal',text:error.message || 'Terjadi kesalahan.',confirmButtonText:'Tutup',customClass:{popup:'spk-magic-modal'}});
+            } finally { trigger.disabled = false; }
+        });
+    })();
+    </script>
+    @endif
+
+@if(!empty($magicAccess) && !empty($magicToken))
+<script>
+// Only the token's assigned signature stage can be clicked in guest mode.
+document.addEventListener('DOMContentLoaded', function () {
+    const allowedType = @json($magicSlot['type'] ?? null);
+    document.querySelectorAll('.btn-sign').forEach(function (button) {
+        if (button.dataset.type !== allowedType) {
+            button.style.display = 'none';
+        }
+    });
+});
+</script>
+
+@endif
+
 @endsection
