@@ -55,6 +55,7 @@ class ExportSpks
         */
         $sheet = $spreadsheet->getActiveSheet();
 
+        // TTD akan ditulis setelah seluruh baris item selesai dibuat.
 
         /*
         |--------------------------------------------------------------------------
@@ -796,17 +797,199 @@ class ExportSpks
 
         /*
         |--------------------------------------------------------------------------
-        | SIGNATURE AREA
+        | APPROVAL / SIGNATURE FROM CURRENT SPK
         |--------------------------------------------------------------------------
-        |
-        | Kalau footer template bergeser karena row tambahan,
-        | isi signature tidak kita ubah.
-        |
-        | Kita hanya memastikan area tetap mempunyai border/style
-        | template.
-        |
+        | Read approval columns directly from the SPK being exported.
+        | Never attach another person's signature to Intan's name.
         */
+        $log = \Illuminate\Support\Facades\Log::channel('single');
+        $spkNumber = trim((string) ($data['no_spk'] ?? ''));
+        $poNumber = trim((string) ($data['no_po'] ?? ''));
+        $special = (bool) preg_match('/(?:^|[\/\s])(?:NWS|NWD)(?=\s|[-\/]|\d|$)/i', $spkNumber . ' ' . $poNumber);
 
+        // Approval berada pada tabel tersendiri, bukan kolom spk.
+        // Temukan tabel yang memiliki seluruh kolom approval agar tidak menebak namanya.
+        $database = \Illuminate\Support\Facades\DB::getDatabaseName();
+        $approvalTables = \Illuminate\Support\Facades\DB::table('information_schema.columns')
+            ->select('table_name')
+            ->where('table_schema', $database)
+            ->whereIn('column_name', [
+                'spk_id', 'made_by', 'checked_by', 'checked_by_2',
+                'approved_by', 'made_at', 'checked_at_2', 'approved_at'
+            ])
+            ->groupBy('table_name')
+            ->havingRaw('COUNT(DISTINCT column_name) = 8')
+            ->get()
+            ->map(function ($row) {
+                // Metadata column names may be returned as TABLE_NAME or table_name.
+                $fields = array_change_key_case((array) $row, CASE_LOWER);
+                return $fields['table_name'] ?? null;
+            })
+            ->filter(fn ($name) => is_string($name) && $name !== '')
+            ->reject(fn ($name) => $name === $spk->getTable())
+            ->values();
+
+        if ($approvalTables->count() !== 1) {
+            $log->warning('SPK Excel approval table unresolved', [
+                'spk_id' => $spk->id,
+                'candidates' => $approvalTables->all(),
+            ]);
+        }
+        $approvalTable = $approvalTables->count() === 1 ? $approvalTables->first() : null;
+        $approval = $approvalTable
+            ? \Illuminate\Support\Facades\DB::table($approvalTable)
+                ->where('spk_id', $spk->id)
+                ->orderByDesc('id')
+                ->first()
+            : null;
+
+        $madeId = $approval?->made_by;
+        $checkedId = $approval?->checked_by;
+        $checked2Id = $approval?->checked_by_2;
+        $approvedId = $approval?->approved_by;
+
+        $users = \App\Models\User::query()
+            ->whereIn('id', array_filter([$madeId, $checkedId, $checked2Id, $approvedId]))
+            ->get(['id', 'name'])->keyBy('id');
+        $madeName = trim((string) ($users->get($madeId)?->name ?? ''));
+        $checkedName = trim((string) ($users->get($checkedId)?->name ?? ''));
+        $checked2Name = trim((string) ($users->get($checked2Id)?->name ?? ''));
+        $approvedName = trim((string) ($users->get($approvedId)?->name ?? ''));
+
+        $hasTimestamp = static function ($approval, string $field): bool {
+            return $approval !== null && !empty($approval->{$field});
+        };
+
+        $signatureSlots = [
+            'made by' => [
+                'name' => $special ? 'Intan' : 'Nur Khasanah',
+                'id' => $madeId,
+                'signed' => $hasTimestamp($approval, 'made_at'),
+                'valid' => $special
+                    ? strcasecmp($madeName, 'Intan') === 0
+                    : strcasecmp($madeName, 'Nur Khasanah') === 0,
+            ],
+            'checked by' => [
+                'name' => $special ? $checked2Name : trim($checkedName . ' / ' . $checked2Name, ' /'),
+                'id' => $special ? $checked2Id : $checkedId,
+                'signed' => $special
+                    ? $hasTimestamp($approval, 'checked_at_2')
+                    : $hasTimestamp($approval, 'checked_at'),
+                'valid' => true,
+                'second_id' => $special ? null : $checked2Id,
+                'second_signed' => !$special && $hasTimestamp($approval, 'checked_at_2'),
+            ],
+            'approved by' => [
+                'name' => $approvedName ?: 'Mr. Stanley',
+                'id' => $approvedId,
+                'signed' => $hasTimestamp($approval, 'approved_at'),
+                'valid' => true,
+            ],
+        ];
+
+        $log->info('SPK Excel signature source', [
+            'spk_id' => $spk->id,
+            'no_spk' => $spkNumber,
+            'no_po' => $poNumber,
+            'is_nws_nwd' => $special,
+            'approval_table' => $approvalTable,
+            'approval_id' => $approval?->id,
+            'made_by_id' => $madeId,
+            'made_by_name' => $madeName,
+            'made_at' => $approval?->made_at,
+            'checked_by_id' => $checkedId,
+            'checked_by_2_id' => $checked2Id,
+            'approved_by_id' => $approvedId,
+            'made_by_valid' => $signatureSlots['made by']['valid'],
+            'made_by_signed' => $signatureSlots['made by']['signed'],
+        ]);
+        $signatureBottom = 0;
+        $drawSignature = static function ($userId, $signed, $valid, $coordinate, $height = 53) use ($sheet, $log, $spk) {
+            $log->info('SPK Excel signature slot', [
+                'spk_id' => $spk->id,
+                'coordinate' => $coordinate,
+                'user_id' => $userId,
+                'signed' => (bool) $signed,
+                'valid_user' => (bool) $valid,
+            ]);
+            if (!$signed || !$valid || !$userId) {
+                $log->warning('SPK Excel signature skipped', [
+                    'spk_id' => $spk->id,
+                    'coordinate' => $coordinate,
+                    'reason' => !$userId ? 'missing_user_id' : (!$signed ? 'not_signed' : 'signer_mismatch'),
+                ]);
+                return;
+            }
+            // Same path as Blade: asset('assets/signature/' . $userId . '.png')
+            $signatureFile = public_path('assets/signature/' . basename((string) $userId) . '.png');
+            if (!is_file($signatureFile) || !is_readable($signatureFile)) {
+                $log->warning('SPK Excel signature file missing/unreadable', [
+                    'spk_id' => $spk->id,
+                    'user_id' => $userId,
+                    'path' => $signatureFile,
+                    'exists' => is_file($signatureFile),
+                    'readable' => is_readable($signatureFile),
+                ]);
+                return;
+            }
+            try {
+                $drawing = new Drawing();
+                $drawing->setName('SPK signature ' . $userId);
+                $drawing->setPath($signatureFile);
+                $drawing->setHeight($height);
+                $drawing->setCoordinates($coordinate);
+                $drawing->setWorksheet($sheet);
+                $log->info('SPK Excel signature drawing attached', [
+                    'spk_id' => $spk->id,
+                    'user_id' => $userId,
+                    'coordinate' => $coordinate,
+                    'path' => $signatureFile,
+                ]);
+            } catch (\Throwable $e) {
+                $log->error('SPK Excel signature drawing failed', [
+                    'spk_id' => $spk->id,
+                    'user_id' => $userId,
+                    'coordinate' => $coordinate,
+                    'error' => $e->getMessage(),
+                ]);
+                throw $e;
+            }
+        };
+
+        foreach ($sheet->getRowIterator() as $templateRow) {
+            foreach ($templateRow->getCellIterator() as $cell) {
+                $label = strtolower(rtrim(trim((string) $cell->getValue()), ': '));
+                if (!isset($signatureSlots[$label])) {
+                    continue;
+                }
+                $slot = $signatureSlots[$label];
+                $log->info('SPK Excel signature label found', [
+                    'spk_id' => $spk->id,
+                    'label' => $label,
+                    'cell' => $cell->getCoordinate(),
+                ]);
+                $col = $cell->getColumn();
+                $row = $cell->getRow();
+                $nameRow = $row + 4;
+                $signatureBottom = max($signatureBottom, $nameRow + 1);
+                $sheet->setCellValue("{$col}{$nameRow}", $slot['name']);
+                $sheet->getStyle("{$col}{$nameRow}")->getFont()->setBold(true);
+                $sheet->getStyle("{$col}{$nameRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+                $drawSignature($slot['id'], $slot['signed'], $slot['valid'], "{$col}" . ($row + 1));
+                if (!empty($slot['second_id'])) {
+                    $nextCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex(
+                        \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($col) + 1
+                    );
+                    $drawSignature($slot['second_id'], $slot['second_signed'], true, "{$nextCol}" . ($row + 1), 50);
+                }
+            }
+        }
+
+        $log->info('SPK Excel signature drawing count', [
+            'spk_id' => $spk->id,
+            'drawings' => $sheet->getDrawingCollection()->count(),
+        ]);
 
         /*
         |--------------------------------------------------------------------------
@@ -814,7 +997,7 @@ class ExportSpks
         |--------------------------------------------------------------------------
         */
         $printBottom =
-            $footerRow + 5;
+            max($footerRow + 5, $signatureBottom + 2);
 
 
         $sheet

@@ -3133,6 +3133,12 @@
                 </section>
             </div>
 
+            @php
+                // Jenis SPK dibaca dari nomor PO, bukan hanya awalan nomor SPK.
+                $spkPoNumber = trim((string) ($spk['no_po'] ?? ''));
+                $spkNumber = trim((string) ($spk['no_spk'] ?? ''));
+                $isNwsNwd = (bool) preg_match('/(?:^|[\/\s])(?:NWS|NWD)(?=\s|[-\/]|\d|$)/i', $spkPoNumber . ' ' . $spkNumber);
+            @endphp
             <!-- APPROVAL SIGNATURE CARD (IF EXISTS) -->
             @if (isset($spk['signature']) && $spk['signature'])
                 @php $sign = $spk['signature']; @endphp
@@ -3153,7 +3159,7 @@
                             <tbody>
                                 <tr style="height:90px;">
                                     <td>
-                                        @if ($sign->made_at)
+                                        @if ($sign->made_at && (!$isNwsNwd || strcasecmp(trim((string) ($sign->madeBy->name ?? "")), "Intan") === 0))
                                             <img src="{{ asset('assets/signature/' . $sign->made_by . '.png') }}"
                                                 style="max-height:70px;">
                                         @else
@@ -3162,7 +3168,7 @@
                                     </td>
                                     <td>
                                         <div style="display:flex; justify-content:space-around; align-items:center;">
-                                            <div style="flex:1;">
+                                            <div style="flex:1;" @if ($isNwsNwd) hidden @endif>
                                                 @if ($sign->checked_at)
                                                     <img src="{{ asset('assets/signature/' . $sign->checked_by . '.png') }}"
                                                         style="max-height:65px;">
@@ -3199,14 +3205,14 @@
                                 </tr>
                                 <tr>
                                     <td>
-                                        <b>{{ $sign->madeBy->name ?? '-' }}</b><br>
+                                        <b>{{ $isNwsNwd ? 'Intan' : ($sign->madeBy->name ?? '-') }}</b><br>
                                         <small>{{ strtoupper($sign->madeBy?->karyawan?->divisi?->nama ?? '-') }}</small><br>
                                         <small
-                                            style="color:#64748b;">{{ $sign->made_at ? $sign->made_at->format('d/m/Y H:i') : 'Pending' }}</small>
+                                            style="color:#64748b;">{{ $sign->made_at && (!$isNwsNwd || strcasecmp(trim((string) ($sign->madeBy->name ?? '')), 'Intan') === 0) ? $sign->made_at->format('d/m/Y H:i') : 'Pending' }}</small>
                                     </td>
                                     <td>
                                         <div style="display:flex; justify-content:space-around;">
-                                            <div>
+                                            <div @if ($isNwsNwd) hidden @endif>
                                                 <b>{{ $sign->checkedBy->name ?? '-' }}</b><br>
                                                 <small>{{ strtoupper($sign->checkedBy?->karyawan?->divisi?->nama ?? '-') }}</small><br>
                                                 <small
@@ -7676,6 +7682,12 @@
         >`;
         }
 
+        function isNwsNwdSpk(data) {
+            const noPo = String(data?.supplier?.no_po || document.querySelector('.no-po')?.innerText || '');
+            const noSpk = String(data?.supplier?.no_spk || document.querySelector('.no-spk')?.innerText || '');
+            return /(?:^|[\/\s])(?:NWS|NWD)(?=\s|[-\/]|\d|$)/i.test(noPo + ' ' + noSpk);
+        }
+
         function getApprovalSignatureData() {
             const card = document.querySelector('.spk-signature-card');
             const result = {
@@ -7771,6 +7783,14 @@
             result.approved.date = getDate(infoCells[2]);
             result.approved.approved = !!result.approved.image || /Approved On/i.test(infoCells[2]?.innerText || '');
 
+            if (isNwsNwdSpk()) {
+                if (result.made.name.trim().toLowerCase() !== 'intan') {
+                    result.made.image = '';
+                    result.made.date = '';
+                }
+                result.made.name = 'Intan';
+                result.checked1 = { name: '', date: '', image: '' };
+            }
             return result;
         }
 
@@ -8369,14 +8389,14 @@
                     text-align:center;
                     font-weight:bold;
                 ">
-                  "Nur"
+                  ${/\b(?:NWS|NWD)\b/i.test([data.supplier.no_po, data.supplier.no_spk].join(' ')) ? 'Intan' : 'Nur Khasanah'}
                 </td>
                 <td style="
                     border:none;
                     text-align:center;
                     font-weight:bold;
                 ">
-                    VIVI
+                    ${/\b(?:NWS|NWD)\b/i.test([data.supplier.no_po, data.supplier.no_spk].join(' ')) ? '' : 'VIVI'}
                 </td>
                 <td style="
                     border:none;
@@ -8670,6 +8690,7 @@
 
         function renderSignaturePreview(data) {
             let html = '';
+            const specialSpk = isNwsNwdSpk(data);
 
             @if (isset($spk['signature']) && $spk['signature'])
                 html = `
@@ -8683,7 +8704,7 @@
                         </tr>
                         <tr>
                             <td style="height:90px;border:1px solid #000;">
-                                @if ($spk['signature']->made_at)
+                                @if ($spk['signature']->made_at && (!$isNwsNwd || strcasecmp(trim((string) ($spk['signature']->madeBy->name ?? '')), 'Intan') === 0))
                                     <img src="{{ asset('assets/signature/' . $spk['signature']->made_by . '.png') }}"
                                          style="max-height:70px;max-width:120px;">
                                 @endif
@@ -8691,7 +8712,7 @@
                             <td style="height:90px;border:1px solid #000;">
                                 <div style="display:flex;justify-content:space-around;align-items:center;height:90px;">
                                     <div style="flex:1;">
-                                        @if ($spk['signature']->checked_at)
+                                        @if (!$isNwsNwd && $spk['signature']->checked_at)
                                             <img src="{{ asset('assets/signature/' . $spk['signature']->checked_by . '.png') }}"
                                                  style="max-height:70px;max-width:120px;">
                                         @endif
@@ -8714,8 +8735,8 @@
                         </tr>
                         <tr>
                             <td style="border:1px solid #000;">
-                                <b>{{ $spk['signature']->madeBy->name ?? '-' }}</b><br>
-                                @if ($spk['signature']->made_at)
+                                <b>{{ $isNwsNwd ? 'Intan' : ($spk['signature']->madeBy->name ?? '-') }}</b><br>
+                                @if ($spk['signature']->made_at && (!$isNwsNwd || strcasecmp(trim((string) ($spk['signature']->madeBy->name ?? '')), 'Intan') === 0))
                                     Approved On<br>{{ $spk['signature']->made_at->format('d/m/Y H:i') }}
                                 @else
                                     Pending
@@ -8723,7 +8744,7 @@
                             </td>
                             <td style="border:1px solid #000;">
                                 <div style="display:flex;justify-content:space-around;gap:20px;">
-                                    <div style="flex:1;">
+                                    <div @if ($isNwsNwd) hidden @endif>
                                         <b>{{ $spk['signature']->checkedBy->name ?? '-' }}</b><br>
                                         @if ($spk['signature']->checked_at)
                                             Approved On<br>{{ $spk['signature']->checked_at->format('d/m/Y H:i') }}

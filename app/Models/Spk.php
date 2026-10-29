@@ -26,6 +26,10 @@ class Spk extends Model
             PaymentRequest::class
         );
     }
+    public function signature()
+{
+    return $this->hasOne(SignatureSpk::class, 'spk_id', 'id');
+}
     public function inspectSchedules()
     {
         return $this->hasMany(
