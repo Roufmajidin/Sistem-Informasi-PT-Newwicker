@@ -532,23 +532,21 @@ class RndController extends Controller
 
          */
 
-        // Jika kode tersedia, gunakan kode saja. Jika tidak, gunakan description.
-
-        // Folder yang sudah tercatat di DB tetap memakai folder ID lama.
-
-        $folderName = $info['article_code'] !== ''
-
-            ? $info['article_code']
-
-            : $info['description'];
-
-        $folderName = Str::limit($folderName, 180, '');
+        // Nama folder memakai kode + deskripsi, bukan kode saja.
+        // detail_po_id tetap menjadi identitas unik di database.
+        $parts = array_filter([$info['article_code'], $info['description']],
+            static fn ($value) => trim((string) $value) !== '');
+        $folderName = trim(implode(' - ', $parts));
+        $folderName = trim(preg_replace('/[\x00-\x1F\x7F\/\\\\]/u', ' ', $folderName));
+        $folderName = Str::limit($folderName, 160, '');
+        $legacyFolderName = $info['article_code'] !== ''
+            ? $info['article_code'] : $info['description'];
 
         $markBinding('article_lock_wait_and_work');
 
         $articleFolder = Cache::lock('rnd_article_folder:' . $po->id . ':' . $item->id, 60)
 
-            ->block(15, function () use ($po, $item, $drive, $poFolder, $folderName, $bindingStarted, $markBinding) {
+            ->block(15, function () use ($po, $item, $drive, $poFolder, $folderName, $legacyFolderName, $bindingStarted, $markBinding) {
 
                 $markBinding('article_lock_acquired');
 
@@ -612,60 +610,64 @@ class RndController extends Controller
 
                 ]);
 
-                $matches = array_values(array_filter($children, static function ($child) use ($folderName) {
-
-                    return ($child['type'] ?? '') === 'folder'
-
-                        && mb_strtolower(trim((string) ($child['name'] ?? ''))) === mb_strtolower(trim($folderName));
-
-                }));
-
                 if ($record) {
-
                     throw new \RuntimeException('Folder artikel sudah ada di database tetapi Google Drive Folder ID kosong. Periksa metadata sebelum membuat folder baru.');
-
                 }
 
+                // Hindari mengadopsi folder milik detail PO lain.
+                $isBoundToOther = static function (string $driveId) use ($po, $item): bool {
+                    return RndArchiveFolder::query()
+                        ->where('google_drive_folder_id', $driveId)
+                        ->where(function ($q) use ($po, $item) {
+                            $q->where('po_id', '!=', $po->id)
+                                ->orWhere('detail_po_id', '!=', $item->id)
+                                ->orWhereNull('detail_po_id');
+                        })->exists();
+                };
+
+                $findFolders = static function (string $name) use ($children): array {
+                    return array_values(array_filter($children, static function ($child) use ($name) {
+                        return ($child['type'] ?? '') === 'folder'
+                            && mb_strtolower(trim((string) ($child['name'] ?? '')))
+                                === mb_strtolower(trim($name));
+                    }));
+                };
+
+                $matches = $findFolders($folderName);
                 if (count($matches) > 1) {
+                    throw new \RuntimeException('Ada beberapa folder Google Drive dengan nama ' . $folderName . '. Periksa duplikat sebelum melanjutkan.');
+                }
 
-                    $ids = implode(', ', array_map(static fn ($f) => (string) $f['id'], $matches));
+                // Bila nama deskripsi identik, gunakan ID detail PO sebagai pembeda.
+                if (count($matches) === 1 && $isBoundToOther((string) $matches[0]['id'])) {
+                    $folderName = Str::limit($folderName, 140, '') . ' - ITEM-' . $item->id;
+                    $matches = $findFolders($folderName);
+                    if (count($matches) > 1 || (count($matches) === 1 && $isBoundToOther((string) $matches[0]['id']))) {
+                        throw new \RuntimeException('Konflik folder artikel unik. Periksa metadata Google Drive.');
+                    }
+                }
 
-                    throw new \RuntimeException(
-
-                        'Ditemukan ' . count($matches) . ' folder artikel bernama "' . $folderName
-
-                        . '" di Google Drive (ID: ' . $ids . '). '
-
-                        . 'Perlu pilih folder yang benar sebelum melanjutkan. Tidak membuat folder baru.'
-
-                    );
-
+                // Kompatibilitas folder lama (hanya bila belum terikat artikel lain).
+                if (count($matches) === 0 && $legacyFolderName !== $folderName) {
+                    $legacyMatches = $findFolders($legacyFolderName);
+                    if (count($legacyMatches) === 1 && !$isBoundToOther((string) $legacyMatches[0]['id'])) {
+                        $matches = $legacyMatches;
+                        $folderName = $legacyFolderName;
+                    }
                 }
 
                 if (count($matches) === 1) {
-
                     $driveFolderId = (string) $matches[0]['id'];
-
                 } else {
-
                     $driveCreateStarted = microtime(true);
-
                     $markBinding('article_drive_create');
-
                     $created = $drive->createFolder($folderName, $poDriveId);
-
                     $markBinding('article_drive_create_done');
-
                     Log::info('RND article folder create timing', [
-
                         'po_id' => $po->id, 'detail_po_id' => $item->id,
-
                         'drive_create_ms' => (int) round((microtime(true) - $driveCreateStarted) * 1000),
-
                     ]);
-
                     $driveFolderId = (string) $created['id'];
-
                 }
 
                 // A Drive folder ID must map to exactly one DB folder row.
