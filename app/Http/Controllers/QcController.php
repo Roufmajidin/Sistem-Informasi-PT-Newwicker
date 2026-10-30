@@ -13,6 +13,7 @@ use App\Models\ReportPhoto;
 use App\Models\Spk;
 use App\Models\TimelineQc;
 use App\Models\User;
+use App\Models\Incoming;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,8 +22,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use App\Models\Karyawan;
 use Carbon\Carbon;
-
-
+use Illuminate\Http\JsonResponse;
+use Illuminate\Validation\ValidationException;
 use App\Models\InspectScheduleTest;
 use App\Models\QcReportTest;
 
@@ -8842,6 +8843,241 @@ class QcController extends Controller
         ]);
     }
 
+    public function getIncoming()
+    {
+        $data = InspectSchedule::with([
+            'po:id,order_no,company_name',
+            'detailPo:id,po_id,detail',
+        ])
+            ->where('kategori_id', 5)
+            ->selectRaw('
+            po_id,
+            detail_po_id,
+            SUM(passed) as total_passed
+        ')
+            ->groupBy('po_id', 'detail_po_id')
+            ->havingRaw('SUM(passed) > 0')
+            ->get();
+
+        // Rekap passed berdasarkan SPK
+        $spks = InspectSchedule::with([
+            'spk:id,po_id,detail_po_id,data',
+        ])
+            ->where('kategori_id', 5)
+            ->whereNotNull('spk_id')
+            ->selectRaw('
+            po_id,
+            detail_po_id,
+            spk_id,
+            SUM(passed) as total_passed
+        ')
+            ->groupBy('po_id', 'detail_po_id', 'spk_id')
+            ->get()
+            ->groupBy(fn($item) => $item->po_id . '-' . $item->detail_po_id);
+
+        // Tambahkan daftar SPK ke masing-masing item
+        $data->each(function ($item) use ($spks) {
+            $key = $item->po_id . '-' . $item->detail_po_id;
+
+            $item->setAttribute(
+                'spks',
+                ($spks->get($key) ?? collect())
+                    ->map(function ($spk) {
+                        return [
+                            'spk_id' => $spk->spk_id,
+                            'total_passed' => (int) $spk->total_passed,
+                            'spk' => $spk->spk,
+                        ];
+                    })
+                    ->values()
+            );
+        });
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $data,
+        ]);
+    }
+
+
+    public function getIncomingTimeline($poId)
+    {
+        $data = InspectSchedule::with([
+            'po:id,order_no,company_name',
+            'detailPo:id,po_id,detail',
+        ])
+            ->where('kategori_id', 5)
+            ->where('po_id', $poId)
+            ->selectRaw('
+            po_id,
+            detail_po_id,
+            SUM(passed) as passed_anyam
+        ')
+            ->groupBy('po_id', 'detail_po_id')
+            ->havingRaw('SUM(passed) > 0')
+            ->get();
+
+        $incoming = Incoming::where('po_id', $poId)
+            ->selectRaw('
+            detail_po_id,
+            SUM(jumlah_incoming) as qty_incoming,
+            SUM(passed) as passed_incoming,
+            SUM(rejected) as rejected_incoming
+        ')
+            ->groupBy('detail_po_id')
+            ->get()
+            ->keyBy('detail_po_id');
+
+        $data->each(function ($item) use ($incoming) {
+            $rekap = $incoming->get($item->detail_po_id);
+
+            $item->qty_incoming = (int) ($rekap->qty_incoming ?? 0);
+            $item->passed_incoming = (int) ($rekap->passed_incoming ?? 0);
+            $item->rejected_incoming = (int) ($rekap->rejected_incoming ?? 0);
+
+            $item->sisa_incoming = max(
+                0,
+                (int) $item->passed_anyam - $item->qty_incoming
+            );
+        });
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $data,
+        ]);
+    }
+
+
+
+    public function storeIncoming(Request $request)
+    {
+        $data = $request->validate([
+            'po_id' => 'required|exists:po,id',
+            'detail_po_id' => 'required|exists:detail_po,id',
+            'jumlah_incoming' => 'required|integer|min:1',
+            'passed' => 'required|integer|min:0',
+            'rejected' => 'required|integer|min:0',
+            'remark' => 'nullable|string',
+        ]);
+
+        if ($data['passed'] + $data['rejected'] != $data['jumlah_incoming']) {
+            return response()->json([
+                'message' => 'Passed + Rejected harus sama dengan jumlah Incoming'
+            ], 422);
+        }
+
+        if ($data['rejected'] > 0 && blank($data['remark'] ?? null)) {
+            return response()->json([
+                'message' => 'Remark wajib diisi jika ada rejected'
+            ], 422);
+        }
+
+        $incoming = DB::transaction(function () use ($data, $request) {
+
+            // Lock item agar tidak terjadi double incoming
+            $detailPo = DetailPo::where('po_id', $data['po_id'])
+                ->lockForUpdate()
+                ->findOrFail($data['detail_po_id']);
+
+            // Total passed QC Anyam dari seluruh SPK
+            $passedAnyam = InspectSchedule::where('kategori_id', 5)
+                ->where('po_id', $data['po_id'])
+                ->where('detail_po_id', $data['detail_po_id'])
+                ->sum('passed');
+
+            // Total yang sudah Incoming
+            $sudahIncoming = Incoming::where('po_id', $data['po_id'])
+                ->where('detail_po_id', $data['detail_po_id'])
+                ->sum('jumlah_incoming');
+
+            $sisa = $passedAnyam - $sudahIncoming;
+
+            if ($data['jumlah_incoming'] > $sisa) {
+                throw ValidationException::withMessages([
+                    'jumlah_incoming' => "Sisa Incoming hanya {$sisa} pcs"
+                ]);
+            }
+
+            return Incoming::create([
+                'po_id' => $data['po_id'],
+                'detail_po_id' => $data['detail_po_id'],
+                'spk_id' => null,
+                'jumlah_incoming' => $data['jumlah_incoming'],
+                'passed' => $data['passed'],
+                'rejected' => $data['rejected'],
+                'remark' => $data['remark'] ?? null,
+                'tanggal_incoming' => now(),
+                'user_id' => $request->user()->id,
+            ]);
+        });
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Incoming berhasil disimpan',
+            'data' => $incoming,
+        ], 201);
+    }
+
+    public function getIncomingDetail($poId, $detailPoId)
+    {
+        $po = Po::select('id', 'order_no', 'company_name')
+            ->findOrFail($poId);
+
+        $detailPo = DetailPo::where('po_id', $poId)
+            ->findOrFail($detailPoId);
+
+        // Rekap passed QC Anyam dari seluruh SPK
+        $passedAnyam = InspectSchedule::where('kategori_id', 5)
+            ->where('po_id', $poId)
+            ->where('detail_po_id', $detailPoId)
+            ->sum('passed');
+
+        // Daftar SPK yang sudah melewati QC Anyam
+        $spks = InspectSchedule::with('spk:id,po_id,detail_po_id,data')
+            ->where('kategori_id', 5)
+            ->where('po_id', $poId)
+            ->where('detail_po_id', $detailPoId)
+            ->selectRaw('
+            spk_id,
+            SUM(passed) as total_passed
+        ')
+            ->groupBy('spk_id')
+            ->get();
+
+        // Riwayat transaksi Incoming
+        $timeline = Incoming::with('user:id,name')
+            ->where('po_id', $poId)
+            ->where('detail_po_id', $detailPoId)
+            ->orderByDesc('tanggal_incoming')
+            ->orderByDesc('id')
+            ->get();
+
+        // Rekap Incoming
+        $qtyIncoming = $timeline->sum('jumlah_incoming');
+        $passedIncoming = $timeline->sum('passed');
+        $rejectedIncoming = $timeline->sum('rejected');
+
+        return response()->json([
+            'status' => 'success',
+
+            'po' => $po,
+            'detail_po' => $detailPo,
+
+            'summary' => [
+                'passed_anyam' => (int) $passedAnyam,
+                'qty_incoming' => (int) $qtyIncoming,
+                'passed_incoming' => (int) $passedIncoming,
+                'rejected_incoming' => (int) $rejectedIncoming,
+                'sisa_incoming' => max(
+                    0,
+                    $passedAnyam - $qtyIncoming
+                ),
+            ],
+
+            'spks' => $spks,
+            'timeline' => $timeline,
+        ]);
+    }
 
 }
 

@@ -22,9 +22,16 @@ Route::middleware('auth:sanctum')->get('/cek-auth', function () {
 // qc
 Route::prefix('qc')->middleware('auth:sanctum')->group(function () {
 Route::get('/pos', [QcController::class, 'getPoDashboard']);
+        Route::get('/incoming', [QcController::class, 'getIncoming']);
 
     Route::get('/batches/{jenis}/{detailPoId}/{poId}', [QcController::class, 'getData']);
     Route::get('/po', [QcController::class, 'getPo']);
+    Route::get('/incoming/{poId}', [QcController::class, 'getIncomingTimeline']);
+    Route::get('/incoming/{poId}/{detailPoId}', [
+    QcController::class,
+    'getIncomingDetail'
+]);
+    Route::post('/incoming', [QcController::class, 'storeIncoming']);
     Route::get('/checkpoint/{kategoriName}', [QcController::class, 'getCheckpointData']);
     Route::get('/detailpo/{divisi}/{poId}', [
             QcController::class,
