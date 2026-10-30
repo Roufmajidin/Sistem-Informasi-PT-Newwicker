@@ -7,127 +7,78 @@ use Illuminate\Http\Request;
 use App\Models\ActivityLog;
 use App\Models\ModuleRoute;
 use App\Events\ActivityLogged;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class ActivityLogMiddleware
 {
     public function handle(Request $request, Closure $next)
     {
-        $response = $next($request);
+        // Tidak menjalankan logging sebelum response.
+        return $next($request);
+    }
 
-        /*
-        |--------------------------------------------------------------------------
-        | EXCEPTION
-        |--------------------------------------------------------------------------
-        |
-        | Dashboard IT dan endpoint Pusher tidak dicatat sebagai
-        | aktivitas user.
-        |
-        */
+    public function terminate(Request $request, $response)
+    {
+        try {
+            // Route yang tidak perlu dicatat
+            if ($request->routeIs(
+                'it.index',
+                'it.data',
+                'pusher.auth'
+            )) {
+                return;
+            }
 
-        if ($request->routeIs([
-            'it.index',
-            'it.data',
-            'pusher.auth',
-        ])) {
-            return $response;
+            // Hanya user login
+            if (!auth()->check()) {
+                return;
+            }
+
+            $routeName = $request->route()?->getName();
+            $method = $request->method();
+
+            // Cache lookup module selama 10 menit.
+            // Gunakan sentinel agar module_id null tetap bisa dicache.
+            $cacheKey = 'activity_module_' . md5(
+                ($routeName ?? '') . '|' . $method
+            );
+
+            $moduleId = Cache::remember(
+                $cacheKey,
+                now()->addMinutes(10),
+                function () use ($routeName, $method) {
+                    return ModuleRoute::where('route_name', $routeName)
+                        ->where('method', $method)
+                        ->where('is_active', true)
+                        ->value('module_id') ?? '__none__';
+                }
+            );
+
+            if ($moduleId === '__none__') {
+                $moduleId = null;
+            }
+
+            // Simpan log ke database
+            $activity = ActivityLog::create([
+                'user_id' => auth()->id(),
+                'module_id' => $moduleId,
+                'route_name' => $routeName,
+                'url' => '/' . ltrim($request->path(), '/'),
+                'method' => $method,
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+
+            // Event realtime tetap dipanggil
+            event(new ActivityLogged($activity));
+
+        } catch (\Throwable $e) {
+            // Logging gagal tidak membuat halaman error.
+            Log::error('ActivityLogMiddleware error', [
+                'message' => $e->getMessage(),
+                'route' => $request->route()?->getName(),
+            ]);
         }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | HANYA USER LOGIN
-        |--------------------------------------------------------------------------
-        */
-
-        if (!auth()->check()) {
-            return $response;
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | ROUTE
-        |--------------------------------------------------------------------------
-        */
-
-        $route = $request->route();
-
-        $routeName = $route?->getName();
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | URL
-        |--------------------------------------------------------------------------
-        */
-
-        $url = '/' . ltrim(
-            $request->path(),
-            '/'
-        );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | MODULE ROUTE
-        |--------------------------------------------------------------------------
-        */
-
-        $moduleRoute = ModuleRoute::where(
-            'route_name',
-            $routeName
-        )
-            ->where(
-                'method',
-                $request->method()
-            )
-            ->where(
-                'is_active',
-                true
-            )
-            ->first();
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | ACTIVITY LOG
-        |--------------------------------------------------------------------------
-        */
-
-        $activity = ActivityLog::create([
-            'user_id' => auth()->id(),
-
-            'module_id' =>
-                $moduleRoute?->module_id,
-
-            'route_name' =>
-                $routeName,
-
-            'url' =>
-                $url,
-
-            'method' =>
-                $request->method(),
-
-            'ip_address' =>
-                $request->ip(),
-
-            'user_agent' =>
-                $request->userAgent(),
-        ]);
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | BROADCAST REALTIME
-        |--------------------------------------------------------------------------
-        */
-
-        event(
-            new ActivityLogged($activity)
-        );
-
-
-        return $response;
     }
 }
