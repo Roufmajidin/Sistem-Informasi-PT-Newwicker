@@ -153,6 +153,161 @@
                     color: green;
                 }
             </style>
+
+        {{-- Terapkan mode SEBELUM body dirender agar tidak terjadi sidebar flash --}}
+        <script id="nw-navigation-early-mode">
+            (function () {
+                var mode = 'sidebar';
+                try { if (localStorage.getItem('nw_navigation_mode') === 'navbar') mode = 'navbar'; } catch (e) {}
+                document.documentElement.classList.toggle('nw-navbar-mode', mode === 'navbar');
+            })();
+        </script>
+        <style id="nw-navigation-no-flash">
+            @media (min-width: 992px) {
+                html.nw-navbar-mode #aside { display: none !important; }
+                html.nw-navbar-mode #content.app-content { margin-left: 0 !important; padding-left: 0 !important; width: 100% !important; }
+                html.nw-navbar-mode #nwHorizontalNav:not([data-nw-ready="1"]) { visibility: hidden !important; }
+            }
+        </style>
+        {{-- Navbar alternatif dibangun dari menu sidebar yang sama; sidebar asli tidak diubah --}}
+        <style id="nw-navigation-mode-style">
+            .nw-mode-header-item { display:flex; align-items:center; margin-right:12px; }
+            .nw-mode-select { border:1px solid #d9e1ec; border-radius:7px; background:#fff; color:#334155; font-size:12px; padding:6px 8px; max-width:126px; cursor:pointer; }
+            .nw-mode-drawer-item { background:#f8fafc; }
+            #nwHorizontalNav { display:none; }
+            @media(min-width:992px) {
+                html.nw-navbar-mode #aside { display:none !important; }
+                html.nw-navbar-mode #nwHorizontalNav {
+                    display:flex !important; align-items:flex-start; gap:15px; width:100%;
+                    position:sticky; top:0; z-index:3000; padding:10px 18px; background:#193a58;
+                    box-shadow:0 3px 12px rgba(15,35,55,.15); min-height:66px;
+                }
+                #nwHorizontalNav .nw-brand { flex:0 0 125px; display:flex; align-items:center; min-height:45px; }
+                #nwHorizontalNav .nw-brand img { width:120px; max-height:52px; object-fit:contain; }
+                #nwHorizontalNav .nw-nav-main { flex:1; min-width:0; }
+                #nwHorizontalNav ul { list-style:none; padding:0; margin:0; }
+                #nwHorizontalNav .nw-nav-root { display:flex; flex-wrap:wrap; align-items:center; gap:3px 5px; }
+                #nwHorizontalNav .nw-nav-root > li { position:relative; flex:0 0 auto; }
+                #nwHorizontalNav .nw-nav-root > li.nav-header { display:none; }
+                #nwHorizontalNav a { text-decoration:none; cursor:pointer; }
+                #nwHorizontalNav .nw-nav-root > li > a {
+                    display:flex; align-items:center; gap:6px; min-height:38px; padding:7px 10px;
+                    color:#f4f8fd; font-size:12px; font-weight:500; border-radius:7px;
+                }
+                #nwHorizontalNav a.nw-current-link { background:#dbeafe !important; color:#164c91 !important; font-weight:700 !important; box-shadow:inset 3px 0 #2563eb; }
+                #nwHorizontalNav .nw-nav-root > li > a.nw-current-parent { background:#2864a5 !important; color:#fff !important; font-weight:700 !important; }
+                #aside a.nw-current-link { background:rgba(88,163,238,.22) !important; color:#fff !important; font-weight:700 !important; }
+                #aside li.nw-current-parent > a { color:#fff !important; font-weight:700 !important; }
+                #nwHorizontalNav .nw-nav-root > li > a:hover,
+                #nwHorizontalNav li.nw-sub-open > a { background:#2864a5; color:#fff; }
+                #nwHorizontalNav .nav-icon { display:inline-flex; width:auto; margin:0; }
+                #nwHorizontalNav .nav-icon i { font-size:17px; }
+                #nwHorizontalNav .nav-text { display:inline; white-space:nowrap; }
+                #nwHorizontalNav .nav-caret { display:inline-flex; margin-left:2px; }
+                #nwHorizontalNav ul.nav-sub {
+                    display:none !important; position:absolute !important; top:100% !important; left:0 !important;
+                    width:240px !important; min-width:240px; max-height:70vh; overflow:visible;
+                    padding:7px !important; background:#fff !important; border:1px solid #dce5ef;
+                    border-radius:9px; box-shadow:0 12px 30px rgba(12,35,62,.2); z-index:1150;
+                }
+                #nwHorizontalNav li.nw-sub-open > ul.nav-sub { display:block !important; }
+                #nwHorizontalNav ul.nav-sub li { position:relative; }
+                #nwHorizontalNav ul.nav-sub a {
+                    display:flex; align-items:center; justify-content:space-between; gap:8px;
+                    color:#26394d !important; padding:9px 11px !important; border-radius:6px; font-size:12px;
+                }
+                #nwHorizontalNav ul.nav-sub a:hover { background:#eaf3ff !important; color:#1558a6 !important; }
+                #nwHorizontalNav ul.nav-sub ul.nav-sub { top:0 !important; left:100% !important; }
+                #nwHorizontalNav li.nw-edge > ul.nav-sub { left:auto !important; right:0 !important; }
+                #nwHorizontalNav ul.nav-sub li.nw-edge > ul.nav-sub { left:auto !important; right:100% !important; }
+                html.nw-navbar-mode #app { padding-left:0 !important; overflow:visible !important; }
+                html.nw-navbar-mode body { overflow-x:clip; }
+                html.nw-navbar-mode #nwHorizontalNav .nw-nav-main { overflow:visible !important; }
+
+                html.nw-navbar-mode #content.app-content {
+                    margin-left:0 !important; padding-left:0 !important; padding-top:0 !important;
+                    width:100% !important; min-height:0;
+                }
+                html.nw-navbar-mode #content .app-header { position:relative !important; top:auto !important; left:auto !important; width:100% !important; }
+                html.nw-navbar-mode .app-body { width:100% !important; }
+            }
+            @media(max-width:991px) { .nw-mode-header-item { display:none !important; } }
+        </style>
+        <script id="nw-navigation-mode-script">
+        (function(){
+            var KEY='nw_navigation_mode';
+            function getMode(){try{return localStorage.getItem(KEY)==='navbar'?'navbar':'sidebar';}catch(e){return 'sidebar';}}
+            function closeMenus(){document.querySelectorAll('#nwHorizontalNav .nw-sub-open').forEach(function(li){li.classList.remove('nw-sub-open');});}
+            function apply(mode,save){
+                mode=mode==='navbar'?'navbar':'sidebar';
+                if(save){try{localStorage.setItem(KEY,mode);}catch(e){}}
+                document.documentElement.classList.toggle('nw-navbar-mode',mode==='navbar');
+                document.querySelectorAll('#nwModeHeader,#nwModeDrawer').forEach(function(el){el.value=mode;});
+                closeMenus();
+            }
+            function buildNavbar(){
+                var sidebar=document.querySelector('#aside');
+                if(!sidebar || document.getElementById('nwHorizontalNav'))return;
+                var root=sidebar.querySelector('ul.nav[ui-nav]');
+                if(!root)return;
+                var bar=document.createElement('nav');bar.id='nwHorizontalNav';bar.setAttribute('aria-label','Navigasi utama');
+                var brand=document.createElement('div');brand.className='nw-brand';
+                var img=sidebar.querySelector('.navbar-brand img');
+                if(img){var logo=img.cloneNode(true);brand.appendChild(logo);}
+                var main=document.createElement('div');main.className='nw-nav-main';
+                var tree=root.cloneNode(true);tree.classList.add('nw-nav-root');
+                tree.removeAttribute('ui-nav');
+                tree.querySelectorAll('[ui-include]').forEach(function(node){node.removeAttribute('ui-include');});
+                main.appendChild(tree);bar.appendChild(brand);bar.appendChild(main);
+                sidebar.insertAdjacentElement('afterend',bar);
+                bar.setAttribute('data-nw-ready','1');
+            }
+            function markActiveLinks(){
+                var current=location.pathname.replace(/\/+$/,'') || '/';
+                ['#aside','#nwHorizontalNav'].forEach(function(selector){
+                    var area=document.querySelector(selector);
+                    if(!area)return;
+                    area.querySelectorAll('a.nw-current-link').forEach(function(a){a.classList.remove('nw-current-link');a.removeAttribute('aria-current');});
+                    area.querySelectorAll('li.nw-current-parent').forEach(function(li){li.classList.remove('nw-current-parent');});
+                    area.querySelectorAll('a[href]').forEach(function(a){
+                        var url;try{url=new URL(a.getAttribute('href'),location.href);}catch(e){return;}
+                        if(url.origin!==location.origin || (url.pathname.replace(/\/+$/,'')||'/')!==current)return;
+                        a.classList.add('nw-current-link');a.setAttribute('aria-current','page');
+                        var li=a.closest('li');
+                        while(li){
+                            li.classList.add('nw-current-parent');
+                            li=li.parentElement && li.parentElement.closest('li');
+                        }
+                    });
+                });
+            }
+            function init(){buildNavbar();apply(getMode(),false);markActiveLinks();}
+            document.addEventListener('change',function(e){if(e.target.matches('#nwModeHeader,#nwModeDrawer'))apply(e.target.value,true);});
+            document.addEventListener('click',function(e){
+                if(!document.documentElement.classList.contains('nw-navbar-mode'))return;
+                var a=e.target.closest('#nwHorizontalNav li > a');
+                if(a){
+                    var li=a.parentElement, sub=li.querySelector(':scope > ul.nav-sub');
+                    if(sub && (!a.hasAttribute('href') || !a.getAttribute('href') || a.getAttribute('href')==='#')){
+                        e.preventDefault();e.stopPropagation();
+                        var opening=!li.classList.contains('nw-sub-open');
+                        var parent=li.parentElement.closest('li');
+                        Array.from(li.parentElement.children).forEach(function(sibling){if(sibling!==li)sibling.classList.remove('nw-sub-open');});
+                        if(!parent)closeMenus();
+                        li.classList.toggle('nw-sub-open',opening);
+                        if(opening){var r=li.getBoundingClientRect();li.classList.toggle('nw-edge',r.left+255>innerWidth);}
+                        return;
+                    }
+                }
+                if(!e.target.closest('#nwHorizontalNav'))closeMenus();
+            },true);
+            document.addEventListener('keydown',function(e){if(e.key==='Escape')closeMenus();});
+            if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+            document.addEventListener('turbo:load',init);
+            document.addEventListener('turbo:before-render',function(){document.documentElement.classList.toggle('nw-navbar-mode',getMode()==='navbar');});
+        })();
+        </script>
+
         </head>
 
         <body data-turbo="false">
@@ -202,6 +357,15 @@
                                     </a>
                                     <!-- <div ui-include="'../views/blocks/dropdown.notification.html'"></div> -->
                                 </li> --}}
+
+                            {{-- Mode navigasi: default Sidebar --}}
+                            <li class="nav-item nw-mode-header-item">
+                                <label for="nwModeHeader" class="sr-only">Mode navigasi</label>
+                                <select id="nwModeHeader" class="nw-mode-select" aria-label="Mode navigasi">
+                                    <option value="sidebar">☰ Sidebar</option>
+                                    <option value="navbar">▤ Navbar</option>
+                                </select>
+                            </li>
                                 <li class="nav-item">
 
                                     <a href="javascript:void(0)" id="openProfileDrawer" class="nav-link p-0">
@@ -283,6 +447,15 @@
                                     🚪 Logout
 
                                 </a>
+
+                                {{-- Pilihan mode tetap tersedia di menu Account, setelah Logout --}}
+                                <div class="list-group-item nw-mode-drawer-item">
+                                    <label for="nwModeDrawer" class="mb-2 d-block" style="font-weight:600">Mode Navigasi</label>
+                                    <select id="nwModeDrawer" class="form-control" aria-label="Mode navigasi">
+                                        <option value="sidebar">☰ Sidebar</option>
+                                        <option value="navbar">▤ Navbar</option>
+                                    </select>
+                                </div>
 
                             </div>
 
