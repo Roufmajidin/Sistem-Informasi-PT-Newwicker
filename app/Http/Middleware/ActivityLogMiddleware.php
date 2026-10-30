@@ -12,17 +12,38 @@ use Illuminate\Support\Facades\Log;
 
 class ActivityLogMiddleware
 {
-    // Bisa diubah menjadi false untuk mematikan logging
+    /*
+    |--------------------------------------------------------------------------
+    | KONFIGURASI
+    |--------------------------------------------------------------------------
+    */
+
+    // Activity Log tetap aktif
     private const ENABLE_LOG = true;
 
-    // Matikan realtime agar lebih ringan.
-    // Activity Log tetap tersimpan di database.
+    // Realtime Pusher dimatikan sementara
     private const ENABLE_REALTIME = false;
+
+    // Cache module route selama 1 jam
+    private const CACHE_SECONDS = 3600;
+
+    /*
+    |--------------------------------------------------------------------------
+    | HANDLE
+    |--------------------------------------------------------------------------
+    */
 
     public function handle(Request $request, Closure $next)
     {
+        // Langsung proses halaman tanpa query tambahan
         return $next($request);
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | TERMINATE - LOGGING SETELAH RESPONSE
+    |--------------------------------------------------------------------------
+    */
 
     public function terminate(Request $request, $response)
     {
@@ -31,12 +52,13 @@ class ActivityLogMiddleware
         }
 
         try {
-            // Hanya user yang login
-            if (!auth()->check()) {
-                return;
-            }
 
-            // Route yang tidak perlu dicatat
+            /*
+            |--------------------------------------------------------------------------
+            | EXCEPTION ROUTES
+            |--------------------------------------------------------------------------
+            */
+
             if ($request->routeIs(
                 'it.index',
                 'it.data',
@@ -45,7 +67,32 @@ class ActivityLogMiddleware
                 return;
             }
 
-            // Abaikan request polling / prefetch
+            /*
+            |--------------------------------------------------------------------------
+            | HANYA USER LOGIN
+            |--------------------------------------------------------------------------
+            */
+
+            if (!auth()->check()) {
+                return;
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | ROUTE & METHOD
+            |--------------------------------------------------------------------------
+            */
+
+            $routeName = $request->route()?->getName();
+
+            $method = $request->method();
+
+            /*
+            |--------------------------------------------------------------------------
+            | SKIP REQUEST TIDAK PERLU
+            |--------------------------------------------------------------------------
+            */
+
             if (
                 $request->is('broadcasting/*') ||
                 $request->is('livewire/*') ||
@@ -56,8 +103,8 @@ class ActivityLogMiddleware
                 return;
             }
 
-            // Abaikan request AJAX GET untuk mengurangi log.
-            // POST, PUT, PATCH, DELETE tetap dicatat.
+            // AJAX GET tidak dicatat
+            // POST, PUT, PATCH, DELETE tetap dicatat
             if (
                 $request->ajax() &&
                 $request->isMethod('GET')
@@ -65,56 +112,75 @@ class ActivityLogMiddleware
                 return;
             }
 
-            $routeName = $request->route()?->getName();
+            /*
+            |--------------------------------------------------------------------------
+            | MODULE ROUTE CACHE
+            |--------------------------------------------------------------------------
+            */
 
-            if (!$routeName) {
-                return;
-            }
+            $moduleId = null;
 
-            $method = $request->method();
+            if ($routeName) {
 
-            // Cari module ID dengan cache 1 jam
-            $cacheKey = 'activity_module_' . md5(
-                $routeName . '|' . $method
-            );
+                $cacheKey = 'activity_module_' . md5(
+                    $routeName . '|' . $method
+                );
 
-            $moduleId = Cache::remember(
-                $cacheKey,
-                3600,
-                function () use ($routeName, $method) {
-                    return ModuleRoute::where(
-                        'route_name',
-                        $routeName
-                    )
-                    ->where('method', $method)
-                    ->where('is_active', true)
-                    ->value('module_id') ?? '__none__';
+                $cachedModuleId = Cache::remember(
+                    $cacheKey,
+                    self::CACHE_SECONDS,
+                    function () use ($routeName, $method) {
+
+                        return ModuleRoute::where(
+                            'route_name',
+                            $routeName
+                        )
+                        ->where('method', $method)
+                        ->where('is_active', true)
+                        ->value('module_id') ?? '__none__';
+                    }
+                );
+
+                if ($cachedModuleId !== '__none__') {
+                    $moduleId = $cachedModuleId;
                 }
-            );
-
-            if ($moduleId === '__none__') {
-                $moduleId = null;
             }
 
-            // Simpan activity log
+            /*
+            |--------------------------------------------------------------------------
+            | SIMPAN ACTIVITY LOG
+            |--------------------------------------------------------------------------
+            */
+
             $activity = ActivityLog::create([
                 'user_id' => auth()->id(),
                 'module_id' => $moduleId,
                 'route_name' => $routeName,
-                'url' => '/' . ltrim($request->path(), '/'),
+                'url' => '/' . ltrim(
+                    $request->path(),
+                    '/'
+                ),
                 'method' => $method,
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
 
-            // Realtime opsional
+            /*
+            |--------------------------------------------------------------------------
+            | REALTIME PUSHER (OPTIONAL)
+            |--------------------------------------------------------------------------
+            */
+
             if (self::ENABLE_REALTIME) {
                 event(new ActivityLogged($activity));
             }
 
         } catch (\Throwable $e) {
+
+            // Error logging tidak mengganggu halaman utama
             Log::error('ActivityLogMiddleware error', [
                 'message' => $e->getMessage(),
+                'route' => $request->route()?->getName(),
             ]);
         }
     }
