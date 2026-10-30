@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Middleware;
 
 use Closure;
@@ -12,16 +11,9 @@ use Illuminate\Support\Facades\Log;
 
 class ActivityLogMiddleware
 {
-    // Semua aktivitas tetap dicatat
     private const ENABLE_LOG = true;
-
-    // Realtime melalui queue Pusher
     private const ENABLE_REALTIME = true;
-
-    // Cache module route 1 jam
     private const CACHE_SECONDS = 3600;
-
-    // Maksimal satu event setiap 10 detik
     private const BROADCAST_INTERVAL = 10;
 
     public function handle(Request $request, Closure $next)
@@ -31,73 +23,25 @@ class ActivityLogMiddleware
 
     public function terminate(Request $request, $response): void
     {
-        if (!self::ENABLE_LOG) {
-            return;
-        }
-
+        if (!self::ENABLE_LOG) return;
         try {
-            // Route yang tidak perlu dicatat
-            if ($request->routeIs(
-                'it.index',
-                'it.data',
-                'pusher.auth'
-            )) {
-                return;
-            }
-
-            if (!auth()->check()) {
-                return;
-            }
-
-            if (
-                $request->is('broadcasting/*') ||
-                $request->is('livewire/*') ||
-                $request->is('build/*') ||
-                $request->is('storage/*') ||
-                $request->is('api/polling/*')
-            ) {
-                return;
-            }
-
-            // Lewati AJAX GET untuk mengurangi log
-            if (
-                $request->ajax() &&
-                $request->isMethod('GET')
-            ) {
-                return;
-            }
+            if ($request->routeIs('it.index', 'it.data', 'pusher.auth')) return;
+            if (!auth()->check()) return;
+            if ($request->is('broadcasting/*', 'livewire/*', 'build/*', 'storage/*', 'api/polling/*')) return;
+            if ($request->ajax() && $request->isMethod('GET')) return;
 
             $routeName = $request->route()?->getName();
             $method = $request->method();
-
-            // Cari module_id dengan cache
             $moduleId = null;
-
             if ($routeName) {
-                $cacheKey = 'activity_module_' . md5(
-                    $routeName . '|' . $method
+                $cached = Cache::remember('activity_module_' . md5($routeName . '|' . $method), self::CACHE_SECONDS,
+                    fn () => ModuleRoute::where('route_name', $routeName)
+                        ->where('method', $method)->where('is_active', true)
+                        ->value('module_id') ?? '__none__'
                 );
-
-                $cachedModuleId = Cache::remember(
-                    $cacheKey,
-                    self::CACHE_SECONDS,
-                    function () use ($routeName, $method) {
-                        return ModuleRoute::where(
-                            'route_name',
-                            $routeName
-                        )
-                        ->where('method', $method)
-                        ->where('is_active', true)
-                        ->value('module_id') ?? '__none__';
-                    }
-                );
-
-                if ($cachedModuleId !== '__none__') {
-                    $moduleId = $cachedModuleId;
-                }
+                $moduleId = $cached === '__none__' ? null : $cached;
             }
 
-            // Simpan semua aktivitas menggunakan model lama
             $activity = ActivityLog::create([
                 'user_id' => auth()->id(),
                 'module_id' => $moduleId,
@@ -108,30 +52,12 @@ class ActivityLogMiddleware
                 'user_agent' => $request->userAgent(),
             ]);
 
-            // Realtime dibatasi agar hemat Pusher
-            if (self::ENABLE_REALTIME) {
-
-                // Gunakan cache bersama, misalnya database
-                // atau Redis, bukan cache lokal per worker.
-                $shouldBroadcast = Cache::add(
-                    'newwicker_activity_broadcast_throttle',
-                    true,
-                    self::BROADCAST_INTERVAL
-                );
-
-                if ($shouldBroadcast) {
-                    $activity->loadMissing('user');
-
-                    // Event akan masuk database queue
-                    event(new ActivityLogged($activity));
-                }
+            if (self::ENABLE_REALTIME && Cache::add('newwicker_activity_broadcast_throttle', true, self::BROADCAST_INTERVAL)) {
+                $activity->loadMissing('user');
+                event(new ActivityLogged($activity));
             }
-
         } catch (\Throwable $e) {
-            Log::error('ActivityLogMiddleware error', [
-                'message' => $e->getMessage(),
-                'route' => $request->route()?->getName(),
-            ]);
+            Log::error('ActivityLogMiddleware error', ['message' => $e->getMessage(), 'route' => $request->route()?->getName()]);
         }
     }
 }

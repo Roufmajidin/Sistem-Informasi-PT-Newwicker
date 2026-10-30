@@ -2,7 +2,7 @@
 
 @section('content')
     <style>
-        <style>.live-activity-item {
+        .live-activity-item {
             padding: 14px 18px;
             border-top: 1px solid #eee;
             transition: all .3s ease;
@@ -68,10 +68,8 @@
 
         }
     </style>
-    </style>
     <div class="container-fluid px-4 py-3">
 
-        ```
         {{-- ========================================================= --}}
         {{-- TAB NAVIGATION --}}
         {{-- ========================================================= --}}
@@ -177,7 +175,7 @@
 
                     <div class="card-body p-0">
 
-                        {{-- <div id="liveActivityList"></div> --}}
+                        <div id="liveActivityList"></div>
 
                     </div>
 
@@ -1098,7 +1096,6 @@
         </div>
 
     </div>
-    ```
 
 </div>
 
@@ -1576,53 +1573,34 @@
     |--------------------------------------------------------------------------
     */
 
-    if (typeof window.Echo === 'undefined') {
+    // Pusher hanya menjadi sinyal. Data tetap diambil dari ActivityLog.
+    // Pembaruan penuh dibatasi agar query grafik tidak membebani hosting.
+    let refreshTimer = null;
+    const scheduleDashboardRefresh = () => {
+        if (refreshTimer !== null) return;
+        refreshTimer = setTimeout(() => {
+            refreshTimer = null;
+            refreshITDashboard();
+        }, 10000);
+    };
 
-        console.error(
-            'Laravel Echo belum tersedia.'
-        );
-
-        return;
-
+    if (typeof window.Echo !== 'undefined') {
+        window.Echo.channel('it-dashboard')
+            .listen('.activity.logged', function(activity) {
+                // Tampilkan event yang diterima, dan sinkronkan tabel lengkap.
+                showLiveActivity(activity);
+                speakActivity(activity);
+                scheduleDashboardRefresh();
+            });
+    } else {
+        console.warn('Echo tidak tersedia; sinkronisasi berkala tetap aktif.');
     }
 
-
-    console.log(
-        'Connecting to Pusher...'
-    );
-
-
-    window.Echo
-    .channel('it-dashboard')
-    .listen('.activity.logged', function(activity) {
-
-        console.log(
-            '🔥 Activity baru:',
-            activity
-        );
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | JANGAN RENDER DARI DATA EVENT
-        |--------------------------------------------------------------------------
-        |
-        | Event hanya menjadi trigger.
-        | Setelah ada activity baru, kita request ulang
-        | seluruh data dashboard.
-        |
-        */
-
-        // tampilkan aktivitas
-        showLiveActivity(activity);
-
-        // voice
-        speakActivity(activity);
-
-        // refresh tabel/dashboard yang lama
-        refreshITDashboard();
-
-    });
+    // Cadangan untuk aktivitas yang tidak memicu Pusher karena throttle,
+    // dan saat Pusher/worker terputus. Maksimal satu refresh per 60 detik.
+    setInterval(() => {
+        if (!document.hidden) scheduleDashboardRefresh();
+    }, 60000);
 
     });
 
