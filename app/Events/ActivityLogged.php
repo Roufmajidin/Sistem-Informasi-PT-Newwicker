@@ -14,9 +14,11 @@ class ActivityLogged implements ShouldBroadcast
 
     public array $payload;
 
-    public string $connection = 'database';
+    // Queue database
+    public $connection = 'database';
 
-    public string $queue = 'broadcasts';
+    // Queue khusus broadcast
+    public $queue = 'broadcasts';
 
     public function __construct(ActivityLog $activity)
     {

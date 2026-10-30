@@ -27,10 +27,10 @@
 
         <div class="rnd-page-header">
 
-         
 
 
-{{-- 
+
+            {{-- 
             <div class="rnd-cloud-badge">
 
                 <span></span> Cloud Storage
@@ -71,8 +71,8 @@
 
 
 
-                <input type="text" name="search" value="{{ $search ?? '' }}" placeholder="Cari PO, Article Code, nama barang, atau nama file..."
-                    autocomplete="off">
+                <input type="text" name="search" value="{{ $search ?? '' }}"
+                    placeholder="Cari PO, Article Code, nama barang, atau nama file..." autocomplete="off">
 
 
 
@@ -390,7 +390,8 @@
 
             <div class="rnd-inline-search">
                 <i class="fa fa-search"></i>
-                <input id="rndArticleSearch" type="search" placeholder="Cari Article Code atau nama barang..." autocomplete="off">
+                <input id="rndArticleSearch" type="search" placeholder="Cari Article Code atau nama barang..."
+                    autocomplete="off">
                 <span id="rndArticleSearchCount" aria-live="polite">Found 0 records</span>
             </div>
 
@@ -480,7 +481,8 @@
             </div>
 
             {{-- Loading focus while Laravel prepares/binds the article folder --}}
-            <div id="rndArchiveBindingOverlay" class="rnd-binding-overlay" role="status" aria-live="polite" aria-busy="true" hidden>
+            <div id="rndArchiveBindingOverlay" class="rnd-binding-overlay" role="status" aria-live="polite"
+                aria-busy="true" hidden>
                 <div class="rnd-binding-card">
                     <div class="rnd-binding-spinner" aria-hidden="true"></div>
                     <strong>Menyiapkan arsip artikel...</strong>
@@ -533,7 +535,8 @@
                         </div>
                         <div class="rnd-inline-search">
                             <i class="fa fa-search"></i>
-                            <input id="rndFileSearch" type="search" placeholder="Cari nama file atau folder aktif..." autocomplete="off">
+                            <input id="rndFileSearch" type="search" placeholder="Cari nama file atau folder aktif..."
+                                autocomplete="off">
                             <span id="rndFileSearchCount" aria-live="polite">Found 0 records</span>
                         </div>
                         <div id="rndDriveItems" class="rnd-drive-items">
@@ -567,7 +570,8 @@
 
                             <strong>Klik untuk memilih foto</strong>
 
-                            <span>JPG, JPEG, PNG atau WEBP · Maksimal 25 MB per foto · Tanpa batas jumlah foto per batch</span>
+                            <span>JPG, JPEG, PNG atau WEBP · Maksimal 25 MB per foto · Tanpa batas jumlah foto per
+                                batch</span>
 
 
 
@@ -685,8 +689,10 @@
     {{-- Daftar foto gagal, ditampilkan di samping modal progress upload --}}
     <aside id="rndUploadFailures" class="rnd-upload-failures" hidden aria-label="Foto gagal diunggah">
         <div class="rnd-upload-failures-head">
-            <strong><i class="fa fa-exclamation-circle"></i> Upload Gagal <span id="rndUploadFailuresCount">0</span></strong>
-            <button type="button" id="rndUploadFailuresClose" aria-label="Tutup daftar gagal"><i class="fa fa-times"></i></button>
+            <strong><i class="fa fa-exclamation-circle"></i> Upload Gagal <span
+                    id="rndUploadFailuresCount">0</span></strong>
+            <button type="button" id="rndUploadFailuresClose" aria-label="Tutup daftar gagal"><i
+                    class="fa fa-times"></i></button>
         </div>
         <p>Tekan ikon <i class="fa fa-paper-plane"></i> untuk mengirim ulang foto yang gagal.</p>
         <div id="rndUploadFailuresList" class="rnd-upload-failures-list"></div>
@@ -2065,52 +2071,336 @@
 
 
         /* Sidebar kegagalan upload di sebelah modal progress. */
-        .rnd-upload-failures[hidden] { display:none !important; }
-        .rnd-upload-failures { position:fixed; z-index:2147483601; top:50%; left:calc(50% + 245px); transform:translateY(-50%); width:min(320px,calc(100vw - 24px)); max-height:75vh; overflow:hidden; display:flex; flex-direction:column; background:#fff; border:1px solid #fecaca; border-radius:13px; box-shadow:0 15px 55px rgba(15,23,42,.28); padding:13px; color:#334155; }
-        .rnd-upload-failures-head { display:flex; align-items:center; justify-content:space-between; gap:8px; color:#b91c1c; font-size:13px; }
-        .rnd-upload-failures-head button { border:0; background:transparent; cursor:pointer; color:#64748b; padding:4px 6px; }
-        .rnd-upload-failures p { font-size:11px; color:#64748b; line-height:1.5; margin:8px 0; }
-        .rnd-upload-failures-list { overflow-y:auto; min-height:0; }
-        .rnd-upload-failure-row { display:flex; align-items:flex-start; gap:8px; padding:9px 0; border-top:1px solid #fee2e2; }
-        .rnd-upload-failure-info { min-width:0; flex:1; }
-        .rnd-upload-failure-info strong { display:block; overflow-wrap:anywhere; font-size:11px; }
-        .rnd-upload-failure-info small { display:block; margin-top:3px; color:#b91c1c; overflow-wrap:anywhere; font-size:10px; line-height:1.4; }
-        .rnd-upload-failure-retry { flex-shrink:0; border:1px solid #bfdbfe; border-radius:8px; background:#eff6ff; color:#1d4ed8; width:32px; height:32px; cursor:pointer; }
-        .rnd-upload-failure-retry:disabled { opacity:.45; cursor:not-allowed; }
-        @media(max-width:850px) { .rnd-upload-failures { left:50%; top:auto; bottom:12px; transform:translateX(-50%); width:min(430px,calc(100vw - 24px)); max-height:30vh; } }
+        .rnd-upload-failures[hidden] {
+            display: none !important;
+        }
+
+        .rnd-upload-failures {
+            position: fixed;
+            z-index: 2147483601;
+            top: 50%;
+            left: calc(50% + 245px);
+            transform: translateY(-50%);
+            width: min(320px, calc(100vw - 24px));
+            max-height: 75vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+            border: 1px solid #fecaca;
+            border-radius: 13px;
+            box-shadow: 0 15px 55px rgba(15, 23, 42, .28);
+            padding: 13px;
+            color: #334155;
+        }
+
+        .rnd-upload-failures-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            color: #b91c1c;
+            font-size: 13px;
+        }
+
+        .rnd-upload-failures-head button {
+            border: 0;
+            background: transparent;
+            cursor: pointer;
+            color: #64748b;
+            padding: 4px 6px;
+        }
+
+        .rnd-upload-failures p {
+            font-size: 11px;
+            color: #64748b;
+            line-height: 1.5;
+            margin: 8px 0;
+        }
+
+        .rnd-upload-failures-list {
+            overflow-y: auto;
+            min-height: 0;
+        }
+
+        .rnd-upload-failure-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 9px 0;
+            border-top: 1px solid #fee2e2;
+        }
+
+        .rnd-upload-failure-info {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .rnd-upload-failure-info strong {
+            display: block;
+            overflow-wrap: anywhere;
+            font-size: 11px;
+        }
+
+        .rnd-upload-failure-info small {
+            display: block;
+            margin-top: 3px;
+            color: #b91c1c;
+            overflow-wrap: anywhere;
+            font-size: 10px;
+            line-height: 1.4;
+        }
+
+        .rnd-upload-failure-retry {
+            flex-shrink: 0;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            background: #eff6ff;
+            color: #1d4ed8;
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+        }
+
+        .rnd-upload-failure-retry:disabled {
+            opacity: .45;
+            cursor: not-allowed;
+        }
+
+        @media(max-width:850px) {
+            .rnd-upload-failures {
+                left: 50%;
+                top: auto;
+                bottom: 12px;
+                transform: translateX(-50%);
+                width: min(430px, calc(100vw - 24px));
+                max-height: 30vh;
+            }
+        }
 
         /* Multi-select photos: separate from single-photo preview selection. */
-        .rnd-drive-item { position: relative; }
-        .rnd-photo-multiselect { position:absolute; z-index:8; top:6px; left:6px; width:19px; height:19px; border-radius:50%; border:1.5px solid #94a3b8; background:rgba(255,255,255,.95); display:flex; align-items:center; justify-content:center; cursor:pointer; color:transparent; box-shadow:0 2px 7px rgba(15,23,42,.18); }
-        .rnd-photo-multiselect:hover { border-color:#2563eb; }
-        .rnd-photo-multiselect i { font-size:10px; line-height:1; }
-        .rnd-photo-multiselect[aria-pressed="true"] { background:#2563eb; border-color:#2563eb; color:white; }
-        .rnd-drive-item.rnd-multi-selected { outline:3px solid #2563eb; outline-offset:-3px; background:#eff6ff; }
-        .rnd-multi-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:9px 12px; margin:8px 0; border:1px solid #bfdbfe; border-radius:10px; background:#eff6ff; color:#1e40af; font-size:12px; }
-        .rnd-multi-toolbar[hidden] { display:none !important; }
-        .rnd-multi-toolbar button { border:1px solid #93c5fd; border-radius:7px; padding:6px 10px; background:#fff; color:#1e40af; cursor:pointer; }
-        .rnd-multi-toolbar button:hover { background:#dbeafe; }
-        .rnd-batch-download-panel { position:fixed; z-index:2147483000; right:20px; bottom:20px; width:min(380px,calc(100vw - 40px)); max-height:70vh; overflow:auto; padding:15px; background:#fff; border:1px solid #bfdbfe; border-radius:12px; box-shadow:0 10px 38px rgba(15,23,42,.24); color:#1e293b; font-size:12px; }
-        .rnd-batch-download-panel > strong { font-size:14px; color:#1d4ed8; }
-        .rnd-batch-download-panel > button { float:right; border:1px solid #cbd5e1; border-radius:6px; background:white; padding:4px 9px; cursor:pointer; }
-        .rnd-batch-download-panel p { clear:both; padding-top:8px; color:#475569; }
-        .rnd-batch-download-links { display:flex; flex-direction:column; gap:5px; margin-top:10px; }
-        .rnd-batch-download-links a { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:9px; border-radius:6px; background:#eff6ff; color:#1d4ed8; text-decoration:none; }
-        .rnd-batch-download-links a:hover { background:#dbeafe; }
+        .rnd-drive-item {
+            position: relative;
+        }
+
+        .rnd-photo-multiselect {
+            position: absolute;
+            z-index: 8;
+            top: 6px;
+            left: 6px;
+            width: 19px;
+            height: 19px;
+            border-radius: 50%;
+            border: 1.5px solid #94a3b8;
+            background: rgba(255, 255, 255, .95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: transparent;
+            box-shadow: 0 2px 7px rgba(15, 23, 42, .18);
+        }
+
+        .rnd-photo-multiselect:hover {
+            border-color: #2563eb;
+        }
+
+        .rnd-photo-multiselect i {
+            font-size: 10px;
+            line-height: 1;
+        }
+
+        .rnd-photo-multiselect[aria-pressed="true"] {
+            background: #2563eb;
+            border-color: #2563eb;
+            color: white;
+        }
+
+        .rnd-drive-item.rnd-multi-selected {
+            outline: 3px solid #2563eb;
+            outline-offset: -3px;
+            background: #eff6ff;
+        }
+
+        .rnd-multi-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 12px;
+            margin: 8px 0;
+            border: 1px solid #bfdbfe;
+            border-radius: 10px;
+            background: #eff6ff;
+            color: #1e40af;
+            font-size: 12px;
+        }
+
+        .rnd-multi-toolbar[hidden] {
+            display: none !important;
+        }
+
+        .rnd-multi-toolbar button {
+            border: 1px solid #93c5fd;
+            border-radius: 7px;
+            padding: 6px 10px;
+            background: #fff;
+            color: #1e40af;
+            cursor: pointer;
+        }
+
+        .rnd-multi-toolbar button:hover {
+            background: #dbeafe;
+        }
+
+        .rnd-batch-download-panel {
+            position: fixed;
+            z-index: 2147483000;
+            right: 20px;
+            bottom: 20px;
+            width: min(380px, calc(100vw - 40px));
+            max-height: 70vh;
+            overflow: auto;
+            padding: 15px;
+            background: #fff;
+            border: 1px solid #bfdbfe;
+            border-radius: 12px;
+            box-shadow: 0 10px 38px rgba(15, 23, 42, .24);
+            color: #1e293b;
+            font-size: 12px;
+        }
+
+        .rnd-batch-download-panel>strong {
+            font-size: 14px;
+            color: #1d4ed8;
+        }
+
+        .rnd-batch-download-panel>button {
+            float: right;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            background: white;
+            padding: 4px 9px;
+            cursor: pointer;
+        }
+
+        .rnd-batch-download-panel p {
+            clear: both;
+            padding-top: 8px;
+            color: #475569;
+        }
+
+        .rnd-batch-download-links {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        .rnd-batch-download-links a {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            padding: 9px;
+            border-radius: 6px;
+            background: #eff6ff;
+            color: #1d4ed8;
+            text-decoration: none;
+        }
+
+        .rnd-batch-download-links a:hover {
+            background: #dbeafe;
+        }
 
 
-        .rnd-operation-overlay[hidden] { display:none !important; }
-        .rnd-operation-overlay { position:fixed; inset:0; z-index:2147483600; background:rgba(15,23,42,.55); display:flex; align-items:center; justify-content:center; padding:20px; }
-        .rnd-operation-dialog { width:min(440px,100%); background:#fff; border-radius:14px; padding:28px; text-align:center; box-shadow:0 18px 70px rgba(0,0,0,.25); color:#1e293b; }
-        .rnd-operation-dialog strong { display:block; margin:12px 0; font-size:18px; }
-        .rnd-operation-dialog p { font-size:12px; line-height:1.6; color:#64748b; }
-        .rnd-operation-dialog small { display:block; margin-top:10px; color:#64748b; }
-        .rnd-operation-spinner { width:38px; height:38px; border:4px solid #dbeafe; border-top-color:#2563eb; border-radius:50%; animation:rnd-op-spin .8s linear infinite; margin:auto; }
-        @keyframes rnd-op-spin { to { transform:rotate(360deg); } }
-        .rnd-operation-track { height:9px; border-radius:20px; background:#e2e8f0; overflow:hidden; margin-top:18px; }
-        #rndOperationFill { height:100%; background:#2563eb; border-radius:20px; transition:width .2s; }
-        #rndOperationFill.indeterminate { animation:rnd-op-slide 1.5s ease-in-out infinite alternate; }
-        @keyframes rnd-op-slide { from { transform:translateX(-110%); } to { transform:translateX(310%); } }
+        .rnd-operation-overlay[hidden] {
+            display: none !important;
+        }
+
+        .rnd-operation-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 2147483600;
+            background: rgba(15, 23, 42, .55);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .rnd-operation-dialog {
+            width: min(440px, 100%);
+            background: #fff;
+            border-radius: 14px;
+            padding: 28px;
+            text-align: center;
+            box-shadow: 0 18px 70px rgba(0, 0, 0, .25);
+            color: #1e293b;
+        }
+
+        .rnd-operation-dialog strong {
+            display: block;
+            margin: 12px 0;
+            font-size: 18px;
+        }
+
+        .rnd-operation-dialog p {
+            font-size: 12px;
+            line-height: 1.6;
+            color: #64748b;
+        }
+
+        .rnd-operation-dialog small {
+            display: block;
+            margin-top: 10px;
+            color: #64748b;
+        }
+
+        .rnd-operation-spinner {
+            width: 38px;
+            height: 38px;
+            border: 4px solid #dbeafe;
+            border-top-color: #2563eb;
+            border-radius: 50%;
+            animation: rnd-op-spin .8s linear infinite;
+            margin: auto;
+        }
+
+        @keyframes rnd-op-spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .rnd-operation-track {
+            height: 9px;
+            border-radius: 20px;
+            background: #e2e8f0;
+            overflow: hidden;
+            margin-top: 18px;
+        }
+
+        #rndOperationFill {
+            height: 100%;
+            background: #2563eb;
+            border-radius: 20px;
+            transition: width .2s;
+        }
+
+        #rndOperationFill.indeterminate {
+            animation: rnd-op-slide 1.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes rnd-op-slide {
+            from {
+                transform: translateX(-110%);
+            }
+
+            to {
+                transform: translateX(310%);
+            }
+        }
 
         .rnd-photo-grid {
 
@@ -2496,14 +2786,16 @@
             pointer-events: none;
             position: relative;
         }
+
         .rnd-drive-item.is-pending::after {
             content: "";
             position: absolute;
             inset: 0;
             z-index: 4;
-            background: rgba(255,255,255,.18);
+            background: rgba(255, 255, 255, .18);
             border-radius: inherit;
         }
+
         .rnd-pending-overlay {
             position: absolute;
             z-index: 5;
@@ -2516,13 +2808,16 @@
             gap: 6px;
             padding: 6px 8px;
             border-radius: 8px;
-            background: rgba(255,255,255,.94);
+            background: rgba(255, 255, 255, .94);
             color: #475569;
-            box-shadow: 0 2px 8px rgba(15,23,42,.10);
+            box-shadow: 0 2px 8px rgba(15, 23, 42, .10);
             font-size: 10px;
             font-weight: 700;
         }
-        .rnd-drive-item.is-pending .rnd-drive-preview img { opacity: .55; }
+
+        .rnd-drive-item.is-pending .rnd-drive-preview img {
+            opacity: .55;
+        }
 
         #rndDriveNewFolder {
             background: #1769e8 !important;
@@ -3359,9 +3654,9 @@
 
 
         /* ==========================================================
-               R&D ARCHIVE MODAL V3 - COMPACT SECOND SCREEN
-               Visual-only overrides. Existing IDs/events remain intact.
-               ========================================================== */
+                       R&D ARCHIVE MODAL V3 - COMPACT SECOND SCREEN
+                       Visual-only overrides. Existing IDs/events remain intact.
+                       ========================================================== */
         .rnd-drawer {
             height: min(900px, calc(100dvh - 32px)) !important;
             padding: 18px 20px !important;
@@ -4858,12 +5153,54 @@
                 grid-template-columns: repeat(2, minmax(0, 1fr)) !important
             }
         }
-        .rnd-detail-table tbody tr.rnd-search-highlight td { background: #fff1b8 !important; border-top: 1px solid #f5c542; border-bottom: 1px solid #f5c542; }
-        .rnd-detail-table tbody tr.rnd-search-highlight td:first-child { box-shadow: inset 4px 0 #eab308; }
-        .rnd-search-result { margin: 0 0 14px; padding: 11px 14px; border-radius: 9px; background: #eff6ff; color: #1d4ed8; font-size: 12px; }
-        .rnd-inline-search { display: flex; align-items: center; gap: 9px; padding: 10px 12px; margin-bottom: 12px; border: 1px solid #e2e8f0; border-radius: 9px; background: #fff; color: #64748b; }
-        .rnd-inline-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font-size: 12px; color: #17243a; }
-        .rnd-inline-search span { font-size: 11px; white-space: nowrap; font-weight: 700; color: #2563eb; }
+
+        .rnd-detail-table tbody tr.rnd-search-highlight td {
+            background: #fff1b8 !important;
+            border-top: 1px solid #f5c542;
+            border-bottom: 1px solid #f5c542;
+        }
+
+        .rnd-detail-table tbody tr.rnd-search-highlight td:first-child {
+            box-shadow: inset 4px 0 #eab308;
+        }
+
+        .rnd-search-result {
+            margin: 0 0 14px;
+            padding: 11px 14px;
+            border-radius: 9px;
+            background: #eff6ff;
+            color: #1d4ed8;
+            font-size: 12px;
+        }
+
+        .rnd-inline-search {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 10px 12px;
+            margin-bottom: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 9px;
+            background: #fff;
+            color: #64748b;
+        }
+
+        .rnd-inline-search input {
+            flex: 1;
+            min-width: 0;
+            border: 0;
+            outline: 0;
+            background: transparent;
+            font-size: 12px;
+            color: #17243a;
+        }
+
+        .rnd-inline-search span {
+            font-size: 11px;
+            white-space: nowrap;
+            font-weight: 700;
+            color: #2563eb;
+        }
     </style>
 
 
@@ -4920,6 +5257,7 @@
             const bindingOverlay = document.getElementById('rndArchiveBindingOverlay');
             const bindingMessage = document.getElementById('rndArchiveBindingMessage');
             let bindingSequence = 0;
+
             function setArchiveBinding(active, message) {
                 if (!bindingOverlay) return;
                 bindingOverlay.hidden = !active;
@@ -5249,8 +5587,12 @@
                     renderItems(result.items || []);
                     if (highlightedArticleKey) {
                         requestAnimationFrame(() => {
-                            const row = detailBody.querySelector('tr[data-article-key="' + highlightedArticleKey + '"]');
-                            if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            const row = detailBody.querySelector('tr[data-article-key="' +
+                                highlightedArticleKey + '"]');
+                            if (row) row.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'center'
+                            });
                         });
                     }
 
@@ -5310,7 +5652,8 @@
 
 
                 detailBody.innerHTML = items.map(function(item, index) {
-                    const itemKey = String(item.id ?? item.article_code ?? index).replace(/[^a-zA-Z0-9_-]/g, '_');
+                    const itemKey = String(item.id ?? item.article_code ?? index).replace(/[^a-zA-Z0-9_-]/g,
+                        '_');
                     const highlighted = highlightedArticleKey === itemKey;
 
                     const code = escapeHtml(item.article_code || '-');
@@ -5404,7 +5747,8 @@
                 try {
                     const data = await fetchJson(driveEndpoint('/folders/' + encodeURIComponent(folderDbId)));
                     activeFolderDbId = data.active_folder.id;
-                    activeFolderGoogleDriveId = data.active_folder.drive_id || data.active_folder.google_drive_folder_id || null;
+                    activeFolderGoogleDriveId = data.active_folder.drive_id || data.active_folder
+                        .google_drive_folder_id || null;
                     // Fallback: sebagian versi controller hanya mengirim URL folder.
                     activeFolderGoogleDriveUrl = data.active_folder.url || data.active_folder.webViewLink || null;
                     driveBreadcrumbs = data.breadcrumbs || [];
@@ -5529,9 +5873,11 @@
             const rndOperationOverlay = document.createElement('div');
             rndOperationOverlay.className = 'rnd-operation-overlay';
             rndOperationOverlay.hidden = true;
-            rndOperationOverlay.innerHTML = `<div class="rnd-operation-dialog" role="status" aria-live="polite"><div class="rnd-operation-spinner"></div><strong id="rndOperationTitle">Memproses...</strong><p id="rndOperationMessage"></p><div class="rnd-operation-track"><div id="rndOperationFill"></div></div><small id="rndOperationDetail"></small></div>`;
+            rndOperationOverlay.innerHTML =
+                `<div class="rnd-operation-dialog" role="status" aria-live="polite"><div class="rnd-operation-spinner"></div><strong id="rndOperationTitle">Memproses...</strong><p id="rndOperationMessage"></p><div class="rnd-operation-track"><div id="rndOperationFill"></div></div><small id="rndOperationDetail"></small></div>`;
             document.body.appendChild(rndOperationOverlay);
             let rndOperationBusy = false;
+
             function rndOperationShow(title, message, percent = null, detail = '') {
                 rndOperationOverlay.hidden = false;
                 document.getElementById('rndOperationTitle').textContent = title;
@@ -5541,11 +5887,19 @@
                 fill.style.width = percent === null ? '35%' : Math.max(0, Math.min(100, percent)) + '%';
                 document.getElementById('rndOperationDetail').textContent = detail;
             }
-            function rndOperationHide() { rndOperationOverlay.hidden = true; }
+
+            function rndOperationHide() {
+                rndOperationOverlay.hidden = true;
+            }
+
             function rndZipFilenameFromResponse(response) {
                 const header = response.headers.get('Content-Disposition') || '';
                 const utf = header.match(/filename\*=UTF-8''([^;]+)/i);
-                if (utf) { try { return decodeURIComponent(utf[1]); } catch (_) {} }
+                if (utf) {
+                    try {
+                        return decodeURIComponent(utf[1]);
+                    } catch (_) {}
+                }
                 const plain = header.match(/filename="?([^";]+)"?/i);
                 return plain ? plain[1] : 'Sample Pictures.zip';
             }
@@ -5558,20 +5912,34 @@
                 try {
                     rndOperationShow('Menghapus item', 'Menyiapkan proses hapus...', 0, '0 / ' + items.length);
                     for (const item of items) {
-                        rndOperationShow('Menghapus item', 'Memproses: ' + item.name, Math.round(done / items.length * 100), done + ' / ' + items.length);
+                        rndOperationShow('Menghapus item', 'Memproses: ' + item.name, Math.round(done / items
+                            .length * 100), done + ' / ' + items.length);
                         try {
                             await fetchJson(driveEndpoint('/items/' + encodeURIComponent(item.id)), {
-                                method: 'DELETE', headers: {'Content-Type':'application/json'},
-                                body: JSON.stringify({parent_folder_id: activeFolderDbId})
+                                method: 'DELETE',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    parent_folder_id: activeFolderDbId
+                                })
                             });
                             rndMultiSelectedIds.delete(String(item.id));
                             removeDriveItem(item.id);
-                        } catch (error) { failures.push(item.name + ': ' + (error.message || 'Gagal')); }
+                        } catch (error) {
+                            failures.push(item.name + ': ' + (error.message || 'Gagal'));
+                        }
                         done++;
-                        rndOperationShow('Menghapus item', 'Memproses penghapusan...', Math.round(done / items.length * 100), done + ' / ' + items.length);
+                        rndOperationShow('Menghapus item', 'Memproses penghapusan...', Math.round(done / items
+                            .length * 100), done + ' / ' + items.length);
                     }
-                } finally { rndOperationBusy = false; rndOperationHide(); rndUpdateMultiToolbar(); }
-                explorerNotify((done - failures.length) + ' berhasil dihapus.' + (failures.length ? ' ' + failures.length + ' gagal.' : ''));
+                } finally {
+                    rndOperationBusy = false;
+                    rndOperationHide();
+                    rndUpdateMultiToolbar();
+                }
+                explorerNotify((done - failures.length) + ' berhasil dihapus.' + (failures.length ? ' ' + failures
+                    .length + ' gagal.' : ''));
                 if (failures.length) alert('Gagal menghapus:\n' + failures.slice(0, 10).join('\n'));
             }
 
@@ -5586,16 +5954,17 @@
             function rndGoogleDriveUrl(item) {
                 if (!item || !item.id) return null;
                 const id = encodeURIComponent(String(item.id));
-                return item.type === 'folder'
-                    ? 'https://drive.google.com/drive/folders/' + id
-                    : 'https://drive.google.com/file/d/' + id + '/view';
+                return item.type === 'folder' ?
+                    'https://drive.google.com/drive/folders/' + id :
+                    'https://drive.google.com/file/d/' + id + '/view';
             }
 
             function rndActiveFolderGoogleDriveUrl() {
                 const normalize = value => String(value || '').replace(/\\/g, '').trim();
                 const fromUrl = value => {
                     const clean = normalize(value);
-                    const match = clean.match(/(?:https?:\/\/)?drive\.google\.com\/drive\/(?:u\/\d+\/)?folders\/([A-Za-z0-9_-]+)/i);
+                    const match = clean.match(
+                        /(?:https?:\/\/)?drive\.google\.com\/drive\/(?:u\/\d+\/)?folders\/([A-Za-z0-9_-]+)/i);
                     return match ? 'https://drive.google.com/drive/folders/' + match[1] : null;
                 };
                 const id = normalize(activeFolderGoogleDriveId);
@@ -5636,7 +6005,8 @@
                     return;
                 }
                 rndOpenGoogleDrive(url);
-                explorerNotify(chosen.length + ' item dipilih. Silakan pilih file yang sama di tab Google Drive untuk download.');
+                explorerNotify(chosen.length +
+                    ' item dipilih. Silakan pilih file yang sama di tab Google Drive untuk download.');
             }
 
             function rndUpdateMultiToolbar() {
@@ -5673,7 +6043,10 @@
                         const pasteOnly = document.createElement('button');
                         pasteOnly.type = 'button';
                         pasteOnly.textContent = 'Paste ke Folder Ini';
-                        pasteOnly.onclick = () => explorerPaste({id: activeFolderDbId, name: driveCurrentPath.textContent.trim()});
+                        pasteOnly.onclick = () => explorerPaste({
+                            id: activeFolderDbId,
+                            name: driveCurrentPath.textContent.trim()
+                        });
                         rndMultiToolbar.appendChild(pasteOnly);
                     }
                     return;
@@ -5684,7 +6057,8 @@
                 removeSelected.type = 'button';
                 removeSelected.textContent = 'Hapus Terpilih (' + count + ')';
                 removeSelected.style.color = '#b91c1c';
-                removeSelected.onclick = () => rndDeleteItems(driveCurrentItems.filter(x => rndMultiSelectedIds.has(String(x.id))));
+                removeSelected.onclick = () => rndDeleteItems(driveCurrentItems.filter(x => rndMultiSelectedIds.has(
+                    String(x.id))));
                 const clear = document.createElement('button');
                 clear.type = 'button';
                 clear.textContent = 'Batal pilih';
@@ -5699,16 +6073,23 @@
                     explorerClipboard = {
                         mode: 'move',
                         items: driveCurrentItems.filter(x => rndMultiSelectedIds.has(String(x.id)))
-                            .map(x => ({...x, parent_folder_id: activeFolderDbId}))
+                            .map(x => ({
+                                ...x,
+                                parent_folder_id: activeFolderDbId
+                            }))
                     };
-                    explorerNotify(count + ' item di-cut. Buka folder tujuan lalu klik Paste di toolbar atau menu folder.');
+                    explorerNotify(count +
+                        ' item di-cut. Buka folder tujuan lalu klik Paste di toolbar atau menu folder.');
                     rndUpdateMultiToolbar();
                 };
                 const pasteHere = document.createElement('button');
                 pasteHere.type = 'button';
                 pasteHere.textContent = 'Paste ke Folder Ini';
                 pasteHere.disabled = !explorerClipboard;
-                pasteHere.onclick = () => explorerPaste({id: activeFolderDbId, name: driveCurrentPath.textContent.trim()});
+                pasteHere.onclick = () => explorerPaste({
+                    id: activeFolderDbId,
+                    name: driveCurrentPath.textContent.trim()
+                });
                 rndMultiToolbar.append(label, cut, pasteHere, removeSelected, clear);
             }
 
@@ -5906,9 +6287,14 @@
                     meta.className = 'rnd-drive-item-meta';
                     if (item.type === 'folder') {
                         const date = item.created_time ? new Date(item.created_time) : null;
-                        const formatted = date && !isNaN(date.getTime())
-                            ? new Intl.DateTimeFormat('en-GB', {day:'2-digit', month:'short', year:'numeric', timeZone:'Asia/Jakarta'}).format(date)
-                            : '—';
+                        const formatted = date && !isNaN(date.getTime()) ?
+                            new Intl.DateTimeFormat('en-GB', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                                timeZone: 'Asia/Jakarta'
+                            }).format(date) :
+                            '—';
                         meta.textContent = 'Folder · Created: ' + formatted;
                     } else {
                         meta.textContent = driveSize(item.size) || item.mime_type || 'Foto';
@@ -5954,8 +6340,10 @@
                     downloadDirect.innerHTML = '<i class="fa fa-download"></i> Download';
                     downloadDirect.addEventListener('click', event => {
                         event.stopPropagation();
-                        const chosen = rndMultiSelectedIds.has(String(item.id))
-                            ? driveCurrentItems.filter(x => rndMultiSelectedIds.has(String(x.id))) : [item];
+                        const chosen = rndMultiSelectedIds.has(String(item.id)) ?
+                            driveCurrentItems.filter(x => rndMultiSelectedIds.has(String(x.id))) : [
+                                item
+                            ];
                         rndDownloadSelectedPhotos(chosen);
                     });
                     actions.appendChild(downloadDirect);
@@ -6086,7 +6474,7 @@
                     return;
                 }
                 if (operation === 'move' && String(item.parent_folder_id || activeFolderDbId) === String(target
-                    .id)) {
+                        .id)) {
                     explorerNotify('Item sudah berada di folder tersebut.');
                     return;
                 }
@@ -6154,23 +6542,35 @@
                 const items = clipboard.items || (clipboard.item ? [clipboard.item] : []);
                 const operation = clipboard.mode === 'move' ? 'move' : 'copy';
                 if (!items.length) return;
-                if (operation === 'move' && !confirm('Pindahkan ' + items.length + ' item ke folder tujuan?')) return;
+                if (operation === 'move' && !confirm('Pindahkan ' + items.length + ' item ke folder tujuan?'))
+                    return;
                 let done = 0;
                 for (const item of items) {
                     if (explorerBusy || uploadInProgress) break;
                     // Keep failed items in the clipboard for retry.
                     try {
-                        const response = await fetchJson(driveEndpoint('/items/' + encodeURIComponent(item.id) + '/' + operation), {
+                        const response = await fetchJson(driveEndpoint('/items/' + encodeURIComponent(item.id) +
+                            '/' + operation), {
                             method: 'POST',
-                            headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({target_folder_id: target.id, parent_folder_id: item.parent_folder_id})
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                target_folder_id: target.id,
+                                parent_folder_id: item.parent_folder_id
+                            })
                         });
                         done++;
                         if (operation === 'move') removeDriveItem(item.id);
-                        else if (String(target.id) === String(activeFolderDbId) && response?.item?.id) upsertDriveItem(response.item);
+                        else if (String(target.id) === String(activeFolderDbId) && response?.item?.id)
+                            upsertDriveItem(response.item);
                     } catch (error) {
-                        explorerNotify(done + '/' + items.length + ' berhasil. Gagal pada ' + item.name + ': ' + (error.message || 'error'));
-                        if (operation === 'move') explorerClipboard = {mode: 'move', items: items.slice(done)};
+                        explorerNotify(done + '/' + items.length + ' berhasil. Gagal pada ' + item.name + ': ' + (
+                            error.message || 'error'));
+                        if (operation === 'move') explorerClipboard = {
+                            mode: 'move',
+                            items: items.slice(done)
+                        };
                         return;
                     }
                 }
@@ -6192,7 +6592,13 @@
                 const copy = document.createElement('button');
                 copy.textContent = 'Copy  Ctrl+C';
                 copy.onclick = () => {
-                    explorerClipboard = {mode: 'copy', item: {...item, parent_folder_id: activeFolderDbId}};
+                    explorerClipboard = {
+                        mode: 'copy',
+                        item: {
+                            ...item,
+                            parent_folder_id: activeFolderDbId
+                        }
+                    };
                     explorerNotify('Copied: ' + item.name);
                     menu.remove();
                 };
@@ -6200,9 +6606,15 @@
                 const cutItem = document.createElement('button');
                 cutItem.textContent = 'Cut / Move  Ctrl+X';
                 cutItem.onclick = () => {
-                    const chosen = rndMultiSelectedIds.has(String(item.id))
-                        ? driveCurrentItems.filter(x => rndMultiSelectedIds.has(String(x.id))) : [item];
-                    explorerClipboard = {mode: 'move', items: chosen.map(x => ({...x, parent_folder_id: activeFolderDbId}))};
+                    const chosen = rndMultiSelectedIds.has(String(item.id)) ?
+                        driveCurrentItems.filter(x => rndMultiSelectedIds.has(String(x.id))) : [item];
+                    explorerClipboard = {
+                        mode: 'move',
+                        items: chosen.map(x => ({
+                            ...x,
+                            parent_folder_id: activeFolderDbId
+                        }))
+                    };
                     explorerNotify(chosen.length + ' item di-cut. Buka folder tujuan lalu Paste.');
                     rndUpdateMultiToolbar();
                     menu.remove();
@@ -6211,9 +6623,10 @@
                 const deleteItem = document.createElement('button');
                 deleteItem.textContent = 'Hapus ke Trash';
                 deleteItem.onclick = () => {
-                    const chosen = rndMultiSelectedIds.has(String(item.id))
-                        ? driveCurrentItems.filter(x => rndMultiSelectedIds.has(String(x.id))) : [item];
-                    menu.remove(); rndDeleteItems(chosen);
+                    const chosen = rndMultiSelectedIds.has(String(item.id)) ?
+                        driveCurrentItems.filter(x => rndMultiSelectedIds.has(String(x.id))) : [item];
+                    menu.remove();
+                    rndDeleteItems(chosen);
                 };
                 menu.appendChild(deleteItem);
 
@@ -6221,9 +6634,8 @@
                     const download = document.createElement('button');
                     download.textContent = 'Download';
                     download.onclick = () => {
-                        const chosen = rndMultiSelectedIds.has(String(item.id))
-                            ? driveCurrentItems.filter(x => rndMultiSelectedIds.has(String(x.id)))
-                            : [item];
+                        const chosen = rndMultiSelectedIds.has(String(item.id)) ?
+                            driveCurrentItems.filter(x => rndMultiSelectedIds.has(String(x.id))) : [item];
                         rndDownloadSelectedPhotos(chosen);
                         menu.remove();
                     };
@@ -6333,9 +6745,17 @@
                 }
                 if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'x' && explorerSelected) {
                     e.preventDefault();
-                    const chosen = rndMultiSelectedIds.has(String(explorerSelected.id))
-                        ? driveCurrentItems.filter(x => rndMultiSelectedIds.has(String(x.id))) : [explorerSelected];
-                    explorerClipboard = {mode: 'move', items: chosen.map(x => ({...x, parent_folder_id: activeFolderDbId}))};
+                    const chosen = rndMultiSelectedIds.has(String(explorerSelected.id)) ?
+                        driveCurrentItems.filter(x => rndMultiSelectedIds.has(String(x.id))) : [
+                            explorerSelected
+                        ];
+                    explorerClipboard = {
+                        mode: 'move',
+                        items: chosen.map(x => ({
+                            ...x,
+                            parent_folder_id: activeFolderDbId
+                        }))
+                    };
                     explorerNotify(chosen.length + ' item di-cut. Buka folder tujuan lalu Ctrl+V.');
                     rndUpdateMultiToolbar();
                 }
@@ -6370,8 +6790,11 @@
 
                 const tempId = 'pending-folder-' + Date.now();
                 driveCurrentItems.unshift({
-                    id: tempId, name: name.trim(), type: 'folder',
-                    __pending: true, __pendingLabel: 'Membuat folder...'
+                    id: tempId,
+                    name: name.trim(),
+                    type: 'folder',
+                    __pending: true,
+                    __pendingLabel: 'Membuat folder...'
                 });
                 renderDriveItemsStable();
                 driveNewFolder.disabled = true;
@@ -6623,7 +7046,8 @@
                 const waitingPreview = document.createElement('div');
                 waitingPreview.className = 'rnd-preview-thumb-waiting';
                 waitingPreview.setAttribute('role', 'status');
-                waitingPreview.textContent = 'Waiting completed upload — ' + files.length + ' foto siap diunggah. Preview muncul setelah 100%.';
+                waitingPreview.textContent = 'Waiting completed upload — ' + files.length +
+                    ' foto siap diunggah. Preview muncul setelah 100%.';
                 previewThumbs.appendChild(waitingPreview);
 
                 setUploadMessage('Foto siap diunggah. Preview akan muncul setelah proses mencapai 100%.');
@@ -6696,8 +7120,9 @@
                     xhr.upload.addEventListener('load', () => onProgress(1, 1));
                     xhr.onload = () => {
                         let data;
-                        try { data = JSON.parse(xhr.responseText); }
-                        catch (_) {
+                        try {
+                            data = JSON.parse(xhr.responseText);
+                        } catch (_) {
                             reject(new Error(xhr.status === 419 ? 'Sesi berakhir. Refresh halaman.' :
                                 'Respons server bukan JSON (HTTP ' + xhr.status + ').'));
                             return;
@@ -6707,7 +7132,8 @@
                         } else resolve(data);
                     };
                     xhr.onerror = () => reject(new Error('Koneksi ke hosting terputus.'));
-                    xhr.ontimeout = () => reject(new Error('Waktu respons server habis. Periksa foto di aplikasi sebelum mencoba ulang.'));
+                    xhr.ontimeout = () => reject(new Error(
+                        'Waktu respons server habis. Periksa foto di aplikasi sebelum mencoba ulang.'));
                     xhr.onabort = () => reject(new Error('Upload dibatalkan.'));
                     xhr.send(formData);
                 });
@@ -6720,9 +7146,14 @@
                 const token = document.querySelector('meta[name="csrf-token"]')?.content;
                 const send = async (body) => {
                     const res = await fetch(url, {
-                        method: 'POST', credentials: 'same-origin',
-                        headers: {'Accept': 'application/json', 'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': token || '', 'X-Requested-With': 'XMLHttpRequest'},
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': token || '',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
                         body: JSON.stringify(body)
                     });
                     const data = await res.json();
@@ -6731,8 +7162,13 @@
                     }
                     return data;
                 };
-                const start = await send({direct_action:'start', folder_id:folderId || null,
-                    name:file.name, size:file.size, mime_type:file.type});
+                const start = await send({
+                    direct_action: 'start',
+                    folder_id: folderId || null,
+                    name: file.name,
+                    size: file.size,
+                    mime_type: file.type
+                });
                 // Google returns a session URL after Laravel initializes the upload.
                 // Never log or expose the full session URL: it can authorize uploads.
                 let sessionEndpoint;
@@ -6749,39 +7185,46 @@
                 let uploaded;
                 try {
                     uploaded = await new Promise((resolve, reject) => {
-                    const xhr = new XMLHttpRequest();
-                    xhr.open('PUT', start.session_url, true);
-                    xhr.timeout = 300000;
-                    xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
-                    xhr.upload.onprogress = e => {
-                        if (e.lengthComputable) onProgress(e.loaded, e.total);
-                    };
-                    xhr.onload = () => {
-                        if (xhr.status < 200 || xhr.status >= 300) {
-                            reject(new Error('Google Drive menolak transfer (HTTP ' + xhr.status + ').'));
-                            return;
-                        }
-                        try { resolve(JSON.parse(xhr.responseText)); }
-                        catch (_) { reject(new Error('Respons Google Drive tidak berisi JSON yang valid.')); }
-                    };
-                    xhr.onerror = () => {
-                        // Status 0 means the browser did not expose an HTTP response.
-                        // It can be caused by CORS/preflight, network, or browser blocking.
-                        console.error('Drive PUT failed', {
-                            status: xhr.status,
-                            readyState: xhr.readyState,
-                            sessionHost: sessionEndpoint.hostname,
-                            sessionPath: sessionEndpoint.pathname,
-                            origin: window.location.origin
-                        });
-                        reject(new Error('Request PUT ke Google Drive gagal sebelum respons HTTP tersedia. ' +
-                            'Periksa Console untuk pesan CORS/preflight atau gangguan jaringan. ' +
-                            'Periksa apakah foto sudah ada di Drive sebelum mencoba ulang.'));
-                    };
-                    xhr.ontimeout = () => reject(new Error(
-                        'Transfer ke Google Drive timeout. Periksa Drive sebelum mencoba ulang.'));
-                    xhr.onabort = () => reject(new Error('Transfer ke Google Drive dibatalkan.'));
-                    xhr.send(file);
+                        const xhr = new XMLHttpRequest();
+                        xhr.open('PUT', start.session_url, true);
+                        xhr.timeout = 300000;
+                        xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+                        xhr.upload.onprogress = e => {
+                            if (e.lengthComputable) onProgress(e.loaded, e.total);
+                        };
+                        xhr.onload = () => {
+                            if (xhr.status < 200 || xhr.status >= 300) {
+                                reject(new Error('Google Drive menolak transfer (HTTP ' + xhr.status +
+                                    ').'));
+                                return;
+                            }
+                            try {
+                                resolve(JSON.parse(xhr.responseText));
+                            } catch (_) {
+                                reject(new Error('Respons Google Drive tidak berisi JSON yang valid.'));
+                            }
+                        };
+                        xhr.onerror = () => {
+                            // Status 0 means the browser did not expose an HTTP response.
+                            // It can be caused by CORS/preflight, network, or browser blocking.
+                            console.error('Drive PUT failed', {
+                                status: xhr.status,
+                                readyState: xhr.readyState,
+                                sessionHost: sessionEndpoint.hostname,
+                                sessionPath: sessionEndpoint.pathname,
+                                origin: window.location.origin
+                            });
+                            reject(new Error(
+                                'Request PUT ke Google Drive gagal sebelum respons HTTP tersedia. ' +
+                                'Periksa Console untuk pesan CORS/preflight atau gangguan jaringan. ' +
+                                'Periksa apakah foto sudah ada di Drive sebelum mencoba ulang.'
+                            ));
+                        };
+                        xhr.ontimeout = () => reject(new Error(
+                            'Transfer ke Google Drive timeout. Periksa Drive sebelum mencoba ulang.'
+                        ));
+                        xhr.onabort = () => reject(new Error('Transfer ke Google Drive dibatalkan.'));
+                        xhr.send(file);
                     });
                 } catch (transferError) {
                     // CORS/status 0 can hide a successful Drive commit. Poll the backend,
@@ -6791,26 +7234,43 @@
                         let response;
                         try {
                             response = await fetch(url, {
-                                method: 'POST', credentials: 'same-origin',
-                                headers: {'Accept':'application/json', 'Content-Type':'application/json',
-                                    'X-CSRF-TOKEN': token || '', 'X-Requested-With':'XMLHttpRequest'},
-                                body: JSON.stringify({direct_action:'recover', ticket:start.ticket})
+                                method: 'POST',
+                                credentials: 'same-origin',
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': token || '',
+                                    'X-Requested-With': 'XMLHttpRequest'
+                                },
+                                body: JSON.stringify({
+                                    direct_action: 'recover',
+                                    ticket: start.ticket
+                                })
                             });
-                        } catch (_) { continue; }
+                        } catch (_) {
+                            continue;
+                        }
                         const data = await response.json().catch(() => null);
                         if (response.ok && data?.success === true) {
                             onProgress(1, 1);
                             return data;
                         }
                         if (response.status !== 202) {
-                            throw new Error(data?.message || 'Verifikasi upload gagal (HTTP ' + response.status + ').');
+                            throw new Error(data?.message || 'Verifikasi upload gagal (HTTP ' + response.status +
+                                ').');
                         }
                     }
-                    throw new Error('Foto belum bisa diverifikasi di Google Drive. Jangan upload ulang sebelum mengecek folder. ' + transferError.message);
+                    throw new Error(
+                        'Foto belum bisa diverifikasi di Google Drive. Jangan upload ulang sebelum mengecek folder. ' +
+                        transferError.message);
                 }
                 if (!uploaded.id) throw new Error('Google Drive tidak mengembalikan ID file.');
                 onProgress(1, 1);
-                return send({direct_action:'finish', ticket:start.ticket, drive_id:uploaded.id});
+                return send({
+                    direct_action: 'finish',
+                    ticket: start.ticket,
+                    drive_id: uploaded.id
+                });
             }
 
 
@@ -6822,6 +7282,7 @@
             const uploadFailureRecords = new Map();
             let retryFolderId = null;
             let uploadFailureDismissed = false;
+
             function drawUploadFailures() {
                 uploadFailureList.replaceChildren();
                 uploadFailureCount.textContent = String(uploadFailureRecords.size);
@@ -6850,7 +7311,8 @@
                             return;
                         }
                         if (item.uncertain && !confirm('Status upload ' + item.file.name +
-                            ' belum dapat dipastikan. Periksa dulu di Google Drive agar tidak duplikat. Tetap kirim ulang?')) return;
+                                ' belum dapat dipastikan. Periksa dulu di Google Drive agar tidak duplikat. Tetap kirim ulang?'
+                            )) return;
                         const transfer = new DataTransfer();
                         transfer.items.add(item.file);
                         photoInput.value = '';
@@ -6972,7 +7434,8 @@
                         setUploadMessage(
                             'Berhasil ' + successful.length + ' · Gagal ' + failed.length +
                             ' · Aktif ' + runningCount + ' · ' +
-                            (savingCount ? 'Menunggu konfirmasi Database' : 'Mengirim foto langsung ke Google Drive'),
+                            (savingCount ? 'Menunggu konfirmasi Database' :
+                                'Mengirim foto langsung ke Google Drive'),
                             failed.length ? 'error' : ''
                         );
                         uploadButton.innerHTML =
@@ -6989,7 +7452,8 @@
                                 'Mengunggah ' + file.name + ' (' + formatBytes(file.size) + ')';
                             try {
                                 const formData = new FormData();
-                                if (activeFolderDbId) formData.append('folder_id', activeFolderDbId);
+                                if (activeFolderDbId) formData.append('folder_id',
+                                    activeFolderDbId);
                                 formData.append('photos[]', file, file.name);
 
                                 filePhases[index] = 'Mengirim langsung ke Drive';
@@ -7010,7 +7474,8 @@
                                     throw new Error(result.message || 'Server menolak file.');
                                 }
                                 successful.push(file.name);
-                                uploadFailureRecords.delete(file.name + '|' + file.size + '|' + file.lastModified + '|' + String(originalUploadFolderId));
+                                uploadFailureRecords.delete(file.name + '|' + file.size + '|' + file
+                                    .lastModified + '|' + String(originalUploadFolderId));
                                 drawUploadFailures();
                                 fileProgress[index] = 1;
                                 filePhases[index] = 'Selesai';
@@ -7025,7 +7490,8 @@
                                             mime_type: file.type || 'image/jpeg',
                                             size: file.size,
                                             url: 'https://drive.google.com/file/d/' +
-                                                encodeURIComponent(uploaded.drive_id) + '/view'
+                                                encodeURIComponent(uploaded.drive_id) +
+                                                '/view'
                                         });
                                     }
                                 }
@@ -7033,10 +7499,20 @@
                                 const message = error.name === 'AbortError' ?
                                     'Waktu respons server habis. Periksa foto sebelum mengulang.' :
                                     (error.message || 'Upload gagal.');
-                                failed.push({ name: file.name, message });
-                                const uncertain = /verifikasi|periksa|timeout|waktu respons|belum bisa|duplikat/i.test(message);
-                                uploadFailureRecords.set(file.name + '|' + file.size + '|' + file.lastModified + '|' + String(originalUploadFolderId),
-                                    {file, message, folderId: originalUploadFolderId, uncertain});
+                                failed.push({
+                                    name: file.name,
+                                    message
+                                });
+                                const uncertain =
+                                    /verifikasi|periksa|timeout|waktu respons|belum bisa|duplikat/i
+                                    .test(message);
+                                uploadFailureRecords.set(file.name + '|' + file.size + '|' + file
+                                    .lastModified + '|' + String(originalUploadFolderId), {
+                                        file,
+                                        message,
+                                        folderId: originalUploadFolderId,
+                                        uncertain
+                                    });
                                 drawUploadFailures();
                                 fileProgress[index] = 1;
                                 filePhases[index] = 'Gagal';
@@ -7049,8 +7525,9 @@
                         }
                     };
 
-                    await Promise.all(Array.from(
-                        { length: Math.min(MAX_PARALLEL_UPLOADS, files.length) },
+                    await Promise.all(Array.from({
+                            length: Math.min(MAX_PARALLEL_UPLOADS, files.length)
+                        },
                         () => uploadWorker()
                     ));
 
@@ -7176,7 +7653,10 @@
                             const originalIndex = (result.items || []).indexOf(matched);
                             const key = String(matched.id ?? matched.article_code ?? originalIndex)
                                 .replace(/[^a-zA-Z0-9_-]/g, '_');
-                            await openDrawer(button, { articleKeyword: initialSearchKeyword, highlightKey: key });
+                            await openDrawer(button, {
+                                articleKeyword: initialSearchKeyword,
+                                highlightKey: key
+                            });
                             return;
                         }
                     } catch (error) {
@@ -7185,7 +7665,9 @@
                 }
             }
             if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', autoOpenMatchingArticle, { once: true });
+                document.addEventListener('DOMContentLoaded', autoOpenMatchingArticle, {
+                    once: true
+                });
             } else {
                 autoOpenMatchingArticle();
             }
@@ -7575,7 +8057,7 @@
                 bottom: 10px
             }
         }
-    
+
         /* RND Drive list: truncate long names and place list cards side-by-side */
         #rndDriveItems.rnd-list-mode {
             display: grid !important;
@@ -7659,32 +8141,76 @@
         }
 
         /* Make the article-directory binding step unmistakable. */
-        #rndArchivePanel { position: relative !important; }
-        #rndArchiveBindingOverlay[hidden] { display: none !important; }
+        #rndArchivePanel {
+            position: relative !important;
+        }
+
+        #rndArchiveBindingOverlay[hidden] {
+            display: none !important;
+        }
+
         .rnd-binding-overlay {
-            position: absolute; inset: 0; z-index: 75;
-            display: flex; align-items: center; justify-content: center;
-            padding: 22px; background: rgba(242, 247, 255, .88);
+            position: absolute;
+            inset: 0;
+            z-index: 75;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 22px;
+            background: rgba(242, 247, 255, .88);
             backdrop-filter: blur(3px);
         }
+
         .rnd-binding-card {
-            width: min(440px, 100%); text-align: center;
-            background: #fff; border: 1px solid #d9e5f6;
-            border-radius: 18px; padding: 32px 24px;
+            width: min(440px, 100%);
+            text-align: center;
+            background: #fff;
+            border: 1px solid #d9e5f6;
+            border-radius: 18px;
+            padding: 32px 24px;
             box-shadow: 0 18px 45px rgba(25, 56, 100, .14);
         }
-        .rnd-binding-spinner {
-            width: 48px; height: 48px; margin: 0 auto 18px;
-            border: 5px solid #dce9ff; border-top-color: #1462e8;
-            border-radius: 50%; animation: rndBindingSpin .85s linear infinite;
-        }
-        @keyframes rndBindingSpin { to { transform: rotate(360deg); } }
-        .rnd-binding-card strong { display: block; font-size: 17px; color: #12366d; }
-        .rnd-binding-card p { margin: 10px 0 15px; color: #4d6585; font-size: 13px; line-height: 1.6; }
-        .rnd-binding-card span { color: #617899; font-size: 12px; }
-        @media (prefers-reduced-motion: reduce) { .rnd-binding-spinner { animation-duration: 2s; } }
 
-</style>
+        .rnd-binding-spinner {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 18px;
+            border: 5px solid #dce9ff;
+            border-top-color: #1462e8;
+            border-radius: 50%;
+            animation: rndBindingSpin .85s linear infinite;
+        }
+
+        @keyframes rndBindingSpin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .rnd-binding-card strong {
+            display: block;
+            font-size: 17px;
+            color: #12366d;
+        }
+
+        .rnd-binding-card p {
+            margin: 10px 0 15px;
+            color: #4d6585;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .rnd-binding-card span {
+            color: #617899;
+            font-size: 12px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .rnd-binding-spinner {
+                animation-duration: 2s;
+            }
+        }
+    </style>
     <div id="rndFullscreenViewer" hidden role="dialog" aria-modal="true" aria-label="Foto layar penuh">
         <div class="rnd-fv-toolbar">
             <span id="rndFvTitle" class="rnd-fv-title">Foto</span>
@@ -7797,6 +8323,7 @@
             let pinchZoom = 1;
             let lastTapAt = 0;
             const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
             function pinchStart() {
                 if (activePointers.size !== 2) return;
                 const [a, b] = [...activePointers.values()];
@@ -7808,17 +8335,28 @@
             canvas.addEventListener('pointerdown', e => {
                 if (e.pointerType === 'mouse' && e.button !== 0) return;
                 if (e.pointerType === 'touch') e.preventDefault();
-                activePointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
-                try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
-                if (activePointers.size === 2) { pinchStart(); return; }
+                activePointers.set(e.pointerId, {
+                    x: e.clientX,
+                    y: e.clientY
+                });
+                try {
+                    canvas.setPointerCapture(e.pointerId);
+                } catch (_) {}
+                if (activePointers.size === 2) {
+                    pinchStart();
+                    return;
+                }
                 if (activePointers.size !== 1) return;
                 if (e.pointerType === 'touch') {
                     const now = Date.now();
                     if (now - lastTapAt < 320) {
-                        if (zoom > 1.1) { zoom = 1; dx = dy = 0; draw(); }
-                        else {
+                        if (zoom > 1.1) {
+                            zoom = 1;
+                            dx = dy = 0;
+                            draw();
+                        } else {
                             const r = canvas.getBoundingClientRect();
-                            setZoom(2.5, e.clientX-r.left, e.clientY-r.top);
+                            setZoom(2.5, e.clientX - r.left, e.clientY - r.top);
                         }
                         lastTapAt = 0;
                         dragging = false;
@@ -7833,12 +8371,16 @@
             });
             canvas.addEventListener('pointermove', e => {
                 if (!activePointers.has(e.pointerId)) return;
-                activePointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+                activePointers.set(e.pointerId, {
+                    x: e.clientX,
+                    y: e.clientY
+                });
                 if (activePointers.size === 2) {
                     const [a, b] = [...activePointers.values()];
                     const r = canvas.getBoundingClientRect();
-                    const cx = (a.x+b.x)/2-r.left, cy = (a.y+b.y)/2-r.top;
-                    setZoom(pinchZoom * distance(a,b)/Math.max(1,pinchDistance), cx, cy);
+                    const cx = (a.x + b.x) / 2 - r.left,
+                        cy = (a.y + b.y) / 2 - r.top;
+                    setZoom(pinchZoom * distance(a, b) / Math.max(1, pinchDistance), cx, cy);
                     return;
                 }
                 if (!dragging || activePointers.size !== 1) return;
@@ -7846,6 +8388,7 @@
                 dy = e.clientY - startY;
                 draw();
             });
+
             function endPan(e) {
                 activePointers.delete(e.pointerId);
                 dragging = false;

@@ -12,53 +12,31 @@ use Illuminate\Support\Facades\Log;
 
 class ActivityLogMiddleware
 {
-    /*
-    |--------------------------------------------------------------------------
-    | KONFIGURASI
-    |--------------------------------------------------------------------------
-    */
+    // Semua aktivitas tetap dicatat
+    private const ENABLE_LOG = true;
 
-    // Activity Log tetap aktif
-    private const ENABLE_LOG = false;
+    // Realtime melalui queue Pusher
+    private const ENABLE_REALTIME = true;
 
-    // Realtime Pusher dimatikan sementara
-    private const ENABLE_REALTIME = false;
-
-    // Cache module route selama 1 jam
+    // Cache module route 1 jam
     private const CACHE_SECONDS = 3600;
 
-    /*
-    |--------------------------------------------------------------------------
-    | HANDLE
-    |--------------------------------------------------------------------------
-    */
+    // Maksimal satu event setiap 10 detik
+    private const BROADCAST_INTERVAL = 10;
 
     public function handle(Request $request, Closure $next)
     {
-        // Langsung proses halaman tanpa query tambahan
         return $next($request);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | TERMINATE - LOGGING SETELAH RESPONSE
-    |--------------------------------------------------------------------------
-    */
-
-    public function terminate(Request $request, $response)
+    public function terminate(Request $request, $response): void
     {
         if (!self::ENABLE_LOG) {
             return;
         }
 
         try {
-
-            /*
-            |--------------------------------------------------------------------------
-            | EXCEPTION ROUTES
-            |--------------------------------------------------------------------------
-            */
-
+            // Route yang tidak perlu dicatat
             if ($request->routeIs(
                 'it.index',
                 'it.data',
@@ -67,31 +45,9 @@ class ActivityLogMiddleware
                 return;
             }
 
-            /*
-            |--------------------------------------------------------------------------
-            | HANYA USER LOGIN
-            |--------------------------------------------------------------------------
-            */
-
             if (!auth()->check()) {
                 return;
             }
-
-            /*
-            |--------------------------------------------------------------------------
-            | ROUTE & METHOD
-            |--------------------------------------------------------------------------
-            */
-
-            $routeName = $request->route()?->getName();
-
-            $method = $request->method();
-
-            /*
-            |--------------------------------------------------------------------------
-            | SKIP REQUEST TIDAK PERLU
-            |--------------------------------------------------------------------------
-            */
 
             if (
                 $request->is('broadcasting/*') ||
@@ -103,8 +59,7 @@ class ActivityLogMiddleware
                 return;
             }
 
-            // AJAX GET tidak dicatat
-            // POST, PUT, PATCH, DELETE tetap dicatat
+            // Lewati AJAX GET untuk mengurangi log
             if (
                 $request->ajax() &&
                 $request->isMethod('GET')
@@ -112,16 +67,13 @@ class ActivityLogMiddleware
                 return;
             }
 
-            /*
-            |--------------------------------------------------------------------------
-            | MODULE ROUTE CACHE
-            |--------------------------------------------------------------------------
-            */
+            $routeName = $request->route()?->getName();
+            $method = $request->method();
 
+            // Cari module_id dengan cache
             $moduleId = null;
 
             if ($routeName) {
-
                 $cacheKey = 'activity_module_' . md5(
                     $routeName . '|' . $method
                 );
@@ -130,7 +82,6 @@ class ActivityLogMiddleware
                     $cacheKey,
                     self::CACHE_SECONDS,
                     function () use ($routeName, $method) {
-
                         return ModuleRoute::where(
                             'route_name',
                             $routeName
@@ -146,38 +97,37 @@ class ActivityLogMiddleware
                 }
             }
 
-            /*
-            |--------------------------------------------------------------------------
-            | SIMPAN ACTIVITY LOG
-            |--------------------------------------------------------------------------
-            */
-
+            // Simpan semua aktivitas menggunakan model lama
             $activity = ActivityLog::create([
                 'user_id' => auth()->id(),
                 'module_id' => $moduleId,
                 'route_name' => $routeName,
-                'url' => '/' . ltrim(
-                    $request->path(),
-                    '/'
-                ),
+                'url' => '/' . ltrim($request->path(), '/'),
                 'method' => $method,
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
             ]);
 
-            /*
-            |--------------------------------------------------------------------------
-            | REALTIME PUSHER (OPTIONAL)
-            |--------------------------------------------------------------------------
-            */
-
+            // Realtime dibatasi agar hemat Pusher
             if (self::ENABLE_REALTIME) {
-                event(new ActivityLogged($activity));
+
+                // Gunakan cache bersama, misalnya database
+                // atau Redis, bukan cache lokal per worker.
+                $shouldBroadcast = Cache::add(
+                    'newwicker_activity_broadcast_throttle',
+                    true,
+                    self::BROADCAST_INTERVAL
+                );
+
+                if ($shouldBroadcast) {
+                    $activity->loadMissing('user');
+
+                    // Event akan masuk database queue
+                    event(new ActivityLogged($activity));
+                }
             }
 
         } catch (\Throwable $e) {
-
-            // Error logging tidak mengganggu halaman utama
             Log::error('ActivityLogMiddleware error', [
                 'message' => $e->getMessage(),
                 'route' => $request->route()?->getName(),
