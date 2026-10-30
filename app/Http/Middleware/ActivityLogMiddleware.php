@@ -19,7 +19,7 @@ class ActivityLogMiddleware
     */
 
     // Activity Log tetap aktif
-    private const ENABLE_LOG = true;
+    private const ENABLE_LOG = false;
 
     // Realtime Pusher dimatikan sementara
     private const ENABLE_REALTIME = false;
