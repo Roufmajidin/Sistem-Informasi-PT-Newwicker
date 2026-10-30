@@ -330,6 +330,8 @@
 
 
 
+                $profileInitial = mb_strtoupper(mb_substr(trim($loginUser?->name ?: '?'), 0, 1));
+
                 $profilePhoto = null;
 
 
@@ -460,8 +462,8 @@
                                                 <img src="{{ $profilePhoto }}" alt="Profile"
                                                     style="width:32px;height:32px;border-radius:50%;object-fit:cover;">
                                             @else
-                                                <span aria-label="Foto profil belum tersedia"
-                                                    style="display:block;width:32px;height:32px;border-radius:50%;background:#eef2f7;"></span>
+                                                <span aria-label="Inisial profil {{ $profileInitial }}"
+                                                    style="display:flex;width:32px;height:32px;border-radius:50%;background:#2563eb;color:#fff;align-items:center;justify-content:center;font-size:15px;font-weight:700;">{{ $profileInitial }}</span>
                                             @endif
 
 
@@ -552,8 +554,8 @@
                                     <img src="{{ $profilePhoto }}" class="drawer-avatar"
                                         alt="Foto profil" style="object-fit:cover;">
                                 @else
-                                    <div class="drawer-avatar" aria-label="Foto profil belum tersedia"
-                                        style="background:#eef2f7;margin-left:auto;margin-right:auto;"></div>
+                                    <div class="drawer-avatar" aria-label="Inisial profil {{ $profileInitial }}"
+                                        style="background:#2563eb;color:#fff;margin-left:auto;margin-right:auto;display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:700;">{{ $profileInitial }}</div>
                                 @endif
 
 
