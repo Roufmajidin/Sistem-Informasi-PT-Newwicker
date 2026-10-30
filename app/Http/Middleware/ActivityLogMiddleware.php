@@ -11,8 +11,8 @@ use Illuminate\Support\Facades\Log;
 
 class ActivityLogMiddleware
 {
-    private const ENABLE_LOG = true;
-    private const ENABLE_REALTIME = true;
+    private const ENABLE_LOG = false;
+    private const ENABLE_REALTIME = false;
     private const CACHE_SECONDS = 3600;
     private const BROADCAST_INTERVAL = 10;
 
