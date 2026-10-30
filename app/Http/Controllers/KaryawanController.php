@@ -897,34 +897,39 @@ class KaryawanController extends Controller
 
         return response()->json(['html' => $html]);
     }
-    public function updatePhoto(Request $request)
-    {
-        $request->validate([
-            'id' => 'required|exists:karyawans,id',
-            'photo' => 'required|image|max:2048',
-        ]);
+  
+public function updatePhoto(Request $request)
+{
+    $request->validate([
+        'id' => 'required|exists:karyawans,id',
+        'photo' => 'required|image|max:2048',
+    ]);
 
-        $karyawan = \App\Models\Karyawan::find($request->id);
-        $file = $request->file('photo');
-        $filename = 'user_' . time() . '.' . $file->getClientOriginalExtension();
+    $karyawan = \App\Models\Karyawan::findOrFail($request->id);
+    $file = $request->file('photo');
 
-        $file->move(public_path('assets/images/users/'), $filename);
+    $filename = 'user_' . time() . '.' . $file->getClientOriginalExtension();
 
-        // hapus foto lama jika bukan default
-        if ($karyawan->photo && $karyawan->photo !== 'default.png') {
-            @unlink(public_path('assets/images/users/' . $karyawan->photo));
-        }
+    // Simpan ke storage/app/public/upload/user/
+    $path = $file->storeAs('upload/user', $filename, 'public');
 
-        $karyawan->photo = $filename;
-        $karyawan->save();
-
-        return response()->json([
-            'success' => true,
-            'id' => $karyawan->id,
-            'message' => 'Foto berhasil diupdate',
-            'url' => asset('assets/images/users/' . $filename),
-        ]);
+    // Hapus foto lama jika bukan default
+    if ($karyawan->photo && $karyawan->photo !== 'default.png') {
+        \Illuminate\Support\Facades\Storage::disk('public')
+            ->delete('upload/user/' . $karyawan->photo);
     }
+
+    $karyawan->photo = $filename;
+    $karyawan->save();
+
+    return response()->json([
+        'success' => true,
+        'id' => $karyawan->id,
+        'message' => 'Foto berhasil diupdate',
+        'url' => asset('storage/' . $path),
+    ]);
+}
+
     // change password
     public function changePassword(Request $request)
     {
