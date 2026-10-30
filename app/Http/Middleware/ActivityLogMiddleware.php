@@ -1,3 +1,4 @@
+
 <?php
 
 namespace App\Http\Middleware;
@@ -12,15 +13,30 @@ use Illuminate\Support\Facades\Log;
 
 class ActivityLogMiddleware
 {
+    // Bisa diubah menjadi false untuk mematikan logging
+    private const ENABLE_LOG = true;
+
+    // Matikan realtime agar lebih ringan.
+    // Activity Log tetap tersimpan di database.
+    private const ENABLE_REALTIME = false;
+
     public function handle(Request $request, Closure $next)
     {
-        // Tidak menjalankan logging sebelum response.
         return $next($request);
     }
 
     public function terminate(Request $request, $response)
     {
+        if (!self::ENABLE_LOG) {
+            return;
+        }
+
         try {
+            // Hanya user yang login
+            if (!auth()->check()) {
+                return;
+            }
+
             // Route yang tidak perlu dicatat
             if ($request->routeIs(
                 'it.index',
@@ -30,28 +46,50 @@ class ActivityLogMiddleware
                 return;
             }
 
-            // Hanya user login
-            if (!auth()->check()) {
+            // Abaikan request polling / prefetch
+            if (
+                $request->is('broadcasting/*') ||
+                $request->is('livewire/*') ||
+                $request->is('build/*') ||
+                $request->is('storage/*') ||
+                $request->is('api/polling/*')
+            ) {
+                return;
+            }
+
+            // Abaikan request AJAX GET untuk mengurangi log.
+            // POST, PUT, PATCH, DELETE tetap dicatat.
+            if (
+                $request->ajax() &&
+                $request->isMethod('GET')
+            ) {
                 return;
             }
 
             $routeName = $request->route()?->getName();
+
+            if (!$routeName) {
+                return;
+            }
+
             $method = $request->method();
 
-            // Cache lookup module selama 10 menit.
-            // Gunakan sentinel agar module_id null tetap bisa dicache.
+            // Cari module ID dengan cache 1 jam
             $cacheKey = 'activity_module_' . md5(
-                ($routeName ?? '') . '|' . $method
+                $routeName . '|' . $method
             );
 
             $moduleId = Cache::remember(
                 $cacheKey,
-                now()->addMinutes(10),
+                3600,
                 function () use ($routeName, $method) {
-                    return ModuleRoute::where('route_name', $routeName)
-                        ->where('method', $method)
-                        ->where('is_active', true)
-                        ->value('module_id') ?? '__none__';
+                    return ModuleRoute::where(
+                        'route_name',
+                        $routeName
+                    )
+                    ->where('method', $method)
+                    ->where('is_active', true)
+                    ->value('module_id') ?? '__none__';
                 }
             );
 
@@ -59,7 +97,7 @@ class ActivityLogMiddleware
                 $moduleId = null;
             }
 
-            // Simpan log ke database
+            // Simpan activity log
             $activity = ActivityLog::create([
                 'user_id' => auth()->id(),
                 'module_id' => $moduleId,
@@ -70,14 +108,14 @@ class ActivityLogMiddleware
                 'user_agent' => $request->userAgent(),
             ]);
 
-            // Event realtime tetap dipanggil
-            event(new ActivityLogged($activity));
+            // Realtime opsional
+            if (self::ENABLE_REALTIME) {
+                event(new ActivityLogged($activity));
+            }
 
         } catch (\Throwable $e) {
-            // Logging gagal tidak membuat halaman error.
             Log::error('ActivityLogMiddleware error', [
                 'message' => $e->getMessage(),
-                'route' => $request->route()?->getName(),
             ]);
         }
     }
