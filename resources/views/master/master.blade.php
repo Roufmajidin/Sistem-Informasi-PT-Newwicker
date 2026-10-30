@@ -17,6 +17,9 @@
             <meta name="mobile-web-app-capable" content="yes">
             <link rel="shortcut icon" href="{{asset('assets/images/newwicker.jpg')}}">
             <meta name="csrf-token" content="{{ csrf_token() }}">
+            {{-- Turbo hanya aktif pada link yang diberi data-turbo="true" --}}
+            <meta name="turbo-cache-control" content="no-cache">
+            <script src="https://cdn.jsdelivr.net/npm/@hotwired/turbo@8.0.20/dist/turbo.es2017-umd.js" defer></script>
             <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
 
 
@@ -102,7 +105,7 @@
     </style>
         </head>
 
-        <body>
+        <body data-turbo="false">
             <div class="app" id="app">
 
                 <!-- ############ LAYOUT START-->
