@@ -40,11 +40,12 @@
 
             <meta name="turbo-cache-control" content="no-cache">
 
-            <script src="https\://cdn.jsdelivr.net/npm/@hotwired/turbo@8.0.20/dist/turbo.es2017-umd.js" defer></script>
+            <script src="https://cdn.jsdelivr.net/npm/@hotwired/turbo@8.0.20/dist/turbo.es2017-umd.js" defer></script>
 
             {{-- NewWicker Turbo Boost: opt-in only, aman untuk halaman legacy --}}
 
             <script defer>
+
                 (function() {
 
                     function setupTurbo() {
@@ -126,9 +127,11 @@
                     }
 
                 })();
+
             </script>
 
             <style>
+
                 .turbo-progress-bar {
 
                     height: 3px;
@@ -138,9 +141,10 @@
                     z-index: 99999;
 
                 }
+
             </style>
 
-            <link href="https\://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+            <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
 
 
 
@@ -155,6 +159,7 @@
             <link rel="stylesheet" href="{{ asset('assets/font-awesome/css/font-awesome.min.css') }}" type="text/css" />
 
             <link rel="stylesheet" href="{{ asset('assets/material-design-icons/material-design-icons.css') }}"
+
                 type="text/css" />
 
 
@@ -173,17 +178,17 @@
 
             <link rel="stylesheet" href="{{ asset('assets/styles/style_pengajuan.css') }}" type="text/css" />
 
-            <!-- <link rel="stylesheet" href="https\://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.3/css/bootstrap.min.css" /> -->
+            <!-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.3/css/bootstrap.min.css" /> -->
 
             <!-- <link href="{{ asset('assets/editable/css/bootstrap.min.css') }}}}" rel="stylesheet"> -->
 
             <script src="{{ asset('assets/editable/js/bootstrap.min.js') }}"></script>
 
-            <link rel="stylesheet" href="https\://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
 
 
-            <!-- <link href="https\://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet"> -->
+            <!-- <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet"> -->
 
             <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 
@@ -192,6 +197,7 @@
             <meta http-equiv="Expires" content="0">
 
             <style>
+
                 #drawerOverlay {
 
                     position: fixed;
@@ -299,6 +305,7 @@
                     color: green;
 
                 }
+
             </style>
 
         </head>
@@ -313,18 +320,32 @@
 
                 $loginUser = auth()->user();
 
+
+
                 $profileKaryawan = $loginUser?->karyawan_id
+
                     ? \App\Models\Karyawan::find($loginUser->karyawan_id)
+
                     : null;
+
+
 
                 $profilePhoto = null;
 
+
+
                 if ($profileKaryawan && !empty($profileKaryawan->photo) && $profileKaryawan->photo !== 'default.png') {
+
                     $photoPath = 'upload/user/' . $profileKaryawan->photo;
 
+
+
                     if (\Illuminate\Support\Facades\Storage::disk('public')->exists($photoPath)) {
+
                         $profilePhoto = asset('storage/' . $photoPath);
+
                     }
+
                 }
 
             @endphp
@@ -446,6 +467,7 @@
 
 
                                             <small
+
                                                 style="
 
                         display:block;
@@ -527,8 +549,8 @@
 
 
                                 @if ($profilePhoto)
-                                    <img src="{{ $profilePhoto }}" class="drawer-avatar" alt="Foto profil"
-                                        style="object-fit:cover;">
+                                    <img src="{{ $profilePhoto }}" class="drawer-avatar"
+                                        alt="Foto profil" style="object-fit:cover;">
                                 @else
                                     <div class="drawer-avatar" aria-label="Foto profil belum tersedia"
                                         style="background:#eef2f7;margin-left:auto;margin-right:auto;"></div>
@@ -676,19 +698,21 @@
 
                     <!-- Bootstrap 4 -->
 
-                    <script src="https\://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+                    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 
 
 
-                    <script src="https\://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+                    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
 
 
 
                     <script>
+
                         var $ = jQuery.noConflict();
+
                     </script>
 
-                    <script src="{{ asset('assets/libs/jquery/jquery/dist/jquery.js') }}"></script> -->
+                    <script src="{{ asset('assets/libs/jquery/jquery/dist/jquery.js') }}"></script>
 
                     <!-- Bootstrap -->
 
@@ -734,15 +758,15 @@
 
                     <script src="{{ asset('assets/scripts/app.js') }}"></script>
 
-                    <!-- <link rel="stylesheet" href="https\://cdn.jsdelivr.net/npm/bootstrap4-multiselect/css/bootstrap-multiselect.css"> -->
+                    <!-- <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap4-multiselect/css/bootstrap-multiselect.css"> -->
 
-                    <!-- <script src="https\://cdn.jsdelivr.net/npm/bootstrap4-multiselect/js/bootstrap-multiselect.min.js"></script> -->
+                    <!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap4-multiselect/js/bootstrap-multiselect.min.js"></script> -->
 
 
 
                     <!-- Bootstrap JS (include Popper) -->
 
-                    <script src="https\://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+                    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
 
 
@@ -754,7 +778,7 @@
 
                     <!-- endbuild -->
 
-                    <!-- <script src=" https\://code.jquery.com/jquery-3.6.0.min.js"></script> -->
+                    <!-- <script src=" https://code.jquery.com/jquery-3.6.0.min.js"></script> -->
 
 
 
@@ -763,27 +787,32 @@
 
 
                     <link
+
                         href="//cdnjs.cloudflare.com/ajax/libs/x-editable/1.5.0/jquery-editable/css/jquery-editable.css"
+
                         rel="stylesheet" />
 
 
 
                     <script>
+
                         $.fn.poshytip = {
 
                             defaults: null
 
                         }
+
                     </script>
 
 
 
                     <script src="//cdnjs.cloudflare.com/ajax/libs/x-editable/1.5.0/jquery-editable/js/jquery-editable-poshytip.min.js">
+
                     </script>
 
                     <script src="{{ asset('assets/main.js') }}"></script>
 
-                    <script src="https\://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+                    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
 
                     <script src="{{ asset('assets/cam/cam.js') }}" type="text/javascript"></script>
 
@@ -793,42 +822,44 @@
 
 
 
-                    <script src="https\://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+                    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 
 
 
-                    <link rel="stylesheet" href="https\://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+                    <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
 
-                    <script src="https\://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+                    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
 
 
 
                     <!-- JS -->
 
-                    <script src="https\://cdn.jsdelivr.net/npm/flatpickr"></script>
+                    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
-                    <link rel="stylesheet" href="https\://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+                    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
 
-                    <script src="https\://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+                    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 
 
 
                     <!-- DataTables Buttons extension -->
 
                     <link rel="stylesheet"
-                        href="https\://cdn.datatables.net/buttons/2.4.1/css/buttons.dataTables.min.css">
 
-                    <script src="https\://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
+                        href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.dataTables.min.css">
 
-                    <script src="https\://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
+                    <script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
+
+                    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
 
 
 
                     <!-- JSZip (dibutuhkan untuk export Excel) -->
 
-                    <script src="https\://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+                    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
                     <script>
+
                         // if (window.history && window.history.pushState) {
 
                         //     window.history.pushState(null, null, window.location.href);
@@ -840,74 +871,31 @@
                         //     };
 
                         // }
+
                     </script>
 
-                    <script src="https\://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+                    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
                     {{-- new cript --}}
 
                     <script>
-                        $('#openProfileDrawer').click(function() {
 
-
-
-                            $('#profileDrawer').addClass('show');
-
-                            $('#drawerOverlay').show();
-
-
-
-                        });
-
-
-
-                        $('#closeDrawer,#drawerOverlay').click(function() {
-
-
-
-                            $('#profileDrawer').removeClass('show');
-
-                            $('#drawerOverlay').hide();
-
-
-
-                        });
-
-
-
-                        $('#btnLogout').click(function() {
-
-
-
-                            if (confirm('Logout sekarang?')) {
-
-
-
-                                $('#logout-form').submit();
-
-
-
-                            }
-
-
-
-                        });
-
-
+                        // Drawer & logout ditangani dengan native JS di bawah,
+                        // agar tetap berfungsi walaupun plugin jQuery lain bermasalah.
 
                         $('#btnProfile').click(function(e) {
 
 
 
-                                    e.preventDefault();
+                            e.preventDefault();
 
 
 
-                                    $('#drawerMenu').hide();
+                            $('#drawerMenu').hide();
 
 
 
-                                    $('#profileContent').html(\`
+                            $('#profileContent').html(`
 
             <div class="p-3">
 
@@ -1003,27 +991,27 @@
 
             </div>
 
-        \`).show();
+        `).show();
 
 
 
-                                                                });
+                        });
 
 
 
-                                                                $('#btnPassword').click(function(e) {
+                        $('#btnPassword').click(function(e) {
 
 
 
-                                                                    e.preventDefault();
+                            e.preventDefault();
 
 
 
-                                                                    $('#drawerMenu').hide();
+                            $('#drawerMenu').hide();
 
 
 
-                                                                    $('#profileContent').html(\`
+                            $('#profileContent').html(`
 
 
 
@@ -1125,226 +1113,228 @@
 
 
 
-        \`).show();
+        `).show();
 
 
 
-                                                                });
+                        });
 
-                                                                $(document).on('click', '#togglePassword', function() {
+                        $(document).on('click', '#togglePassword', function() {
 
 
 
-                                                                    let input = $('#new_password');
+                            let input = $('#new_password');
 
 
 
-                                                                    let icon = $(this).find('i');
+                            let icon = $(this).find('i');
 
 
 
-                                                                    if (input.attr('type') === 'password') {
+                            if (input.attr('type') === 'password') {
 
 
 
-                                                                        input.attr('type', 'text');
+                                input.attr('type', 'text');
 
 
 
-                                                                        icon.removeClass('fa-eye')
+                                icon.removeClass('fa-eye')
 
-                                                                            .addClass('fa-eye-slash');
+                                    .addClass('fa-eye-slash');
 
 
 
-                                                                    } else {
+                            } else {
 
 
 
-                                                                        input.attr('type', 'password');
+                                input.attr('type', 'password');
 
 
 
-                                                                        icon.removeClass('fa-eye-slash')
+                                icon.removeClass('fa-eye-slash')
 
-                                                                            .addClass('fa-eye');
+                                    .addClass('fa-eye');
 
 
 
-                                                                    }
+                            }
 
 
 
-                                                                });
+                        });
 
 
 
-                                                                function setRule(selector, valid) {
+                        function setRule(selector, valid) {
 
 
 
-                                                                    $(selector).toggleClass(
+                            $(selector).toggleClass(
 
-                                                                        'valid',
+                                'valid',
 
-                                                                        valid
+                                valid
 
-                                                                    );
+                            );
 
 
 
-                                                                }
+                        }
 
-                                                                $(document).on(
+                        $(document).on(
 
-                                                                    'click',
+                            'click',
 
-                                                                    '#btnSavePassword',
+                            '#btnSavePassword',
 
-                                                                    function() {
+                            function() {
 
 
 
-                                                                        let password =
+                                let password =
 
-                                                                            $('#new_password').val();
+                                    $('#new_password').val();
 
 
 
-                                                                        if (!password) {
+                                if (!password) {
 
 
 
-                                                                            Swal.fire({
+                                    Swal.fire({
 
-                                                                                icon: 'warning',
+                                        icon: 'warning',
 
-                                                                                title: 'Password Kosong',
+                                        title: 'Password Kosong',
 
-                                                                                text: 'Silakan isi password baru'
+                                        text: 'Silakan isi password baru'
 
-                                                                            });
+                                    });
 
 
 
-                                                                            return;
+                                    return;
 
-                                                                        }
+                                }
 
 
 
-                                                                        $.ajax({
+                                $.ajax({
 
 
 
-                                                                            url: "{{ route('profile.change-password') }}",
+                                    url: "{{ route('profile.change-password') }}",
 
 
 
-                                                                            type: 'POST',
+                                    type: 'POST',
 
 
 
-                                                                            data: {
+                                    data: {
 
 
 
-                                                                                _token: "{{ csrf_token() }}",
+                                        _token: "{{ csrf_token() }}",
 
 
 
-                                                                                password: password
+                                        password: password
 
 
 
-                                                                            },
+                                    },
 
 
 
-                                                                            success: function(res) {
+                                    success: function(res) {
 
 
 
-                                                                                Swal.fire({
+                                        Swal.fire({
 
-                                                                                    icon: 'success',
+                                            icon: 'success',
 
-                                                                                    title: 'Berhasil reset password.',
+                                            title: 'Berhasil reset password.',
 
-                                                                                    text: res.message,
+                                            text: res.message,
 
-                                                                                    timer: 2000,
+                                            timer: 2000,
 
-                                                                                    showConfirmButton: false
+                                            showConfirmButton: false
 
-                                                                                });
+                                        });
 
 
 
-                                                                                $('#new_password').val('');
+                                        $('#new_password').val('');
 
 
 
-                                                                            },
+                                    },
 
 
 
-                                                                            error: function(xhr) {
+                                    error: function(xhr) {
 
 
 
-                                                                                Swal.fire({
+                                        Swal.fire({
 
-                                                                                    icon: 'error',
+                                            icon: 'error',
 
-                                                                                    title: 'Gagal',
+                                            title: 'Gagal',
 
-                                                                                    text: xhr.responseJSON?.message ??
+                                            text: xhr.responseJSON?.message ??
 
-                                                                                        'Terjadi kesalahan'
+                                                'Terjadi kesalahan'
 
-                                                                                });
+                                        });
 
 
 
-                                                                            }
+                                    }
 
 
 
-                                                                        });
+                                });
 
 
 
-                                                                    }
+                            }
 
-                                                                );
+                        );
 
 
 
-                                                                function backMenu() {
+                        function backMenu() {
 
 
 
-                                                                    $('#profileContent')
+                            $('#profileContent')
 
-                                                                        .hide()
+                                .hide()
 
-                                                                        .html('');
+                                .html('');
 
 
 
-                                                                    $('#drawerMenu')
+                            $('#drawerMenu')
 
-                                                                        .show();
+                                .show();
 
 
 
-                                                                }
+                        }
+
                     </script>
 
                     {{-- notifi --}}
 
                     <script>
+
                         $(function() {
 
                             checkPfiNotification();
@@ -1429,7 +1419,7 @@
 
 
 
-                                        html += \`
+                                html += `
 
             <div style="
 
@@ -1455,29 +1445,29 @@
 
             </div>
 
-        \`;
+        `;
 
 
 
-                                                                    });
+                            });
 
 
 
-                                                                    html += \`
+                            html += `
 
-\`;
+`;
 
 
 
-                                                                    Swal.fire({
+                            Swal.fire({
 
-                                                                        toast: true,
+                                toast: true,
 
-                                                                        position: 'top-end',
+                                position: 'top-end',
 
-                                                                        icon: 'info',
+                                icon: 'info',
 
-                                                                        title: \`PFI Baru Release <span style="
+                                title: `PFI Baru Release <span style="
 
                 display:inline-flex;
 
@@ -1525,95 +1515,128 @@
 
                 margin-left:5px;
 
-            ">🔕 Bisukan</button>\`,
+            ">🔕 Bisukan</button>`,
 
-                                                                        html: html,
+                                html: html,
 
-                                                                        showConfirmButton: false,
+                                showConfirmButton: false,
 
-                                                                        timer: 15000,
+                                timer: 15000,
 
-                                                                        timerProgressBar: true,
-
-
-
-                                                                        didOpen: () => {
+                                timerProgressBar: true,
 
 
 
-                                                                            $('#mutePfiBtn').on(
-
-                                                                                'click',
-
-                                                                                function() {
+                                didOpen: () => {
 
 
 
-                                                                                    let today =
+                                    $('#mutePfiBtn').on(
 
-                                                                                        new Date()
+                                        'click',
 
-                                                                                        .toISOString()
-
-                                                                                        .slice(0, 10);
+                                        function() {
 
 
 
-                                                                                    localStorage.setItem(
+                                            let today =
 
-                                                                                        'mute_pfi_notification',
+                                                new Date()
 
-                                                                                        today
+                                                .toISOString()
 
-                                                                                    );
-
-
-
-                                                                                    Swal.close();
+                                                .slice(0, 10);
 
 
 
-                                                                                }
+                                            localStorage.setItem(
 
-                                                                            );
+                                                'mute_pfi_notification',
 
+                                                today
 
-
-                                                                        }
-
-                                                                    });
+                                            );
 
 
 
-                                                                }
+                                            Swal.close();
 
 
 
-                                                                function playNotification() {
+                                        }
+
+                                    );
 
 
 
-                                                                    const audio =
+                                }
 
-                                                                        new Audio(
-
-                                                                            '/assets/sounds/notify.wav'
-
-                                                                        );
+                            });
 
 
 
-                                                                    audio.volume = 1;
+                        }
 
 
 
-                                                                    audio.play()
-
-                                                                        .catch(() => {});
+                        function playNotification() {
 
 
 
-                                                                }
+                            const audio =
+
+                                new Audio(
+
+                                    '/assets/sounds/notify.wav'
+
+                                );
+
+
+
+                            audio.volume = 1;
+
+
+
+                            audio.play()
+
+                                .catch(() => {});
+
+
+
+                        }
+
+                    </script>
+
+
+                    {{-- Profile drawer: tidak bergantung pada jQuery --}}
+                    <script>
+                    (function () {
+                        if (window.__newwickerProfileDrawerReady) return;
+                        window.__newwickerProfileDrawerReady = true;
+
+                        document.addEventListener('click', function (event) {
+                            const open = event.target.closest('#openProfileDrawer');
+                            const close = event.target.closest('#closeDrawer, #drawerOverlay');
+                            const logout = event.target.closest('#btnLogout');
+
+                            if (!open && !close && !logout) return;
+                            event.preventDefault();
+
+                            const drawer = document.getElementById('profileDrawer');
+                            const overlay = document.getElementById('drawerOverlay');
+
+                            if (open) {
+                                if (drawer) drawer.classList.add('show');
+                                if (overlay) overlay.style.display = 'block';
+                            } else if (close) {
+                                if (drawer) drawer.classList.remove('show');
+                                if (overlay) overlay.style.display = 'none';
+                            } else if (logout && confirm('Logout sekarang?')) {
+                                const form = document.getElementById('logout-form');
+                                if (form) form.submit();
+                            }
+                        });
+                    })();
                     </script>
 
                     @stack('scripts')
