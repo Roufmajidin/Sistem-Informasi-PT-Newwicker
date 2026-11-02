@@ -532,8 +532,12 @@
                                      <span class="nav-text">Release PFI</span>
                                  </a>
                              <li>
-                             <li><a href="/produksi/mn"><span class="nav-text">Monitoring Produksi</span></a></li>
-
+                              <li>
+                                 <a href="/produksi/mn">
+                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                     <span class="nav-text">Monitoring Produksi</span>
+                                 </a>
+                             <li>
                              <li>
                                  <a>
                                      <span class="nav-caret"><i class="fa fa-caret-down"></i></span>
