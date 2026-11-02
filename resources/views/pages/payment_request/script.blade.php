@@ -1,3 +1,12 @@
+{{-- Resolve akun Made By untuk tanda tangan. Tidak mengubah approval. --}}
+@php
+    $paymentRequestIntanUserId = \Illuminate\Support\Facades\DB::table('users')
+        ->whereRaw('LOWER(TRIM(name)) = ?', ['intan'])
+        ->value('id');
+    $paymentRequestNurUserId = \Illuminate\Support\Facades\DB::table('users')
+        ->whereRaw('LOWER(TRIM(name)) = ?', ['nur khasanah'])
+        ->value('id');
+@endphp
 {{-- script --}}
 <script>
     // Format tanggal API tanpa menggeser hari akibat timezone.
@@ -233,10 +242,14 @@
                         $('.draft-row.active-row').attr('data-production-code') || '').toUpperCase();
                     const madeByIsIntan = ['NWS', 'NWD'].includes(madeByCode);
                     const madeByName = madeByIsIntan ? 'Intan' : 'Nur Khasanah';
-                    // Pastikan file signature/intan.png tersedia di folder public.
-                    const madeBySignature = madeByIsIntan
-                        ? @json(asset('signature/intan.png'))
-                        : @json(asset('signature/1.png'));
+                    // TTD Made By mengikuti ID akun user (public/assets/signature/{id}.png).
+                    // ID diambil dari tabel users berdasarkan nama, bukan nama file hardcoded.
+                    const madeByUserId = madeByIsIntan
+                        ? @json($paymentRequestIntanUserId)
+                        : @json($paymentRequestNurUserId);
+                    const madeBySignature = madeByUserId
+                        ? @json(asset('assets/signature')) + '/' + encodeURIComponent(madeByUserId) + '.png'
+                        : '';
                     let html = `
 <div id="printArea">
      <div class="alert alert-info mb-3 no-print print-instructions">
@@ -478,8 +491,13 @@
                 </div>
 
               <div style="height:70px;">
+    ${madeBySignature ? `
     <img src="${madeBySignature}"
-        style="max-height:50px; max-width:120px;">
+         alt="Tanda tangan ${madeByName}"
+         style="max-height:50px; max-width:120px; object-fit:contain;"
+         onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';">
+    <span style="display:none;color:#94a3b8;font-size:10px;">TTD belum tersedia</span>
+    ` : `<span style="color:#94a3b8;font-size:10px;">TTD belum tersedia</span>`}
 </div>
 
 <div style="font-weight:bold;">
