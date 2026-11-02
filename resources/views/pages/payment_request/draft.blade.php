@@ -587,7 +587,9 @@
                                     <tbody>
                                         @forelse($draftRequests as $draft)
                                             <tr class="draft-row" data-id="{{ $draft['id'] }}"
-                                                data-production-code="{{ strtoupper($draft['production_code'] ?? '') }}">
+                                                data-production-code="{{ strtoupper($draft['production_code'] ?? '') }}"
+                                                data-request-date="{{ $draft['request_date'] ?? '' }}"
+                                                data-need-date="{{ $draft['need_date'] ?? '' }}">
                                                 <td>
                                                     {{ $loop->iteration }}
                                                 </td>

@@ -226,8 +226,13 @@
             $.get(
                 `/payment-request-saved/${draftId}/detail`,
                 function(res) {
-                    let requestDate = formatPaymentDateDMY(res.request_date);
-                    let needDate = formatPaymentDateDMY(res.need_date);
+                    // Gunakan tanggal yang sama dengan daftar Payment Requests (server-rendered).
+                    // Fallback ke API jika baris daftar tidak menyimpan tanggal.
+                    const activeDraftRow = $('.draft-row.active-row');
+                    const listedRequestDate = activeDraftRow.attr('data-request-date');
+                    const listedNeedDate = activeDraftRow.attr('data-need-date');
+                    let requestDate = formatPaymentDateDMY(listedRequestDate || res.request_date);
+                    let needDate = formatPaymentDateDMY(listedNeedDate || res.need_date);
                     const detailSpks = (res.items || []).map(x => x.spk_no || x.no_spk || '').join(' ');
                     const detailSpkMatch = detailSpks.match(/\/(NWS|NWD|NWR|NW)(?=\s|\/|-|$)/i);
                     const currentDraftCode = String(res.production_code || $('.draft-row.active-row').attr(
@@ -297,7 +302,7 @@
                         </td>
                         <td style=" border:1px solid black;  padding:4px;font-size:11px;
                             ">
-                            <input type="tet" id="need_date" value="${needDate}"
+                            <input type="text" id="need_date" value="${needDate}"
                                 style="
                                     width:100%;
                                     border:none;
