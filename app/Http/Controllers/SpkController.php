@@ -10228,6 +10228,55 @@ class SpkController extends Controller
             'spk_id' => $spkId,
         ], 200);
     }
+      public function scanNoSpk(Request $request)
+    {
+        abort_unless(auth()->check(), 401);
+        $scan = $this->scanSpkSequence();
+        return response()->json(['success' => true] + $scan);
+    }
+  private function scanSpkSequence(?int $year = null): array
+{
+    $year = $year ?? (int) now()->format('y');
+    $prefix = str_pad((string) $year, 2, '0', STR_PAD_LEFT);
 
+    $highest = 0;
+    $latestNumber = null;
 
+    Spk::query()
+        ->select(['id', 'data'])
+        ->chunkById(500, function ($rows) use ($prefix, &$highest, &$latestNumber) {
+            foreach ($rows as $row) {
+                $data = is_array($row->data)
+                    ? $row->data
+                    : json_decode($row->data ?? '{}', true);
+
+                if (!is_array($data)) {
+                    continue;
+                }
+
+                $number = trim((string) ($data['no_spk'] ?? ''));
+
+                if (preg_match(
+                    '/^' . preg_quote($prefix, '/') . '-(\d+)(?=\/|$)/',
+                    $number,
+                    $matches
+                )) {
+                    $sequence = (int) $matches[1];
+
+                    if ($sequence > $highest) {
+                        $highest = $sequence;
+                        $latestNumber = $number;
+                    }
+                }
+            }
+        });
+
+    return [
+        'year' => $prefix,
+        'last_sequence' => $highest,
+        'last_no_spk' => $latestNumber,
+        'next_sequence' => $highest + 1,
+    ];
+}
+  
 }

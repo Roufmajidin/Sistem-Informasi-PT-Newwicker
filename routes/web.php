@@ -8,7 +8,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\KaryawanController;
 use App\Http\Controllers\LabelController;
-;
+
 use App\Http\Controllers\MarketingController;
 use App\Http\Controllers\PameranContrller;
 use App\Http\Controllers\PdfController;
@@ -48,6 +48,7 @@ use App\Http\Controllers\GoogleDriveAuthController;
 // MAGIC APPROVAL LINK - PUBLIC ENTRY POINT
 // ==========================================================
     Route::get('/spk/edit/{id}', [SpkController::class, 'index'])->name('spk.edit');
+    Route::get('/spk/scan-number', [SpkController::class, 'scanNoSpk'])->name('spk.scan-number');
 
 Route::get('/qc/getPoDetail/{kategoriId}/{detailPo}/{poId}', [QcController::class, 'getDataApi']);
 Route::get('/spk/magic/{token}', [

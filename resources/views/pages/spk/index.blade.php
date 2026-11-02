@@ -10634,4 +10634,49 @@ document.addEventListener('DOMContentLoaded', function () {
 
 @endif
 
+
+{{-- Informasi nomor SPK hanya pada mode CREATE. Field tetap editable. --}}
+@if(($spk['mode'] ?? '') === 'create' && !$viewOnly)
+<style>
+#spkSequenceToast {position:fixed;right:20px;bottom:22px;z-index:999999;background:#172b45;color:#fff;padding:12px 16px;border-radius:10px;box-shadow:0 8px 26px #0003;font-size:12px;max-width:360px;display:none;line-height:1.5}
+#spkSequenceToast strong {color:#a7f3d0}
+</style>
+<div id="spkSequenceToast" role="status" aria-live="polite"></div>
+<script>
+document.addEventListener('DOMContentLoaded', async function () {
+    const toast = document.getElementById('spkSequenceToast');
+    const field = document.querySelector('.no-spk');
+    if (!toast || !field) return;
+    const initialValue = field.textContent.trim();
+    let manuallyEdited = false;
+    field.addEventListener('input', () => { manuallyEdited = true; }, {once:true});
+    try {
+        const response = await fetch(@json(url('/spk/scan-number')), {
+            headers: {'Accept':'application/json','X-Requested-With':'XMLHttpRequest'},
+            credentials: 'same-origin'
+        });
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        const result = await response.json();
+        if (!result.success) throw new Error('Scan gagal');
+        const last = result.last_sequence ? String(result.year) + '-' + String(result.last_sequence).padStart(4,'0') : 'Belum ada';
+        const next = String(result.year) + '-' + String(result.next_sequence).padStart(4,'0');
+        toast.textContent = 'SPK terakhir: ' + last + '  |  Berikutnya: ' + next;
+        toast.style.display = 'block';
+        setTimeout(() => { toast.style.display = 'none'; }, 5500);
+        // Nomor lengkap dari server dipertahankan; hanya koreksi urut jika belum diedit.
+        if (!manuallyEdited && field.textContent.trim() === initialValue) {
+            const existing = field.textContent.trim();
+            const updated = existing.replace(/^\d{2}-\d+/, next);
+            if (updated !== existing) field.textContent = updated;
+        }
+    } catch (error) {
+        console.warn('SPK sequence scan:', error);
+        toast.textContent = 'Nomor SPK belum berhasil diperiksa. Periksa koneksi.';
+        toast.style.display = 'block';
+        setTimeout(() => { toast.style.display = 'none'; }, 4500);
+    }
+});
+</script>
+@endif
+
 @endsection
