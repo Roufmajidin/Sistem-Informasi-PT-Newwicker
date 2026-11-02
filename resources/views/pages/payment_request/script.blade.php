@@ -225,6 +225,18 @@
                         'data-production-code') || (detailSpkMatch ? detailSpkMatch[1] : '')).toUpperCase();
                     const currentDepartment = ['NWS', 'NWD', 'NWR'].includes(currentDraftCode) ?
                         'RND Engineering' : 'Purchasing';
+                    // Identitas Made By mengikuti tipe SPK, bukan user yang membuka detail.
+                    const madeBySpkNumbers = (res.items || []).map(item => item.spk_no || item.no_spk || '').join(' ');
+                    const madeBySpkMatch = madeBySpkNumbers.match(/\/(NWS|NWD|NWR|NW)(?=\s|\/|-|$)/i);
+                    const madeByCode = String(res.production_code ||
+                        (madeBySpkMatch ? madeBySpkMatch[1] : '') ||
+                        $('.draft-row.active-row').attr('data-production-code') || '').toUpperCase();
+                    const madeByIsIntan = ['NWS', 'NWD'].includes(madeByCode);
+                    const madeByName = madeByIsIntan ? 'Intan' : 'Nur Khasanah';
+                    // Pastikan file signature/intan.png tersedia di folder public.
+                    const madeBySignature = madeByIsIntan
+                        ? @json(asset('signature/intan.png'))
+                        : @json(asset('signature/1.png'));
                     let html = `
 <div id="printArea">
      <div class="alert alert-info mb-3 no-print print-instructions">
@@ -466,12 +478,12 @@
                 </div>
 
               <div style="height:70px;">
-    <img src="{{ asset('signature/1.png') }}"
+    <img src="${madeBySignature}"
         style="max-height:50px; max-width:120px;">
 </div>
 
 <div style="font-weight:bold;">
-    Nur Khasanah
+    ${madeByName}
 </div>
 
             </td>

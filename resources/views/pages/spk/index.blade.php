@@ -2562,8 +2562,8 @@
                 <button type="button" class="btn-tool" id="previewBtn">
                     Preview
                 </button>
-                <button type="button" class="btn-tool"
-                    onclick="window.location.href='{{ route('spk.export', $spk['id']) }}'">⬇ Download Excel</button>
+                {{-- <button type="button" class="btn-tool"
+                    onclick="window.location.href='{{ route('spk.export', $spk['id']) }}'">⬇ Download Excel</button> --}}
                 <button type="button" class="btn-tool" id="screenshotSpkBtn">📸 Screenshot</button>
                 <button type="button" class="btn-tool" id="copyJpegBtn">📋 Salin</button>
             </div>
