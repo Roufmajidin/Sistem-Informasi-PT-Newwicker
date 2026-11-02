@@ -24,7 +24,7 @@
                      {{-- Menu umum untuk semua role --}}
                      <li>
                          <a href="/">
-                             <span class="nav-icon"><i class="material-icons">&#xe3fc;</i></span>
+                             <span class="nav-icon"><i class="material-icons">dashboard</i></span>
                              <span class="nav-text">Dashboard</span>
                          </a>
                      </li>
@@ -32,13 +32,13 @@
                      {{-- 🔹 Role: HRD --}}
                      <li>
                          <a href="/karyawan-scan">
-                             <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                             <span class="nav-icon"><i class="material-icons" aria-hidden="true">&#xe90d;</i></span>
                              <span class="nav-text">Absen Sekarang</span>
                          </a>
                      </li>
                      <li>
                          <a href="{{ route('absen.riwayat') }}">
-                             <span class="nav-icon"><i class="material-icons">&#xe192;</i></span>
+                             <span class="nav-icon"><i class="material-icons">history</i></span>
                              <span class="nav-text">Riwayat Absen</span>
                          </a>
 
@@ -59,7 +59,7 @@
                          <li>
                              <a href="/pengajuan">
                                  <span class="nav-icon">
-                                     <i class="material-icons">&#xe85e;</i>
+                                     <i class="material-icons">assignment</i>
                                  </span>
                                  <span class="nav-text">Pengajuan</span>
                              </a>
@@ -72,7 +72,7 @@
                          @if (Auth::user()->role === 'export')
                              <li>
                                  <a href="/marketing-release-order">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                     <span class="nav-icon"><i class="material-icons">assignment_turned_in</i></span>
                                      <span class="nav-text">Release PFI</span>
                                  </a>
                              </li>
@@ -84,7 +84,7 @@
                                      </span>
 
                                      <span class="nav-icon">
-                                         <i class="material-icons">&#xe85e;</i>
+                                         <i class="material-icons">local_shipping</i>
                                      </span>
 
                                      <span class="nav-text">Export</span>
@@ -135,14 +135,14 @@
                          @if (auth()->user()->role == 'finance')
                              <li>
                                  <a href="/marketing-release-order">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                     <span class="nav-icon"><i class="material-icons">assignment_turned_in</i></span>
                                      <span class="nav-text">Release PFI</span>
                                  </a>
-                             <li>
+                             </li>
                              <li>
                                  <a href="/produksi/inventor">
                                      <span class="nav-icon">
-                                         <i class="material-icons">&#xe85e;</i>
+                                         <i class="material-icons">assignment</i>
                                      </span>
                                      <span class="nav-text">SPK</span>
                                  </a>
@@ -150,7 +150,7 @@
                              {{-- <li>
                                  <a href="/finance">
                                      <span class="nav-icon">
-                                         <i class="material-icons">&#xe85e;</i>
+                                         <i class="material-icons">description</i>
                                      </span>
                                      <span class="nav-text">Draft Pengajuan</span>
                                  </a>
@@ -158,7 +158,7 @@
                              <li>
                                  <a href="/spk/request-r">
                                      <span class="nav-icon">
-                                         <i class="material-icons">&#xe85e;</i>
+                                         <i class="material-icons">request_quote</i>
                                      </span>
                                      <span class="nav-text">Pengajuan SPK</span>
                                  </a>
@@ -167,32 +167,32 @@
                          @if (Auth::user()->role === 'hrd' || ($a && in_array($a->divisi_id, [38, 34, 25, 26])))
                              <li>
                                  <a href="/karyawan">
-                                     <span class="nav-icon"><i class="material-icons">&#xe8d2;</i></span>
+                                     <span class="nav-icon"><i class="material-icons">people</i></span>
                                      <span class="nav-text">Karyawan</span>
                                  </a>
                              </li>
 
                              <li>
                                  <a href="{{ route('karyawan.absen') }}">
-                                     <span class="nav-icon"><i class="material-icons">&#xe8d2;</i></span>
+                                     <span class="nav-icon"><i class="material-icons">fact_check</i></span>
                                      <span class="nav-text">Absen Karyawan</span>
                                  </a>
                              </li>
                              <li>
                                  <a href="{{ route('karyawan.lembur') }}">
-                                     <span class="nav-icon"><i class="material-icons">&#xe8d2;</i></span>
+                                     <span class="nav-icon"><i class="material-icons">schedule</i></span>
                                      <span class="nav-text">Lembur Karyawan</span>
                                  </a>
                              </li>
                              <li>
                                  <a href="/izin-karyawan">
-                                     <span class="nav-icon"><i class="material-icons">&#xe8d2;</i></span>
+                                     <span class="nav-icon"><i class="material-icons">event_available</i></span>
                                      <span class="nav-text">Izin Karyawan</span>
                                  </a>
                              </li>
                              <li>
                                  <a href="/employee-loan">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                     <span class="nav-icon"><i class="material-icons">account_balance_wallet</i></span>
                                      <span class="nav-text">employee loan</span>
                                  </a>
                              </li>
@@ -205,19 +205,11 @@
                              @if ($isSuperUser)
                                  <li>
                                      <a href="{{ route('karyawan.absen') }}">
-                                         <span class="nav-icon"><i class="material-icons">&#xe8d2;</i></span>
+                                         <span class="nav-icon"><i class="material-icons">fact_check</i></span>
                                          <span class="nav-text">Absen Karyawan</span>
                                      </a>
                                  </li>
                              @endif
-
-                             <li>
-                                 <a href="/karyawan-scan">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
-                                     <span class="nav-text">Absen Sekarang</span>
-                                 </a>
-                             <li>
-
                              <li>
                                  <a>
                                      <span class="nav-caret">
@@ -225,9 +217,7 @@
                                      </span>
 
                                      <span class="nav-icon">
-                                         <i class="material-icons">&#xe8d2;
-                                             <span ui-include="'../assets/images/i_3.svg'"></span>
-                                         </i>
+                                         <i class="material-icons">event</i>
                                      </span>
 
                                      <span class="nav-text">Exhibition</span>
@@ -249,27 +239,25 @@
                              </li>
                              <li>
                                  <a href="/marketing-release-order">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                     <span class="nav-icon"><i class="material-icons">assignment_turned_in</i></span>
                                      <span class="nav-text">Release PFI</span>
                                  </a>
-                             <li>
-                             <li>
-                             <li>
+                             </li>
                              <li>
                                  <a href="/marketing-pfi">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                     <span class="nav-icon"><i class="material-icons">upload_file</i></span>
                                      <span class="nav-text">Upload excel</span>
                                  </a>
+                             </li>
                              <li>
-
                                  <a href="/produksi/mn">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                     <span class="nav-icon"><i class="material-icons">assessment</i></span>
                                      <span class="nav-text">Monitoring Produksi</span>
                                  </a>
                              </li>
                              <li>
                                  <a href="/produksi/monitoring-finishing">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                     <span class="nav-icon"><i class="material-icons">format_paint</i></span>
                                      <span class="nav-text">monitoring Finishing</span>
                                  </a>
                              </li>
@@ -280,7 +268,7 @@
                                      </span>
 
                                      <span class="nav-icon">
-                                         <i class="material-icons">&#xe85e;</i>
+                                         <i class="material-icons">local_shipping</i>
                                      </span>
 
                                      <span class="nav-text">Export</span>
@@ -329,7 +317,7 @@
                              <li>
                                  <a>
                                      <span class="nav-caret"><i class="fa fa-caret-down"></i></span>
-                                     <span class="nav-icon"><i class="material-icons">&#xe5c3;</i></span>
+                                     <span class="nav-icon"><i class="material-icons">build</i></span>
                                      <span class="nav-text">admin produksi</span>
                                  </a>
                                  <ul class="nav-sub">
@@ -348,7 +336,7 @@
                              <li>
                                  <a>
                                      <span class="nav-caret"><i class="fa fa-caret-down"></i></span>
-                                     <span class="nav-icon"><i class="material-icons">&#xe5c3;</i></span>
+                                     <span class="nav-icon"><i class="material-icons">store</i></span>
                                      <span class="nav-text">Warehouse</span>
                                  </a>
                                  <ul class="nav-sub">
@@ -374,7 +362,7 @@
                              <li>
                                  <a>
                                      <span class="nav-caret"><i class="fa fa-caret-down"></i></span>
-                                     <span class="nav-icon"><i class="material-icons">&#xe5c3;</i></span>
+                                     <span class="nav-icon"><i class="material-icons">shopping_cart</i></span>
                                      <span class="nav-text">Purchasing</span>
                                  </a>
 
@@ -388,21 +376,21 @@
                                          </a>
                                      </li>
                                      <li><a href="/bom-produksi"><span class="nav-text">COG</span></a></li>
-
                                  </ul>
+                             </li>
 
 
                                  {{-- <li>
                           <li>
                          <a href="/produksi/inventor">
-                             <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                             <span class="nav-icon"><i class="material-icons">request_quote</i></span>
                              <span class="nav-text">Pengajuan SPK</span>
                          </a>
                      <li> --}}
 
                              <li>
                                  <a href="/qc/laporan">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                     <span class="nav-icon"><i class="material-icons">verified</i></span>
                                      <span class="nav-text">QC page</span>
                                  </a>
                              </li>
@@ -413,7 +401,7 @@
                                      </span>
 
                                      <span class="nav-icon">
-                                         <i class="material-icons">&#xe85e;</i>
+                                         <i class="material-icons">design_services</i>
                                      </span>
 
                                      <span class="nav-text">
@@ -475,22 +463,22 @@
 
                              <li>
                                  <a href="/supplier">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                     <span class="nav-icon"><i class="material-icons">local_shipping</i></span>
                                      <span class="nav-text">Bank data sub</span>
                                  </a>
                              </li>
                              <!-- </li>
 
 
-                                                                             <a href="/request">
-                                                                                 <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
-                                                                                 <span class="nav-text">Agenda</span>
-                                                                             </a>
-                                                                         </li> -->
+                                                                                     <a href="/request">
+                                                                                         <span class="nav-icon"><i class="material-icons">event_note</i></span>
+                                                                                         <span class="nav-text">Agenda</span>
+                                                                                     </a>
+                                                                                 </li> -->
 
                              <li>
                                  <a href="/request">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                     <span class="nav-icon"><i class="material-icons">event_note</i></span>
                                      <span class="nav-text">Agenda</span>
                                  </a>
                              </li>
@@ -499,7 +487,7 @@
                              <li>
                                  <a>
                                      <span class="nav-caret"><i class="fa fa-caret-down"></i></span>
-                                     <span class="nav-icon"><i class="material-icons">&#xe5c3;</i></span>
+                                     <span class="nav-icon"><i class="material-icons">computer</i></span>
                                      <span class="nav-text">Monitoring App & Web</span>
                                  </a>
                                  <ul class="nav-sub">
@@ -510,189 +498,249 @@
                                          </a>
                                      </li>
                                  </ul>
+                             </li>
                          @endif
-                         @if (Auth::user()->role === 'purchasing')
-                             <!-- purchasing -->
-                             <li>
-                                 <a href="/karyawan-scan">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
-                                     <span class="nav-text">Absen Sekarang</span>
-                                 </a>
-                             </li>
-                             <li>
-                                 <a href="{{ route('absen.riwayat') }}">
-                                     <span class="nav-icon"><i class="material-icons">&#xe192;</i></span>
-                                     <span class="nav-text">Riwayat Absen</span>
-                                 </a>
 
-                             </li>
+                        {{-- purchasing --}}
+                         @if (Auth::user()->role === 'purchasing')
+                             <!-- ===================================== -->
+                             <!-- RELEASE PFI -->
+                             <!-- ===================================== -->
                              <li>
                                  <a href="/marketing-release-order">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                     <span class="nav-icon">
+                                         <i class="material-icons">&#xe8f9;</i>
+                                     </span>
                                      <span class="nav-text">Release PFI</span>
                                  </a>
+                             </li>
+
+                             <!-- ===================================== -->
+                             <!-- MONITORING PRODUKSI -->
+                             <!-- ===================================== -->
                              <li>
-                              <li>
                                  <a href="/produksi/mn">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                     <span class="nav-icon">
+                                         <i class="material-icons">&#xe6e1;</i>
+                                     </span>
                                      <span class="nav-text">Monitoring Produksi</span>
                                  </a>
-                             <li>
+                             </li>
+
+                             <!-- ===================================== -->
+                             <!-- PURCHASING -->
+                             <!-- ===================================== -->
                              <li>
                                  <a>
-                                     <span class="nav-caret"><i class="fa fa-caret-down"></i></span>
-                                     <span class="nav-icon"><i class="material-icons">&#xe5c3;</i></span>
+                                     <span class="nav-caret">
+                                         <i class="fa fa-caret-down"></i>
+                                     </span>
+                                     <span class="nav-icon">
+                                         <i class="material-icons">&#xe8cc;</i>
+                                     </span>
                                      <span class="nav-text">Purchasing</span>
                                  </a>
+
                                  <ul class="nav-sub">
-                                     <li><a href="/semua-spk"><span class="nav-text">SPK</span></a></li>
-                                     <li><a href="/spk/request-r"><span class="nav-text">Draft payment SPK</span></a></li>
+
+                                     <li>
+                                         <a href="/semua-spk">
+                                             <span class="nav-text">SPK</span>
+                                         </a>
+                                     </li>
+
+                                     <li>
+                                         <a href="/spk/request-r">
+                                             <span class="nav-text">Draft payment SPK</span>
+                                         </a>
+                                     </li>
+
                                      <li>
                                          <a href="/produksi/inventor">
-                                             <!-- <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span> -->
                                              <span class="nav-text">Running SPK</span>
                                          </a>
                                      </li>
-                                     <li><a href="/bom-produksi"><span class="nav-text">COG</span></a></li>
+
                                      <li>
-                                         <a href="/qc/laporan">
-                                             <!-- <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span> -->
-                                             <span class="nav-text">Qc Pass</span>
+                                         <a href="/bom-produksi">
+                                             <span class="nav-text">COG</span>
                                          </a>
                                      </li>
+
                                  </ul>
-
-
-                             <li>
-
-
                              </li>
 
+                             <!-- ===================================== -->
+                             <!-- QC PASS - MENU UTAMA -->
+                             <!-- ===================================== -->
+                             <li>
+                                 <a href="/qc/laporan">
+                                     <span class="nav-icon">
+                                         <i class="material-icons">&#xe86c;</i>
+                                     </span>
+                                     <span class="nav-text">Qc Pass</span>
+                                 </a>
+                             </li>
+
+                             <!-- ===================================== -->
+                             <!-- ADMIN PRODUKSI - MENU UTAMA -->
+                             <!-- ===================================== -->
                              <li>
                                  <a>
-                                     <span class="nav-caret"><i class="fa fa-caret-down"></i></span>
-                                     <span class="nav-icon"><i class="material-icons">&#xe5c3;</i></span>
+                                     <span class="nav-caret">
+                                         <i class="fa fa-caret-down"></i>
+                                     </span>
+                                     <span class="nav-icon">
+                                         <i class="material-icons">&#xe869;</i>
+                                     </span>
                                      <span class="nav-text">admin produksi</span>
                                  </a>
+
                                  <ul class="nav-sub">
-                                     <li><a href="/upah"><span class="nav-text">Upah Borongan</span></a></li>
-                                     <li><a href="/upah/transaksi"><span class="nav-text">Rekap Upah</span></a></li>
-                                     <li><a href="/subkon/"><span class="nav-text">Subkon</span></a></li>
+
                                      <li>
-                                         {{-- <a href="/produksi/in_out_barang_jadi">
-                                             <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
-                                             <span class="nav-text">monitoring (admin)</span>
-                                         </a> --}}
+                                         <a href="/upah">
+                                             <span class="nav-text">Upah Borongan</span>
+                                         </a>
+                                     </li>
+
+                                     <li>
+                                         <a href="/upah/transaksi">
+                                             <span class="nav-text">Rekap Upah</span>
+                                         </a>
+                                     </li>
+
+                                     <li>
+                                         <a href="/subkon/">
+                                             <span class="nav-text">Subkon</span>
+                                         </a>
+                                     </li>
+
                                  </ul>
                              </li>
-                             <!--    <li>-->
-                             <!--    <a href="/bom">-->
-                             <!--        <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>-->
-                             <!--        <span class="nav-text">BOM</span>-->
-                             <!--    </a>-->
-                             <!--</li>-->
-                             <!-- produksi -->
-                             <!--<li>-->
-                             <!--    <a href="/produksi/mn">-->
-                             <!--        <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>-->
-                             <!--        <span class="nav-text">produksi</span>-->
-                             <!--    </a>-->
-                             <!--</li>-->
+
+                             <!-- ===================================== -->
+                             <!-- INVENTORY PRODUKSI -->
+                             <!-- ===================================== -->
                              <li>
                                  <a href="/produksi/inventor">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                     <span class="nav-icon">
+                                         <i class="material-icons">&#xe1a1;</i>
+                                     </span>
                                      <span class="nav-text">invent. prod</span>
                                  </a>
                              </li>
 
-
+                             <!-- ===================================== -->
+                             <!-- SUPPLIER -->
+                             <!-- ===================================== -->
                              <li>
                                  <a href="/supplier">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                     <span class="nav-icon">
+                                         <i class="material-icons">&#xe558;</i>
+                                     </span>
                                      <span class="nav-text">Supplier</span>
                                  </a>
                              </li>
 
+                             <!-- ===================================== -->
+                             <!-- INVOICE -->
+                             <!-- ===================================== -->
                              <li>
                                  <a href="/monitoring-invoice">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                     <span class="nav-icon">
+                                         <i class="material-icons">&#xe8b0;</i>
+                                     </span>
                                      <span class="nav-text">invoice</span>
                                  </a>
                              </li>
+
+                             <!-- ===================================== -->
+                             <!-- MONITORING FINISHING -->
+                             <!-- ===================================== -->
                              <li>
                                  <a href="/produksi/monitoring-finishing">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                     <span class="nav-icon">
+                                         <i class="material-icons">&#xe243;</i>
+                                     </span>
                                      <span class="nav-text">Monitoring Finsihing</span>
                                  </a>
                              </li>
+
+                             <!-- ===================================== -->
+                             <!-- WAREHOUSE -->
+                             <!-- ===================================== -->
                              <li>
                                  <a>
-                                     <span class="nav-caret"><i class="fa fa-caret-down"></i></span>
-                                     <span class="nav-icon"><i class="material-icons">&#xe5c3;</i></span>
+                                     <span class="nav-caret">
+                                         <i class="fa fa-caret-down"></i>
+                                     </span>
+                                     <span class="nav-icon">
+                                         <i class="material-icons">&#xe8d1;</i>
+                                     </span>
                                      <span class="nav-text">Warehouse</span>
                                  </a>
+
                                  <ul class="nav-sub">
+
                                      <li>
                                          <a href="/warehouse/overview">
                                              <span class="nav-icon">
-                                                 <i class="material-icons">swap_horiz</i>
+                                                 <i class="material-icons">&#xe871;</i>
                                              </span>
                                              <span class="nav-text">Overview </span>
                                          </a>
                                      </li>
+
                                      <li>
                                          <a href="/laporan">
                                              <span class="nav-icon">
-                                                 <i class="material-icons">sync_alt</i>
+                                                 <i class="material-icons">&#xe8d4;</i>
                                              </span>
                                              <span class="nav-text">stok in/out </span>
                                          </a>
                                      </li>
+
                                  </ul>
                              </li>
-
-                             <!--    <a href="/produksi">-->
-                             <!--        <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>-->
-                             <!--        <span class="nav-text">produksi</span>-->
-                             <!--    </a>-->
-                             <!--</li>-->
                          @endif
+
                          @if (Auth::user()->role == 'gudang' || Auth::user()->role === 'hrd')
-                             <!-- qc -->
+                        
                              <li>
                                  <a href="/marketing-release-order">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                     <span class="nav-icon"><i class="material-icons">assignment_turned_in</i></span>
                                      <span class="nav-text">Release PFI</span>
                                  </a>
-                             <li>
+                             </li>
                              <li>
                                  <a href="/setting">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                     <span class="nav-icon"><i class="material-icons">settings</i></span>
                                      <span class="nav-text">Setting</span>
                                  </a>
                              </li>
                              <li>
                                  <a href="/qc/laporan">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                     <span class="nav-icon"><i class="material-icons">verified</i></span>
                                      <span class="nav-text">QC page</span>
                                  </a>
                              </li>
                              <!-- qc -->
                              <li>
                                  <a href="/laporan">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                     <span class="nav-icon"><i class="material-icons">swap_horiz</i></span>
                                      <span class="nav-text">Mutasi Barng in/o</span>
                                  </a>
                              </li>
                              <li>
                                  <a href="/monitoring-invoice">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                     <span class="nav-icon"><i class="material-icons">receipt</i></span>
                                      <span class="nav-text">invoice</span>
                                  </a>
                              </li>
                              <li>
                                  <a href="/produksi/monitoring-finishing">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                     <span class="nav-icon"><i class="material-icons">format_paint</i></span>
                                      <span class="nav-text">Monitoring Finsihing</span>
                                  </a>
                              </li>
@@ -717,7 +765,7 @@
                              <li>
                                  <a href="/produksi/mn">
                                      <span class="nav-icon">
-                                         <i class="material-icons">&#xe85e;</i>
+                                         <i class="material-icons">assessment</i>
                                      </span>
                                      <span class="nav-text">Monitoring Produksi</span>
                                  </a>
@@ -726,7 +774,7 @@
                              <li>
                                  <a href="/cad">
                                      <span class="nav-icon">
-                                         <i class="material-icons">&#xe85e;</i>
+                                         <i class="material-icons">architecture</i>
                                      </span>
                                      <span class="nav-text">CAD</span>
                                  </a>
@@ -738,7 +786,7 @@
                              <li>
                                  <a href="/produksi/inventor">
                                      <span class="nav-icon">
-                                         <i class="material-icons">&#xe85e;</i>
+                                         <i class="material-icons">assignment</i>
                                      </span>
                                      <span class="nav-text">SPK Monitoring</span>
                                  </a>
@@ -750,7 +798,7 @@
                              <li>
                                  <a href="/mutasi">
                                      <span class="nav-icon">
-                                         <i class="material-icons">&#xe85e;</i>
+                                         <i class="material-icons">swap_horiz</i>
                                      </span>
                                      <span class="nav-text">Mutasi Barang jadi</span>
                                  </a>
@@ -760,20 +808,20 @@
                              <li>
 
                                  <a href="/produksi/mn">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                     <span class="nav-icon"><i class="material-icons">assessment</i></span>
                                      <span class="nav-text">Monitoring Produksi</span>
                                  </a>
                              </li>
                              <li>
                                  <a href="/mutasi">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                     <span class="nav-icon"><i class="material-icons">swap_horiz</i></span>
                                      <span class="nav-text">Mutasi Barang jadi</span>
                                  </a>
                              </li>
                              <li>
                                  <a>
                                      <span class="nav-caret"><i class="fa fa-caret-down"></i></span>
-                                     <span class="nav-icon"><i class="material-icons">&#xe5c3;</i></span>
+                                     <span class="nav-icon"><i class="material-icons">build</i></span>
                                      <span class="nav-text">admin produksi</span>
                                  </a>
                                  <ul class="nav-sub">
@@ -782,9 +830,10 @@
                                      <li><a href="/subkon/"><span class="nav-text">Subkon</span></a></li>
                                      <li>
                                          <a href="/produksi/in_out_barang_jadi">
-                                             <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                             <span class="nav-icon"><i class="material-icons">assessment</i></span>
                                              <span class="nav-text">monitoring (admin)</span>
                                          </a>
+                                     </li>
                                  </ul>
                              </li>
                          @endif
@@ -802,32 +851,15 @@
 
                              {{-- MENU UNTUK SEMUA USER RND --}}
                              <li>
-                                 <a href="{{ route('absen.riwayat') }}">
-                                     <span class="nav-icon">
-                                         <i class="material-icons">&#xe192;</i>
-                                     </span>
-                                     <span class="nav-text">Riwayat Absen</span>
-                                 </a>
-                             </li>
-
-                             <li>
-                                 <a href="/karyawan-scan">
-                                     <span class="nav-icon">
-                                         <i class="material-icons">&#xe85e;</i>
-                                     </span>
-                                     <span class="nav-text">Absen Sekarang</span>
-                                 </a>
-                             </li>
-                             <li>
                                  <a href="/bom">
-                                     <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                                     <span class="nav-icon"><i class="material-icons">view_list</i></span>
                                      <span class="nav-text">B O M</span>
                                  </a>
                              </li>
                              <li>
                                  <a href="/marketing-release-order">
                                      <span class="nav-icon">
-                                         <i class="material-icons">&#xe85e;</i>
+                                         <i class="material-icons">assignment_turned_in</i>
                                      </span>
                                      <span class="nav-text">Release PFI</span>
                                  </a>
@@ -838,7 +870,7 @@
                                  <li>
                                      <a href="/spk/request-r">
                                          <span class="nav-icon">
-                                             <i class="material-icons">&#xe85e;</i>
+                                             <i class="material-icons">description</i>
                                          </span>
                                          <span class="nav-text">Draft Pengajuan</span>
                                      </a>
@@ -846,7 +878,7 @@
                                  <li>
                                      <a href="/supplier">
                                          <span class="nav-icon">
-                                             <i class="material-icons">&#xe85e;</i>
+                                             <i class="material-icons">local_shipping</i>
                                          </span>
                                          <span class="nav-text">Suppliers</span>
                                      </a>
@@ -854,7 +886,7 @@
                                  <li>
                                      <a href="/semua-spk">
                                          <span class="nav-icon">
-                                             <i class="material-icons">&#xe85e;</i>
+                                             <i class="material-icons">assignment</i>
                                          </span>
                                          <span class="nav-text">SPK SAMPLES</span>
                                      </a>
@@ -863,7 +895,7 @@
                                  <li>
                                      <a href="/produksi/inventor">
                                          <span class="nav-icon">
-                                             <i class="material-icons">&#xe85e;</i>
+                                             <i class="material-icons">assignment</i>
                                          </span>
                                          <span class="nav-text">SPK Monitoring</span>
                                      </a>
@@ -874,7 +906,7 @@
                              <li>
                                  <a href="/rnd/sample-pictures">
                                      <span class="nav-icon">
-                                         <i class="material-icons">&#xe85e;</i>
+                                         <i class="material-icons">photo_library</i>
                                      </span>
                                      <span class="nav-text">Samples Picture</span>
                                  </a>
@@ -885,7 +917,7 @@
                                  <li>
                                      <a href="/cad">
                                          <span class="nav-icon">
-                                             <i class="material-icons">&#xe85e;</i>
+                                             <i class="material-icons">architecture</i>
                                          </span>
                                          <span class="nav-text">CAD Drawing</span>
                                      </a>
@@ -898,7 +930,7 @@
                                  <li>
                                      <a href="/produksi/inventor">
                                          <span class="nav-icon">
-                                             <i class="material-icons">&#xe85e;</i>
+                                             <i class="material-icons">assignment</i>
                                          </span>
                                          <span class="nav-text">SPK</span>
                                      </a>
@@ -906,7 +938,7 @@
                                  <li>
                                      <a href="/spk/request-r">
                                          <span class="nav-icon">
-                                             <i class="material-icons">&#xe85e;</i>
+                                             <i class="material-icons">request_quote</i>
                                          </span>
                                          <span class="nav-text">Pengajuan SPK</span>
                                      </a>
@@ -917,7 +949,7 @@
 
                      <li>
                          <a href="/inventory">
-                             <span class="nav-icon"><i class="material-icons">&#xe85e;</i></span>
+                             <span class="nav-icon"><i class="material-icons">inventory_2</i></span>
                              <span class="nav-text">Inventory (alat)</span>
                          </a>
                      </li>
