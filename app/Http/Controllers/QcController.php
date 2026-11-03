@@ -109,37 +109,17 @@ private function matchQcSpkCategory(
 private function qcSpkMapping(): array
 {
     return [
-        'QC RANGKA' => [
-            'RANGKA',
-            'LASIO',
-            'BASE SWIVEL',
-            'PLAT BESI',
-            'TRIPLEK',
-            'POWDER COATING',
+        'QC RANGKA' => [   'RANGKA', 'RANGKA BESI', 'RANGKA KAYU', 'RANGKA ROTAN',  'RANGKA ALUMUNIUN','RANGKA TRIPLEK', 'TRIPLEK',
+
         ],
 
-        'QC ANYAM' => [
-            'ANYAM',
-            'DEKOR',
-            'ECENG',
-            'BANANA',
-            'SONGKET',
-            'WEBBING',
-            'SYNTETIC',
-            'ACCESSORIES',
-            'AKSESORIES',
-            'AKESOSORIS',
-            'CUSHION',
-            'KULIT',
-            'IKAT',
-            'IKET',
-            'DEKORAN',
-            'CERMIN',
-            'KACA',
+        'QC ANYAM' => [ 'ANYAM', 'DEKOR',    'ECENG', 'BANANA', 'SONGKET', 'WEBBING',   'SYNTETIC', 'ACCESSORIES', 'AKSESORIES', 
+            'AKESOSORIS','CUSHION','KULIT','IKAT', 'IKET', 'DEKORAN','CERMIN',  'KACA',
+            'ANYAM', 'ANYAM SINTETIS','ANYAM KARAKTER','RANGKA + ANYAM','ANYAM + DEKOR',
+            'BASKET JOGJA','BASKE JOGJA','BASKET LOMBOKAN','BASKET TASIK',
         ],
 
-        'QC UNFINISH' => [
-            'BASKET',
+        'QC UNFINISH' => [ 'BASKET',
             'PAKET',
             'SUB BORONGAN',
         ],
