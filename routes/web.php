@@ -47,23 +47,23 @@ use App\Http\Controllers\GoogleDriveAuthController;
 // ==========================================================
 // MAGIC APPROVAL LINK - PUBLIC ENTRY POINT
 // ==========================================================
-    Route::get('/spk/edit/{id}', [SpkController::class, 'index'])->name('spk.edit');
-    Route::get('/spk/scan-number', [SpkController::class, 'scanNoSpk'])->name('spk.scan-number');
+Route::get('/spk/edit/{id}', [SpkController::class, 'index'])->name('spk.edit');
+Route::get('/spk/scan-number', [SpkController::class, 'scanNoSpk'])->name('spk.scan-number');
 
 Route::get('/qc/getPoDetail/{kategoriId}/{detailPo}/{poId}', [QcController::class, 'getDataApi']);
 Route::get('/spk/magic/{token}', [
     SpkController::class,
     'showSpkMagicApproval'
 ])
-->name('spk.magic.show');
+    ->name('spk.magic.show');
 
 // Memproses approval melalui Magic Link
 Route::post('/spk/magic/{token}/approve', [
     SpkController::class,
     'approveSpkMagic'
 ])
-->middleware('throttle:5,1')
-->name('spk.magic.approve');
+    ->middleware('throttle:5,1')
+    ->name('spk.magic.approve');
 Route::middleware('auth')->prefix('google-drive')->group(function () {
     Route::get('/connect', [
         GoogleDriveAuthController::class,
@@ -93,22 +93,22 @@ Route::middleware('auth')->group(function () {
 // MAGIC APPROVAL SPK - AUTH
 // ==========================================================
 
-// Mengambil daftar approver SPK
-Route::get('/spk/{spk}/magic-approvers', [
-    SpkController::class,
-    'getSpkMagicApprovers'
-])
-->whereNumber('spk')
-->name('spk.magic.approvers');
+    // Mengambil daftar approver SPK
+    Route::get('/spk/{spk}/magic-approvers', [
+        SpkController::class,
+        'getSpkMagicApprovers'
+    ])
+        ->whereNumber('spk')
+        ->name('spk.magic.approvers');
 
-// Generate Magic Link SPK
-Route::post('/spk/{spk}/magic-link', [
-    SpkController::class,
-    'generateSpkMagicLink'
-])
-->whereNumber('spk')
-->middleware('throttle:10,1')
-->name('spk.magic.generate');
+    // Generate Magic Link SPK
+    Route::post('/spk/{spk}/magic-link', [
+        SpkController::class,
+        'generateSpkMagicLink'
+    ])
+        ->whereNumber('spk')
+        ->middleware('throttle:10,1')
+        ->name('spk.magic.generate');
     // mikrotik
     Route::get('/network', [NetworkController::class, 'index'])
         ->name('network.index');
@@ -690,7 +690,7 @@ Route::post('/spk/{spk}/magic-link', [
     Route::get('/laporan', [LaporanController::class, 'index'])
         ->name('laporan.index');
     Route::get('/laporan/export-excel', [LaporanController::class, 'exportExcel'])
-    ->name('laporan.export');
+        ->name('laporan.export');
     Route::get('/laporan/warehouse-history', [LaporanController::class, 'warehouseHistory'])
         ->name('laporan.warehouse-history');
 
@@ -884,9 +884,9 @@ Route::post('/spk/{spk}/magic-link', [
         [PoController::class, 'updateItemBulk']
     );
     Route::get(
-    '/marketing/release-order/search',
-    [PoController::class, 'searchReleaseOrder']
-)->name('marketing.release-order.search');
+        '/marketing/release-order/search',
+        [PoController::class, 'searchReleaseOrder']
+    )->name('marketing.release-order.search');
 
     // add
 
@@ -1608,8 +1608,8 @@ Route::middleware('auth')->group(function () {
         '/laporan/transaksi/{id}',
         [LaporanController::class, 'deleteTransaksi']
     )->name('laporan.transaksi.delete');
-  Route::post('/laporan/opname', [LaporanController::class, 'storeOpname'])
-    ->name('laporan.opname');
+    Route::post('/laporan/opname', [LaporanController::class, 'storeOpname'])
+        ->name('laporan.opname');
 
     Route::post(
         '/spk/bahan-baku/keterangan',

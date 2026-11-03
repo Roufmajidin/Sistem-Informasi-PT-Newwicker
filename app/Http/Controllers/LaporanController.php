@@ -15,6 +15,7 @@ use App\Models\MonitoringInvoice;
 use App\Models\InvLama;
 use App\Models\SpkLama;
 use App\Exports\LaporanStokExport;
+use Illuminate\Support\Facades\Log;
 
 class LaporanController extends Controller
 {
@@ -852,46 +853,157 @@ class LaporanController extends Controller
         );
     }
 
-    public function storeTransaksi(Request $request)
-    {
-        $request->validate([
-            'stok_id' => 'required',
-            'tanggal' => 'required',
+  
+public function storeTransaksi(Request $request)
+{
+    // =====================================================
+    // 1. VALIDASI
+    // =====================================================
+    $validated = $request->validate([
+        'stok_id' => 'required|integer|exists:stoks,id',
+        'tanggal' => 'required|date',
+        'in' => 'nullable|numeric|min:0',
+        'out' => 'nullable|numeric|min:0',
+        'po' => 'nullable|string',
+        'spk_id' => 'nullable|integer',
+        'keterangan' => 'nullable|string',
+        'no_invoice' => 'nullable|string',
+        'return' => 'nullable|boolean',
+    ]);
+
+    // =====================================================
+    // 2. NORMALISASI NILAI
+    // =====================================================
+    $qtyIn = (float) $request->input('in', 0);
+    $qtyOut = (float) $request->input('out', 0);
+
+    $isReturn = $request->boolean('return') ? 1 : 0;
+
+    // =====================================================
+    // 3. DEBUG REQUEST
+    // =====================================================
+    Log::info('STORE TRANSAKSI REQUEST', [
+        'stok_id' => $request->stok_id,
+        'spk_id' => $request->spk_id,
+        'qty_in' => $qtyIn,
+        'qty_out' => $qtyOut,
+        'return_raw' => $request->input('return'),
+        'return_normalized' => $isReturn,
+    ]);
+
+    // =====================================================
+    // 4. VALIDASI TRANSAKSI
+    // =====================================================
+    if ($qtyIn <= 0 && $qtyOut <= 0) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Isi jumlah IN atau OUT terlebih dahulu.',
+        ], 422);
+    }
+
+    if ($isReturn === 1 && !$request->filled('spk_id')) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Pilih SPK terlebih dahulu untuk Return.',
+        ], 422);
+    }
+
+    // =====================================================
+    // 5. DATA UMUM
+    // =====================================================
+    $data = [
+        'stok_id' => $request->stok_id,
+        'tanggal' => $request->tanggal,
+        'po' => $request->po,
+        'spk_id' => $request->spk_id ?: null,
+        'keterangan' => $request->keterangan,
+        'no_invoice' => $request->no_invoice,
+        'return' => $isReturn,
+    ];
+
+    // =====================================================
+    // 6. SIMPAN TRANSAKSI
+    // =====================================================
+    try {
+        $savedIds = DB::transaction(function () use (
+            $qtyIn,
+            $qtyOut,
+            $data
+        ) {
+            $ids = [];
+
+            // TRANSAKSI IN
+            if ($qtyIn > 0) {
+                $transaksiIn = new TransaksiStok();
+
+                $transaksiIn->forceFill(array_merge(
+                    $data,
+                    [
+                        'tipe' => 'in',
+                        'qty' => $qtyIn,
+                    ]
+                ));
+
+                $transaksiIn->save();
+
+                $ids[] = $transaksiIn->id;
+            }
+
+            // TRANSAKSI OUT
+            if ($qtyOut > 0) {
+                $transaksiOut = new TransaksiStok();
+
+                $transaksiOut->forceFill(array_merge(
+                    $data,
+                    [
+                        'tipe' => 'out',
+                        'qty' => $qtyOut,
+                    ]
+                ));
+
+                $transaksiOut->save();
+
+                $ids[] = $transaksiOut->id;
+            }
+
+            return $ids;
+        });
+
+        // =================================================
+        // 7. VERIFIKASI HASIL DATABASE
+        // =================================================
+        $saved = TransaksiStok::query()
+            ->whereIn('id', $savedIds)
+            ->get(['id', 'spk_id', 'return']);
+
+        Log::info('STORE TRANSAKSI RESULT', [
+            'ids' => $savedIds,
+            'return_requested' => $isReturn,
+            'saved_rows' => $saved->toArray(),
         ]);
 
-        if ($request->in > 0) {
-
-            TransaksiStok::create([
-                'stok_id' => $request->stok_id,
-                'tanggal' => $request->tanggal,
-                'tipe' => 'in',
-                'qty' => $request->in,
-                'po' => $request->po,
-                'spk_id' => $request->spk_id,
-                'keterangan' => $request->keterangan,
-                'no_invoice' => $request->no_invoice,
-            ]);
-        }
-
-        if ($request->out > 0) {
-
-            TransaksiStok::create([
-                'stok_id' => $request->stok_id,
-                'tanggal' => $request->tanggal,
-                'tipe' => 'out',
-                'qty' => $request->out,
-                'po' => $request->po,
-                'spk_id' => $request->spk_id,
-                'keterangan' => $request->keterangan,
-                'no_invoice' => $request->no_invoice,
-            ]);
-        }
-
-        // dd($request->out);
+        // =================================================
+        // 8. RESPONSE
+        // =================================================
         return response()->json([
             'success' => true,
+            'message' => 'Transaksi berhasil disimpan.',
         ]);
+
+    } catch (\Throwable $e) {
+        Log::error('STORE TRANSAKSI ERROR', [
+            'message' => $e->getMessage(),
+            'stok_id' => $request->stok_id,
+            'return' => $isReturn,
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Gagal menyimpan transaksi.',
+        ], 500);
     }
+}
+
 
     // public function searchSpk(Request $request)
     // {

@@ -14,7 +14,8 @@ class TransaksiStok extends Model
         'spk_id',
         'keterangan',
         'harga_vivi',
-        'no_invoice'
+        'no_invoice',
+        'return'
     ];
     public function spk()
     {

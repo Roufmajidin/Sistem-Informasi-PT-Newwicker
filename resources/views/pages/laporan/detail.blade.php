@@ -382,10 +382,6 @@
 
                     <input type="hidden" id="spk_id">
 
-
-
-
-
                     <div class="row">
 
 
@@ -429,7 +425,15 @@
 
 
 
-                            <input type="number" step="0.001" id="qty_in" class="form-control">
+                            <div class="d-flex align-items-center" style="gap: 10px;">
+                                <input type="number" step="0.001" id="qty_in" class="form-control"
+                                    style="width: 60%; min-width: 0; flex: 0 0 60%;">
+                                <label for="is_return" class="d-inline-flex align-items-center mb-0"
+                                    style="gap: 5px; white-space: nowrap; cursor: pointer; font-size: 12px;">
+                                    <input type="checkbox" id="is_return" value="1" style="margin: 0;">
+                                    Return
+                                </label>
+                            </div>
 
 
 
@@ -625,6 +629,8 @@
 
                                     <th>SPK</th>
 
+                                    <th class="text-center">Return</th>
+
 
 
                                     <th>
@@ -697,7 +703,7 @@
 
                                     @if ($olderThanOpname && !$opnameDividerInserted)
                                         <tr class="stok-opname-divider">
-                                            <td colspan="9">
+                                            <td colspan="10">
                                                 <i class="fa fa-clipboard-check" aria-hidden="true"></i>
 
                                                 <strong>BATAS STOCK OPNAME</strong>
@@ -789,6 +795,15 @@
                                             {{ optional($item->spk)->data['no_spk'] ?? '-' }}
                                         </td>
 
+                                        {{-- RETURN --}}
+                                        <td class="text-center">
+                                            @if ((int) $item->getRawOriginal('return') === 1)
+                                                <span class="badge badge-success">True</span>
+                                            @else
+                                                <span class="badge badge-secondary">False</span>
+                                            @endif
+                                        </td>
+
                                         {{-- KETERANGAN --}}
                                         <td>
                                             <a href="#" class="editable" data-type="textarea"
@@ -816,7 +831,7 @@
          pembatas tetap ditampilkan di akhir tabel. --}}
                                 @if ($showOpnameDivider && !$opnameDividerInserted)
                                     <tr class="stok-opname-divider">
-                                        <td colspan="9">
+                                        <td colspan="10">
                                             <i class="fa fa-clipboard-check" aria-hidden="true"></i>
 
                                             <strong>BATAS STOCK OPNAME</strong>
@@ -1419,6 +1434,13 @@
 
 
 
+    // Saat Return dicentang, buka drawer SPK yang sudah ada.
+    $(document).on('change', '#is_return', function () {
+        if (this.checked) {
+            $('#btnCariSpk').trigger('click');
+        }
+    });
+
     // SAVE TRANSAKSI
 
 
@@ -1507,9 +1529,20 @@
 
 
 
+            const returnValue = $('#is_return').prop('checked') ? 1 : 0;
+            const selectedSpkId = $('#spk_id').val();
+
+            if (returnValue === 1 && !selectedSpkId) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Pilih SPK terlebih dahulu',
+                    text: 'Transaksi Return wajib memiliki SPK.'
+                });
+                $('#btnCariSpk').trigger('click');
+                return;
+            }
+
             $.ajax({
-
-
 
                 url: '/laporan/transaksi/store',
 
@@ -1571,7 +1604,9 @@
 
                     no_invoice:
 
-                        $('#no_invoice').val()
+                        $('#no_invoice').val(),
+
+                    'return': returnValue
 
 
 
@@ -1580,16 +1615,21 @@
 
 
                 success: function() {
-
-
-
                     location.reload();
-
-
-
+                },
+                error: function(xhr) {
+                    const response = xhr.responseJSON || {};
+                    const errors = response.errors || {};
+                    const details = Object.values(errors).flat().join('\n');
+                    const message = details || response.message ||
+                        'Gagal menyimpan transaksi. Periksa storage/logs/laravel.log';
+                    console.error('STORE TRANSAKSI FAILED', xhr.status, response, xhr.responseText);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Transaksi gagal disimpan',
+                        text: message
+                    });
                 }
-
-
 
             });
 
