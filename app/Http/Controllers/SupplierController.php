@@ -6,9 +6,47 @@ use App\Models\JenisSupplier;
 use App\Models\Supplier;
 use App\Models\Vendor;
 use Illuminate\Http\Request;
-
+use App\Models\Spk;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 class SupplierController extends Controller
 {
+
+    private function findSupplierSpks(string $oldName)
+    {
+        return Spk::query()
+            ->where('data', 'like', '%"sup"%')
+            ->get(['id', 'data'])
+            ->filter(function ($spk) use ($oldName) {
+                $data = $spk->data;
+
+                return is_array($data)
+                    && trim((string) ($data['sup'] ?? '')) === trim($oldName);
+            })
+            ->values();
+    }
+
+    public function previewSupplierSpk($id)
+    {
+        $supplier = Supplier::findOrFail($id);
+
+        $spks = $this->findSupplierSpks($supplier->name);
+
+        return response()->json([
+            'success' => true,
+            'supplier_id' => $supplier->id,
+            'old_name' => $supplier->name,
+            'count' => $spks->count(),
+            'spks' => $spks->map(function ($spk) {
+                return [
+                    'id' => $spk->id,
+                    'no_spk' => $spk->data['no_spk'] ?? '-',
+                    'sup' => $spk->data['sup'] ?? '-',
+                ];
+            })->values(),
+        ]);
+    }
+
     public function index(Request $request)
     {
         $search = trim($request->get('search', ''));
@@ -23,8 +61,8 @@ class SupplierController extends Controller
 
         return view('pages.supplier.index', [
             'suppliers' => $suppliers,
-            'jenis'     => JenisSupplier::orderBy('name')->get(),
-            'search'    => $search,
+            'jenis' => JenisSupplier::orderBy('name')->get(),
+            'search' => $search,
         ]);
     }
 
@@ -42,9 +80,9 @@ class SupplierController extends Controller
 
         return response()->json([
             'success' => true,
-            'count'   => $suppliers->count(),
-            'search'  => $search,
-            'data'    => $suppliers->map(function ($supplier) {
+            'count' => $suppliers->count(),
+            'search' => $search,
+            'data' => $suppliers->map(function ($supplier) {
                 return $this->supplierJson($supplier);
             })->values(),
         ]);
@@ -89,14 +127,14 @@ class SupplierController extends Controller
         ]);
 
         $jenis = JenisSupplier::create([
-            'name'       => trim($request->name),
+            'name' => trim($request->name),
             'updated_by' => $this->log(),
         ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Jenis supplier berhasil ditambahkan.',
-            'data'    => $jenis,
+            'data' => $jenis,
         ]);
     }
 
@@ -109,32 +147,32 @@ class SupplierController extends Controller
         $jenis = JenisSupplier::findOrFail($id);
 
         $jenis->update([
-            'name'       => trim($request->name),
+            'name' => trim($request->name),
             'updated_by' => $this->appendLog($jenis->updated_by, 'update jenis'),
         ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Jenis supplier berhasil diperbarui.',
-            'data'    => $jenis,
+            'data' => $jenis,
         ]);
     }
 
     public function storeSupplier(Request $request)
     {
         $request->validate([
-            'name'              => ['required', 'string', 'max:255'],
-            'alamat'            => ['nullable', 'string'],
+            'name' => ['required', 'string', 'max:255'],
+            'alamat' => ['nullable', 'string'],
             'jenis_supplier_id' => ['nullable', 'exists:jenis_suppliers,id'],
-            'vendor_id'         => ['nullable', 'exists:vendors,id'],
+            'vendor_id' => ['nullable', 'exists:vendors,id'],
         ]);
 
         $supplier = Supplier::create([
-            'name'              => trim($request->name),
-            'alamat'            => $request->alamat,
+            'name' => trim($request->name),
+            'alamat' => $request->alamat,
             'jenis_supplier_id' => $request->jenis_supplier_id,
-            'vendor_id'         => $request->vendor_id,
-            'updated_by'        => $this->log(),
+            'vendor_id' => $request->vendor_id,
+            'updated_by' => $this->log(),
         ]);
 
         $supplier->load(['jenis', 'vendor']);
@@ -142,37 +180,130 @@ class SupplierController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Supplier berhasil ditambahkan.',
-            'data'    => $this->supplierJson($supplier),
+            'data' => $this->supplierJson($supplier),
         ]);
     }
 
     public function updateSupplier(Request $request, $id)
     {
-        $request->validate([
-            'name'              => ['required', 'string', 'max:255'],
-            'alamat'            => ['nullable', 'string'],
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'alamat' => ['nullable', 'string'],
             'jenis_supplier_id' => ['nullable', 'exists:jenis_suppliers,id'],
-            'vendor_id'         => ['nullable', 'exists:vendors,id'],
+            'vendor_id' => ['nullable', 'exists:vendors,id'],
+            'sync_spk' => ['nullable', 'boolean'],
+            'expected_old_name' => ['nullable', 'string'],
         ]);
 
-        $supplier = Supplier::findOrFail($id);
+        $result = DB::transaction(function () use ($request, $id) {
 
-        $supplier->update([
-            'name'              => trim($request->name),
-            'alamat'            => $request->alamat,
-            'jenis_supplier_id' => $request->jenis_supplier_id,
-            'vendor_id'         => $request->has('vendor_id') ? $request->vendor_id : $supplier->vendor_id,
-            'updated_by'        => $this->appendLog($supplier->updated_by, 'update supplier'),
-        ]);
+            $supplier = Supplier::query()
+                ->lockForUpdate()
+                ->findOrFail($id);
 
-        $supplier->load(['jenis', 'vendor']);
+            $oldName = trim((string) $supplier->name);
+            $newName = trim((string) $request->name);
+            $nameChanged = $oldName !== $newName;
+
+            // Cegah update dari preview yang sudah kedaluwarsa.
+            if (
+                $nameChanged &&
+                $request->filled('expected_old_name') &&
+                $request->expected_old_name !== $supplier->name
+            ) {
+                throw ValidationException::withMessages([
+                    'name' => 'Nama supplier telah berubah. Refresh data dan coba lagi.',
+                ]);
+            }
+
+            $syncSpk = $request->boolean('sync_spk');
+            $updatedSpk = 0;
+
+            if ($nameChanged && $syncSpk) {
+
+                $spks = Spk::query()
+                    ->where('data', 'like', '%"sup"%')
+                    ->lockForUpdate()
+                    ->get();
+
+                foreach ($spks as $spk) {
+                    $data = $spk->data;
+
+                    if (!is_array($data)) {
+                        continue;
+                    }
+
+                    if (trim((string) ($data['sup'] ?? '')) !== $oldName) {
+                        continue;
+                    }
+
+                    // Hanya mengubah nama supplier pada JSON.
+                    $data['sup'] = $newName;
+
+                    $spk->data = $data;
+                    $spk->save();
+
+                    $updatedSpk++;
+                }
+            }
+
+            $supplier->update([
+                'name' => $newName,
+                'alamat' => $request->alamat,
+                'jenis_supplier_id' => $request->jenis_supplier_id,
+                'vendor_id' => $request->has('vendor_id')
+                    ? $request->vendor_id
+                    : $supplier->vendor_id,
+                'updated_by' => $this->appendLog(
+                    $supplier->updated_by,
+                    'update supplier' .
+                    ($updatedSpk > 0 ? " & sync {$updatedSpk} SPK" : '')
+                ),
+            ]);
+
+            $supplier->load(['jenis', 'vendor']);
+
+            return [
+                'supplier' => $supplier,
+                'updated_spk' => $updatedSpk,
+            ];
+        });
 
         return response()->json([
             'success' => true,
             'message' => 'Supplier berhasil diperbarui.',
-            'data'    => $this->supplierJson($supplier),
+            'updated_spk' => $result['updated_spk'],
+            'data' => $this->supplierJson($result['supplier']),
         ]);
     }
+
+    // public function updateSupplier(Request $request, $id)
+    // {
+    //     $request->validate([
+    //         'name' => ['required', 'string', 'max:255'],
+    //         'alamat' => ['nullable', 'string'],
+    //         'jenis_supplier_id' => ['nullable', 'exists:jenis_suppliers,id'],
+    //         'vendor_id' => ['nullable', 'exists:vendors,id'],
+    //     ]);
+
+    //     $supplier = Supplier::findOrFail($id);
+
+    //     $supplier->update([
+    //         'name' => trim($request->name),
+    //         'alamat' => $request->alamat,
+    //         'jenis_supplier_id' => $request->jenis_supplier_id,
+    //         'vendor_id' => $request->has('vendor_id') ? $request->vendor_id : $supplier->vendor_id,
+    //         'updated_by' => $this->appendLog($supplier->updated_by, 'update supplier'),
+    //     ]);
+
+    //     $supplier->load(['jenis', 'vendor']);
+
+    //     return response()->json([
+    //         'success' => true,
+    //         'message' => 'Supplier berhasil diperbarui.',
+    //         'data' => $this->supplierJson($supplier),
+    //     ]);
+    // }
 
     public function linkVendor(Request $request, $id)
     {
@@ -183,7 +314,7 @@ class SupplierController extends Controller
         $supplier = Supplier::findOrFail($id);
 
         $supplier->update([
-            'vendor_id'  => $request->vendor_id,
+            'vendor_id' => $request->vendor_id,
             'updated_by' => $this->appendLog($supplier->updated_by, 'link vendor'),
         ]);
 
@@ -192,7 +323,7 @@ class SupplierController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Rekening vendor berhasil dihubungkan.',
-            'data'    => $this->supplierJson($supplier),
+            'data' => $this->supplierJson($supplier),
         ]);
     }
 
@@ -201,7 +332,7 @@ class SupplierController extends Controller
         $supplier = Supplier::findOrFail($id);
 
         $supplier->update([
-            'vendor_id'  => null,
+            'vendor_id' => null,
             'updated_by' => $this->appendLog($supplier->updated_by, 'unlink vendor'),
         ]);
 
@@ -210,7 +341,7 @@ class SupplierController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Rekening vendor berhasil dilepas.',
-            'data'    => $this->supplierJson($supplier),
+            'data' => $this->supplierJson($supplier),
         ]);
     }
 
@@ -256,10 +387,12 @@ class SupplierController extends Controller
 
     private function log()
     {
-        return [[
-            'user_id'   => auth()->id() ?? 1,
-            'timestamp' => now(),
-        ]];
+        return [
+            [
+                'user_id' => auth()->id() ?? 1,
+                'timestamp' => now(),
+            ]
+        ];
     }
 
     private function appendLog($old, $remark)
@@ -267,9 +400,9 @@ class SupplierController extends Controller
         $old = $old ?? [];
 
         $old[] = [
-            'user_id'   => auth()->id() ?? 1,
+            'user_id' => auth()->id() ?? 1,
             'timestamp' => now(),
-            'remark'    => $remark,
+            'remark' => $remark,
         ];
 
         return $old;

@@ -1096,6 +1096,10 @@ Route::middleware('auth')->group(function () {
 
     // neww routing 
     Route::get('/supplier', [SupplierController::class, 'index']);
+    Route::get('/supplier/{id}/spk-preview', [
+    SupplierController::class,
+    'previewSupplierSpk'
+])->middleware('auth')->name('supplier.spk-preview');
     Route::post('/supplier/store', [SupplierController::class, 'storeSupplier']);
     Route::post('/supplier/update/{id}', [SupplierController::class, 'updateSupplier']);
     Route::post('/jenis/store', [SupplierController::class, 'storeJenis']);
