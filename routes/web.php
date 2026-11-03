@@ -43,10 +43,38 @@ use App\Services\MikrotikService;
 use App\Http\Controllers\NetworkController;
 use App\Http\Controllers\RndController;
 use App\Http\Controllers\GoogleDriveAuthController;
+use Illuminate\Support\Facades\Broadcast;
 
 // ==========================================================
 // MAGIC APPROVAL LINK - PUBLIC ENTRY POINT
 // ==========================================================
+// ==========================================
+// QC PUSHER NOTIFICATION TEST
+// ==========================================
+
+Route::post('/qc/test-notification', [
+    QcController::class,
+    'testQcNotification'
+])
+->middleware('auth')
+->name('qc.test.notification');
+
+// ==========================================
+// PUSHER BROADCASTING AUTH - QC NOTIFICATION
+// ==========================================
+
+// Registrasi endpoint /broadcasting/auth
+Broadcast::routes([
+    'middleware' => ['web', 'auth'],
+]);
+
+// Muat channel authorization
+require_once base_path('routes/channels.php');
+
+Route::get(
+    '/qc/notifications',
+    [QcController::class, 'qcNotifications']
+)->name('qc.notifications');
 Route::get('/spk/edit/{id}', [SpkController::class, 'index'])->name('spk.edit');
 Route::get('/spk/scan-number', [SpkController::class, 'scanNoSpk'])->name('spk.scan-number');
 

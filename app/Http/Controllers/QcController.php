@@ -81,50 +81,81 @@ class QcController extends Controller
 
         return null;
     }
-private function matchQcSpkCategory(
-    string $divisi,
-    string $kategoriSpk
-): bool {
-    $divisi = strtoupper(trim($divisi));
-    $kategoriSpk = strtoupper(trim($kategoriSpk));
+    private function matchQcSpkCategory(
+        string $divisi,
+        string $kategoriSpk
+    ): bool {
+        $divisi = strtoupper(trim($divisi));
+        $kategoriSpk = strtoupper(trim($kategoriSpk));
 
-    if ($divisi !== '' && !str_starts_with($divisi, 'QC ')) {
-        $divisi = 'QC ' . $divisi;
-    }
-
-    $mapping = $this->qcSpkMapping();
-
-    if (!isset($mapping[$divisi])) {
-        return $this->matchDivisi($divisi, $kategoriSpk);
-    }
-
-    foreach ($mapping[$divisi] as $keyword) {
-        if (str_contains($kategoriSpk, $keyword)) {
-            return true;
+        if ($divisi !== '' && !str_starts_with($divisi, 'QC ')) {
+            $divisi = 'QC ' . $divisi;
         }
+
+        $mapping = $this->qcSpkMapping();
+
+        if (!isset($mapping[$divisi])) {
+            return $this->matchDivisi($divisi, $kategoriSpk);
+        }
+
+        foreach ($mapping[$divisi] as $keyword) {
+            if (str_contains($kategoriSpk, $keyword)) {
+                return true;
+            }
+        }
+
+        return false;
     }
+    private function qcSpkMapping(): array
+    {
+        return [
+            'QC RANGKA' => [
+                'RANGKA',
+                'RANGKA BESI',
+                'RANGKA KAYU',
+                'RANGKA ROTAN',
+                'RANGKA ALUMUNIUN',
+                'RANGKA TRIPLEK',
+                'TRIPLEK',
 
-    return false;
-}
-private function qcSpkMapping(): array
-{
-    return [
-        'QC RANGKA' => [   'RANGKA', 'RANGKA BESI', 'RANGKA KAYU', 'RANGKA ROTAN',  'RANGKA ALUMUNIUN','RANGKA TRIPLEK', 'TRIPLEK',
+            ],
 
-        ],
+            'QC ANYAM' => [
+                'ANYAM',
+                'DEKOR',
+                'ECENG',
+                'BANANA',
+                'SONGKET',
+                'WEBBING',
+                'SYNTETIC',
+                'ACCESSORIES',
+                'AKSESORIES',
+                'AKESOSORIS',
+                'CUSHION',
+                'KULIT',
+                'IKAT',
+                'IKET',
+                'DEKORAN',
+                'CERMIN',
+                'KACA',
+                'ANYAM',
+                'ANYAM SINTETIS',
+                'ANYAM KARAKTER',
+                'RANGKA + ANYAM',
+                'ANYAM + DEKOR',
+                'BASKET JOGJA',
+                'BASKE JOGJA',
+                'BASKET LOMBOKAN',
+                'BASKET TASIK',
+            ],
 
-        'QC ANYAM' => [ 'ANYAM', 'DEKOR',    'ECENG', 'BANANA', 'SONGKET', 'WEBBING',   'SYNTETIC', 'ACCESSORIES', 'AKSESORIES', 
-            'AKESOSORIS','CUSHION','KULIT','IKAT', 'IKET', 'DEKORAN','CERMIN',  'KACA',
-            'ANYAM', 'ANYAM SINTETIS','ANYAM KARAKTER','RANGKA + ANYAM','ANYAM + DEKOR',
-            'BASKET JOGJA','BASKE JOGJA','BASKET LOMBOKAN','BASKET TASIK',
-        ],
-
-        'QC UNFINISH' => [ 'BASKET',
-            'PAKET',
-            'SUB BORONGAN',
-        ],
-    ];
-}
+            'QC UNFINISH' => [
+                'BASKET',
+                'PAKET',
+                'SUB BORONGAN',
+            ],
+        ];
+    }
     public function detailPo(Request $request, string $divisi, int $poId)
     {
         $inspectionModel = $this->inspectionScheduleModel();
@@ -887,12 +918,12 @@ private function qcSpkMapping(): array
                     //         $kategoriSpk
                     //     )
                     // ) {
-
+    
                     //     continue;
                     // }
-if (!$this->matchQcSpkCategory($divisiQc, $kategoriSpk)) {
-    continue;
-}
+                    if (!$this->matchQcSpkCategory($divisiQc, $kategoriSpk)) {
+                        continue;
+                    }
 
                     /*
                     |--------------------------------------------------------------------------
@@ -2593,6 +2624,259 @@ if (!$this->matchQcSpkCategory($divisiQc, $kategoriSpk)) {
         return view('pages.qc.laporan', compact('qcs', 'inspection'));
 
     }
+    // notify 
+    
+public function qcNotifications()
+{
+    try {
+        // ==========================================
+        // 1. QC INSPECTION - TODAY ONLY
+        // ==========================================
+
+        $inspectionModel = $this->inspectionScheduleModel();
+
+        $inspections = $inspectionModel::with([
+                'kategori',
+                'user',
+                'spk',
+                'detailPo',
+                'po',
+            ])
+            ->whereDate('created_at', today())
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(30)
+            ->get();
+
+        $inspectionNotifications = $inspections->map(function ($row) {
+
+            // SPK data bisa berupa array atau JSON
+            $spkData = $row->spk?->data ?? [];
+
+            if (is_string($spkData)) {
+                $spkData = json_decode($spkData, true);
+            }
+
+            if (!is_array($spkData)) {
+                $spkData = [];
+            }
+
+            // Detail PO bisa berupa array atau JSON
+            $detailData = $row->detailPo?->detail ?? [];
+
+            if (is_string($detailData)) {
+                $detailData = json_decode($detailData, true);
+            }
+
+            if (!is_array($detailData)) {
+                $detailData = [];
+            }
+
+            $passed = (int) ($row->passed ?? 0);
+            $rejected = (int) ($row->rejected ?? 0);
+
+            return [
+                'id' => $row->id,
+                'type' => 'post',
+
+                'user' => $row->user?->name ?? 'QC',
+
+                'po_id' => $row->po_id,
+                'spk_id' => $row->spk_id,
+
+                'spk_no' => $row->spk?->no_spk
+                    ?? $spkData['no_spk']
+                    ?? '-',
+
+                'item' => $row->detailPo?->description
+                    ?? $detailData['description']
+                    ?? '-',
+
+                'kategori' => $row->kategori?->kategori ?? 'QC',
+
+                'passed' => $passed,
+                'rejected' => $rejected,
+
+                'qty' => (int) (
+                    $row->jumlah_inspect
+                    ?? ($passed + $rejected)
+                ),
+
+                'created_at' => $row->created_at
+                    ?->toIso8601String(),
+            ];
+        });
+
+        // ==========================================
+        // 2. QC INCOMING - TODAY ONLY
+        // ==========================================
+
+        $incomings = \App\Models\Incoming::with([
+                'user',
+                'detailPo',
+            ])
+            ->whereDate('created_at', today())
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(30)
+            ->get();
+
+        $incomingNotifications = $incomings->map(function ($row) {
+
+            // Detail PO bisa berupa array atau JSON
+            $detailData = $row->detailPo?->detail ?? [];
+
+            if (is_string($detailData)) {
+                $detailData = json_decode($detailData, true);
+            }
+
+            if (!is_array($detailData)) {
+                $detailData = [];
+            }
+
+            return [
+                'id' => $row->id,
+                'type' => 'incoming',
+
+                'user' => $row->user?->name ?? 'QC',
+
+                'po_id' => $row->po_id,
+                'spk_id' => $row->spk_id,
+                'spk_no' => '-',
+
+                'item' => $row->detailPo?->description
+                    ?? $detailData['description']
+                    ?? '-',
+
+                'kategori' => 'QC Incoming',
+
+                'passed' => (int) ($row->passed ?? 0),
+                'rejected' => (int) ($row->rejected ?? 0),
+                'qty' => (int) ($row->jumlah_incoming ?? 0),
+
+                'created_at' => $row->created_at
+                    ?->toIso8601String(),
+            ];
+        });
+
+        // ==========================================
+        // 3. GABUNGKAN & URUTKAN NOTIFIKASI
+        // ==========================================
+
+        $notifications = $inspectionNotifications
+            ->concat($incomingNotifications)
+            ->sortByDesc('created_at')
+            ->take(30)
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => $notifications,
+        ]);
+
+    } catch (\Throwable $e) {
+
+        \Illuminate\Support\Facades\Log::error(
+            'QC Notifications Error',
+            [
+                'message' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+            ]
+        );
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Gagal mengambil notifikasi QC',
+        ], 500);
+    }
+}
+
+public function testQcNotification(Request $request)
+{
+    try {
+        // ========================================
+        // AMBIL SPK ASLI DARI DATABASE
+        // ========================================
+
+        $spk = \App\Models\Spk::findOrFail(25);
+
+        $spkData = $spk->data;
+
+        if (is_string($spkData)) {
+            $spkData = json_decode($spkData, true);
+        }
+
+        $spkData = is_array($spkData) ? $spkData : [];
+
+        // Ambil item pertama SPK
+        $item = collect($spkData['items'] ?? [])->first();
+
+        if (!$item) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Item SPK tidak ditemukan',
+            ], 404);
+        }
+
+        // ========================================
+        // DATA DUMMY INSPECTION
+        // ========================================
+
+        $qty = 60;
+        $passed = 55;
+        $rejected = 5;
+
+        $payload = [
+            'id' => 'test-' . now()->format('YmdHisv'),
+            'type' => 'post',
+
+            'user' => $request->user()?->name ?? 'QC TEST',
+
+            'po_id' => $spk->po_id,
+            'spk_id' => $spk->id,
+
+            'spk_no' => $spkData['no_spk'] ?? '-',
+
+            'item' => $item['nama'] ?? '-',
+            'kategori' => 'QC Rangka',
+
+            'passed' => $passed,
+            'rejected' => $rejected,
+            'qty' => $qty,
+
+            'created_at' => now()->toIso8601String(),
+        ];
+
+        // ========================================
+        // KIRIM PUSHER REALTIME
+        // ========================================
+
+        event(new \App\Events\QcInspectionSubmitted($payload));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Dummy QC notification berhasil dikirim',
+            'data' => $payload,
+        ]);
+
+    } catch (\Throwable $e) {
+
+        \Illuminate\Support\Facades\Log::error(
+            'TEST QC PUSHER ERROR',
+            [
+                'message' => $e->getMessage(),
+                'line' => $e->getLine(),
+            ]
+        );
+
+        return response()->json([
+            'success' => false,
+            'message' => $e->getMessage(),
+        ], 500);
+    }
+}
+
     public function monitorDetail($id)
     {
         $po = Po::with([
@@ -2811,742 +3095,1516 @@ if (!$this->matchQcSpkCategory($divisiQc, $kategoriSpk)) {
             : ReportPhoto::class;
     }
     public function insertInspection(
+
         string $kategoriName,
+
         Request $request
+
     ) {
+
         $inspectionModel = $this->inspectionScheduleModel();
+
         $qcReportModel = $this->qcReportModel();
+
         $reportPhotoModel = $this->reportPhotoModel();
+
+
 
         DB::beginTransaction();
 
+
+
         try {
 
+
+
             /*
+
             |--------------------------------------------------------------------------
+
             | MODEL / MODE
+
             |--------------------------------------------------------------------------
+
             |
+
             | Semua query inspection di function ini akan otomatis
+
             | menggunakan tabel TEST atau PRODUCTION berdasarkan
+
             | USE_TEST_INSPECTION.
+
             |
+
             */
 
+
+
             $inspectionModel = $this->inspectionScheduleModel();
+
             $qcReportModel = $this->qcReportModel();
+
             $reportPhotoModel = $this->reportPhotoModel();
 
+
+
             Log::info('========== QC MODE ==========', [
+
                 'mode' => self::USE_TEST_INSPECTION
+
                     ? 'TEST'
+
                     : 'PRODUCTION',
+
                 'inspect_schedule_model' => $inspectionModel,
+
                 'qc_report_model' => $qcReportModel,
+
                 'report_photo_model' => $reportPhotoModel,
+
             ]);
 
 
+
+
+
             /*
+
             |--------------------------------------------------------------------------
+
             | KATEGORI
+
             |--------------------------------------------------------------------------
+
             */
 
+
+
             $kategoriName = strtolower(
+
                 trim($kategoriName)
+
             );
+
+
 
             $kategoriName = str_replace(
+
                 'qc ',
+
                 '',
+
                 $kategoriName
+
             );
+
+
 
             $kategori = Kategori::whereRaw(
+
                 'LOWER(kategori) = ?',
+
                 [$kategoriName]
+
             )->first();
 
+
+
             $kategoriTanpaSpk = [
+
                 'unfinish',
+
                 'final',
+
                 'packaging'
+
             ];
 
+
+
             $useSpk = !in_array(
+
                 $kategoriName,
+
                 $kategoriTanpaSpk
+
             );
 
+
+
             if (!$kategori) {
+
                 return response()->json([
+
                     'status' => 'error',
+
                     'message' => 'Kategori tidak ditemukan',
+
                 ], 404);
+
             }
 
 
+
+
+
             /*
+
             |--------------------------------------------------------------------------
+
             | DATA
+
             |--------------------------------------------------------------------------
+
             */
 
+
+
             $po_id =
+
                 $request->po_id;
 
+
+
             $detail_po_id =
+
                 $request->detail_po_id;
 
+
+
             $spk_id =
+
                 $request->spk_id;
 
+
+
             $reports =
+
                 $request->reports ?? [];
 
+
+
             $findings =
+
                 $request->findings ?? [];
 
+
+
             $qtyInspection =
+
                 (int) $request->qty_inspection;
 
+
+
             $passed =
+
                 (int) $request->passed;
 
+
+
             $rejected =
+
                 (int) $request->rejected;
 
 
+
+
+
             /*
+
             |--------------------------------------------------------------------------
+
             | FLAG INSPECTION
+
             |--------------------------------------------------------------------------
+
             */
 
+
+
             $isReinspect =
+
                 $request->boolean('is_reinspect');
 
+
+
             $isService =
+
                 $request->boolean('is_service');
 
+
+
             $nwService =
+
                 $request->boolean('nw_service');
 
 
+
+
+
             Log::info(
+
                 '================ QC INSERT ================='
+
             );
 
+
+
             Log::info('QC REQUEST', [
+
                 'po' => $po_id,
+
                 'detail_po' => $detail_po_id,
+
                 'spk' => $spk_id,
+
                 'kategori' => $kategoriName,
 
+
+
                 'is_reinspect' => $isReinspect,
+
                 'is_service' => $isService,
+
                 'nw_service' => $nwService,
 
+
+
                 'mode' => self::USE_TEST_INSPECTION
+
                     ? 'TEST'
+
                     : 'PRODUCTION',
+
             ]);
 
 
+
+
+
             /*
+
             |--------------------------------------------------------------------------
+
             | VALIDASI PASSED + REJECTED
+
             |--------------------------------------------------------------------------
+
             */
+
+
 
             if (
+
                 ($passed + $rejected)
+
                 != $qtyInspection
+
             ) {
+
                 return response()->json([
+
                     'status' => 'error',
+
                     'message' => 'Passed + Rejected tidak sesuai',
+
                 ], 400);
+
             }
 
 
+
+
+
             /*
+
             |--------------------------------------------------------------------------
+
             | BATCH
+
             |--------------------------------------------------------------------------
+
             */
+
+
 
             if ($useSpk) {
 
+
+
                 $batchKe = $inspectionModel::where(
+
                     'spk_id',
+
                     $spk_id
+
                 )
+
                     ->where(
+
                         'kategori_id',
+
                         $kategori->id
+
                     )
+
                     ->count() + 1;
+
+
 
             } else {
 
+
+
                 $batchKe = $inspectionModel::where(
+
                     'detail_po_id',
+
                     $detail_po_id
+
                 )
+
                     ->where(
+
                         'kategori_id',
+
                         $kategori->id
+
                     )
+
                     ->count() + 1;
+
             }
 
 
+
+
+
             /*
+
             |--------------------------------------------------------------------------
+
             | QTY SPK / INSPECTION
+
             |--------------------------------------------------------------------------
+
             */
 
+
+
             if ($useSpk) {
+
+
 
                 $spk = \App\Models\Spk::findOrFail(
+
                     $spk_id
+
                 );
+
+
 
                 $spkData = is_array($spk->data)
+
                     ? $spk->data
+
                     : json_decode(
+
                         $spk->data,
+
                         true
+
                     );
+
+
 
                 $item = collect(
+
                     $spkData['items'] ?? []
+
                 )->first(
+
                         function ($i) use ($detail_po_id) {
 
+
+
                             return (
+
                                 $i['detail_po_id'] ?? null
+
                             ) == $detail_po_id;
+
                         }
+
                     );
+
+
 
                 if (!$item) {
+
                     throw new \Exception(
+
                         'Item SPK tidak ditemukan'
+
                     );
+
                 }
 
+
+
                 $qtyPo = (int) (
+
                     $item['qty'] ?? 0
+
                 );
 
 
+
+
+
                 /*
+
                 |--------------------------------------------------------------------------
+
                 | TOTAL INSPECT
+
                 |--------------------------------------------------------------------------
+
                 */
+
+
 
                 $totalInspect = $inspectionModel::where(
+
                     'spk_id',
+
                     $spk_id
+
                 )
+
                     ->where(
+
                         'detail_po_id',
+
                         $detail_po_id
+
                     )
+
                     ->where(
+
                         'kategori_id',
+
                         $kategori->id
+
                     )
+
                     ->sum(
+
                         'jumlah_inspect'
+
                     );
+
+
+
 
 
                 /*
+
                 |--------------------------------------------------------------------------
+
                 | TOTAL REJECTED
+
                 |--------------------------------------------------------------------------
+
                 */
 
+
+
                 $totalRejected = $inspectionModel::where(
+
                     'spk_id',
+
                     $spk_id
+
                 )
+
                     ->where(
+
                         'kategori_id',
+
                         $kategori->id
+
                     )
+
                     ->sum(
+
                         'rejected'
+
                     );
+
+
 
             } else {
 
+
+
                 /*
+
                 |--------------------------------------------------------------------------
+
                 | DETAIL PO
+
                 |--------------------------------------------------------------------------
+
                 */
+
+
 
                 $detailPo = DetailPo::findOrFail(
+
                     $detail_po_id
+
                 );
+
+
 
                 $qtyPo = (int) (
+
                     $detailPo->detail['qty'] ?? 0
+
                 );
 
 
+
+
+
                 /*
+
                 |--------------------------------------------------------------------------
+
                 | TOTAL INSPECT
+
                 |--------------------------------------------------------------------------
+
                 */
+
+
 
                 $totalInspect = $inspectionModel::where(
+
                     'detail_po_id',
+
                     $detail_po_id
+
                 )
+
                     ->where(
+
                         'kategori_id',
+
                         $kategori->id
+
                     )
+
                     ->sum(
+
                         'jumlah_inspect'
+
                     );
+
+
+
 
 
                 /*
+
                 |--------------------------------------------------------------------------
+
                 | TOTAL REJECTED
+
                 |--------------------------------------------------------------------------
+
                 */
 
+
+
                 $totalRejected = $inspectionModel::where(
+
                     'detail_po_id',
+
                     $detail_po_id
+
                 )
+
                     ->where(
+
                         'kategori_id',
+
                         $kategori->id
+
                     )
+
                     ->sum(
+
                         'rejected'
+
                     );
+
             }
 
 
+
+
+
             /*
+
             |--------------------------------------------------------------------------
+
             | INSERT INSPECT SCHEDULE
+
             |--------------------------------------------------------------------------
+
             */
 
+
+
             $inspectSchedule =
+
                 $inspectionModel::create([
 
+
+
                     'po_id' =>
+
                         $po_id,
 
+
+
                     'detail_po_id' =>
+
                         $detail_po_id,
 
+
+
                     'kategori_id' =>
+
                         $kategori->id,
 
+
+
                     'batch' =>
+
                         $batchKe,
 
+
+
                     'jumlah_inspect' =>
+
                         $qtyInspection,
 
+
+
                     'passed' =>
+
                         $passed,
 
+
+
                     'rejected' =>
+
                         $rejected,
 
+
+
                     'tanggal_inspect' =>
+
                         now()->toDateString(),
 
+
+
                     'user_id' =>
+
                         auth()->id() ?? 1,
 
+
+
                     'spk_id' =>
+
                         $useSpk
+
                         ? $spk_id
+
                         : null,
 
+
+
                     /*
+
                     |--------------------------------------------------------------------------
+
                     | FLAG
+
                     |--------------------------------------------------------------------------
+
                     */
 
+
+
                     'is_reinspect' =>
+
                         $isReinspect,
 
+
+
                     'is_service' =>
+
                         $isService,
 
+
+
                     'nw_service' =>
+
                         $nwService,
+
                 ]);
 
 
+
+
+
             /*
+
             |--------------------------------------------------------------------------
+
             | SAVE TIMELINE
+
             |--------------------------------------------------------------------------
+
             */
 
+
+
             $this->saveTimelineQC(
+
                 $inspectSchedule
+
             );
 
 
+
+
+
             /*
+
             |--------------------------------------------------------------------------
+
             | REPORTS
+
             |--------------------------------------------------------------------------
+
             */
+
+
 
             $qcReportMap = [];
 
+
+
             foreach ($reports as $report) {
 
+
+
                 $checkpointName = strtolower(
+
                     trim(
+
                         $report['checkpoint_name']
+
                     )
+
                 );
 
+
+
                 $value =
+
                     $report['value'];
 
 
+
+
+
                 /*
+
                 |--------------------------------------------------------------------------
+
                 | KEY
+
                 |--------------------------------------------------------------------------
+
                 */
 
+
+
                 $key = str_replace(
+
                     ' ',
+
                     '_',
+
                     $checkpointName
+
                 );
 
 
+
+
+
                 /*
+
                 |--------------------------------------------------------------------------
+
                 | JSON CHECK
+
                 |--------------------------------------------------------------------------
+
                 */
 
+
+
                 $decoded =
+
                     json_decode(
+
                         $value,
+
                         true
+
                     );
 
 
+
+
+
                 /*
+
                 |--------------------------------------------------------------------------
+
                 | REMARK FORMAT
+
                 |--------------------------------------------------------------------------
+
                 */
 
+
+
                 if (
+
                     json_last_error()
+
                     === JSON_ERROR_NONE
+
                 ) {
 
+
+
                     $remark = [
+
                         $key => $decoded,
+
                     ];
+
+
 
                 } else {
 
+
+
                     $remark = [
+
                         $key => $value,
+
                     ];
+
                 }
 
 
+
+
+
                 /*
+
                 |--------------------------------------------------------------------------
+
                 | INSERT QC REPORT
+
                 |--------------------------------------------------------------------------
+
                 */
+
+
 
                 $qcReport = $qcReportModel::create([
 
+
+
                     'inspect_schedule_id' =>
+
                         $inspectSchedule->id,
 
+
+
                     'check_point_id' =>
+
                         $report['checkpoint_id'],
 
+
+
                     'po_id' =>
+
                         $po_id,
 
+
+
                     'detail_po_id' =>
+
                         $detail_po_id,
 
+
+
                     'remark' =>
+
                         json_encode(
+
                             $remark
+
                         ),
+
                 ]);
 
 
+
+
+
                 $qcReportMap[
+
                     $report['checkpoint_id']
+
                 ] = $qcReport;
+
             }
 
 
+
+
+
             /*
+
             |--------------------------------------------------------------------------
+
             | FINDING PHOTOS
+
             |--------------------------------------------------------------------------
+
             */
 
+
+
             if (
+
                 $request->hasFile(
+
                     'finding_images'
+
                 )
+
             ) {
 
+
+
                 foreach (
+
                     $request->file(
+
                         'finding_images'
+
                     ) as $index => $file
+
                 ) {
 
+
+
                     $filename =
+
                         Str::uuid()
+
                         . '.'
+
                         . $file
+
                             ->getClientOriginalExtension();
 
 
+
+
+
                     $path = $file->storeAs(
+
                         'uploads/qc',
+
                         $filename,
+
                         'public'
+
                     );
+
+
+
 
 
                     $reportPhotoModel::create([
 
+
+
                         /*
+
                         |--------------------------------------------------------------------------
+
                         | TEMUAN GLOBAL
+
                         |--------------------------------------------------------------------------
+
                         */
 
+
+
                         'inspect_schedule_id' =>
+
                             $inspectSchedule->id,
 
+
+
                         'keterangan' =>
+
                             $findings[$index]['remark']
+
                             ?? null,
 
+
+
                         'path' =>
+
                             $path,
+
                     ]);
+
                 }
+
             }
 
 
+
+
+
             /*
+
             |--------------------------------------------------------------------------
+
             | CHECKPOINT PHOTOS
+
             |--------------------------------------------------------------------------
+
             */
 
+
+
             if (
+
                 $request->has(
+
                     'checkpoint_photos'
+
                 )
+
             ) {
 
+
+
                 foreach (
+
                     $request->checkpoint_photos
+
                     as $checkpointId => $photos
+
                 ) {
 
+
+
                     /*
+
                     |--------------------------------------------------------------------------
+
                     | AMBIL QC REPORT SESUAI CHECKPOINT
+
                     |--------------------------------------------------------------------------
+
                     */
 
+
+
                     $checkpointReport =
+
                         $qcReportModel::where(
+
                             'inspect_schedule_id',
+
                             $inspectSchedule->id
+
                         )
+
                             ->where(
+
                                 'check_point_id',
+
                                 $checkpointId
+
                             )
+
                             ->first();
 
 
+
+
+
                     if (!$checkpointReport) {
+
                         continue;
+
                     }
 
 
+
+
+
                     foreach (
+
                         $photos as $index => $file
+
                     ) {
 
+
+
                         if (
+
                             !$file instanceof
+
                             \Illuminate\Http\UploadedFile
+
                         ) {
+
                             continue;
+
                         }
 
 
+
+
+
                         $filename =
+
                             Str::uuid()
+
                             . '.'
+
                             . $file
+
                                 ->getClientOriginalExtension();
 
 
+
+
+
                         $path = $file->storeAs(
+
                             'uploads/qc',
+
                             $filename,
+
                             'public'
+
                         );
+
+
+
 
 
                         $reportPhotoModel::create([
 
+
+
                             /*
+
                             |--------------------------------------------------------------------------
+
                             | QC REPORT YANG BENAR
+
                             |--------------------------------------------------------------------------
+
                             */
 
+
+
                             'qc_report_id' =>
+
                                 $checkpointReport->id,
 
+
+
                             'inspect_schedule_id' =>
+
                                 $inspectSchedule->id,
 
+
+
                             'keterangan' =>
+
                                 $request
+
                                     ->checkpoint_photo_remarks[
+
                                     $checkpointId
+
                                 ][$index]
+
                                 ?? null,
 
+
+
                             'path' =>
+
                                 $path,
+
                         ]);
+
                     }
+
                 }
+
             }
 
 
+
+
+
             /*
+
             |--------------------------------------------------------------------------
+
             | COMMIT
+
             |--------------------------------------------------------------------------
+
             */
+
+
 
             DB::commit();
 
+            // PUSHER QC INSPECTION - tambahan setelah commit, tanpa mengubah proses simpan.
+            try {
+                $notificationDetail = \App\Models\DetailPo::find($detail_po_id);
+                $notificationSpk = $useSpk ? \App\Models\Spk::find($spk_id) : null;
+                $notificationSpkData = $notificationSpk?->data;
+                if (is_string($notificationSpkData)) {
+                    $notificationSpkData = json_decode($notificationSpkData, true);
+                }
+                $notificationSpkData = is_array($notificationSpkData) ? $notificationSpkData : [];
+                $notificationDetailData = $notificationDetail?->detail;
+                if (is_string($notificationDetailData)) {
+                    $notificationDetailData = json_decode($notificationDetailData, true);
+                }
+                $notificationDetailData = is_array($notificationDetailData) ? $notificationDetailData : [];
+
+                event(new \App\Events\QcInspectionSubmitted([
+                    'id' => $inspectSchedule->id,
+                    'type' => 'post',
+                    'user' => $request->user()?->name ?? 'QC',
+                    'po_id' => $po_id,
+                    'spk_id' => $useSpk ? $spk_id : null,
+                    'spk_no' => $notificationSpk->no_spk ?? $notificationSpkData['no_spk'] ?? '-',
+                    'item' => $notificationDetail->description ?? $notificationDetailData['description'] ?? '-',
+                    'kategori' => $kategori->kategori,
+                    'passed' => $passed,
+                    'rejected' => $rejected,
+                    'qty' => $qtyInspection,
+                    'created_at' => now()->toIso8601String(),
+                ]));
+            } catch (\Throwable $notificationError) {
+                Log::warning('Pusher QC Inspection gagal', [
+                    'inspection_id' => $inspectSchedule->id,
+                    'error' => $notificationError->getMessage(),
+                ]);
+            }
+
+
+
+
+
 
             Log::info(
+
                 '===== QC INSERT SUCCESS =====',
+
                 [
+
                     'mode' =>
+
                         self::USE_TEST_INSPECTION
+
                         ? 'TEST'
+
                         : 'PRODUCTION',
 
+
+
                     'inspect_schedule_id' =>
+
                         $inspectSchedule->id,
 
+
+
                     'batch' =>
+
                         $batchKe,
+
                 ]
+
             );
+
+
+
 
 
             return response()->json([
 
+
+
                 'status' =>
+
                     'success',
 
+
+
                 'message' =>
+
                     'Inspection berhasil',
 
+
+
                 'batch' =>
+
                     $batchKe,
 
+
+
                 'inspect_schedule_id' =>
+
                     $inspectSchedule->id,
 
+
+
                 /*
+
                 |--------------------------------------------------------------------------
+
                 | DEBUG MODE
+
                 |--------------------------------------------------------------------------
+
                 */
 
+
+
                 'mode' =>
+
                     self::USE_TEST_INSPECTION
+
                     ? 'TEST'
+
                     : 'PRODUCTION',
+
             ]);
+
+
+
 
 
         } catch (\Throwable $e) {
 
+
+
             DB::rollBack();
 
 
+
+
+
             Log::error(
+
                 'QC ERROR',
+
                 [
+
                     'msg' =>
+
                         $e->getMessage(),
 
+
+
                     'line' =>
+
                         $e->getLine(),
 
+
+
                     'file' =>
+
                         $e->getFile(),
 
+
+
                     'mode' =>
+
                         self::USE_TEST_INSPECTION
+
                         ? 'TEST'
+
                         : 'PRODUCTION',
+
                 ]
+
             );
 
 
+
+
+
             return response()->json([
+
                 'status' =>
+
                     'error',
 
+
+
                 'message' =>
+
                     $e->getMessage(),
+
             ], 500);
+
         }
+
     }
     //   public function insertInspection(
 //     string $kategoriName,
@@ -7750,7 +8808,7 @@ if (!$this->matchQcSpkCategory($divisiQc, $kategoriSpk)) {
                 'LASIO',
                 'BASE SWIVEL',
                 'PLAT BESI',
-              
+
                 'TRIPLEK',
                 'POWDER COATING',
             ],
@@ -7766,7 +8824,7 @@ if (!$this->matchQcSpkCategory($divisiQc, $kategoriSpk)) {
                 'AKSESORIES',
                 'AKESOSORIS',
 
-                
+
                 'CUSHION',
                 'KULIT',
                 'IKAT',
@@ -9061,6 +10119,36 @@ if (!$this->matchQcSpkCategory($divisiQc, $kategoriSpk)) {
                 'user_id' => $request->user()->id,
             ]);
         });
+
+        // PUSHER QC INCOMING - tambahan setelah transaksi sukses.
+        try {
+            $notificationDetail = DetailPo::find($incoming->detail_po_id);
+            $notificationDetailData = $notificationDetail?->detail;
+            if (is_string($notificationDetailData)) {
+                $notificationDetailData = json_decode($notificationDetailData, true);
+            }
+            $notificationDetailData = is_array($notificationDetailData) ? $notificationDetailData : [];
+
+            event(new \App\Events\QcInspectionSubmitted([
+                'id' => $incoming->id,
+                'type' => 'incoming',
+                'user' => $request->user()?->name ?? 'QC',
+                'po_id' => $incoming->po_id,
+                'spk_id' => null,
+                'spk_no' => '-',
+                'item' => $notificationDetail->description ?? $notificationDetailData['description'] ?? '-',
+                'kategori' => 'QC Incoming',
+                'passed' => (int) $incoming->passed,
+                'rejected' => (int) $incoming->rejected,
+                'qty' => (int) $incoming->jumlah_incoming,
+                'created_at' => now()->toIso8601String(),
+            ]));
+        } catch (\Throwable $notificationError) {
+            \Illuminate\Support\Facades\Log::warning('Pusher QC Incoming gagal', [
+                'incoming_id' => $incoming->id,
+                'error' => $notificationError->getMessage(),
+            ]);
+        }
 
         return response()->json([
             'status' => 'success',
