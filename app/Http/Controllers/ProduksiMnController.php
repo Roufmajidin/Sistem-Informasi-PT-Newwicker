@@ -3494,359 +3494,1068 @@ class ProduksiMnController extends Controller
             )
         );
     }
-    public function inventorDetail($id)
+ 
+// Tempel hanya function berikut di dalam ProduksiMnController.
+ public function inventorDetail($id)
+
     {
+
         $spk = Spk::findOrFail($id);
 
+
+
         $data = is_string($spk->data)
+
             ? json_decode($spk->data, true)
+
             : $spk->data;
 
+
+
         $itemMap = collect(
+
             $data['items'] ?? []
+
         )->keyBy('detail_po_id');
 
+
+
         /*
 
+
+
     |--------------------------------------------------------------------------
+
     | ITEMS + CUSTOM COLUMN TOTAL
+
     |--------------------------------------------------------------------------
+
     */
+
         // inspection result
+
         $detailPoIds = collect(
+
             $data['items'] ?? []
+
         )->pluck('detail_po_id')->filter();
+
         $kategoriId = Kategori::where(
+
             'kategori',
+
             $data['kategori']
+
         )->value('id');
+
         $inspectSummary = InspectSchedule::where(
+
             'spk_id',
+
             $spk->id
+
         )
+
             ->selectRaw("
+
             detail_po_id,
+
             SUM(passed) as passed,
+
             SUM(rejected) as rejected
+
         ")
+
             ->groupBy('detail_po_id')
+
             ->get()
+
             ->keyBy('detail_po_id');
+
         $items = collect(
+
             $data['items'] ?? []
+
         )->map(function ($item) use ($inspectSummary) {
 
+
+
             $inspect = $inspectSummary->get(
+
                 $item['detail_po_id'] ?? null
+
             );
+
+
 
             $item['passed'] = (int) (
+
                 $inspect->passed ?? 0
+
             );
 
+
+
             $item['rejected'] = (int) (
+
                 $inspect->rejected ?? 0
+
             );
+
+
 
             return $item;
 
+
+
         });
 
+
+
         $items = collect(
+
             $data['items'] ?? []
+
         )->map(function ($item) use ($inspectSummary) {
 
+
+
             $inspect = $inspectSummary->get(
+
                 $item['detail_po_id'] ?? null
+
             );
+
+
 
             $item['passed'] = (int) (
+
                 $inspect->passed ?? 0
+
             );
 
+
+
             $item['rejected'] = (int) (
+
                 $inspect->rejected ?? 0
+
             );
+
+
 
             return $item;
 
+
+
         });
+
+
 
         /*
+
             |--------------------------------------------------------------------------
+
             | GRAND TOTAL SPK
+
             |--------------------------------------------------------------------------
+
             */
+
         $grandTotal = $items->sum(function ($item) {
+
+
 
             $total = (float) ($item['total'] ?? 0);
 
+
+
             $customTotal = collect(
+
                 $item['custom_columns'] ?? []
+
             )->sum(function ($custom) {
 
+
+
                 return (float) (
+
                     $custom['total'] ?? 0
+
                 );
+
+
 
             });
 
+
+
             return $total + $customTotal;
+
         });
 
+
+
         /*
+
     |--------------------------------------------------------------------------
+
     | SUPPLIER
+
     |--------------------------------------------------------------------------
+
     */
+
         $supplier = Supplier::where(
+
             'name',
+
             $data['sup'] ?? ''
+
         )->first();
 
+
+
         /*
+
     |--------------------------------------------------------------------------
+
     | TIMELINE
+
     |--------------------------------------------------------------------------
+
     */
+
         $timelines = ProductionTimeline::where(
+
             'spk_id',
+
             $spk->id
+
         )
+
             ->orderBy('id')
+
             ->get()
+
             ->map(function ($row) use ($itemMap) {
 
+
+
                 return [
+
                     'id' => $row->id,
+
+
 
                     'detail_po_id' => $row->detail_po_id,
 
+
+
                     'item_name' =>
+
                         $itemMap[$row->detail_po_id]['nama'] ?? '-',
 
+
+
                     'item_code' =>
+
                         $itemMap[$row->detail_po_id]['kode'] ?? '-',
 
+
+
                     'qty' => $row->qty,
+
+
 
                     'type' => $row->type,
 
+
+
                     'process' => $row->process,
+
+
 
                     'next_process' => $row->next_process,
 
+
+
                     'remark' => $row->remark ?? '-',
 
+
+
                     'date' => \Carbon\Carbon::parse(
+
                         $row->date
+
                     )->format('Y-m-d'),
 
+
+
                     'time' => \Carbon\Carbon::parse(
+
                         $row->date
+
                     )->format('H:i'),
+
                 ];
+
             });
 
+
+
         /*
+
     |--------------------------------------------------------------------------
+
     | BAHAN BAKU
+
     |--------------------------------------------------------------------------
+
     */
+
         $bahanBaku = TransaksiStok::with('stok')
+
             ->where('spk_id', $spk->id)
+
             ->orderBy('tanggal')
+
             ->get()
+
             ->map(function ($row) {
 
+
+
                 return [
+
                     'id' => $row->id,
+
+
 
                     'tanggal' => $row->tanggal,
 
+
+
                     'tipe' => $row->tipe,
+
+
 
                     'qty' => $row->qty,
 
+
+
                     'po' => $row->po,
+
+
 
                     'keterangan' => $row->keterangan,
 
+
+
                     'stok_id' => $row->stok_id,
 
+
+
                     'kode_barang' =>
+
                         $row->stok->kode_barang ?? '-',
 
+
+
                     'nama_barang' =>
+
                         $row->stok->nama_barang ?? '-',
 
+
+
                     'satuan' =>
+
                         $row->stok->satuan ?? '-',
-                    'harga_vivi' => $row->harga_vivi ?? null,
+
+                    'return' => (int) ($row->getRawOriginal('return') ?? 0),
+
+                'harga_vivi' => $row->harga_vivi ?? null,
+
                     'harga' =>
+
                         $row->stok->harga ?? 0,
+
                     'sst' =>
+
                         $row->stok->qty ?? 0,
+
                     'stok_akhir' =>
+
                         $row->stok->stok_akhir ?? 0,
+
                 ];
+
             });
+
         //             dd(
+
 //     collect($data['items'])->pluck('detail_po_id')
+
 // );
+
 // dd($items);
+
 // dd(
+
 //     $detailPoIds->toArray(),
+
 //     InspectSchedule::where('spk_id', $spk->id)->get()->toArray()
+
 // );
+
 //   $financeApproved = false;
+
+
 
         $financeApproved = false;
 
+
+
         $paymentRequestIds = PaymentRequest::where(
+
             'spk_id',
+
             $spk->id
+
         )->pluck('id')->toArray();
+
+
 
         if (!empty($paymentRequestIds)) {
 
+
+
             $draft = PaymentRequestSaved::all()
+
                 ->first(function ($row) use ($paymentRequestIds) {
 
+
+
                     return count(
+
                         array_intersect(
+
                             $row->payment_request_ids ?? [],
+
                             $paymentRequestIds
+
                         )
+
                     ) > 0;
+
+
 
                 });
 
+
+
             if ($draft) {
 
+
+
                 $financeApproved =
+
                     PaymentRequestApproval::where(
+
                         'payment_request_saved_id',
+
                         $draft->id
+
                     )
+
                         ->where('status', 'Approved')
+
                         ->where(function ($q) {
 
+
+
                             $q->where('user_id', 174)
+
                                 ->orWhere('role', 'Finance');
 
+
+
                         })
+
                         ->exists();
+
             }
+
+
+
 
 
         }
 
+
+
         // PPN: data lama dapat memiliki ppn_enabled=true tetapi ppn_rate=0.
+
         // Fallback 11% HANYA untuk data lama tersebut; tarif positif yang tersimpan
+
         // tetap dipakai. Sesuaikan tarif fallback dengan kebijakan SPK perusahaan.
+
         $ppnEnabled = filter_var($data['ppn_enabled'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
         $storedPpnRate = (float) ($data['ppn_rate'] ?? 0);
+
         $ppnRate = $ppnEnabled ? ($storedPpnRate > 0 ? $storedPpnRate : 11.0) : 0.0;
+
         $ppnAmount = $ppnEnabled ? round($grandTotal * $ppnRate / 100, 2) : 0.0;
+
         $grandTotalWithPpn = $grandTotal + $ppnAmount;
 
+
+
         return response()->json([
+
             'can_edit_harga' => auth()->id() == 171,
 
+
+
             'grand_total' => $grandTotal,
+
             'ppn_enabled' => $ppnEnabled,
+
             'ppn_rate' => $ppnRate,
+
             'ppn_amount' => $ppnAmount,
+
             'grand_total_with_ppn' => $grandTotalWithPpn,
+
+
 
             'bahan_baku' => $bahanBaku,
 
+
+
             'kategori' =>
+
                 $data['kategori'] ?? '-',
 
+
+
             'status' =>
+
                 $spk->status ?? '-',
+
+
 
             'spk' => $spk,
 
+
+
             'items' => $items,
 
+
+
             'spk_no' =>
+
                 $data['no_spk'] ?? '-',
 
+
+
             'payments' =>
+
                 $data['payments'] ?? [],
 
+
+
             'supplier' => [
+
                 'id' =>
+
                     $supplier->id ?? null,
 
+
+
                 'name' =>
+
                     $supplier->name ?? '-',
+
             ],
+
+
 
             'timelines' => $timelines,
 
+
+
             'payments' => collect(
+
                 $data['payments'] ?? []
+
             )->map(function ($payment) {
+
                 $amount = (float) (
+
                     $payment['amount'] ?? 0
+
                 );
 
+
+
                 $adjustment = (float) (
+
                     $payment['adjustment'] ?? 0
+
                 );
+
+
 
                 return [
 
+
+
                     'date' =>
+
                         $payment['date'] ?? null,
 
+
+
                     'note' =>
+
                         $payment['note'] ?? $payment['payment_type'] ?? $payment['type'] ?? '-',
+
                     'payment_type' =>
+
                         $payment['payment_type'] ?? $payment['type'] ?? $payment['note'] ?? null,
+
                     'finance_approved' =>
+
                         $payment['finance_approved'] ?? false,
+
                     'amount' =>
+
                         $amount,
+
                     'is_request' =>
+
                         $payment['is_request'] ?? null,
+
                     'payment_id' =>
+
                         $payment['payment_id'] ?? null,
 
+
+
                     'note_tambahan' =>
+
                         $payment['note_tambahan'] ?? null,
 
+
+
                     'adjustment' =>
+
                         $adjustment,
 
+
+
                     'payment_request_amount' =>
+
                         $adjustment > 0
+
                         ? $adjustment
+
                         : $amount,
 
+
+
                     'remaining_amount' =>
+
                         $adjustment > 0
+
                         ? ($amount - $adjustment)
+
                         : 0,
 
+
+
                     'adjustment_by' =>
+
                         $payment['adjustment_by'] ?? null,
 
+
+
                     'adjustment_at' =>
+
                         $payment['adjustment_at'] ?? null,
+
                     'finance_approved' =>
+
                         $payment['finance_approved'] ?? false,
+
                     // vivi
+
                 ];
+
+
 
             })->values(),
 
+
+
         ]);
+
     }
+//     public function inventorDetail($id)
+//     {
+//         $spk = Spk::findOrFail($id);
+
+//         $data = is_string($spk->data)
+//             ? json_decode($spk->data, true)
+//             : $spk->data;
+
+//         $itemMap = collect(
+//             $data['items'] ?? []
+//         )->keyBy('detail_po_id');
+
+//         /*
+
+//     |--------------------------------------------------------------------------
+//     | ITEMS + CUSTOM COLUMN TOTAL
+//     |--------------------------------------------------------------------------
+//     */
+//         // inspection result
+//         $detailPoIds = collect(
+//             $data['items'] ?? []
+//         )->pluck('detail_po_id')->filter();
+//         $kategoriId = Kategori::where(
+//             'kategori',
+//             $data['kategori']
+//         )->value('id');
+//         $inspectSummary = InspectSchedule::where(
+//             'spk_id',
+//             $spk->id
+//         )
+//             ->selectRaw("
+//             detail_po_id,
+//             SUM(passed) as passed,
+//             SUM(rejected) as rejected
+//         ")
+//             ->groupBy('detail_po_id')
+//             ->get()
+//             ->keyBy('detail_po_id');
+//         $items = collect(
+//             $data['items'] ?? []
+//         )->map(function ($item) use ($inspectSummary) {
+
+//             $inspect = $inspectSummary->get(
+//                 $item['detail_po_id'] ?? null
+//             );
+
+//             $item['passed'] = (int) (
+//                 $inspect->passed ?? 0
+//             );
+
+//             $item['rejected'] = (int) (
+//                 $inspect->rejected ?? 0
+//             );
+
+//             return $item;
+
+//         });
+
+//         $items = collect(
+//             $data['items'] ?? []
+//         )->map(function ($item) use ($inspectSummary) {
+
+//             $inspect = $inspectSummary->get(
+//                 $item['detail_po_id'] ?? null
+//             );
+
+//             $item['passed'] = (int) (
+//                 $inspect->passed ?? 0
+//             );
+
+//             $item['rejected'] = (int) (
+//                 $inspect->rejected ?? 0
+//             );
+
+//             return $item;
+
+//         });
+
+//         /*
+//             |--------------------------------------------------------------------------
+//             | GRAND TOTAL SPK
+//             |--------------------------------------------------------------------------
+//             */
+//         $grandTotal = $items->sum(function ($item) {
+
+//             $total = (float) ($item['total'] ?? 0);
+
+//             $customTotal = collect(
+//                 $item['custom_columns'] ?? []
+//             )->sum(function ($custom) {
+
+//                 return (float) (
+//                     $custom['total'] ?? 0
+//                 );
+
+//             });
+
+//             return $total + $customTotal;
+//         });
+
+//         /*
+//     |--------------------------------------------------------------------------
+//     | SUPPLIER
+//     |--------------------------------------------------------------------------
+//     */
+//         $supplier = Supplier::where(
+//             'name',
+//             $data['sup'] ?? ''
+//         )->first();
+
+//         /*
+//     |--------------------------------------------------------------------------
+//     | TIMELINE
+//     |--------------------------------------------------------------------------
+//     */
+//         $timelines = ProductionTimeline::where(
+//             'spk_id',
+//             $spk->id
+//         )
+//             ->orderBy('id')
+//             ->get()
+//             ->map(function ($row) use ($itemMap) {
+
+//                 return [
+//                     'id' => $row->id,
+
+//                     'detail_po_id' => $row->detail_po_id,
+
+//                     'item_name' =>
+//                         $itemMap[$row->detail_po_id]['nama'] ?? '-',
+
+//                     'item_code' =>
+//                         $itemMap[$row->detail_po_id]['kode'] ?? '-',
+
+//                     'qty' => $row->qty,
+
+//                     'type' => $row->type,
+
+//                     'process' => $row->process,
+
+//                     'next_process' => $row->next_process,
+
+//                     'remark' => $row->remark ?? '-',
+
+//                     'date' => \Carbon\Carbon::parse(
+//                         $row->date
+//                     )->format('Y-m-d'),
+
+//                     'time' => \Carbon\Carbon::parse(
+//                         $row->date
+//                     )->format('H:i'),
+//                 ];
+//             });
+
+//         /*
+//     |--------------------------------------------------------------------------
+//     | BAHAN BAKU
+//     |--------------------------------------------------------------------------
+//     */
+//         $bahanBaku = TransaksiStok::with('stok')
+//             ->where('spk_id', $spk->id)
+//             ->orderBy('tanggal')
+//             ->get()
+//             ->map(function ($row) {
+
+//                 return [
+//                     'id' => $row->id,
+
+//                     'tanggal' => $row->tanggal,
+
+//                     'tipe' => $row->tipe,
+
+//                     'qty' => $row->qty,
+
+//                     'po' => $row->po,
+
+//                     'keterangan' => $row->keterangan,
+
+//                     'stok_id' => $row->stok_id,
+
+//                     'kode_barang' =>
+//                         $row->stok->kode_barang ?? '-',
+
+//                     'nama_barang' =>
+//                         $row->stok->nama_barang ?? '-',
+
+//                     'satuan' =>
+//                         $row->stok->satuan ?? '-',
+//                     'harga_vivi' => $row->harga_vivi ?? null,
+//                     'harga' =>
+//                         $row->stok->harga ?? 0,
+//                     'sst' =>
+//                         $row->stok->qty ?? 0,
+//                     'stok_akhir' =>
+//                         $row->stok->stok_akhir ?? 0,
+//                 ];
+//             });
+//         //             dd(
+// //     collect($data['items'])->pluck('detail_po_id')
+// // );
+// // dd($items);
+// // dd(
+// //     $detailPoIds->toArray(),
+// //     InspectSchedule::where('spk_id', $spk->id)->get()->toArray()
+// // );
+// //   $financeApproved = false;
+
+//         $financeApproved = false;
+
+//         $paymentRequestIds = PaymentRequest::where(
+//             'spk_id',
+//             $spk->id
+//         )->pluck('id')->toArray();
+
+//         if (!empty($paymentRequestIds)) {
+
+//             $draft = PaymentRequestSaved::all()
+//                 ->first(function ($row) use ($paymentRequestIds) {
+
+//                     return count(
+//                         array_intersect(
+//                             $row->payment_request_ids ?? [],
+//                             $paymentRequestIds
+//                         )
+//                     ) > 0;
+
+//                 });
+
+//             if ($draft) {
+
+//                 $financeApproved =
+//                     PaymentRequestApproval::where(
+//                         'payment_request_saved_id',
+//                         $draft->id
+//                     )
+//                         ->where('status', 'Approved')
+//                         ->where(function ($q) {
+
+//                             $q->where('user_id', 174)
+//                                 ->orWhere('role', 'Finance');
+
+//                         })
+//                         ->exists();
+//             }
+
+
+//         }
+
+//         // PPN: data lama dapat memiliki ppn_enabled=true tetapi ppn_rate=0.
+//         // Fallback 11% HANYA untuk data lama tersebut; tarif positif yang tersimpan
+//         // tetap dipakai. Sesuaikan tarif fallback dengan kebijakan SPK perusahaan.
+//         $ppnEnabled = filter_var($data['ppn_enabled'] ?? false, FILTER_VALIDATE_BOOLEAN);
+//         $storedPpnRate = (float) ($data['ppn_rate'] ?? 0);
+//         $ppnRate = $ppnEnabled ? ($storedPpnRate > 0 ? $storedPpnRate : 11.0) : 0.0;
+//         $ppnAmount = $ppnEnabled ? round($grandTotal * $ppnRate / 100, 2) : 0.0;
+//         $grandTotalWithPpn = $grandTotal + $ppnAmount;
+
+//         return response()->json([
+//             'can_edit_harga' => auth()->id() == 171,
+
+//             'grand_total' => $grandTotal,
+//             'ppn_enabled' => $ppnEnabled,
+//             'ppn_rate' => $ppnRate,
+//             'ppn_amount' => $ppnAmount,
+//             'grand_total_with_ppn' => $grandTotalWithPpn,
+
+//             'bahan_baku' => $bahanBaku,
+
+//             'kategori' =>
+//                 $data['kategori'] ?? '-',
+
+//             'status' =>
+//                 $spk->status ?? '-',
+
+//             'spk' => $spk,
+
+//             'items' => $items,
+
+//             'spk_no' =>
+//                 $data['no_spk'] ?? '-',
+
+//             'payments' =>
+//                 $data['payments'] ?? [],
+
+//             'supplier' => [
+//                 'id' =>
+//                     $supplier->id ?? null,
+
+//                 'name' =>
+//                     $supplier->name ?? '-',
+//             ],
+
+//             'timelines' => $timelines,
+
+//             'payments' => collect(
+//                 $data['payments'] ?? []
+//             )->map(function ($payment) {
+//                 $amount = (float) (
+//                     $payment['amount'] ?? 0
+//                 );
+
+//                 $adjustment = (float) (
+//                     $payment['adjustment'] ?? 0
+//                 );
+
+//                 return [
+
+//                     'date' =>
+//                         $payment['date'] ?? null,
+
+//                     'note' =>
+//                         $payment['note'] ?? $payment['payment_type'] ?? $payment['type'] ?? '-',
+//                     'payment_type' =>
+//                         $payment['payment_type'] ?? $payment['type'] ?? $payment['note'] ?? null,
+//                     'finance_approved' =>
+//                         $payment['finance_approved'] ?? false,
+//                     'amount' =>
+//                         $amount,
+//                     'is_request' =>
+//                         $payment['is_request'] ?? null,
+//                     'payment_id' =>
+//                         $payment['payment_id'] ?? null,
+
+//                     'note_tambahan' =>
+//                         $payment['note_tambahan'] ?? null,
+
+//                     'adjustment' =>
+//                         $adjustment,
+
+//                     'payment_request_amount' =>
+//                         $adjustment > 0
+//                         ? $adjustment
+//                         : $amount,
+
+//                     'remaining_amount' =>
+//                         $adjustment > 0
+//                         ? ($amount - $adjustment)
+//                         : 0,
+
+//                     'adjustment_by' =>
+//                         $payment['adjustment_by'] ?? null,
+
+//                     'adjustment_at' =>
+//                         $payment['adjustment_at'] ?? null,
+//                     'finance_approved' =>
+//                         $payment['finance_approved'] ?? false,
+//                     // vivi
+//                 ];
+
+//             })->values(),
+
+//         ]);
+//     }
     // vivi update
     public function updateHargaVivi(Request $request)
     {

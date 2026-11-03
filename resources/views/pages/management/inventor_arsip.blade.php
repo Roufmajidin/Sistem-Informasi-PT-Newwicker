@@ -1,4 +1,5 @@
-    @extends('master.master')
+   {{-- arsip --}}
+   @extends('master.master')
     @section('title', 'Spk Selesai')
     @section('content')
 
@@ -1215,6 +1216,8 @@
                                     '-';
                             }
 
+                            const isReturnBahan = row.return === true || row.return === 1 || String(row.return ?? '').toLowerCase() === 'true' || String(row.return ?? '') === '1';
+
                             // total pakai harga vivi jika ada
                             let total =
                                 hargaVivi > 0 ?
@@ -1243,9 +1246,9 @@
 
     <td>
         <span class="badge bg-${
-            row.tipe == 'in' ? 'success' : 'danger'
+            isReturnBahan ? 'success' : (row.tipe == 'in' ? 'success' : 'danger')
         }">
-            ${row.tipe}
+            ${isReturnBahan ? 'return bahan' : row.tipe}
         </span>
     </td>
 
@@ -1286,7 +1289,7 @@
                                 jasa/upah kerja
                             </span>
                           `
-                : (row.keterangan ?? '-')
+                : isReturnBahan ? '<span class="badge bg-success">return bahan</span> ' + (row.keterangan ?? '-') : (row.keterangan ?? '-')
         }
     </td>
 </tr>
@@ -1578,7 +1581,7 @@
                             </td>
 
                             <td>
-                                ${isAngsuran ? 'Angsuran' : (pay.note ?? '-')}
+                                ${isAngsuran ? 'Angsuran' : (pay.note === 'return_bahan' ? 'return bahan' : pay.note === 'bahan' ? 'potongan bahan' : (pay.note ?? '-'))}
                             </td>
 
                             <td>

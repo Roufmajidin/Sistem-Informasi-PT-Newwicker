@@ -1,4 +1,5 @@
-    @extends('master.master')
+   {{-- inventor --}}
+   @extends('master.master')
     @section('title', 'monitorings SPK')
     @section('content')
 
@@ -1248,6 +1249,8 @@
                                     '-';
                             }
 
+                            const isReturnBahan = row.return === true || row.return === 1 || String(row.return ?? '').toLowerCase() === 'true' || String(row.return ?? '') === '1';
+
                             // total pakai harga vivi jika ada
                             let total =
                                 hargaVivi > 0 ?
@@ -1262,9 +1265,9 @@
 
     <td>
         <span class="badge bg-${
-            row.tipe == 'in' ? 'success' : 'danger'
+            isReturnBahan ? 'success' : (row.tipe == 'in' ? 'success' : 'danger')
         }">
-            ${row.tipe}
+            ${isReturnBahan ? 'return bahan' : row.tipe}
         </span>
     </td>
 
@@ -1297,7 +1300,7 @@
         : ''
     }
 
-    <td>${row.keterangan ?? '-'}</td>
+    <td>${isReturnBahan ? '<span class="badge bg-success">return bahan</span> ' : ''}${row.keterangan ?? '-'}</td>
 </tr>
 `;
                         });
@@ -1700,6 +1703,9 @@
                                 keteranganBahan === 'upah kerja' ||
                                 keteranganBahan === 'jasa/upah kerja';
 
+                            const returnValue = row.return ?? row.is_return ?? 0;
+                            const isReturnBahanPayment = ['1', 'true'].includes(String(returnValue).trim().toLowerCase());
+
                             bahanEvents.push({
                                 type: 'bahan',
                                 date: row.tanggal || '',
@@ -1711,11 +1717,12 @@
                                 total: total,
 
                                 // STATUS KHUSUS TRANSAKSI INI
-                                isJasa: isJasaBahan
+                                isJasa: isJasaBahan,
+                                isReturn: isReturnBahanPayment
                             });
 
                             // HANYA BAHAN BIASA masuk total payment
-                            if (!isJasaBahan) {
+                            if (!isJasaBahan && !isReturnBahanPayment) {
                                 totalPayment += total;
                             }
 
@@ -2085,7 +2092,9 @@
                         const hargaKontrak = event.hargaKontrak;
                         const total = event.total;
 
-                        if (!event.isJasa) {
+                        if (event.isReturn) {
+                            runningSaldo += total;
+                        } else if (!event.isJasa) {
                             runningSaldo -= total;
                             runningSaldo = Math.max(0, runningSaldo);
                         }
@@ -2192,14 +2201,10 @@
 
                                     <td>
                                         <span class="badge ${
-    event.isJasa
-        ? 'bg-primary'
-        : 'bg-danger'
+    event.isReturn ? 'bg-success' : event.isJasa ? 'bg-primary' : 'bg-danger'
 }">
     ${
-        event.isJasa
-            ? 'jasa/upah kerja'
-            : 'potongan bahan'
+        event.isReturn ? 'return bahan' : event.isJasa ? 'jasa/upah kerja' : 'potongan bahan'
     }
 </span>
 
