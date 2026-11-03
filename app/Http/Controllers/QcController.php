@@ -7722,6 +7722,11 @@ class QcController extends Controller
                 'ACCESSORIES',
                 'AKSESORIES',
                 'AKESOSORIS',
+                'CUSHION',
+                'IKAT',
+                'IKET',
+                'DEKOR',
+                'DEKORAN',
             ],
             'QC UNFINISH' => [
                 'BASKET',
