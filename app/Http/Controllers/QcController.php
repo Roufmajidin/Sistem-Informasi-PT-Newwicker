@@ -81,7 +81,68 @@ class QcController extends Controller
 
         return null;
     }
+private function matchQcSpkCategory(
+    string $divisi,
+    string $kategoriSpk
+): bool {
+    $divisi = strtoupper(trim($divisi));
+    $kategoriSpk = strtoupper(trim($kategoriSpk));
 
+    if ($divisi !== '' && !str_starts_with($divisi, 'QC ')) {
+        $divisi = 'QC ' . $divisi;
+    }
+
+    $mapping = $this->qcSpkMapping();
+
+    if (!isset($mapping[$divisi])) {
+        return $this->matchDivisi($divisi, $kategoriSpk);
+    }
+
+    foreach ($mapping[$divisi] as $keyword) {
+        if (str_contains($kategoriSpk, $keyword)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+private function qcSpkMapping(): array
+{
+    return [
+        'QC RANGKA' => [
+            'RANGKA',
+            'LASIO',
+            'BASE SWIVEL',
+            'PLAT BESI',
+            'TRIPLEK',
+            'POWDER COATING',
+        ],
+
+        'QC ANYAM' => [
+            'ANYAM',
+            'DEKOR',
+            'ECENG',
+            'BANANA',
+            'SONGKET',
+            'WEBBING',
+            'SYNTETIC',
+            'ACCESSORIES',
+            'AKSESORIES',
+            'AKESOSORIS',
+            'CUSHION',
+            'KULIT',
+            'IKAT',
+            'IKET',
+            'DEKORAN',
+        ],
+
+        'QC UNFINISH' => [
+            'BASKET',
+            'PAKET',
+            'SUB BORONGAN',
+        ],
+    ];
+}
     public function detailPo(Request $request, string $divisi, int $poId)
     {
         $inspectionModel = $this->inspectionScheduleModel();
@@ -838,16 +899,18 @@ class QcController extends Controller
                     |--------------------------------------------------------------------------
                     */
 
-                    if (
-                        !$this->matchDivisi(
-                            $divisiQc,
-                            $kategoriSpk
-                        )
-                    ) {
+                    // if (
+                    //     !$this->matchDivisi(
+                    //         $divisiQc,
+                    //         $kategoriSpk
+                    //     )
+                    // ) {
 
-                        continue;
-                    }
-
+                    //     continue;
+                    // }
+if (!$this->matchQcSpkCategory($divisiQc, $kategoriSpk)) {
+    continue;
+}
 
                     /*
                     |--------------------------------------------------------------------------
