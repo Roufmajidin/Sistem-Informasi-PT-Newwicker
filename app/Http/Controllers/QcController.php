@@ -134,6 +134,8 @@ private function qcSpkMapping(): array
             'IKAT',
             'IKET',
             'DEKORAN',
+            'CERMIN',
+            'KACA',
         ],
 
         'QC UNFINISH' => [
