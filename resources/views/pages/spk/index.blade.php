@@ -8050,7 +8050,7 @@
             const paymentRows = data.payments.length ?
                 data.payments : [{}, {}, {}, {}];
 
-            paymentRows.slice(0, 5).forEach(pay => {
+            paymentRows.forEach(pay => {
                 html += `
                 <tr>
                     <td class="excel-money">${pay.amount ? excelMoney(pay.amount) : ''}</td>
