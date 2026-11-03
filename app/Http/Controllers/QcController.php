@@ -7705,9 +7705,7 @@ class QcController extends Controller
                 'LASIO',
                 'BASE SWIVEL',
                 'PLAT BESI',
-                'ACCESSORIES',
-                'AKSESORIES',
-                'AKESOSORIS',
+              
                 'TRIPLEK',
                 'POWDER COATING',
             ],
@@ -7722,7 +7720,10 @@ class QcController extends Controller
                 'ACCESSORIES',
                 'AKSESORIES',
                 'AKESOSORIS',
+
+                
                 'CUSHION',
+                'KULIT',
                 'IKAT',
                 'IKET',
                 'DEKOR',
