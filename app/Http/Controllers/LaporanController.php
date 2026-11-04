@@ -26,8 +26,7 @@ class LaporanController extends Controller
         $search = trim((string) $request->input('search', ''));
         $opname = trim((string) $request->input('opname', ''));
 
-        // Filter barang dulu, supaya query transaksi hanya dihitung
-        // untuk 50 barang yang tampil (bukan seluruh database).
+        // Tetap paginate lebih dulu: agregasi hanya untuk barang pada halaman aktif.
         $stoks = Stok::query()
             ->when($opname === 'has_opname', function ($query) {
                 $query->where('is_opname', true)->whereNotNull('opname_at');
@@ -46,7 +45,6 @@ class LaporanController extends Controller
             ->paginate(50)
             ->withQueryString();
 
-        // Hitung transaksi hanya untuk ID barang pada halaman ini.
         $ids = $stoks->getCollection()->pluck('id')->all();
         $totals = collect();
 
@@ -55,18 +53,28 @@ class LaporanController extends Controller
                 ->join('stoks', 'stoks.id', '=', 'transaksi_stoks.stok_id')
                 ->whereIn('transaksi_stoks.stok_id', $ids)
                 ->where(function ($query) {
+                    // Sudah opname: tanggal setelah hari cut-off, kecualikan keterangan Opname.
                     $query->where(function ($q) {
-                        $q->where('stoks.is_opname', false)
-                            ->orWhereNull('stoks.is_opname');
-                    })->orWhere(function ($q) {
                         $q->where('stoks.is_opname', true)
                             ->whereNotNull('stoks.opname_at')
-                            ->whereColumn('transaksi_stoks.created_at', '>', 'stoks.opname_at');
+                            ->whereRaw('DATE(transaksi_stoks.tanggal) > DATE(stoks.opname_at)')
+                            ->where(function ($sub) {
+                                $sub->whereNull('transaksi_stoks.keterangan')
+                                    ->orWhere('transaksi_stoks.keterangan', 'not like', '%opname%');
+                            });
+                    })
+                        // Belum opname: semua transaksi, termasuk keterangan Opname.
+                        ->orWhere(function ($q) {
+                        $q->where(function ($sub) {
+                            $sub->where('stoks.is_opname', false)
+                                ->orWhereNull('stoks.is_opname')
+                                ->orWhereNull('stoks.opname_at');
+                        });
                     });
                 })
                 ->select('transaksi_stoks.stok_id')
-                ->selectRaw("SUM(CASE WHEN transaksi_stoks.tipe = 'in' THEN transaksi_stoks.qty ELSE 0 END) AS total_in")
-                ->selectRaw("SUM(CASE WHEN transaksi_stoks.tipe = 'out' THEN transaksi_stoks.qty ELSE 0 END) AS total_out")
+                ->selectRaw("COALESCE(SUM(CASE WHEN transaksi_stoks.tipe = 'in' THEN transaksi_stoks.qty ELSE 0 END), 0) AS total_in")
+                ->selectRaw("COALESCE(SUM(CASE WHEN transaksi_stoks.tipe = 'out' THEN transaksi_stoks.qty ELSE 0 END), 0) AS total_out")
                 ->groupBy('transaksi_stoks.stok_id')
                 ->get()
                 ->keyBy('stok_id');
@@ -76,7 +84,8 @@ class LaporanController extends Controller
             $total = $totals->get($stok->id);
             $stok->total_in = (float) ($total->total_in ?? 0);
             $stok->total_out = (float) ($total->total_out ?? 0);
-            $stok->saldo = (float) ($stok->stok_awal ?? 0)
+            $hasOpnameCutoff = (bool) $stok->is_opname && !empty($stok->opname_at);
+            $stok->saldo = ($hasOpnameCutoff ? (float) ($stok->stok_awal ?? 0) : 0)
                 + $stok->total_in - $stok->total_out;
             return $stok;
         });
@@ -94,6 +103,7 @@ class LaporanController extends Controller
 
         return view('pages.laporan.index', compact('stoks', 'search', 'jenis', 'opname'));
     }
+
 
 
 
@@ -707,29 +717,23 @@ class LaporanController extends Controller
             'transaksi' => $transaksi,
         ]);
     }
-    public function detailBarang(Request $request, $id)
+       public function detailBarang(Request $request, $id)
     {
         $stok = Stok::findOrFail($id);
-
-        // Sama dengan index(): sebelum opname gunakan rumus original.
-        // Setelah opname gunakan stok_awal + transaksi setelah cut-off.
         $hasOpnameCutoff = (bool) $stok->is_opname && !empty($stok->opname_at);
-        $saldoQuery = TransaksiStok::query()
-            ->where('stok_id', $stok->id);
+
+        $saldoQuery = TransaksiStok::query()->where('stok_id', $stok->id);
 
         if ($hasOpnameCutoff) {
-            $saldoQuery
-                ->whereDate(
-                    'tanggal',
-                    '>',
-                    Carbon::parse($stok->opname_at)->toDateString()
-                )
+            // Samakan dengan index: tanggal efektif transaksi, bukan created_at.
+            // Transaksi pada hari opname dianggap sebelum cut-off.
+            $saldoQuery->whereDate('tanggal', '>', Carbon::parse($stok->opname_at)->toDateString())
                 ->where(function ($q) {
                     $q->whereNull('keterangan')
                         ->orWhere('keterangan', 'not like', '%opname%');
                 });
         }
-
+        // Belum opname: semua transaksi termasuk keterangan Opname.
         $totals = $saldoQuery
             ->selectRaw("COALESCE(SUM(CASE WHEN tipe = 'in' THEN qty ELSE 0 END), 0) AS total_in")
             ->selectRaw("COALESCE(SUM(CASE WHEN tipe = 'out' THEN qty ELSE 0 END), 0) AS total_out")
@@ -739,7 +743,7 @@ class LaporanController extends Controller
             + (float) ($totals->total_in ?? 0)
             - (float) ($totals->total_out ?? 0);
 
-        // Riwayat tetap menampilkan transaksi lama dan baru; filter tanggal hanya untuk tampilan.
+        // Riwayat tetap utuh; filter tanggal hanya mengubah daftar riwayat.
         $transaksi = TransaksiStok::query()
             ->with(['stok', 'spk'])
             ->where('stok_id', $stok->id)
@@ -853,156 +857,152 @@ class LaporanController extends Controller
         );
     }
 
-  
-public function storeTransaksi(Request $request)
-{
-    // =====================================================
-    // 1. VALIDASI
-    // =====================================================
-    $validated = $request->validate([
-        'stok_id' => 'required|integer|exists:stoks,id',
-        'tanggal' => 'required|date',
-        'in' => 'nullable|numeric|min:0',
-        'out' => 'nullable|numeric|min:0',
-        'po' => 'nullable|string',
-        'spk_id' => 'nullable|integer',
-        'keterangan' => 'nullable|string',
-        'no_invoice' => 'nullable|string',
-        'return' => 'nullable|boolean',
-    ]);
 
-    // =====================================================
-    // 2. NORMALISASI NILAI
-    // =====================================================
-    $qtyIn = (float) $request->input('in', 0);
-    $qtyOut = (float) $request->input('out', 0);
-
-    $isReturn = $request->boolean('return') ? 1 : 0;
-
-    // =====================================================
-    // 3. DEBUG REQUEST
-    // =====================================================
-    Log::info('STORE TRANSAKSI REQUEST', [
-        'stok_id' => $request->stok_id,
-        'spk_id' => $request->spk_id,
-        'qty_in' => $qtyIn,
-        'qty_out' => $qtyOut,
-        'return_raw' => $request->input('return'),
-        'return_normalized' => $isReturn,
-    ]);
-
-    // =====================================================
-    // 4. VALIDASI TRANSAKSI
-    // =====================================================
-    if ($qtyIn <= 0 && $qtyOut <= 0) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Isi jumlah IN atau OUT terlebih dahulu.',
-        ], 422);
-    }
-
-    if ($isReturn === 1 && !$request->filled('spk_id')) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Pilih SPK terlebih dahulu untuk Return.',
-        ], 422);
-    }
-
-    // =====================================================
-    // 5. DATA UMUM
-    // =====================================================
-    $data = [
-        'stok_id' => $request->stok_id,
-        'tanggal' => $request->tanggal,
-        'po' => $request->po,
-        'spk_id' => $request->spk_id ?: null,
-        'keterangan' => $request->keterangan,
-        'no_invoice' => $request->no_invoice,
-        'return' => $isReturn,
-    ];
-
-    // =====================================================
-    // 6. SIMPAN TRANSAKSI
-    // =====================================================
-    try {
-        $savedIds = DB::transaction(function () use (
-            $qtyIn,
-            $qtyOut,
-            $data
-        ) {
-            $ids = [];
-
-            // TRANSAKSI IN
-            if ($qtyIn > 0) {
-                $transaksiIn = new TransaksiStok();
-
-                $transaksiIn->forceFill(array_merge(
-                    $data,
-                    [
-                        'tipe' => 'in',
-                        'qty' => $qtyIn,
-                    ]
-                ));
-
-                $transaksiIn->save();
-
-                $ids[] = $transaksiIn->id;
-            }
-
-            // TRANSAKSI OUT
-            if ($qtyOut > 0) {
-                $transaksiOut = new TransaksiStok();
-
-                $transaksiOut->forceFill(array_merge(
-                    $data,
-                    [
-                        'tipe' => 'out',
-                        'qty' => $qtyOut,
-                    ]
-                ));
-
-                $transaksiOut->save();
-
-                $ids[] = $transaksiOut->id;
-            }
-
-            return $ids;
-        });
-
-        // =================================================
-        // 7. VERIFIKASI HASIL DATABASE
-        // =================================================
-        $saved = TransaksiStok::query()
-            ->whereIn('id', $savedIds)
-            ->get(['id', 'spk_id', 'return']);
-
-        Log::info('STORE TRANSAKSI RESULT', [
-            'ids' => $savedIds,
-            'return_requested' => $isReturn,
-            'saved_rows' => $saved->toArray(),
+    public function storeTransaksi(Request $request)
+    {
+        // =====================================================
+        // 1. VALIDASI
+        // =====================================================
+        $validated = $request->validate([
+            'stok_id' => 'required|integer|exists:stoks,id',
+            'tanggal' => 'required|date',
+            'in' => 'nullable|numeric|min:0',
+            'out' => 'nullable|numeric|min:0',
+            'po' => 'nullable|string',
+            'spk_id' => 'nullable|integer',
+            'keterangan' => 'nullable|string',
+            'no_invoice' => 'nullable|string',
+            'return' => 'nullable|boolean',
         ]);
 
-        // =================================================
-        // 8. RESPONSE
-        // =================================================
-        return response()->json([
-            'success' => true,
-            'message' => 'Transaksi berhasil disimpan.',
-        ]);
+        // =====================================================
+        // 2. NORMALISASI NILAI
+        // =====================================================
+        $qtyIn = (float) $request->input('in', 0);
+        $qtyOut = (float) $request->input('out', 0);
 
-    } catch (\Throwable $e) {
-        Log::error('STORE TRANSAKSI ERROR', [
-            'message' => $e->getMessage(),
+        $isReturn = $request->boolean('return') ? 1 : 0;
+
+        // =====================================================
+        // 3. DEBUG REQUEST
+        // =====================================================
+        Log::info('STORE TRANSAKSI REQUEST', [
             'stok_id' => $request->stok_id,
-            'return' => $isReturn,
+            'spk_id' => $request->spk_id,
+            'qty_in' => $qtyIn,
+            'qty_out' => $qtyOut,
+            'return_raw' => $request->input('return'),
+            'return_normalized' => $isReturn,
         ]);
 
-        return response()->json([
-            'success' => false,
-            'message' => 'Gagal menyimpan transaksi.',
-        ], 500);
+        // =====================================================
+        // 4. VALIDASI TRANSAKSI
+        // =====================================================
+        if ($qtyIn <= 0 && $qtyOut <= 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Isi jumlah IN atau OUT terlebih dahulu.',
+            ], 422);
+        }
+
+        if ($isReturn === 1 && !$request->filled('spk_id')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Pilih SPK terlebih dahulu untuk Return.',
+            ], 422);
+        }
+
+        // =====================================================
+        // 5. DATA UMUM
+        // =====================================================
+        $data = [
+            'stok_id' => $request->stok_id,
+            'tanggal' => $request->tanggal,
+            'po' => $request->po,
+            'spk_id' => $request->spk_id ?: null,
+            'keterangan' => $request->keterangan,
+            'no_invoice' => $request->no_invoice,
+            'return' => $isReturn,
+        ];
+
+        // =====================================================
+        // 6. SIMPAN TRANSAKSI
+        // =====================================================
+        try {
+            $savedIds = DB::transaction(function () use ($qtyIn, $qtyOut, $data) {
+                $ids = [];
+
+                // TRANSAKSI IN
+                if ($qtyIn > 0) {
+                    $transaksiIn = new TransaksiStok();
+
+                    $transaksiIn->forceFill(array_merge(
+                        $data,
+                        [
+                            'tipe' => 'in',
+                            'qty' => $qtyIn,
+                        ]
+                    ));
+
+                    $transaksiIn->save();
+
+                    $ids[] = $transaksiIn->id;
+                }
+
+                // TRANSAKSI OUT
+                if ($qtyOut > 0) {
+                    $transaksiOut = new TransaksiStok();
+
+                    $transaksiOut->forceFill(array_merge(
+                        $data,
+                        [
+                            'tipe' => 'out',
+                            'qty' => $qtyOut,
+                        ]
+                    ));
+
+                    $transaksiOut->save();
+
+                    $ids[] = $transaksiOut->id;
+                }
+
+                return $ids;
+            });
+
+            // =================================================
+            // 7. VERIFIKASI HASIL DATABASE
+            // =================================================
+            $saved = TransaksiStok::query()
+                ->whereIn('id', $savedIds)
+                ->get(['id', 'spk_id', 'return']);
+
+            Log::info('STORE TRANSAKSI RESULT', [
+                'ids' => $savedIds,
+                'return_requested' => $isReturn,
+                'saved_rows' => $saved->toArray(),
+            ]);
+
+            // =================================================
+            // 8. RESPONSE
+            // =================================================
+            return response()->json([
+                'success' => true,
+                'message' => 'Transaksi berhasil disimpan.',
+            ]);
+
+        } catch (\Throwable $e) {
+            Log::error('STORE TRANSAKSI ERROR', [
+                'message' => $e->getMessage(),
+                'stok_id' => $request->stok_id,
+                'return' => $isReturn,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menyimpan transaksi.',
+            ], 500);
+        }
     }
-}
 
 
     // public function searchSpk(Request $request)
