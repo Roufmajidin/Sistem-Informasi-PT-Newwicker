@@ -44,6 +44,7 @@ use App\Http\Controllers\NetworkController;
 use App\Http\Controllers\RndController;
 use App\Http\Controllers\GoogleDriveAuthController;
 use Illuminate\Support\Facades\Broadcast;
+use App\Http\Controllers\MomController;
 
 // ==========================================================
 // MAGIC APPROVAL LINK - PUBLIC ENTRY POINT
@@ -70,7 +71,23 @@ Broadcast::routes([
 
 // Muat channel authorization
 require_once base_path('routes/channels.php');
-
+Route::middleware('auth')->prefix('mom')->name('mom.')->group(function () {
+    Route::get('/', [MomController::class, 'index'])->name('index');
+    Route::get('/list', [MomController::class, 'listing'])->name('list');
+    Route::post('/autosave', [MomController::class, 'autosave'])->name('autosave');
+    Route::post('/store', [MomController::class, 'store'])->name('store');
+    Route::get('/{mom}/edit', [MomController::class, 'edit'])->name('edit');
+    Route::get('/{mom}', [MomController::class, 'show'])->name('show');
+    Route::delete('/{mom}', [MomController::class, 'destroy'])
+    ->name('destroy');
+});
+Route::middleware('auth')->get('/mom/ping', function () {
+    return response()->json([
+        'success' => true,
+        'status' => 'online',
+        'message' => 'Laravel connected',
+    ]);
+})->name('mom.ping');
 Route::get(
     '/qc/notifications',
     [QcController::class, 'qcNotifications']

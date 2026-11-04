@@ -65,6 +65,26 @@
                              </a>
                          </li>
                      @endif
+                     {{-- MENU MINUTES OF MEETING --}}
+@auth
+    @if (auth()->user()->accessModules()
+            ->where('name', 'MoM')
+            ->exists())
+
+        <li class="{{ request()->routeIs('mom.*') ? 'active' : '' }}">
+            <a href="{{ route('mom.index') }}">
+                <span class="nav-icon">
+                    <i class="material-icons">groups</i>
+                </span>
+
+                <span class="nav-text">
+                    M o M
+                </span>
+            </a>
+        </li>
+
+    @endif
+@endauth
                      {{-- =========================================================
      ROLE: EXPORT
      ========================================================= --}}
