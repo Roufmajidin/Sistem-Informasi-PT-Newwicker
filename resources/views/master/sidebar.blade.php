@@ -194,7 +194,7 @@
 
                              <li>
                                  <a href="{{ route('karyawan.absen') }}">
-                                     <span class="nav-icon"><i class="material-icons">fact_check</i></span>
+                                     <span class="nav-icon"><i class="material-icons"></i></span>
                                      <span class="nav-text">Absen Karyawan</span>
                                  </a>
                              </li>
