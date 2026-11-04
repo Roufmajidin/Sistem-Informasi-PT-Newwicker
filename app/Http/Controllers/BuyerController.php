@@ -16,7 +16,149 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class BuyerController extends Controller
 {
-    // GET all buyers
+    // GET all buyers   
+    public function exportBuyerListExcel()
+{
+    $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
+
+    $sheet->setTitle('List New Buyer');
+
+    // HEADER
+    $headers = [
+        'No.',
+        'Company',
+        'Aksi',
+        'Country',
+        'Shipment date',
+        'Packing',
+        'Contact person',
+        'Order no',
+        'Remark'
+    ];
+
+    $sheet->fromArray($headers, null, 'A1');
+
+    // STYLE HEADER
+    $sheet->getStyle('A1:I1')->applyFromArray([
+        'font' => [
+            'bold' => true,
+            'color' => ['rgb' => 'FFFFFF'],
+            'size' => 11,
+        ],
+        'fill' => [
+            'fillType' =>
+                \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+            'startColor' => ['rgb' => '2C3E50'],
+        ],
+        'alignment' => [
+            'horizontal' =>
+                \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+            'vertical' =>
+                \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+        ],
+    ]);
+
+    $sheet->getRowDimension(1)->setRowHeight(28);
+
+    // DATA BUYER
+    $row = 2;
+    $no = 1;
+
+    NewBuyer::query()
+        ->orderBy('id', 'desc')
+        ->chunk(500, function ($buyers) use ($sheet, &$row, &$no) {
+
+            foreach ($buyers as $buyer) {
+
+                $data = [
+                    $no++,
+                    $buyer->company_name ?: '-',
+                    '-',
+                    $buyer->country ?: '-',
+                    $buyer->shipment_date ?: '-',
+                    $buyer->packing ?: '-',
+                    $buyer->contact_person ?: '-',
+                    $buyer->order_no ?: '-',
+                    $buyer->remark ?: '-',
+                ];
+
+                $sheet->fromArray($data, null, 'A' . $row);
+
+                // Order No sebagai text agar angka tidak berubah
+                $sheet->setCellValueExplicit(
+                    'H' . $row,
+                    (string) ($buyer->order_no ?: '-'),
+                    \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING
+                );
+
+                $row++;
+            }
+        });
+
+    // BORDER SEMUA DATA
+    $lastRow = max(1, $row - 1);
+
+    $sheet->getStyle("A1:I{$lastRow}")
+        ->applyFromArray([
+            'borders' => [
+                'allBorders' => [
+                    'borderStyle' =>
+                        \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+                    'color' => ['rgb' => 'DDE3EA'],
+                ],
+            ],
+            'alignment' => [
+                'vertical' =>
+                    \PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_CENTER,
+            ],
+        ]);
+
+    // LEBAR KOLOM
+    $widths = [
+        'A' => 8,
+        'B' => 30,
+        'C' => 12,
+        'D' => 20,
+        'E' => 20,
+        'F' => 18,
+        'G' => 38,
+        'H' => 20,
+        'I' => 40,
+    ];
+
+    foreach ($widths as $column => $width) {
+        $sheet->getColumnDimension($column)->setWidth($width);
+    }
+
+    // FREEZE HEADER
+    $sheet->freezePane('A2');
+
+    // FILTER EXCEL
+    $sheet->setAutoFilter("A1:I{$lastRow}");
+
+    // WRAP TEXT
+    $sheet->getStyle("B2:I{$lastRow}")
+        ->getAlignment()
+        ->setWrapText(true);
+
+    // EXPORT
+    $filename = 'List_New_Buyer_' . now()->format('Ymd_His') . '.xlsx';
+
+    $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+
+    return response()->streamDownload(
+        function () use ($writer, $spreadsheet) {
+            $writer->save('php://output');
+            $spreadsheet->disconnectWorksheets();
+        },
+        $filename,
+        [
+            'Content-Type' =>
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]
+    );
+}
     public function viewClass()
     {
         return view('pages.cart-buyer.cart-buyer');

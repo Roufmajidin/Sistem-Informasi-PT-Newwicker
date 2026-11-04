@@ -1028,7 +1028,10 @@ Route::middleware('auth')->group(function () {
     // new
     Route::get('/cart-buyer', [BuyerController::class, 'viewClass'])->name('pameran.cartView');
     Route::get('/fetchcart-buyer', [BuyerController::class, 'index'])->name('pameran.cart');
-
+Route::get(
+    '/cart-buyer/export-excel',
+    [BuyerController::class, 'exportBuyerListExcel']
+)->name('pameran.buyer.exportExcel');
     Route::get('/cart-export/{id}', [BuyerController::class, 'cartExport'])->name('cart.exportt');
 
     Route::post('/pameran/upload-image', [PameranContrller::class, 'uploadImage'])
