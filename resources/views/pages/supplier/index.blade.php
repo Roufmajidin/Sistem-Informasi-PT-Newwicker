@@ -1149,7 +1149,7 @@ $(document).on('click', '.saveSupplier', async function () {
                 }).join('');
 
                 const result = await Swal.fire({
-                    title: 'Konfirmasi Perubahan Supplier',
+                    title: 'Konfirmasi Perubahan nama',
                     width: 940,
                     padding: '0',
                     customClass: {
@@ -1174,7 +1174,7 @@ $(document).on('click', '.saveSupplier', async function () {
                             </div>
                         </div>
                         <div class="spk-sync-table-head">
-                            <span>Daftar SPK yang terdampak</span>
+                            <span>Daftar SPK terkait </span>
                             <small><i class="fa fa-external-link"></i> View membuka tab baru</small>
                         </div>
                         <div class="spk-sync-table-scroll">
@@ -1189,7 +1189,6 @@ $(document).on('click', '.saveSupplier', async function () {
                             </table>
                         </div>
                         <div class="spk-sync-note"><i class="fa fa-info-circle"></i>
-                            Hanya nama supplier pada field <b>spk.data.sup</b> yang diperbarui. Data SPK lainnya tetap.
                         </div>
                     </div>`,
                     showCancelButton: true,
