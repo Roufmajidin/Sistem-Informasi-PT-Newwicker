@@ -117,14 +117,14 @@
 
 
 
-                                <a href="{{ route('laporan.detail.pdf', $stok->id) }}?tanggal_awal={{ request('tanggal_awal') }}&tanggal_akhir={{ request('tanggal_akhir') }}"
+                                {{-- <a href="{{ route('laporan.detail.pdf', $stok->id) }}?tanggal_awal={{ request('tanggal_awal') }}&tanggal_akhir={{ request('tanggal_akhir') }}"
                                     target="_blank" class="btn btn-danger">
 
                                     <i class="fa fa-file-pdf-o"></i>
 
                                     Export PDF
 
-                                </a>
+                                </a> --}}
 
 
 
