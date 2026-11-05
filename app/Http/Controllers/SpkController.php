@@ -7594,9 +7594,11 @@ class SpkController extends Controller
 
                     'production_code' => (function () use ($spkData, $request) {
                         $no = $spkData['no_spk'] ?? $request->no_spk ?? '';
+
                         if (preg_match('/\/(NWS|NWD|NWR|NW)(?=\s|\/|-|$)/i', $no, $m)) {
                             return strtoupper($m[1]) === 'NW' ? 'NW' : 'NWS';
                         }
+
                         return strtoupper($request->production_code ?? '');
                     })(),
 
@@ -10228,55 +10230,57 @@ class SpkController extends Controller
             'spk_id' => $spkId,
         ], 200);
     }
-      public function scanNoSpk(Request $request)
+    public function scanNoSpk(Request $request)
     {
         abort_unless(auth()->check(), 401);
         $scan = $this->scanSpkSequence();
         return response()->json(['success' => true] + $scan);
     }
-  private function scanSpkSequence(?int $year = null): array
-{
-    $year = $year ?? (int) now()->format('y');
-    $prefix = str_pad((string) $year, 2, '0', STR_PAD_LEFT);
+    private function scanSpkSequence(?int $year = null): array
+    {
+        $year = $year ?? (int) now()->format('y');
+        $prefix = str_pad((string) $year, 2, '0', STR_PAD_LEFT);
 
-    $highest = 0;
-    $latestNumber = null;
+        $highest = 0;
+        $latestNumber = null;
 
-    Spk::query()
-        ->select(['id', 'data'])
-        ->chunkById(500, function ($rows) use ($prefix, &$highest, &$latestNumber) {
-            foreach ($rows as $row) {
-                $data = is_array($row->data)
-                    ? $row->data
-                    : json_decode($row->data ?? '{}', true);
+        Spk::query()
+            ->select(['id', 'data'])
+            ->chunkById(500, function ($rows) use ($prefix, &$highest, &$latestNumber) {
+                foreach ($rows as $row) {
+                    $data = is_array($row->data)
+                        ? $row->data
+                        : json_decode($row->data ?? '{}', true);
 
-                if (!is_array($data)) {
-                    continue;
-                }
+                    if (!is_array($data)) {
+                        continue;
+                    }
 
-                $number = trim((string) ($data['no_spk'] ?? ''));
+                    $number = trim((string) ($data['no_spk'] ?? ''));
 
-                if (preg_match(
-                    '/^' . preg_quote($prefix, '/') . '-(\d+)(?=\/|$)/',
-                    $number,
-                    $matches
-                )) {
-                    $sequence = (int) $matches[1];
+                    if (
+                        preg_match(
+                            '/^' . preg_quote($prefix, '/') . '-(\d+)(?=\/|$)/',
+                            $number,
+                            $matches
+                        )
+                    ) {
+                        $sequence = (int) $matches[1];
 
-                    if ($sequence > $highest) {
-                        $highest = $sequence;
-                        $latestNumber = $number;
+                        if ($sequence > $highest) {
+                            $highest = $sequence;
+                            $latestNumber = $number;
+                        }
                     }
                 }
-            }
-        });
+            });
 
-    return [
-        'year' => $prefix,
-        'last_sequence' => $highest,
-        'last_no_spk' => $latestNumber,
-        'next_sequence' => $highest + 1,
-    ];
-}
-  
+        return [
+            'year' => $prefix,
+            'last_sequence' => $highest,
+            'last_no_spk' => $latestNumber,
+            'next_sequence' => $highest + 1,
+        ];
+    }
+
 }
