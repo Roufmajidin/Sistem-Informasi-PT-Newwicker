@@ -7378,84 +7378,131 @@ class SpkController extends Controller
         }
     }
     public function draftr()
+
     {
+
         $authUser = auth()->user();
 
         /*
+
         |--------------------------------------------------------------------------
+
         | MASTER APPROVER
+
         |--------------------------------------------------------------------------
+
         |
+
         | Tetap dipertahankan karena kemungkinan masih digunakan
+
         | oleh bagian Blade lain.
+
         |
+
         */
 
         $kepalaPurchasing = Karyawan::whereHas('divisi', function ($q) {
+
             $q->where('nama', 'KEPALA PURCHASING');
+
         })->first();
 
         $prodManager = Karyawan::whereHas('divisi', function ($q) {
+
             $q->where('nama', 'PROD MANAGER');
+
         })->first();
 
         $ceo = Karyawan::whereHas('divisi', function ($q) {
+
             $q->where('nama', 'CEO');
+
         })->first();
 
         $vpSales = Karyawan::whereHas('divisi', function ($q) {
+
             $q->where('nama', 'VP SALES & MARKETING');
+
         })->first();
 
         $finance = Karyawan::whereHas('divisi', function ($q) {
+
             $q->where('nama', 'FINANCE ACC');
+
         })->first();
 
         $hrd = Karyawan::whereHas('divisi', function ($q) {
+
             $q->where('nama', 'HRD GA & SHE');
+
         })->first();
 
         $coo = Karyawan::whereHas('divisi', function ($q) {
+
             $q->where('nama', 'CO');
+
         })->first();
 
-
         /*
+
         |--------------------------------------------------------------------------
+
         | MAPPING ITEM SPK
+
         |--------------------------------------------------------------------------
+
         |
+
         | PENTING:
+
         |
+
         | Tidak mengubah payment_request_saveds.
+
         | Tidak menyimpan items baru ke saved.
+
         |
+
         | Data item diambil langsung dari tabel SPK
+
         | berdasarkan data.no_spk.
+
         |
+
         */
 
         $spkItemsMap = Spk::get()
+
             ->mapWithKeys(function ($spk) {
 
                 $spkData = is_string($spk->data)
+
                     ? json_decode($spk->data, true)
+
                     : ($spk->data ?? []);
 
                 $noSpk = trim(
+
                     (string) ($spkData['no_spk'] ?? '')
+
                 );
 
                 if ($noSpk === '') {
+
                     return [];
+
                 }
 
                 $items = collect(
+
                     $spkData['items'] ?? []
+
                 )
+
                     ->map(function ($item) {
 
                         return [
+
                             'nama' => $item['nama'] ?? '-',
 
                             'kode' => $item['kode'] ?? '-',
@@ -7463,25 +7510,37 @@ class SpkController extends Controller
                             'qty' => $item['qty'] ?? 0,
 
                             'satuan' =>
+
                                 $item['satuan']
+
                                 ?? $item['sat']
+
                                 ?? '',
 
                         ];
+
                     })
+
                     ->values()
+
                     ->toArray();
 
                 return [
+
                     $noSpk => $items
+
                 ];
+
             });
 
-
         /*
+
         |--------------------------------------------------------------------------
+
         | REQUEST DRAFT
+
         |--------------------------------------------------------------------------
+
         */
 
         $requests = PaymentRequest::with('spk')
@@ -7499,157 +7558,205 @@ class SpkController extends Controller
                     Log::warning('SPK NOT FOUND', [
 
                         'payment_request_id' =>
+
                             $request->id,
 
                         'spk_id' =>
+
                             $request->spk_id,
 
                     ]);
 
                     return null;
-                }
 
+                }
 
                 $spkData = is_string($request->spk->data)
 
                     ? json_decode(
+
                         $request->spk->data,
+
                         true
+
                     )
 
                     : ($request->spk->data ?? []);
 
-
                 $payment = collect(
+
                     $spkData['payments'] ?? []
+
                 )->firstWhere(
+
                         'payment_id',
+
                         $request->payment_id
+
                     );
 
-
                 $items = collect(
+
                     $spkData['items'] ?? []
+
                 )->map(function ($item) {
 
                     $mainTotal =
+
                         (float) ($item['total'] ?? 0);
 
                     $extraTotal = collect(
+
                         $item['custom_columns'] ?? []
+
                     )->sum(function ($row) {
 
                         return (float) (
-                            $row['total'] ?? 0
-                        );
-                    });
 
+                            $row['total'] ?? 0
+
+                        );
+
+                    });
 
                     return [
 
                         'nama' =>
+
                             $item['nama'] ?? '-',
 
                         'kode' =>
+
                             $item['kode'] ?? '-',
 
                         'qty' =>
+
                             $item['qty'] ?? 0,
 
                         'harga' =>
+
                             $item['harga'] ?? 0,
 
                         'total' =>
+
                             $mainTotal + $extraTotal,
 
                     ];
-                });
 
+                });
 
                 return [
 
                     'id' =>
+
                         $request->id,
 
                     'request_no' =>
+
                         $request->request_no,
 
                     'payment_id' =>
+
                         $request->payment_id,
 
                     'status' =>
+
                         $request->status,
 
                     'request_date' =>
+
                         $request->request_date,
 
                     'need_date' =>
+
                         $request->need_date,
 
                     'spk_id' =>
+
                         $request->spk_id,
 
                     'spk_no' =>
+
                         $spkData['no_spk'] ?? '-',
 
                     'production_code' => (function () use ($spkData, $request) {
+
                         $no = $spkData['no_spk'] ?? $request->no_spk ?? '';
 
-                        if (preg_match('/\/(NWS|NWD|NWR|NW)(?=\s|\/|-|$)/i', $no, $m)) {
-                            return strtoupper($m[1]) === 'NW' ? 'NW' : 'NWS';
+                        if (preg_match('/\\/(NWS|NWD|NWR|NW)(?=\s|\\/|-|$)/i', $no, $m)) {
+
+                            return strtoupper($m[1]) === 'NWR' ? 'NW' : strtoupper($m[1]);
+
                         }
 
                         return strtoupper($request->production_code ?? '');
+
                     })(),
 
                     'no_po' =>
+
                         $spkData['no_po'] ?? '-',
 
                     'supplier' =>
+
                         $spkData['sup'] ?? '-',
 
                     'kategori' =>
+
                         $spkData['kategori'] ?? '-',
 
                     'tgl_terima' =>
+
                         $spkData['tgl_terima'] ?? '-',
 
                     'tgl_selesai' =>
+
                         $spkData['tgl_selesai'] ?? '-',
 
                     'payment_note' =>
+
                         $payment['note'] ?? '-',
 
                     'payment_amount' =>
+
                         $payment['amount'] ?? 0,
 
                     'payment_date' =>
+
                         $payment['date'] ?? null,
 
                     'payment_is_request' =>
+
                         $payment['is_request'] ?? false,
 
                     'note_tambahan' =>
+
                         $payment['note_tambahan'] ?? null,
 
                     'items' =>
+
                         $items,
 
                     'grand_total_spk' =>
+
                         $items->sum('total'),
 
                 ];
+
             })
 
             ->filter()
 
             ->values();
 
-
         /*
+
         |--------------------------------------------------------------------------
+
         | SAVED DRAFT
+
         |--------------------------------------------------------------------------
+
         */
 
         $draftRequests = PaymentRequestSaved::latest()
@@ -7658,233 +7765,359 @@ class SpkController extends Controller
 
             ->map(function ($draft) use ($spkItemsMap) {
 
-
                 /*
+
                 |--------------------------------------------------------------------------
+
                 | PAYMENT REQUEST DALAM DRAFT
+
                 |--------------------------------------------------------------------------
+
                 */
 
                 $paymentRequests = PaymentRequest::with('spk')
 
                     ->whereIn(
+
                         'id',
+
                         $draft->payment_request_ids ?? []
+
                     )
 
                     ->get()
 
                     ->map(function ($request) use ($spkItemsMap) {
 
-
                         if (!$request->spk) {
 
                             Log::warning(
+
                                 'SPK NOT FOUND IN DRAFT',
+
                                 [
 
                                     'payment_request_id' =>
+
                                         $request->id,
 
                                     'spk_id' =>
+
                                         $request->spk_id,
 
                                 ]
+
                             );
 
                             return null;
+
                         }
 
-
                         /*
+
                         |--------------------------------------------------------------------------
+
                         | DATA SPK
+
                         |--------------------------------------------------------------------------
+
                         */
 
                         $spkData = is_string(
+
                             $request->spk->data
+
                         )
 
                             ? json_decode(
+
                                 $request->spk->data,
+
                                 true
+
                             )
 
                             : ($request->spk->data ?? []);
 
-
                         /*
+
                         |--------------------------------------------------------------------------
+
                         | PAYMENT YANG DIPILIH
+
                         |--------------------------------------------------------------------------
+
                         */
 
                         $payment = collect(
+
                             $spkData['payments'] ?? []
+
                         )->firstWhere(
+
                                 'payment_id',
+
                                 $request->payment_id
+
                             );
 
-
                         /*
+
                         |--------------------------------------------------------------------------
+
                         | NO SPK
+
                         |--------------------------------------------------------------------------
+
                         */
 
                         $noSpk = trim(
+
                             (string) (
+
                                 $spkData['no_spk'] ?? ''
+
                             )
+
                         );
 
-
                         /*
+
                         |--------------------------------------------------------------------------
+
                         | MAPPING ITEM DARI TABLE SPK
+
                         |--------------------------------------------------------------------------
+
                         |
+
                         | Tidak mengambil item dari saved.
+
                         |
+
                         | Cari berdasarkan:
+
                         |
+
                         | payment request
+
                         |       ↓
+
                         | spk_id
+
                         |       ↓
+
                         | spk.data.no_spk
+
                         |       ↓
+
                         | spkItemsMap
+
                         |
+
                         */
 
                         $spkItems = $spkItemsMap->get(
+
                             $noSpk,
+
                             []
+
                         );
 
-
                         /*
+
                         |--------------------------------------------------------------------------
+
                         | RETURN PAYMENT
+
                         |--------------------------------------------------------------------------
+
                         */
 
                         return [
 
                             'id' =>
+
                                 $request->id,
 
                             'payment_id' =>
+
                                 $request->payment_id,
 
                             'request_no' =>
+
                                 $request->request_no,
 
                             'spk_no' =>
+
                                 $noSpk !== ''
+
                                 ? $noSpk
+
                                 : '-',
 
                             'no_po' =>
+
                                 $spkData['no_po'] ?? '-',
 
                             'supplier' =>
+
                                 $spkData['sup'] ?? '-',
 
                             'kategori' =>
+
                                 $spkData['kategori'] ?? '-',
 
                             'payment_note' =>
+
                                 $payment['note'] ?? '-',
 
                             'payment_amount' =>
+
                                 (float) (
+
                                     $payment['amount'] ?? 0
+
                                 ),
 
                             /*
+
                             |--------------------------------------------------------------------------
+
                             | ITEM SPK
+
                             |--------------------------------------------------------------------------
+
                             |
+
                             | INI BARU.
+
                             |
+
                             | Tidak mengubah data saved.
+
                             |
+
                             */
 
                             'spk_items' =>
+
                                 $spkItems,
 
                         ];
+
                     })
 
                     ->filter()
 
                     ->values();
 
-
                 /*
+
                 |--------------------------------------------------------------------------
+
                 | SEMUA APPROVAL MILIK DRAFT INI
+
                 |--------------------------------------------------------------------------
+
                 |
+
                 | PENTING:
+
                 |
+
                 | Jangan mengambil approver dari:
+
                 |
+
                 | $kepalaPurchasing
+
                 | $prodManager
+
                 | $ceo
+
                 | $finance
+
                 | dll.
+
                 |
+
                 | Magic Link harus menggunakan approval yang tersimpan
+
                 | pada payment_request_approvals untuk draft ini.
+
                 |
+
                 */
 
                 // Klasifikasi saved draft lama jika production_code masih kosong.
+
                 $draftCode = strtoupper(trim($draft->production_code ?? ''));
-                if (!in_array($draftCode, ['NW', 'NWS'], true)) {
+
+                // NWR harus masuk ke kelompok draft NW.
+                if ($draftCode === 'NWR') {
+                    $draftCode = 'NW';
+                }
+
+                if (!in_array($draftCode, ['NW', 'NWS', 'NWD'], true)) {
+
                     $firstSpk = $paymentRequests->first()['spk_no'] ?? '';
-                    if (preg_match('/\/(NWS|NWD|NWR|NW)(?=\s|\/|-|$)/i', $firstSpk, $m)) {
-                        $draftCode = strtoupper($m[1]) === 'NW' ? 'NW' : 'NWS';
+
+                    if (preg_match('/\\/(NWS|NWD|NWR|NW)(?=\s|\\/|-|$)/i', $firstSpk, $m)) {
+
+                        $draftCode = strtoupper($m[1]) === 'NWR' ? 'NW' : strtoupper($m[1]);
+
                     }
+
                 }
 
                 $approvals = PaymentRequestApproval::with([
+
                     'user.karyawan.divisi'
+
                 ])
 
                     ->where(
+
                         'payment_request_saved_id',
+
                         $draft->id
+
                     )
 
                     ->orderBy('step')
 
                     ->get();
 
-
                 /*
+
                 |--------------------------------------------------------------------------
+
                 | PENDING APPROVAL
+
                 |--------------------------------------------------------------------------
+
                 |
+
                 | Tetap menggunakan approval pertama berdasarkan step
+
                 | yang statusnya Pending.
+
                 |
+
                 */
 
                 if ($draftCode === 'NWS') {
+
                     $approvals = $approvals->reject(function ($approval) {
+
                         return (int) $approval->user_id === 171
+
                             || strcasecmp(trim((string) $approval->role), 'Head Purchasing') === 0;
+
                     })->values();
+
                 }
 
                 $pendingApproval = $approvals
@@ -7892,28 +8125,43 @@ class SpkController extends Controller
                     ->filter(function ($approval) {
 
                         return strtolower(
+
                             trim(
+
                                 (string) $approval->status
+
                             )
+
                         ) === 'pending';
+
                     })
 
                     ->sortBy('step')
 
                     ->first();
 
-
                 /*
+
                 |--------------------------------------------------------------------------
+
                 | FORMAT SEMUA APPROVER
+
                 |--------------------------------------------------------------------------
+
                 |
+
                 | Ambil USER langsung dari:
+
                 |
+
                 | payment_request_approvals.user_id
+
                 |
+
                 | BUKAN berdasarkan user_name.
+
                 |
+
                 */
 
                 $approvalList = $approvals
@@ -7921,219 +8169,303 @@ class SpkController extends Controller
                     ->map(function ($approval) {
 
                         $user =
-                            $approval->user;
 
+                            $approval->user;
 
                         return [
 
                             /*
+
                             | Approval ID
+
                             */
 
                             'id' =>
+
                                 $approval->id,
 
-
                             /*
+
                             | Urutan approval
+
                             */
 
                             'step' =>
+
                                 $approval->step,
 
-
                             /*
+
                             | Role / Divisi approval
+
                             */
 
                             'role' =>
+
                                 $approval->role ?? '-',
 
-
                             /*
+
                             | USER ID
+
                             |
+
                             | Ini yang nanti dikirim ke
+
                             | generateMagicApprovalLink()
+
                             */
 
                             'user_id' =>
+
                                 $approval->user_id,
 
-
                             /*
+
                             | Nama user sebenarnya
+
                             */
 
                             'user_name' =>
+
                                 $user?->name ?? '-',
 
-
                             /*
+
                             | Email user
+
                             */
 
                             'email' =>
+
                                 $user?->email ?? null,
 
-
                             /*
+
                             | Status approval
+
                             */
 
                             'status' =>
+
                                 $approval->status
+
                                 ?? 'Pending',
 
-
                             /*
+
                             | Tanggal approval
+
                             */
 
                             'approved_at' =>
+
                                 $approval->approved_at
+
                                 ?? null,
 
                         ];
+
                     })
 
                     ->values();
 
-
                 /*
+
                 |--------------------------------------------------------------------------
+
                 | DEBUG OPTIONAL
+
                 |--------------------------------------------------------------------------
+
                 |
+
                 | Kalau sementara ingin memastikan datanya benar,
+
                 | bisa uncomment Log berikut.
+
                 |
+
                 */
 
                 Log::info(
+
                     'PAYMENT REQUEST DRAFT APPROVERS',
+
                     [
 
                         'draft_id' =>
+
                             $draft->id,
 
                         'request_no' =>
+
                             $draft->request_no,
 
                         'approvals' =>
+
                             $approvalList->toArray(),
 
                     ]
+
                 );
 
-
                 /*
+
                 |--------------------------------------------------------------------------
+
                 | RETURN DRAFT
+
                 |--------------------------------------------------------------------------
+
                 */
 
                 return [
 
                     /*
+
                     |--------------------------------------------------------------------------
+
                     | DRAFT
+
                     |--------------------------------------------------------------------------
+
                     */
 
                     'id' =>
+
                         $draft->id,
 
                     'request_no' =>
+
                         $draft->request_no,
 
                     'production_code' => $draftCode,
+
                     'created_by' => $draft->created_by,
+
                     'made_by' => (function () use ($draft) {
+
                         $creator = \App\Models\User::find($draft->created_by);
+
                         return $creator?->name ?: ($creator?->karyawan?->nama ?? '-');
+
                     })(),
 
                     'request_date' =>
+
                         $draft->request_date,
 
                     'need_date' =>
+
                         $draft->need_date,
 
                     'status' =>
+
                         $draft->status,
 
-
                     /*
+
                     |--------------------------------------------------------------------------
+
                     | TOTAL
+
                     |--------------------------------------------------------------------------
+
                     */
 
                     'grand_total' =>
+
                         $paymentRequests->sum(
+
                             'payment_amount'
+
                         ),
 
                     'total_items' =>
+
                         $paymentRequests->count(),
 
-
                     /*
+
                     |--------------------------------------------------------------------------
+
                     | ITEMS
+
                     |--------------------------------------------------------------------------
+
                     */
 
                     'items' =>
+
                         $paymentRequests,
 
-
                     /*
+
                     |--------------------------------------------------------------------------
+
                     | PENDING SIGN
+
                     |--------------------------------------------------------------------------
+
                     */
 
                     'pending_sign' =>
+
                         $pendingApproval?->role ?? '-',
 
-
                     /*
+
                     |--------------------------------------------------------------------------
+
                     | SEMUA APPROVER DRAFT
+
                     |--------------------------------------------------------------------------
+
                     |
+
                     | INI YANG DIGUNAKAN MODAL MAGIC LINK.
+
                     |
+
                     */
 
                     'approvals' =>
+
                         $approvalList,
 
-
                     /*
+
                     |--------------------------------------------------------------------------
+
                     | RECON
+
                     |--------------------------------------------------------------------------
+
                     */
 
                     'ainun_saved_recon' =>
+
                         $draft->ainun_saved_recon,
 
                 ];
+
             })
 
             ->values();
 
-
         /*
+
         |--------------------------------------------------------------------------
+
         | VIEW
+
         |--------------------------------------------------------------------------
+
         */
 
         return view(
+
             'pages.payment_request.draft',
 
             compact(
@@ -8145,8 +8477,11 @@ class SpkController extends Controller
                 'authUser',
 
                 /*
+
                 | Master approver tetap dikirim agar
+
                 | Blade lama tidak error.
+
                 */
 
                 'kepalaPurchasing',
@@ -8164,8 +8499,11 @@ class SpkController extends Controller
                 'coo'
 
             )
+
         );
+
     }
+
     // magic
     public function magicApproval(string $token)
     {
