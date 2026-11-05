@@ -228,13 +228,22 @@
                                 @php
                                     $spkNumber = $row['spk_no'] ?? ($row['no_spk'] ?? '');
                                     $rawCode = strtoupper(trim($row['production_code'] ?? ''));
+
                                     if (preg_match('/\/(NWS|NWD|NWR|NW)(?=\s|\/|-|$)/i', $spkNumber, $codeMatch)) {
                                         $rawCode = strtoupper($codeMatch[1]);
                                     }
-                                    $rowProductionCode = in_array($rawCode, ['NWS', 'NWD', 'NWR'], true)
-                                        ? 'NWS'
-                                        : $rawCode;
+
+                                    // NWR harus masuk NW
+                                    // NWS dan NWD tetap masuk kelompok NWS
+                                    $rowProductionCode = match ($rawCode) {
+                                        'NWR', 'NW' => 'NW',
+                                        'NWS', 'NWD' => 'NWS',
+                                        default => $rawCode,
+                                    };
                                 @endphp
+
+                                <tr class="draft-payment-row" data-production-code="{{ $rowProductionCode }}"
+                                    data-payment-amount="{{ $row['payment_amount'] ?? 0 }}">
                                 <tr class="draft-payment-row" data-production-code="{{ $rowProductionCode }}"
                                     data-payment-amount="{{ $row['payment_amount'] ?? 0 }}">
                                     <td class="pr-td" align="center">
