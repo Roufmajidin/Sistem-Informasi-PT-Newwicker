@@ -747,11 +747,18 @@ class ExportPengajuanSpk
             |--------------------------------------------------------------------------
             */
 
-            $hargaAsli =
-                self::toNumber(
-                    $payment['amount']
-                    ?? 0
-                );
+          // Nominal dari Payment Request
+$hargaRequest = $request->payment_amount ?? null;
+
+// Nominal dari snapshot SPK
+$hargaSnapshot = $payment['amount'] ?? null;
+
+// Gunakan nominal Payment Request jika tersedia
+$hargaAsli = self::toNumber(
+    $hargaRequest !== null && $hargaRequest !== ''
+        ? $hargaRequest
+        : ($hargaSnapshot ?? 0)
+);
 
 
             /*
