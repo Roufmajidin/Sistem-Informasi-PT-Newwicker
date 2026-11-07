@@ -134,70 +134,190 @@ class PengajuanHargaController extends Controller
 
 
 
+
     public function index(Request $request)
     {
+        $user = auth()->user();
 
-        $query = KategoriBahan::query()->with([
+        abort_unless($user, 403, 'Silakan login terlebih dahulu.');
 
-            'pengajuanHarga.user',
+        $email = strtolower(trim((string) $user->email));
 
-            'kategori',
+        $isFactory = str_starts_with($email, 'factory@');
 
-            'subBahan',
+        $query = KategoriBahan::query()
+            ->with([
+                'pengajuanHarga.user',
+                'kategori',
+                'subBahan',
+                'details',
+                'pic',
+                'approver',
+            ]);
 
-            'details',
+        /*
+        |--------------------------------------------------------------------------
+        | FILTER BERDASARKAN USER LOGIN
+        |--------------------------------------------------------------------------
+        |
+        | Factory:
+        | - Tidak melihat Draft
+        | - Melihat Pending, Revision, Approved, Rejected
+        |
+        | Writer:
+        | - Melihat Draft miliknya sendiri
+        | - Melihat pengajuan yang sudah dikirim
+        |
+        */
 
-            'pic',
+        if ($isFactory) {
 
-            'approver',
+            $query->whereIn('status', [
+                'pending',
+                'revision',
+                'approved',
+                'rejected',
+            ]);
 
-        ]);
+        } else {
 
+            $query->where(function ($builder) use ($user) {
 
+                // Pengajuan yang sudah dikirim
+                $builder->whereIn('status', [
+                    'pending',
+                    'revision',
+                    'approved',
+                    'rejected',
+                ]);
 
-        if ($request->filled('q')) {
+                // ATAU Draft milik user login
+                $builder->orWhere(function ($draft) use ($user) {
 
-            $q = trim((string) $request->q);
+                    $draft->where('status', 'draft')
+                        ->whereHas('pengajuanHarga', function ($header) use ($user) {
 
-            $query->where(function ($builder) use ($q) {
+                            $header->where('user_id', $user->id);
 
-                $builder->whereHas('pengajuanHarga', function ($header) use ($q) {
+                        });
 
-                    $header->where('article_nr', 'like', "%{$q}%")
-
-                        ->orWhere('item_name', 'like', "%{$q}%");
-
-                })->orWhereHas('subBahan', fn($sub) => $sub->where('name', 'like', "%{$q}%"));
+                });
 
             });
 
         }
 
-        if ($request->filled('kategori')) {
+        /*
+        |--------------------------------------------------------------------------
+        | SEARCH ARTICLE / ITEM / SUB BAHAN / SUPPLIER
+        |--------------------------------------------------------------------------
+        */
 
-            $query->where('kategori_id', $request->kategori);
+        if ($request->filled('q')) {
+
+            $q = trim((string) $request->input('q'));
+
+            $query->where(function ($builder) use ($q) {
+
+                $builder->whereHas('pengajuanHarga', function ($header) use ($q) {
+
+                    $header->where(function ($search) use ($q) {
+
+                        $search->where('article_nr', 'like', "%{$q}%")
+                            ->orWhere('item_name', 'like', "%{$q}%")
+                            ->orWhere('sub_name', 'like', "%{$q}%");
+
+                    });
+
+                });
+
+                $builder->orWhereHas('subBahan', function ($sub) use ($q) {
+
+                    $sub->where('name', 'like', "%{$q}%");
+
+                });
+
+                $builder->orWhereHas('kategori', function ($kategori) use ($q) {
+
+                    $kategori->where('name', 'like', "%{$q}%");
+
+                });
+
+            });
 
         }
+
+        /*
+        |--------------------------------------------------------------------------
+        | FILTER KATEGORI
+        |--------------------------------------------------------------------------
+        */
+
+        if ($request->filled('kategori')) {
+
+            $query->where(
+                'kategori_id',
+                $request->input('kategori')
+            );
+
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | FILTER STATUS
+        |--------------------------------------------------------------------------
+        */
 
         if ($request->filled('status')) {
 
-            $query->where('status', $request->status);
+            $query->where(
+                'status',
+                $request->input('status')
+            );
 
         }
 
+        /*
+        |--------------------------------------------------------------------------
+        | PAGINATION
+        |--------------------------------------------------------------------------
+        */
 
+        $pengajuans = $query
+            ->orderByDesc('id')
+            ->paginate(15)
+            ->withQueryString();
 
-        $pengajuans = $query->latest('id')->paginate(15)->withQueryString();
+        /*
+        |--------------------------------------------------------------------------
+        | MASTER DATA
+        |--------------------------------------------------------------------------
+        */
 
-        $kategoriList = BahanKategori::orderBy('name')->get();
+        $kategoriList = BahanKategori::query()
+            ->orderBy('name')
+            ->get();
 
-        $subBahanList = SubBahan::orderBy('name')->get();
+        $subBahanList = SubBahan::query()
+            ->orderBy('name')
+            ->get();
 
+        /*
+        |--------------------------------------------------------------------------
+        | RETURN VIEW
+        |--------------------------------------------------------------------------
+        */
 
-
-        return view('pages.pengajuan_harga.index', compact('pengajuans', 'kategoriList', 'subBahanList'));
-
+        return view(
+            'pages.pengajuan_harga.index',
+            compact(
+                'pengajuans',
+                'kategoriList',
+                'subBahanList'
+            )
+        );
     }
+
 
 
 
