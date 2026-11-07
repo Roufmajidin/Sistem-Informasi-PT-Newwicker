@@ -65,26 +65,40 @@
                              </a>
                          </li>
                      @endif
+
+                     @auth
+                         @if (auth()->user()->accessModules()->where('name', 'Pengajuan Harga')->exists())
+                             <li class="{{ request()->routeIs('pengajuan-harga.*') ? 'active' : '' }}">
+                                 <a href="{{ route('pengajuan-harga.index') }}">
+                                     <span class="nav-icon">
+                                         <i class="material-icons">assignment_turned_in</i>
+                                     </span>
+
+                                     <span class="nav-text">
+                                         Pengajuan Harga
+                                     </span>
+                                 </a>
+                             </li>
+                         @endif
+                     @endauth
+
+
                      {{-- MENU MINUTES OF MEETING --}}
-@auth
-    @if (auth()->user()->accessModules()
-            ->where('name', 'MoM')
-            ->exists())
+                     @auth
+                         @if (auth()->user()->accessModules()->where('name', 'MoM')->exists())
+                             <li class="{{ request()->routeIs('mom.*') ? 'active' : '' }}">
+                                 <a href="{{ route('mom.index') }}">
+                                     <span class="nav-icon">
+                                         <i class="material-icons">groups</i>
+                                     </span>
 
-        <li class="{{ request()->routeIs('mom.*') ? 'active' : '' }}">
-            <a href="{{ route('mom.index') }}">
-                <span class="nav-icon">
-                    <i class="material-icons">groups</i>
-                </span>
-
-                <span class="nav-text">
-                    M o M
-                </span>
-            </a>
-        </li>
-
-    @endif
-@endauth
+                                     <span class="nav-text">
+                                         M o M
+                                     </span>
+                                 </a>
+                             </li>
+                         @endif
+                     @endauth
                      {{-- =========================================================
      ROLE: EXPORT
      ========================================================= --}}
@@ -400,7 +414,7 @@
                              </li>
 
 
-                                 {{-- <li>
+                             {{-- <li>
                           <li>
                          <a href="/produksi/inventor">
                              <span class="nav-icon"><i class="material-icons">request_quote</i></span>
@@ -490,11 +504,11 @@
                              <!-- </li>
 
 
-                                                                                     <a href="/request">
-                                                                                         <span class="nav-icon"><i class="material-icons">event_note</i></span>
-                                                                                         <span class="nav-text">Agenda</span>
-                                                                                     </a>
-                                                                                 </li> -->
+                                                                                         <a href="/request">
+                                                                                             <span class="nav-icon"><i class="material-icons">event_note</i></span>
+                                                                                             <span class="nav-text">Agenda</span>
+                                                                                         </a>
+                                                                                     </li> -->
 
                              <li>
                                  <a href="/request">
@@ -521,7 +535,7 @@
                              </li>
                          @endif
 
-                        {{-- purchasing --}}
+                         {{-- purchasing --}}
                          @if (Auth::user()->role === 'purchasing')
                              <!-- ===================================== -->
                              <!-- RELEASE PFI -->
@@ -726,7 +740,6 @@
                          @endif
 
                          @if (Auth::user()->role == 'gudang' || Auth::user()->role === 'hrd')
-                        
                              <li>
                                  <a href="/marketing-release-order">
                                      <span class="nav-icon"><i class="material-icons">assignment_turned_in</i></span>

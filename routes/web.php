@@ -45,6 +45,7 @@ use App\Http\Controllers\RndController;
 use App\Http\Controllers\GoogleDriveAuthController;
 use Illuminate\Support\Facades\Broadcast;
 use App\Http\Controllers\MomController;
+use App\Http\Controllers\PengajuanHargaController;
 
 // ==========================================================
 // MAGIC APPROVAL LINK - PUBLIC ENTRY POINT
@@ -72,6 +73,7 @@ Broadcast::routes([
 // Muat channel authorization
 require_once base_path('routes/channels.php');
 Route::middleware('auth')->prefix('mom')->name('mom.')->group(function () {
+    // 
     Route::get('/', [MomController::class, 'index'])->name('index');
     Route::get('/list', [MomController::class, 'listing'])->name('list');
     Route::post('/autosave', [MomController::class, 'autosave'])->name('autosave');
@@ -134,6 +136,40 @@ Route::get('/approval/bypass_config/{token}', [
 // ==========================================================
 
 Route::middleware('auth')->group(function () {
+    // pengajuan Harga
+Route::middleware('auth')->prefix('pengajuan-harga')->name('pengajuan-harga.')->group(function () {
+    Route::get('/', [PengajuanHargaController::class, 'index'])->name('index');
+    Route::get('/search-article', [PengajuanHargaController::class, 'searchArticle'])->name('search-article');
+    Route::post('/', [PengajuanHargaController::class, 'store'])->name('store');
+    Route::post('/{pengajuan}/submit', [PengajuanHargaController::class, 'submit'])->name('submit');
+    Route::post('/{pengajuan}/approve', [PengajuanHargaController::class, 'approve'])->name('approve');
+    Route::get(
+    '/search-material',
+    [PengajuanHargaController::class, 'searchMaterial']
+)->name('search-material');
+
+Route::post('/master-kategori',
+    [PengajuanHargaController::class, 'storeMasterKategori']
+)->name('master-kategori.store');
+
+Route::put('/master-kategori/{kategori}',
+    [PengajuanHargaController::class, 'updateMasterKategori']
+)->name('master-kategori.update');
+
+Route::post('/master-sub',
+    [PengajuanHargaController::class, 'storeMasterSub']
+)->name('master-sub.store');
+
+Route::put('/master-sub/{sub}',
+    [PengajuanHargaController::class, 'updateMasterSub']
+)->name('master-sub.update');
+Route::get('/search-supplier', [PengajuanHargaController::class, 'searchSupplier'])->name('search-supplier');
+Route::post('/{pengajuan}/approve', [PengajuanHargaController::class, 'approve'])->name('approve');
+Route::delete('/{pengajuan}', [PengajuanHargaController::class, 'destroy'])->name('destroy');
+Route::put('/{pengajuan}', [PengajuanHargaController::class, 'update'])->name('update');
+});
+
+
     // ==========================================================
 // MAGIC APPROVAL SPK - AUTH
 // ==========================================================
