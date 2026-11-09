@@ -717,52 +717,155 @@ class LaporanController extends Controller
             'transaksi' => $transaksi,
         ]);
     }
+
     public function detailBarang(Request $request, $id)
     {
         $stok = Stok::findOrFail($id);
-        $hasOpnameCutoff = (bool) $stok->is_opname && !empty($stok->opname_at);
 
-        $saldoQuery = TransaksiStok::query()->where('stok_id', $stok->id);
+        $hasOpnameCutoff = (bool) $stok->is_opname
+            && !empty($stok->opname_at);
+
+        $saldoQuery = TransaksiStok::query()
+            ->where('stok_id', $stok->id);
 
         if ($hasOpnameCutoff) {
-            // Samakan dengan index: tanggal efektif transaksi, bukan created_at.
-            // Transaksi pada hari opname dianggap sebelum cut-off.
+            $cutoff = Carbon::parse($stok->opname_at);
 
-            $saldoQuery->where(
-                'tanggal',
-                '>',
-                Carbon::parse($stok->opname_at)->format('Y-m-d H:i:s')
-            )
-                ->where(function ($q) {
-                    $q->whereNull('keterangan')
-                        ->orWhere('keterangan', 'not like', '%opname%');
+            $saldoQuery->where(function ($query) use ($cutoff) {
+                // Transaksi setelah tanggal opname
+                $query->whereDate(
+                    'tanggal',
+                    '>',
+                    $cutoff->toDateString()
+                );
+
+                // Transaksi pada tanggal opname:
+                // bandingkan jam pencatatan
+                $query->orWhere(function ($sub) use ($cutoff) {
+                    $sub->whereDate(
+                        'tanggal',
+                        $cutoff->toDateString()
+                    )
+                        ->whereRaw(
+                            'TIME(created_at) > ?',
+                            [$cutoff->format('H:i:s')]
+                        );
                 });
+            });
+
+            $saldoQuery->where(function ($query) {
+                $query->whereNull('keterangan')
+                    ->orWhere(
+                        'keterangan',
+                        'NOT LIKE',
+                        '%opname%'
+                    );
+            });
         }
-        // Belum opname: semua transaksi termasuk keterangan Opname.
+
+        // Belum opname:
+        // tetap menggunakan seluruh transaksi (rumus original).
         $totals = $saldoQuery
-            ->selectRaw("COALESCE(SUM(CASE WHEN tipe = 'in' THEN qty ELSE 0 END), 0) AS total_in")
-            ->selectRaw("COALESCE(SUM(CASE WHEN tipe = 'out' THEN qty ELSE 0 END), 0) AS total_out")
+            ->selectRaw("
+            COALESCE(
+                SUM(CASE WHEN tipe = 'in'
+                    THEN qty ELSE 0 END), 0
+            ) AS total_in
+        ")
+            ->selectRaw("
+            COALESCE(
+                SUM(CASE WHEN tipe = 'out'
+                    THEN qty ELSE 0 END), 0
+            ) AS total_out
+        ")
             ->first();
 
-        $stokTersedia = ($hasOpnameCutoff ? (float) ($stok->stok_awal ?? 0) : 0)
+        $stokTersedia =
+            ($hasOpnameCutoff
+                ? (float) ($stok->stok_awal ?? 0)
+                : 0)
             + (float) ($totals->total_in ?? 0)
             - (float) ($totals->total_out ?? 0);
 
-        // Riwayat tetap utuh; filter tanggal hanya mengubah daftar riwayat.
         $transaksi = TransaksiStok::query()
             ->with(['stok', 'spk'])
             ->where('stok_id', $stok->id)
             ->when($request->tanggal_awal, function ($query) use ($request) {
-                $query->whereDate('tanggal', '>=', $request->tanggal_awal);
+                $query->whereDate(
+                    'tanggal',
+                    '>=',
+                    $request->tanggal_awal
+                );
             })
             ->when($request->tanggal_akhir, function ($query) use ($request) {
-                $query->whereDate('tanggal', '<=', $request->tanggal_akhir);
+                $query->whereDate(
+                    'tanggal',
+                    '<=',
+                    $request->tanggal_akhir
+                );
             })
             ->orderBy('tanggal', 'desc')
+            ->orderByRaw('TIME(created_at) DESC')
+            ->orderBy('id', 'desc')
             ->get();
 
-        return view('pages.laporan.detail', compact('stok', 'transaksi', 'stokTersedia'));
+        return view(
+            'pages.laporan.detail',
+            compact(
+                'stok',
+                'transaksi',
+                'stokTersedia'
+            )
+        );
     }
+
+    // at 9/11/26
+    // public function detailBarang(Request $request, $id)
+    // {
+    //     $stok = Stok::findOrFail($id);
+    //     $hasOpnameCutoff = (bool) $stok->is_opname && !empty($stok->opname_at);
+
+    //     $saldoQuery = TransaksiStok::query()->where('stok_id', $stok->id);
+
+    //     if ($hasOpnameCutoff) {
+    //         // Samakan dengan index: tanggal efektif transaksi, bukan created_at.
+    //         // Transaksi pada hari opname dianggap sebelum cut-off.
+
+    //         $saldoQuery->where(
+    //             'tanggal',
+    //             '>',
+    //             Carbon::parse($stok->opname_at)->format('Y-m-d H:i:s')
+    //         )
+    //             ->where(function ($q) {
+    //                 $q->whereNull('keterangan')
+    //                     ->orWhere('keterangan', 'not like', '%opname%');
+    //             });
+    //     }
+    //     // Belum opname: semua transaksi termasuk keterangan Opname.
+    //     $totals = $saldoQuery
+    //         ->selectRaw("COALESCE(SUM(CASE WHEN tipe = 'in' THEN qty ELSE 0 END), 0) AS total_in")
+    //         ->selectRaw("COALESCE(SUM(CASE WHEN tipe = 'out' THEN qty ELSE 0 END), 0) AS total_out")
+    //         ->first();
+
+    //     $stokTersedia = ($hasOpnameCutoff ? (float) ($stok->stok_awal ?? 0) : 0)
+    //         + (float) ($totals->total_in ?? 0)
+    //         - (float) ($totals->total_out ?? 0);
+
+    //     // Riwayat tetap utuh; filter tanggal hanya mengubah daftar riwayat.
+    //     $transaksi = TransaksiStok::query()
+    //         ->with(['stok', 'spk'])
+    //         ->where('stok_id', $stok->id)
+    //         ->when($request->tanggal_awal, function ($query) use ($request) {
+    //             $query->whereDate('tanggal', '>=', $request->tanggal_awal);
+    //         })
+    //         ->when($request->tanggal_akhir, function ($query) use ($request) {
+    //             $query->whereDate('tanggal', '<=', $request->tanggal_akhir);
+    //         })
+    //         ->orderBy('tanggal', 'desc')
+    //         ->get();
+
+    //     return view('pages.laporan.detail', compact('stok', 'transaksi', 'stokTersedia'));
+    // }
 
     // public function detailBarang(
     //     Request $request,

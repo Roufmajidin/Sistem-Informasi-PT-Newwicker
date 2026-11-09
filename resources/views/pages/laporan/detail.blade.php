@@ -164,15 +164,15 @@
 
                         /*
 
-                                             * Saldo dihitung di LaporanController::detailBarang().
+                                                                     * Saldo dihitung di LaporanController::detailBarang().
 
-                                             * Jangan hitung ulang di Blade agar hasilnya konsisten
+                                                                     * Jangan hitung ulang di Blade agar hasilnya konsisten
 
-                                             * dengan nilai stokTersedia dari controller.
+                                                                     * dengan nilai stokTersedia dari controller.
 
-                                             *
+                                                                     *
 
-                                             * Filter tanggal hanya mengubah riwayat transaksi.
+                                                                     * Filter tanggal hanya mengubah riwayat transaksi.
 
                      */
 
@@ -673,28 +673,28 @@
                                             : rtrim(rtrim(number_format($opnameQty, 3, ',', '.'), '0'), ',');
                                 @endphp
 
-                                @foreach ($transaksi as $item)
+                                {{-- Urutkan per tanggal efektif dan jam pencatatan untuk tanggal yang sama. --}}
+                                @php
+                                    $transaksiUrut = $transaksi->sort(function ($a, $b) {
+                                        $tanggalA = \Carbon\Carbon::parse($a->tanggal)->format('Y-m-d');
+                                        $tanggalB = \Carbon\Carbon::parse($b->tanggal)->format('Y-m-d');
+                                        $waktuA =
+                                            $tanggalA . ' ' . \Carbon\Carbon::parse($a->created_at)->format('H:i:s');
+                                        $waktuB =
+                                            $tanggalB . ' ' . \Carbon\Carbon::parse($b->created_at)->format('H:i:s');
+                                        return strcmp($waktuB, $waktuA) ?: (int) $b->id <=> (int) $a->id;
+                                    });
+                                @endphp
+                                @foreach ($transaksiUrut as $item)
                                     @php
-                                        /*
-            |--------------------------------------------------------------------------
-            | POSISI PEMBATAS STOCK OPNAME
-            |--------------------------------------------------------------------------
-            | Riwayat diurutkan berdasarkan tanggal DESC.
-            |
-            | Transaksi pada tanggal yang sama dengan opname
-            | dianggap sebagai transaksi sebelum cut-off.
-            |
-            | Contoh:
-            | Opname     : 26/10/2026 17:18
-            | Transaksi  : 26/10/2026
-            |
-            | Pembatas ditampilkan DI ATAS transaksi tersebut.
-            */
-
+                                        // Gunakan tanggal transaksi + jam created_at sebagai waktu efektif
+                                        // untuk menentukan posisi pembatas pada hari yang sama.
+                                        // Tidak mengubah timestamp asli atau data transaksi.
+                                        $tanggalEfektif = \Carbon\Carbon::parse($item->tanggal)->format('Y-m-d');
+                                        $jamPencatatan = \Carbon\Carbon::parse($item->created_at)->format('H:i:s');
+                                        $waktuEfektif = \Carbon\Carbon::parse($tanggalEfektif . ' ' . $jamPencatatan);
                                         $olderThanOpname =
-                                            $showOpnameDivider &&
-                                            \Carbon\Carbon::parse($item->tanggal)->toDateString() <=
-                                                $opnameCutoff->toDateString();
+                                            $showOpnameDivider && $waktuEfektif->lessThanOrEqualTo($opnameCutoff);
 
                                         $isOpname = stripos(trim((string) $item->keterangan), 'opname') !== false;
                                     @endphp
@@ -1433,7 +1433,7 @@
 
 
     // Saat Return dicentang, buka drawer SPK yang sudah ada.
-    $(document).on('change', '#is_return', function () {
+    $(document).on('change', '#is_return', function() {
         if (this.checked) {
             $('#btnCariSpk').trigger('click');
         }
