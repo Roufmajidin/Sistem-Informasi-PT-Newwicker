@@ -49,7 +49,8 @@
                         @if ($canEdit)
                             <div class="alert alert-info small py-2">Anda adalah writer pengajuan ini. Seluruh field di
                                 bawah dapat diedit seperti form Create. Setelah disimpan, status menjadi
-                                <strong>Draft</strong> dan perlu dikirim ulang untuk approval.</div>
+                                <strong>Draft</strong> dan perlu dikirim ulang untuk approval.
+                            </div>
                             <form id="phEditForm{{ $pengajuan->id }}" method="POST"
                                 action="{{ route('pengajuan-harga.update', $pengajuan->id) }}" class="ph-edit-form"
                                 data-ph-edit="{{ $pengajuan->id }}" enctype="multipart/form-data">
@@ -77,8 +78,8 @@
                                             <button type="button"
                                                 class="btn btn-sm btn-outline-secondary ph-photo-clear">Batalkan Foto
                                                 Baru</button>
-                                            <div class="ph-photo-paste border rounded p-2 mt-2 small text-muted"
-                                                tabindex="0" role="button">Klik lalu Ctrl+V untuk paste foto, atau
+                                            <div class="ph-photo-paste border p-2 mt-2 small text-muted" tabindex="0"
+                                                role="button">Klik lalu Ctrl+V untuk paste foto, atau
                                                 drag & drop</div>
                                             <small class="ph-photo-error text-danger d-block"></small>
                                         </div>
@@ -173,7 +174,7 @@
                                         </tbody>
                                         <tfoot>
                                             <tr class="ph-subtotal">
-                                                <th colspan="4">SUB TOTAL</th>
+                                                <th colspan="4">TOTAL</th>
                                                 <th class="text-end ph-edit-total">Rp
                                                     {{ number_format($subtotal, 0, ',', '.') }}</th>
                                                 <th></th>
@@ -255,7 +256,8 @@
                                                 <td class="text-end">Rp
                                                     {{ number_format((float) $d->harga, 0, ',', '.') }}</td>
                                                 <td class="text-end">Rp
-                                                    {{ number_format((float) $d->qty * (float) $d->harga, 0, ',', '.') }}</td>
+                                                    {{ number_format((float) $d->qty * (float) $d->harga, 0, ',', '.') }}
+                                                </td>
                                         </tr>@empty<tr>
                                                 <td colspan="5">Belum ada rincian</td>
                                             </tr>
@@ -263,7 +265,7 @@
                                     </tbody>
                                     <tfoot>
                                         <tr class="ph-subtotal">
-                                            <th colspan="4">SUB TOTAL</th>
+                                            <th colspan="4">TOTAL</th>
                                             <th class="text-end">Rp {{ number_format($subtotal, 0, ',', '.') }}</th>
                                         </tr>
                                     </tfoot>
@@ -283,7 +285,8 @@
                             action="{{ route('pengajuan-harga.approve', $pengajuan->id) }}">
                             @csrf
                             <label class="form-label">Harga Pengajuan</label>
-                            <div class="form-control bg-light mb-3">Rp {{ number_format($subtotal, 0, ',', '.') }}</div>
+                            <div class="form-control bg-light mb-3">Rp {{ number_format($subtotal, 0, ',', '.') }}
+                            </div>
                             <label class="form-label">Harga Negosiasi (Rp)</label>
                             <input class="form-control mb-3" name="approve_negosiasi_harga" type="number"
                                 min="0" step="0.01"
@@ -304,13 +307,13 @@
                         @elseif($canApprove)
                             <button type="submit" form="approvalForm{{ $pengajuan->id }}"
                                 class="btn btn-success w-100"
-                                onclick="return confirm('Setujui harga negosiasi pengajuan ini?')">Setujui Harga
+                                onclick="return confirm('Setujui pengajuan ini?')">Setujui Harga
                                 Negosiasi</button>
                         @elseif($status === 'approved')
                             <div class="alert alert-success small">Disetujui: Rp
                                 {{ number_format((float) $pengajuan->approved_total, 0, ',', '.') }}</div>
                         @else
-                            <div class="alert alert-secondary small">Hanya akun email factory@ yang dapat menyetujui
+                            <div class="alert alert-secondary small">Hanya akun terkait yang dapat menyetujui
                                 pengajuan Pending/Revision.</div>
                         @endif
                     </section>
@@ -521,7 +524,7 @@
                                     signal: abort.signal
                                 });
                             if (!response.ok) throw new Error('HTTP ' + response
-                            .status);
+                                .status);
                             const payload = await response.json();
                             const items = Array.isArray(payload) ? payload : (payload
                                 .data || []);
@@ -537,7 +540,7 @@
                                 const meta = document.createElement('small');
                                 meta.textContent = (item.source ===
                                         'finishing' ? 'Finishing' : 'Material'
-                                        ) + ' · ' +
+                                    ) + ' · ' +
                                     (item.unit || '-') +
                                     ' · ' +
                                     (item.harga == null ? 'Harga manual' :
@@ -665,7 +668,7 @@
                     script.onerror = function() {
                         reject(new Error(
                             'Gagal memuat html2canvas. Periksa koneksi internet atau pasang library secara lokal.'
-                            ));
+                        ));
                     };
                     document.head.appendChild(script);
                 }).catch(function(error) {
@@ -698,7 +701,7 @@
                 });
                 clone.querySelectorAll(
                     '.ph-export-actions,.modal-footer,.ph-photo-upload,.ph-edit-add,.ph-edit-remove,.ph-edit-material-results,.ph-edit-material-option,.ph-photo-paste,.ph-photo-browse,.ph-photo-clear'
-                    ).forEach(el => el.remove());
+                ).forEach(el => el.remove());
                 // Capture all sections, even those below the modal's scroll position.
                 clone.style.cssText =
                     'width:1200px;max-width:none;max-height:none;height:auto;overflow:visible;background:white;border:0;border-radius:0;box-shadow:none;';
@@ -771,7 +774,7 @@
                     const link = document.createElement('a');
                     link.href = data;
                     link.download = 'Pengajuan_Harga_' + article + '.' + (format === 'jpeg' ? 'jpg' :
-                    'png');
+                        'png');
                     document.body.appendChild(link);
                     link.click();
                     link.remove();

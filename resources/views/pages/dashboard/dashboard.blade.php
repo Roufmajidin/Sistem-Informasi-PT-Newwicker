@@ -3,19 +3,32 @@
 @section('title', 'Portal NewWicker')
 
 @section('content')
-
     @php
-
         $auth = auth()->user();
 
-        $isFactory = str_starts_with(strtolower($auth->email ?? ''), 'factory@');
+        $email = strtolower($auth->email ?? '');
+
+        // Akun yang boleh melihat BOM dan BOM Produksi
+        $isFactoryOfficeInfo = false;
+
+        foreach (['factory@', 'office@', 'info@'] as $prefix) {
+            if (str_starts_with($email, $prefix)) {
+                $isFactoryOfficeInfo = true;
+                break;
+            }
+        }
+
+        // Tetap pertahankan pengecekan factory untuk fitur absensi
+        $isFactory = str_starts_with($email, 'factory@');
 
         $karyawan = \App\Models\Karyawan::find($auth->karyawan_id);
-
         $divisiId = $karyawan->divisi_id ?? null;
-
         $allowedDivisi = [26, 38, 32, 46, 37];
 
+        // Hak akses berdasarkan tabel access
+        $canPengajuanHarga = $auth->accessModules()->where('name', 'Pengajuan Harga')->exists();
+
+        $canSourcingMonitoring = $auth->accessModules()->where('name', 'Sourching Monitoring Issue')->exists();
     @endphp
 
     <style>
@@ -499,17 +512,17 @@
                     </div><span class="nw-shortcut-arrow">›</span>
                 </a>
             @endif
-
-            <a class="nw-shortcut" href="/karyawan-scan"><span class="nw-shortcut-icon purple"><i
-                        class="material-icons">event_available</i></span>
-                <div class="nw-shortcut-body">
-                    <div class="nw-shortcut-title">Absen Sekarang</div>
-                    <div class="nw-shortcut-sub">Catat kehadiran hari ini</div>
-                </div><span class="nw-shortcut-arrow">›</span>
-            </a>
-
-            @if ($isFactory)
-                {{-- Navigasi khusus akun factory --}}
+            @if (!$isFactory)
+                <a class="nw-shortcut" href="/karyawan-scan"><span class="nw-shortcut-icon purple"><i
+                            class="material-icons">event_available</i></span>
+                    <div class="nw-shortcut-body">
+                        <div class="nw-shortcut-title">Absen Sekarang</div>
+                        <div class="nw-shortcut-sub">Catat kehadiran hari ini</div>
+                    </div><span class="nw-shortcut-arrow">›</span>
+                </a>
+            @endif
+            {{-- BOM dan BOM Produksi: berdasarkan email --}}
+            @if ($isFactoryOfficeInfo)
                 <a class="nw-shortcut" href="/bom">
                     <span class="nw-shortcut-icon teal">
                         <i class="material-icons">inventory_2</i>
@@ -523,7 +536,7 @@
 
                 <a class="nw-shortcut" href="/bom-produksi">
                     <span class="nw-shortcut-icon blue">
-                        <i class="material-icons">precision_manufacturing</i>
+                        <i class="material-icons">settings</i>
                     </span>
                     <div class="nw-shortcut-body">
                         <div class="nw-shortcut-title">BOM Produksi</div>
@@ -531,7 +544,41 @@
                     </div>
                     <span class="nw-shortcut-arrow">›</span>
                 </a>
-            @else
+            @endif
+
+
+            {{-- Sourching Monitoring: berdasarkan tabel access --}}
+            @if ($canSourcingMonitoring)
+                <a class="nw-shortcut" href="/sm">
+                    <span class="nw-shortcut-icon blue">
+                        <i class="material-icons">assignment</i>
+                    </span>
+                    <div class="nw-shortcut-body">
+                        <div class="nw-shortcut-title">Sourching Monitoring Issue</div>
+                        <div class="nw-shortcut-sub">Go to list monitoring issue</div>
+                    </div>
+                    <span class="nw-shortcut-arrow">›</span>
+                </a>
+            @endif
+
+
+            {{-- Pengajuan Harga: berdasarkan tabel access --}}
+            @if ($canPengajuanHarga)
+                <a class="nw-shortcut" href="/pengajuan-harga">
+                    <span class="nw-shortcut-icon blue">
+                        <i class="material-icons">store</i>
+                    </span>
+                    <div class="nw-shortcut-body">
+                        <div class="nw-shortcut-title">Pengajuan Harga</div>
+                        <div class="nw-shortcut-sub">Go to list pengajuan harga</div>
+                    </div>
+                    <span class="nw-shortcut-arrow">›</span>
+                </a>
+            @endif
+
+
+            {{-- Riwayat Absen dan Ubah Password --}}
+            @if (!$isFactory)
                 <a class="nw-shortcut" href="/riwayat-absen">
                     <span class="nw-shortcut-icon teal">
                         <i class="material-icons">history</i>
@@ -588,7 +635,7 @@
         <section class="nw-spk-section" aria-label="Ringkasan SPK">
 
             <div class="nw-spk-section-head">
-                <h3>Ringkasan SPK</h3><span class="nw-spk-dummy">Data simulasi</span>
+                <h3>Ringkasan SPK</h3><span class="nw-spk-dummy">On Progress</span>
             </div>
 
             <div class="nw-spk-stats">
@@ -638,7 +685,8 @@
                         <div class="nw-empty">Memuat aktivitas PO...</div>
                     </div>
                 </div>
-                <div class="nw-timeline-foot"><i class="material-icons" style="font-size:13px">unfold_more</i>Scroll untuk
+                <div class="nw-timeline-foot"><i class="material-icons" style="font-size:13px">unfold_more</i>Scroll
+                    untuk
                     melihat aktivitas lainnya</div>
             </section>
 
@@ -654,7 +702,8 @@
                         <div class="nw-empty">Memuat aktivitas SPK...</div>
                     </div>
                 </div>
-                <div class="nw-timeline-foot"><i class="material-icons" style="font-size:13px">unfold_more</i>Scroll untuk
+                <div class="nw-timeline-foot"><i class="material-icons" style="font-size:13px">unfold_more</i>Scroll
+                    untuk
                     melihat aktivitas lainnya</div>
             </section>
 
@@ -693,19 +742,19 @@
 
                 ${row.after.items.map(item => `
 
-                        <li>
+                                            <li>
 
-                            ${item.nama}
+                                                ${item.nama}
 
-                            <b>
+                                                <b>
 
-                                (${item.qty} ${item.satuan})
+                                                    (${item.qty} ${item.satuan})
 
-                            </b>
+                                                </b>
 
-                        </li>
+                                            </li>
 
-                    `).join('')}
+                                        `).join('')}
 
             </ul>
 

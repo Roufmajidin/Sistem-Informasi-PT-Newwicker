@@ -717,7 +717,7 @@ class LaporanController extends Controller
             'transaksi' => $transaksi,
         ]);
     }
-       public function detailBarang(Request $request, $id)
+    public function detailBarang(Request $request, $id)
     {
         $stok = Stok::findOrFail($id);
         $hasOpnameCutoff = (bool) $stok->is_opname && !empty($stok->opname_at);
@@ -727,7 +727,12 @@ class LaporanController extends Controller
         if ($hasOpnameCutoff) {
             // Samakan dengan index: tanggal efektif transaksi, bukan created_at.
             // Transaksi pada hari opname dianggap sebelum cut-off.
-            $saldoQuery->whereDate('tanggal', '>', Carbon::parse($stok->opname_at)->toDateString())
+
+            $saldoQuery->where(
+                'tanggal',
+                '>',
+                Carbon::parse($stok->opname_at)->format('Y-m-d H:i:s')
+            )
                 ->where(function ($q) {
                     $q->whereNull('keterangan')
                         ->orWhere('keterangan', 'not like', '%opname%');

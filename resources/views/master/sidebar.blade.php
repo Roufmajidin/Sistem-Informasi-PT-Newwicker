@@ -80,6 +80,19 @@
                                  </a>
                              </li>
                          @endif
+                           @if (auth()->user()->accessModules()->where('name', 'Sourching Monitoring Issue')->exists())
+                             <li class="{{ request()->routeIs('sm.*') ? 'active' : '' }}">
+                                 <a href="{{ route('sm.index') }}">
+                                     <span class="nav-icon">
+                                         <i class="material-icons">computer</i>
+                                     </span>
+
+                                     <span class="nav-text">
+                                         Sourc. monitoring issue
+                                     </span>
+                                 </a>
+                             </li>
+                         @endif
                      @endauth
 
 
@@ -239,7 +252,7 @@
                              @if ($isSuperUser)
                                  <li>
                                      <a href="{{ route('karyawan.absen') }}">
-                                         <span class="nav-icon"><i class="material-icons">fact_check</i></span>
+                                         <span class="nav-icon"><i class="material-icons"></i></span>
                                          <span class="nav-text">Absen Karyawan</span>
                                      </a>
                                  </li>

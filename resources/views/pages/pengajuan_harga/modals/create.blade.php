@@ -259,7 +259,7 @@
 
                                         <tr>
 
-                                            <th colspan="4">SUB TOTAL</th>
+                                            <th colspan="4">TOTAL</th>
 
                                             <th id="phSubtotal" class="text-end">Rp0</th>
 

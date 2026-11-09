@@ -8,7 +8,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\KaryawanController;
 use App\Http\Controllers\LabelController;
-
+use App\Http\Controllers\SmController;
 use App\Http\Controllers\MarketingController;
 use App\Http\Controllers\PameranContrller;
 use App\Http\Controllers\PdfController;
@@ -134,8 +134,29 @@ Route::get('/approval/bypass_config/{token}', [
 // ==========================================================
 // AUTH PROTECTION - ALL INTERNAL ROUTES
 // ==========================================================
-
+Broadcast::channel('sm', function ($user) {
+    return $user->accessModules()
+        ->where('name', 'Sourcing Monitoring')
+        ->exists()
+        || str_starts_with(
+            strtolower(trim($user->email)),
+            'factory@'
+        );
+});
 Route::middleware('auth')->group(function () {
+Route::middleware('auth')->prefix('sm')->name('sm.')->group(function () {
+    Route::get('/', [SmController::class, 'index'])->name('index');
+    Route::post('/', [SmController::class, 'store'])->name('store');
+    Route::put('/{issue}', [SmController::class, 'update'])->name('update');
+    Route::post('/{issue}/release', [SmController::class, 'release'])->name('release');
+    Route::put('/{issue}/director', [SmController::class, 'directorUpdate'])->name('director');
+    Route::delete('/{issue}', [SmController::class, 'destroy'])->name('destroy');
+
+    Route::get('/{issue}/messages', [SmController::class, 'messages'])->name('messages');
+    Route::post('/{issue}/messages', [SmController::class, 'sendMessage'])->name('messages.store');
+     Route::get('/{issue}/attachments/{message}',[SmController::class,'downloadAttachment'])->name('attachments.download');
+});
+
     // pengajuan Harga
 Route::middleware('auth')->prefix('pengajuan-harga')->name('pengajuan-harga.')->group(function () {
     Route::get('/', [PengajuanHargaController::class, 'index'])->name('index');
