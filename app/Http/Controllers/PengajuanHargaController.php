@@ -33,6 +33,7 @@ use Illuminate\Validation\ValidationException;
 use App\Models\MaterialPriceProd;
 
 use App\Models\MaterialFinishingProd;
+use App\Models\PengajuanHargaPekerjaan;
 
 
 
@@ -135,189 +136,130 @@ class PengajuanHargaController extends Controller
 
 
 
-    public function index(Request $request)
-    {
-        $user = auth()->user();
+    
 
-        abort_unless($user, 403, 'Silakan login terlebih dahulu.');
+public function index(Request $request)
+{
+    // =====================================================
+    // 1. FILTER PENCARIAN
+    // =====================================================
+    $search = trim((string) $request->query('q', ''));
 
-        $email = strtolower(trim((string) $user->email));
+    // =====================================================
+    // 2. MASTER KATEGORI PEKERJAAN
+    // Dropdown: Rangka, Anyam, Finishing, dll.
+    // =====================================================
+    $masterPekerjaan = \App\Models\BahanKategori::query()
+        ->orderBy('name', 'asc')
+        ->get([
+            'id',
+            'name',
+        ]);
 
-        $isFactory = str_starts_with($email, 'factory@');
+    // =====================================================
+    // 3. AMBIL PO DAN DETAIL ITEMS
+    // =====================================================
+    $pos = \App\Models\Po::query()
+        ->with([
+            'details' => function ($query) {
+                $query->orderBy('id', 'asc');
+            },
 
-        $query = KategoriBahan::query()
+            // Relasi yang ditambahkan pada model DetailPo.
+            'details.pengajuanHargaPekerjaans' => function ($query) {
+                $query->with('kategori')
+                    ->orderBy('id', 'asc');
+            },
+        ])
+
+        // Cari berdasarkan PO, buyer, atau article.
+        ->when($search !== '', function ($query) use ($search) {
+
+            $query->where(function ($q) use ($search) {
+
+                $q->where(
+                    'order_no',
+                    'like',
+                    '%' . $search . '%'
+                )
+
+                ->orWhere(
+                    'company_name',
+                    'like',
+                    '%' . $search . '%'
+                )
+
+                ->orWhereHas('details', function ($detailQuery) use ($search) {
+
+                    // Article disimpan dalam JSON detail.
+                    $detailQuery->where(
+                        'detail',
+                        'like',
+                        '%' . $search . '%'
+                    );
+                });
+
+            });
+        })
+
+        ->orderByDesc('id')
+        ->paginate(10)
+        ->withQueryString();
+
+    // =====================================================
+    // 4. AMBIL ID PO HALAMAN AKTIF
+    // =====================================================
+    $poIds = $pos->getCollection()
+        ->pluck('id')
+        ->all();
+
+    // =====================================================
+    // 5. AMBIL PEKERJAAN YANG SUDAH TERSIMPAN
+    // =====================================================
+    $pekerjaan = collect();
+
+    if (!empty($poIds)) {
+
+        $pekerjaan = PengajuanHargaPekerjaan::query()
             ->with([
-                'pengajuanHarga.user',
                 'kategori',
-                'subBahan',
-                'details',
-                'pic',
-                'approver',
-            ]);
-
-        /*
-        |--------------------------------------------------------------------------
-        | FILTER BERDASARKAN USER LOGIN
-        |--------------------------------------------------------------------------
-        |
-        | Factory:
-        | - Tidak melihat Draft
-        | - Melihat Pending, Revision, Approved, Rejected
-        |
-        | Writer:
-        | - Melihat Draft miliknya sendiri
-        | - Melihat pengajuan yang sudah dikirim
-        |
-        */
-
-        if ($isFactory) {
-
-            $query->whereIn('status', [
-                'pending',
-                'revision',
-                'approved',
-                'rejected',
-            ]);
-
-        } else {
-
-            $query->where(function ($builder) use ($user) {
-
-                // Pengajuan yang sudah dikirim
-                $builder->whereIn('status', [
-                    'pending',
-                    'revision',
-                    'approved',
-                    'rejected',
-                ]);
-
-                // ATAU Draft milik user login
-                $builder->orWhere(function ($draft) use ($user) {
-
-                    $draft->where('status', 'draft')
-                        ->whereHas('pengajuanHarga', function ($header) use ($user) {
-
-                            $header->where('user_id', $user->id);
-
-                        });
-
-                });
-
-            });
-
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | SEARCH ARTICLE / ITEM / SUB BAHAN / SUPPLIER
-        |--------------------------------------------------------------------------
-        */
-
-        if ($request->filled('q')) {
-
-            $q = trim((string) $request->input('q'));
-
-            $query->where(function ($builder) use ($q) {
-
-                $builder->whereHas('pengajuanHarga', function ($header) use ($q) {
-
-                    $header->where(function ($search) use ($q) {
-
-                        $search->where('article_nr', 'like', "%{$q}%")
-                            ->orWhere('item_name', 'like', "%{$q}%")
-                            ->orWhere('sub_name', 'like', "%{$q}%");
-
-                    });
-
-                });
-
-                $builder->orWhereHas('subBahan', function ($sub) use ($q) {
-
-                    $sub->where('name', 'like', "%{$q}%");
-
-                });
-
-                $builder->orWhereHas('kategori', function ($kategori) use ($q) {
-
-                    $kategori->where('name', 'like', "%{$q}%");
-
-                });
-
-            });
-
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | FILTER KATEGORI
-        |--------------------------------------------------------------------------
-        */
-
-        if ($request->filled('kategori')) {
-
-            $query->where(
-                'kategori_id',
-                $request->input('kategori')
-            );
-
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | FILTER STATUS
-        |--------------------------------------------------------------------------
-        */
-
-        if ($request->filled('status')) {
-
-            $query->where(
-                'status',
-                $request->input('status')
-            );
-
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | PAGINATION
-        |--------------------------------------------------------------------------
-        */
-
-        $pengajuans = $query
-            ->orderByDesc('id')
-            ->paginate(15)
-            ->withQueryString();
-
-        /*
-        |--------------------------------------------------------------------------
-        | MASTER DATA
-        |--------------------------------------------------------------------------
-        */
-
-        $kategoriList = BahanKategori::query()
-            ->orderBy('name')
-            ->get();
-
-        $subBahanList = SubBahan::query()
-            ->orderBy('name')
-            ->get();
-
-        /*
-        |--------------------------------------------------------------------------
-        | RETURN VIEW
-        |--------------------------------------------------------------------------
-        */
-
-        return view(
-            'pages.pengajuan_harga.index',
-            compact(
-                'pengajuans',
-                'kategoriList',
-                'subBahanList'
-            )
-        );
+                'creator',
+            ])
+            ->whereIn('po_id', $poIds)
+            ->orderBy('detail_po_id', 'asc')
+            ->orderBy('id', 'asc')
+            ->get()
+            ->groupBy('detail_po_id');
     }
 
+    // =====================================================
+    // 6. DATA TAMBAHAN UNTUK INDEX
+    // =====================================================
+    $totalPo = $pos->total();
+
+    $totalItems = $pos->getCollection()
+        ->sum(function ($po) {
+            return $po->details->count();
+        });
+
+    $totalPekerjaan = $pekerjaan
+        ->sum(function ($items) {
+            return $items->count();
+        });
+
+    // =====================================================
+    // 7. RETURN VIEW
+    // =====================================================
+    return view('pages.pengajuan_harga.index', [
+        'pos' => $pos,
+        'pekerjaan' => $pekerjaan,
+        'masterPekerjaan' => $masterPekerjaan,
+        'search' => $search,
+        'totalPo' => $totalPo,
+        'totalItems' => $totalItems,
+        'totalPekerjaan' => $totalPekerjaan,
+    ]);
+}
 
 
 

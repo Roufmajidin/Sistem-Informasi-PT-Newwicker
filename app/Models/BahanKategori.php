@@ -20,4 +20,11 @@ class BahanKategori extends Model
     {
         return $this->hasMany(KategoriBahan::class, 'kategori_id');
     }
+    public function pengajuanHargaPekerjaans()
+{
+    return $this->hasMany(
+        PengajuanHargaPekerjaan::class,
+        'bahan_kategori_id'
+    );
+}
 }

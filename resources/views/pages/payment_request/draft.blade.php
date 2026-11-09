@@ -220,8 +220,7 @@
                         </thead>
                         <tbody>
                             @php
-                                $totalDraft = collect($requests)->sum('payment_amount');
-
+                                $totalDraft = 0;
                                 $no = 1;
                             @endphp
                             @foreach ($requests as $row)
@@ -242,8 +241,7 @@
                                     };
                                 @endphp
 
-                                <tr class="draft-payment-row" data-production-code="{{ $rowProductionCode }}"
-                                    data-payment-amount="{{ $row['payment_amount'] ?? 0 }}">
+
                                 <tr class="draft-payment-row" data-production-code="{{ $rowProductionCode }}"
                                     data-payment-amount="{{ $row['payment_amount'] ?? 0 }}">
                                     <td class="pr-td" align="center">
@@ -3966,48 +3964,215 @@
         });
     })();
 </script>
+
 <script>
-    // Draft NW / NWS: filter item checklist sebelum disimpan.
     (function() {
-        function showDraftGroup(code) {
-            let total = 0;
-            let count = 0;
-            $('#payment-request-tab .draft-payment-row').each(function() {
-                const row = $(this);
-                const match = row.attr('data-production-code') === code;
-                row.toggle(match);
-                row.find('.request-check-item').prop('checked', false);
-                if (match) {
-                    count++;
-                    total += Number(row.attr('data-payment-amount') || 0);
-                }
-            });
-            $('#check-all-request').prop('checked', false);
-            $('#draftPaymentEmpty').remove();
-            if (count === 0) {
-                $('#payment-request-tab .draft-payment-row').first().closest('tbody').append(
-                    '<tr id="draftPaymentEmpty"><td colspan="13" class="text-center py-3">Belum ada Payment Request untuk Draft ' +
-                    code + '</td></tr>'
-                );
+        'use strict';
+
+        const tableSelector = '#payment-request-tab';
+
+        // ==========================================
+        // FORMAT NOMINAL
+        // ==========================================
+        function parsePaymentAmount(value) {
+            if (value === null || value === undefined) {
+                return 0;
             }
-            $('#payment-request-tab tfoot .table-success th').eq(1)
-                .text('Rp ' + total.toLocaleString('id-ID'));
+
+            let amount = String(value).trim();
+
+            if (!amount) {
+                return 0;
+            }
+
+            // Hapus simbol Rp dan spasi.
+            amount = amount
+                .replace(/Rp/gi, '')
+                .replace(/\s/g, '');
+
+            // Format Indonesia: 1.250.000,50
+            if (amount.includes(',')) {
+                amount = amount
+                    .replace(/\./g, '')
+                    .replace(',', '.');
+            } else if (/^\d{1,3}(\.\d{3})+$/.test(amount)) {
+                // Format ribuan: 1.250.000
+                amount = amount.replace(/\./g, '');
+            }
+
+            const parsed = Number(amount);
+
+            return Number.isFinite(parsed) ? parsed : 0;
         }
 
-        $(document).on('click', '.draft-production-tab', function() {
-            const code = $(this).attr('data-production-filter');
-            showDraftGroup(code);
-        });
+        // ==========================================
+        // FORMAT RUPIAH
+        // ==========================================
+        function formatRupiah(value) {
+            return 'Rp ' + Number(value || 0).toLocaleString('id-ID', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2
+            });
+        }
 
-        // Checklist "Select All" hanya untuk baris di tab aktif.
-        $(document).off('change', '#check-all-request').on('change', '#check-all-request', function() {
-            $('#payment-request-tab .draft-payment-row:visible .request-check-item')
-                .prop('checked', $(this).is(':checked'));
-        });
+        // ==========================================
+        // FILTER DRAFT NW / NWS
+        // ==========================================
+        function showDraftGroup(code) {
+            code = String(code || 'NW')
+                .trim()
+                .toUpperCase();
 
+            let total = 0;
+            let count = 0;
+
+            const $table = $(tableSelector);
+            const $rows = $table.find('.draft-payment-row');
+
+            // Hapus informasi kosong sebelumnya.
+            $('#draftPaymentEmpty').remove();
+
+            $rows.each(function() {
+                const $row = $(this);
+
+                const productionCode = String(
+                    $row.attr('data-production-code') || ''
+                ).trim().toUpperCase();
+
+                const match = productionCode === code;
+
+                // Tampilkan hanya baris sesuai tab.
+                $row.toggle(match);
+
+                // Reset checkbox saat pindah tab.
+                $row.find('.request-check-item')
+                    .prop('checked', false);
+
+                if (!match) {
+                    return;
+                }
+
+                count++;
+
+                const amount = parsePaymentAmount(
+                    $row.attr('data-payment-amount')
+                );
+
+                total += amount;
+            });
+
+            // ======================================
+            // RESET SELECT ALL
+            // ======================================
+            $('#check-all-request').prop('checked', false);
+
+            // ======================================
+            // JIKA TIDAK ADA DATA
+            // ======================================
+            if (count === 0) {
+                const $tbody = $rows.first().closest('tbody');
+
+                if ($tbody.length) {
+                    $tbody.append(
+                        $('<tr>', {
+                            id: 'draftPaymentEmpty'
+                        }).append(
+                            $('<td>', {
+                                colspan: 13,
+                                class: 'text-center py-3',
+                                text: 'Belum ada Payment Request untuk Draft ' + code
+                            })
+                        )
+                    );
+                }
+            }
+
+            // ======================================
+            // UPDATE TOTAL FOOTER
+            // ======================================
+            $table
+                .find('tfoot .table-success th')
+                .eq(1)
+                .text(formatRupiah(total));
+
+            // ======================================
+            // UPDATE TAB AKTIF
+            // ======================================
+            $('.draft-production-tab')
+                .removeClass('active');
+
+            $('.draft-production-tab').filter(function() {
+                return String(
+                    $(this).attr('data-production-filter') || ''
+                ).trim().toUpperCase() === code;
+            }).addClass('active');
+        }
+
+        // ==========================================
+        // EVENT TAB NW / NWS
+        // ==========================================
+        $(document)
+            .off('click.draftPayment', '.draft-production-tab')
+            .on('click.draftPayment', '.draft-production-tab', function() {
+                const code = $(this)
+                    .attr('data-production-filter');
+
+                showDraftGroup(code);
+            });
+
+        // ==========================================
+        // SELECT ALL - HANYA BARIS TERLIHAT
+        // ==========================================
+        $(document)
+            .off('change.draftPayment', '#check-all-request')
+            .on('change.draftPayment', '#check-all-request', function() {
+                const checked = $(this).is(':checked');
+
+                $(tableSelector)
+                    .find('.draft-payment-row:visible .request-check-item')
+                    .prop('checked', checked);
+            });
+
+        // ==========================================
+        // UPDATE SELECT ALL SAAT ITEM DIUBAH
+        // ==========================================
+        $(document)
+            .off(
+                'change.draftPayment',
+                '.draft-payment-row .request-check-item'
+            )
+            .on(
+                'change.draftPayment',
+                '.draft-payment-row .request-check-item',
+                function() {
+                    const $checkboxes = $(tableSelector)
+                        .find(
+                            '.draft-payment-row:visible .request-check-item'
+                        );
+
+                    const allChecked =
+                        $checkboxes.length > 0 &&
+                        $checkboxes.filter(':checked').length ===
+                        $checkboxes.length;
+
+                    $('#check-all-request')
+                        .prop('checked', allChecked);
+                }
+            );
+
+        // ==========================================
+        // INITIAL LOAD
+        // ==========================================
         $(function() {
-            showDraftGroup('NW');
+            const $activeTab = $('.draft-production-tab.active').first();
+
+            const initialCode = $activeTab.length ?
+                $activeTab.attr('data-production-filter') :
+                'NW';
+
+            showDraftGroup(initialCode);
         });
+
     })();
 </script>
 

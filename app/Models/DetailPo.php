@@ -27,5 +27,11 @@ class DetailPo extends Model
     {
         return $this->hasMany(Spk::class, 'detail_po_id');
     }
-
+public function pengajuanHargaPekerjaans()
+{
+    return $this->hasMany(
+        PengajuanHargaPekerjaan::class,
+        'detail_po_id'
+    );
+}
 }

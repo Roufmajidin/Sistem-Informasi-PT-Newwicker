@@ -51,4 +51,11 @@ class Po extends Model
         ExportDocument::class
     );
 }
+public function pengajuanHargaPekerjaans()
+{
+    return $this->hasMany(
+        PengajuanHargaPekerjaan::class,
+        'po_id'
+    );
+}
 }
