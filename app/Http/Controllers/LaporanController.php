@@ -20,16 +20,18 @@ use Illuminate\Support\Facades\Log;
 class LaporanController extends Controller
 {
 
+
     public function index(Request $request)
     {
         $jenis = trim((string) $request->input('jenis', ''));
         $search = trim((string) $request->input('search', ''));
         $opname = trim((string) $request->input('opname', ''));
 
-        // Tetap paginate lebih dulu: agregasi hanya untuk barang pada halaman aktif.
+        // Pagination tetap dilakukan terlebih dahulu.
         $stoks = Stok::query()
             ->when($opname === 'has_opname', function ($query) {
-                $query->where('is_opname', true)->whereNotNull('opname_at');
+                $query->where('is_opname', true)
+                    ->whereNotNull('opname_at');
             })
             ->when($jenis !== '', function ($query) use ($jenis) {
                 $query->where('jenis', $jenis);
@@ -50,20 +52,57 @@ class LaporanController extends Controller
 
         if (!empty($ids)) {
             $totals = TransaksiStok::query()
-                ->join('stoks', 'stoks.id', '=', 'transaksi_stoks.stok_id')
+                ->join(
+                    'stoks',
+                    'stoks.id',
+                    '=',
+                    'transaksi_stoks.stok_id'
+                )
                 ->whereIn('transaksi_stoks.stok_id', $ids)
                 ->where(function ($query) {
-                    // Sudah opname: tanggal setelah hari cut-off, kecualikan keterangan Opname.
+
+                    // ==========================================
+                    // 1. BARANG SUDAH OPNAME
+                    // ==========================================
                     $query->where(function ($q) {
+
                         $q->where('stoks.is_opname', true)
                             ->whereNotNull('stoks.opname_at')
-                            ->whereRaw('DATE(transaksi_stoks.tanggal) > DATE(stoks.opname_at)')
+
+                            ->where(function ($cutoffQuery) {
+
+                                // Transaksi setelah tanggal opname.
+                                $cutoffQuery->whereRaw(
+                                    'DATE(transaksi_stoks.tanggal) > DATE(stoks.opname_at)'
+                                )
+
+                                    // Transaksi pada tanggal opname:
+                                    // bandingkan jam created_at.
+                                    ->orWhere(function ($sameDay) {
+                                    $sameDay->whereRaw(
+                                        'DATE(transaksi_stoks.tanggal) = DATE(stoks.opname_at)'
+                                    )
+                                        ->whereRaw(
+                                            'TIME(transaksi_stoks.created_at) > TIME(stoks.opname_at)'
+                                        );
+                                });
+                            })
+
+                            // Kecualikan transaksi penanda opname.
                             ->where(function ($sub) {
                                 $sub->whereNull('transaksi_stoks.keterangan')
-                                    ->orWhere('transaksi_stoks.keterangan', 'not like', '%opname%');
+                                    ->orWhere(
+                                        'transaksi_stoks.keterangan',
+                                        'NOT LIKE',
+                                        '%opname%'
+                                    );
                             });
                     })
-                        // Belum opname: semua transaksi, termasuk keterangan Opname.
+
+                        // ==========================================
+                        // 2. BARANG BELUM OPNAME
+                        // RUMUS ORIGINAL TIDAK DIUBAH
+                        // ==========================================
                         ->orWhere(function ($q) {
                         $q->where(function ($sub) {
                             $sub->where('stoks.is_opname', false)
@@ -73,27 +112,77 @@ class LaporanController extends Controller
                     });
                 })
                 ->select('transaksi_stoks.stok_id')
-                ->selectRaw("COALESCE(SUM(CASE WHEN transaksi_stoks.tipe = 'in' THEN transaksi_stoks.qty ELSE 0 END), 0) AS total_in")
-                ->selectRaw("COALESCE(SUM(CASE WHEN transaksi_stoks.tipe = 'out' THEN transaksi_stoks.qty ELSE 0 END), 0) AS total_out")
+                ->selectRaw("
+                COALESCE(
+                    SUM(
+                        CASE
+                            WHEN transaksi_stoks.tipe = 'in'
+                            THEN transaksi_stoks.qty
+                            ELSE 0
+                        END
+                    ), 0
+                ) AS total_in
+            ")
+                ->selectRaw("
+                COALESCE(
+                    SUM(
+                        CASE
+                            WHEN transaksi_stoks.tipe = 'out'
+                            THEN transaksi_stoks.qty
+                            ELSE 0
+                        END
+                    ), 0
+                ) AS total_out
+            ")
                 ->groupBy('transaksi_stoks.stok_id')
                 ->get()
                 ->keyBy('stok_id');
         }
 
+        // ==========================================
+        // HITUNG SALDO SETIAP BARANG
+        // ==========================================
         $stoks->getCollection()->transform(function ($stok) use ($totals) {
+
             $total = $totals->get($stok->id);
+
             $stok->total_in = (float) ($total->total_in ?? 0);
             $stok->total_out = (float) ($total->total_out ?? 0);
-            $hasOpnameCutoff = (bool) $stok->is_opname && !empty($stok->opname_at);
-            $stok->saldo = ($hasOpnameCutoff ? (float) ($stok->stok_awal ?? 0) : 0)
-                + $stok->total_in - $stok->total_out;
+
+            $hasOpnameCutoff = (bool) $stok->is_opname
+                && !empty($stok->opname_at);
+
+            if ($hasOpnameCutoff) {
+
+                // Sudah opname:
+                // hasil opname + IN setelah cutoff - OUT setelah cutoff.
+                $stok->saldo =
+                    (float) ($stok->stok_awal ?? 0)
+                    + $stok->total_in
+                    - $stok->total_out;
+
+            } else {
+
+                // Belum opname:
+                // rumus original, seluruh IN - OUT.
+                $stok->saldo =
+                    $stok->total_in
+                    - $stok->total_out;
+            }
+
             return $stok;
         });
 
+        // ==========================================
+        // AJAX FILTER & PAGINATION
+        // ==========================================
         if ($request->ajax()) {
             return response()->json([
                 'success' => true,
-                'html' => view('pages.laporan.partials.rows', compact('stoks'))->render(),
+                'html' => view(
+                    'pages.laporan.partials.rows',
+                    compact('stoks')
+                )->render(),
                 'pagination' => $stoks->links()->render(),
                 'total' => $stoks->total(),
                 'current_page' => $stoks->currentPage(),
@@ -101,8 +190,12 @@ class LaporanController extends Controller
             ]);
         }
 
-        return view('pages.laporan.index', compact('stoks', 'search', 'jenis', 'opname'));
+        return view(
+            'pages.laporan.index',
+            compact('stoks', 'search', 'jenis', 'opname')
+        );
     }
+
 
 
 
