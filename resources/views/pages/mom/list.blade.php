@@ -122,11 +122,7 @@
             MoM Baru
         </a>
 
-        <span id="momListNetwork"
-              class="small text-muted text-end"
-              role="status">
-            Memeriksa koneksi server...
-        </span>
+        <span class="small text-muted">Data dari database — tanpa sinkronisasi otomatis</span>
     </div>
 
     {{-- TABLE --}}
@@ -226,147 +222,13 @@
 </div>
 
 <script>
-(() => {
-    'use strict';
-
-    const status = document.getElementById('momListNetwork');
-    const rows = document.getElementById('momListRows');
-
-    const key = @json(
-        'newwicker_mom_list_' .
-        auth()->id() . '_' .
-        $moms->currentPage()
-    );
-
-    // Preserve existing local cache behavior
-    try {
-        localStorage.setItem(key, rows.innerHTML);
-    } catch (e) {}
-
-    // ==========================================
-    // DELETE CONFIRMATION
-    // ==========================================
-    document.querySelectorAll('.mom-delete-form')
-        .forEach(form => {
-
-            form.addEventListener('submit', function(e) {
-
-                const id = this.dataset.id || '';
-                const subject = this.dataset.subject || 'MoM';
-
-                const message =
-                    'Are you sure?\n\n' +
-                    'Apakah Anda yakin ingin menghapus MoM ini?\n\n' +
-                    'ID: ' + id + '\n' +
-                    'Subject: ' + subject + '\n\n' +
-                    'Data yang dihapus tidak dapat dikembalikan.';
-
-                const confirmed = window.confirm(message);
-
-                if (!confirmed) {
-                    e.preventDefault();
-                    return;
-                }
-
-                const button = this.querySelector(
-                    'button[type="submit"]'
-                );
-
-                if (button) {
-                    button.disabled = true;
-                    button.innerHTML =
-                        '<i class="fa fa-spinner fa-spin"></i> Deleting...';
-                }
-            });
-        });
-
-    // ==========================================
-    // NETWORK STATUS
-    // ==========================================
-    let checking = false;
-
-    function setStatus(message, cls) {
-        if (!status) return;
-
-        status.textContent = message;
-
-        status.classList.remove(
-            'text-muted',
-            'text-success',
-            'text-danger',
-            'text-warning'
-        );
-
-        status.classList.add(cls);
-    }
-
-    async function check() {
-        if (checking) return;
-
-        if (!navigator.onLine) {
-            setStatus(
-                'Offline — data mungkin tidak terbaru',
-                'text-warning'
-            );
-            return;
-        }
-
-        checking = true;
-
-        setStatus(
-            'Memeriksa koneksi server...',
-            'text-muted'
-        );
-
-        try {
-            const url =
-                @json(route('mom.list')) +
-                '?page=' +
-                @json($moms->currentPage());
-
-            const response = await fetch(url, {
-                credentials: 'same-origin',
-                cache: 'no-store',
-                headers: {
-                    'Accept': 'application/json'
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error('HTTP ' + response.status);
-            }
-
-            const result = await response.json();
-
-            setStatus(
-                'Online — server terhubung · ' +
-                result.total +
-                ' data',
-                'text-success'
-            );
-
-        } catch (e) {
-            setStatus(
-                'Server tidak dapat dihubungi / koneksi lemah',
-                'text-danger'
-            );
-
-        } finally {
-            checking = false;
-        }
-    }
-
-    window.addEventListener('online', check);
-
-    window.addEventListener('offline', () => {
-        setStatus(
-            'Offline — data mungkin tidak terbaru',
-            'text-warning'
-        );
+document.querySelectorAll('.mom-delete-form').forEach(form=>{
+    form.addEventListener('submit',function(e){
+        const msg='Hapus MoM #'+(this.dataset.id||'')+' — '+(this.dataset.subject||'')+'?\nData tidak dapat dikembalikan.';
+        if(!window.confirm(msg)){e.preventDefault();return;}
+        const button=this.querySelector('button[type="submit"]');
+        if(button){button.disabled=true;button.textContent='Deleting...';}
     });
-
-    check();
-
-})();
+});
 </script>
 @endsection

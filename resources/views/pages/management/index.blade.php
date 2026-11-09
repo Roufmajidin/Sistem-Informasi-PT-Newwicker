@@ -1,3 +1,4 @@
+{{-- index --}}
 @extends('master.master')
 
 @section('title', 'Production Monitoring')

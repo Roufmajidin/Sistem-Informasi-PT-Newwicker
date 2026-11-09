@@ -157,38 +157,55 @@ Route::middleware('auth')->prefix('sm')->name('sm.')->group(function () {
      Route::get('/{issue}/attachments/{message}',[SmController::class,'downloadAttachment'])->name('attachments.download');
 });
 
-    // pengajuan Harga
-Route::middleware('auth')->prefix('pengajuan-harga')->name('pengajuan-harga.')->group(function () {
-    Route::get('/', [PengajuanHargaController::class, 'index'])->name('index');
-    Route::get('/search-article', [PengajuanHargaController::class, 'searchArticle'])->name('search-article');
-    Route::post('/', [PengajuanHargaController::class, 'store'])->name('store');
-    Route::post('/{pengajuan}/submit', [PengajuanHargaController::class, 'submit'])->name('submit');
-    Route::post('/{pengajuan}/approve', [PengajuanHargaController::class, 'approve'])->name('approve');
-    Route::get(
-    '/search-material',
-    [PengajuanHargaController::class, 'searchMaterial']
-)->name('search-material');
+ 
+// ========================================
+// PENGAJUAN HARGA
+// ========================================
+Route::middleware('auth')
+    ->prefix('pengajuan-harga')
+    ->name('pengajuan-harga.')
+    ->group(function () {
+Route::post('/category', [PengajuanHargaController::class, 'storeKategori'])->name('category.store');
 
-Route::post('/master-kategori',
-    [PengajuanHargaController::class, 'storeMasterKategori']
-)->name('master-kategori.store');
+Route::patch('/kategori/{id}', [
+    PengajuanHargaController::class,
+    'updateKategori'
+])->name('kategori.update');
 
-Route::put('/master-kategori/{kategori}',
-    [PengajuanHargaController::class, 'updateMasterKategori']
-)->name('master-kategori.update');
+        Route::get('/', [
+            PengajuanHargaController::class, 'index'
+        ])->name('index');
 
-Route::post('/master-sub',
-    [PengajuanHargaController::class, 'storeMasterSub']
-)->name('master-sub.store');
+        Route::get('/search-article', [
+            PengajuanHargaController::class, 'searchArticle'
+        ])->name('search-article');
 
-Route::put('/master-sub/{sub}',
-    [PengajuanHargaController::class, 'updateMasterSub']
-)->name('master-sub.update');
-Route::get('/search-supplier', [PengajuanHargaController::class, 'searchSupplier'])->name('search-supplier');
-Route::post('/{pengajuan}/approve', [PengajuanHargaController::class, 'approve'])->name('approve');
-Route::delete('/{pengajuan}', [PengajuanHargaController::class, 'destroy'])->name('destroy');
-Route::put('/{pengajuan}', [PengajuanHargaController::class, 'update'])->name('update');
-});
+        Route::get('/search-material', [
+            PengajuanHargaController::class, 'searchMaterial'
+        ])->name('search-material');
+
+        Route::post('/', [
+            PengajuanHargaController::class, 'store'
+        ])->name('store');
+
+        Route::post('/{pengajuan}/submit', [
+            PengajuanHargaController::class, 'submit'
+        ])->name('submit');
+
+        Route::post('/{pengajuan}/approve', [
+            PengajuanHargaController::class, 'approve'
+        ])->name('approve');
+
+        // Pengajuan harga pekerjaan
+        Route::post('/save', [
+            PengajuanHargaController::class, 'savePekerjaan'
+        ])->name('save');
+
+        Route::delete('/delete', [
+            PengajuanHargaController::class, 'deletePekerjaan'
+        ])->name('delete');
+    });
+
 
 
     // ==========================================================
