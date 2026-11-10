@@ -9,6 +9,41 @@ use Illuminate\Validation\Rule;
 
 class MomController extends Controller
 {
+   public function download(\App\Models\Moms $mom)
+{
+    $attendees = is_array($mom->attendees)
+        ? $mom->attendees
+        : (json_decode($mom->attendees ?: '[]', true) ?: []);
+
+    $discussions = is_array($mom->discussions)
+        ? $mom->discussions
+        : (json_decode($mom->discussions ?: '[]', true) ?: []);
+
+    $people = collect($attendees)->keyBy(
+        fn ($person) => (string) ($person['id'] ?? '')
+    );
+
+    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView(
+        'pages.mom.download_pdf',
+        compact('mom', 'attendees', 'discussions', 'people')
+    )->setPaper('a4', 'landscape');
+
+    $subject = \Illuminate\Support\Str::slug(
+        (string) ($mom->subject ?: 'no-subject'),
+        '-'
+    );
+
+    $subject = \Illuminate\Support\Str::limit($subject, 75, '');
+
+    $tanggal = $mom->meeting_date
+        ? \Illuminate\Support\Carbon::parse($mom->meeting_date)->format('d-m-Y')
+        : 'tanpa-tanggal';
+
+    $filename = "Mom-{$subject}-{$tanggal}-newwicker.id.pdf";
+
+    return $pdf->download($filename);
+}
+
     public function index() { return view('pages.mom.index', ['mom' => null]); }
 
     public function listing()

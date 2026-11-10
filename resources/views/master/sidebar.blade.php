@@ -67,9 +67,24 @@
                      @endif
 
                      @auth
-                         @if (auth()->user()->accessModules()->where('name', 'Pengajuan Harga')->exists())
+
+                         @php
+                             $user = auth()->user();
+
+                             $hasPengajuanAccess = $user->accessModules()->where('name', 'Pengajuan Harga')->exists();
+
+                             $email = strtolower(trim($user->email ?? ''));
+
+                             $isManagement = str_starts_with($email, 'info@') || str_starts_with($email, 'office@') || str_starts_with($email, 'factory@') || str_starts_with($email, 'manager@') || str_starts_with($email, 'director@') || str_starts_with($email, 'admin@');
+
+                             $pengajuanUrl = $isManagement
+                                 ? url('/pengajuan-harga/directur')
+                                 : route('pengajuan-harga.index');
+                         @endphp
+
+                         @if ($hasPengajuanAccess)
                              <li class="{{ request()->routeIs('pengajuan-harga.*') ? 'active' : '' }}">
-                                 <a href="{{ route('pengajuan-harga.index') }}">
+                                 <a href="{{ $pengajuanUrl }}">
                                      <span class="nav-icon">
                                          <i class="material-icons">assignment_turned_in</i>
                                      </span>
@@ -80,7 +95,8 @@
                                  </a>
                              </li>
                          @endif
-                           @if (auth()->user()->accessModules()->where('name', 'Sourching Monitoring Issue')->exists())
+
+                         @if (auth()->user()->accessModules()->where('name', 'Sourching Monitoring Issue')->exists())
                              <li class="{{ request()->routeIs('sm.*') ? 'active' : '' }}">
                                  <a href="{{ route('sm.index') }}">
                                      <span class="nav-icon">
@@ -517,11 +533,11 @@
                              <!-- </li>
 
 
-                                                                                         <a href="/request">
-                                                                                             <span class="nav-icon"><i class="material-icons">event_note</i></span>
-                                                                                             <span class="nav-text">Agenda</span>
-                                                                                         </a>
-                                                                                     </li> -->
+                                                                                             <a href="/request">
+                                                                                                 <span class="nav-icon"><i class="material-icons">event_note</i></span>
+                                                                                                 <span class="nav-text">Agenda</span>
+                                                                                             </a>
+                                                                                         </li> -->
 
                              <li>
                                  <a href="/request">

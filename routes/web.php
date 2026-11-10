@@ -82,6 +82,8 @@ Route::middleware('auth')->prefix('mom')->name('mom.')->group(function () {
     Route::get('/{mom}', [MomController::class, 'show'])->name('show');
     Route::delete('/{mom}', [MomController::class, 'destroy'])
     ->name('destroy');
+    Route::get('/{mom}/download', [MomController::class, 'download'])->name('download');
+   
 });
 Route::middleware('auth')->get('/mom/ping', function () {
     return response()->json([
@@ -155,6 +157,12 @@ Route::middleware('auth')->prefix('sm')->name('sm.')->group(function () {
     Route::get('/{issue}/messages', [SmController::class, 'messages'])->name('messages');
     Route::post('/{issue}/messages', [SmController::class, 'sendMessage'])->name('messages.store');
      Route::get('/{issue}/attachments/{message}',[SmController::class,'downloadAttachment'])->name('attachments.download');
+     Route::patch('/{issue}/comments', [\App\Http\Controllers\SmController::class, 'updateComments'])
+    ->name('comments.update');
+
+// Writer saja yang dapat menutup issue (otorisasi diperiksa di Controller).
+Route::post('/{issue}/close', [\App\Http\Controllers\SmController::class, 'closeIssue'])
+    ->name('close');
 });
 
  
@@ -165,6 +173,8 @@ Route::middleware('auth')
     ->prefix('pengajuan-harga')
     ->name('pengajuan-harga.')
     ->group(function () {
+         Route::get('/directur', [ PengajuanHargaController::class,  'directurPages'])->name('directur');
+    Route::patch('/directur/{pekerjaan}', [PengajuanHargaController::class,'updateDirectur'])->name('directur.update');
 Route::post('/category', [PengajuanHargaController::class, 'storeKategori'])->name('category.store');
 
 Route::patch('/kategori/{id}', [

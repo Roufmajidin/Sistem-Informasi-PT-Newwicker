@@ -55,6 +55,7 @@
                             <th>Problem</th>
                             <th>Potential Impact</th>
                             <th>Follow up Director</th>
+                            <th>Comments</th>
                             <th>Status</th>
                             <th>Tanggal Done</th>
                             <th>Chat</th>
@@ -99,16 +100,24 @@
                                     @else<span class="sm-multiline">{{ $issue->follow_director ?: '-' }}</span>
                                     @endif
                                 </td>
-                                <td>
-                                    @if ($director && $issue->status !== 'draft')
-                                        <button type="button" class="btn btn-link p-0 sm-inline-edit"
-                                            data-bs-toggle="modal" data-bs-target="#smDirector{{ $issue->id }}"
-                                            title="Change status"><span
-                                                class="badge bg-{{ $issue->status === 'done' ? 'success' : ($issue->status === 'following' ? 'info text-dark' : 'warning text-dark') }}">{{ ucfirst($issue->status) }}</span><small
-                                                class="d-block text-muted fst-italic">Tap here to change
-                                            status</small></button>@else<span
-                                            class="badge bg-{{ $issue->status === 'done' ? 'success' : ($issue->status === 'following' ? 'info text-dark' : ($issue->status === 'open' ? 'warning text-dark' : 'secondary')) }}">{{ ucfirst($issue->status) }}</span>
+                                <td class="sm-points-cell">
+                                    @if ($issue->status !== 'draft')
+                                        <button type="button" class="btn btn-link text-start p-0 sm-inline-edit"
+                                            data-bs-toggle="modal" data-bs-target="#smComments{{ $issue->id }}"
+                                            title="Isi atau edit Comments">
+                                            @if (filled($issue->comments))
+                                                <span class="sm-multiline">{{ $issue->comments }}</span>
+                                            @else
+                                                <span class="text-muted fst-italic">+ Write comments</span>
+                                            @endif
+                                        </button>
+                                    @else
+                                        <span class="sm-multiline">{{ $issue->comments ?: '-' }}</span>
                                     @endif
+                                </td>
+                                <td>
+                                    <span
+                                        class="badge bg-{{ $issue->status === 'done' ? 'success' : ($issue->status === 'following' ? 'info text-dark' : ($issue->status === 'open' ? 'warning text-dark' : 'secondary')) }}">{{ ucfirst($issue->status) }}</span>
                                 </td>
                                 <td>{{ $issue->tanggal_done?->format('d/m/Y H:i') ?: '-' }}</td>
                                 <td><button type="button" class="btn btn-sm btn-outline-success sm-chat-btn"
@@ -126,6 +135,13 @@
                                                 onsubmit="return confirm('Hapus draft?')">@csrf @method('DELETE')<button
                                                     class="btn btn-sm btn-outline-danger">Delete</button></form>
                                         @endif
+                                        @if ($mine && in_array($issue->status, ['open', 'following'], true))
+                                            <form method="POST" action="{{ route('sm.close', $issue) }}"
+                                                onsubmit="return confirm('Tutup issue ini sebagai Done?')">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-success">Close Issue</button>
+                                            </form>
+                                        @endif
                                         @if ($director && $issue->status !== 'draft')
                                             <button class="btn btn-sm btn-outline-dark" data-bs-toggle="modal"
                                                 data-bs-target="#smDirector{{ $issue->id }}">Director</button>
@@ -134,7 +150,7 @@
                                 </td>
                             </tr>
                         @empty<tr>
-                                <td colspan="9" class="text-center text-muted p-4">Belum ada issue.</td>
+                                <td colspan="10" class="text-center text-muted p-4">Belum ada issue.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -146,6 +162,33 @@
         </div>
         @include('pages.sm.modals.create')
         @foreach ($issues as $issue)
+            @if ($issue->status !== 'draft')
+                <div class="modal fade" id="smComments{{ $issue->id }}" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered modal-lg">
+                        <form class="modal-content" method="POST" action="{{ route('sm.comments.update', $issue) }}">
+                            @csrf
+                            @method('PATCH')
+                            <div class="modal-header">
+                                <h5 class="modal-title">Edit Comments — Issue #{{ $issue->id }}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <label class="form-label" for="smCommentsInput{{ $issue->id }}">Comments</label>
+                                <textarea id="smCommentsInput{{ $issue->id }}" name="comments" class="form-control sm-bullet-input"
+                                    rows="6" maxlength="10000" placeholder="Tulis comments di sini...">{{ $issue->comments }}</textarea>
+                                <small class="text-muted">Semua user yang dapat melihat issue ini dapat memperbarui
+                                    Comments.</small>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-secondary"
+                                    data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-primary">Save Comments</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            @endif
             @if ((int) $issue->user_id === (int) auth()->id() && $issue->status === 'draft')
                 @include('pages.sm.modals.edit', ['issue' => $issue])
             @endif
@@ -157,13 +200,12 @@
                                 <h5 class="modal-title">Director Follow-up</h5><button class="btn-close" type="button"
                                     data-bs-dismiss="modal"></button>
                             </div>
-                            <div class="modal-body"><label class="form-label">Follow-up Director</label>
-                                <textarea class="form-control mb-3" name="follow_director" rows="4" placeholder="Tap / write here to write...">{{ $issue->follow_director }}</textarea><label class="form-label">Status</label><select
-                                    class="form-select" name="status">
-                                    <option value="open" @selected($issue->status === 'open')>Open</option>
-                                    <option value="following" @selected($issue->status === 'following')>Following</option>
-                                    <option value="done" @selected($issue->status === 'done')>Done</option>
-                                </select>
+                            <div class="modal-body">
+                                <label class="form-label">Follow-up Director</label>
+                                <textarea class="form-control mb-3" name="follow_director" rows="4"
+                                    placeholder="Tap / write here to write...">{{ $issue->follow_director }}</textarea>
+                                <small class="text-muted">Status Done hanya dapat ditetapkan oleh writer pembuat
+                                    issue.</small>
                             </div>
                             <div class="modal-footer"><button type="button" class="btn btn-outline-secondary"
                                     data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary">Save</button>
@@ -755,7 +797,6 @@
                     }));
                 }
             });
-
             const escapeHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({
                 '&': '&amp;',
                 '<': '&lt;',
@@ -770,7 +811,7 @@
                     let attachment = m.attachment_url ? (m.attachment_is_image ?
                         `<a href="${escapeHtml(m.attachment_url)}" target="_blank" rel="noopener"><img class="sm-attachment-media" src="${escapeHtml(m.attachment_url)}" alt="${escapeHtml(m.attachment_name)}" loading="lazy"></a>` :
                         `<a class="sm-attachment-link" href="${escapeHtml(m.attachment_url)}">📎 ${escapeHtml(m.attachment_name)}</a>`
-                        ) : '';
+                    ) : '';
                     return `<div class="sm-bubble ${m.mine?'sm-mine':''}"><strong class="small">${escapeHtml(m.user)}</strong>${p?`<div class="sm-reply">${escapeHtml(p.user)}: ${escapeHtml(p.message)}</div>`:''}<div>${escapeHtml(m.message)}</div>${attachment}<div class="sm-chat-meta">${escapeHtml(m.time)} <button class="sm-reply-btn" data-reply="${m.id}">↩ Reply</button></div></div>`
                 }).join('') || '<div class="text-center text-muted">No messages yet</div>';
                 wrap.scrollTop = wrap.scrollHeight;
@@ -995,7 +1036,7 @@
             if (typeof window.Pusher !== 'undefined') connectSmPusher();
             else {
                 const script = document.createElement('script');
-                script.src = 'https://js.pusher.com/8.4.0/pusher.min.js';
+                script.src = 'https\://js.pusher.com/8.4.0/pusher.min.js';
                 script.onload = connectSmPusher;
                 script.onerror = () => smConnectionStatus('Pusher script failed', 'text-danger');
                 document.head.appendChild(script);

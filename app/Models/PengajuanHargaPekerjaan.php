@@ -19,6 +19,7 @@ class PengajuanHargaPekerjaan extends Model
         'po_code',
         'article_code',
         'bahan_kategori_id',
+        'closed',
 
         // Remark umum
         'remark',
@@ -43,12 +44,15 @@ class PengajuanHargaPekerjaan extends Model
     ];
 
     protected $casts = [
+        'closed' => 'boolean',
         'id' => 'integer',
         'po_id' => 'integer',
         'detail_po_id' => 'integer',
         'bahan_kategori_id' => 'integer',
         'created_by' => 'integer',
-
+'ppic_date' => 'datetime',
+'directur_date' => 'datetime',
+'sub_date' => 'datetime',
         'ppic_price' => 'decimal:2',
         'director_price' => 'decimal:2',
         'pengajuan_sub_price' => 'decimal:2',

@@ -30,7 +30,15 @@
 
         $canSourcingMonitoring = $auth->accessModules()->where('name', 'Sourching Monitoring Issue')->exists();
     @endphp
+    @php
+        $managementPrefixes = ['info@', 'office@', 'factory@', 'manager@', 'director@', 'admin@'];
 
+        $isPengajuanManagement = collect($managementPrefixes)->contains(
+            fn($prefix) => str_starts_with($email, $prefix),
+        );
+
+        $pengajuanHargaUrl = $isPengajuanManagement ? url('/pengajuan-harga/directur') : route('pengajuan-harga.index');
+    @endphp
     <style>
         .nw-dashboard {
             padding: 18px 20px 26px;
@@ -563,18 +571,28 @@
 
 
             {{-- Pengajuan Harga: berdasarkan tabel access --}}
+
+            {{-- Pengajuan Harga: berdasarkan tabel access --}}
             @if ($canPengajuanHarga)
-                <a class="nw-shortcut" href="/pengajuan-harga">
+                <a class="nw-shortcut" href="{{ $pengajuanHargaUrl }}">
                     <span class="nw-shortcut-icon blue">
                         <i class="material-icons">store</i>
                     </span>
+
                     <div class="nw-shortcut-body">
-                        <div class="nw-shortcut-title">Pengajuan Harga</div>
-                        <div class="nw-shortcut-sub">Go to list pengajuan harga</div>
+                        <div class="nw-shortcut-title">
+                            Pengajuan Harga
+                        </div>
+
+                        <div class="nw-shortcut-sub">
+                            {{ $isPengajuanManagement ? 'Go to Director Price Monitoring' : 'Go to list pengajuan harga' }}
+                        </div>
                     </div>
+
                     <span class="nw-shortcut-arrow">›</span>
                 </a>
             @endif
+
 
 
             {{-- Riwayat Absen dan Ubah Password --}}
@@ -742,19 +760,19 @@
 
                 ${row.after.items.map(item => `
 
-                                            <li>
+                                                    <li>
 
-                                                ${item.nama}
+                                                        ${item.nama}
 
-                                                <b>
+                                                        <b>
 
-                                                    (${item.qty} ${item.satuan})
+                                                            (${item.qty} ${item.satuan})
 
-                                                </b>
+                                                        </b>
 
-                                            </li>
+                                                    </li>
 
-                                        `).join('')}
+                                                `).join('')}
 
             </ul>
 
