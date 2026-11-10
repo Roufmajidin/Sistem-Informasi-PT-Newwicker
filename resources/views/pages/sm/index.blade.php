@@ -12,16 +12,20 @@
 
                     realtime discussion</small>
 
-            </div><button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#smCreate">+ Create Issue</button>
+            </div><button type="button" id="smCreateIssueButton" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#smCreate">+ Create Issue</button>
 
         </div>
 
         @if (session('success'))
+
             <div class="alert alert-success">{{ session('success') }}</div>
+
         @endif
 
         @if ($errors->any())
+
             <div class="alert alert-danger">{{ $errors->first() }}</div>
+
         @endif
 
         <div class="row g-3 mb-3">
@@ -63,6 +67,7 @@
             <div class="row g-2">
 
                 <div class="col-md-7"><input class="form-control" name="q" value="{{ request('q') }}"
+
                         placeholder="Cari problem / impact"></div>
 
                 <div class="col-md-3"><select class="form-select" name="status">
@@ -70,7 +75,9 @@
                         <option value="">All status</option>
 
                         @foreach (['draft', 'open', 'following', 'done'] as $s)
+
                             <option value="{{ $s }}" @selected(request('status') === $s)>{{ ucfirst($s) }}</option>
+
                         @endforeach
 
                     </select>
@@ -78,6 +85,7 @@
                 </div>
 
                 <div class="col-md-2 d-flex gap-2"><button class="btn btn-primary flex-fill">Filter</button><a
+
                         class="btn btn-outline-secondary" href="{{ route('sm.index') }}">Reset</a></div>
 
             </div>
@@ -123,14 +131,17 @@
                         @php
 
                             $isFactoryDirector = \Illuminate\Support\Str::startsWith(
+
                                 strtolower(trim((string) (auth()->user()->email ?? ''))),
 
                                 'factory@',
+
                             );
 
                         @endphp
 
                         @forelse($issues as $issue)
+
                             @php
 
                                 $mine = (int) $issue->user_id === (int) auth()->id();
@@ -150,32 +161,43 @@
                                 </td>
 
                                 <td class="sm-points-cell">@include('pages.sm.partials.points', [
+
                                     'value' => $issue->problem,
-                                
+
                                     'key' => 'problem-' . $issue->id,
+
                                 ])</td>
 
                                 <td class="sm-points-cell">@include('pages.sm.partials.points', [
+
                                     'value' => $issue->potential_impact,
-                                
+
                                     'key' => 'impact-' . $issue->id,
+
                                 ])</td>
 
                                 <td>
 
                                     @if ($director && $issue->status !== 'draft')
+
                                         <button type="button" class="btn btn-link text-start p-0 sm-inline-edit"
+
                                             data-bs-toggle="modal" data-bs-target="#smDirector{{ $issue->id }}"
+
                                             title="Edit follow-up">
 
                                             @if ($issue->follow_director)
+
                                             <span class="sm-multiline">{{ $issue->follow_director }}</span>@else<span
+
                                                     class="text-muted fst-italic">Tap / write here to write</span>
+
                                             @endif
 
                                         </button>
 
                                     @else<span class="sm-multiline">{{ $issue->follow_director ?: '-' }}</span>
+
                                     @endif
 
                                 </td>
@@ -183,19 +205,29 @@
                                 <td class="sm-points-cell">
 
                                     @if ($issue->status !== 'draft')
+
                                         <button type="button" class="btn btn-link text-start p-0 sm-inline-edit"
+
                                             data-bs-toggle="modal" data-bs-target="#smComments{{ $issue->id }}"
+
                                             title="Isi atau edit Comments">
 
                                             @if (filled($issue->comments))
+
                                                 <span class="sm-multiline">{{ $issue->comments }}</span>
+
                                             @else
+
                                                 <span class="text-muted fst-italic">+ Write comments</span>
+
                                             @endif
 
                                         </button>
+
                                     @else
+
                                         <span class="sm-multiline">{{ $issue->comments ?: '-' }}</span>
+
                                     @endif
 
                                 </td>
@@ -203,6 +235,7 @@
                                 <td>
 
                                     <span
+
                                         class="badge bg-{{ $issue->status === 'done' ? 'success' : ($issue->status === 'following' ? 'info text-dark' : ($issue->status === 'open' ? 'warning text-dark' : 'secondary')) }}">{{ ucfirst($issue->status) }}</span>
 
                                 </td>
@@ -210,31 +243,39 @@
                                 <td>{{ $issue->tanggal_done?->format('d/m/Y H:i') ?: '-' }}</td>
 
                                 <td><button type="button" class="btn btn-sm btn-outline-success sm-chat-btn"
+
                                         data-id="{{ $issue->id }}" data-title="{{ $issue->problem }}"
-                                        @disabled($issue->status === 'draft')>Chat <span class="badge bg-danger sm-unread-badge"
-                                            data-issue-id="{{ $issue->id }}"
-                                            @if (($issue->unread_messages_count ?? 0) == 0) style="display:none" @endif>{{ $issue->unread_messages_count ?? 0 }}</span></button>
-                                </td>
+
+                                        @disabled($issue->status === 'draft')>Chat <span class="badge bg-danger sm-unread-badge" data-issue-id="{{ $issue->id }}" @if(($issue->unread_messages_count ?? 0) == 0) style="display:none" @endif>{{ $issue->unread_messages_count ?? 0 }}</span></button></td>
 
                                 <td>
 
                                     <div class="d-flex gap-1">
 
                                         @if ($mine && $issue->status === 'draft')
+
                                             <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
+
                                                 data-bs-target="#smEdit{{ $issue->id }}">Edit</button>
 
                                             <form method="POST" action="{{ route('sm.release', $issue) }}"
+
                                                 onsubmit="return confirm('Release issue menjadi Open?')">@csrf<button
+
                                                     class="btn btn-sm btn-success">Release</button></form>
 
                                             <form method="POST" action="{{ route('sm.destroy', $issue) }}"
+
                                                 onsubmit="return confirm('Hapus draft?')">@csrf @method('DELETE')<button
+
                                                     class="btn btn-sm btn-outline-danger">Delete</button></form>
+
                                         @endif
 
                                         @if ($mine && in_array($issue->status, ['open', 'following'], true))
+
                                             <form method="POST" action="{{ route('sm.close', $issue) }}"
+
                                                 onsubmit="return confirm('Tutup issue ini sebagai Done?')">
 
                                                 @csrf
@@ -242,11 +283,15 @@
                                                 <button type="submit" class="btn btn-sm btn-success">Close Issue</button>
 
                                             </form>
+
                                         @endif
 
                                         @if ($director && $issue->status !== 'draft')
+
                                             <button class="btn btn-sm btn-outline-dark" data-bs-toggle="modal"
+
                                                 data-bs-target="#smDirector{{ $issue->id }}">Director</button>
+
                                         @endif
 
                                     </div>
@@ -260,6 +305,7 @@
                                 <td colspan="10" class="text-center text-muted p-4">Belum ada issue.</td>
 
                             </tr>
+
                         @endforelse
 
                     </tbody>
@@ -269,7 +315,9 @@
             </div>
 
             @if ($issues->hasPages())
+
                 <div class="card-footer">{{ $issues->links() }}</div>
+
             @endif
 
         </div>
@@ -277,7 +325,9 @@
         @include('pages.sm.modals.create')
 
         @foreach ($issues as $issue)
+
             @if ($issue->status !== 'draft')
+
                 <div class="modal fade" id="smComments{{ $issue->id }}" tabindex="-1" aria-hidden="true">
 
                     <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -293,6 +343,7 @@
                                 <h5 class="modal-title">Edit Comments — Issue #{{ $issue->id }}</h5>
 
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"
+
                                     aria-label="Close"></button>
 
                             </div>
@@ -302,6 +353,7 @@
                                 <label class="form-label" for="smCommentsInput{{ $issue->id }}">Comments</label>
 
                                 <textarea id="smCommentsInput{{ $issue->id }}" name="comments" class="form-control sm-bullet-input"
+
                                     rows="6" maxlength="10000" placeholder="Tulis comments di sini...">{{ $issue->comments }}</textarea>
 
                                 <small class="text-muted">Semua user yang dapat melihat issue ini dapat memperbarui
@@ -313,6 +365,7 @@
                             <div class="modal-footer">
 
                                 <button type="button" class="btn btn-outline-secondary"
+
                                     data-bs-dismiss="modal">Cancel</button>
 
                                 <button type="submit" class="btn btn-primary">Save Comments</button>
@@ -324,13 +377,17 @@
                     </div>
 
                 </div>
+
             @endif
 
             @if ((int) $issue->user_id === (int) auth()->id() && $issue->status === 'draft')
+
                 @include('pages.sm.modals.edit', ['issue' => $issue])
+
             @endif
 
             @if ($isFactoryDirector && $issue->status !== 'draft')
+
                 <div class="modal fade" id="smDirector{{ $issue->id }}" tabindex="-1">
 
                     <div class="modal-dialog modal-dialog-centered">
@@ -340,6 +397,7 @@
                             @method('PUT')<div class="modal-header">
 
                                 <h5 class="modal-title">Director Follow-up</h5><button class="btn-close" type="button"
+
                                     data-bs-dismiss="modal"></button>
 
                             </div>
@@ -349,6 +407,7 @@
                                 <label class="form-label">Follow-up Director</label>
 
                                 <textarea class="form-control mb-3" name="follow_director" rows="4"
+
                                     placeholder="Tap / write here to write...">{{ $issue->follow_director }}</textarea>
 
                                 <small class="text-muted">Status Done hanya dapat ditetapkan oleh writer pembuat
@@ -358,6 +417,7 @@
                             </div>
 
                             <div class="modal-footer"><button type="button" class="btn btn-outline-secondary"
+
                                     data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary">Save</button>
 
                             </div>
@@ -367,7 +427,9 @@
                     </div>
 
                 </div>
+
             @endif
+
         @endforeach
 
         <div class="modal fade" id="smChatModal" tabindex="-1" aria-hidden="true">
@@ -383,11 +445,13 @@
                             <div class="min-width-0">
 
                                 <h5 class="mb-0 text-truncate" id="smChatTitle">Issue Discussion</h5><small
+
                                     id="smRealtimeState" class="text-muted">Connecting...</small>
 
                             </div>
 
                         </div><button class="btn-close" type="button" data-bs-dismiss="modal"
+
                             aria-label="Close"></button>
 
                     </div>
@@ -397,20 +461,29 @@
                         <aside class="sm-chat-sidebar">
 
                             <div class="sm-chat-sidehead"><strong>Issue Discussions</strong><small
+
                                     class="text-muted">Sourcing Monitoring</small></div>
 
                             <div id="smChatIssueList">
 
                                 @foreach ($issues as $chatIssue)
+
                                     @if ($chatIssue->status !== 'draft')
+
                                         <button type="button" class="sm-chat-issue"
+
                                             data-issue-id="{{ $chatIssue->id }}"
+
                                             data-issue-title="{{ $chatIssue->problem }}"><span
+
                                                 class="sm-chat-issue-icon">#</span><span
+
                                                 class="sm-chat-issue-copy"><strong>{{ \Illuminate\Support\Str::limit($chatIssue->problem, 45) }}</strong><small>{{ strtoupper($chatIssue->status) }}
 
                                                     · {{ $chatIssue->messages_count }} messages</small></span></button>
+
                                     @endif
+
                                 @endforeach
 
                             </div>
@@ -422,11 +495,10 @@
                             <div class="sm-chat-topic"><span class="sm-chat-dot"></span><span id="smChatTopic">Select
 
                                     issue to discuss</span><span class="ms-auto small text-muted"
+
                                     id="smTypingState"></span></div>
 
-                            <div id="smChatMessages" class="sm-chat-messages">
-                                <div class="text-center text-muted py-5">Pilih issue untuk melihat chat.</div>
-                            </div>
+                            <div id="smChatMessages" class="sm-chat-messages"><div class="text-center text-muted py-5">Pilih issue untuk melihat chat.</div></div>
 
                             <div class="sm-chat-compose">
 
@@ -435,14 +507,21 @@
                                 <div id="smAttachmentPreview" class="sm-attachment-preview d-none"></div>
 
                                 <div class="d-flex gap-2 align-items-end"><input type="file" id="smAttachmentInput"
+
                                         class="d-none"
+
                                         accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip,.rar,.7z,.ppt,.pptx"><button
+
                                         id="smAttachButton" type="button"
+
                                         class="btn btn-outline-secondary sm-attach-btn" title="Attach file / image"
+
                                         aria-label="Attach file">📎</button>
 
                                     <textarea id="smChatInput" class="form-control" rows="2"
+
                                         placeholder="Type a message... (Enter to send, Shift+Enter new line)"></textarea><button id="smSend" type="button"
+
                                         class="btn btn-success sm-send-btn">➤</button>
 
                                 </div><small class="text-muted">Live discussion · Attach files or paste images
@@ -464,6 +543,7 @@
     </div>
 
     <style>
+
         #smPage .sm-bubble {
 
             max-width: 82%;
@@ -479,6 +559,7 @@
             margin-bottom: 12px;
 
             box-shadow: 0 1px 2px #0001
+
         }
 
 
@@ -488,6 +569,7 @@
             background: #d9fdd3;
 
             margin-left: auto
+
         }
 
 
@@ -503,6 +585,7 @@
             margin: 5px 0;
 
             border-radius: 3px
+
         }
 
 
@@ -514,6 +597,7 @@
             color: #667;
 
             margin-top: 5px
+
         }
 
 
@@ -529,6 +613,7 @@
             font-size: 12px;
 
             cursor: pointer
+
         }
 
 
@@ -540,6 +625,7 @@
                 margin: 0;
 
                 max-width: none
+
             }
 
 
@@ -549,6 +635,7 @@
                 height: 100dvh;
 
                 border-radius: 0
+
             }
 
 
@@ -556,6 +643,7 @@
             #smPage .sm-bubble {
 
                 max-width: 93%
+
             }
 
         }
@@ -565,6 +653,7 @@
         #smPage .sm-multiline {
 
             white-space: pre-line
+
         }
 
 
@@ -578,6 +667,7 @@
             max-width: 280px;
 
             white-space: normal
+
         }
 
 
@@ -585,6 +675,7 @@
         #smPage .sm-inline-edit:hover {
 
             color: #0d6efd
+
         }
 
 
@@ -594,6 +685,7 @@
             width: 92vw;
 
             max-width: 1100px
+
         }
 
 
@@ -601,6 +693,7 @@
         #smPage .sm-issue-dialog .modal-content {
 
             max-height: 92vh
+
         }
 
 
@@ -608,6 +701,7 @@
         #smPage .sm-issue-dialog .modal-footer {
 
             flex-shrink: 0
+
         }
 
 
@@ -617,6 +711,7 @@
             line-height: 1.65;
 
             resize: vertical
+
         }
 
 
@@ -624,6 +719,7 @@
         #smPage td {
 
             vertical-align: middle
+
         }
 
 
@@ -637,6 +733,7 @@
                 max-width: calc(100vw - 20px);
 
                 margin: 10px auto
+
             }
 
 
@@ -644,6 +741,7 @@
             #smPage .sm-bullet-input {
 
                 min-height: 140px
+
             }
 
         }
@@ -655,6 +753,7 @@
             max-width: 1120px;
 
             width: 96vw
+
         }
 
 
@@ -666,6 +765,7 @@
             overflow: hidden;
 
             border-radius: 12px
+
         }
 
 
@@ -685,6 +785,7 @@
             background: #f7f9fa;
 
             border-bottom: 1px solid #e3e8e9
+
         }
 
 
@@ -706,6 +807,7 @@
             color: #176344;
 
             font-weight: 800
+
         }
 
 
@@ -719,6 +821,7 @@
             min-height: 0;
 
             height: calc(100% - 70px)
+
         }
 
 
@@ -734,6 +837,7 @@
             border-right: 1px solid #e2e6e9;
 
             overflow-y: auto
+
         }
 
 
@@ -747,6 +851,7 @@
             padding: 18px;
 
             border-bottom: 1px solid #eee
+
         }
 
 
@@ -770,6 +875,7 @@
             gap: 10px;
 
             align-items: center
+
         }
 
 
@@ -779,6 +885,7 @@
         #smPage .sm-chat-issue:hover {
 
             background: #eaf6f1
+
         }
 
 
@@ -800,6 +907,7 @@
             color: #426078;
 
             font-weight: 700
+
         }
 
 
@@ -813,6 +921,7 @@
             flex-direction: column;
 
             gap: 3px
+
         }
 
 
@@ -826,6 +935,7 @@
             text-overflow: ellipsis;
 
             white-space: nowrap
+
         }
 
 
@@ -835,6 +945,7 @@
             font-size: 11px;
 
             color: #667
+
         }
 
 
@@ -850,6 +961,7 @@
             min-width: 0;
 
             background: #e9e5dc
+
         }
 
 
@@ -871,6 +983,7 @@
             font-size: 12px;
 
             border-bottom: 1px solid #ddd
+
         }
 
 
@@ -884,6 +997,7 @@
             background: #23b36b;
 
             border-radius: 50%
+
         }
 
 
@@ -903,6 +1017,7 @@
             background-image: radial-gradient(#d6d0c4 0.65px, transparent .65px);
 
             background-size: 18px 18px
+
         }
 
 
@@ -914,6 +1029,7 @@
             background: #f0f2f5;
 
             border-top: 1px solid #ddd
+
         }
 
 
@@ -923,6 +1039,7 @@
             resize: none;
 
             border-radius: 12px
+
         }
 
 
@@ -934,6 +1051,7 @@
             min-width: 52px;
 
             border-radius: 12px
+
         }
 
 
@@ -949,6 +1067,7 @@
             border-radius: 6px;
 
             margin-bottom: 8px
+
         }
 
 
@@ -958,6 +1077,7 @@
             white-space: pre-wrap;
 
             overflow-wrap: anywhere
+
         }
 
 
@@ -971,6 +1091,7 @@
             align-items: center;
 
             justify-content: flex-end
+
         }
 
 
@@ -978,6 +1099,7 @@
         #smPage .sm-chat-messages .sm-bubble {
 
             max-width: 76%
+
         }
 
 
@@ -991,6 +1113,7 @@
                 max-width: none;
 
                 margin: 0
+
             }
 
 
@@ -1000,6 +1123,7 @@
                 height: 100dvh;
 
                 border-radius: 0
+
             }
 
 
@@ -1007,6 +1131,7 @@
             #smPage .sm-chat-sidebar {
 
                 display: none
+
             }
 
 
@@ -1014,6 +1139,7 @@
             #smPage .sm-chat-messages .sm-bubble {
 
                 max-width: 93%
+
             }
 
 
@@ -1021,6 +1147,7 @@
             #smPage .sm-chat-header {
 
                 height: 60px
+
             }
 
 
@@ -1028,6 +1155,7 @@
             #smPage .sm-chat-content {
 
                 height: calc(100% - 60px)
+
             }
 
         }
@@ -1045,6 +1173,7 @@
             vertical-align: top;
 
             white-space: normal
+
         }
 
 
@@ -1056,6 +1185,7 @@
             line-height: 1.55;
 
             overflow-wrap: anywhere
+
         }
 
 
@@ -1069,6 +1199,7 @@
             gap: 7px;
 
             margin: 0 0 5px
+
         }
 
 
@@ -1080,6 +1211,7 @@
             font-weight: 700;
 
             flex: none
+
         }
 
 
@@ -1091,6 +1223,7 @@
             flex: 1;
 
             white-space: pre-wrap
+
         }
 
 
@@ -1098,6 +1231,7 @@
         #smPage .sm-point.is-hidden {
 
             display: none
+
         }
 
 
@@ -1105,6 +1239,7 @@
         #smPage .sm-points.is-expanded .sm-point.is-hidden {
 
             display: flex
+
         }
 
 
@@ -1124,6 +1259,7 @@
             font-weight: 700;
 
             cursor: pointer
+
         }
 
 
@@ -1131,6 +1267,7 @@
         #smPage .sm-points-toggle:hover {
 
             text-decoration: underline
+
         }
 
 
@@ -1138,6 +1275,7 @@
         #smPage .sm-issue-table tbody td {
 
             vertical-align: top
+
         }
 
 
@@ -1161,6 +1299,7 @@
             max-width: 100%;
 
             overflow-wrap: anywhere
+
         }
 
 
@@ -1168,6 +1307,7 @@
         #smPage .sm-attachment-preview.d-none {
 
             display: none !important
+
         }
 
 
@@ -1181,6 +1321,7 @@
             border-radius: 6px;
 
             object-fit: contain
+
         }
 
 
@@ -1200,6 +1341,7 @@
             margin: 6px 0;
 
             cursor: zoom-in
+
         }
 
 
@@ -1225,6 +1367,7 @@
             max-width: 100%;
 
             overflow-wrap: anywhere
+
         }
 
 
@@ -1236,6 +1379,7 @@
             min-width: 44px;
 
             border-radius: 10px
+
         }
 
 
@@ -1243,11 +1387,39 @@
         #smPage .sm-attachment-preview .btn {
 
             flex-shrink: 0
+
         }
+
     </style>
 
     <script>
+
         document.addEventListener('DOMContentLoaded', () => {
+            // Compatible with Bootstrap 5 and Bootstrap 4 modal APIs.
+            // Explicitly handle Create Issue to avoid relying on data attributes
+            // when the master layout uses a different Bootstrap version.
+            const smCreateButton = document.getElementById('smCreateIssueButton');
+            if (smCreateButton) {
+                smCreateButton.addEventListener('click', function (event) {
+                    const modal = document.getElementById('smCreate');
+                    if (!modal) {
+                        console.error('[SM] Modal #smCreate not found. Check pages.sm.modals.create');
+                        return;
+                    }
+                    if (window.bootstrap?.Modal) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        window.bootstrap.Modal.getOrCreateInstance(modal).show();
+                    } else if (window.jQuery?.fn?.modal) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        window.jQuery(modal).modal('show');
+                    } else {
+                        console.error('[SM] Bootstrap modal plugin is not loaded');
+                    }
+                });
+            }
+
 
             document.addEventListener('click', event => {
 
@@ -1488,7 +1660,6 @@
             }
 
             let smLoadSequence = 0;
-
             function setUnreadBadge(id, count) {
                 const badge = document.querySelector('.sm-unread-badge[data-issue-id="' + Number(id) + '"]');
                 if (!badge) return;
@@ -1496,17 +1667,12 @@
                 badge.textContent = String(n);
                 badge.style.display = n ? '' : 'none';
             }
-
             function showChatLoading() {
-                wrap.innerHTML =
-                    '<div class="d-flex flex-column align-items-center justify-content-center py-5 text-muted" role="status"><span class="spinner-border text-success mb-3" aria-hidden="true"></span><span>Memuat percakapan...</span></div>';
+                wrap.innerHTML = '<div class="d-flex flex-column align-items-center justify-content-center py-5 text-muted" role="status"><span class="spinner-border text-success mb-3" aria-hidden="true"></span><span>Memuat percakapan...</span></div>';
             }
-
             function showChatError() {
-                wrap.innerHTML =
-                    '<div class="text-center text-danger py-5">Chat gagal dimuat. Silakan buka ulang issue atau coba lagi.</div>';
+                wrap.innerHTML = '<div class="text-center text-danger py-5">Chat gagal dimuat. Silakan buka ulang issue atau coba lagi.</div>';
             }
-
             function incrementUnreadBadge(id, messageId) {
                 const mid = Number(messageId);
                 if (mid && seenMessageIds.has(mid)) return;
@@ -1526,9 +1692,7 @@
                 if (showLoading) showChatLoading();
                 try {
                     const res = await fetch(`${base}/${id}/messages`, {
-                        headers: {
-                            'Accept': 'application/json'
-                        }
+                        headers: { 'Accept': 'application/json' }
                     });
                     if (!res.ok) throw new Error('HTTP ' + res.status);
                     const data = await res.json();
@@ -1895,8 +2059,7 @@
                     if (event.action === 'message') {
                         const mid = Number(event.payload?.message_id);
                         // Server event bisa datang sebelum client event. Ambil sender dari payload jika ada.
-                        if (event.payload?.user_id && Number(event.payload.user_id) === Number(
-                                currentUserId)) return;
+                        if (event.payload?.user_id && Number(event.payload.user_id) === Number(currentUserId)) return;
                         // Jika pesan milik sendiri (event lain), load chat aktif tidak menaikkan badge.
                         incrementUnreadBadge(event.issue_id, mid);
                     } else {
@@ -1924,6 +2087,7 @@
             }
 
         });
+
     </script>
 
 @endsection
