@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
-
+use Illuminate\Support\Facades\DB;
 class SmController extends Controller
 {
     private function isDirector(): bool
@@ -30,25 +30,46 @@ class SmController extends Controller
     public function index(Request $request)
     {
         $user = auth()->user();
-        $query = MonitoringIssue::query()->with('reporter')->withCount('messages');
+
+        $query = MonitoringIssue::query()
+            ->with('reporter')
+            ->withCount('messages')
+            ->withCount([
+                'messages as unread_messages_count' => function ($q) use ($user) {
+                    $q->where('user_id', '!=', $user->id)
+                        ->whereDoesntHave('reads', function ($readQuery) use ($user) {
+                            $readQuery->where('user_id', $user->id);
+                        });
+                },
+            ]);
 
         if (!$this->isDirector()) {
-            $query->where(fn ($q) => $q->where('status', '!=', 'draft')->orWhere('user_id', $user->id));
+            $query->where(function ($q) use ($user) {
+                $q->where('status', '!=', 'draft')
+                    ->orWhere('user_id', $user->id);
+            });
         } else {
             $query->where('status', '!=', 'draft');
         }
 
         if ($request->filled('q')) {
             $term = trim((string) $request->q);
-            $query->where(fn ($q) => $q->where('problem', 'like', "%{$term}%")
-                ->orWhere('potential_impact', 'like', "%{$term}%")
-                ->orWhere('comments', 'like', "%{$term}%"));
+
+            $query->where(function ($q) use ($term) {
+                $q->where('problem', 'like', "%{$term}%")
+                    ->orWhere('potential_impact', 'like', "%{$term}%")
+                    ->orWhere('comments', 'like', "%{$term}%");
+            });
         }
+
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
-        $issues = $query->latest('id')->paginate(15)->withQueryString();
+        $issues = $query->latest('id')
+            ->paginate(15)
+            ->withQueryString();
+
         return view('pages.sm.index', compact('issues'));
     }
 
@@ -88,8 +109,11 @@ class SmController extends Controller
      */
     public function updateComments(Request $request, MonitoringIssue $issue)
     {
-        abort_unless($this->canSee($issue) && $issue->status !== 'draft', 403,
-            'Comments hanya dapat diubah pada issue yang sudah di-release.');
+        abort_unless(
+            $this->canSee($issue) && $issue->status !== 'draft',
+            403,
+            'Comments hanya dapat diubah pada issue yang sudah di-release.'
+        );
 
         $data = $request->validate([
             'comments' => ['nullable', 'string', 'max:10000'],
@@ -115,10 +139,16 @@ class SmController extends Controller
 
     public function closeIssue(MonitoringIssue $issue)
     {
-        abort_unless((int) $issue->user_id === (int) auth()->id(), 403,
-            'Hanya writer pembuat issue yang dapat menutup issue.');
-        abort_unless(in_array($issue->status, ['open', 'following'], true), 422,
-            'Hanya issue Open atau Following yang dapat ditutup.');
+        abort_unless(
+            (int) $issue->user_id === (int) auth()->id(),
+            403,
+            'Hanya writer pembuat issue yang dapat menutup issue.'
+        );
+        abort_unless(
+            in_array($issue->status, ['open', 'following'], true),
+            422,
+            'Hanya issue Open atau Following yang dapat ditutup.'
+        );
 
         $issue->update([
             'status' => 'done',
@@ -138,21 +168,67 @@ class SmController extends Controller
         return back()->with('success', 'Draft dihapus.');
     }
 
+
     public function messages(MonitoringIssue $issue)
     {
         abort_unless($this->canSee($issue), 403);
+
+        $userId = (int) auth()->id();
+
+        // Ambil seluruh pesan sesuai issue
+        $messages = $issue->messages()
+            ->with('sender:id,name')
+            ->oldest('id')
+            ->get();
+
+        // Cari pesan dari user lain yang belum dibaca
+        $unreadIds = $issue->messages()
+            ->where('user_id', '!=', $userId)
+            ->whereDoesntHave('reads', function ($query) use ($userId) {
+                $query->where('user_id', $userId);
+            })
+            ->pluck('id');
+
+        // Simpan status baca sesuai struktur tabel asli
+        if ($unreadIds->isNotEmpty()) {
+            $rows = $unreadIds->map(function ($messageId) use ($userId) {
+                return [
+                    'message_id' => $messageId,
+                    'user_id' => $userId,
+                    'read_at' => now(),
+                ];
+            });
+
+            foreach ($rows->chunk(500) as $chunk) {
+                DB::table('monitoring_issue_message_reads')
+                    ->insertOrIgnore($chunk->all());
+            }
+        }
+
         return response()->json([
-            'messages' => $issue->messages()->with('sender:id,name')->oldest('id')->get()->map(fn ($m) => [
+            'messages' => $messages->map(fn($m) => [
                 'id' => $m->id,
                 'parent_id' => $m->parent_id,
                 'user' => $m->sender?->name ?? 'User',
-                'mine' => (int) $m->user_id === (int) auth()->id(),
+                'mine' => (int) $m->user_id === $userId,
                 'message' => $m->message,
                 'attachment_name' => $m->attachment_name,
-                'attachment_url' => $m->attachment_path ? route('sm.attachments.download', [$issue, $m]) : null,
-                'attachment_is_image' => $m->attachment_path ? in_array(strtolower(pathinfo($m->attachment_name ?? '', PATHINFO_EXTENSION)), ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'], true) : false,
+                'attachment_url' => $m->attachment_path
+                    ? route('sm.attachments.download', [$issue, $m])
+                    : null,
+                'attachment_is_image' => $m->attachment_path
+                    ? in_array(
+                        strtolower(pathinfo(
+                            $m->attachment_name ?? '',
+                            PATHINFO_EXTENSION
+                        )),
+                        ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'],
+                        true
+                    )
+                    : false,
                 'time' => $m->created_at?->format('d/m/Y H:i'),
             ]),
+            'unread_count' => 0,
         ]);
     }
 
@@ -188,7 +264,8 @@ class SmController extends Controller
                 'attachment_name' => $attachmentName,
             ]);
         } catch (\Throwable $e) {
-            if ($attachmentPath) Storage::disk('local')->delete($attachmentPath);
+            if ($attachmentPath)
+                Storage::disk('local')->delete($attachmentPath);
             throw $e;
         }
         broadcast(new SmChanged($issue->id, 'message', ['message_id' => $message->id]))->toOthers();

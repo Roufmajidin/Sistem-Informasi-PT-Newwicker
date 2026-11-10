@@ -1,9 +1,36 @@
 <?php
+
 namespace App\Models;
+
 use Illuminate\Database\Eloquent\Model;
-class MonitoringIssueMessageRead extends Model {
- public $timestamps=false;
- protected $table='monitoring_issue_message_reads';
- protected $fillable=['message_id','user_id','read_at'];
- protected $casts=['read_at'=>'datetime'];
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class MonitoringIssueMessageRead extends Model
+{
+    protected $table = 'monitoring_issue_message_reads';
+
+    public $timestamps = false;
+
+    protected $fillable = [
+        'message_id',
+        'user_id',
+        'read_at',
+    ];
+
+    protected $casts = [
+        'read_at' => 'datetime',
+    ];
+
+    public function message(): BelongsTo
+    {
+        return $this->belongsTo(
+            MonitoringIssueMessage::class,
+            'message_id'
+        );
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 }

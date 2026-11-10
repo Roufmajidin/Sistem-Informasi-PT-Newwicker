@@ -30,4 +30,5 @@ class MonitoringIssueMessage extends Model
     {
         return $this->hasMany(MonitoringIssueMessageRead::class, 'message_id');
     }
+    
 }
