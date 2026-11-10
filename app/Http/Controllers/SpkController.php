@@ -177,13 +177,21 @@ class SpkController extends Controller
             // =================================================
 
             $bahanBaku = TransaksiStok::with('stok')
-
                 ->where('spk_id', $spkModel->id)
-
-                ->where('tipe', 'out')
-
+                ->where(function ($query) {
+                    $query->where('tipe', 'out')
+                        ->orWhereIn('tipe', ['return', 'return_bahan'])
+                        ->orWhere(function ($returns) {
+                            // Transaksi masuk hanya jika memang pengembalian bahan.
+                            $returns->where('tipe', 'in')
+                                ->where(function ($remarks) {
+                                $remarks->where('keterangan', 'like', '%return%')
+                                    ->orWhere('keterangan', 'like', '%pengembalian%');
+                            });
+                        });
+                })
                 ->orderBy('tanggal')
-
+                ->orderBy('id')
                 ->get();
 
 
@@ -1765,6 +1773,8 @@ class SpkController extends Controller
         );
 
     }
+
+
 
 
     //     public function index(Request $request, $id)

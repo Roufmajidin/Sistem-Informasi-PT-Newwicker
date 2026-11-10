@@ -4,15 +4,15 @@
     {{-- Bridge nama variabel dari SpkController@index() terbaru. --}}
     @php
         $magicAccess = !empty($isMagicApproval);
-        $magicToken = $magicAccess ? ($approvalToken ?? request()->query('approval_token')) : null;
+        $magicToken = $magicAccess ? $approvalToken ?? request()->query('approval_token') : null;
     @endphp
 
     {{-- @include('pages.spk.stylespk') --}}
 
     <style>
         /* =========================================================
-           DOWNLOAD EXCEL - PREMIUM UI
-           ========================================================= */
+               DOWNLOAD EXCEL - PREMIUM UI
+               ========================================================= */
 
         .btn-download-excel {
             position: relative;
@@ -126,10 +126,10 @@
 
         <
         /* =========================================================
-                       SPK EXPORT / SCREENSHOT / COPY - A4 LANDSCAPE
-                       PREMIUM CLEAN DOCUMENT UI
-                       KHUSUS OUTPUT SCREENSHOT / COPY
-                       ========================================================= */
+                           SPK EXPORT / SCREENSHOT / COPY - A4 LANDSCAPE
+                           PREMIUM CLEAN DOCUMENT UI
+                           KHUSUS OUTPUT SCREENSHOT / COPY
+                           ========================================================= */
 
         .bahan-keterangan-spinner {
             width: 16px;
@@ -148,8 +148,8 @@
         }
 
         /* =========================================================
-                   ROOT CANVAS
-                   ========================================================= */
+                       ROOT CANVAS
+                       ========================================================= */
 
         .spk-excel-image {
             width: 1123px !important;
@@ -181,8 +181,8 @@
         }
 
         /* =========================================================
-                   HEADER
-                   ========================================================= */
+                       HEADER
+                       ========================================================= */
 
         .spk-excel-top {
             width: 100% !important;
@@ -254,8 +254,8 @@
         }
 
         /* =========================================================
-                   INFO SPK
-                   ========================================================= */
+                       INFO SPK
+                       ========================================================= */
 
         .spk-excel-info {
             width: 100% !important;
@@ -324,8 +324,8 @@
         }
 
         /* =========================================================
-                   ITEM AREA
-                   ========================================================= */
+                       ITEM AREA
+                       ========================================================= */
 
         .spk-excel-item-area {
             width: 100% !important;
@@ -338,8 +338,8 @@
         }
 
         /* =========================================================
-                   ITEM TABLE
-                   ========================================================= */
+                       ITEM TABLE
+                       ========================================================= */
 
         .spk-excel-items {
             width: 100% !important;
@@ -470,8 +470,8 @@
         }
 
         /* =========================================================
-                   TEXT
-                   ========================================================= */
+                       TEXT
+                       ========================================================= */
 
         .excel-code-text {
             width: 100% !important;
@@ -535,8 +535,8 @@
         }
 
         /* =========================================================
-                   IMAGE
-                   ========================================================= */
+                       IMAGE
+                       ========================================================= */
 
         .excel-image-cell {
             width: 100% !important;
@@ -579,8 +579,8 @@
         }
 
         /* =========================================================
-                   EXTRA ROW
-                   ========================================================= */
+                       EXTRA ROW
+                       ========================================================= */
 
         .spk-excel-item-row td {
             height: 62px !important;
@@ -591,8 +591,8 @@
         }
 
         /* =========================================================
-                   SPACER
-                   ========================================================= */
+                       SPACER
+                       ========================================================= */
 
         .spk-excel-spacer td {
             padding: 0 !important;
@@ -607,8 +607,8 @@
         }
 
         /* =========================================================
-                   GRAND TOTAL
-                   ========================================================= */
+                       GRAND TOTAL
+                       ========================================================= */
 
         .ex-grand-total td {
             height: 23px !important;
@@ -646,8 +646,8 @@
         }
 
         /* =========================================================
-                   BOTTOM AREA
-                   ========================================================= */
+                       BOTTOM AREA
+                       ========================================================= */
 
         .spk-excel-bottom {
             width: 100% !important;
@@ -667,8 +667,8 @@
         }
 
         /* =========================================================
-                   TERMS
-                   ========================================================= */
+                       TERMS
+                       ========================================================= */
 
         .spk-excel-terms {
             padding: 2px 10px 0 2px !important;
@@ -695,8 +695,8 @@
         }
 
         /* =========================================================
-                   PAYMENT
-                   ========================================================= */
+                       PAYMENT
+                       ========================================================= */
 
         .spk-excel-payment {
             padding-left: 0 !important;
@@ -769,8 +769,8 @@
         }
 
         /* =========================================================
-                   SIGNATURE
-                   ========================================================= */
+                       SIGNATURE
+                       ========================================================= */
 
         .spk-excel-signature {
             width: 100% !important;
@@ -849,8 +849,8 @@
         }
 
         /* =========================================================
-                       PUSHER REALTIME MOUSE CURSOR
-                       ========================================================= */
+                           PUSHER REALTIME MOUSE CURSOR
+                           ========================================================= */
         .spk-search-input:empty::before {
             content: attr(data-placeholder);
             color: #94a3b8;
@@ -921,8 +921,8 @@
         }
 
         /* =========================================================
-                                       SPK PRODUKSI - CLEAN MODERN LAYOUT (Matching preview.html)
-                                       ========================================================= */
+                                           SPK PRODUKSI - CLEAN MODERN LAYOUT (Matching preview.html)
+                                           ========================================================= */
         :root {
             --spk-navy: #50b95a;
             --spk-blue: #6f7174;
@@ -950,8 +950,8 @@
         }
 
         /* =========================================================
-                       FLOATING SPK ACTION
-                       ========================================================= */
+                           FLOATING SPK ACTION
+                           ========================================================= */
 
         .spk-floating-actions {
             position: fixed;
@@ -985,8 +985,8 @@
 
 
         /* =========================================================
-                       HEADER / DRAG HANDLE
-                       ========================================================= */
+                           HEADER / DRAG HANDLE
+                           ========================================================= */
 
         .spk-floating-header {
 
@@ -1054,8 +1054,8 @@
 
 
         /* =========================================================
-                       BODY
-                       ========================================================= */
+                           BODY
+                           ========================================================= */
 
         .spk-floating-body {
 
@@ -1071,8 +1071,8 @@
 
 
         /* =========================================================
-                       BUTTON
-                       ========================================================= */
+                           BUTTON
+                           ========================================================= */
 
         .spk-floating-btn {
 
@@ -1163,8 +1163,8 @@
 
 
         /* =========================================================
-                       SIGNATURE
-                       ========================================================= */
+                           SIGNATURE
+                           ========================================================= */
 
         .spk-btn-signature {
 
@@ -1196,8 +1196,8 @@
 
 
         /* =========================================================
-                       SAVE
-                       ========================================================= */
+                           SAVE
+                           ========================================================= */
 
         .spk-btn-save {
 
@@ -1229,8 +1229,8 @@
 
 
         /* =========================================================
-                       CLOSE
-                       ========================================================= */
+                           CLOSE
+                           ========================================================= */
 
         .spk-btn-close {
 
@@ -1262,8 +1262,8 @@
 
 
         /* =========================================================
-                       DRAGGING
-                       ========================================================= */
+                           DRAGGING
+                           ========================================================= */
 
         .spk-floating-actions.is-dragging {
 
@@ -1289,8 +1289,8 @@
 
 
         /* =========================================================
-                       MOBILE
-                       ========================================================= */
+                           MOBILE
+                           ========================================================= */
 
         @media (max-width: 767px) {
 
@@ -1522,8 +1522,8 @@
         }
 
         /* =========================================================
-                       SUPPLIER SEARCH LOADING
-                       ========================================================= */
+                           SUPPLIER SEARCH LOADING
+                           ========================================================= */
 
         .supplier-loading {
             display: flex;
@@ -2177,8 +2177,8 @@
         }
 
         /* =========================================================
-                               JUMP TO SIGNATURE HIGHLIGHT
-                               ========================================================= */
+                                   JUMP TO SIGNATURE HIGHLIGHT
+                                   ========================================================= */
         .spk-signature-card.spk-jump-highlight {
             animation: spkSignatureFlash 1.4s ease;
         }
@@ -2274,9 +2274,9 @@
 
 
         /* =========================================================
-                           PUSHER LIVE MESSAGE / COLLABORATION
-                           Ctrl + Shift + Z
-                           ========================================================= */
+                               PUSHER LIVE MESSAGE / COLLABORATION
+                               Ctrl + Shift + Z
+                               ========================================================= */
         .spk-live-message-modal {
             position: fixed;
             inset: 0;
@@ -2498,9 +2498,9 @@
     <div id="spkRemoteCursors"></div>
 
     <!-- =========================================================
-                         PUSHER LIVE MESSAGE MODAL
-                         Hanya aktif pada SPK yang sedang dibuka.
-                         ========================================================= -->
+                             PUSHER LIVE MESSAGE MODAL
+                             Hanya aktif pada SPK yang sedang dibuka.
+                             ========================================================= -->
     <div id="spkLiveMessageModal" class="spk-live-message-modal" aria-hidden="true">
         <div class="spk-live-message-card" role="dialog" aria-modal="true" aria-labelledby="spkLiveMessageTitle">
             <div class="spk-live-message-head">
@@ -2605,11 +2605,10 @@
                                 💾 Save SPK
                             </button>
                             {{-- if any bahan, then List bahan --}}
-                              <button class="btn-spk-status" data-status="closed">
-                                   Add List Bahan
-                                </button>
+                            <button class="btn-spk-status" data-status="closed">
+                                Add List Bahan
+                            </button>
                             @if ($status != 'finished')
-                              
                                 <button id="btnCleanUnchecked" class="btn-spk-clean" style="display:none">
                                     🗑 Bersihkan
                                 </button>
@@ -2962,7 +2961,7 @@
                     background:{{ strtolower($bahan->tipe ?? '') === 'out' ? '#fff1f2' : '#ecfdf5' }};
                     color:{{ strtolower($bahan->tipe ?? '') === 'out' ? '#be123c' : '#047857' }};
                 ">
-                                                {{ $bahan->tipe ?? '-' }}
+                                                {{ in_array(strtolower((string) ($bahan->tipe ?? '')), ['return', 'return_bahan'], true) || (strtolower((string) ($bahan->tipe ?? '')) === 'in' && preg_match('/return|pengembalian/i', (string) ($bahan->keterangan ?? ''))) ? 'RETURN' : $bahan->tipe ?? '-' }}
                                             </span>
                                         </td>
 
@@ -3065,7 +3064,9 @@
                                             <td>
                                                 <select class="payment-type">
                                                     <option value="">-- Pilih --</option>
-                                                    <option value="angsuran" {{ ($pay['note'] ?? '') == 'angsuran' ? 'selected' : '' }}>Angsuran</option>
+                                                    <option value="angsuran"
+                                                        {{ ($pay['note'] ?? '') == 'angsuran' ? 'selected' : '' }}>Angsuran
+                                                    </option>
                                                     <option value="dp"
                                                         {{ ($pay['note'] ?? '') == 'dp' ? 'selected' : '' }}>DP
                                                     </option>
@@ -3143,7 +3144,10 @@
                 // Jenis SPK dibaca dari nomor PO, bukan hanya awalan nomor SPK.
                 $spkPoNumber = trim((string) ($spk['no_po'] ?? ''));
                 $spkNumber = trim((string) ($spk['no_spk'] ?? ''));
-                $isNwsNwd = (bool) preg_match('/(?:^|[\/\s])(?:NWS|NWD)(?=\s|[-\/]|\d|$)/i', $spkPoNumber . ' ' . $spkNumber);
+                $isNwsNwd = (bool) preg_match(
+                    '/(?:^|[\/\s])(?:NWS|NWD)(?=\s|[-\/]|\d|$)/i',
+                    $spkPoNumber . ' ' . $spkNumber,
+                );
             @endphp
             <!-- APPROVAL SIGNATURE CARD (IF EXISTS) -->
             @if (isset($spk['signature']) && $spk['signature'])
@@ -3165,7 +3169,7 @@
                             <tbody>
                                 <tr style="height:90px;">
                                     <td>
-                                        @if ($sign->made_at && (!$isNwsNwd || strcasecmp(trim((string) ($sign->madeBy->name ?? "")), "Intan") === 0))
+                                        @if ($sign->made_at && (!$isNwsNwd || strcasecmp(trim((string) ($sign->madeBy->name ?? '')), 'Intan') === 0))
                                             <img src="{{ asset('assets/signature/' . $sign->made_by . '.png') }}"
                                                 style="max-height:70px;">
                                         @else
@@ -3211,7 +3215,7 @@
                                 </tr>
                                 <tr>
                                     <td>
-                                        <b>{{ $isNwsNwd ? 'Intan' : ($sign->madeBy->name ?? '-') }}</b><br>
+                                        <b>{{ $isNwsNwd ? 'Intan' : $sign->madeBy->name ?? '-' }}</b><br>
                                         <small>{{ strtoupper($sign->madeBy?->karyawan?->divisi?->nama ?? '-') }}</small><br>
                                         <small
                                             style="color:#64748b;">{{ $sign->made_at && (!$isNwsNwd || strcasecmp(trim((string) ($sign->madeBy->name ?? '')), 'Intan') === 0) ? $sign->made_at->format('d/m/Y H:i') : 'Pending' }}</small>
@@ -3238,7 +3242,7 @@
                                         <small
                                             style="color:#64748b;">{{ $sign->approved_at
                                                 ? $sign->approved_at->format('d/m/Y
-                                                                                                                                                                                                                                                    H:i')
+                                                                                                                                                                                                                                                                                                H:i')
                                                 : 'Pending' }}</small>
                                     </td>
                                     <td>
@@ -3267,8 +3271,8 @@
         </div>
     </div>
     <!-- =========================================================
-             FLOATING ACTION PANEL
-             ========================================================= -->
+                 FLOATING ACTION PANEL
+                 ========================================================= -->
     <div id="spkFloatingActions" class="spk-floating-actions">
 
         <div class="spk-floating-header" id="spkFloatingDrag">
@@ -3288,10 +3292,10 @@
         <div class="spk-floating-body">
 
             @if (($spk['mode'] ?? '') === 'edit' && !$viewOnly)
-            <button type="button" class="spk-floating-btn spk-btn-signature" id="btnSpkMagicLink">
-                <span class="spk-btn-icon"><i class="fa fa-link"></i></span>
-                <span><strong>Magic Link</strong><small>Approval SPK</small></span>
-            </button>
+                <button type="button" class="spk-floating-btn spk-btn-signature" id="btnSpkMagicLink">
+                    <span class="spk-btn-icon"><i class="fa fa-link"></i></span>
+                    <span><strong>Magic Link</strong><small>Approval SPK</small></span>
+                </button>
             @endif
 
             <!-- Jump Signature -->
@@ -5922,11 +5926,11 @@
         ${(item.images && item.images.length)
                     ? item.images.map(function (img) {
                         return `
-                                <img
-                                    src="${escapeHtml(img)}"
-                                    class="preview-img"
-                                    onerror="this.style.display='none'">
-                            `;
+                                    <img
+                                        src="${escapeHtml(img)}"
+                                        class="preview-img"
+                                        onerror="this.style.display='none'">
+                                `;
                     }).join('')
                     : (
                         item.photo
@@ -6644,7 +6648,8 @@
                     `<div style="display:flex; justify-content:space-between; margin-bottom:3px; color:#dc2626;"><span>Total Kasbon:</span> <b>Rp ${formatRupiah(totalKasbon)}</b></div>`;
             }
             if (totalAngsuran > 0) {
-                summary += `<div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span>Total Angsuran (-):</span><b>Rp ${formatRupiah(totalAngsuran)}</b></div>`;
+                summary +=
+                    `<div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span>Total Angsuran (-):</span><b>Rp ${formatRupiah(totalAngsuran)}</b></div>`;
             }
             if (totalPelunasan > 0) {
                 summary +=
@@ -7015,29 +7020,29 @@
             <tr>
                 ${index === 0
                         ? `
-                            <td rowspan="${item.rows.length}">
-                                ${item.kode}
-                            </td>
-                            `
+                                <td rowspan="${item.rows.length}">
+                                    ${item.kode}
+                                </td>
+                                `
                         : ''
                     }
                 ${index === 0
                         ? `
-                            <td rowspan="${item.rows.length}">
-                                ${item.images.length
-                                    ? `<img src="${item.images[0]}" style="max-width:90px">`
-                                    : ''
-                                }
-                            </td>
-                            `
+                                <td rowspan="${item.rows.length}">
+                                    ${item.images.length
+                                        ? `<img src="${item.images[0]}" style="max-width:90px">`
+                                        : ''
+                                    }
+                                </td>
+                                `
                         : ''
                     }
                 ${index === 0
                         ? `
-                            <td rowspan="${item.rows.length}">
-                                ${item.nama}
-                            </td>
-                            `
+                                <td rowspan="${item.rows.length}">
+                                    ${item.nama}
+                                </td>
+                                `
                         : ''
                     }
                 ${customCols}
@@ -7054,10 +7059,10 @@
                 <td>${detail.total}</td>
                 ${index === 0
                         ? `
-                            <td rowspan="${item.rows.length}">
-                                ${item.catatan}
-                            </td>
-                            `
+                                <td rowspan="${item.rows.length}">
+                                    ${item.catatan}
+                                </td>
+                                `
                         : ''
                     }
             </tr>
@@ -7802,7 +7807,11 @@
                     result.made.date = '';
                 }
                 result.made.name = 'Intan';
-                result.checked1 = { name: '', date: '', image: '' };
+                result.checked1 = {
+                    name: '',
+                    date: '',
+                    image: ''
+                };
             }
             return result;
         }
@@ -7843,8 +7852,11 @@
             // bukan menimpa kolom Potong Bahan.
             const widths = ['4%', '11%', '8%', '24%', '16%', '11%', '12%', '14%'];
             const cols = widths.map(w => `<col style="width:${w};">`).join('');
-            const cellStyle = 'border:1px solid #d5dce5;padding:6px 5px;vertical-align:top;white-space:normal !important;overflow-wrap:anywhere !important;word-break:break-word !important;overflow:visible;line-height:1.35;height:auto;max-width:0;';
-            const th = headings.map(h => `<th style="background:#26374d;color:#fff;border:1px solid #d5dce5;padding:5px 4px;text-align:center;white-space:normal;overflow-wrap:anywhere;word-break:break-word;">${excelEscape(h)}</th>`).join('');
+            const cellStyle =
+                'border:1px solid #d5dce5;padding:6px 5px;vertical-align:top;white-space:normal !important;overflow-wrap:anywhere !important;word-break:break-word !important;overflow:visible;line-height:1.35;height:auto;max-width:0;';
+            const th = headings.map(h =>
+                `<th style="background:#26374d;color:#fff;border:1px solid #d5dce5;padding:5px 4px;text-align:center;white-space:normal;overflow-wrap:anywhere;word-break:break-word;">${excelEscape(h)}</th>`
+                ).join('');
             const body = rows.map(row => {
                 const cells = Array.from(row.children).slice(0, 8).map(td =>
                     `<td style="${cellStyle}"><div style="display:block;width:100%;min-width:0;white-space:normal;overflow-wrap:anywhere;word-break:break-word;">${excelEscape(cleanText(td.innerText))}</div></td>`
@@ -8717,7 +8729,9 @@
                         </tr>
                         <tr>
                             <td style="height:90px;border:1px solid #000;">
-                                @if ($spk['signature']->made_at && (!$isNwsNwd || strcasecmp(trim((string) ($spk['signature']->madeBy->name ?? '')), 'Intan') === 0))
+                                @if (
+                                    $spk['signature']->made_at &&
+                                        (!$isNwsNwd || strcasecmp(trim((string) ($spk['signature']->madeBy->name ?? '')), 'Intan') === 0))
                                     <img src="{{ asset('assets/signature/' . $spk['signature']->made_by . '.png') }}"
                                          style="max-height:70px;max-width:120px;">
                                 @endif
@@ -8748,8 +8762,10 @@
                         </tr>
                         <tr>
                             <td style="border:1px solid #000;">
-                                <b>{{ $isNwsNwd ? 'Intan' : ($spk['signature']->madeBy->name ?? '-') }}</b><br>
-                                @if ($spk['signature']->made_at && (!$isNwsNwd || strcasecmp(trim((string) ($spk['signature']->madeBy->name ?? '')), 'Intan') === 0))
+                                <b>{{ $isNwsNwd ? 'Intan' : $spk['signature']->madeBy->name ?? '-' }}</b><br>
+                                @if (
+                                    $spk['signature']->made_at &&
+                                        (!$isNwsNwd || strcasecmp(trim((string) ($spk['signature']->madeBy->name ?? '')), 'Intan') === 0))
                                     Approved On<br>{{ $spk['signature']->made_at->format('d/m/Y H:i') }}
                                 @else
                                     Pending
@@ -8859,7 +8875,7 @@
 
             // Magic Link: hanya role yang ditetapkan oleh controller boleh approve.
             const isMagicApproval = @json(!empty($magicAccess) && !empty($magicToken));
-            const magicType = @json(!empty($magicSlot) ? ($magicSlot['type'] ?? null) : null);
+            const magicType = @json(!empty($magicSlot) ? $magicSlot['type'] ?? null : null);
             if (isMagicApproval && type !== magicType) {
                 Swal.fire('Akses ditolak', 'Magic Link ini bukan untuk tahap approval tersebut.', 'warning');
                 return;
@@ -8892,9 +8908,7 @@
             }).then((result) => {
                 if (!result.isConfirmed) return;
 
-                const magicApproveUrl = @json(!empty($magicAccess) && !empty($magicToken)
-                    ? route('spk.magic.approve', ['token' => $magicToken])
-                    : null);
+                const magicApproveUrl = @json(!empty($magicAccess) && !empty($magicToken) ? route('spk.magic.approve', ['token' => $magicToken]) : null);
                 const approvalUrl = isMagicApproval ? magicApproveUrl : `/spk/signature/${id}`;
 
                 btn.dataset.submitting = '1';
@@ -8917,15 +8931,17 @@
                         // Magic Link harus mengembalikan JSON, bukan redirect ke halaman auth.
                         // Redirect yang diikuti fetch bisa terlihat sebagai 401 walaupun DB sudah di-update.
                         if (isMagicApproval && response.redirected) {
-                            throw new Error('Approval mungkin sudah diproses, tetapi server mengalihkan halaman. Ubah return akhir approveSpkMagic() menjadi response()->json(...) dan periksa tanda tangan sebelum mencoba ulang.');
+                            throw new Error(
+                                'Approval mungkin sudah diproses, tetapi server mengalihkan halaman. Ubah return akhir approveSpkMagic() menjadi response()->json(...) dan periksa tanda tangan sebelum mencoba ulang.'
+                                );
                         }
                         const data = await response.json().catch(() => ({}));
                         if (!response.ok || (isMagicApproval && data.success !== true)) {
-                            const message = response.status === 419
-                                ? 'Sesi CSRF kedaluwarsa. Muat ulang halaman dan buat Magic Link baru bila diperlukan.'
-                                : response.status === 401
-                                    ? 'Request ditolak sebagai unauthenticated. Periksa middleware route spk.magic.approve.'
-                                    : (data.message || 'Approval gagal (HTTP ' + response.status + ')');
+                            const message = response.status === 419 ?
+                                'Sesi CSRF kedaluwarsa. Muat ulang halaman dan buat Magic Link baru bila diperlukan.' :
+                                response.status === 401 ?
+                                'Request ditolak sebagai unauthenticated. Periksa middleware route spk.magic.approve.' :
+                                (data.message || 'Approval gagal (HTTP ' + response.status + ')');
                             throw new Error(message);
                         }
                         return data;
@@ -8933,7 +8949,8 @@
                     .then(res => {
                         if (isMagicApproval) {
                             // Token sekali pakai: jangan reload URL lama setelah approval.
-                            document.querySelectorAll('.btn-sign').forEach(button => button.disabled = true);
+                            document.querySelectorAll('.btn-sign').forEach(button => button.disabled =
+                                true);
                             const signed = document.createElement('span');
                             signed.className = 'badge badge-success';
                             signed.textContent = 'SIGNED';
@@ -9687,10 +9704,10 @@
             */
 
             const currentUserId =
-                @json(!empty($isMagicApproval) ? ($magicApprover->id ?? null) : auth()->id());
+                @json(!empty($isMagicApproval) ? $magicApprover->id ?? null : auth()->id());
 
             const currentUserName =
-                @json(!empty($isMagicApproval) ? ($magicApprover->name ?? 'Approver') : (auth()->user()->name ?? 'User'));
+                @json(!empty($isMagicApproval) ? $magicApprover->name ?? 'Approver' : auth()->user()->name ?? 'User');
 
 
             /*
@@ -10526,14 +10543,20 @@
         })();
     </script>
     @if (($spk['mode'] ?? '') === 'edit' && !$viewOnly)
-    <script>
-    (() => {
-        const trigger = document.getElementById('btnSpkMagicLink');
-        if (!trigger) return;
-        const spkId = @json($spk['id']);
-        const csrf = @json(csrf_token());
-        const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-        const css = `
+        <script>
+            (() => {
+                const trigger = document.getElementById('btnSpkMagicLink');
+                if (!trigger) return;
+                const spkId = @json($spk['id']);
+                const csrf = @json(csrf_token());
+                const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#39;'
+                } [c]));
+                const css = `
           .spk-magic-modal.swal2-popup{width:min(520px,calc(100vw - 24px))!important;border-radius:16px!important;padding:23px!important;font-family:inherit;text-align:left}
           .spk-magic-modal .swal2-title{font-size:19px!important;text-align:left!important;padding:0 0 5px!important;color:#172033}
           .spk-magic-modal .swal2-html-container{margin:12px 0 0!important;text-align:left!important;overflow:visible!important}
@@ -10554,129 +10577,249 @@
           .spk-magic-note{font-size:11px;line-height:1.55;color:#64748b;margin:0 0 13px}
           .spk-magic-url{display:block;width:100%;min-height:72px;resize:none;padding:11px;border:1px solid #dce3ed;border-radius:9px;background:#f8fafc;color:#1e293b;font-size:12px;overflow-wrap:anywhere}
         `;
-        if (!document.getElementById('spkMagicModalStyle')) {
-            const style = document.createElement('style');
-            style.id = 'spkMagicModalStyle';
-            style.textContent = css;
-            document.head.appendChild(style);
-        }
-        async function readJson(response) {
-            const payload = await response.json().catch(() => ({}));
-            if (!response.ok) throw new Error(payload.message || (response.status === 403 ? 'Akses ditolak. Periksa izin Magic Link.' : 'Permintaan gagal.'));
-            return payload;
-        }
-        async function copyText(value) {
-            if (navigator.clipboard && window.isSecureContext) {
-                await navigator.clipboard.writeText(value);
-                return;
-            }
-            const temp = document.createElement('textarea');
-            temp.value = value;
-            temp.style.position = 'fixed';
-            temp.style.opacity = '0';
-            document.body.appendChild(temp);
-            temp.select();
-            const success = document.execCommand('copy');
-            temp.remove();
-            if (!success) throw new Error('Salin otomatis gagal. Silakan salin link secara manual.');
-        }
-        trigger.addEventListener('click', async () => {
-            if (trigger.disabled) return;
-            trigger.disabled = true;
-            try {
-                Swal.fire({title:'Mengambil daftar approver',text:'Mohon tunggu...',allowOutsideClick:false,showConfirmButton:false,didOpen:()=>Swal.showLoading(),customClass:{popup:'spk-magic-modal'}});
-                const data = await readJson(await fetch(`/spk/${encodeURIComponent(spkId)}/magic-approvers`, {headers:{'Accept':'application/json'},credentials:'same-origin'}));
-                const approvers = Array.isArray(data.approvers) ? data.approvers : [];
-                const available = approvers.filter(a => a.can_generate);
-                const html = `<p class="spk-magic-note">SPK #${escapeHtml(spkId)} · Pilih approver yang belum tanda tangan untuk membuat link khusus.</p>` +
-                    (approvers.length ? `<div class="spk-magic-list">${approvers.map((a,i) => {
+                if (!document.getElementById('spkMagicModalStyle')) {
+                    const style = document.createElement('style');
+                    style.id = 'spkMagicModalStyle';
+                    style.textContent = css;
+                    document.head.appendChild(style);
+                }
+                async function readJson(response) {
+                    const payload = await response.json().catch(() => ({}));
+                    if (!response.ok) throw new Error(payload.message || (response.status === 403 ?
+                        'Akses ditolak. Periksa izin Magic Link.' : 'Permintaan gagal.'));
+                    return payload;
+                }
+                async function copyText(value) {
+                    if (navigator.clipboard && window.isSecureContext) {
+                        await navigator.clipboard.writeText(value);
+                        return;
+                    }
+                    const temp = document.createElement('textarea');
+                    temp.value = value;
+                    temp.style.position = 'fixed';
+                    temp.style.opacity = '0';
+                    document.body.appendChild(temp);
+                    temp.select();
+                    const success = document.execCommand('copy');
+                    temp.remove();
+                    if (!success) throw new Error('Salin otomatis gagal. Silakan salin link secara manual.');
+                }
+                trigger.addEventListener('click', async () => {
+                    if (trigger.disabled) return;
+                    trigger.disabled = true;
+                    try {
+                        Swal.fire({
+                            title: 'Mengambil daftar approver',
+                            text: 'Mohon tunggu...',
+                            allowOutsideClick: false,
+                            showConfirmButton: false,
+                            didOpen: () => Swal.showLoading(),
+                            customClass: {
+                                popup: 'spk-magic-modal'
+                            }
+                        });
+                        const data = await readJson(await fetch(
+                            `/spk/${encodeURIComponent(spkId)}/magic-approvers`, {
+                                headers: {
+                                    'Accept': 'application/json'
+                                },
+                                credentials: 'same-origin'
+                            }));
+                        const approvers = Array.isArray(data.approvers) ? data.approvers : [];
+                        const available = approvers.filter(a => a.can_generate);
+                        const html =
+                            `<p class="spk-magic-note">SPK #${escapeHtml(spkId)} · Pilih approver yang belum tanda tangan untuk membuat link khusus.</p>` +
+                            (approvers.length ? `<div class="spk-magic-list">${approvers.map((a,i) => {
                         const can = Boolean(a.can_generate);
                         const status = a.signed ? 'Sudah TTD' : can ? 'Pending' : 'Tidak tersedia';
                         const state = a.signed ? 'signed' : can ? '' : 'unavailable';
                         return `<label class="spk-magic-option ${can?'':'is-disabled'}"><input type="radio" name="spkMagicRole" value="${escapeHtml(a.role)}" ${can?'':'disabled'} ${can&&available[0]===a?'checked':''}><span class="spk-magic-option-info"><strong>${escapeHtml(a.label)}</strong><small>${escapeHtml(a.name || 'Belum ditentukan')}</small></span><span class="spk-magic-state ${state}">${status}</span></label>`;
                     }).join('')}</div>` : '<p class="spk-magic-note">Belum ada data approver untuk SPK ini.</p>');
-                const selected = await Swal.fire({title:'Magic Approval Link',html,customClass:{popup:'spk-magic-modal'},showCancelButton:true,showConfirmButton:available.length>0,confirmButtonText:'<i class="fa fa-link"></i> Generate Link',cancelButtonText:'Tutup',confirmButtonColor:'#3158c9',reverseButtons:true,focusConfirm:false,preConfirm:()=>{
-                    const role = document.querySelector('input[name="spkMagicRole"]:checked');
-                    if (!role) { Swal.showValidationMessage('Pilih approver yang masih pending.'); return false; }
-                    return role.value;
-                }});
-                if (!selected.isConfirmed) return;
-                Swal.fire({title:'Membuat magic link',text:'Mohon tunggu...',allowOutsideClick:false,showConfirmButton:false,didOpen:()=>Swal.showLoading(),customClass:{popup:'spk-magic-modal'}});
-                const generated = await readJson(await fetch(`/spk/${encodeURIComponent(spkId)}/magic-link`, {
-                    method:'POST',credentials:'same-origin',headers:{'Accept':'application/json','Content-Type':'application/json','X-CSRF-TOKEN':csrf},body:JSON.stringify({approval_role:selected.value})
-                }));
-                if (!generated.url) throw new Error('Server tidak mengembalikan URL Magic Link.');
-                const result = await Swal.fire({title:'Magic Link berhasil dibuat',icon:'success',customClass:{popup:'spk-magic-modal'},html:`<p class="spk-magic-note">Link hanya untuk approver terpilih dan berlaku 24 jam. Jangan dibagikan kepada orang lain.</p><textarea id="spkMagicUrl" class="spk-magic-url" readonly>${escapeHtml(generated.url)}</textarea>`,showCancelButton:true,confirmButtonText:'<i class="fa fa-copy"></i> Copy Link',cancelButtonText:'Tutup',confirmButtonColor:'#3158c9',reverseButtons:true,focusConfirm:false,preConfirm:async()=>{
-                    try { await copyText(generated.url); return true; }
-                    catch(e) { Swal.showValidationMessage(e.message); return false; }
-                }});
-                if (result.isConfirmed) Swal.fire({icon:'success',title:'Link berhasil disalin',timer:1400,showConfirmButton:false,customClass:{popup:'spk-magic-modal'}});
-            } catch (error) {
-                Swal.fire({icon:'error',title:'Magic Link gagal',text:error.message || 'Terjadi kesalahan.',confirmButtonText:'Tutup',customClass:{popup:'spk-magic-modal'}});
-            } finally { trigger.disabled = false; }
-        });
-    })();
-    </script>
+                        const selected = await Swal.fire({
+                            title: 'Magic Approval Link',
+                            html,
+                            customClass: {
+                                popup: 'spk-magic-modal'
+                            },
+                            showCancelButton: true,
+                            showConfirmButton: available.length > 0,
+                            confirmButtonText: '<i class="fa fa-link"></i> Generate Link',
+                            cancelButtonText: 'Tutup',
+                            confirmButtonColor: '#3158c9',
+                            reverseButtons: true,
+                            focusConfirm: false,
+                            preConfirm: () => {
+                                const role = document.querySelector(
+                                    'input[name="spkMagicRole"]:checked');
+                                if (!role) {
+                                    Swal.showValidationMessage(
+                                    'Pilih approver yang masih pending.');
+                                    return false;
+                                }
+                                return role.value;
+                            }
+                        });
+                        if (!selected.isConfirmed) return;
+                        Swal.fire({
+                            title: 'Membuat magic link',
+                            text: 'Mohon tunggu...',
+                            allowOutsideClick: false,
+                            showConfirmButton: false,
+                            didOpen: () => Swal.showLoading(),
+                            customClass: {
+                                popup: 'spk-magic-modal'
+                            }
+                        });
+                        const generated = await readJson(await fetch(
+                            `/spk/${encodeURIComponent(spkId)}/magic-link`, {
+                                method: 'POST',
+                                credentials: 'same-origin',
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': csrf
+                                },
+                                body: JSON.stringify({
+                                    approval_role: selected.value
+                                })
+                            }));
+                        if (!generated.url) throw new Error('Server tidak mengembalikan URL Magic Link.');
+                        const result = await Swal.fire({
+                            title: 'Magic Link berhasil dibuat',
+                            icon: 'success',
+                            customClass: {
+                                popup: 'spk-magic-modal'
+                            },
+                            html: `<p class="spk-magic-note">Link hanya untuk approver terpilih dan berlaku 24 jam. Jangan dibagikan kepada orang lain.</p><textarea id="spkMagicUrl" class="spk-magic-url" readonly>${escapeHtml(generated.url)}</textarea>`,
+                            showCancelButton: true,
+                            confirmButtonText: '<i class="fa fa-copy"></i> Copy Link',
+                            cancelButtonText: 'Tutup',
+                            confirmButtonColor: '#3158c9',
+                            reverseButtons: true,
+                            focusConfirm: false,
+                            preConfirm: async () => {
+                                try {
+                                    await copyText(generated.url);
+                                    return true;
+                                } catch (e) {
+                                    Swal.showValidationMessage(e.message);
+                                    return false;
+                                }
+                            }
+                        });
+                        if (result.isConfirmed) Swal.fire({
+                            icon: 'success',
+                            title: 'Link berhasil disalin',
+                            timer: 1400,
+                            showConfirmButton: false,
+                            customClass: {
+                                popup: 'spk-magic-modal'
+                            }
+                        });
+                    } catch (error) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Magic Link gagal',
+                            text: error.message || 'Terjadi kesalahan.',
+                            confirmButtonText: 'Tutup',
+                            customClass: {
+                                popup: 'spk-magic-modal'
+                            }
+                        });
+                    } finally {
+                        trigger.disabled = false;
+                    }
+                });
+            })();
+        </script>
     @endif
 
-@if(!empty($magicAccess) && !empty($magicToken))
-<script>
-// Only the token's assigned signature stage can be clicked in guest mode.
-document.addEventListener('DOMContentLoaded', function () {
-    const allowedType = @json($magicSlot['type'] ?? null);
-    document.querySelectorAll('.btn-sign').forEach(function (button) {
-        if (button.dataset.type !== allowedType) {
-            button.style.display = 'none';
-        }
-    });
-});
-</script>
+    @if (!empty($magicAccess) && !empty($magicToken))
+        <script>
+            // Only the token's assigned signature stage can be clicked in guest mode.
+            document.addEventListener('DOMContentLoaded', function() {
+                const allowedType = @json($magicSlot['type'] ?? null);
+                document.querySelectorAll('.btn-sign').forEach(function(button) {
+                    if (button.dataset.type !== allowedType) {
+                        button.style.display = 'none';
+                    }
+                });
+            });
+        </script>
+    @endif
 
-@endif
 
+    {{-- Informasi nomor SPK hanya pada mode CREATE. Field tetap editable. --}}
+    @if (($spk['mode'] ?? '') === 'create' && !$viewOnly)
+        <style>
+            #spkSequenceToast {
+                position: fixed;
+                right: 20px;
+                bottom: 22px;
+                z-index: 999999;
+                background: #172b45;
+                color: #fff;
+                padding: 12px 16px;
+                border-radius: 10px;
+                box-shadow: 0 8px 26px #0003;
+                font-size: 12px;
+                max-width: 360px;
+                display: none;
+                line-height: 1.5
+            }
 
-{{-- Informasi nomor SPK hanya pada mode CREATE. Field tetap editable. --}}
-@if(($spk['mode'] ?? '') === 'create' && !$viewOnly)
-<style>
-#spkSequenceToast {position:fixed;right:20px;bottom:22px;z-index:999999;background:#172b45;color:#fff;padding:12px 16px;border-radius:10px;box-shadow:0 8px 26px #0003;font-size:12px;max-width:360px;display:none;line-height:1.5}
-#spkSequenceToast strong {color:#a7f3d0}
-</style>
-<div id="spkSequenceToast" role="status" aria-live="polite"></div>
-<script>
-document.addEventListener('DOMContentLoaded', async function () {
-    const toast = document.getElementById('spkSequenceToast');
-    const field = document.querySelector('.no-spk');
-    if (!toast || !field) return;
-    const initialValue = field.textContent.trim();
-    let manuallyEdited = false;
-    field.addEventListener('input', () => { manuallyEdited = true; }, {once:true});
-    try {
-        const response = await fetch(@json(url('/spk/scan-number')), {
-            headers: {'Accept':'application/json','X-Requested-With':'XMLHttpRequest'},
-            credentials: 'same-origin'
-        });
-        if (!response.ok) throw new Error('HTTP ' + response.status);
-        const result = await response.json();
-        if (!result.success) throw new Error('Scan gagal');
-        const last = result.last_sequence ? String(result.year) + '-' + String(result.last_sequence).padStart(4,'0') : 'Belum ada';
-        const next = String(result.year) + '-' + String(result.next_sequence).padStart(4,'0');
-        toast.textContent = 'SPK terakhir: ' + last + '  |  Berikutnya: ' + next;
-        toast.style.display = 'block';
-        setTimeout(() => { toast.style.display = 'none'; }, 5500);
-        // Nomor lengkap dari server dipertahankan; hanya koreksi urut jika belum diedit.
-        if (!manuallyEdited && field.textContent.trim() === initialValue) {
-            const existing = field.textContent.trim();
-            const updated = existing.replace(/^\d{2}-\d+/, next);
-            if (updated !== existing) field.textContent = updated;
-        }
-    } catch (error) {
-        console.warn('SPK sequence scan:', error);
-        toast.textContent = 'Nomor SPK belum berhasil diperiksa. Periksa koneksi.';
-        toast.style.display = 'block';
-        setTimeout(() => { toast.style.display = 'none'; }, 4500);
-    }
-});
-</script>
-@endif
+            #spkSequenceToast strong {
+                color: #a7f3d0
+            }
+        </style>
+        <div id="spkSequenceToast" role="status" aria-live="polite"></div>
+        <script>
+            document.addEventListener('DOMContentLoaded', async function() {
+                const toast = document.getElementById('spkSequenceToast');
+                const field = document.querySelector('.no-spk');
+                if (!toast || !field) return;
+                const initialValue = field.textContent.trim();
+                let manuallyEdited = false;
+                field.addEventListener('input', () => {
+                    manuallyEdited = true;
+                }, {
+                    once: true
+                });
+                try {
+                    const response = await fetch(@json(url('/spk/scan-number')), {
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        credentials: 'same-origin'
+                    });
+                    if (!response.ok) throw new Error('HTTP ' + response.status);
+                    const result = await response.json();
+                    if (!result.success) throw new Error('Scan gagal');
+                    const last = result.last_sequence ? String(result.year) + '-' + String(result.last_sequence)
+                        .padStart(4, '0') : 'Belum ada';
+                    const next = String(result.year) + '-' + String(result.next_sequence).padStart(4, '0');
+                    toast.textContent = 'SPK terakhir: ' + last + '  |  Berikutnya: ' + next;
+                    toast.style.display = 'block';
+                    setTimeout(() => {
+                        toast.style.display = 'none';
+                    }, 5500);
+                    // Nomor lengkap dari server dipertahankan; hanya koreksi urut jika belum diedit.
+                    if (!manuallyEdited && field.textContent.trim() === initialValue) {
+                        const existing = field.textContent.trim();
+                        const updated = existing.replace(/^\d{2}-\d+/, next);
+                        if (updated !== existing) field.textContent = updated;
+                    }
+                } catch (error) {
+                    console.warn('SPK sequence scan:', error);
+                    toast.textContent = 'Nomor SPK belum berhasil diperiksa. Periksa koneksi.';
+                    toast.style.display = 'block';
+                    setTimeout(() => {
+                        toast.style.display = 'none';
+                    }, 4500);
+                }
+            });
+        </script>
+    @endif
 
 @endsection
