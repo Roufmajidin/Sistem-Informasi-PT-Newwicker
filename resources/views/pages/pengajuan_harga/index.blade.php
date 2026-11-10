@@ -615,11 +615,11 @@
                                                 @if ($foundCog)
                                                     <span class="ph-bom-found">✓ Found COG</span>
                                                     <a href="{{ url('/bom-produksi/show/' . $foundCog->id) }}"
-                                                        target="_blank" rel="noopener noreferrer">Go to BOM ↗</a>
+                                                        target="_blank" rel="noopener noreferrer">Detail (click) ↗</a>
                                                 @elseif($foundSample)
                                                     <span class="ph-bom-sample">✓ Found BOM Samples</span>
                                                     <a href="{{ url('/bom/show/' . $foundSample->id) }}" target="_blank"
-                                                        rel="noopener noreferrer">Go to BOM ↗</a>
+                                                        rel="noopener noreferrer">Detail (click) ↗</a>
                                                 @else
                                                     <span class="ph-bom-missing">BOM Not Found</span>
                                                 @endif
