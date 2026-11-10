@@ -320,7 +320,7 @@ class PengajuanHargaController extends Controller
             'success' => true,
             'message' => 'Director tersimpan; case otomatis Closed.',
             'id' => $pekerjaan->id,
-            'closed' => true,
+            'closed' => false,
             'directur_date' => $pekerjaan->directur_date?->format('d-m-y H:i'),
         ]);
     }
