@@ -976,6 +976,89 @@
         .dp-table td:nth-child(12) {
             min-width: 90px;
         }
+
+        /* Sub Name inserted after Pekerjaan: keep remark widths via class, not old column positions */
+        .dp-table {
+            min-width: 1900px;
+        }
+
+        .dp-table th:nth-child(9),
+        .dp-table td:nth-child(9),
+        .dp-table th:nth-child(10),
+        .dp-table td:nth-child(10),
+        .dp-table th:nth-child(11),
+        .dp-table td:nth-child(11) {
+            min-width: 260px;
+            width: 260px;
+            max-width: 330px;
+        }
+
+        .dp-table th:nth-child(12),
+        .dp-table td:nth-child(12) {
+            min-width: 125px;
+            width: 125px;
+            max-width: 125px;
+        }
+
+        .dp-table th:nth-child(13),
+        .dp-table td:nth-child(13) {
+            min-width: 90px;
+        }
+
+        .ph-price-history,
+        .dp-price-history {
+            margin-top: 5px;
+            font-size: 10px;
+            color: #64748b;
+            line-height: 1.4;
+        }
+
+        .ph-history-entry,
+        .dp-history-entry {
+            padding: 3px 5px;
+            border-radius: 4px;
+            background: #f1f5f9;
+            white-space: normal;
+        }
+
+        .ph-history-entry small,
+        .dp-history-entry small {
+            display: block;
+            font-size: 9px;
+            color: #64748b;
+        }
+
+        .ph-history-entry.is-latest,
+        .dp-history-entry.is-latest {
+            background: #dcfce7;
+            color: #166534;
+            font-weight: 700;
+        }
+
+        .ph-history-arrow,
+        .dp-history-arrow {
+            text-align: center;
+            color: #15803d;
+            font-size: 14px;
+            font-weight: 800;
+        }
+
+        .dp-price-editor input {
+            width: 105px;
+            max-width: 100%;
+            border: 1px solid #cbd5e1;
+            border-radius: 5px;
+            padding: 7px 5px;
+            text-align: right;
+            font-size: 11px;
+            color: #193354;
+            background: white;
+        }
+
+        .dp-price-editor input:disabled {
+            background: #f0f3f8;
+            color: #64748b;
+        }
     </style>
 
     <div class="dp-wrap">
@@ -993,15 +1076,13 @@
             <div style="flex:2;min-width:220px"><label>Cari PO / Article / Pekerjaan</label><input class="dp-input"
                     name="q" value="{{ request('q') }}" placeholder="Cari PO, article, nama pekerjaan..."></div>
 
-            <div style="min-width:155px"><label>Status</label><select class="dp-select" name="status">
-
-                    <option value="" @selected(request('status') === '')>Semua</option>
-
-                    <option value="open" @selected(request('status') === 'open')>Open</option>
-
-                    <option value="closed" @selected(request('status') === 'closed')>Closed</option>
-
-                </select></div>
+            <div style="min-width:155px"><label>Filter Pengajuan</label>
+                <select class="dp-select" name="view" aria-label="Filter pengajuan"
+                    onchange="this.form.requestSubmit()">
+                    <option value="" @selected(request('view') !== 'history')>Belum Close (Open)</option>
+                    <option value="history" @selected(request('view') === 'history')>Sudah Close (History)</option>
+                </select>
+            </div>
 
             <button type="submit" class="dp-btn dp-blue">Cari</button>
 
@@ -1012,6 +1093,9 @@
 
     </div>
 
+    <div class="dp-card" style="padding:10px 15px;color:#47627f;font-size:12px">
+        {{ request('view') === 'history' ? 'History — pengajuan yang sudah Closed (arsip).' : 'Main UI — hanya pengajuan Open. Setelah Closed, data otomatis pindah ke History.' }}
+    </div>
     <div class="dp-mobile-hint" id="dpMobileHint"><span>↔ Geser tabel ke kiri / kanan untuk melihat semua
 
             kolom.</span><button type="button" id="dpShowTour">Panduan</button></div>
@@ -1031,6 +1115,7 @@
                     <th>Item</th>
 
                     <th>Pekerjaan</th>
+                    <th>Sub Name</th>
 
                     <th>PPIC Peng. Price</th>
 
@@ -1168,22 +1253,53 @@
                         </td>
 
                         <td>{{ $p->kategori?->name ?? '-' }}</td>
+                        <td>{{ $p->sub_name ?: '-' }}</td>
 
                         <td style="text-align:right">{{ number_format((float) $p->ppic_price, 2, ',', '.') }}
 
                             <small class="dp-price-date">{{ $p->ppic_date?->format('d-m-y H:i') ?? '—' }}</small>
+                            @php $priceHist = data_get($p->price_history ?? [], 'ppic_price', []); @endphp
+                            <div class="dp-price-history" data-history="ppic_price">
+                                @if (is_array($priceHist) && count($priceHist) > 1)
+                                    @foreach ($priceHist as $entry)
+                                        @if (!$loop->first)
+                                            <div class="dp-history-arrow">↓</div>
+                                        @endif
+                                        <div class="dp-history-entry {{ $loop->last ? 'is-latest' : '' }}">
+                                            {{ isset($entry['price']) ? number_format((float) $entry['price'], 2, ',', '.') : '—' }}<small>{{ $loop->first ? 'Harga Awal' : 'Revisi Harga' }}
+                                                · {{ $entry['at'] ?? '' }} ·
+                                                {{ $entry['user_name'] ?? 'User' }}</small></div>
+                                    @endforeach
+                                @endif
+                            </div>
+
 
                         </td>
 
                         <td>
 
-                            <div class="dp-money"><span class="dp-money-prefix">Rp</span><input type="text"
-                                    inputmode="numeric" autocomplete="off" class="js-director-price"
-                                    value="{{ $p->director_price === null ? '' : number_format((float) $p->director_price, 0, '', '.') }}"
-                                    placeholder="0" aria-label="Director Price" @disabled(!$isFactory)></div>
+                            <div class="dp-price-editor"><input type="text" inputmode="numeric" autocomplete="off"
+                                    class="js-director-price"
+                                    value="{{ $p->director_price === null ? '' : number_format((float) $p->director_price, 2, ',', '.') }}"
+                                    placeholder="0" aria-label="Director Price" @disabled(!$isFactory || request('view') === 'history' || $p->closed)></div>
 
                             <small
                                 class="dp-price-date js-director-date">{{ $p->directur_date?->format('d-m-y H:i') ?? '—' }}</small>
+                            @php $priceHist = data_get($p->price_history ?? [], 'director_price', []); @endphp
+                            <div class="dp-price-history" data-history="director_price">
+                                @if (is_array($priceHist) && count($priceHist) > 1)
+                                    @foreach ($priceHist as $entry)
+                                        @if (!$loop->first)
+                                            <div class="dp-history-arrow">↓</div>
+                                        @endif
+                                        <div class="dp-history-entry {{ $loop->last ? 'is-latest' : '' }}">
+                                            {{ isset($entry['price']) ? number_format((float) $entry['price'], 2, ',', '.') : '—' }}<small>{{ $loop->first ? 'Harga Awal' : 'Revisi Harga' }}
+                                                · {{ $entry['at'] ?? '' }} ·
+                                                {{ $entry['user_name'] ?? 'User' }}</small></div>
+                                    @endforeach
+                                @endif
+                            </div>
+
 
                         </td>
 
@@ -1192,6 +1308,21 @@
                             {{ (float) $p->pengajuan_sub_price == 0.0 ? 'N/A' : number_format((float) $p->pengajuan_sub_price, 2, ',', '.') }}
 
                             <small class="dp-price-date">{{ $p->sub_date?->format('d-m-y H:i') ?? '—' }}</small>
+                            @php $priceHist = data_get($p->price_history ?? [], 'pengajuan_sub_price', []); @endphp
+                            <div class="dp-price-history" data-history="pengajuan_sub_price">
+                                @if (is_array($priceHist) && count($priceHist) > 1)
+                                    @foreach ($priceHist as $entry)
+                                        @if (!$loop->first)
+                                            <div class="dp-history-arrow">↓</div>
+                                        @endif
+                                        <div class="dp-history-entry {{ $loop->last ? 'is-latest' : '' }}">
+                                            {{ isset($entry['price']) ? number_format((float) $entry['price'], 2, ',', '.') : '—' }}<small>{{ $loop->first ? 'Harga Awal' : 'Revisi Harga' }}
+                                                · {{ $entry['at'] ?? '' }} ·
+                                                {{ $entry['user_name'] ?? 'User' }}</small></div>
+                                    @endforeach
+                                @endif
+                            </div>
+
 
                         </td>
 
@@ -1204,7 +1335,7 @@
 
                         <td>
 
-                            <textarea class="dp-input dp-remark js-director-remark" @disabled(!$isFactory)>{{ $p->director_remark }}</textarea>
+                            <textarea class="dp-input dp-remark js-director-remark" @disabled(!$isFactory || request('view') === 'history' || $p->closed)>{{ $p->director_remark }}</textarea>
 
                         </td>
 
@@ -1222,7 +1353,7 @@
                         </td>
 
                         <td><button type="button" class="dp-btn dp-blue js-save"
-                                @disabled(!$isFactory)>Save</button><span class="dp-status js-status"
+                                @disabled(!$isFactory || request('view') === 'history' || $p->closed)>Save</button><span class="dp-status js-status"
                                 aria-live="polite"></span></td>
 
                     </tr>
@@ -1231,7 +1362,7 @@
 
                     <tr>
 
-                        <td colspan="12" style="text-align:center;padding:25px">Tidak ada data pekerjaan.</td>
+                        <td colspan="13" style="text-align:center;padding:25px">Tidak ada data pekerjaan.</td>
 
                     </tr>
                 @endforelse
@@ -1456,7 +1587,8 @@
 
                 const status = row.querySelector('.js-status');
 
-                const price = row.querySelector('.js-director-price').value.replace(/\./g, '');
+                const price = row.querySelector('.js-director-price').value.replace(/\./g, '')
+                    .replace(',', '.');
 
                 const remark = row.querySelector('.js-director-remark').value;
 
@@ -1540,6 +1672,41 @@
 
                     help.classList.add('is-closed');
 
+                    if (result.price_history) {
+                        const el = row.querySelector(
+                            '.dp-price-history[data-history="director_price"]');
+                        if (el) {
+                            el.replaceChildren();
+                            const items = result.price_history.director_price || [];
+                            if (items.length > 1) items.forEach((entry, index) => {
+                                if (index) {
+                                    const arrow = document.createElement('div');
+                                    arrow.className = 'dp-history-arrow';
+                                    arrow.textContent = '↓';
+                                    el.appendChild(arrow);
+                                }
+                                const line = document.createElement('div');
+                                line.className = 'dp-history-entry' + (index === items
+                                    .length - 1 ? ' is-latest' : '');
+                                line.textContent = entry.price == null ? '—' : Number(
+                                    entry.price).toLocaleString('id-ID', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                });
+                                const meta = document.createElement('small');
+                                meta.textContent = (index === 0 ? 'Harga Awal' :
+                                        'Revisi Harga') + ' · ' + (entry.at || '') +
+                                    ' · ' + (entry.user_name || 'User');
+                                line.appendChild(meta);
+                                el.appendChild(line);
+                            });
+                        }
+                    }
+                    // Closed rows leave Main UI immediately; they remain accessible in History.
+                    if (result.closed && new URLSearchParams(window.location.search).get(
+                        'view') !== 'history') {
+                        row.remove();
+                    }
                     row.querySelector('.js-director-date').textContent = result.directur_date ||
 
                         '—';

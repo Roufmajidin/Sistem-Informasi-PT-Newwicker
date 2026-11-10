@@ -1,3 +1,4 @@
+
 <?php
 
 use Illuminate\Support\Facades\Broadcast;
@@ -27,4 +28,18 @@ Broadcast::channel('sm', function ($user) {
         ->exists();
 
     return $isFactory || $hasAccess;
+});
+
+// Channel Pengajuan Harga Notification
+Broadcast::channel('pengajuan-harga.user.{id}', function ($user, $id) {
+
+    // Hanya pemilik akun yang boleh menerima notifikasinya
+    if ((int) $user->id !== (int) $id) {
+        return false;
+    }
+
+    // Pastikan user mempunyai akses Pengajuan Harga
+    return $user->accessModules()
+        ->where('name', 'Pengajuan Harga')
+        ->exists();
 });

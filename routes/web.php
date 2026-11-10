@@ -46,7 +46,7 @@ use App\Http\Controllers\GoogleDriveAuthController;
 use Illuminate\Support\Facades\Broadcast;
 use App\Http\Controllers\MomController;
 use App\Http\Controllers\PengajuanHargaController;
-
+use App\Http\Controllers\PengajuanHargaNotificationController;
 // ==========================================================
 // MAGIC APPROVAL LINK - PUBLIC ENTRY POINT
 // ==========================================================
@@ -215,6 +215,13 @@ Route::patch('/kategori/{id}', [
             PengajuanHargaController::class, 'deletePekerjaan'
         ])->name('delete');
     });
+    Route::patch('/pengajuan-harga/pekerjaan/{pekerjaan}/close', [\App\Http\Controllers\PengajuanHargaController::class, 'closePekerjaan'])->name('pengajuan-harga.pekerjaan.close');
+Route::patch('/pengajuan-harga/pekerjaan/{pekerjaan}/ppic-history', [\App\Http\Controllers\PengajuanHargaController::class, 'modifyPpicHistory'])->name('pengajuan-harga.ppic-history');
+
+Route::middleware('auth')->prefix('pengajuan-harga/notifications')->name('pengajuan-harga.notifications.')->group(function () {
+    Route::get('/', [PengajuanHargaNotificationController::class, 'index'])->name('index');
+    Route::get('/{id}/open', [PengajuanHargaNotificationController::class, 'open'])->whereNumber('id')->name('open');
+});
 
 
 
