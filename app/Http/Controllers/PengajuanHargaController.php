@@ -11,6 +11,7 @@ use App\Models\Po;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class PengajuanHargaController extends Controller
 {
@@ -30,7 +31,8 @@ class PengajuanHargaController extends Controller
         $codes = [];
         foreach (['nw_code', 'nw_code_', 'nwCode', 'article_code', 'article_nr_', 'article_nr', 'article'] as $key) {
             $value = $detail[$key] ?? null;
-            if (!is_scalar($value)) continue;
+            if (!is_scalar($value))
+                continue;
             $value = trim((string) $value);
             if ($value !== '' && $value !== '-' && !in_array($value, $codes, true)) {
                 $codes[] = $value;
@@ -50,17 +52,55 @@ class PengajuanHargaController extends Controller
         return str_starts_with(mb_strtolower((string) $request->user()?->email), 'factory@');
     }
 
+    /**
+     * Only BOMs with an explicit released marker are eligible for the lookup.
+     * Check the actual schema, so an absent column never causes a SQL error.
+     * If no supported release marker exists, do not expose unverified BOMs.
+     */
+    private function releasedBomQuery($model)
+    {
+        $query = $model::query();
+        $table = $query->getModel()->getTable();
+
+        // Prefer explicit release flags over general workflow status.
+        foreach (['is_released', 'is_release', 'released'] as $column) {
+            if (Schema::hasColumn($table, $column)) {
+                return $query->where($column, 1);
+            }
+        }
+
+        foreach (['released_at', 'release_date', 'tanggal_release'] as $column) {
+            if (Schema::hasColumn($table, $column)) {
+                return $query->whereNotNull($column);
+            }
+        }
+
+        foreach (['release_status', 'status_release', 'status'] as $column) {
+            if (Schema::hasColumn($table, $column)) {
+                return $query->whereRaw('LOWER(TRIM(' . $column . ')) IN (?, ?)', ['release', 'released']);
+            }
+        }
+
+        // Fail closed: unknown release schema should not show unreleased BOMs.
+        return $query->whereRaw('1 = 0');
+    }
+
     private function bomLookup($codes): array
     {
-        $codes = collect($codes)->filter()->map(fn ($v) => trim((string) $v))->unique()->values();
-        if ($codes->isEmpty()) return [collect(), collect()];
-        $keys = $codes->map(fn ($v) => mb_strtolower($v))->all();
-        $cog = BomProd::query()->whereIn('article_number', $codes->all())
+        $codes = collect($codes)->filter()->map(fn($v) => trim((string) $v))->unique()->values();
+        if ($codes->isEmpty())
+            return [collect(), collect()];
+
+        $cog = $this->releasedBomQuery(BomProd::class)
+            ->whereIn('article_number', $codes->all())
             ->orderByDesc('id')->get(['id', 'article_number'])
-            ->keyBy(fn ($b) => mb_strtolower(trim((string) $b->article_number)));
-        $samples = Bom::query()->whereIn('article_number', $codes->all())
+            ->keyBy(fn($b) => mb_strtolower(trim((string) $b->article_number)));
+
+        $samples = $this->releasedBomQuery(Bom::class)
+            ->whereIn('article_number', $codes->all())
             ->orderByDesc('id')->get(['id', 'article_number'])
-            ->keyBy(fn ($b) => mb_strtolower(trim((string) $b->article_number)));
+            ->keyBy(fn($b) => mb_strtolower(trim((string) $b->article_number)));
+
         return [$cog, $samples];
     }
 
@@ -69,7 +109,8 @@ class PengajuanHargaController extends Controller
         $data = $request->validate(['name' => ['required', 'string', 'max:100']]);
         $name = trim($data['name']);
         $existing = BahanKategori::query()->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])->first();
-        if ($existing) return response()->json(['id' => $existing->id, 'name' => $existing->name]);
+        if ($existing)
+            return response()->json(['id' => $existing->id, 'name' => $existing->name]);
         $category = BahanKategori::create(['name' => $name]);
         return response()->json(['id' => $category->id, 'name' => $category->name], 201);
     }
@@ -89,9 +130,9 @@ class PengajuanHargaController extends Controller
                     "LOWER(REPLACE(REPLACE(order_no, ' ', ''), '-', '')) LIKE ?",
                     ['%' . $normalizedSearch . '%']
                 )->orWhere('company_name', 'LIKE', '%' . $search . '%')
-                 ->orWhereHas('details', function ($detailQuery) use ($search) {
-                     $detailQuery->where('detail', 'LIKE', '%' . $search . '%');
-                 });
+                    ->orWhereHas('details', function ($detailQuery) use ($search) {
+                        $detailQuery->where('detail', 'LIKE', '%' . $search . '%');
+                    });
             });
         }
         if ($company !== '') {
@@ -103,22 +144,29 @@ class PengajuanHargaController extends Controller
 
         $pos = $posQuery->orderBy('release_date', $release)
             ->orderByDesc('id')->paginate(10)->withQueryString();
-        $detailIds = $pos->getCollection()->flatMap(fn ($po) => $po->details->pluck('id'))->unique()->values();
+        $detailIds = $pos->getCollection()->flatMap(fn($po) => $po->details->pluck('id'))->unique()->values();
         $pekerjaan = PengajuanHargaPekerjaan::query()->whereIn('detail_po_id', $detailIds)
             ->orderBy('id')->get()->groupBy('detail_po_id');
         $masterPekerjaan = BahanKategori::query()->orderBy('name')->get();
 
         // Ambil semua alternatif kode pada item yang sedang tampil.
         $codes = $pos->getCollection()->flatMap(function ($po) {
-            return $po->details->flatMap(fn ($item) => $this->itemCodes($item->detail));
+            return $po->details->flatMap(fn($item) => $this->itemCodes($item->detail));
         })->unique()->values();
 
         [$cogMatches, $bomSampleMatches] = $this->bomLookup($codes);
         $isFactory = $this->isFactory($request);
 
         return view('pages.pengajuan_harga.index', compact(
-            'pos', 'pekerjaan', 'masterPekerjaan', 'search', 'company', 'release',
-            'cogMatches', 'bomSampleMatches', 'isFactory'
+            'pos',
+            'pekerjaan',
+            'masterPekerjaan',
+            'search',
+            'company',
+            'release',
+            'cogMatches',
+            'bomSampleMatches',
+            'isFactory'
         ));
     }
 
@@ -129,11 +177,14 @@ class PengajuanHargaController extends Controller
         $kategori = BahanKategori::findOrFail($id);
         $duplicate = BahanKategori::query()->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
             ->where('id', '!=', $kategori->id)->exists();
-        if ($duplicate) return response()->json(['message' => 'Nama kategori sudah digunakan.'], 422);
+        if ($duplicate)
+            return response()->json(['message' => 'Nama kategori sudah digunakan.'], 422);
         $kategori->name = $name;
         $kategori->save();
         return response()->json([
-            'success' => true, 'id' => $kategori->id, 'name' => $kategori->name,
+            'success' => true,
+            'id' => $kategori->id,
+            'name' => $kategori->name,
             'message' => 'Kategori berhasil diperbarui.',
         ]);
     }
@@ -194,11 +245,14 @@ class PengajuanHargaController extends Controller
         $job->detail_po_id = $detail->id;
         $job->po_code = $po->order_no;
         $job->article_code = $this->itemCode($detail->detail);
-        if (!$job->exists) $job->created_by = $request->user()->id;
+        if (!$job->exists)
+            $job->created_by = $request->user()->id;
         $job->save();
 
         return response()->json([
-            'success' => true, 'id' => $job->id, 'article_code' => $job->article_code,
+            'success' => true,
+            'id' => $job->id,
+            'article_code' => $job->article_code,
             'ppic_date' => $job->ppic_date?->format('d-m-y H:i'),
             'directur_date' => $job->directur_date?->format('d-m-y H:i'),
             'sub_date' => $job->sub_date?->format('d-m-y H:i'),
@@ -221,24 +275,27 @@ class PengajuanHargaController extends Controller
             $query->where(function ($q) use ($term) {
                 $q->where('po_code', 'like', "%{$term}%")
                     ->orWhere('article_code', 'like', "%{$term}%")
-                    ->orWhereHas('po', fn ($po) => $po->where('order_no', 'like', "%{$term}%"))
-                    ->orWhereHas('kategori', fn ($cat) => $cat->where('name', 'like', "%{$term}%"))
-                    ->orWhereHas('detailPo', fn ($detail) => $detail->where('detail', 'like', "%{$term}%"));
+                    ->orWhereHas('po', fn($po) => $po->where('order_no', 'like', "%{$term}%"))
+                    ->orWhereHas('kategori', fn($cat) => $cat->where('name', 'like', "%{$term}%"))
+                    ->orWhereHas('detailPo', fn($detail) => $detail->where('detail', 'like', "%{$term}%"));
             });
         }
         if ($request->status === 'open') {
-            $query->where(fn ($q) => $q->where('closed', 0)->orWhereNull('closed'));
+            $query->where(fn($q) => $q->where('closed', 0)->orWhereNull('closed'));
         } elseif ($request->status === 'closed') {
             $query->where('closed', 1);
         }
         $pekerjaans = $query->orderByDesc('id')->paginate(20)->withQueryString();
         $codes = $pekerjaans->getCollection()->flatMap(
-            fn ($p) => $this->itemCodes($p->detailPo?->detail)
+            fn($p) => $this->itemCodes($p->detailPo?->detail)
         )->unique()->values();
         [$cogMatches, $bomSampleMatches] = $this->bomLookup($codes);
         $isFactory = $this->isFactory($request);
         return view('pages.pengajuan_harga.directur_pages', compact(
-            'pekerjaans', 'cogMatches', 'bomSampleMatches', 'isFactory'
+            'pekerjaans',
+            'cogMatches',
+            'bomSampleMatches',
+            'isFactory'
         ));
     }
 
@@ -256,11 +313,14 @@ class PengajuanHargaController extends Controller
         $pekerjaan->director_price = $new;
         $pekerjaan->director_remark = $data['director_remark'] ?? null;
         $pekerjaan->closed = true; // Save Director otomatis menutup case.
-        if ($changed) $pekerjaan->directur_date = now();
+        if ($changed)
+            $pekerjaan->directur_date = now();
         $pekerjaan->save();
         return response()->json([
-            'success' => true, 'message' => 'Director tersimpan; case otomatis Closed.',
-            'id' => $pekerjaan->id, 'closed' => true,
+            'success' => true,
+            'message' => 'Director tersimpan; case otomatis Closed.',
+            'id' => $pekerjaan->id,
+            'closed' => true,
             'directur_date' => $pekerjaan->directur_date?->format('d-m-y H:i'),
         ]);
     }
