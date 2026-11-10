@@ -54,7 +54,7 @@
                             <th>Report By</th>
                             <th>Problem</th>
                             <th>Potential Impact</th>
-                            <th>Follow up Director</th>
+                            <th>Comments Director</th>
                             <th>Comments</th>
                             <th>Status</th>
                             <th>Tanggal Done</th>
