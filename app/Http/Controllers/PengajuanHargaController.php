@@ -318,7 +318,7 @@ class PengajuanHargaController extends Controller
         $pekerjaan->save();
         return response()->json([
             'success' => true,
-            'message' => 'Director tersimpan; case otomatis Closed.',
+            'message' => 'Updated Director tersimpan.',
             'id' => $pekerjaan->id,
             'closed' => false,
             'directur_date' => $pekerjaan->directur_date?->format('d-m-y H:i'),
