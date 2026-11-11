@@ -1019,6 +1019,39 @@
             padding: 18px;
             color: #94a3b8
         }
+
+        /* Payment rows collapsed independently for each SPK */
+        .sig-payment-table tbody tr.sig-pay-collapsed {
+            display: none;
+        }
+
+        .sig-pay-more-wrap {
+            padding: 9px 12px;
+            text-align: center;
+            background: #f8fafc;
+            border-top: 1px solid #d8e2ea;
+        }
+
+        .sig-pay-more-btn {
+            background: #fff;
+            color: #2563eb;
+            border: 1px solid #cbd5e1;
+            border-radius: 5px;
+            padding: 7px 15px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .sig-pay-more-btn:hover {
+            background: #eff6ff;
+            border-color: #93c5fd;
+        }
+
+        .sig-pay-more-btn:focus-visible {
+            outline: 2px solid #2563eb;
+            outline-offset: 2px;
+        }
     </style>
     <div class="sig-wrap">
         <div class="sig-top">
@@ -1260,7 +1293,7 @@
                                                     (string) ($pay['note_tambahan'] ?? ($pay['keterangan'] ?? '-'));
                                                 $payDate = (string) ($pay['date'] ?? '-');
                                             @endphp
-                                            <tr>
+                                            <tr @if ($loop->index >= 2) class="sig-pay-collapsed" @endif>
                                                 <td class="sig-pay-center">{{ $loop->iteration }}</td>
                                                 <td class="sig-pay-center">
                                                     @if (!empty($pay['is_request']))
@@ -1288,6 +1321,15 @@
                                         </tr>
                                     </tfoot>
                                 </table>
+                                @if (count($payments) > 2)
+                                    <div class="sig-pay-more-wrap">
+                                        <button type="button" class="sig-pay-more-btn" data-expanded="false"
+                                            aria-expanded="false"
+                                            aria-label="Tampilkan {{ count($payments) - 2 }} pembayaran lainnya">
+                                            More Detail (+{{ count($payments) - 2 }} payment)
+                                        </button>
+                                    </div>
+                                @endif
                             </div>
                         </div>
                     </div>
@@ -1359,11 +1401,11 @@
     <div id="sig-reject-modal" class="sig-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="sig-reject-title"
         hidden>
         <div class="sig-modal-card">
-            <div class="sig-modal-head"><strong id="sig-reject-title">Reject SPK With Comment's</strong><button type="button"
+            <div class="sig-modal-head"><strong id="sig-reject-title">Reject SPK</strong><button type="button"
                     id="sig-reject-close" aria-label="Tutup">×</button></div>
             <div class="sig-modal-body">
-                <p>Comments here <strong id="sig-reject-number"></strong>.</p><label
-                    for="sig-reject-message">reason <span style="color:#dc2626">*</span></label>
+                <p>Berikan alasan penolakan untuk SPK <strong id="sig-reject-number"></strong>.</p><label
+                    for="sig-reject-message">Alasan reject <span style="color:#dc2626">*</span></label>
                 <textarea id="sig-reject-message" rows="5" maxlength="2000"
                     placeholder="Jelaskan bagian yang harus diperbaiki..." required></textarea><small id="sig-reject-error" role="alert"></small>
             </div>
@@ -1433,6 +1475,18 @@
             });
             document.addEventListener('keydown', e => {
                 if (e.key === 'Escape' && !modal.hidden) closeReject()
+            });
+            list.addEventListener('click', event => {
+                const button = event.target.closest('.sig-pay-more-btn');
+                if (!button) return;
+                const panel = button.closest('.sig-payment-panel');
+                if (!panel) return;
+                const rows = panel.querySelectorAll('.sig-payment-table tbody tr:nth-child(n+3)');
+                const expand = button.dataset.expanded !== 'true';
+                rows.forEach(row => row.classList.toggle('sig-pay-collapsed', !expand));
+                button.dataset.expanded = String(expand);
+                button.setAttribute('aria-expanded', String(expand));
+                button.textContent = expand ? 'Show Less' : `More Detail (+${rows.length} payment)`;
             });
             list.addEventListener('click', event => {
                 const btn = event.target.closest('.sig-reject');
