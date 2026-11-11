@@ -823,7 +823,7 @@
                     <!-- jQuery (WAJIB PALING ATAS) -->
 
                     <!-- Bootstrap 4 -->
-
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
                     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 
                     <script src="{{ asset('assets/libs/jquery/jquery/dist/jquery.js') }}"></script>
