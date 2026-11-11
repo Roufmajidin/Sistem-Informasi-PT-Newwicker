@@ -2,27 +2,32 @@
 <?php
 
 use Illuminate\Support\Facades\Broadcast;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
-// Channel bawaan Laravel
+// ============================================
+// 1. CHANNEL BAWAAN LARAVEL
+// ============================================
 Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
     return (int) $user->id === (int) $id;
 });
 
-// Channel QC Notification
+// ============================================
+// 2. QC NOTIFICATION
+// ============================================
 Broadcast::channel('qc-activity', function ($user) {
     return $user !== null;
 });
 
-// Channel Sourcing Monitoring
+// ============================================
+// 3. SOURCING MONITORING
+// ============================================
 Broadcast::channel('sm', function ($user) {
 
-    $email = strtolower(trim((string) $user->email));
+    $email = strtolower(trim((string) ($user->email ?? '')));
 
-    // Akun Factory sebagai Director
     $isFactory = Str::startsWith($email, 'factory@');
 
-    // User dengan akses modul SM
     $hasAccess = $user->accessModules()
         ->where('name', 'Sourcing Monitoring')
         ->exists();
@@ -30,16 +35,24 @@ Broadcast::channel('sm', function ($user) {
     return $isFactory || $hasAccess;
 });
 
-// Channel Pengajuan Harga Notification
+// ============================================
+// 4. PENGAJUAN HARGA NOTIFICATION
+// ============================================
 Broadcast::channel('pengajuan-harga.user.{id}', function ($user, $id) {
 
-    // Hanya pemilik akun yang boleh menerima notifikasinya
-    if ((int) $user->id !== (int) $id) {
-        return false;
-    }
+    $sameUser = (int) $user->id === (int) $id;
 
-    // Pastikan user mempunyai akses Pengajuan Harga
-    return $user->accessModules()
+    $hasAccess = $user->accessModules()
         ->where('name', 'Pengajuan Harga')
         ->exists();
+
+    Log::info('[PUSHER] Pengajuan Harga Auth', [
+        'user_id' => $user->id,
+        'channel_user_id' => $id,
+        'same_user' => $sameUser,
+        'has_access' => $hasAccess,
+        'authorized' => $sameUser && $hasAccess,
+    ]);
+
+    return $sameUser && $hasAccess;
 });
