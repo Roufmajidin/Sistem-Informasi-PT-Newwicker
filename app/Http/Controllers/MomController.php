@@ -9,72 +9,116 @@ use Illuminate\Validation\Rule;
 
 class MomController extends Controller
 {
-   public function download(\App\Models\Moms $mom)
-{
-    $attendees = is_array($mom->attendees)
-        ? $mom->attendees
-        : (json_decode($mom->attendees ?: '[]', true) ?: []);
+    public function download(Moms $mom)
+    {
+        $start = microtime(true);
 
-    $discussions = is_array($mom->discussions)
-        ? $mom->discussions
-        : (json_decode($mom->discussions ?: '[]', true) ?: []);
+        try {
+            $attendees = is_array($mom->attendees)
+                ? $mom->attendees
+                : (json_decode($mom->attendees ?: '[]', true) ?: []);
 
-    $people = collect($attendees)->keyBy(
-        fn ($person) => (string) ($person['id'] ?? '')
-    );
+            $discussions = is_array($mom->discussions)
+                ? $mom->discussions
+                : (json_decode($mom->discussions ?: '[]', true) ?: []);
 
-    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView(
-        'pages.mom.download_pdf',
-        compact('mom', 'attendees', 'discussions', 'people')
-    )->setPaper('a4', 'landscape');
+            $people = collect($attendees)->keyBy(
+                fn($person) => (string) ($person['id'] ?? '')
+            );
 
-    $subject = \Illuminate\Support\Str::slug(
-        (string) ($mom->subject ?: 'no-subject'),
-        '-'
-    );
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView(
+                'pages.mom.download_pdf',
+                compact('mom', 'attendees', 'discussions', 'people')
+            )->setPaper('a4', 'landscape');
 
-    $subject = \Illuminate\Support\Str::limit($subject, 75, '');
+            $pdf->setOption('isRemoteEnabled', false);
 
-    $tanggal = $mom->meeting_date
-        ? \Illuminate\Support\Carbon::parse($mom->meeting_date)->format('d-m-Y')
-        : 'tanpa-tanggal';
+            $content = $pdf->output();
 
-    $filename = "Mom-{$subject}-{$tanggal}-newwicker.id.pdf";
+            if (!str_starts_with($content, '%PDF-')) {
+                throw new \RuntimeException('Output DomPDF bukan file PDF.');
+            }
 
-    return $pdf->download($filename);
-}
+            $subject = \Illuminate\Support\Str::limit(
+                \Illuminate\Support\Str::slug(
+                    (string) ($mom->subject ?: 'no-subject')
+                ),
+                75,
+                ''
+            );
 
-    public function index() { return view('pages.mom.index', ['mom' => null]); }
+            $tanggal = $mom->meeting_date
+                ? \Illuminate\Support\Carbon::parse($mom->meeting_date)
+                    ->format('d-m-Y')
+                : 'tanpa-tanggal';
+
+            $filename = "Mom-{$subject}-{$tanggal}-newwicker.id.pdf";
+
+            \Illuminate\Support\Facades\Log::info('MoM PDF generated', [
+                'mom_id' => $mom->id,
+                'duration_seconds' => round(microtime(true) - $start, 2),
+                'pdf_bytes' => strlen($content),
+            ]);
+
+            return response($content, 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                'Content-Length' => strlen($content),
+                'Cache-Control' => 'private, no-store',
+                'X-Content-Type-Options' => 'nosniff',
+            ]);
+
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('MoM PDF failed', [
+                'mom_id' => $mom->id,
+                'duration_seconds' => round(microtime(true) - $start, 2),
+                'error' => $e->getMessage(),
+            ]);
+
+            throw $e;
+        }
+    }
+
+    public function index()
+    {
+        return view('pages.mom.index', ['mom' => null]);
+    }
 
     public function listing()
     {
-        $moms = Moms::query()->select(['id','meeting_date','subject','status','write_by','divisi','updated_at'])
+        $moms = Moms::query()->select(['id', 'meeting_date', 'subject', 'status', 'write_by', 'divisi', 'updated_at'])
             ->orderByDesc('updated_at')->paginate(20);
         return view('pages.mom.list', compact('moms'));
     }
 
-    public function show(Moms $mom) { return view('pages.mom.detail', compact('mom')); }
+    public function show(Moms $mom)
+    {
+        return view('pages.mom.detail', compact('mom'));
+    }
 
-    public function edit(Moms $mom) { return view('pages.mom.index', compact('mom')); }
+    public function edit(Moms $mom)
+    {
+        return view('pages.mom.index', compact('mom'));
+    }
 
     // Manual Save only. An existing MoM is updated strictly by its ID.
     public function store(Request $request)
     {
         $data = $request->validate([
-            'id' => ['nullable','integer','min:1','exists:moms,id'],
-            'meeting_date' => ['nullable','date'],
-            'start_month' => ['nullable','date_format:Y-m'],
-            'subject' => ['required','string','max:255'],
-            'attendees' => ['present','array'],
-            'attendees.*.id' => ['required','integer'],
-            'attendees.*.name' => ['nullable','string','max:255'],
-            'attendees.*.position' => ['nullable','string','max:255'],
-            'discussions' => ['present','array'],
-            'discussions.*.id' => ['required','integer'],
-            'discussions.*.personId' => ['nullable','integer'],
-            'discussions.*.description' => ['nullable','string'],
-            'discussions.*.notes' => ['nullable','string'],
-            'divisi' => ['nullable',Rule::in(['HRD','Produksi','Marketing','Finance'])],
+            'id' => ['nullable', 'integer', 'min:1', 'exists:moms,id'],
+            'meeting_date' => ['nullable', 'date'],
+            'start_month' => ['nullable', 'date_format:Y-m'],
+            'subject' => ['required', 'string', 'max:255'],
+            'attendees' => ['present', 'array'],
+            'attendees.*.id' => ['required', 'integer'],
+            'attendees.*.name' => ['nullable', 'string', 'max:255'],
+            'attendees.*.position' => ['nullable', 'string', 'max:255'],
+            'discussions' => ['present', 'array'],
+            'discussions.*.id' => ['required', 'integer'],
+            'discussions.*.personId' => ['nullable', 'integer'],
+            'discussions.*.description' => ['nullable', 'string'],
+            'discussions.*.notes' => ['nullable', 'string'],
+            'divisi' => ['nullable', Rule::in(['HRD', 'Produksi', 'Marketing', 'Finance'])],
         ]);
 
         $payload = [
@@ -89,7 +133,7 @@ class MomController extends Controller
         if (!empty($data['id'])) {
             $mom = Moms::findOrFail($data['id']);
             if ($mom->status !== 'draft') {
-                return response()->json(['success'=>false,'message'=>'MoM bukan draft dan tidak dapat diubah.'],409);
+                return response()->json(['success' => false, 'message' => 'MoM bukan draft dan tidak dapat diubah.'], 409);
             }
             $mom->forceFill($payload)->save();
             $created = false;
@@ -104,17 +148,17 @@ class MomController extends Controller
         }
 
         return response()->json([
-            'success'=>true,
-            'message'=>$created ? 'MoM berhasil dibuat.' : 'Perubahan MoM berhasil diperbarui.',
-            'id'=>$mom->id,
-            'updated_at'=>$mom->updated_at?->toIso8601String(),
-            'edit_url'=>route('mom.edit',$mom),
-        ],$created ? 201 : 200);
+            'success' => true,
+            'message' => $created ? 'MoM berhasil dibuat.' : 'Perubahan MoM berhasil diperbarui.',
+            'id' => $mom->id,
+            'updated_at' => $mom->updated_at?->toIso8601String(),
+            'edit_url' => route('mom.edit', $mom),
+        ], $created ? 201 : 200);
     }
 
     public function destroy(Moms $mom)
     {
         $mom->delete();
-        return redirect()->route('mom.list')->with('success','Minutes of Meeting berhasil dihapus.');
+        return redirect()->route('mom.list')->with('success', 'Minutes of Meeting berhasil dihapus.');
     }
 }
