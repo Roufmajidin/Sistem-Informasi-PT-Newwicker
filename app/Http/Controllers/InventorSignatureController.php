@@ -77,65 +77,384 @@ class InventorSignatureController extends Controller
         return $field && $signature->{$field} !== null && (int) $signature->{$field} === $userId ? $type : null;
     }
 
+
     public function index(Request $request)
     {
-        $filters = $request->validate([
-            'q' => 'nullable|string|max:200',
-            'key' => ['nullable', 'string', 'regex:/^(all|nw[a-z]*)$/i'],
-            'date_from' => 'nullable|date_format:Y-m-d',
-            'date_to' => 'nullable|date_format:Y-m-d|after_or_equal:date_from',
-        ]);
         $userId = (int) $request->user()->id;
-        $search = trim((string) ($filters['q'] ?? ''));
-        $key = strtolower((string) ($filters['key'] ?? 'all'));
-        $dateFrom = $filters['date_from'] ?? '';
-        $dateTo = $filters['date_to'] ?? '';
 
-        $signatures = SignatureSpk::with(['madeBy', 'checkedBy', 'checkedBy2', 'approvedBy', 'supplier'])
-            ->where(function ($q) use ($userId) {
-                $q->where('made_by', $userId)
+        $search = trim((string) $request->query('q', ''));
+        $key = strtoupper(trim((string) $request->query('key', '')));
+        $dateFromInput = trim((string) $request->query('date_from', ''));
+
+        // Validasi filter
+        $request->validate([
+            'q' => 'nullable|string|max:200',
+            'key' => 'nullable|string|max:20|regex:/^[a-zA-Z0-9_-]+$/',
+            'date_from' => 'nullable|date_format:Y-m-d',
+        ]);
+
+        $dateFrom = $dateFromInput !== ''
+            ? \Carbon\Carbon::createFromFormat(
+                '!Y-m-d',
+                $dateFromInput
+            )->startOfDay()
+            : null;
+
+        /*
+        |--------------------------------------------------------------------------
+        | Helper: Ambil data JSON SPK
+        |--------------------------------------------------------------------------
+        */
+        $getData = function ($spk) {
+            if (is_array($spk->data)) {
+                return $spk->data;
+            }
+
+            return json_decode(
+                (string) $spk->data,
+                true
+            ) ?: [];
+        };
+
+        /*
+        |--------------------------------------------------------------------------
+        | Helper: Deteksi divisi SPK
+        |--------------------------------------------------------------------------
+        | Menghindari NW tercampur dengan NWD/NWS/NWR.
+        */
+        $getDivision = function ($data) {
+            $text = strtoupper(
+                trim(
+                    (string) ($data['no_spk'] ?? '') . ' ' .
+                    (string) ($data['no_po'] ?? '')
+                )
+            );
+
+            if (
+                preg_match(
+                    '/(?<![A-Z0-9])(NWD|NWS|NWR|NW)(?![A-Z0-9])/i',
+                    $text,
+                    $matches
+                )
+            ) {
+                return strtoupper($matches[1]);
+            }
+
+            return null;
+        };
+
+        /*
+        |--------------------------------------------------------------------------
+        | Helper: Tanggal terima SPK
+        |--------------------------------------------------------------------------
+        */
+        $parseDate = function ($value) {
+            if (!$value) {
+                return null;
+            }
+
+            if ($value instanceof \DateTimeInterface) {
+                return \Carbon\Carbon::instance($value)
+                    ->startOfDay();
+            }
+
+            $value = trim((string) $value);
+
+            foreach ([
+                'Y-m-d',
+                'd/m/Y',
+                'd-m-Y',
+                'Y/m/d',
+                'd/m/y',
+                'd-m-y',
+            ] as $format) {
+                try {
+                    $date = \Carbon\Carbon::createFromFormat(
+                        '!' . $format,
+                        $value
+                    );
+
+                    if ($date && $date->format($format) === $value) {
+                        return $date->startOfDay();
+                    }
+                } catch (\Throwable $e) {
+                    // Coba format berikutnya.
+                }
+            }
+
+            return null;
+        };
+
+        /*
+        |--------------------------------------------------------------------------
+        | Ambil semua SPK yang melibatkan user login
+        |--------------------------------------------------------------------------
+        */
+        $signatures = SignatureSpk::with([
+            'madeBy.karyawan.divisi',
+            'checkedBy.karyawan.divisi',
+            'checkedBy2.karyawan.divisi',
+            'approvedBy.karyawan.divisi',
+            'supplier',
+        ])
+            ->where(function ($query) use ($userId) {
+                $query->where('made_by', $userId)
                     ->orWhere('checked_by', $userId)
                     ->orWhere('checked_by_2', $userId)
                     ->orWhere('approved_by', $userId);
-            })->orderByDesc('spk_id')->get();
+            })
+            ->orderByDesc('spk_id')
+            ->get();
 
-        $spks = Spk::whereIn('id', $signatures->pluck('spk_id'))->get()->keyBy('id');
-        $documents = $signatures->map(function ($signature) use ($spks, $userId, $search, $key, $dateFrom, $dateTo) {
+        /*
+        |--------------------------------------------------------------------------
+        | Ambil data SPK
+        |--------------------------------------------------------------------------
+        */
+        $spks = Spk::whereIn(
+            'id',
+            $signatures->pluck('spk_id')->unique()
+        )
+            ->get()
+            ->keyBy('id');
+
+        /*
+        |--------------------------------------------------------------------------
+        | Susun antrean dokumen
+        |--------------------------------------------------------------------------
+        */
+        $documents = $signatures->map(function ($signature) use ($spks, $userId, $search, $key, $dateFrom, $getData, $getDivision, $parseDate) {
             $spk = $spks->get($signature->spk_id);
-            if (!$spk || in_array(strtolower((string) $spk->status), ['revision', 'rejected'], true))
-                return null;
 
-            $stage = $this->nextStage($signature, $spk);
-            $type = $this->pendingType($signature, $spk, $userId);
-            $isMaker = (int) $signature->made_by === $userId;
-            if (!$type && !($isMaker && $signature->made_at && $stage))
+            if (!$spk) {
                 return null;
-
-            $data = $this->payload($spk);
-            $company = $this->companyKey($data);
-            if ($key !== 'all' && $company !== $key)
-                return null;
-
-            $receiveDate = $this->receiveDate($data);
-            if ($dateFrom !== '' && (!$receiveDate || $receiveDate < $dateFrom))
-                return null;
-            if ($dateTo !== '' && (!$receiveDate || $receiveDate > $dateTo))
-                return null;
-
-            if ($search !== '') {
-                $haystack = mb_strtolower(implode(' ', [
-                    $data['no_spk'] ?? '',
-                    $data['no_po'] ?? '',
-                    $data['sup'] ?? '',
-                    $signature->supplier?->name ?? '',
-                ]));
-                if (!str_contains($haystack, mb_strtolower($search)))
-                    return null;
             }
-            return compact('spk', 'signature', 'type', 'stage', 'isMaker', 'data');
-        })->filter()->values();
 
-        return view('pages.management.inventor_signature', compact('documents', 'search', 'key', 'dateFrom', 'dateTo'));
+            /*
+            |--------------------------------------------------------------
+            | Abaikan SPK dalam revisi / rejected
+            |--------------------------------------------------------------
+            */
+            $status = strtolower(trim((string) $spk->status));
+
+            if (
+                in_array($status, [
+                    'revision',
+                    'rejected',
+                ], true)
+            ) {
+                return null;
+            }
+
+            $data = $getData($spk);
+            $division = $getDivision($data);
+
+            /*
+            |--------------------------------------------------------------
+            | Filter divisi
+            |--------------------------------------------------------------
+            */
+            if ($key !== '' && $division !== $key) {
+                return null;
+            }
+
+            /*
+            |--------------------------------------------------------------
+            | Filter tanggal terima (cutoff)
+            |--------------------------------------------------------------
+            */
+            $tanggalTerima = $parseDate(
+                $data['tgl_terima']
+                ?? $data['tanggal_terima']
+                ?? null
+            );
+
+            if ($dateFrom) {
+                // Tanggal yang tidak valid tidak lolos cutoff.
+                if (
+                    !$tanggalTerima ||
+                    $tanggalTerima->lt($dateFrom)
+                ) {
+                    return null;
+                }
+            }
+
+            /*
+            |--------------------------------------------------------------
+            | Filter pencarian
+            |--------------------------------------------------------------
+            */
+            if ($search !== '') {
+                $searchText = mb_strtolower(
+                    implode(' ', [
+                        (string) ($data['no_spk'] ?? ''),
+                        (string) ($data['no_po'] ?? ''),
+                        (string) ($data['sup'] ?? ''),
+                        (string) ($signature->supplier?->name ?? ''),
+                    ])
+                );
+
+                if (
+                    !str_contains(
+                        $searchText,
+                        mb_strtolower($search)
+                    )
+                ) {
+                    return null;
+                }
+            }
+
+            /*
+            |--------------------------------------------------------------
+            | Tentukan Checker 1 wajib atau tidak
+            |--------------------------------------------------------------
+            | Mengikuti helper special() existing:
+            | NWS dan NWD melewati Checker 1.
+            */
+            $skipChecker1 = $this->special($spk);
+
+            /*
+            |--------------------------------------------------------------
+            | Cek tanda tangan internal yang belum lengkap
+            |--------------------------------------------------------------
+            | Made By dan Supplier TIDAK dihitung.
+            */
+            $pendingChecker1 = !$skipChecker1
+                && !$signature->checked_at;
+
+            $pendingChecker2 = !$signature->checked_at_2;
+
+            $pendingApproved = !$signature->approved_at;
+
+            $hasPendingInternal =
+                $pendingChecker1
+                || $pendingChecker2
+                || $pendingApproved;
+
+            /*
+            |--------------------------------------------------------------
+            | Jika seluruh tanda tangan internal selesai,
+            | keluarkan dari antrean.
+            |--------------------------------------------------------------
+            */
+            if (!$hasPendingInternal) {
+                return null;
+            }
+
+            /*
+            |--------------------------------------------------------------
+            | Identifikasi keterlibatan user login
+            |--------------------------------------------------------------
+            */
+            $isMaker = (int) $signature->made_by === $userId;
+
+            $isChecker1 = !$skipChecker1
+                && (int) $signature->checked_by === $userId;
+
+            $isChecker2 =
+                (int) $signature->checked_by_2 === $userId;
+
+            $isApprover =
+                (int) $signature->approved_by === $userId;
+
+            $isAssigned =
+                $isMaker
+                || $isChecker1
+                || $isChecker2
+                || $isApprover;
+
+            if (!$isAssigned) {
+                return null;
+            }
+
+            /*
+            |--------------------------------------------------------------
+            | Tahap yang sedang berjalan
+            |--------------------------------------------------------------
+            */
+            $stage = $this->nextStage($signature, $spk);
+
+            /*
+            |--------------------------------------------------------------
+            | Hak TAP TO SIGN / REJECT
+            |--------------------------------------------------------------
+            | Null berarti user hanya bisa monitoring.
+            */
+            $type = $this->pendingType(
+                $signature,
+                $spk,
+                $userId
+            );
+
+            /*
+            |--------------------------------------------------------------
+            | Nama Made By berdasarkan divisi
+            |--------------------------------------------------------------
+            */
+            $makerName = match ($division) {
+                'NW', 'NWR' => 'Nur Khasanah',
+                'NWD', 'NWS' => 'Intan',
+                default => $signature->madeBy?->name ?? '-',
+            };
+
+            $makerDivision = match ($division) {
+                'NW', 'NWR' => 'Purchasing',
+                'NWD', 'NWS' => 'RnD Engineering',
+                default => $signature->madeBy?->karyawan?->divisi?->nama ?? '',
+            };
+
+            /*
+            |--------------------------------------------------------------
+            | Status untuk header dokumen
+            |--------------------------------------------------------------
+            */
+            $statusLabel = match ($stage) {
+                'checked' => 'Menunggu Checker 1',
+                'checked_2' => 'Menunggu Checker 2',
+                'approved' => 'Menunggu Approved By',
+                default => 'Menunggu Made By',
+            };
+
+            return [
+                'spk' => $spk,
+                'signature' => $signature,
+                'data' => $data,
+
+                'type' => $type,
+                'stage' => $stage,
+                'isMaker' => $isMaker,
+
+                'division' => $division,
+                'makerName' => $makerName,
+                'makerDivision' => $makerDivision,
+
+                'status_label' => $statusLabel,
+
+                'pendingChecker1' => $pendingChecker1,
+                'pendingChecker2' => $pendingChecker2,
+                'pendingApproved' => $pendingApproved,
+            ];
+        })
+            ->filter()
+            ->values();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Total antrean
+        |--------------------------------------------------------------------------
+        */
+        $totalPending = $documents->count();
+
+        return view(
+            'pages.management.inventor_signature',
+            compact(
+                'documents',
+                'search',
+                'key',
+                'dateFromInput',
+                'totalPending'
+            )
+        );
     }
 
     public function sign(Request $request, int $id)
