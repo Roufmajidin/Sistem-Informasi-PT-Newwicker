@@ -3494,10 +3494,9 @@ class ProduksiMnController extends Controller
             )
         );
     }
- 
-// Tempel hanya function berikut di dalam ProduksiMnController.
- public function inventorDetail($id)
 
+    // Tempel hanya function berikut di dalam ProduksiMnController.
+    public function inventorDetail($id)
     {
 
         $spk = Spk::findOrFail($id);
@@ -3874,7 +3873,7 @@ class ProduksiMnController extends Controller
 
                     'return' => (int) ($row->getRawOriginal('return') ?? 0),
 
-                'harga_vivi' => $row->harga_vivi ?? null,
+                    'harga_vivi' => $row->harga_vivi ?? null,
 
                     'harga' =>
 
@@ -3894,21 +3893,21 @@ class ProduksiMnController extends Controller
 
         //             dd(
 
-//     collect($data['items'])->pluck('detail_po_id')
+        //     collect($data['items'])->pluck('detail_po_id')
 
-// );
+        // );
 
-// dd($items);
+        // dd($items);
 
-// dd(
+        // dd(
 
-//     $detailPoIds->toArray(),
+        //     $detailPoIds->toArray(),
 
-//     InspectSchedule::where('spk_id', $spk->id)->get()->toArray()
+        //     InspectSchedule::where('spk_id', $spk->id)->get()->toArray()
 
-// );
+        // );
 
-//   $financeApproved = false;
+        //   $financeApproved = false;
 
 
 
@@ -4191,7 +4190,7 @@ class ProduksiMnController extends Controller
                         $payment['finance_approved'] ?? false,
 
                     // vivi
-
+    
                 ];
 
 
@@ -4203,21 +4202,21 @@ class ProduksiMnController extends Controller
         ]);
 
     }
-//     public function inventorDetail($id)
+    //     public function inventorDetail($id)
 //     {
 //         $spk = Spk::findOrFail($id);
 
-//         $data = is_string($spk->data)
+    //         $data = is_string($spk->data)
 //             ? json_decode($spk->data, true)
 //             : $spk->data;
 
-//         $itemMap = collect(
+    //         $itemMap = collect(
 //             $data['items'] ?? []
 //         )->keyBy('detail_po_id');
 
-//         /*
+    //         /*
 
-//     |--------------------------------------------------------------------------
+    //     |--------------------------------------------------------------------------
 //     | ITEMS + CUSTOM COLUMN TOTAL
 //     |--------------------------------------------------------------------------
 //     */
@@ -4245,65 +4244,65 @@ class ProduksiMnController extends Controller
 //             $data['items'] ?? []
 //         )->map(function ($item) use ($inspectSummary) {
 
-//             $inspect = $inspectSummary->get(
+    //             $inspect = $inspectSummary->get(
 //                 $item['detail_po_id'] ?? null
 //             );
 
-//             $item['passed'] = (int) (
+    //             $item['passed'] = (int) (
 //                 $inspect->passed ?? 0
 //             );
 
-//             $item['rejected'] = (int) (
+    //             $item['rejected'] = (int) (
 //                 $inspect->rejected ?? 0
 //             );
 
-//             return $item;
+    //             return $item;
 
-//         });
+    //         });
 
-//         $items = collect(
+    //         $items = collect(
 //             $data['items'] ?? []
 //         )->map(function ($item) use ($inspectSummary) {
 
-//             $inspect = $inspectSummary->get(
+    //             $inspect = $inspectSummary->get(
 //                 $item['detail_po_id'] ?? null
 //             );
 
-//             $item['passed'] = (int) (
+    //             $item['passed'] = (int) (
 //                 $inspect->passed ?? 0
 //             );
 
-//             $item['rejected'] = (int) (
+    //             $item['rejected'] = (int) (
 //                 $inspect->rejected ?? 0
 //             );
 
-//             return $item;
+    //             return $item;
 
-//         });
+    //         });
 
-//         /*
+    //         /*
 //             |--------------------------------------------------------------------------
 //             | GRAND TOTAL SPK
 //             |--------------------------------------------------------------------------
 //             */
 //         $grandTotal = $items->sum(function ($item) {
 
-//             $total = (float) ($item['total'] ?? 0);
+    //             $total = (float) ($item['total'] ?? 0);
 
-//             $customTotal = collect(
+    //             $customTotal = collect(
 //                 $item['custom_columns'] ?? []
 //             )->sum(function ($custom) {
 
-//                 return (float) (
+    //                 return (float) (
 //                     $custom['total'] ?? 0
 //                 );
 
-//             });
+    //             });
 
-//             return $total + $customTotal;
+    //             return $total + $customTotal;
 //         });
 
-//         /*
+    //         /*
 //     |--------------------------------------------------------------------------
 //     | SUPPLIER
 //     |--------------------------------------------------------------------------
@@ -4313,7 +4312,7 @@ class ProduksiMnController extends Controller
 //             $data['sup'] ?? ''
 //         )->first();
 
-//         /*
+    //         /*
 //     |--------------------------------------------------------------------------
 //     | TIMELINE
 //     |--------------------------------------------------------------------------
@@ -4326,38 +4325,38 @@ class ProduksiMnController extends Controller
 //             ->get()
 //             ->map(function ($row) use ($itemMap) {
 
-//                 return [
+    //                 return [
 //                     'id' => $row->id,
 
-//                     'detail_po_id' => $row->detail_po_id,
+    //                     'detail_po_id' => $row->detail_po_id,
 
-//                     'item_name' =>
+    //                     'item_name' =>
 //                         $itemMap[$row->detail_po_id]['nama'] ?? '-',
 
-//                     'item_code' =>
+    //                     'item_code' =>
 //                         $itemMap[$row->detail_po_id]['kode'] ?? '-',
 
-//                     'qty' => $row->qty,
+    //                     'qty' => $row->qty,
 
-//                     'type' => $row->type,
+    //                     'type' => $row->type,
 
-//                     'process' => $row->process,
+    //                     'process' => $row->process,
 
-//                     'next_process' => $row->next_process,
+    //                     'next_process' => $row->next_process,
 
-//                     'remark' => $row->remark ?? '-',
+    //                     'remark' => $row->remark ?? '-',
 
-//                     'date' => \Carbon\Carbon::parse(
+    //                     'date' => \Carbon\Carbon::parse(
 //                         $row->date
 //                     )->format('Y-m-d'),
 
-//                     'time' => \Carbon\Carbon::parse(
+    //                     'time' => \Carbon\Carbon::parse(
 //                         $row->date
 //                     )->format('H:i'),
 //                 ];
 //             });
 
-//         /*
+    //         /*
 //     |--------------------------------------------------------------------------
 //     | BAHAN BAKU
 //     |--------------------------------------------------------------------------
@@ -4368,28 +4367,28 @@ class ProduksiMnController extends Controller
 //             ->get()
 //             ->map(function ($row) {
 
-//                 return [
+    //                 return [
 //                     'id' => $row->id,
 
-//                     'tanggal' => $row->tanggal,
+    //                     'tanggal' => $row->tanggal,
 
-//                     'tipe' => $row->tipe,
+    //                     'tipe' => $row->tipe,
 
-//                     'qty' => $row->qty,
+    //                     'qty' => $row->qty,
 
-//                     'po' => $row->po,
+    //                     'po' => $row->po,
 
-//                     'keterangan' => $row->keterangan,
+    //                     'keterangan' => $row->keterangan,
 
-//                     'stok_id' => $row->stok_id,
+    //                     'stok_id' => $row->stok_id,
 
-//                     'kode_barang' =>
+    //                     'kode_barang' =>
 //                         $row->stok->kode_barang ?? '-',
 
-//                     'nama_barang' =>
+    //                     'nama_barang' =>
 //                         $row->stok->nama_barang ?? '-',
 
-//                     'satuan' =>
+    //                     'satuan' =>
 //                         $row->stok->satuan ?? '-',
 //                     'harga_vivi' => $row->harga_vivi ?? null,
 //                     'harga' =>
@@ -4410,30 +4409,30 @@ class ProduksiMnController extends Controller
 // // );
 // //   $financeApproved = false;
 
-//         $financeApproved = false;
+    //         $financeApproved = false;
 
-//         $paymentRequestIds = PaymentRequest::where(
+    //         $paymentRequestIds = PaymentRequest::where(
 //             'spk_id',
 //             $spk->id
 //         )->pluck('id')->toArray();
 
-//         if (!empty($paymentRequestIds)) {
+    //         if (!empty($paymentRequestIds)) {
 
-//             $draft = PaymentRequestSaved::all()
+    //             $draft = PaymentRequestSaved::all()
 //                 ->first(function ($row) use ($paymentRequestIds) {
 
-//                     return count(
+    //                     return count(
 //                         array_intersect(
 //                             $row->payment_request_ids ?? [],
 //                             $paymentRequestIds
 //                         )
 //                     ) > 0;
 
-//                 });
+    //                 });
 
-//             if ($draft) {
+    //             if ($draft) {
 
-//                 $financeApproved =
+    //                 $financeApproved =
 //                     PaymentRequestApproval::where(
 //                         'payment_request_saved_id',
 //                         $draft->id
@@ -4441,17 +4440,17 @@ class ProduksiMnController extends Controller
 //                         ->where('status', 'Approved')
 //                         ->where(function ($q) {
 
-//                             $q->where('user_id', 174)
+    //                             $q->where('user_id', 174)
 //                                 ->orWhere('role', 'Finance');
 
-//                         })
+    //                         })
 //                         ->exists();
 //             }
 
 
-//         }
+    //         }
 
-//         // PPN: data lama dapat memiliki ppn_enabled=true tetapi ppn_rate=0.
+    //         // PPN: data lama dapat memiliki ppn_enabled=true tetapi ppn_rate=0.
 //         // Fallback 11% HANYA untuk data lama tersebut; tarif positif yang tersimpan
 //         // tetap dipakai. Sesuaikan tarif fallback dengan kebijakan SPK perusahaan.
 //         $ppnEnabled = filter_var($data['ppn_enabled'] ?? false, FILTER_VALIDATE_BOOLEAN);
@@ -4460,60 +4459,60 @@ class ProduksiMnController extends Controller
 //         $ppnAmount = $ppnEnabled ? round($grandTotal * $ppnRate / 100, 2) : 0.0;
 //         $grandTotalWithPpn = $grandTotal + $ppnAmount;
 
-//         return response()->json([
+    //         return response()->json([
 //             'can_edit_harga' => auth()->id() == 171,
 
-//             'grand_total' => $grandTotal,
+    //             'grand_total' => $grandTotal,
 //             'ppn_enabled' => $ppnEnabled,
 //             'ppn_rate' => $ppnRate,
 //             'ppn_amount' => $ppnAmount,
 //             'grand_total_with_ppn' => $grandTotalWithPpn,
 
-//             'bahan_baku' => $bahanBaku,
+    //             'bahan_baku' => $bahanBaku,
 
-//             'kategori' =>
+    //             'kategori' =>
 //                 $data['kategori'] ?? '-',
 
-//             'status' =>
+    //             'status' =>
 //                 $spk->status ?? '-',
 
-//             'spk' => $spk,
+    //             'spk' => $spk,
 
-//             'items' => $items,
+    //             'items' => $items,
 
-//             'spk_no' =>
+    //             'spk_no' =>
 //                 $data['no_spk'] ?? '-',
 
-//             'payments' =>
+    //             'payments' =>
 //                 $data['payments'] ?? [],
 
-//             'supplier' => [
+    //             'supplier' => [
 //                 'id' =>
 //                     $supplier->id ?? null,
 
-//                 'name' =>
+    //                 'name' =>
 //                     $supplier->name ?? '-',
 //             ],
 
-//             'timelines' => $timelines,
+    //             'timelines' => $timelines,
 
-//             'payments' => collect(
+    //             'payments' => collect(
 //                 $data['payments'] ?? []
 //             )->map(function ($payment) {
 //                 $amount = (float) (
 //                     $payment['amount'] ?? 0
 //                 );
 
-//                 $adjustment = (float) (
+    //                 $adjustment = (float) (
 //                     $payment['adjustment'] ?? 0
 //                 );
 
-//                 return [
+    //                 return [
 
-//                     'date' =>
+    //                     'date' =>
 //                         $payment['date'] ?? null,
 
-//                     'note' =>
+    //                     'note' =>
 //                         $payment['note'] ?? $payment['payment_type'] ?? $payment['type'] ?? '-',
 //                     'payment_type' =>
 //                         $payment['payment_type'] ?? $payment['type'] ?? $payment['note'] ?? null,
@@ -4526,35 +4525,35 @@ class ProduksiMnController extends Controller
 //                     'payment_id' =>
 //                         $payment['payment_id'] ?? null,
 
-//                     'note_tambahan' =>
+    //                     'note_tambahan' =>
 //                         $payment['note_tambahan'] ?? null,
 
-//                     'adjustment' =>
+    //                     'adjustment' =>
 //                         $adjustment,
 
-//                     'payment_request_amount' =>
+    //                     'payment_request_amount' =>
 //                         $adjustment > 0
 //                         ? $adjustment
 //                         : $amount,
 
-//                     'remaining_amount' =>
+    //                     'remaining_amount' =>
 //                         $adjustment > 0
 //                         ? ($amount - $adjustment)
 //                         : 0,
 
-//                     'adjustment_by' =>
+    //                     'adjustment_by' =>
 //                         $payment['adjustment_by'] ?? null,
 
-//                     'adjustment_at' =>
+    //                     'adjustment_at' =>
 //                         $payment['adjustment_at'] ?? null,
 //                     'finance_approved' =>
 //                         $payment['finance_approved'] ?? false,
 //                     // vivi
 //                 ];
 
-//             })->values(),
+    //             })->values(),
 
-//         ]);
+    //         ]);
 //     }
     // vivi update
     public function updateHargaVivi(Request $request)
@@ -6880,5 +6879,49 @@ class ProduksiMnController extends Controller
             'startDate' => $startDate,
             'endDate' => $endDate,
         ]);
+    }
+    // ttd
+    public function indexSign(Request $request)
+    {
+        $userId = (int) $request->user()->id;
+        $query = SignatureSpk::query()->where(function ($q) use ($userId) {
+            $q->where(function ($s) use ($userId) {
+                $s->where('made_by', $userId)->whereNull('made_at');
+            })->orWhere(function ($s) use ($userId) {
+                $s->where('checked_by', $userId)->whereNull('checked_at')->whereNotNull('made_at');
+            })->orWhere(function ($s) use ($userId) {
+                $s->where('checked_by_2', $userId)->whereNull('checked_at_2')->whereNotNull('made_at');
+            })->orWhere(function ($s) use ($userId) {
+                $s->where('approved_by', $userId)->whereNull('approved_at')->whereNotNull('made_at');
+            });
+        });
+
+        $signatures = $query->orderBy('spk_id')->get();
+        $spks = DB::table('spk')->whereIn('id', $signatures->pluck('spk_id'))
+            ->get()->keyBy('id');
+
+        $queue = $signatures->map(function ($signature) use ($userId, $spks) {
+            $spk = $spks->get($signature->spk_id);
+            if (!$spk)
+                return null;
+            $data = json_decode((string) ($spk->data ?? ''), true) ?: [];
+            $noSpk = $data['no_spk'] ?? $data['noSpk'] ?? ('SPK #' . $spk->id);
+            $noPo = $data['no_po'] ?? $data['noPo'] ?? '-';
+            $supplier = $data['sup'] ?? $data['supplier'] ?? '-';
+            $type = null;
+            if ((int) $signature->made_by === $userId && !$signature->made_at)
+                $type = 'made';
+            elseif ((int) $signature->checked_by === $userId && !$signature->checked_at)
+                $type = 'checked';
+            elseif ((int) $signature->checked_by_2 === $userId && !$signature->checked_at_2)
+                $type = 'checked_2';
+            elseif ((int) $signature->approved_by === $userId && !$signature->approved_at)
+                $type = 'approved';
+            if (!$type)
+                return null;
+            return compact('spk', 'signature', 'type', 'noSpk', 'noPo', 'supplier');
+        })->filter()->values();
+
+        return view('pages.management.inventor_signature', compact('queue'));
     }
 }

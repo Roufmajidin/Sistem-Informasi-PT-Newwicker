@@ -47,6 +47,7 @@ use Illuminate\Support\Facades\Broadcast;
 use App\Http\Controllers\MomController;
 use App\Http\Controllers\PengajuanHargaController;
 use App\Http\Controllers\PengajuanHargaNotificationController;
+use App\Http\Controllers\InventorSignatureController;
 // ==========================================================
 // MAGIC APPROVAL LINK - PUBLIC ENTRY POINT
 // ==========================================================
@@ -1251,6 +1252,12 @@ Route::get(
     Route::post('/spk/update/{spk}', [SpkController::class, 'save'])->name('spk.update');
     Route::post('/spk/create/{po}', [SpkController::class, 'save'])->name('spk.create');
     Route::post('/spk/purchase', [SpkController::class, 'purchase'])->name('spk.purchase');
+
+
+    // sign
+   Route::get('/produksi/inventor/signature', [InventorSignatureController::class, 'index'])->name('produksi.inventor.signature');
+    Route::post('/produksi/inventor/signature/{id}/approve', [InventorSignatureController::class, 'sign'])->name('produksi.inventor.signature.approve');
+Route::post('/produksi/inventor/signature/{id}/reject', [InventorSignatureController::class, 'reject'])->middleware('auth')->name('produksi.inventor.signature.reject');
 
     Route::post(
         '/spk/change-status/{spk}',
