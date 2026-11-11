@@ -1,186 +1,298 @@
 <?php
+
 namespace App\Http\Controllers;
 
 use App\Models\SignatureSpk;
 use App\Models\Spk;
 use App\Models\SpkTimeline;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Carbon\CarbonImmutable;
 
 class InventorSignatureController extends Controller
 {
-    private function payload(Spk $spk): array
+    private function spkData(Spk $spk): array
     {
-        return is_array($spk->data) ? $spk->data : (json_decode((string) $spk->data, true) ?: []);
+        return is_array($spk->data)
+            ? $spk->data
+            : (json_decode((string) $spk->data, true) ?: []);
     }
 
-    /** Extract the exact company code, never match NW inside NWD/NWS/NWR. */
-    private function companyKey(array $data): string
+    private function division(Spk $spk): ?string
     {
-        foreach (['no_po', 'no_spk'] as $field) {
-            $value = strtoupper(trim((string) ($data[$field] ?? '')));
-            if (preg_match('/(?<![A-Z])NW[A-Z]*(?![A-Z])/i', $value, $matches)) {
-                return strtolower($matches[0]);
-            }
+        $data = $this->spkData($spk);
+        $text = strtoupper(trim(implode(' ', [
+            (string) ($data['no_spk'] ?? ''),
+            (string) ($data['no_po'] ?? ''),
+        ])));
+
+        // The longest variants are checked first; NW must not match NWD/NWS/NWR.
+        if (preg_match('/(?<![A-Z0-9])(NWD|NWS|NWR|NW)(?![A-Z0-9])/i', $text, $matches)) {
+            return strtoupper($matches[1]);
         }
-        return '';
+
+        return null;
     }
 
     private function special(Spk $spk): bool
     {
-        // All non-NW divisions skip Checker 1, per this Signature Center workflow.
-        $key = $this->companyKey($this->payload($spk));
-        return $key !== '' && $key !== 'nw';
+        return in_array($this->division($spk), ['NWS', 'NWD'], true);
     }
 
-    /** Return YYYY-MM-DD for accepted input formats; null for invalid/blank dates. */
-    private function receiveDate(array $data): ?string
+    private function parseReceiveDate($value): ?Carbon
     {
-        $value = trim((string) ($data['tgl_terima'] ?? ''));
-        if ($value === '')
+        if ($value instanceof \DateTimeInterface) {
+            return Carbon::instance($value)->startOfDay();
+        }
+
+        if (!is_scalar($value) || trim((string) $value) === '') {
             return null;
-        foreach (['Y-m-d', 'd/m/Y', 'd-m-Y', 'Y/m/d', 'd.m.Y'] as $format) {
+        }
+
+        $value = trim((string) $value);
+        foreach (['Y-m-d', 'd/m/Y', 'd-m-Y', 'Y/m/d', 'd/m/y', 'd-m-y'] as $format) {
             try {
-                $date = CarbonImmutable::createFromFormat('!' . $format, $value);
-                if ($date && $date->format($format) === $value)
-                    return $date->format('Y-m-d');
-            } catch (\Throwable $e) { /* try next date format */
+                $date = Carbon::createFromFormat('!' . $format, $value);
+                if ($date && $date->format($format) === $value) {
+                    return $date->startOfDay();
+                }
+            } catch (\Throwable $exception) {
+                // Try another known date format.
             }
         }
+
         return null;
     }
 
-    // Tahap berikutnya hanya aktif setelah tahap sebelumnya selesai.
-    private function nextStage(SignatureSpk $signature, Spk $spk): ?string
+    private function blocked(Spk $spk): bool
     {
-        if (!$signature->made_at)
-            return null;
-        if (!$this->special($spk) && !$signature->checked_at)
-            return 'checked';
-        if (!$signature->checked_at_2)
-            return 'checked_2';
-        if (!$signature->approved_at)
-            return 'approved';
-        return null;
+        return in_array(strtolower(trim((string) $spk->status)), ['revision', 'rejected'], true);
     }
 
-    private function pendingType(SignatureSpk $signature, Spk $spk, int $userId): ?string
+    private function pendingStages(SignatureSpk $signature, Spk $spk): array
     {
-        $type = $this->nextStage($signature, $spk);
-        $field = match ($type) {
+        $stages = [];
+        if (!$this->special($spk) && !$signature->checked_at) {
+            $stages[] = 'checked';
+        }
+        if (!$signature->checked_at_2) {
+            $stages[] = 'checked_2';
+        }
+        if (!$signature->approved_at) {
+            $stages[] = 'approved';
+        }
+        return $stages;
+    }
+
+    // No sequential approval: each assigned signer can sign their own pending slot.
+    private function pendingTypes(SignatureSpk $signature, Spk $spk, int $userId): array
+    {
+        $pending = $this->pendingStages($signature, $spk);
+        $assignments = [
             'checked' => 'checked_by',
             'checked_2' => 'checked_by_2',
             'approved' => 'approved_by',
-            default => null,
-        };
-        return $field && $signature->{$field} !== null && (int) $signature->{$field} === $userId ? $type : null;
+        ];
+
+        return array_values(array_filter($pending, function ($type) use ($signature, $userId, $assignments) {
+            $field = $assignments[$type];
+            return $signature->{$field} !== null && (int) $signature->{$field} === $userId;
+        }));
+    }
+
+    // Backward compatible with the existing Blade, which expects a single $doc['type'].
+    private function pendingType(SignatureSpk $signature, Spk $spk, int $userId): ?string
+    {
+        return $this->pendingTypes($signature, $spk, $userId)[0] ?? null;
     }
 
     public function index(Request $request)
     {
-        $filters = $request->validate([
+        $validated = $request->validate([
             'q' => 'nullable|string|max:200',
-            'key' => ['nullable', 'string', 'regex:/^(all|nw[a-z]*)$/i'],
+            'key' => ['nullable', 'string', 'max:20', 'regex:/^[a-zA-Z0-9_-]+$/'],
             'date_from' => 'nullable|date_format:Y-m-d',
-            'date_to' => 'nullable|date_format:Y-m-d|after_or_equal:date_from',
         ]);
+
         $userId = (int) $request->user()->id;
-        $search = trim((string) ($filters['q'] ?? ''));
-        $key = strtolower((string) ($filters['key'] ?? 'all'));
-        $dateFrom = $filters['date_from'] ?? '';
-        $dateTo = $filters['date_to'] ?? '';
+        $search = trim((string) ($validated['q'] ?? ''));
+        $key = strtoupper(trim((string) ($validated['key'] ?? '')));
+        $dateFromInput = (string) ($validated['date_from'] ?? '');
+        $dateFrom = $dateFromInput !== '' ? Carbon::createFromFormat('!Y-m-d', $dateFromInput)->startOfDay() : null;
 
-        $signatures = SignatureSpk::with(['madeBy', 'checkedBy', 'checkedBy2', 'approvedBy', 'supplier'])
-            ->where(function ($q) use ($userId) {
-                $q->where('made_by', $userId)
-                    ->orWhere('checked_by', $userId)
-                    ->orWhere('checked_by_2', $userId)
-                    ->orWhere('approved_by', $userId);
-            })->orderByDesc('spk_id')->get();
+        $signatures = SignatureSpk::with([
+            'madeBy.karyawan.divisi',
+            'checkedBy.karyawan.divisi',
+            'checkedBy2.karyawan.divisi',
+            'approvedBy.karyawan.divisi',
+            'supplier',
+        ])->where(function ($query) use ($userId) {
+            $query->where('made_by', $userId)
+                ->orWhere('checked_by', $userId)
+                ->orWhere('checked_by_2', $userId)
+                ->orWhere('approved_by', $userId);
+        })->orderByDesc('spk_id')->get();
 
-        $spks = Spk::whereIn('id', $signatures->pluck('spk_id'))->get()->keyBy('id');
-        $documents = $signatures->map(function ($signature) use ($spks, $userId, $search, $key, $dateFrom, $dateTo) {
+        $spks = Spk::whereIn('id', $signatures->pluck('spk_id')->unique())->get()->keyBy('id');
+
+        $documents = $signatures->map(function (SignatureSpk $signature) use ($spks, $userId, $search, $key, $dateFrom) {
             $spk = $spks->get($signature->spk_id);
-            if (!$spk || in_array(strtolower((string) $spk->status), ['revision', 'rejected'], true))
+            if (!$spk || $this->blocked($spk)) {
                 return null;
+            }
 
-            $stage = $this->nextStage($signature, $spk);
-            $type = $this->pendingType($signature, $spk, $userId);
-            $isMaker = (int) $signature->made_by === $userId;
-            if (!$type && !($isMaker && $signature->made_at && $stage))
+            $data = $this->spkData($spk);
+            $division = $this->division($spk);
+            if ($key !== '' && $division !== $key) {
                 return null;
+            }
 
-            $data = $this->payload($spk);
-            $company = $this->companyKey($data);
-            if ($key !== 'all' && $company !== $key)
-                return null;
-
-            $receiveDate = $this->receiveDate($data);
-            if ($dateFrom !== '' && (!$receiveDate || $receiveDate < $dateFrom))
-                return null;
-            if ($dateTo !== '' && (!$receiveDate || $receiveDate > $dateTo))
-                return null;
+            if ($dateFrom !== null) {
+                $received = $this->parseReceiveDate($data['tgl_terima'] ?? $data['tanggal_terima'] ?? null);
+                if (!$received || $received->lt($dateFrom)) {
+                    return null;
+                }
+            }
 
             if ($search !== '') {
                 $haystack = mb_strtolower(implode(' ', [
-                    $data['no_spk'] ?? '',
-                    $data['no_po'] ?? '',
-                    $data['sup'] ?? '',
-                    $signature->supplier?->name ?? '',
+                    (string) ($data['no_spk'] ?? ''),
+                    (string) ($data['no_po'] ?? ''),
+                    (string) ($data['sup'] ?? ''),
+                    (string) ($signature->supplier?->name ?? ''),
                 ]));
-                if (!str_contains($haystack, mb_strtolower($search)))
+                if (!str_contains($haystack, mb_strtolower($search))) {
                     return null;
+                }
             }
-            return compact('spk', 'signature', 'type', 'stage', 'isMaker', 'data');
+
+            $pendingStages = $this->pendingStages($signature, $spk);
+            if ($pendingStages === []) {
+                return null; // Supplier and Made By are excluded from completion criteria.
+            }
+
+            $isMaker = $signature->made_by !== null && (int) $signature->made_by === $userId;
+            $pendingTypes = $this->pendingTypes($signature, $spk, $userId);
+            $type = $pendingTypes[0] ?? null;
+            $stage = $pendingStages[0];
+
+            $makerName = match ($division) {
+                'NW', 'NWR' => 'Nur Khasanah',
+                'NWD', 'NWS' => 'Intan',
+                default => $signature->madeBy?->name ?? '-',
+            };
+            $makerDivision = match ($division) {
+                'NW', 'NWR' => 'Purchasing',
+                'NWD', 'NWS' => 'RnD Engineering',
+                default => $signature->madeBy?->karyawan?->divisi?->nama ?? '',
+            };
+
+            $statusLabel = match ($stage) {
+                'checked' => 'Menunggu Checker 1',
+                'checked_2' => 'Menunggu Checker 2',
+                'approved' => 'Menunggu Approved By',
+            };
+
+            return [
+                'spk' => $spk,
+                'signature' => $signature,
+                'data' => $data,
+                'type' => $type,
+                'types' => $pendingTypes,
+                'stage' => $stage,
+                'pendingStages' => $pendingStages,
+                'isMaker' => $isMaker,
+                'division' => $division,
+                'makerName' => $makerName,
+                'makerDivision' => $makerDivision,
+                'status_label' => $statusLabel,
+                'pendingChecker1' => in_array('checked', $pendingStages, true),
+                'pendingChecker2' => in_array('checked_2', $pendingStages, true),
+                'pendingApproved' => in_array('approved', $pendingStages, true),
+            ];
         })->filter()->values();
 
-        return view('pages.management.inventor_signature', compact('documents', 'search', 'key', 'dateFrom', 'dateTo'));
+        $totalPending = $documents->count();
+        return view('pages.management.inventor_signature', compact(
+            'documents',
+            'search',
+            'key',
+            'dateFromInput',
+            'totalPending'
+        ));
     }
 
     public function sign(Request $request, int $id)
     {
-        $validated = $request->validate(['type' => 'required|in:checked,checked_2,approved', 'remark' => 'nullable|string|max:2000']);
+        $validated = $request->validate([
+            'type' => 'required|in:checked,checked_2,approved',
+            'remark' => 'nullable|string|max:2000',
+        ]);
+
         return DB::transaction(function () use ($request, $id, $validated) {
-            $signature = SignatureSpk::query()->where('spk_id', $id)->lockForUpdate()->firstOrFail();
+            $signature = SignatureSpk::where('spk_id', $id)->lockForUpdate()->firstOrFail();
             $spk = Spk::findOrFail($id);
-            abort_if(in_array(strtolower((string) $spk->status), ['revision', 'rejected'], true), 409, 'SPK dalam proses revisi.');
-            $type = $this->pendingType($signature, $spk, (int) $request->user()->id);
-            abort_unless($type && $type === $validated['type'], 403, 'Bukan giliran tanda tangan Anda atau SPK sudah ditandatangani.');
+            abort_if($this->blocked($spk), 409, 'SPK dalam proses revisi.');
+
+            $type = $validated['type'];
+            abort_unless(
+                in_array($type, $this->pendingTypes($signature, $spk, (int) $request->user()->id), true),
+                403,
+                'Anda tidak berhak menandatangani tahap ini atau sudah ditandatangani.'
+            );
+
             $fields = match ($type) {
                 'checked' => ['checked_at' => now(), 'checked_remark' => $validated['remark'] ?? null],
                 'checked_2' => ['checked_at_2' => now(), 'checked_2_remark' => $validated['remark'] ?? null],
                 'approved' => ['approved_at' => now(), 'approved_remark' => $validated['remark'] ?? null],
             };
             $signature->update($fields);
-            if ($type === 'approved')
+            $signature->refresh();
+
+            // Mark approved only after all required INTERNAL signatures are present.
+            if ($this->pendingStages($signature, $spk) === []) {
                 $spk->update(['status' => 'approved']);
+            }
+
             SpkTimeline::create([
                 'spk_id' => $id,
                 'data' => json_encode([
                     'time' => now()->format('d M Y H:i'),
                     'type' => $type,
+                    'user_id' => $request->user()->id,
                     'user' => $request->user()->name,
                     'remark' => $validated['remark'] ?? null,
-                ])
+                ]),
             ]);
-            return response()->json(['success' => true, 'message' => 'Tanda tangan berhasil disimpan.', 'spk_id' => $id]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Tanda tangan berhasil disimpan.',
+                'spk_id' => $id,
+                'remaining_my_stages' => $this->pendingTypes($signature, $spk, (int) $request->user()->id),
+            ]);
         });
     }
-    /** Reject hanya oleh approver yang sedang mendapat giliran; alasan wajib. */
+
     public function reject(Request $request, int $id)
     {
         $validated = $request->validate([
             'type' => 'required|in:checked,checked_2,approved',
             'message' => 'required|string|min:5|max:2000',
         ]);
+
         return DB::transaction(function () use ($request, $id, $validated) {
             $signature = SignatureSpk::where('spk_id', $id)->lockForUpdate()->firstOrFail();
             $spk = Spk::findOrFail($id);
-            abort_if(in_array(strtolower((string) $spk->status), ['revision', 'rejected'], true), 409, 'SPK sudah dalam proses revisi.');
-            $type = $this->pendingType($signature, $spk, (int) $request->user()->id);
-            abort_unless($type && $type === $validated['type'], 403, 'Anda tidak berhak me-reject SPK ini.');
-            // Status revision menjaga dokumen keluar dari antrean tanpa menghapus tanda tangan sebelumnya.
+            abort_if($this->blocked($spk), 409, 'SPK sudah dalam proses revisi.');
+
+            $type = $validated['type'];
+            abort_unless(
+                in_array($type, $this->pendingTypes($signature, $spk, (int) $request->user()->id), true),
+                403,
+                'Anda tidak berhak menolak tahap ini.'
+            );
+
             $spk->update(['status' => 'revision']);
             SpkTimeline::create([
                 'spk_id' => $id,
@@ -191,10 +303,14 @@ class InventorSignatureController extends Controller
                     'user_id' => $request->user()->id,
                     'user' => $request->user()->name,
                     'remark' => $validated['message'],
-                ])
+                ]),
             ]);
-            return response()->json(['success' => true, 'message' => 'SPK ditolak. Alasan tercatat di timeline.', 'spk_id' => $id]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'SPK ditolak. Alasan tercatat di timeline.',
+                'spk_id' => $id,
+            ]);
         });
     }
-
 }
