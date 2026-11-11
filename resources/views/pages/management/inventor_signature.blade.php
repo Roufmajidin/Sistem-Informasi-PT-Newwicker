@@ -918,15 +918,114 @@
                 grid-template-columns: 1fr
             }
         }
+
+        /* Payment Request — read-only table matching SPK index */
+        .sig-bottom>.sig-payment-panel {
+            padding: 0 !important;
+            min-width: 0
+        }
+
+        .sig-bottom>.sig-payment-panel>b {
+            margin: 0 !important
+        }
+
+        .sig-payment-scroll {
+            overflow-x: auto;
+            width: 100%;
+            scrollbar-width: thin
+        }
+
+        .sig-payment-table {
+            width: 100%;
+            min-width: 590px;
+            border-collapse: collapse;
+            table-layout: auto;
+            font-size: 10px
+        }
+
+        .sig-payment-table th {
+            background: #e9f5eb;
+            color: #244b31;
+            border: 1px solid #cbded0;
+            padding: 8px 6px;
+            text-align: center;
+            font-weight: 800;
+            white-space: nowrap
+        }
+
+        .sig-payment-table td {
+            border: 1px solid #d8e2ea;
+            padding: 9px 7px;
+            vertical-align: middle;
+            color: #26374d;
+            background: white
+        }
+
+        .sig-payment-table tbody tr:nth-child(even) td {
+            background: #f8fafc
+        }
+
+        .sig-payment-table tbody tr:hover td {
+            background: #f1f8f3
+        }
+
+        .sig-payment-table .sig-pay-money {
+            text-align: right;
+            white-space: nowrap;
+            font-variant-numeric: tabular-nums;
+            font-weight: 700
+        }
+
+        .sig-payment-table .sig-pay-center {
+            text-align: center;
+            white-space: nowrap
+        }
+
+        .sig-payment-table .sig-pay-description {
+            min-width: 95px;
+            overflow-wrap: anywhere
+        }
+
+        .sig-pay-request {
+            color: #15803d;
+            font-size: 14px;
+            font-weight: 900
+        }
+
+        .sig-pay-muted {
+            color: #94a3b8
+        }
+
+        .sig-pay-note {
+            display: inline-block;
+            background: #edf2f8;
+            border: 1px solid #dce4ed;
+            border-radius: 3px;
+            padding: 3px 5px;
+            font-size: 9px;
+            font-weight: 700;
+            white-space: nowrap
+        }
+
+        .sig-payment-table tfoot td {
+            background: #eaf6ed !important;
+            border-top: 2px solid #50b95a;
+            font-weight: 800;
+            color: #174a2c
+        }
+
+        .sig-payment-table .sig-pay-empty {
+            text-align: center;
+            padding: 18px;
+            color: #94a3b8
+        }
     </style>
     <div class="sig-wrap">
         <div class="sig-top">
-            @section('btn')
             <div>
-                <h5>SPK Signature Center</h5>
+                <h2>SPK Signature Center</h2>
                 <div>Antrean tanda tangan dan monitoring SPK {{ auth()->user()->name }}</div>
             </div><strong id="sig-count">{{ $documents->count() }} Pending</strong>
-            @endsection
         </div>
         <form method="GET" class="sig-filter-form">
             <label>Cari SPK / PO / Supplier<input class="sig-search" name="q" value="{{ $search }}"
@@ -943,8 +1042,6 @@
             </label>
             <label>Tanggal terima mulai<input type="date" name="date_from" class="sig-filter-input"
                     value="{{ $dateFrom }}"></label>
-            <label>Sampai tanggal<input type="date" name="date_to" class="sig-filter-input"
-                    value="{{ $dateTo }}"></label>
             <button type="submit" class="sig-filter-submit">Terapkan</button>
             <a class="sig-filter-reset" href="{{ url('/produksi/inventor/signature') }}">Reset</a>
         </form>
@@ -961,6 +1058,27 @@
                     $items = [];
                 }
                 $supplier = $d['nama'] ?? ($d['sup'] ?? '-');
+                $companyCode = strtoupper((string) ($doc['company'] ?? ''));
+                if (
+                    !$companyCode &&
+                    preg_match(
+                        '/(?<![A-Z])NW[A-Z]*(?![A-Z])/i',
+                        (string) (($d['no_po'] ?? '') . ' ' . ($d['no_spk'] ?? '')),
+                        $companyMatch,
+                    )
+                ) {
+                    $companyCode = strtoupper($companyMatch[0]);
+                }
+                $displayMakerName = match ($companyCode) {
+                    'NW', 'NWR' => 'Nur Khasanah',
+                    'NWD', 'NWS' => 'Intan',
+                    default => $s->madeBy?->name ?? 'Belum ditentukan',
+                };
+                $payments = $d['payments'] ?? [];
+                if (!is_array($payments)) {
+                    $payments = [];
+                }
+
                 $rupiah = function ($value) {
                     if (is_array($value) || is_object($value)) {
                         return 'Rp 0';
@@ -1014,6 +1132,12 @@
                     }
                     return (float) $v;
                 };
+                $paymentTotal = 0;
+                foreach ($payments as $payment) {
+                    if (is_array($payment)) {
+                        $paymentTotal += $asNumber($payment['amount'] ?? 0);
+                    }
+                }
                 $grandTotal = 0;
                 foreach ($items as $it) {
                     $line = $asNumber($it['total'] ?? 0);
@@ -1043,7 +1167,7 @@
                     </span>
                 </div>
                 <div class="sig-paper">
-                    <div class="sig-title">DETAIL ITEM SPK</div>
+                    <div class="sig-title">DETAIL ITEM SPK / SURAT PERINTAH KERJA</div>
                     <div class="sig-info">
                         <div><b>No SPK</b> {{ $d['no_spk'] ?? '-' }}</div>
                         <div><b>No PO</b> {{ $d['no_po'] ?? '-' }}</div>
@@ -1109,11 +1233,62 @@
                         <div><b>Terms & Conditions</b>
                             <p>{{ is_scalar($d['terms'] ?? null) ? $d['terms'] : 'Mengikuti ketentuan SPK yang berlaku.' }}</p>
                         </div>
-                        <div><b>Payment Request / Schedule</b>
-                            @foreach ($d['payments'] ?? [] as $payment)
-                                <p>{{ is_array($payment) ? implode(' · ', array_filter(array_map(fn($x) => is_scalar($x) ? (string) $x : '', $payment))) : $payment }}
-                                </p>
-                            @endforeach
+                        <div class="sig-payment-panel">
+                            <b>Payment Request / Schedule</b>
+                            <div class="sig-payment-scroll">
+                                <table class="sig-payment-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width:34px">No</th>
+                                            <th style="width:38px">Req</th>
+                                            <th>Amount</th>
+                                            <th style="width:95px">Date</th>
+                                            <th style="width:90px">Note</th>
+                                            <th>Keterangan</th>
+                                            <th>Adj Finance</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @forelse($payments as $payment)
+                                            @php
+                                                $pay = is_array($payment) ? $payment : [];
+                                                $payAmount = $pay['amount'] ?? 0;
+                                                $payAdjustment =
+                                                    $pay['adjustment'] ?? ($pay['payment_request_amount'] ?? 0);
+                                                $payNote = (string) ($pay['note'] ?? ($pay['type'] ?? '-'));
+                                                $payDescription =
+                                                    (string) ($pay['note_tambahan'] ?? ($pay['keterangan'] ?? '-'));
+                                                $payDate = (string) ($pay['date'] ?? '-');
+                                            @endphp
+                                            <tr>
+                                                <td class="sig-pay-center">{{ $loop->iteration }}</td>
+                                                <td class="sig-pay-center">
+                                                    @if (!empty($pay['is_request']))
+                                                    <span class="sig-pay-request">✓</span>@else<span
+                                                            class="sig-pay-muted">—</span>
+                                                    @endif
+                                                </td>
+                                                <td class="sig-pay-money">{{ $rupiah($payAmount) }}</td>
+                                                <td class="sig-pay-center">{{ $payDate }}</td>
+                                                <td><span class="sig-pay-note">{{ strtoupper($payNote) }}</span></td>
+                                                <td class="sig-pay-description">{{ $payDescription }}</td>
+                                                <td class="sig-pay-money">{{ $rupiah($payAdjustment) }}</td>
+                                            </tr>
+                                        @empty
+                                            <tr>
+                                                <td colspan="7" class="sig-pay-empty">Belum ada jadwal pembayaran</td>
+                                            </tr>
+                                        @endforelse
+                                    </tbody>
+                                    <tfoot>
+                                        <tr>
+                                            <td colspan="2">TOTAL PAYMENT</td>
+                                            <td class="sig-pay-money">{{ $rupiah($paymentTotal) }}</td>
+                                            <td colspan="4"></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
                         </div>
                     </div>
                     <section class="sig-approval">
@@ -1158,7 +1333,7 @@
                                 </tr>
                                 <tr class="sig-approval-names">
                                     @foreach ($signSlots as $slot)
-                                        <td><strong>{{ $slot[3] === 'skip' ? '—' : $slot[1]?->name ?? 'Belum ditentukan' }}</strong>
+                                        <td><strong>{{ $slot[3] === 'skip' ? '—' : ($slot[4] === 'made' ? $displayMakerName : $slot[1]?->name ?? 'Belum ditentukan') }}</strong>
                                             <small>{{ $slot[3] === 'skip' ? 'Tidak diperlukan (NWS/NWD)' : $slot[1]?->karyawan?->divisi?->nama ?? '' }}</small>
                                             <small>{{ $slot[3] === 'skip' ? '' : ($slot[3] ? $slot[3]->format('d/m/Y H:i') : 'Pending') }}</small>
                                         </td>
@@ -1184,16 +1359,16 @@
     <div id="sig-reject-modal" class="sig-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="sig-reject-title"
         hidden>
         <div class="sig-modal-card">
-            <div class="sig-modal-head"><strong id="sig-reject-title">Reject SPK</strong><button type="button"
+            <div class="sig-modal-head"><strong id="sig-reject-title">Reject SPK With Comment's</strong><button type="button"
                     id="sig-reject-close" aria-label="Tutup">×</button></div>
             <div class="sig-modal-body">
-                <p>Berikan alasan penolakan untuk SPK <strong id="sig-reject-number"></strong>.</p><label
-                    for="sig-reject-message">Alasan reject <span style="color:#dc2626">*</span></label>
-                <textarea id="sig-reject-message" rows="5" maxlength="2000" placeholder="Jelaskan bagian yang harus diperbaiki..."
-                    required></textarea><small id="sig-reject-error" role="alert"></small>
+                <p>Comments here <strong id="sig-reject-number"></strong>.</p><label
+                    for="sig-reject-message">reason <span style="color:#dc2626">*</span></label>
+                <textarea id="sig-reject-message" rows="5" maxlength="2000"
+                    placeholder="Jelaskan bagian yang harus diperbaiki..." required></textarea><small id="sig-reject-error" role="alert"></small>
             </div>
-            <div class="sig-modal-foot"><button type="button" id="sig-reject-cancel">Batal</button><button type="button"
-                    id="sig-reject-submit">Kirim Reject</button></div>
+            <div class="sig-modal-foot"><button type="button" id="sig-reject-cancel">Batal</button><button
+                    type="button" id="sig-reject-submit">Kirim Reject</button></div>
         </div>
     </div>
     <script>
