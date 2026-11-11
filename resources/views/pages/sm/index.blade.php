@@ -254,9 +254,9 @@
 
                                         @if ($mine && $issue->status === 'draft')
 
-                                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
+                                            <button type="button" class="btn btn-sm btn-outline-primary sm-edit-issue-btn"
 
-                                                data-bs-target="#smEdit{{ $issue->id }}">Edit</button>
+                                                data-modal-id="smEdit{{ $issue->id }}">Edit</button>
 
                                             <form method="POST" action="{{ route('sm.release', $issue) }}"
 
@@ -1420,6 +1420,38 @@
                 });
             }
 
+
+            // Edit Issue: one explicit Bootstrap modal handler (BS5 / BS4).
+            // No changes to the existing Edit form, save route, chat, or Pusher.
+            document.addEventListener('click', function (event) {
+                const btn = event.target.closest('.sm-edit-issue-btn');
+                if (!btn) return;
+
+                event.preventDefault();
+                event.stopPropagation();
+
+                const modalId = btn.dataset.modalId;
+                const modal = document.getElementById(modalId);
+                if (!modal) {
+                    console.error('[SM] Edit modal not found:', modalId,
+                        'Check pages.sm.modals.edit and its root modal ID.');
+                    alert('Modal Edit Issue tidak ditemukan: ' + modalId);
+                    return;
+                }
+
+                if (window.bootstrap && window.bootstrap.Modal) {
+                    const Modal = window.bootstrap.Modal;
+                    const instance = typeof Modal.getOrCreateInstance === 'function'
+                        ? Modal.getOrCreateInstance(modal)
+                        : (Modal.getInstance(modal) || new Modal(modal));
+                    instance.show();
+                } else if (window.jQuery && typeof window.jQuery.fn.modal === 'function') {
+                    window.jQuery(modal).modal('show');
+                } else {
+                    console.error('[SM] Bootstrap Modal JS is not loaded.');
+                    alert('Bootstrap Modal JS belum dimuat.');
+                }
+            });
 
             document.addEventListener('click', event => {
 
