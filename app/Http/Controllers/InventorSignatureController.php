@@ -213,10 +213,16 @@ class InventorSignatureController extends Controller
         })->filter()->values();
 
         $totalPending = $documents->count();
+
+        // Blade V10 uses $dateFrom as the input value.
+        // Keep the parsed Carbon cutoff separately inside this method.
+        $dateFrom = $dateFromInput;
+
         return view('pages.management.inventor_signature', compact(
             'documents',
             'search',
             'key',
+            'dateFrom',
             'dateFromInput',
             'totalPending'
         ));
