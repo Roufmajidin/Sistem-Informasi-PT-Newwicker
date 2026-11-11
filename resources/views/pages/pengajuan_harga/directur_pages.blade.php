@@ -1,7 +1,5 @@
 @extends('master.master')
 
-
-
 @section('content')
 
     <style>
@@ -16,8 +14,6 @@
             font-size: 13px
         }
 
-
-
         .dp-card {
 
             background: #fff;
@@ -31,8 +27,6 @@
             margin-bottom: 15px
         }
 
-
-
         .dp-title {
 
             font-size: 20px;
@@ -43,8 +37,6 @@
 
             margin: 0 0 8px
         }
-
-
 
         .dp-filter {
 
@@ -57,8 +49,6 @@
             align-items: end
         }
 
-
-
         .dp-filter label {
 
             display: block;
@@ -67,8 +57,6 @@
 
             margin-bottom: 5px
         }
-
-
 
         .dp-input,
 
@@ -87,14 +75,10 @@
             background: white
         }
 
-
-
         .dp-table-wrap {
 
             overflow-x: auto
         }
-
-
 
         .dp-table {
 
@@ -104,8 +88,6 @@
 
             min-width: 1350px
         }
-
-
 
         .dp-table th {
 
@@ -120,8 +102,6 @@
             white-space: nowrap
         }
 
-
-
         .dp-table td {
 
             border-bottom: 1px solid #e5eaf2;
@@ -131,14 +111,10 @@
             vertical-align: top
         }
 
-
-
         .dp-table tbody tr:nth-child(even) {
 
             background: #f8fafd
         }
-
-
 
         .dp-photo {
 
@@ -155,16 +131,12 @@
             border-radius: 5px
         }
 
-
-
         .dp-muted {
 
             color: #64748b;
 
             font-size: 11px
         }
-
-
 
         .dp-btn {
 
@@ -181,16 +153,12 @@
             font-size: 12px
         }
 
-
-
         .dp-blue {
 
             background: #1260d9;
 
             color: #fff
         }
-
-
 
         .dp-gray {
 
@@ -199,16 +167,12 @@
             color: #26364c
         }
 
-
-
         .dp-btn:disabled {
 
             opacity: .5;
 
             cursor: wait
         }
-
-
 
         .dp-status {
 
@@ -219,16 +183,12 @@
             font-size: 11px
         }
 
-
-
         .dp-price {
 
             text-align: right;
 
             min-width: 65px
         }
-
-
 
         .dp-remark {
 
@@ -238,8 +198,6 @@
 
             resize: vertical
         }
-
-
 
         .dp-badge {
 
@@ -254,8 +212,6 @@
             font-weight: 700
         }
 
-
-
         .dp-open {
 
             background: #fef3c7;
@@ -263,16 +219,12 @@
             color: #92400e
         }
 
-
-
         .dp-closed {
 
             background: #dcfce7;
 
             color: #166534
         }
-
-
 
         /* Scroll container: one scrollbar for both axes, sticky header */
 
@@ -289,8 +241,6 @@
             overscroll-behavior: contain
         }
 
-
-
         .dp-table {
 
             border-collapse: separate;
@@ -299,8 +249,6 @@
 
             min-width: 1050px
         }
-
-
 
         .dp-table thead th {
 
@@ -315,14 +263,10 @@
             box-shadow: 0 1px 0 #dbe4f0
         }
 
-
-
         .dp-table td {
 
             border-right: 1px solid #edf1f7
         }
-
-
 
         .dp-money {
 
@@ -343,16 +287,12 @@
             transition: border-color .15s
         }
 
-
-
         .dp-money:focus-within {
 
             border-color: #4385ee;
 
             box-shadow: 0 0 0 2px #4385ee18
         }
-
-
 
         .dp-money-prefix {
 
@@ -370,8 +310,6 @@
 
             border-right: 1px solid #d6e2f2
         }
-
-
 
         .dp-money input {
 
@@ -398,8 +336,6 @@
             font-variant-numeric: tabular-nums
         }
 
-
-
         .dp-status-select {
 
             position: relative;
@@ -408,8 +344,6 @@
 
             max-width: 100%
         }
-
-
 
         .dp-status-select select {
 
@@ -434,8 +368,6 @@
             color: #9a5b00
         }
 
-
-
         .dp-status-select select.is-closed {
 
             color: #166534;
@@ -444,8 +376,6 @@
 
             border-color: #bbf7d0
         }
-
-
 
         .dp-status-select:after {
 
@@ -468,8 +398,6 @@
             color: #475569
         }
 
-
-
         .dp-status-help {
 
             margin-top: 7px;
@@ -483,14 +411,10 @@
             color: #64748b
         }
 
-
-
         .dp-status-help.is-closed {
 
             color: #15803d
         }
-
-
 
         /* Compact status + item column with truncated description */
 
@@ -505,8 +429,6 @@
             max-width: 174px
         }
 
-
-
         .dp-item-cell {
 
             width: 174px;
@@ -518,8 +440,6 @@
             overflow: hidden
         }
 
-
-
         .dp-item-code {
 
             display: block;
@@ -530,8 +450,6 @@
 
             white-space: nowrap
         }
-
-
 
         .dp-item-description {
 
@@ -548,8 +466,6 @@
             cursor: help
         }
 
-
-
         .dp-item-po {
 
             display: block;
@@ -563,8 +479,6 @@
             white-space: nowrap
         }
 
-
-
         .dp-table th:nth-child(10),
 
         .dp-table td:nth-child(10) {
@@ -576,14 +490,10 @@
             max-width: 112px
         }
 
-
-
         .dp-table tbody tr:hover {
 
             background: #eef5ff
         }
-
-
 
         .dp-table th:nth-child(6),
 
@@ -596,8 +506,6 @@
             max-width: 112px
         }
 
-
-
         .dp-money {
 
             min-width: 0;
@@ -607,16 +515,12 @@
             max-width: 105px
         }
 
-
-
         .dp-money input {
 
             font-size: 11px;
 
             padding: 7px 4px
         }
-
-
 
         .dp-price-date {
 
@@ -630,8 +534,6 @@
 
             white-space: nowrap
         }
-
-
 
         .dp-bom-status {
 
@@ -648,8 +550,6 @@
             font-size: 10px
         }
 
-
-
         .dp-bom-status a {
 
             color: #145bd0;
@@ -659,28 +559,20 @@
             font-weight: 700
         }
 
-
-
         .dp-bom-found {
 
             color: #15803d
         }
-
-
 
         .dp-bom-sample {
 
             color: #1d4ed8
         }
 
-
-
         .dp-bom-missing {
 
             color: #64748b
         }
-
-
 
         .dp-money input:disabled,
 
@@ -692,8 +584,6 @@
 
             cursor: not-allowed
         }
-
-
 
         /* Mobile horizontal-scroll onboarding */
 
@@ -722,8 +612,6 @@
             font-weight: 600
         }
 
-
-
         .dp-mobile-hint button {
 
             margin-left: auto;
@@ -739,8 +627,6 @@
             cursor: pointer
         }
 
-
-
         @media(max-width:767px) {
 
             .dp-wrap {
@@ -748,21 +634,15 @@
                 padding: 10px
             }
 
-
-
             .dp-card {
 
                 padding: 10px
             }
 
-
-
             .dp-mobile-hint {
 
                 display: flex
             }
-
-
 
             .dp-table-wrap {
 
@@ -777,8 +657,6 @@
 
         }
 
-
-
         .dp-tour-overlay {
 
             position: fixed;
@@ -790,14 +668,10 @@
             display: none
         }
 
-
-
         .dp-tour-overlay.is-visible {
 
             display: block
         }
-
-
 
         .dp-tour-shade {
 
@@ -807,8 +681,6 @@
 
             background: rgba(15, 23, 42, .66)
         }
-
-
 
         .dp-tour-focus {
 
@@ -824,8 +696,6 @@
 
             z-index: 1
         }
-
-
 
         .dp-tour-card {
 
@@ -852,8 +722,6 @@
             color: #1e293b
         }
 
-
-
         .dp-tour-title {
 
             font-size: 15px;
@@ -863,8 +731,6 @@
             margin-bottom: 7px
         }
 
-
-
         .dp-tour-text {
 
             font-size: 13px;
@@ -873,8 +739,6 @@
 
             color: #475569
         }
-
-
 
         .dp-tour-actions {
 
@@ -889,8 +753,6 @@
             margin-top: 15px
         }
 
-
-
         .dp-tour-actions label {
 
             font-size: 11px;
@@ -903,8 +765,6 @@
 
             cursor: pointer
         }
-
-
 
         .dp-tour-actions button {
 
@@ -923,8 +783,6 @@
             cursor: pointer
         }
 
-
-
         .dp-tour-actions .dp-tour-skip {
 
             background: #e2e8f0;
@@ -932,132 +790,224 @@
             color: #334155
         }
 
-
         /* Remarks: readable, untruncated, horizontally scrollable table */
+
         .dp-table {
+
             min-width: 1780px;
+
             table-layout: auto;
+
         }
 
         .dp-table th:nth-child(8),
+
         .dp-table td:nth-child(8),
+
         .dp-table th:nth-child(9),
+
         .dp-table td:nth-child(9),
+
         .dp-table th:nth-child(10),
+
         .dp-table td:nth-child(10) {
+
             width: 270px;
+
             min-width: 270px;
+
             max-width: 330px;
+
         }
 
         .dp-remark-text {
+
             white-space: pre-wrap;
+
             overflow-wrap: anywhere;
+
             word-break: normal;
+
             line-height: 1.55;
+
         }
 
         .dp-table .dp-remark {
+
             width: 100%;
+
             min-width: 0;
+
             min-height: 110px;
+
             box-sizing: border-box;
+
             resize: vertical;
+
         }
 
         .dp-table th:nth-child(11),
+
         .dp-table td:nth-child(11) {
+
             width: 125px;
+
             min-width: 125px;
+
             max-width: 125px;
+
         }
 
         .dp-table th:nth-child(12),
+
         .dp-table td:nth-child(12) {
+
             min-width: 90px;
+
         }
 
         /* Sub Name inserted after Pekerjaan: keep remark widths via class, not old column positions */
+
         .dp-table {
+
             min-width: 1900px;
+
         }
 
         .dp-table th:nth-child(9),
+
         .dp-table td:nth-child(9),
+
         .dp-table th:nth-child(10),
+
         .dp-table td:nth-child(10),
+
         .dp-table th:nth-child(11),
+
         .dp-table td:nth-child(11) {
+
             min-width: 260px;
+
             width: 260px;
+
             max-width: 330px;
+
         }
 
         .dp-table th:nth-child(12),
+
         .dp-table td:nth-child(12) {
+
             min-width: 125px;
+
             width: 125px;
+
             max-width: 125px;
+
         }
 
         .dp-table th:nth-child(13),
+
         .dp-table td:nth-child(13) {
+
             min-width: 90px;
+
         }
 
         .ph-price-history,
+
         .dp-price-history {
+
             margin-top: 5px;
+
             font-size: 10px;
+
             color: #64748b;
+
             line-height: 1.4;
+
         }
 
         .ph-history-entry,
+
         .dp-history-entry {
+
             padding: 3px 5px;
+
             border-radius: 4px;
+
             background: #f1f5f9;
+
             white-space: normal;
+
         }
 
         .ph-history-entry small,
+
         .dp-history-entry small {
+
             display: block;
+
             font-size: 9px;
+
             color: #64748b;
+
         }
 
         .ph-history-entry.is-latest,
+
         .dp-history-entry.is-latest {
+
             background: #dcfce7;
+
             color: #166534;
+
             font-weight: 700;
+
         }
 
         .ph-history-arrow,
+
         .dp-history-arrow {
+
             text-align: center;
+
             color: #15803d;
+
             font-size: 14px;
+
             font-weight: 800;
+
         }
 
         .dp-price-editor input {
+
             width: 105px;
+
             max-width: 100%;
+
             border: 1px solid #cbd5e1;
+
             border-radius: 5px;
+
             padding: 7px 5px;
+
             text-align: right;
+
             font-size: 11px;
+
             color: #193354;
+
             background: white;
+
         }
 
         .dp-price-editor input:disabled {
+
             background: #f0f3f8;
+
             color: #64748b;
+
         }
     </style>
 
@@ -1077,11 +1027,16 @@
                     name="q" value="{{ request('q') }}" placeholder="Cari PO, article, nama pekerjaan..."></div>
 
             <div style="min-width:155px"><label>Filter Pengajuan</label>
+
                 <select class="dp-select" name="view" aria-label="Filter pengajuan"
                     onchange="this.form.requestSubmit()">
+
                     <option value="" @selected(request('view') !== 'history')>Belum Close (Open)</option>
+
                     <option value="history" @selected(request('view') === 'history')>Sudah Close (History)</option>
+
                 </select>
+
             </div>
 
             <button type="submit" class="dp-btn dp-blue">Cari</button>
@@ -1094,8 +1049,11 @@
     </div>
 
     <div class="dp-card" style="padding:10px 15px;color:#47627f;font-size:12px">
+
         {{ request('view') === 'history' ? 'History — pengajuan yang sudah Closed (arsip).' : 'Main UI — hanya pengajuan Open. Setelah Closed, data otomatis pindah ke History.' }}
+
     </div>
+
     <div class="dp-mobile-hint" id="dpMobileHint"><span>↔ Geser tabel ke kiri / kanan untuk melihat semua
 
             kolom.</span><button type="button" id="dpShowTour">Panduan</button></div>
@@ -1115,15 +1073,17 @@
                     <th>Item</th>
 
                     <th>Pekerjaan</th>
+
                     <th>Sub Name</th>
 
-                    <th>PPIC Peng. Price</th>
+                    <th>Kalkulasi PPIC</th>
 
                     <th>Director Price</th>
 
                     <th>Pengajuan Sub</th>
 
                     <th>PPIC Remark</th>
+
                     <th>Sub Remark</th>
 
                     <th>Director Remark</th>
@@ -1253,26 +1213,34 @@
                         </td>
 
                         <td>{{ $p->kategori?->name ?? '-' }}</td>
+
                         <td>{{ $p->sub_name ?: '-' }}</td>
 
                         <td style="text-align:right">{{ number_format((float) $p->ppic_price, 2, ',', '.') }}
 
                             <small class="dp-price-date">{{ $p->ppic_date?->format('d-m-y H:i') ?? '—' }}</small>
+
                             @php $priceHist = data_get($p->price_history ?? [], 'ppic_price', []); @endphp
+
                             <div class="dp-price-history" data-history="ppic_price">
+
                                 @if (is_array($priceHist) && count($priceHist) > 1)
                                     @foreach ($priceHist as $entry)
                                         @if (!$loop->first)
                                             <div class="dp-history-arrow">↓</div>
                                         @endif
+
                                         <div class="dp-history-entry {{ $loop->last ? 'is-latest' : '' }}">
+
                                             {{ isset($entry['price']) ? number_format((float) $entry['price'], 2, ',', '.') : '—' }}<small>{{ $loop->first ? 'Harga Awal' : 'Revisi Harga' }}
+
                                                 · {{ $entry['at'] ?? '' }} ·
+
                                                 {{ $entry['user_name'] ?? 'User' }}</small></div>
                                     @endforeach
                                 @endif
-                            </div>
 
+                            </div>
 
                         </td>
 
@@ -1285,21 +1253,28 @@
 
                             <small
                                 class="dp-price-date js-director-date">{{ $p->directur_date?->format('d-m-y H:i') ?? '—' }}</small>
+
                             @php $priceHist = data_get($p->price_history ?? [], 'director_price', []); @endphp
+
                             <div class="dp-price-history" data-history="director_price">
+
                                 @if (is_array($priceHist) && count($priceHist) > 1)
                                     @foreach ($priceHist as $entry)
                                         @if (!$loop->first)
                                             <div class="dp-history-arrow">↓</div>
                                         @endif
+
                                         <div class="dp-history-entry {{ $loop->last ? 'is-latest' : '' }}">
+
                                             {{ isset($entry['price']) ? number_format((float) $entry['price'], 2, ',', '.') : '—' }}<small>{{ $loop->first ? 'Harga Awal' : 'Revisi Harga' }}
+
                                                 · {{ $entry['at'] ?? '' }} ·
+
                                                 {{ $entry['user_name'] ?? 'User' }}</small></div>
                                     @endforeach
                                 @endif
-                            </div>
 
+                            </div>
 
                         </td>
 
@@ -1308,29 +1283,41 @@
                             {{ (float) $p->pengajuan_sub_price == 0.0 ? 'N/A' : number_format((float) $p->pengajuan_sub_price, 2, ',', '.') }}
 
                             <small class="dp-price-date">{{ $p->sub_date?->format('d-m-y H:i') ?? '—' }}</small>
+
                             @php $priceHist = data_get($p->price_history ?? [], 'pengajuan_sub_price', []); @endphp
+
                             <div class="dp-price-history" data-history="pengajuan_sub_price">
+
                                 @if (is_array($priceHist) && count($priceHist) > 1)
                                     @foreach ($priceHist as $entry)
                                         @if (!$loop->first)
                                             <div class="dp-history-arrow">↓</div>
                                         @endif
+
                                         <div class="dp-history-entry {{ $loop->last ? 'is-latest' : '' }}">
+
                                             {{ isset($entry['price']) ? number_format((float) $entry['price'], 2, ',', '.') : '—' }}<small>{{ $loop->first ? 'Harga Awal' : 'Revisi Harga' }}
+
                                                 · {{ $entry['at'] ?? '' }} ·
+
                                                 {{ $entry['user_name'] ?? 'User' }}</small></div>
                                     @endforeach
                                 @endif
+
                             </div>
 
-
                         </td>
 
                         <td>
+
                             <div class="dp-remark-text">{{ $p->ppic_remark ?: '-' }}</div>
+
                         </td>
+
                         <td>
+
                             <div class="dp-remark-text">{{ $p->sub_remark ?: '-' }}</div>
+
                         </td>
 
                         <td>
@@ -1441,8 +1428,6 @@
 
         };
 
-
-
         function positionTour() {
 
             if (!tourOverlay.classList.contains('is-visible')) return;
@@ -1469,8 +1454,6 @@
 
         }
 
-
-
         function closeTour() {
 
             if (document.getElementById('dpTourNever').checked) {
@@ -1488,8 +1471,6 @@
             tourOverlay.setAttribute('aria-hidden', 'true');
 
         }
-
-
 
         function openTour() {
 
@@ -1531,18 +1512,18 @@
 
         if (isPhone() && !tourDisabled()) setTimeout(openTour, 650);
 
-
-
         const baseUrl = @json(url('/pengajuan-harga/directur'));
 
         const csrf = @json(csrf_token());
 
         const formatRupiah = value => {
-
-            const digits = String(value ?? '').replace(/\D/g, '');
-
+            const raw = String(value ?? '').trim();
+            if (!raw) return '';
+            // Blade outputs id-ID format, e.g. 245.000,00.
+            // Ignore the decimal portion rather than appending its zeroes.
+            const integerPart = raw.split(',')[0];
+            const digits = integerPart.replace(/\D/g, '');
             return digits ? digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '';
-
         };
 
         document.querySelectorAll('.js-director-price').forEach(input => {
@@ -1588,11 +1569,10 @@
                 const status = row.querySelector('.js-status');
 
                 const price = row.querySelector('.js-director-price').value.replace(/\./g, '')
+
                     .replace(',', '.');
 
                 const remark = row.querySelector('.js-director-remark').value;
-
-
 
                 if (price !== '' && (!Number.isFinite(Number(price)) || Number(price) < 0)) {
 
@@ -1673,40 +1653,75 @@
                     help.classList.add('is-closed');
 
                     if (result.price_history) {
+
                         const el = row.querySelector(
+
                             '.dp-price-history[data-history="director_price"]');
+
                         if (el) {
+
                             el.replaceChildren();
+
                             const items = result.price_history.director_price || [];
+
                             if (items.length > 1) items.forEach((entry, index) => {
+
                                 if (index) {
+
                                     const arrow = document.createElement('div');
+
                                     arrow.className = 'dp-history-arrow';
+
                                     arrow.textContent = '↓';
+
                                     el.appendChild(arrow);
+
                                 }
+
                                 const line = document.createElement('div');
+
                                 line.className = 'dp-history-entry' + (index === items
+
                                     .length - 1 ? ' is-latest' : '');
+
                                 line.textContent = entry.price == null ? '—' : Number(
+
                                     entry.price).toLocaleString('id-ID', {
+
                                     minimumFractionDigits: 2,
+
                                     maximumFractionDigits: 2
+
                                 });
+
                                 const meta = document.createElement('small');
+
                                 meta.textContent = (index === 0 ? 'Harga Awal' :
+
                                         'Revisi Harga') + ' · ' + (entry.at || '') +
+
                                     ' · ' + (entry.user_name || 'User');
+
                                 line.appendChild(meta);
+
                                 el.appendChild(line);
+
                             });
+
                         }
+
                     }
+
                     // Closed rows leave Main UI immediately; they remain accessible in History.
+
                     if (result.closed && new URLSearchParams(window.location.search).get(
-                        'view') !== 'history') {
+
+                            'view') !== 'history') {
+
                         row.remove();
+
                     }
+
                     row.querySelector('.js-director-date').textContent = result.directur_date ||
 
                         '—';
