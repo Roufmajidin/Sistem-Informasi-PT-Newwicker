@@ -1048,11 +1048,58 @@
 
     </div>
 
-    <div class="dp-card" style="padding:10px 15px;color:#47627f;font-size:12px">
-
-        {{ request('view') === 'history' ? 'History — pengajuan yang sudah Closed (arsip).' : 'Main UI — hanya pengajuan Open. Setelah Closed, data otomatis pindah ke History.' }}
-
+    {{-- Rekap Excel: filter tanggal hanya untuk export, tidak mengubah filter tabel --}}
+    <div class="dp-card" style="padding:12px 15px">
+        <form id="dpRekapForm" method="GET" action="{{ route('pengajuan-harga.directur.rekap') }}" class="dp-filter"
+            style="align-items:end;gap:12px">
+            <div style="min-width:170px;flex:1">
+                <label for="dpRekapStart">Start Date</label>
+                <input id="dpRekapStart" type="date" name="start_date" class="dp-input" required
+                    value="{{ request('start_date') }}">
+            </div>
+            <div style="min-width:170px;flex:1">
+                <label for="dpRekapEnd">End Date</label>
+                <input id="dpRekapEnd" type="date" name="end_date" class="dp-input" required
+                    value="{{ request('end_date') }}">
+            </div>
+            <div id="dpRekapAction" style="display:none">
+                <button type="submit" class="dp-btn dp-blue" style="white-space:nowrap">
+                    Download rekap
+                </button>
+            </div>
+            <small id="dpRekapHelp" class="dp-muted" style="flex-basis:100%">
+                Pilih rentang tanggal pembuatan pengajuan untuk mengunduh rekap Excel (semua status).
+            </small>
+        </form>
     </div>
+    <script>
+        (() => {
+            const form = document.getElementById('dpRekapForm');
+            const start = document.getElementById('dpRekapStart');
+            const end = document.getElementById('dpRekapEnd');
+            const action = document.getElementById('dpRekapAction');
+            const help = document.getElementById('dpRekapHelp');
+
+            function update() {
+                const complete = !!(start.value && end.value);
+                const valid = complete && start.value <= end.value;
+                action.style.display = valid ? 'block' : 'none';
+                end.min = start.value || '';
+                help.textContent = complete && !valid ?
+                    'End Date tidak boleh lebih awal daripada Start Date.' :
+                    'Pilih rentang tanggal pembuatan pengajuan untuk mengunduh rekap Excel (semua status).';
+            }
+            start.addEventListener('change', update);
+            end.addEventListener('change', update);
+            form.addEventListener('submit', event => {
+                if (!start.value || !end.value || start.value > end.value) {
+                    event.preventDefault();
+                    update();
+                }
+            });
+            update();
+        })();
+    </script>
 
     <div class="dp-mobile-hint" id="dpMobileHint"><span>↔ Geser tabel ke kiri / kanan untuk melihat semua
 
@@ -1076,7 +1123,7 @@
 
                     <th>Sub Name</th>
 
-                    <th>Kalkulasi PPIC</th>
+                    <th>PPIC Peng. Price</th>
 
                     <th>Director Price</th>
 

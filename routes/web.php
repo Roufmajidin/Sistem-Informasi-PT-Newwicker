@@ -147,6 +147,8 @@ Broadcast::channel('sm', function ($user) {
 });
 Route::middleware('auth')->group(function () {
 Route::middleware('auth')->prefix('sm')->name('sm.')->group(function () {
+    Route::get('/rekap-excel', [SmController::class, 'downloadRekap'])->name('rekap.excel');
+
     Route::get('/', [SmController::class, 'index'])->name('index');
     Route::post('/', [SmController::class, 'store'])->name('store');
     Route::put('/{issue}', [SmController::class, 'update'])->name('update');
@@ -173,7 +175,11 @@ Route::middleware('auth')
     ->prefix('pengajuan-harga')
     ->name('pengajuan-harga.')
     ->group(function () {
-         Route::get('/directur', [ PengajuanHargaController::class,  'directurPages'])->name('directur');
+        Route::get('/directur/rekap-excel', [PengajuanHargaController::class, 'downloadDirecturRekap'])
+    ->name('directur.rekap');
+
+
+    Route::get('/directur', [ PengajuanHargaController::class,  'directurPages'])->name('directur');
     Route::patch('/directur/{pekerjaan}', [PengajuanHargaController::class,'updateDirectur'])->name('directur.update');
 Route::post('/category', [PengajuanHargaController::class, 'storeKategori'])->name('category.store');
 

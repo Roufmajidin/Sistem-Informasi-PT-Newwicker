@@ -22,9 +22,32 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\DB;
 
 use Illuminate\Support\Facades\Schema;
+use App\Exports\PengajuanHargaDirectorRekapExport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class PengajuanHargaController extends Controller
 {
+public function downloadDirecturRekap(\Illuminate\Http\Request $request)
+{
+    abort_unless(
+        str_starts_with(strtolower((string) $request->user()?->email), 'factory@'),
+        403,
+        'Hanya akun Director/Factory yang boleh mengunduh rekap.'
+    );
+
+    $data = $request->validate([
+        'start_date' => ['required', 'date_format:Y-m-d'],
+        'end_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:start_date'],
+    ]);
+
+    $filename = 'Rekap-Pengajuan-Harga-Director-' . $data['start_date']
+        . '-sd-' . $data['end_date'] . '.xlsx';
+
+    return Excel::download(
+        new PengajuanHargaDirectorRekapExport($data['start_date'], $data['end_date']),
+        $filename
+    );
+}
 
     private function detailArray($detail): array
     {
