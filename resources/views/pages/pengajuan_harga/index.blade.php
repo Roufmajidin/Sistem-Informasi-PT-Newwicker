@@ -209,7 +209,7 @@
 
         .ph-jobgrid {
             display: grid;
-            grid-template-columns: minmax(155px, 1.5fr) minmax(125px, 1.05fr) repeat(3, minmax(94px, .78fr)) minmax(105px, auto);
+            grid-template-columns: minmax(150px, 1.35fr) minmax(140px, 1fr) repeat(3, minmax(105px, 1fr)) auto auto;
             gap: 8px;
             align-items: start
         }
@@ -229,7 +229,7 @@
             gap: 6px;
             align-items: center;
             justify-content: flex-end;
-            grid-column: 6;
+            grid-column: 5 / span 2;
             grid-row: 1;
             margin-top: 0;
             min-width: 112px
@@ -497,26 +497,14 @@
             }
 
             .ph-jobgrid {
-                min-width: 790px
+                min-width: 700px
             }
 
             .ph-job {
                 overflow-x: auto
             }
         }
-        .ph-job.is-closed { background: #e7f8ec; border-color: #85c99c; opacity: .70; }
-        .ph-job.is-closed .ph-close { background: #16803d; color: white; }
-        .ph-close { width: 100%; margin-top: 6px; padding: 5px 8px; background: #fff5e9; color: #98520b; border: 1px solid #f2d4ae; border-radius: 5px; cursor: pointer; font-size: 10px; font-weight: 700; }
-        .ph-close:disabled { cursor: default; }
-        .ph-price { font-variant-numeric: tabular-nums; padding-left: 5px; padding-right: 5px; font-size: 11px; }
-        .ph-subname { min-width: 0; }
-    
-.ph-price-history,.dp-price-history { margin-top:5px;font-size:10px;color:#64748b;line-height:1.4; }
-.ph-history-entry,.dp-history-entry { padding:3px 5px;border-radius:4px;background:#f1f5f9;white-space:normal; }
-.ph-history-entry small,.dp-history-entry small { display:block;font-size:9px;color:#64748b; }
-.ph-history-entry.is-latest,.dp-history-entry.is-latest {background:#dcfce7;color:#166534;font-weight:700;}
-.ph-history-arrow,.dp-history-arrow {text-align:center;color:#15803d;font-size:14px;font-weight:800;}
-</style>
+    </style>
     <div class="ph-wrap" id="pengajuanHargaIndex">
         <div class="ph-card">
             <form method="GET" action="{{ route('pengajuan-harga.index') }}" class="ph-filter">
@@ -539,10 +527,6 @@
                     </select></div>
                 <a href="{{ route('pengajuan-harga.index') }}" class="ph-btn ph-outline"
                     style="text-decoration:none">Reset</a>
-                <a href="{{ route('pengajuan-harga.index', array_merge(request()->except('page'), ['submitted' => empty($submittedOnly) ? '1' : '0'])) }}"
-                    class="ph-btn {{ !empty($submittedOnly) ? 'ph-green' : 'ph-outline' }}" style="text-decoration:none">
-                    {{ !empty($submittedOnly) ? 'Go to All' : 'Go to History' }}
-                </a>
             </form>
         </div>
 
@@ -646,7 +630,7 @@
                                                 data-detail-id="{{ $item->id }}" data-article="{{ $article }}">
                                                 <div class="ph-jobs">
                                                     @forelse($jobs as $job)
-                                                        <div class="ph-job {{ $job->closed ? 'is-closed' : '' }}" data-job-id="{{ $job->id }}" data-closed="{{ $job->closed ? 1 : 0 }}">
+                                                        <div class="ph-job" data-job-id="{{ $job->id }}">
                                                             <div class="ph-jobgrid">
                                                                 <div><label class="ph-label">Pekerjaan</label>
                                                                     <div class="ph-combo"
@@ -677,15 +661,6 @@
                                                                             @disabled($isFactory ? $field !== 'director_price' : $field === 'director_price')><small
                                                                             class="ph-price-date"
                                                                             data-date="{{ $field }}">{{ $job->{$field === 'ppic_price' ? 'ppic_date' : ($field === 'director_price' ? 'directur_date' : 'sub_date')}?->format('d-m-y H:i') ?? '—' }}</small>
-                                                                        <div class="ph-price-history" data-history="{{ $field }}">
-@php $hist = data_get($job->price_history ?? [], $field, []); @endphp
-@if(is_array($hist) && count($hist) > 1)
-@foreach($hist as $i => $entry)
-@if($i > 0)<div class="ph-history-arrow">↓</div>@endif
-<div data-history-index="{{ $i }}" class="ph-history-entry {{ $loop->last ? 'is-latest' : '' }}">{{ isset($entry['price']) ? number_format((float)$entry['price'], 2, ',', '.') : '—' }}<small>{{ $entry['at'] ?? '' }} · {{ $entry['user_name'] ?? 'User' }}</small></div>
-@endforeach
-@endif
-</div>
                                                                     </div>
                                                                 @endforeach
                                                                 <div class="ph-job-actions"><span class="ph-status"
@@ -694,7 +669,6 @@
                                                                             class="ph-btn ph-green ph-save">Save</button><button
                                                                             type="button" class="ph-btn ph-red ph-delete"
                                                                             title="Hapus pekerjaan">×</button></div>
-                                                                    <button type="button" class="ph-close" @disabled($job->closed) >{{ $job->closed ? '✓ Closed' : 'Close this?' }}</button>
                                                                 </div>
                                                             </div>
                                                             <button type="button" class="ph-remark-toggle"
@@ -745,7 +719,6 @@
                                                                             class="ph-btn ph-green ph-save">Save</button><button
                                                                             type="button" class="ph-btn ph-red ph-delete"
                                                                             title="Hapus pekerjaan">×</button></div>
-                                                                    <button type="button" class="ph-close">Close this?</button>
                                                                 </div>
                                                             </div>
                                                             <button type="button" class="ph-remark-toggle"
@@ -779,7 +752,7 @@
                 </div>
             </div>
         @empty
-            <div class="ph-card" style="padding:22px;text-align:center">Tidak ada item pengajuan yang sesuai dengan filter.</div>
+            <div class="ph-card" style="padding:22px;text-align:center">Tidak ada PO yang sesuai dengan filter.</div>
         @endforelse
         <div>{{ $pos->links() }}</div>
     </div>
@@ -789,10 +762,8 @@
             const root = document.getElementById('pengajuanHargaIndex');
             if (!root) return;
             const token = document.querySelector('meta[name="csrf-token"]')?.content || @json(csrf_token());
-            const historyUrlBase = @json(url('/pengajuan-harga/pekerjaan'));
             const saveUrl = @json(route('pengajuan-harga.save'));
             const deleteUrl = @json(route('pengajuan-harga.delete'));
-            const closeUrlBase = @json(url('/pengajuan-harga/pekerjaan'));
             const categoryCreateUrl = @json(route('pengajuan-harga.category.store'));
             const categoryUpdateTemplate = @json(url('/pengajuan-harga/kategori/__ID__'));
             const categories = @json($masterPekerjaan->map(fn($c) => ['id' => $c->id, 'name' => $c->name])->values());
@@ -862,10 +833,6 @@
                 row.querySelector('.job-category').value = '';
                 row.querySelector('.ph-combo-input').value = '';
                 row.querySelector('.job-sub-name').value = '';
-                row.classList.remove('is-closed');
-                row.dataset.closed = '0';
-                const closeBtn = row.querySelector('.ph-close');
-                if (closeBtn) { closeBtn.disabled = false; closeBtn.textContent = 'Close this?'; }
                 row.querySelectorAll('.ph-price, .ph-remark').forEach(el => el.value = '');
                 row.querySelectorAll('.ph-price-date').forEach(el => el.textContent = '—');
                 row.querySelector('.ph-remarks').hidden = true;
@@ -1092,9 +1059,12 @@
                         po_id: work.dataset.poId,
                         detail_po_id: work.dataset.detailId,
                         article_code: work.dataset.article,
-                        bahan_kategori_id: row.querySelector('.job-category').value,
-                        sub_name: row.querySelector('.job-sub-name').value
+                        bahan_kategori_id: row.querySelector('.job-category').value
                     };
+                    const subNameInput = row.querySelector('.job-sub-name');
+                    if (subNameInput && !subNameInput.disabled) {
+                        data.sub_name = subNameInput.value.trim();
+                    }
                     if (!data.bahan_kategori_id) {
                         status.textContent = 'Pilih pekerjaan dahulu.';
                         return;
@@ -1121,45 +1091,11 @@
                             const dateEl = row.querySelector('[data-date="' + field + '"]');
                             if (dateEl) dateEl.textContent = result[key] || '—';
                         });
-                        if (result.price_history) {
-                            row.querySelectorAll('.ph-price-history').forEach(el => {
-                                const items = result.price_history[el.dataset.history] || [];
-                                el.replaceChildren();
-                                if (items.length < 2) return;
-                                items.forEach((entry, index) => {
-                                    if (index) { const arrow = document.createElement('div'); arrow.className = 'ph-history-arrow'; arrow.textContent = '↓'; el.appendChild(arrow); }
-                                    const line = document.createElement('div'); line.className = 'ph-history-entry' + (index === items.length - 1 ? ' is-latest' : '');
-                                    line.textContent = entry.price == null ? '—' : Number(entry.price).toLocaleString('id-ID', {minimumFractionDigits:2, maximumFractionDigits:2});
-                                    const meta = document.createElement('small'); meta.textContent = (entry.at || '') + ' · ' + (entry.user_name || 'User'); line.appendChild(meta); el.appendChild(line);
-                                });
-                            });
-                        }
                         status.textContent = 'Tersimpan ✓';
-                        if (result.closed) { row.classList.add('is-closed'); row.dataset.closed = '1'; }
                     } catch (error) {
                         status.textContent = error.message;
                     } finally {
                         save.disabled = false;
-                    }
-                    return;
-                }
-                const close = e.target.closest('.ph-close');
-                if (close) {
-                    const row = close.closest('.ph-job');
-                    const id = row.dataset.jobId;
-                    if (!id) { alert('Simpan pekerjaan terlebih dahulu sebelum Close.'); return; }
-                    if (row.dataset.closed === '1') return;
-                    if (!confirm('Are you sure? Close pengajuan ini?')) return;
-                    close.disabled = true;
-                    try {
-                        await send(closeUrlBase + '/' + encodeURIComponent(id) + '/close', 'PATCH', {});
-                        row.classList.add('is-closed');
-                        row.dataset.closed = '1';
-                        close.textContent = '✓ Closed';
-                        row.querySelector('.ph-status').textContent = 'Closed ✓';
-                    } catch (error) {
-                        close.disabled = false;
-                        alert(error.message);
                     }
                     return;
                 }
@@ -1183,72 +1119,66 @@
                     }
                 }
             });
-
-            // Hover on the latest green PPIC history to reveal Edit/Delete.
-            function formatHistoryPrice(v) { return v == null ? '—' : Number(v).toLocaleString('id-ID',{minimumFractionDigits:2,maximumFractionDigits:2}); }
-            function renderPpicHistory(row, items) {
-                const el = row.querySelector('.ph-price-history[data-history="ppic_price"]');
-                if (!el) return;
-                el.replaceChildren();
-                if (items.length < 2) return;
-                items.forEach((entry, index) => {
-                    if (index) { const a=document.createElement('div');a.className='ph-history-arrow';a.textContent='↓';el.appendChild(a); }
-                    const line=document.createElement('div');line.className='ph-history-entry'+(index===items.length-1?' is-latest':'');
-                    line.dataset.historyIndex=index;
-                    line.append(document.createTextNode(formatHistoryPrice(entry.price)));
-                    const meta=document.createElement('small');meta.textContent=(entry.at||'')+' · '+(entry.user_name||'User');line.appendChild(meta);
-                    el.appendChild(line);
-                });
-            }
-            // Actions are rendered on mouse hover, no timer / long-press.
-            root.addEventListener('pointerover', e => {
-                const entry=e.target.closest('.ph-price-history[data-history="ppic_price"] .ph-history-entry.is-latest');
-                if (!entry || entry.closest('.ph-job')?.dataset.closed==='1' || entry.querySelector('.ph-history-tools') || entry.querySelector('.ph-history-inline')) return;
-                const tools=document.createElement('div');tools.className='ph-history-tools';
-                tools.innerHTML='<button type="button" class="ph-hist-edit" title="Edit harga" aria-label="Edit harga">✎</button><button type="button" class="ph-hist-delete" title="Hapus riwayat" aria-label="Hapus riwayat">🗑</button>';
-                entry.appendChild(tools);
-            });
-            root.addEventListener('pointerout', e => {
-                const entry=e.target.closest('.ph-price-history[data-history="ppic_price"] .ph-history-entry.is-latest');
-                if (!entry || entry.contains(e.relatedTarget)) return;
-                entry.querySelector('.ph-history-tools')?.remove();
-            });
-            root.addEventListener('click', async e => {
-                const edit=e.target.closest('.ph-hist-edit');
-                const del=e.target.closest('.ph-hist-delete');
-                const commit=e.target.closest('.ph-hist-commit');
-                const cancel=e.target.closest('.ph-hist-cancel');
-                if(!edit && !del && !commit && !cancel) return;
-                e.preventDefault();e.stopPropagation();
-                const entry=e.target.closest('.ph-history-entry');
-                const row=entry.closest('.ph-job');
-                const id=row.dataset.jobId;
-                if(!id) return alert('Simpan pekerjaan terlebih dahulu.');
-                if(cancel){entry.querySelector('.ph-history-inline')?.remove();entry.querySelector('.ph-history-tools')?.remove();return;}
-                if(edit){
-                    entry.querySelector('.ph-history-tools')?.remove();
-                    const form=document.createElement('div');form.className='ph-history-inline';
-                    form.innerHTML='<input type="text" inputmode="decimal" aria-label="Revisi harga PPIC"><button type="button" class="ph-hist-commit">✓</button><button type="button" class="ph-hist-cancel">×</button>';
-                    const raw=entry.firstChild?.textContent?.trim()||'0';form.querySelector('input').value=raw;
-                    entry.appendChild(form);form.querySelector('input').focus();return;
-                }
-                let action='delete', price=null;
-                if(commit){
-                    action='edit';
-                    const raw=entry.querySelector('.ph-history-inline input').value.trim();
-                    price=Number(raw.replace(/\./g,'').replace(',','.'));
-                    if(!raw || !Number.isFinite(price) || price<0) return alert('Harga tidak valid.');
-                } else if(!confirm('Are you sure? Hapus riwayat harga PPIC ini?')) return;
-                try {
-                    const payload={index:Number(entry.dataset.historyIndex),action};
-                    if(action==='edit') payload.price=price;
-                    const result=await send(historyUrlBase+'/'+encodeURIComponent(id)+'/ppic-history','PATCH',payload);
-                    renderPpicHistory(row,result.price_history.ppic_price||[]);
-                    const input=row.querySelector('.ph-price[data-field="ppic_price"]');
-                    if(input) input.value=result.ppic_price==null?'':formatHistoryPrice(result.ppic_price);
-                    const date=row.querySelector('[data-date="ppic_price"]');if(date) date.textContent=result.ppic_date||'—';
-                }catch(error){alert(error.message);}
-            });
         })();
     </script>
+
+{{-- Notification deep-link: open PO, focus exact job and scroll both page and inner table --}}
+<style>
+  #pengajuanHargaIndex .ph-job.ph-notification-focus {
+    position: relative; z-index: 2; background: #fff8d8 !important;
+    border: 3px solid #e5a000 !important; border-radius: 9px;
+    box-shadow: 0 0 0 5px rgba(245, 158, 11, .18), 0 10px 28px rgba(80, 50, 0, .15);
+    animation: ph-notification-pulse 1.2s ease-in-out 3;
+  }
+  @keyframes ph-notification-pulse {
+    50% { box-shadow: 0 0 0 11px rgba(245, 158, 11, .13), 0 10px 28px rgba(80, 50, 0, .15); }
+  }
+  #pengajuanHargaIndex .ph-notification-label {
+    display: inline-block; padding: 5px 9px; margin-bottom: 9px;
+    background: #9a5700; color: #fff; border-radius: 5px;
+    font-size: 11px; font-weight: 800;
+  }
+</style>
+<script>
+(function () {
+  function focusDirectorUpdate() {
+    const params = new URLSearchParams(location.search);
+    const id = params.get('highlight_job');
+    if (!id || !/^\d+$/.test(id)) return;
+    const root = document.getElementById('pengajuanHargaIndex');
+    if (!root || root.dataset.notificationFocusDone === id) return;
+    const target = Array.from(root.querySelectorAll('.ph-job[data-job-id]'))
+      .find(node => node.dataset.jobId === id);
+    if (!target) return;
+    root.dataset.notificationFocusDone = id;
+    const body = target.closest('.ph-pobody');
+    if (body && body.hidden) {
+      body.hidden = false;
+      const head = body.previousElementSibling;
+      if (head) {
+        head.setAttribute('aria-expanded', 'true');
+        const chevron = head.querySelector('.ph-chevron');
+        if (chevron) chevron.textContent = '▾';
+      }
+    }
+    const label = document.createElement('div');
+    label.className = 'ph-notification-label';
+    label.textContent = '★ Pekerjaan ini baru di-update Director';
+    target.prepend(label);
+    target.classList.add('ph-notification-focus');
+    // Nested .ph-scroll has its own scrolling viewport; scrollIntoView scrolls both.
+    requestAnimationFrame(() => setTimeout(() => {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    }, 220));
+    setTimeout(() => {
+      target.classList.remove('ph-notification-focus');
+      label.remove();
+    }, 12000);
+  }
+  document.addEventListener('DOMContentLoaded', focusDirectorUpdate);
+  document.addEventListener('turbo:load', focusDirectorUpdate);
+  if (document.readyState !== 'loading') focusDirectorUpdate();
+})();
+</script>
+
 @endsection
