@@ -4263,6 +4263,162 @@
         }
 
     }
+
+    /* QC Monitor responsive layout refresh — scoped; existing JS/IDs unchanged */
+    .qc-monitor-box {
+        width: 100%;
+        min-width: 0;
+        border: 0;
+        box-shadow: none;
+    }
+
+    .qc-monitor-box>.box-header {
+        padding: 14px 16px 8px;
+    }
+
+    .qc-monitor-box .header-controls {
+        margin-top: 12px;
+    }
+
+    .qc-monitor-box .filter-toolbar {
+        display: grid !important;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        align-items: end;
+        gap: 12px 14px;
+        padding: 16px;
+        border: 1px solid #dce3eb;
+        border-radius: 9px;
+        background: #f9fbfd;
+    }
+
+    .qc-monitor-box .filter-item {
+        min-width: 0 !important;
+        width: 100%;
+        flex: none;
+        gap: 5px;
+    }
+
+    .qc-monitor-box .filter-item label {
+        font-size: 12px;
+        color: #334155;
+        line-height: 1.4;
+    }
+
+    .qc-monitor-box .filter-item .form-control {
+        width: 100% !important;
+        min-width: 0;
+        height: 39px;
+        padding: 7px 10px;
+        font-size: 13px;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        background: #fff;
+        box-sizing: border-box;
+    }
+
+    .qc-monitor-box .filter-buttons {
+        grid-column: 1/-1;
+        display: flex;
+        gap: 9px;
+        flex-wrap: wrap;
+        align-items: center;
+        padding: 4px 0 0;
+    }
+
+    .qc-monitor-box .filter-buttons .btn {
+        min-width: 110px;
+        height: 38px;
+        padding: 7px 14px;
+        border-radius: 6px;
+        font-size: 12px;
+        white-space: nowrap;
+    }
+
+    .qc-monitor-box .box-body {
+        min-width: 0;
+        padding: 8px 16px 16px;
+    }
+
+    .qc-monitor-box .monitor-wrapper,
+    .qc-monitor-box .panel {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .qc-monitor-box .qc-table-header {
+        position: relative;
+        z-index: 2;
+        border-radius: 8px 8px 0 0;
+        padding: 12px 14px;
+    }
+
+    .qc-monitor-box .panel-scroll {
+        width: 100%;
+        max-width: 100%;
+        overflow: auto;
+        max-height: calc(100vh - 330px);
+        min-height: 280px;
+    }
+
+    .qc-monitor-box #inspection-table {
+        min-width: 1150px;
+        table-layout: auto;
+        font-size: 12px;
+    }
+
+    .qc-monitor-box #inspection-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        white-space: nowrap;
+    }
+
+    .qc-monitor-box #inspection-table td {
+        vertical-align: middle;
+    }
+
+    .qc-monitor-box #inspection-table .item-cell {
+        min-width: 210px;
+        max-width: 320px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    @media (max-width:1200px) {
+        .qc-monitor-box .filter-toolbar {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width:760px) {
+        .qc-monitor-box .filter-toolbar {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            padding: 12px;
+            gap: 10px;
+        }
+
+        .qc-monitor-box .box-body {
+            padding: 8px 10px 14px;
+        }
+
+        .qc-monitor-box .panel-scroll {
+            max-height: calc(100vh - 365px);
+        }
+    }
+
+    @media (max-width:480px) {
+        .qc-monitor-box .filter-toolbar {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .qc-monitor-box .filter-buttons .btn {
+            flex: 1 1 auto;
+        }
+
+        .qc-monitor-box .panel-scroll {
+            max-height: 55vh;
+        }
+    }
 </style>
 
 @endsection
