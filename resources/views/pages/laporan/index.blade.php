@@ -133,12 +133,16 @@
 
                             </a>
 
+                            <a href="{{ route('laporan.export-opname') }}" id="btnExportOpname"
+                                class="btn btn-success" style="white-space:nowrap;{{ request('opname') === 'has_opname' ? '' : 'display:none;' }}">
+                                <i class="fa fa-download"></i> Download Report Opname
+                            </a>
+
                             {{-- FILTER STATUS STOCK OPNAME --}}
                             <select id="filterOpname" class="form-control" aria-label="Filter status stock opname"
                                 style="width:auto;min-width:155px;max-width:190px;">
                                 <option value=""
-                                    {{ request('opname') === null || request('opname') === '' ? 'selected' : '' }}>Filter
-                                </option>
+                                    {{ request('opname') === null || request('opname') === '' ? 'selected' : '' }}>Filter</option>
                                 <option value="has_opname" {{ request('opname') === 'has_opname' ? 'selected' : '' }}>Has
                                     Opname</option>
                             </select>
@@ -159,7 +163,7 @@
 
                             <i class="fa fa-plus"></i>
 
-                            add bahan baku
+                           add bahan baku
 
                         </button>
 
@@ -1722,7 +1726,7 @@
                         if (!res || res.is_opname !== true) {
                             toastr.warning(
                                 'Endpoint update belum mengonfirmasi penyimpanan cut-off opname. Perlu update controller terlebih dahulu.'
-                            );
+                                );
                             return;
                         }
                         $('#modalOpnameStok').modal('hide');
