@@ -32,62 +32,179 @@
         );
         $pengajuanHargaUrl = $isPengajuanManagement ? url('/pengajuan-harga/directur') : route('pengajuan-harga.index');
     @endphp
+
     @php
-        // Tampilkan shortcut jika punya akses modul ATAU terdaftar sebagai penandatangan.
-        // Hak akses route tetap ditangani middleware/controller Signature Center.
+        /*
+    |--------------------------------------------------------------------------
+    | AKSES SHORTCUT TTD SPK
+    |--------------------------------------------------------------------------
+    | Shortcut ditampilkan jika user memiliki akses modul
+    | atau terdaftar sebagai penandatangan SPK.
+    */
+
         $hasSignatureAssignment = \Illuminate\Support\Facades\DB::table('signature_spks')
-            ->where(function ($q) use ($auth) {
-                $q->where('made_by', $auth->id)
+            ->where(function ($query) use ($auth) {
+                $query
+                    ->where('made_by', $auth->id)
                     ->orWhere('checked_by', $auth->id)
                     ->orWhere('checked_by_2', $auth->id)
                     ->orWhere('approved_by', $auth->id);
             })
             ->exists();
+
         $showTtdSpk = $canTtdSpk || $hasSignatureAssignment;
-        // Pending TTD SPK berdasarkan tahapan user yang sedang login.
-        // Pertahankan batas tanggal dan filter yang sama dengan shortcut.
-        $signatureCounters = ['NW' => 0, 'NWR' => 0, 'NWD' => 0, 'NWS' => 0];
+
+        /*
+    |--------------------------------------------------------------------------
+    | COUNTER PENDING TTD SPK
+    |--------------------------------------------------------------------------
+    | Tanggal mulai : 08 November 2026
+    | Sumber tanggal: spk.created_at
+    | Status SPK    : diajukan
+    |
+    | Menghitung seluruh dokumen yang masih memiliki
+    | minimal satu tahap approval pending.
+    */
+
+        $signatureCounters = [
+            'NW' => 0,
+            'NWR' => 0,
+            'NWD' => 0,
+            'NWS' => 0,
+        ];
+
+        $signatureStartDate = '2026-11-08 00:00:00';
+
         if ($showTtdSpk) {
-            $userId = auth()->id();
-            $spkNumberSql =
-                "UPPER(CONCAT(COALESCE(JSON_UNQUOTE(JSON_EXTRACT(spk.data, '$.no_spk')), ''), ' ', COALESCE(JSON_UNQUOTE(JSON_EXTRACT(spk.data, '$.no_po')), '')))";
-            $prefixSql = "CASE
-                WHEN {$spkNumberSql} REGEXP '(^|[^A-Z])NWR([^A-Z]|$)' THEN 'NWR'
-                WHEN {$spkNumberSql} REGEXP '(^|[^A-Z])NWD([^A-Z]|$)' THEN 'NWD'
-                WHEN {$spkNumberSql} REGEXP '(^|[^A-Z])NWS([^A-Z]|$)' THEN 'NWS'
-                WHEN {$spkNumberSql} REGEXP '(^|[^A-Z])NW([^A-Z]|$)' THEN 'NW'
-                ELSE NULL END";
+            $userId = (int) $auth->id;
+
+            /*
+        |--------------------------------------------------------------------------
+        | AMBIL NOMOR SPK DAN PO DARI JSON
+        |--------------------------------------------------------------------------
+        */
+
+            $spkNumberSql = "
+            UPPER(
+                CONCAT(
+                    COALESCE(
+                        JSON_UNQUOTE(
+                            JSON_EXTRACT(spk.data, '$.no_spk')
+                        ),
+                        ''
+                    ),
+                    ' ',
+                    COALESCE(
+                        JSON_UNQUOTE(
+                            JSON_EXTRACT(spk.data, '$.no_po')
+                        ),
+                        ''
+                    )
+                )
+            )
+        ";
+
+            /*
+        |--------------------------------------------------------------------------
+        | IDENTIFIKASI DIVISI
+        |--------------------------------------------------------------------------
+        */
+
+            $prefixSql = "
+            CASE
+                WHEN {$spkNumberSql}
+                    REGEXP '(^|[^A-Z0-9])NWR([^A-Z0-9]|$)'
+                    THEN 'NWR'
+
+                WHEN {$spkNumberSql}
+                    REGEXP '(^|[^A-Z0-9])NWD([^A-Z0-9]|$)'
+                    THEN 'NWD'
+
+                WHEN {$spkNumberSql}
+                    REGEXP '(^|[^A-Z0-9])NWS([^A-Z0-9]|$)'
+                    THEN 'NWS'
+
+                WHEN {$spkNumberSql}
+                    REGEXP '(^|[^A-Z0-9])NW([^A-Z0-9]|$)'
+                    THEN 'NW'
+
+                ELSE NULL
+            END
+        ";
+
+            /*
+        |--------------------------------------------------------------------------
+        | QUERY TOTAL PENDING
+        |--------------------------------------------------------------------------
+        */
+
             $signatureRows = \Illuminate\Support\Facades\DB::table('signature_spks')
                 ->join('spk', 'spk.id', '=', 'signature_spks.spk_id')
-                ->where('signature_spks.made_at', '>=', '2026-08-11 00:00:00')
+
+                // Filter tanggal berdasarkan SPK dibuat
+                ->where('spk.created_at', '>=', $signatureStartDate)
+
+                // Hanya SPK yang masih diajukan
+                ->whereRaw('LOWER(TRIM(spk.status)) = ?', ['diajukan'])
+
+                // SPK yang berkaitan dengan user login
                 ->where(function ($query) use ($userId) {
                     $query
-                        ->where(function ($q) use ($userId) {
-                            $q->where('signature_spks.checked_by', $userId)->whereNull('signature_spks.checked_at');
-                        })
-                        ->orWhere(function ($q) use ($userId) {
-                            $q->where('signature_spks.checked_by_2', $userId)
-                                ->whereNotNull('signature_spks.checked_at')
-                                ->whereNull('signature_spks.checked_at_2');
-                        })
-                        ->orWhere(function ($q) use ($userId) {
-                            $q->where('signature_spks.approved_by', $userId)->whereNull('signature_spks.approved_at');
-                        });
+                        ->where('signature_spks.made_by', $userId)
+                        ->orWhere('signature_spks.checked_by', $userId)
+                        ->orWhere('signature_spks.checked_by_2', $userId)
+                        ->orWhere('signature_spks.approved_by', $userId);
                 })
-                ->selectRaw("{$prefixSql} AS prefix, COUNT(DISTINCT signature_spks.spk_id) AS total")
+
+                // Minimal satu tahapan approval masih pending
+                ->where(function ($query) use ($spkNumberSql) {
+                    $query
+                        ->where(function ($q) use ($spkNumberSql) {
+                            $q->whereRaw("{$spkNumberSql} REGEXP ?", ['(^|[^A-Z0-9])(NW|NWR)([^A-Z0-9]|$)'])->whereNull(
+                                'signature_spks.checked_at',
+                            );
+                        })
+                        ->orWhereNull('signature_spks.checked_at_2')
+                        ->orWhereNull('signature_spks.approved_at');
+                })
+
+                // Kelompokkan berdasarkan divisi
+                ->selectRaw(
+                    "
+                {$prefixSql} AS prefix,
+                COUNT(DISTINCT signature_spks.spk_id) AS total
+            ",
+                )
                 ->groupByRaw($prefixSql)
                 ->get();
+
+            /*
+        |--------------------------------------------------------------------------
+        | MASUKKAN HASIL KE COUNTER
+        |--------------------------------------------------------------------------
+        */
+
             foreach ($signatureRows as $signatureRow) {
-                if (array_key_exists($signatureRow->prefix ?? '', $signatureCounters)) {
-                    $signatureCounters[$signatureRow->prefix] = (int) $signatureRow->total;
+                $prefix = $signatureRow->prefix ?? '';
+
+                if (array_key_exists($prefix, $signatureCounters)) {
+                    $signatureCounters[$prefix] = (int) $signatureRow->total;
                 }
             }
         }
+
+        /*
+    |--------------------------------------------------------------------------
+    | VARIABLE UNTUK BLADE
+    |--------------------------------------------------------------------------
+    */
+
         $pendingNw = $signatureCounters['NW'];
         $pendingNwr = $signatureCounters['NWR'];
         $pendingNwd = $signatureCounters['NWD'];
         $pendingNws = $signatureCounters['NWS'];
     @endphp
+
     <style>
         .nw-signature-counters {
             display: grid;
@@ -872,13 +989,13 @@
                             itemsHtml = `
             <ul class="mb-0 pl-3 small text-muted">
                 ${row.after.items.map(item => `
-                                                                <li>
-                                                                    ${item.nama}
-                                                                    <b>
-                                                                        (${item.qty} ${item.satuan})
-                                                                    </b>
-                                                                </li>
-                                                            `).join('')}
+                                                                    <li>
+                                                                        ${item.nama}
+                                                                        <b>
+                                                                            (${item.qty} ${item.satuan})
+                                                                        </b>
+                                                                    </li>
+                                                                `).join('')}
             </ul>
         `;
                         }
