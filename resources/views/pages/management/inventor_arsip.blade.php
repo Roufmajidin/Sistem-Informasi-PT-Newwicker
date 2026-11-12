@@ -978,6 +978,21 @@
             }
         </style>
     
+{{-- Browser print QR: independent from the existing queue/PDF feature. --}}
+<script>
+(function () {
+    const basePrint = @json(url('/produksi/inventor/qr'));
+    $(document).on('click', '.spk-print-qr-browser', function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        const id = $('#spkRowMenu').data('spk-id');
+        if (!id) return;
+        $('#spkRowMenu').remove();
+        // Open synchronously from user click to avoid popup blockers.
+        window.open(basePrint + '/' + encodeURIComponent(id) + '/print', '_blank', 'noopener');
+    });
+})();
+</script>
 {{-- QR label generator: preview + actual server progress; existing menu untouched --}}
 <script>
 (function () {
@@ -994,25 +1009,13 @@
         if (!response.ok) throw new Error(data.message || 'HTTP ' + response.status);
         return data;
     }
-    function progressHtml(current, total, message, stage = 'queued', waitSeconds = 0) {
-        current = Math.max(0, Number(current) || 0);
-        total = Math.max(0, Number(total) || 0);
-        const qrPercent = total > 0 ? Math.min(100, Math.round(current / total * 100)) : 0;
-        // Rendering is not finished until the server explicitly reports done.
-        const percent = stage === 'done' ? 100 : stage === 'rendering' ? 99 :
-            stage === 'generating' ? Math.min(95, Math.round(qrPercent * .95)) : 0;
-        const label = stage === 'queued' ? 'Menunggu worker (Cron Job)...' :
-            stage === 'rendering' ? 'QR selesai, menyusun PDF F4...' :
-            stage === 'done' ? 'PDF siap diunduh' :
-            stage === 'failed' ? 'Generate gagal' : 'Membuat QR Code...';
-        const elapsed = stage === 'queued' ? `<div style="margin-top:7px;color:#64748b;font-size:12px">Menunggu ${Math.floor(waitSeconds)} detik. Cron Job dapat memerlukan hingga sekitar 60 detik untuk mulai.</div>` : '';
+    function progressHtml(current,total,message) {
+        const percent = total > 0 ? Math.min(100,Math.round(current / total * 100)) : 0;
         return `<div style="text-align:left;padding:8px 2px">
             <div style="display:flex;justify-content:space-between;margin-bottom:8px"><b>${esc(current)} / ${esc(total)} labels</b><b>${percent}%</b></div>
             <div style="height:13px;border-radius:12px;background:#e5e7eb;overflow:hidden">
-                <div style="width:${percent}%;height:100%;background:${stage === 'done' ? '#16a34a' : '#2563eb'};transition:width .3s"></div>
-            </div>
-            <div style="margin-top:10px;color:#334155;font-size:13px;font-weight:600">${esc(label)}</div>
-            <div style="margin-top:4px;color:#475569;font-size:13px">${esc(message)}</div>${elapsed}</div>`;
+                <div style="width:${percent}%;height:100%;background:#2563eb;transition:width .3s"></div>
+            </div><div style="margin-top:10px;color:#475569;font-size:13px">${esc(message)}</div></div>`;
     }
     let running = false;
     $(document).on('click', '.spk-generate-qr', async function(e) {
@@ -1032,14 +1035,13 @@
                 html:`<div style="max-height:250px;overflow:auto">${list}</div><hr><b>${esc(preview.total_labels)} QR labels</b> · PDF F4`,
                 showCancelButton:true,confirmButtonText:'Generate PDF F4',cancelButtonText:'Batal',width:540});
             if (!confirm.isConfirmed) return;
-            Swal.fire({title:'Generating for SPK ' + esc(preview.no_spk),html:progressHtml(0,preview.total_labels,'Menyiapkan proses...','queued',0),
+            Swal.fire({title:'Generating for SPK ' + esc(preview.no_spk),html:progressHtml(0,preview.total_labels,'Menyiapkan proses...'),
                 allowOutsideClick:false,allowEscapeKey:false,showConfirmButton:false});
             const job = await jsonRequest(base + '/' + encodeURIComponent(id) + '/start', {method:'POST'});
             let complete = false;
-            const queuedAt = Date.now();
             for (let attempt = 0; attempt < 1800; attempt++) {
                 const status = await jsonRequest(job.progress_url);
-                if (Swal.isVisible()) Swal.update({html:progressHtml(status.current,status.total,status.message,status.status,(Date.now()-queuedAt)/1000)});
+                if (Swal.isVisible()) Swal.update({html:progressHtml(status.current,status.total,status.message)});
                 if (status.status === 'failed') throw new Error(status.message || 'Generate PDF gagal.');
                 if (status.status === 'done') { complete = true; break; }
                 await sleep(1000);
@@ -2003,10 +2005,11 @@
                 <i class="fa fa-list-alt"></i>
                 <span>See Details</span>
             </button>
-                        <button type="button" class="spk-row-menu-item spk-generate-qr">
-                            <i class="fa fa-qrcode"></i>
-                            <span>Generate QR-Code</span>
+                        <button type="button" class="spk-row-menu-item spk-print-qr-browser">
+                            <i class="fa fa-print"></i>
+                            <span>Print QR (Browser - Fast)</span>
                         </button>
+                       
         </div>
     `);
 

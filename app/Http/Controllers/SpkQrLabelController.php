@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class SpkQrLabelController extends Controller
 {
@@ -19,11 +20,9 @@ class SpkQrLabelController extends Controller
         $items = [];
         $total = 0;
         foreach (($data['items'] ?? []) as $item) {
-            if (!is_array($item))
-                continue;
+            if (!is_array($item)) continue;
             $qty = filter_var($item['qty'] ?? null, FILTER_VALIDATE_INT);
-            if ($qty === false || $qty < 1)
-                continue;
+            if ($qty === false || $qty < 1) continue;
             $total += $qty;
             abort_if($total > 2000, 422, 'Jumlah label melebihi 2000.');
             $items[] = [
@@ -63,12 +62,8 @@ class SpkQrLabelController extends Controller
         $token = (string) Str::uuid();
         $userId = (int) auth()->id();
         Cache::put("spk_qr_job:$token", [
-            'user_id' => $userId,
-            'spk_id' => $id,
-            'status' => 'queued',
-            'current' => 0,
-            'total' => $data['total'],
-            'message' => 'Menunggu worker...',
+            'user_id' => $userId, 'spk_id' => $id, 'status' => 'queued',
+            'current' => 0, 'total' => $data['total'], 'message' => 'Menunggu worker...',
         ], now()->addHours(6));
         GenerateSpkQrPdf::dispatch($id, $token, $userId)->onQueue('default');
         return response()->json([
@@ -91,10 +86,8 @@ class SpkQrLabelController extends Controller
     {
         $state = $this->ownedStatus($token);
         return response()->json([
-            'status' => $state['status'],
-            'current' => $state['current'],
-            'total' => $state['total'],
-            'message' => $state['message'] ?? '',
+            'status' => $state['status'], 'current' => $state['current'],
+            'total' => $state['total'], 'message' => $state['message'] ?? '',
         ])->header('Cache-Control', 'no-store');
     }
 
@@ -107,21 +100,49 @@ class SpkQrLabelController extends Controller
         return Storage::disk('local')->download($path, $state['filename'] ?? 'SPK_QR.pdf');
     }
 
-    // Preserve the old direct-download URL for existing integrations.
     public function download(int $id)
     {
         $data = $this->getSpkData($id);
         $token = (string) Str::uuid();
         $userId = (int) auth()->id();
         Cache::put("spk_qr_job:$token", [
-            'user_id' => $userId,
-            'spk_id' => $id,
-            'status' => 'queued',
-            'current' => 0,
-            'total' => $data['total'],
-            'message' => 'Menyiapkan PDF...',
+            'user_id' => $userId, 'spk_id' => $id, 'status' => 'queued',
+            'current' => 0, 'total' => $data['total'], 'message' => 'Menyiapkan PDF...',
         ], now()->addHours(6));
         (new GenerateSpkQrPdf($id, $token, $userId))->handle();
         return $this->file($token);
+    }
+
+    /** New, independent browser-print flow; existing PDF queue flow remains intact. */
+    public function browserPrint(int $id)
+    {
+        $data = $this->getSpkData($id);
+        $spk = $data['spk'];
+        $labels = [];
+        foreach ($data['items'] as $item) {
+            for ($sequence = 1; $sequence <= $item['qty']; $sequence++) {
+                $serial = $sequence . '/' . $item['qty'];
+                // Keep the EXACT QR payload from GenerateSpkQrPdf.
+                $value = implode(',', [
+                    $spk->id, $spk->po_id, $item['detail_po_id'],
+                    $item['nama'], $data['supplier'], $data['no_po'], $serial,
+                ]);
+                // No per-label database cache reads/writes in the browser-print path.
+                $svg = (string) QrCode::format('svg')->size(210)->margin(2)
+                    ->errorCorrection('M')->generate($value);
+                $labels[] = [
+                    'name' => $item['nama'], 'kode' => $item['kode'],
+                    'material' => $item['material'], 'number' => $serial,
+                    'qty' => $item['qty'], 'sequence' => $sequence,
+                    'no_spk' => $data['no_spk'], 'no_po' => $data['no_po'],
+                    'supplier' => $data['supplier'],
+                    'detail_po_id' => $item['detail_po_id'],
+                    'qr' => 'data:image/svg+xml;base64,' . base64_encode($svg),
+                ];
+            }
+        }
+        $pages = array_chunk($labels, 15);
+        return response()->view('pages.management.pdf.spk-qr-browser-print', compact('pages', 'spk'))
+            ->header('Cache-Control', 'private, no-store');
     }
 }

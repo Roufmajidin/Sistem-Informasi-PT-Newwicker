@@ -1312,7 +1312,10 @@ Route::get('/produksi/inventor/qr/{id}/download', [SpkQrLabelController::class, 
     Route::post('/produksi/inventor/qr/{id}/start', [SpkQrLabelController::class, 'start'])->name('inventor.qr.start');
 Route::get('/produksi/inventor/qr/progress/{token}', [SpkQrLabelController::class, 'progress'])->name('inventor.qr.progress');
 Route::get('/produksi/inventor/qr/file/{token}', [SpkQrLabelController::class, 'file'])->name('inventor.qr.file');
-
+Route::get('/produksi/inventor/qr/{id}/print',
+    [\App\Http\Controllers\SpkQrLabelController::class, 'browserPrint'])
+    ->whereNumber('id')
+    ->name('inventor.qr.browser-print');
     Route::post(
         '/inventor/store',
         [ProduksiMnController::class, 'inventorStore']
