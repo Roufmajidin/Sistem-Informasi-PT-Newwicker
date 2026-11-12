@@ -38,7 +38,7 @@
 
         $canSourcingMonitoring = $auth->accessModules()->where('name', 'Sourching Monitoring Issue')->exists();
 
-        $canTtdSpk = $auth->accessModules()->where('name', 'ttd spk')->exists();
+        $canTtdSpk = $auth->accessModules()->where('name', 'Ttd Spk')->exists();
 
     @endphp
 
