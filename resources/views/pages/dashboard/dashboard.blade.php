@@ -73,8 +73,7 @@
             'NWS' => 0,
         ];
 
-        $signatureStartDate = '2026-08-11 00:00:00';
-
+       $signatureStartDate = '2026-11-08 00:00:00';
         if ($showTtdSpk) {
             $userId = (int) $auth->id;
 
@@ -847,22 +846,19 @@
                         <div class="nw-shortcut-title">Pengajuan TTD SPK</div>
                         <div class="nw-shortcut-sub">Pengajuan signature SPK</div>
                         <div class="nw-signature-counters">
-                            <a class="nw-counter nw"
-                                href="{{ url('/produksi/inventor/signature') . '?key=nw&date_from=2026-08-11' }}">
-                                <span>NW</span><strong>{{ $pendingNw ?? 0 }}</strong>
-                            </a>
-                            <a class="nw-counter nwr"
-                                href="{{ url('/produksi/inventor/signature') . '?key=nwr&date_from=2026-08-11' }}">
-                                <span>NWR</span><strong>{{ $pendingNwr ?? 0 }}</strong>
-                            </a>
-                            <a class="nw-counter nwd"
-                                href="{{ url('/produksi/inventor/signature') . '?key=nwd&date_from=2026-08-11' }}">
-                                <span>NWD</span><strong>{{ $pendingNwd ?? 0 }}</strong>
-                            </a>
-                            <a class="nw-counter nws"
-                                href="{{ url('/produksi/inventor/signature') . '?key=nws&date_from=2026-08-11' }}">
-                                <span>NWS</span><strong>{{ $pendingNws ?? 0 }}</strong>
-                            </a>
+                            @foreach (['NW', 'NWR', 'NWD', 'NWS'] as $key)
+                                <a class="nw-counter {{ strtolower($key) }}"
+                                    href="{{ url('/produksi/inventor/signature') .
+                                        '?' .
+                                        http_build_query([
+                                            'q' => '',
+                                            'key' => $key,
+                                            'date_from' => '2026-11-08',
+                                        ]) }}">
+                                    <span>{{ $key }}</span>
+                                    <strong>{{ $signatureCounters[$key] ?? 0 }}</strong>
+                                </a>
+                            @endforeach
                         </div>
                     </div>
                 </div>
@@ -989,13 +985,13 @@
                             itemsHtml = `
             <ul class="mb-0 pl-3 small text-muted">
                 ${row.after.items.map(item => `
-                                                                    <li>
-                                                                        ${item.nama}
-                                                                        <b>
-                                                                            (${item.qty} ${item.satuan})
-                                                                        </b>
-                                                                    </li>
-                                                                `).join('')}
+                                                                        <li>
+                                                                            ${item.nama}
+                                                                            <b>
+                                                                                (${item.qty} ${item.satuan})
+                                                                            </b>
+                                                                        </li>
+                                                                    `).join('')}
             </ul>
         `;
                         }
