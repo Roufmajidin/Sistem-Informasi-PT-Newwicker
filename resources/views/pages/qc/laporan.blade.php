@@ -1514,11 +1514,12 @@
         };
         const filteredInspections = selectedRow ?
             (Array.isArray(selectedRow.source_rows) ? selectedRow.source_rows : [selectedRow])
-            .filter(r => inRange(r.tanggal_inspect)) :
-            [];
+            .filter(r => inRange(r.tanggal_inspect)) : [];
         const filteredPassed = filteredInspections.reduce((sum, r) => sum + Number(r.passed || 0), 0);
 
         const $modal = $('#qcSpkDetailModal');
+        $modal.data('current-spk-id', spkId).data('current-detail-po-id', detailPoId).data('current-selected-row',
+            selectedRow);
         $("#qcTimelineRange").text(from && to ? `(Global; periode ${from} s/d ${to} ditandai hijau)` : "(Global)");
         $('#qcSpkInfo').html('<span class="text-muted">Memuat data SPK...</span>');
         $('#qcSpkItems').html('');
@@ -1569,13 +1570,10 @@
                         <td>${safe(supplier)}</td><td>${safe(row.type)}</td><td class="text-end">${formatNumber(row.qty)}</td>
                         <td>${safe(row.remark)}</td></tr>`).join('') :
                     '<tr><td colspan="7" class="text-center">Tidak ada mutasi SPK</td></tr>');
-                // Same payment calculation as inventor.blade.php.
-                // Disable finance editing controls in QC report.
+                // Same payment calculation and edit permissions as Inventor.
+                // Permission is supplied by the authenticated backend endpoint.
                 (function renderInventorPayment(response) {
-                    const res = {
-                        ...response,
-                        can_edit_harga: false
-                    };
+                    const res = response;
                     let paymentHtml = '';
                     let totalSpk = 0;
 
@@ -2581,12 +2579,64 @@
             error: function(xhr) {
                 $('#qcSpkPayments').html(
                     '<tr><td colspan="10" class="text-danger text-center">Gagal memuat payment</td></tr>'
-                    );
+                );
                 $('#qcSpkInfo').html('<div class="alert alert-danger">Gagal memuat SPK (HTTP ' + xhr
                     .status + '). Periksa akses endpoint /inventor/spk/{id}.</div>');
             }
         });
     }
+
+    // Simpan adjustment harga Vivi memakai endpoint yang sama dengan Inventor.
+    // Server wajib memverifikasi user berwenang, bukan hanya mengandalkan input UI.
+    $(document).off('keydown.qcHargaVivi', '#qcSpkDetailModal .harga-vivi-input')
+        .on('keydown.qcHargaVivi', '#qcSpkDetailModal .harga-vivi-input', function(e) {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            const input = $(this);
+            const id = input.data('id');
+            const harga = input.val();
+            if (!id || harga === '' || !Number.isFinite(Number(harga)) || Number(harga) < 0) {
+                alert('Masukkan harga yang valid.');
+                return;
+            }
+            input.prop('disabled', true);
+            $.ajax({
+                url: '/inventor/update-harga-vivi',
+                method: 'POST',
+                data: {
+                    _token: $('meta[name="csrf-token"]').attr('content') || @json(csrf_token()),
+                    id: id,
+                    harga: harga
+                },
+                success: function() {
+                    if (window.Swal) Swal.fire({
+                        icon: 'success',
+                        title: 'Harga tersimpan',
+                        timer: 1200,
+                        showConfirmButton: false
+                    });
+                    else alert('Harga tersimpan');
+                    // Refresh detail agar saldo, total dan adjustment dihitung ulang dari server.
+                    const spkId = $('#qcSpkDetailModal').data('current-spk-id');
+                    const detailPoId = $('#qcSpkDetailModal').data('current-detail-po-id');
+                    const selectedRow = $('#qcSpkDetailModal').data('current-selected-row');
+                    if (spkId) openQcSpkModal(spkId, detailPoId || 0, selectedRow || null);
+                },
+                error: function(xhr) {
+                    const message = xhr.responseJSON?.message || 'Gagal menyimpan harga (HTTP ' + xhr
+                        .status + ').';
+                    if (window.Swal) Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal',
+                        text: message
+                    });
+                    else alert(message);
+                },
+                complete: function() {
+                    input.prop('disabled', false);
+                }
+            });
+        });
 
     function bindRejectHover() {
 
