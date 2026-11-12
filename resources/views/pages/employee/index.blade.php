@@ -1,179 +1,178 @@
 @extends('master.master')
 
-@section('title', "Inventory Assets")
+@section('title', 'Employee Loans')
+
 @section('content')
-<div class="padding">
+    <div class="padding">
 
-    <div class="box">
+        <div class="box">
 
-        <div class="p-a white lt box-shadow">
+            <div class="p-a white lt box-shadow">
+                <div class="row">
 
-            <div class="row">
+                    <div class="col-sm-8">
+                        <h4 class="mb-1">
+                            Pengajuan Pinjaman Karyawan
+                        </h4>
 
-                <div class="col-sm-6">
+                        <small class="text-danger">
+                            List pengajuan pinjaman karyawan.
+                        </small>
+                    </div>
 
-                    <!-- <small class="text-muted">
-                        Pengajuan Pinjaman Karyawan
-                    </small> -->
-
-                    <br>
-
-                    <small class="text-danger">
-                        List pengajuan pinjaman karyawan.
-                    </small>
-
-                </div>
-
-                <div class="col-sm-6 text-right">
-
-
+                    <div class="col-sm-4 text-right">
+                        <span class="badge badge-primary">
+                            Total: {{ $loans->count() }} Pengajuan
+                        </span>
+                    </div>
 
                 </div>
-
             </div>
 
-        </div>
+            <div class="col-12">
 
-        <div class="col-12">
+                <div class="table-responsive">
 
-            <div class="table-responsive">
+                    <table class="table table-bordered table-hover">
 
-                <table class="table table-bordered">
+                        <thead style="color:white">
 
-                    <thead style="color:white">
+                            <tr class="sticky-header" style="font-size:12px;">
 
-                        <tr class="sticky-header"
-                            style="font-size:12px;">
+                                <th>No</th>
+                                <th>Nama</th>
+                                <th>Jabatan</th>
+                                <th>Department</th>
+                                <th>Nominal</th>
+                                <th>Alasan Pengajuan</th>
+                                <th>Cara Pengembalian</th>
+                                <th>Periode</th>
+                                <th>Status</th>
+                                <th>Approver</th>
+                                <th>Action</th>
 
-                            <th>No</th>
-                            <th>Nama</th>
-                            <th>Jabatan</th>
-                            <th>Department</th>
-                            <th>Nominal</th>
-                            <th>Cara Pengembalian</th>
-                            <th>Periode</th>
-                            <th>Status</th>
-                            <th>Approver</th>
-                            <th>Action</th>
+                            </tr>
 
-                        </tr>
+                        </thead>
 
-                    </thead>
+                        <tbody>
 
-                    <tbody>
+                            @forelse($loans as $loan)
+                                <tr style="font-size:13px;">
 
-                        @forelse($loans as $loan)
+                                    <td>
+                                        {{ $loop->iteration }}
+                                    </td>
 
-                        <tr style="font-size:13px;">
+                                    <td>
+                                        {{ $loan->nama_karyawan }}
+                                    </td>
 
-                            <td>
-                                {{ $loop->iteration }}
-                            </td>
+                                    <td>
+                                        {{ $loan->jabatan ?? '-' }}
+                                    </td>
 
-                            <td>
-                                {{ $loan->nama_karyawan }}
-                            </td>
+                                    <td>
+                                        {{ $loan->divisi?->nama ?? '-' }}
+                                    </td>
 
-                            <td>
-                                {{-- {{ $loan->jabatan }} --}}
-                            </td>
+                                    <td style="white-space:nowrap;">
+                                        Rp.
+                                        {{ number_format((float) $loan->nominal_pengajuan, 0, ',', '.') }}
+                                    </td>
 
-                            <td>
-                                {{ $loan->divisi?->nama }}
-                            </td>
+                                    <td
+                                        style="min-width:200px;
+                                           max-width:350px;
+                                           white-space:normal;
+                                           overflow-wrap:anywhere;">
 
-                            <td>
-                                Rp.
-                                {{ number_format($loan->nominal_pengajuan,0,',','.') }}
-                            </td>
+                                        {{ $loan->alasan_pengajuan ?: '-' }}
 
-                            <td>
+                                    </td>
 
-                                @if($loan->cara_pengembalian == 'pemotongan_gaji')
+                                    <td>
+                                        @if ($loan->cara_pengembalian === 'pemotongan_gaji')
+                                            Pemotongan Gaji
+                                        @elseif($loan->cara_pengembalian === 'tunai')
+                                            Tunai
+                                        @else
+                                            -
+                                        @endif
+                                    </td>
 
-                                    Pemotongan Gaji
+                                    <td style="white-space:nowrap;">
+                                        {{ $loan->periode_pembayaran }} Bulan
+                                    </td>
 
-                                @else
+                                    <td style="white-space:nowrap;">
 
-                                    Tunai
+                                        @if ($loan->status === 'pending')
+                                            <span class="badge badge-warning">
+                                                Pending
+                                            </span>
 
-                                @endif
+                                            <form action="{{ route('employee-loans.approve', $loan->id) }}" method="POST"
+                                                style="display:inline-block; margin-top:5px;">
+                                                @csrf
 
-                            </td>
+                                                <button type="submit" class="btn btn-sm btn-success"
+                                                    onclick="return confirm('Approve pengajuan ini?')">
+                                                    Approve
+                                                </button>
 
-                            <td>
-                                {{ $loan->periode_pembayaran }} Bulan
-                            </td>
+                                            </form>
+                                        @elseif($loan->status === 'approved')
+                                            <span class="badge badge-success">
+                                                Approved
+                                            </span>
+                                        @elseif($loan->status === 'rejected')
+                                            <span class="badge badge-danger">
+                                                Rejected
+                                            </span>
+                                        @else
+                                            <span class="badge badge-secondary">
+                                                {{ ucfirst($loan->status ?? '-') }}
+                                            </span>
+                                        @endif
 
-                          <td>
+                                    </td>
 
-    @if($loan->status == 'pending')
+                                    <td>
+                                        {{ $loan->approverUser?->name ?? '-' }}
+                                    </td>
 
-        <form action="{{ route('employee-loans.approve', $loan->id) }}"
-              method="POST"
-              style="display:inline;">
+                                    <td>
 
-            @csrf
+                                        <form action="{{ route('employee-loans.destroy', $loan->id) }}" method="POST"
+                                            class="form-delete">
+                                            @csrf
+                                            @method('DELETE')
 
-            <button class="btn btn-sm btn-success"
-                    onclick="return confirm('Approve pengajuan ini?')">
+                                            <button type="submit" class="btn btn-sm btn-danger">
+                                                Delete
+                                            </button>
 
-                Approve
+                                        </form>
 
-            </button>
+                                    </td>
 
-        </form>
+                                </tr>
 
-    @else
+                            @empty
 
-        approved
+                                <tr>
+                                    <td colspan="11" class="text-center">
+                                        Tidak ada pengajuan pinjaman
+                                    </td>
+                                </tr>
+                            @endforelse
 
-    @endif
+                        </tbody>
 
-</td>
+                    </table>
 
-                            <td>
-                                {{ $loan->approverUser?->name ?? '-' }}
-                            </td>
-<td>
-
-    <form action="{{ route('employee-loans.destroy', $loan->id) }}"
-          method="POST"
-          class="form-delete">
-
-        @csrf
-        @method('DELETE')
-
-        <button type="submit"
-                class="btn btn-sm btn-danger">
-
-            Delete
-
-        </button>
-
-    </form>
-
-</td>
-                        </tr>
-
-                        @empty
-
-                        <tr>
-
-                            <td colspan="9"
-                                class="text-center">
-
-                                Tidak ada pengajuan pinjaman
-
-                            </td>
-
-                        </tr>
-
-                        @endforelse
-
-                    </tbody>
-
-                </table>
+                </div>
 
             </div>
 
@@ -181,87 +180,65 @@
 
     </div>
 
-</div>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-@if(session('success'))
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-<script>
+    @if (session('success'))
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil',
+                    text: @json(session('success')),
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+            });
+        </script>
+    @endif
 
-    Swal.fire({
+    @if (session('error'))
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Oops...',
+                    text: @json(session('error'))
+                });
+            });
+        </script>
+    @endif
 
-        icon: 'success',
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
 
-        title: 'Berhasil',
+            document.querySelectorAll('.form-delete').forEach(function(form) {
 
-        text: '{{ session('success') }}',
+                form.addEventListener('submit', function(e) {
 
-        timer: 2000,
+                    e.preventDefault();
 
-        showConfirmButton: false
+                    Swal.fire({
+                        title: 'Are you sure delete bro?',
+                        text: 'Data yang dihapus tidak bisa dikembalikan',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#d33',
+                        cancelButtonColor: '#3085d6',
+                        confirmButtonText: 'Ya, hapus',
+                        cancelButtonText: 'Batal'
+                    }).then(function(result) {
 
-    });
+                        if (result.isConfirmed) {
+                            form.submit();
+                        }
 
-</script>
+                    });
 
-@endif
+                });
 
-
-@if(session('error'))
-
-<script>
-
-    Swal.fire({
-
-        icon: 'error',
-
-        title: 'Oops...',
-
-        text: '{{ session('error') }}'
-
-    });
-
-</script>
-
-@endif
-<script>
-
-document.querySelectorAll('.form-delete').forEach(form => {
-
-    form.addEventListener('submit', function(e){
-
-        e.preventDefault();
-
-        Swal.fire({
-
-            title: 'Are you sure delete bro ?',
-
-            text: 'Data yang dihapus tidak bisa dikembalikan',
-
-            icon: 'warning',
-
-            showCancelButton: true,
-
-            confirmButtonColor: '#d33',
-
-            cancelButtonColor: '#3085d6',
-
-            confirmButtonText: 'Ya, hapus',
-
-            cancelButtonText: 'Batal'
-
-        }).then((result) => {
-
-            if (result.isConfirmed) {
-
-                this.submit();
-
-            }
+            });
 
         });
+    </script>
 
-    });
-
-});
-
-</script>
 @endsection

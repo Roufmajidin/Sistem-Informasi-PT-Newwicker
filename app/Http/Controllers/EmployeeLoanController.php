@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers;
 
 use App\Models\Divisi;
@@ -9,10 +10,13 @@ class EmployeeLoanController extends Controller
 {
     public function index()
     {
-        $loans = EmployeeLoan::with('divisi')
+        $loans = EmployeeLoan::with([
+            'divisi',
+            'approverUser',
+        ])
             ->latest()
             ->get();
-// dd($loans);
+
         return view('pages.employee.index', compact('loans'));
     }
 
@@ -25,81 +29,73 @@ class EmployeeLoanController extends Controller
 
     public function store(Request $request)
     {
+        // =========================
+        // AUTH
+        // =========================
 
-        if (! $request->user()) {
+        $user = $request->user();
 
+        if (!$user) {
             return response()->json([
                 'message' => 'Token tidak valid',
             ], 401);
         }
-
-        $user = $request->user();
 
         // =========================
         // VALIDASI
         // =========================
 
         $validated = $request->validate([
-
-            'nama_karyawan'         => 'required',
-            'jabatan'               => 'required',
-            'divisi_id'             => 'required|exists:divisis,id',
-            'nominal_pengajuan'     => 'required|numeric',
-            'alasan_pengajuan'      => 'required',
-            'cara_pengembalian'     => 'required|in:pemotongan_gaji,tunai',
-            'nominal_potongan_gaji' => 'nullable|numeric',
-            'periode_pembayaran'    => 'required|integer',
-            'pelunasan_terakhir'    => 'nullable',
+            'nama_karyawan' => 'required|string|max:255',
+            'jabatan' => 'required|string|max:255',
+            'divisi_id' => 'required|exists:divisis,id',
+            'nominal_pengajuan' => 'required|numeric|gt:0',
+            'alasan_pengajuan' => 'required|string',
+            'cara_pengembalian' => 'required|in:pemotongan_gaji,tunai',
+            'nominal_potongan_gaji' => 'nullable|numeric|min:0',
+            'periode_pembayaran' => 'required|integer|min:1',
+            'pelunasan_terakhir' => 'nullable|date',
         ]);
 
         // =========================
-        // CEK PENDING
+        // MULTIPLE PENDING ALLOWED
         // =========================
 
-        $pendingLoan = EmployeeLoan::where('user_id', $user->id)
-            ->where('status', 'pending')
-            ->first();
-
-        // jika masih ada pending
-        if ($pendingLoan) {
-
-            return response()->json([
-
-                'message' => 'Masih ada pengajuan pinjaman yang pending',
-
-                'data'    => $pendingLoan,
-
-            ], 422);
-        }
+        /*
+         * User diperbolehkan membuat pengajuan baru
+         * meskipun masih mempunyai pengajuan pending.
+         *
+         * Tidak melakukan update pengajuan sebelumnya.
+         * Setiap submit membuat record baru.
+         */
 
         // =========================
         // CREATE
         // =========================
 
         $loan = EmployeeLoan::create([
-
-            'nama_karyawan'         => $validated['nama_karyawan'],
-            'jabatan'               => $validated['jabatan'],
-            'divisi_id'             => $validated['divisi_id'],
-            'nominal_pengajuan'     => $validated['nominal_pengajuan'],
-            'alasan_pengajuan'      => $validated['alasan_pengajuan'],
-            'cara_pengembalian'     => $validated['cara_pengembalian'],
-            'nominal_potongan_gaji' => $validated['nominal_potongan_gaji'],
-            'periode_pembayaran'    => $validated['periode_pembayaran'],
-            'pelunasan_terakhir'    => $validated['pelunasan_terakhir'],
-            'status'                => 'pending',
-            'approver'              => null,
-            'user_id'               => $user->id,
+            'nama_karyawan' => $validated['nama_karyawan'],
+            'jabatan' => $validated['jabatan'],
+            'divisi_id' => $validated['divisi_id'],
+            'nominal_pengajuan' => $validated['nominal_pengajuan'],
+            'alasan_pengajuan' => $validated['alasan_pengajuan'],
+            'cara_pengembalian' => $validated['cara_pengembalian'],
+            'nominal_potongan_gaji' =>
+                $validated['nominal_potongan_gaji'] ?? null,
+            'periode_pembayaran' => $validated['periode_pembayaran'],
+            'pelunasan_terakhir' =>
+                $validated['pelunasan_terakhir'] ?? null,
+            'status' => 'pending',
+            'approver' => null,
+            'user_id' => $user->id,
         ]);
 
         return response()->json([
-
             'message' => 'Pengajuan pinjaman berhasil dibuat',
-
-            'data'    => $loan,
-
+            'data' => $loan,
         ], 201);
     }
+
     public function approve($id)
     {
         // =========================
@@ -108,26 +104,23 @@ class EmployeeLoanController extends Controller
 
         $loan = EmployeeLoan::find($id);
 
-        if (! $loan) {
-
+        if (!$loan) {
             return redirect()
                 ->back()
                 ->with('error', 'Data pengajuan tidak ditemukan');
         }
 
         // =========================
-        // VALIDASI
+        // VALIDASI STATUS
         // =========================
 
-        if ($loan->status == 'approved') {
-
+        if ($loan->status === 'approved') {
             return redirect()
                 ->back()
                 ->with('error', 'Pengajuan sudah di approve');
         }
 
-        if ($loan->status == 'rejected') {
-
+        if ($loan->status === 'rejected') {
             return redirect()
                 ->back()
                 ->with('error', 'Pengajuan sudah di reject');
@@ -138,9 +131,7 @@ class EmployeeLoanController extends Controller
         // =========================
 
         $loan->update([
-
-            'status'   => 'approved',
-
+            'status' => 'approved',
             'approver' => auth()->id(),
         ]);
 
@@ -148,20 +139,20 @@ class EmployeeLoanController extends Controller
             ->back()
             ->with('success', 'Pengajuan berhasil di approve');
     }
+
     public function myLoans(Request $request)
     {
         // =========================
         // AUTH
         // =========================
 
-        if (! $request->user()) {
+        $user = $request->user();
 
+        if (!$user) {
             return response()->json([
                 'message' => 'Token tidak valid',
             ], 401);
         }
-
-        $user = $request->user();
 
         // =========================
         // GET DATA
@@ -176,29 +167,25 @@ class EmployeeLoanController extends Controller
             ->get();
 
         return response()->json([
-
             'message' => 'Data pengajuan pinjaman',
-
-            'data'    => $loans,
-
+            'data' => $loans,
         ], 200);
     }
-    public function destroy($id)
-{
-    $loan = EmployeeLoan::find($id);
 
-    if (! $loan) {
+    public function destroy($id)
+    {
+        $loan = EmployeeLoan::find($id);
+
+        if (!$loan) {
+            return redirect()
+                ->back()
+                ->with('error', 'Data tidak ditemukan');
+        }
+
+        $loan->delete();
 
         return redirect()
             ->back()
-            ->with('error', 'Data tidak ditemukan');
+            ->with('success', 'Pengajuan berhasil dihapus');
     }
-
-    $loan->delete();
-
-    return redirect()
-        ->back()
-        ->with('success', 'Pengajuan berhasil dihapus');
-}
-
 }
