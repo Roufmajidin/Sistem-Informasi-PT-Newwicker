@@ -5,12 +5,16 @@ namespace App\Http\Controllers;
 use App\Models\Spk;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class SpkQrLabelController extends Controller
-
 {
+    private const MAX_LABELS = 2000;
+
+    private const QR_CACHE_DAYS = 7;
+
     private function getSpkData(int $id): array
     {
         $spk = Spk::findOrFail($id);
@@ -45,9 +49,10 @@ class SpkQrLabelController extends Controller
             $total += $qty;
 
             abort_if(
-                $total > 2000,
+                $total > self::MAX_LABELS,
                 422,
-                'Jumlah label melebihi 2000. Hubungi administrator untuk ekspor bertahap.'
+                'Jumlah label melebihi 2000. '
+                . 'Hubungi administrator untuk ekspor bertahap.'
             );
 
             $items[] = [
@@ -56,11 +61,19 @@ class SpkQrLabelController extends Controller
                     ?? $spk->detail_po_id
                     ?? 0
                 ),
-                'nama' => trim((string) ($item['nama'] ?? '-')),
-                'kode' => trim((string) ($item['kode'] ?? '')),
-                'material' => trim((string) ($item['material'] ?? '')),
+                'nama' => trim(
+                    (string) ($item['nama'] ?? '-')
+                ),
+                'kode' => trim(
+                    (string) ($item['kode'] ?? '')
+                ),
+                'material' => trim(
+                    (string) ($item['material'] ?? '')
+                ),
                 'qty' => $qty,
-                'satuan' => (string) ($item['satuan'] ?? 'pcs'),
+                'satuan' => (string) (
+                    $item['satuan'] ?? 'pcs'
+                ),
             ];
         }
 
@@ -76,8 +89,12 @@ class SpkQrLabelController extends Controller
                 $data['no_spk']
                 ?? ('SPK #' . $spk->id)
             ),
-            'no_po' => (string) ($data['no_po'] ?? ''),
-            'supplier' => (string) ($data['sup'] ?? ''),
+            'no_po' => (string) (
+                $data['no_po'] ?? ''
+            ),
+            'supplier' => (string) (
+                $data['sup'] ?? ''
+            ),
             'items' => $items,
             'total' => $total,
         ];
@@ -99,84 +116,58 @@ class SpkQrLabelController extends Controller
     }
 
     /**
-     * Mengambil PNG QR dari QRServer.
+     * Generate QR SVG lokal.
      *
-     * Data dikirim ke layanan eksternal.
+     * Tidak membutuhkan Imagick atau internet.
      */
     private function generateQr(string $value): string
     {
-        try {
-            $response = Http::connectTimeout(10)
-                ->timeout(25)
-                ->retry(2, 500)
-                ->get(
-                    'https://api.qrserver.com/v1/create-qr-code/',
-                    [
-                        'size' => '600x600',
-                        'format' => 'png',
-                        'ecc' => 'M',
-                        'qzone' => 4,
-                        'charset-source' => 'UTF-8',
-                        'data' => $value,
-                    ]
-                );
+        $cacheKey = 'spk_qr_svg_v1_'
+            . hash('sha256', $value);
 
-            if (!$response->successful()) {
-                throw new \RuntimeException(
-                    'HTTP ' . $response->status()
-                );
+        return Cache::remember(
+            $cacheKey,
+            now()->addDays(self::QR_CACHE_DAYS),
+            function () use ($value) {
+
+                $svg = QrCode::format('svg')
+                    ->size(420)
+                    ->margin(4)
+                    ->errorCorrection('M')
+                    ->generate($value);
+
+                return 'data:image/svg+xml;base64,'
+                    . base64_encode((string) $svg);
             }
-
-            $image = $response->body();
-
-            // Validasi signature PNG.
-            if (
-                substr($image, 0, 8)
-                !== "\x89PNG\r\n\x1a\n"
-            ) {
-                throw new \RuntimeException(
-                    'Response API bukan gambar PNG.'
-                );
-            }
-
-            return 'data:image/png;base64,'
-                . base64_encode($image);
-
-        } catch (\Throwable $e) {
-            report($e);
-
-            abort(
-                502,
-                'Gagal mengambil QR Code dari QRServer. '
-                . 'Periksa koneksi internet server.'
-            );
-        }
+        );
     }
 
     public function download(int $id)
     {
-        // Ekspor besar melalui API dapat memerlukan waktu.
-        // Batas ini tidak menjamin bebas timeout.
         @set_time_limit(0);
 
         $payload = $this->getSpkData($id);
-        $spk = $payload['spk'];
 
+        $spk = $payload['spk'];
         $labels = [];
 
         foreach ($payload['items'] as $item) {
 
             $qty = $item['qty'];
 
-            for ($sequence = 1; $sequence <= $qty; $sequence++) {
+            for (
+                $sequence = 1;
+                $sequence <= $qty;
+                $sequence++
+            ) {
 
                 $serial = $qty . '/' . $sequence;
 
                 /*
-                 * Payload scanner:
+                 * Format payload:
                  *
                  * spkId,poId,detailPoId,
-                 * itemName,supplierName,no_po,totalQty/serial
+                 * nama,supplier,no_po,qty/urutan
                  */
                 $value = implode(',', [
                     $spk->id,
@@ -187,9 +178,6 @@ class SpkQrLabelController extends Controller
                     $payload['no_po'],
                     $serial,
                 ]);
-
-                // QR PNG 600x600 dari API.
-                $qrImage = $this->generateQr($value);
 
                 $labels[] = [
                     'name' => $item['nama'],
@@ -206,15 +194,15 @@ class SpkQrLabelController extends Controller
 
                     'detail_po_id' => $item['detail_po_id'],
 
-                    'qr' => $qrImage,
+                    'qr' => $this->generateQr($value),
                 ];
             }
         }
 
-        // 3 kolom x 5 baris = 15 label per halaman.
+        // 3 kolom x 5 baris.
         $pages = array_chunk($labels, 15);
 
-        // F4 portrait 210 x 330 mm.
+        // F4 portrait: 210 x 330 mm.
         $paperWidth = 210 * 72 / 25.4;
         $paperHeight = 330 * 72 / 25.4;
 
@@ -226,18 +214,25 @@ class SpkQrLabelController extends Controller
                 'noSpk' => $payload['no_spk'],
             ]
         )
-        ->setPaper(
-            [0, 0, $paperWidth, $paperHeight],
-            'portrait'
-        )
-        ->setOptions([
-            'isRemoteEnabled' => false,
-            'isHtml5ParserEnabled' => true,
-            'defaultFont' => 'DejaVu Sans',
-        ]);
+            ->setPaper(
+                [
+                    0,
+                    0,
+                    $paperWidth,
+                    $paperHeight
+                ],
+                'portrait'
+            )
+            ->setOptions([
+                'isRemoteEnabled' => false,
+                'defaultFont' => 'DejaVu Sans',
+            ]);
 
         $filename = 'SPK_QR_'
-            . Str::slug($payload['no_spk'], '_')
+            . Str::slug(
+                $payload['no_spk'],
+                '_'
+            )
             . '_'
             . now()->format('Ymd_His')
             . '.pdf';
