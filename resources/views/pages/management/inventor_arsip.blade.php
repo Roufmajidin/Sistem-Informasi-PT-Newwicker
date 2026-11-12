@@ -977,7 +977,51 @@
                 }
             }
         </style>
-    @endsection
+    
+{{-- QR label generator (additive, no changes to existing row/menu logic) --}}
+<script>
+(function () {
+    function esc(s) {
+        return String(s ?? '').replace(/[&<>"']/g, function(c) {
+            return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+        });
+    }
+    $(document).on('click', '.spk-generate-qr', async function(e) {
+        e.preventDefault(); e.stopPropagation();
+        const id = $('#spkRowMenu').data('spk-id');
+        if (!id) return;
+        $('#spkRowMenu').remove();
+        const previewUrl = @json(url('/produksi/inventor/qr')) + '/' + encodeURIComponent(id) + '/preview';
+        const downloadUrl = @json(url('/produksi/inventor/qr')) + '/' + encodeURIComponent(id) + '/download';
+        if (typeof Swal === 'undefined') { window.location.href = downloadUrl; return; }
+        Swal.fire({ title: 'Generating for SPK #' + id, html: 'Loading items...',
+            allowOutsideClick: false, showConfirmButton: false, didOpen: () => Swal.showLoading() });
+        try {
+            const response = await fetch(previewUrl, { credentials: 'same-origin', headers: {'Accept':'application/json'} });
+            if (!response.ok) throw new Error('Gagal membaca item SPK (HTTP ' + response.status + ')');
+            const data = await response.json();
+            const list = data.items.map((item, i) => '<div style="text-align:left;overflow-wrap:anywhere">' +
+                (i+1) + '. ' + esc(item.nama) + ' : <b>' + esc(item.qty) + ' ' + esc(item.satuan) + '</b></div>').join('');
+            const result = await Swal.fire({
+                title: 'Generating for SPK ' + esc(data.no_spk),
+                html: '<div style="max-height:250px;overflow:auto">' + list + '</div><hr><b>' +
+                    esc(data.total_labels) + ' QR labels</b> · PDF F4',
+                showCancelButton: true, confirmButtonText: 'Download PDF F4', cancelButtonText: 'Batal',
+                width: 540
+            });
+            if (result.isConfirmed) {
+                Swal.fire({ title: 'Generating for SPK ' + esc(data.no_spk),
+                    html: esc(data.total_labels) + ' labels — preparing PDF...',
+                    allowOutsideClick:false, showConfirmButton:false, didOpen:()=>Swal.showLoading() });
+                // Browser downloads the PDF; popup closes after starting the download.
+                window.location.href = data.download_url || downloadUrl;
+                setTimeout(() => Swal.close(), 1600);
+            }
+        } catch (err) { Swal.fire({ icon:'error', title:'Generate QR gagal', text: err.message }); }
+    });
+})();
+</script>
+@endsection
 
     <style>
         .spk-row-menu {
@@ -1925,6 +1969,10 @@
                 <i class="fa fa-list-alt"></i>
                 <span>See Details</span>
             </button>
+                        <button type="button" class="spk-row-menu-item spk-generate-qr">
+                            <i class="fa fa-qrcode"></i>
+                            <span>Generate QR-Code</span>
+                        </button>
         </div>
     `);
 

@@ -48,6 +48,7 @@ use App\Http\Controllers\MomController;
 use App\Http\Controllers\PengajuanHargaController;
 use App\Http\Controllers\PengajuanHargaNotificationController;
 use App\Http\Controllers\InventorSignatureController;
+use App\Http\Controllers\SpkQrLabelController;
 // ==========================================================
 // MAGIC APPROVAL LINK - PUBLIC ENTRY POINT
 // ==========================================================
@@ -1304,6 +1305,11 @@ Route::post('/produksi/inventor/signature/{id}/reject', [InventorSignatureContro
         '/inventor/spk/{id}',
         [ProduksiMnController::class, 'inventorDetail']
     );
+    Route::get('/produksi/inventor/qr/{id}/preview', [SpkQrLabelController::class, 'preview'])
+    ->whereNumber('id')->name('inventor.qr.preview');
+Route::get('/produksi/inventor/qr/{id}/download', [SpkQrLabelController::class, 'download'])
+    ->whereNumber('id')->name('inventor.qr.download');
+
     Route::post(
         '/inventor/store',
         [ProduksiMnController::class, 'inventorStore']
