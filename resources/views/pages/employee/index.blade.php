@@ -40,9 +40,9 @@
                             <tr class="sticky-header" style="font-size:12px;">
 
                                 <th>No</th>
+                                <th>Submission Date</th>
                                 <th>Nama</th>
                                 <th>Jabatan</th>
-                                <th>Department</th>
                                 <th>Nominal</th>
                                 <th>Alasan Pengajuan</th>
                                 <th>Cara Pengembalian</th>
@@ -60,37 +60,44 @@
                             @forelse($loans as $loan)
                                 <tr style="font-size:13px;">
 
+                                    {{-- NO --}}
                                     <td>
                                         {{ $loop->iteration }}
                                     </td>
 
+                                    {{-- SUBMISSION DATE --}}
+                                    <td style="white-space:nowrap;">
+                                        {{ $loan->created_at ? $loan->created_at->format('d/m/Y H:i') : '-' }}
+                                    </td>
+
+                                    {{-- NAMA --}}
                                     <td>
                                         {{ $loan->nama_karyawan }}
                                     </td>
 
+                                    {{-- JABATAN --}}
                                     <td>
                                         {{ $loan->jabatan ?? '-' }}
                                     </td>
 
-                                    <td>
-                                        {{ $loan->divisi?->nama ?? '-' }}
-                                    </td>
-
+                                    {{-- NOMINAL --}}
                                     <td style="white-space:nowrap;">
                                         Rp.
                                         {{ number_format((float) $loan->nominal_pengajuan, 0, ',', '.') }}
                                     </td>
 
+                                    {{-- ALASAN PENGAJUAN --}}
                                     <td
-                                        style="min-width:200px;
-                                           max-width:350px;
-                                           white-space:normal;
-                                           overflow-wrap:anywhere;">
-
+                                        style="
+                                    min-width:200px;
+                                    max-width:350px;
+                                    white-space:normal;
+                                    overflow-wrap:anywhere;
+                                ">
                                         {{ $loan->alasan_pengajuan ?: '-' }}
-
                                     </td>
 
+                                    {{-- CARA PENGEMBALIAN --}}
                                     <td>
                                         @if ($loan->cara_pengembalian === 'pemotongan_gaji')
                                             Pemotongan Gaji
@@ -101,10 +108,12 @@
                                         @endif
                                     </td>
 
+                                    {{-- PERIODE --}}
                                     <td style="white-space:nowrap;">
                                         {{ $loan->periode_pembayaran }} Bulan
                                     </td>
 
+                                    {{-- STATUS & APPROVE --}}
                                     <td style="white-space:nowrap;">
 
                                         @if ($loan->status === 'pending')
@@ -138,12 +147,13 @@
 
                                     </td>
 
+                                    {{-- APPROVER --}}
                                     <td>
                                         {{ $loan->approverUser?->name ?? '-' }}
                                     </td>
 
+                                    {{-- ACTION DELETE --}}
                                     <td>
-
                                         <form action="{{ route('employee-loans.destroy', $loan->id) }}" method="POST"
                                             class="form-delete">
                                             @csrf
@@ -154,7 +164,6 @@
                                             </button>
 
                                         </form>
-
                                     </td>
 
                                 </tr>
@@ -180,6 +189,7 @@
 
     </div>
 
+    {{-- SWEETALERT --}}
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     @if (session('success'))
@@ -208,6 +218,7 @@
         </script>
     @endif
 
+    {{-- KONFIRMASI DELETE --}}
     <script>
         document.addEventListener('DOMContentLoaded', function() {
 
