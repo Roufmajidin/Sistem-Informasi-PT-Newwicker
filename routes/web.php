@@ -1309,6 +1309,9 @@ Route::post('/produksi/inventor/signature/{id}/reject', [InventorSignatureContro
     ->whereNumber('id')->name('inventor.qr.preview');
 Route::get('/produksi/inventor/qr/{id}/download', [SpkQrLabelController::class, 'download'])
     ->whereNumber('id')->name('inventor.qr.download');
+    Route::post('/produksi/inventor/qr/{id}/start', [SpkQrLabelController::class, 'start'])->name('inventor.qr.start');
+Route::get('/produksi/inventor/qr/progress/{token}', [SpkQrLabelController::class, 'progress'])->name('inventor.qr.progress');
+Route::get('/produksi/inventor/qr/file/{token}', [SpkQrLabelController::class, 'file'])->name('inventor.qr.file');
 
     Route::post(
         '/inventor/store',
