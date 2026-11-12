@@ -76,7 +76,7 @@
                 ->join('spk', 'spk.id', '=', 'signature_spks.spk_id')
                 ->where('signature_spks.made_at', '>=', '2026-11-08 00:00:00')
                 ->where('signature_spks.approved_by', auth()->id())
-                ->whereNull('signature_spk.approved_at')
+                ->whereNull('signature_spks.approved_at')
                 ->whereRaw('LOWER(TRIM(spk.status)) = ?', ['diajukan'])
                 ->where('spk.created_at', '>=', '2026-11-08 00:00:00')
                 ->selectRaw("{$prefixSql} AS prefix, COUNT(DISTINCT signature_spks.spk_id) AS total")
