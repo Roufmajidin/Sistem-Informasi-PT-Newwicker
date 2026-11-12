@@ -117,6 +117,10 @@ class InventorSignatureController extends Controller
         $userId = (int) $request->user()->id;
         $search = trim((string) ($validated['q'] ?? ''));
         $key = strtoupper(trim((string) ($validated['key'] ?? '')));
+        // Empty / ALL means no division restriction.
+        if ($key === 'ALL') {
+            $key = '';
+        }
         $dateFromInput = (string) ($validated['date_from'] ?? '');
         $dateFrom = $dateFromInput !== '' ? Carbon::createFromFormat('!Y-m-d', $dateFromInput)->startOfDay() : null;
 
@@ -133,9 +137,19 @@ class InventorSignatureController extends Controller
                 ->orWhere('approved_by', $userId);
         })->orderByDesc('spk_id')->get();
 
-        $spks = Spk::whereIn('id', $signatures->pluck('spk_id')->unique())->get()->keyBy('id');
+        // Filter at database level: only submitted SPKs created on/after Start Date.
+        // created_at belongs to the SPK record, not the signature record.
+        $spkQuery = Spk::query()
+            ->whereIn('id', $signatures->pluck('spk_id')->unique())
+            ->whereRaw('LOWER(TRIM(status)) = ?', ['diajukan']);
 
-        $documents = $signatures->map(function (SignatureSpk $signature) use ($spks, $userId, $search, $key, $dateFrom) {
+        if ($dateFrom !== null) {
+            $spkQuery->where('created_at', '>=', $dateFrom->toDateTimeString());
+        }
+
+        $spks = $spkQuery->get()->keyBy('id');
+
+        $documents = $signatures->map(function (SignatureSpk $signature) use ($spks, $userId, $search, $key) {
             $spk = $spks->get($signature->spk_id);
             if (!$spk || $this->blocked($spk)) {
                 return null;
@@ -145,13 +159,6 @@ class InventorSignatureController extends Controller
             $division = $this->division($spk);
             if ($key !== '' && $division !== $key) {
                 return null;
-            }
-
-            if ($dateFrom !== null) {
-                $received = $this->parseReceiveDate($data['tgl_terima'] ?? $data['tanggal_terima'] ?? null);
-                if (!$received || $received->lt($dateFrom)) {
-                    return null;
-                }
             }
 
             if ($search !== '') {
@@ -214,8 +221,7 @@ class InventorSignatureController extends Controller
 
         $totalPending = $documents->count();
 
-        // Blade V10 uses $dateFrom as the input value.
-        // Keep the parsed Carbon cutoff separately inside this method.
+        // The Blade date input needs the original YYYY-MM-DD string.
         $dateFrom = $dateFromInput;
 
         return view('pages.management.inventor_signature', compact(

@@ -1065,16 +1065,16 @@
                     placeholder="Cari nomor SPK, PO, atau supplier..." /></label>
             <label>Divisi
                 <select name="key" class="sig-filter-input">
-                    @foreach (['all' => 'Semua divisi', 'nw' => 'NW', 'nwd' => 'NWD', 'nws' => 'NWS', 'nwr' => 'NWR'] as $code => $label)
-                        <option value="{{ $code }}" @selected($key === $code)>{{ $label }}</option>
+                    @foreach (['' => 'Semua divisi', 'NW' => 'NW', 'NWD' => 'NWD', 'NWS' => 'NWS', 'NWR' => 'NWR'] as $code => $label)
+                        <option value="{{ $code }}" @selected(strtoupper((string) $key) === $code)>{{ $label }}</option>
                     @endforeach
-                    @if (!in_array($key, ['all', 'nw', 'nwd', 'nws', 'nwr'], true))
+                    @if (!in_array(strtoupper((string) $key), ['', 'NW', 'NWD', 'NWS', 'NWR'], true))
                         <option value="{{ $key }}" selected>{{ strtoupper($key) }}</option>
                     @endif
                 </select>
             </label>
             <label>Tanggal terima mulai<input type="date" name="date_from" class="sig-filter-input"
-                    value="{{ $dateFrom }}"></label>
+                    value="{{ old('date_from', request('date_from', '')) }}"></label>
             <button type="submit" class="sig-filter-submit">Terapkan</button>
             <a class="sig-filter-reset" href="{{ url('/produksi/inventor/signature') }}">Reset</a>
         </form>
@@ -1191,8 +1191,7 @@
             <article class="sig-doc" id="spk-{{ $model->id }}" data-spk-id="{{ $model->id }}">
                 <div class="sig-doc-head">
                     <div><span class="sig-doc-ordinal">SPK
-                            #{{ $loop->iteration }}</span><strong>{{ $d['no_spk'] ?? 'SPK #' . $model->id }}</strong>
-                    </div>
+                            #{{ $loop->iteration }}</span><strong>{{ $d['no_spk'] ?? 'SPK #' . $model->id }}</strong></div>
                     <span>Menunggu:
                         {{ ['checked' => 'Checker 1', 'checked_2' => 'Checker 2', 'approved' => 'Approved By'][$stage] ?? 'Menunggu' }}
                         @if ($isMaker && !$type)
@@ -1201,7 +1200,7 @@
                     </span>
                 </div>
                 <div class="sig-paper">
-                    <div class="sig-title">DETAIL ITEM SPK</div>
+                    <div class="sig-title">DETAIL ITEM SPK / SURAT PERINTAH KERJA</div>
                     <div class="sig-info">
                         <div><b>No SPK</b> {{ $d['no_spk'] ?? '-' }}</div>
                         <div><b>No PO</b> {{ $d['no_po'] ?? '-' }}</div>
@@ -1265,8 +1264,7 @@
                     </table>
                     <div class="sig-bottom">
                         <div><b>Terms & Conditions</b>
-                            <p>{{ is_scalar($d['terms'] ?? null) ? $d['terms'] : 'Mengikuti ketentuan SPK yang berlaku.' }}
-                            </p>
+                            <p>{{ is_scalar($d['terms'] ?? null) ? $d['terms'] : 'Mengikuti ketentuan SPK yang berlaku.' }}</p>
                         </div>
                         <div class="sig-payment-panel">
                             <b>Payment Request / Schedule</b>
@@ -1375,51 +1373,15 @@
                                     @endforeach
                                     <td class="sig-supplier">{{ $s->supplier?->name ?? $supplier }}</td>
                                 </tr>
-
                                 <tr class="sig-approval-names">
                                     @foreach ($signSlots as $slot)
-                                        @php
-                                            $isSkip = $slot[3] === 'skip';
-                                            $isMaker = $slot[4] === 'made';
-
-                                            $displayName = $isSkip
-                                                ? '—'
-                                                : ($isMaker
-                                                    ? $displayMakerName
-                                                    : $slot[1]?->name ?? 'Belum ditentukan');
-
-                                            $displayDivision = $slot[1]?->karyawan?->divisi?->nama ?? '';
-
-                                            if ($isMaker && !$isSkip) {
-                                                $makerNormalized = strtolower(trim($displayMakerName));
-
-                                                if ($makerNormalized === 'nur khasanah') {
-                                                    $displayDivision = 'Purchasing';
-                                                } elseif ($makerNormalized === 'intan') {
-                                                    $displayDivision = 'RnD Engineering';
-                                                }
-                                            }
-                                        @endphp
-
-                                        <td>
-                                            <strong>{{ $displayName }}</strong>
-
-                                            <small>
-                                                {{ $isSkip ? 'Tidak diperlukan (NWS/NWD)' : $displayDivision }}
-                                            </small>
-
-                                            <small>
-                                                {{ $isSkip ? '' : ($slot[3] ? $slot[3]->format('d/m/Y H:i') : 'Pending') }}
-                                            </small>
+                                        <td><strong>{{ $slot[3] === 'skip' ? '—' : ($slot[4] === 'made' ? $displayMakerName : $slot[1]?->name ?? 'Belum ditentukan') }}</strong>
+                                            <small>{{ $slot[3] === 'skip' ? 'Tidak diperlukan (NWS/NWD)' : $slot[1]?->karyawan?->divisi?->nama ?? '' }}</small>
+                                            <small>{{ $slot[3] === 'skip' ? '' : ($slot[3] ? $slot[3]->format('d/m/Y H:i') : 'Pending') }}</small>
                                         </td>
                                     @endforeach
-
-                                    <td>
-                                        <strong>{{ $s->supplier?->name ?? $supplier }}</strong>
-                                        <small>Supplier</small>
-                                    </td>
+                                    <td><strong>{{ $s->supplier?->name ?? $supplier }}</strong><small>Supplier</small></td>
                                 </tr>
-
                             </tbody>
                         </table>
                         @if ($type)
@@ -1558,19 +1520,19 @@
                 try {
                     const response = await fetch(@json(url('/produksi/inventor/signature')) + '/' + encodeURIComponent(
                         id) + '/reject', {
-                        method: 'POST',
-                        credentials: 'same-origin',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
-                                ?.content || @json(csrf_token())
-                        },
-                        body: JSON.stringify({
-                            type,
-                            message: reason
-                        })
-                    });
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
+                                    ?.content || @json(csrf_token())
+                            },
+                            body: JSON.stringify({
+                                type,
+                                message: reason
+                            })
+                        });
                     const result = await response.json();
                     if (!response.ok || !result.success) throw Error(result.message ||
                         'Reject gagal disimpan');
@@ -1607,19 +1569,19 @@
                 try {
                     const response = await fetch(@json(url('/produksi/inventor/signature')) + '/' + encodeURIComponent(
                         id) + '/approve', {
-                        method: 'POST',
-                        credentials: 'same-origin',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
-                                ?.content || @json(csrf_token())
-                        },
-                        body: JSON.stringify({
-                            type,
-                            remark: doc.querySelector('.sig-remark')?.value || ''
-                        })
-                    });
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
+                                    ?.content || @json(csrf_token())
+                            },
+                            body: JSON.stringify({
+                                type,
+                                remark: doc.querySelector('.sig-remark')?.value || ''
+                            })
+                        });
                     const result = await response.json();
                     if (!response.ok || !result.success) throw Error(result.message ||
                         'Gagal menyimpan tanda tangan');
