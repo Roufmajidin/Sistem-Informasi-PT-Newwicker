@@ -475,10 +475,68 @@
 
     #qcSpkDetailModal .qc-item-ellipsis {
         display: block;
-        max-width: 170px;
+        width: 100%;
+        min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+    }
+
+    #qcSpkDetailModal .qc-item-table {
+        width: 100%;
+        table-layout: fixed;
+    }
+
+    #qcSpkDetailModal .qc-item-table th,
+    #qcSpkDetailModal .qc-item-table td {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        padding: 6px 4px;
+        font-size: 10px;
+    }
+
+    #qcSpkDetailModal .qc-item-table th:first-child {
+        width: 35%;
+    }
+
+    #qcSpkDetailModal .qc-item-table th:nth-child(2) {
+        width: 11%;
+    }
+
+    #qcSpkDetailModal .qc-item-table th:nth-child(3) {
+        width: 18%;
+    }
+
+    #qcSpkDetailModal .qc-item-table th:nth-child(4) {
+        width: 18%;
+    }
+
+    #qcSpkDetailModal .qc-item-table th:nth-child(5) {
+        width: 18%;
+    }
+
+    #qcSpkDetailModal .qc-item-table td:not(:first-child) {
+        text-align: center !important;
+    }
+
+    #qcSpkDetailModal .qc-item-table small {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    #qcSpkDetailModal .qc-item-wrap {
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    #qcSpkDetailModal .qc-payment-scroll {
+        overflow-x: auto;
+    }
+
+    #qcSpkDetailModal .qc-payment-scroll table {
+        min-width: 960px;
     }
 
     #qcSpkDetailModal .qc-timeline-in-range {
@@ -518,8 +576,8 @@
                         </div>
                         <div class="card">
                             <div class="card-header bg-light">LIST ITEM</div>
-                            <div class="table-responsive">
-                                <table class="table table-sm table-bordered mb-0">
+                            <div class="qc-item-wrap">
+                                <table class="table table-sm table-bordered mb-0 qc-item-table">
                                     <thead>
                                         <tr>
                                             <th>Item</th>
@@ -558,8 +616,9 @@
                         <div class="card">
                             <div
                                 class="card-header bg-success text-white d-flex justify-content-between align-items-center">
-                                <span>LIST PAYMENT</span><a id="qcSpkOpen" href="#" target="_blank"
-                                    rel="noopener noreferrer" class="btn btn-sm text-white">GO TO SPK</a>
+                                <span>LIST PAYMENT &amp; MUTASI BAHAN GUDANG</span><a id="qcSpkOpen" href="#"
+                                    target="_blank" rel="noopener noreferrer" class="btn btn-sm text-white">GO TO
+                                    SPK</a>
                             </div>
                             <div class="qc-payment-scroll">
                                 <table class="table table-sm table-bordered mb-0">
@@ -1163,6 +1222,8 @@
 
 
     function classifyAnyamRows() {
+        // Always classify current filtered inspections, never stale initial rows.
+        currentRows = getFilteredRows();
 
         const from = $('#date_from').val();
 
@@ -1496,7 +1557,7 @@
                 const rangeIn = Math.max(0, netOf(timelines.filter(row => inRange(row.date))));
                 $('#qcSpkItems').html(items.length ? items.map(item => `
                         <tr>
-                            <td><span class="qc-item-ellipsis" title="${safe(item.nama)}"><strong>${safe(item.nama)}</strong></span><small class="text-muted">${safe(item.kode)}</small></td>
+                            <td title="${safe(item.nama)}"><span class="qc-item-ellipsis"><strong>${safe(item.nama)}</strong></span><small class="text-muted">${safe(item.kode)}</small></td>
                             <td class="text-end">${formatNumber(item.qty)}</td>
                             <td class="text-end">${formatNumber(globalIn)}</td>
                             <td class="text-end">${formatNumber(rangeIn)}</td>
@@ -1508,24 +1569,1014 @@
                         <td>${safe(supplier)}</td><td>${safe(row.type)}</td><td class="text-end">${formatNumber(row.qty)}</td>
                         <td>${safe(row.remark)}</td></tr>`).join('') :
                     '<tr><td colspan="7" class="text-center">Tidak ada mutasi SPK</td></tr>');
-                // Data payment dari endpoint yang sama dengan modal Inventor.
-                // Nilai di sini ditampilkan sesuai response; tidak menghitung ulang saldo/adjustment.
-                const payments = Array.isArray(res.payments) ? res.payments : [];
-                const money = v => v === null || v === undefined || v === '' ? '-' : 'Rp ' + Number(v || 0)
-                    .toLocaleString('id-ID');
-                const paymentRows = payments.map((pay, i) => {
-                    const amount = pay.payment_request_amount ?? pay.amount ?? 0;
-                    return `<tr><td>${i + 1}</td><td>${safe(pay.date)}</td>
-                            <td>${safe(pay.payment_type || pay.type || pay.note)}</td>
-                            <td>${money(amount)}</td><td>${money(pay.saldo ?? pay.balance)}</td>
-                            <td>${safe(pay.keterangan ?? pay.note)}</td><td>${money(pay.harga ?? pay.price)}</td>
-                            <td>${money(pay.total ?? amount)}</td>
-                            <td>${safe(pay.status_request ?? pay.status)}</td>
-                            <td>${safe(pay.adjustment_finance)}</td></tr>`;
-                });
-                $('#qcSpkPayments').html(paymentRows.length ? paymentRows.join('') :
-                    '<tr><td colspan="10" class="text-center text-muted">Tidak ada data payment</td></tr>'
-                    );
+                // Same payment calculation as inventor.blade.php.
+                // Disable finance editing controls in QC report.
+                (function renderInventorPayment(response) {
+                    const res = {
+                        ...response,
+                        can_edit_harga: false
+                    };
+                    let paymentHtml = '';
+                    let totalSpk = 0;
+
+                    const items = Array.isArray(res.items) ?
+                        res.items : [];
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | DETEKSI SPK UPAH
+                    |--------------------------------------------------------------------------
+                    */
+                    /*
+                    |--------------------------------------------------------------------------
+                    | DETEKSI KETERANGAN UPAH DARI ITEM SPK
+                    |--------------------------------------------------------------------------
+                    | Sumber utama:
+                    | res.items[].catatan.remark
+                    |
+                    | Contoh:
+                    | {
+                    |     "catatan": {
+                    |         "images": [],
+                    |         "remark": "Upah"
+                    |     }
+                    | }
+                    |
+                    | Penting:
+                    | - BUKAN dari pay.note
+                    | - BUKAN dari payments
+                    | - Jika remark item = Upah, seluruh bahan/upah tidak
+                    |   mengurangi saldo Total SPK.
+                    |--------------------------------------------------------------------------
+                    */
+
+                    function getItemRemark(item) {
+
+                        if (!item) {
+                            return '';
+                        }
+
+                        let catatan = item.catatan ?? null;
+
+                        /*
+                        | Catatan kadang sudah object, kadang JSON string.
+                        */
+                        if (typeof catatan === 'string') {
+                            const rawCatatan = catatan.trim();
+
+                            if (rawCatatan !== '') {
+                                try {
+                                    catatan = JSON.parse(rawCatatan);
+                                } catch (e) {
+                                    /*
+                                    | Bukan JSON. Gunakan sebagai text remark.
+                                    */
+                                    catatan = rawCatatan;
+                                }
+                            }
+                        }
+
+                        let remark = '';
+
+                        if (
+                            catatan &&
+                            typeof catatan === 'object' &&
+                            !Array.isArray(catatan)
+                        ) {
+                            remark =
+                                catatan.remark ??
+                                catatan.Remark ??
+                                catatan.keterangan ??
+                                catatan.Keterangan ??
+                                '';
+                        } else if (typeof catatan === 'string') {
+                            remark = catatan;
+                        }
+
+                        /*
+                        | Fallback untuk format item lama.
+                        */
+                        if (!remark) {
+                            remark =
+                                item.remark ??
+                                item.keterangan ??
+                                item.catatan_remark ??
+                                '';
+                        }
+
+                        return String(remark).trim();
+                    }
+
+                    /*
+                    | Kumpulkan semua keterangan item.
+                    | Ini juga dipakai untuk menampilkan Keterangan pada
+                    | TOTAL SPK / TOTAL PAYMENT.
+                    */
+                    const keteranganItems = items
+                        .map(function(item) {
+                            return getItemRemark(item);
+                        })
+                        .filter(function(value) {
+                            return value !== '';
+                        });
+
+                    const keteranganSpk = [
+                        ...new Set(keteranganItems)
+                    ].join(', ');
+
+                    /*
+                    | UPAH dianggap aktif jika salah satu item mempunyai
+                    | keterangan yang mengandung kata "upah".
+                    */
+                    const isUpahSpk = keteranganItems.some(function(value) {
+
+                        const text = String(value)
+                            .trim()
+                            .toLowerCase();
+
+                        return (
+                            text === 'upah' ||
+                            text.includes('upah')
+                        );
+                    });
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | TOTAL SPK
+                    |--------------------------------------------------------------------------
+                    */
+                    items.forEach(function(item) {
+
+                        totalSpk += parseFloat(
+                            item.total || 0
+                        );
+
+                        if (
+                            Array.isArray(item.custom_columns)
+                        ) {
+
+                            item.custom_columns.forEach(function(c) {
+
+                                totalSpk += parseFloat(
+                                    c.total || 0
+                                );
+
+                            });
+
+                        }
+
+                    });
+
+                    // PPN dari data SPK, bukan tarif hardcode.
+                    const ppnRate = res.ppn_enabled ? Number(res.ppn_rate || 0) : 0;
+                    const subtotalSpk = totalSpk;
+                    const ppnAmount = Math.round((subtotalSpk * ppnRate / 100) * 100) / 100;
+                    totalSpk = subtotalSpk + ppnAmount;
+                    const ppnInfo = ppnRate > 0 ?
+                        `PPN ${ppnRate}%: Rp ${ppnAmount.toLocaleString('id-ID')}` :
+                        '';
+
+                    let saldo = totalSpk;
+                    let totalPayment = 0;
+                    let totalReturnBahan = 0;
+                    let paymentNo = 0;
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | EVENT TERPISAH
+                    |--------------------------------------------------------------------------
+                    */
+                    let normalPaymentEvents = [];
+                    let bahanEvents = [];
+                    let upahEvents = [];
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | PEMOTONGAN BAHAN
+                    |--------------------------------------------------------------------------
+                    | Harga:
+                    | - Jika harga_vivi sudah diisi -> gunakan harga kontrak
+                    | - Jika belum -> gunakan harga inventory
+                    |
+                    | Harga inventory TIDAK ditampilkan lagi jika sudah ada
+                    | adjustment Vivi.
+                    |--------------------------------------------------------------------------
+                    */
+                    if (
+                        Array.isArray(res.bahan_baku) &&
+                        res.bahan_baku.length > 0
+                    ) {
+
+                        res.bahan_baku.forEach(function(row) {
+
+                            const qty =
+                                parseFloat(row.qty || 0);
+
+                            const hargaInventory =
+                                parseFloat(row.harga || 0);
+
+                            const hargaVivi =
+                                parseFloat(row.harga_vivi || 0);
+
+                            const hargaKontrak =
+                                hargaVivi > 0 ?
+                                hargaVivi :
+                                hargaInventory;
+
+                            const total =
+                                hargaKontrak * qty;
+
+                            // =====================================================
+                            // STATUS PER TRANSAKSI BAHAN
+                            // =====================================================
+
+                            const keteranganBahan = String(
+                                    row.keterangan ?? ''
+                                )
+                                .replace(/&nbsp;/gi, ' ')
+                                .trim()
+                                .toLowerCase();
+
+                            const isJasaBahan =
+                                row.is_jasa === true ||
+                                row.is_jasa === 1 ||
+                                keteranganBahan === 'jasa' ||
+                                keteranganBahan === 'upah' ||
+                                keteranganBahan === 'upah kerja' ||
+                                keteranganBahan === 'jasa/upah kerja';
+
+                            const returnValue = row.return ?? row.is_return ?? 0;
+                            const isReturnBahanPayment = ['1', 'true'].includes(String(
+                                returnValue).trim().toLowerCase());
+
+                            bahanEvents.push({
+                                type: 'bahan',
+                                date: row.tanggal || '',
+                                row: row,
+                                qty: qty,
+                                hargaInventory: hargaInventory,
+                                hargaVivi: hargaVivi,
+                                hargaKontrak: hargaKontrak,
+                                total: total,
+
+                                // STATUS KHUSUS TRANSAKSI INI
+                                isJasa: isJasaBahan,
+                                isReturn: isReturnBahanPayment
+                            });
+
+                            // HANYA BAHAN BIASA masuk total payment
+                            if (!isJasaBahan && !isReturnBahanPayment) {
+                                totalPayment += total;
+                            }
+
+                        });
+
+                    }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | PAYMENT
+                    |--------------------------------------------------------------------------
+                    */
+                    if (
+                        Array.isArray(res.payments) &&
+                        res.payments.length > 0
+                    ) {
+
+                        res.payments.forEach(function(pay) {
+
+                            // Angsuran adalah pembayaran pengurang saldo,
+                            // termasuk jika nilai tersimpan memakai tanda minus.
+                            const isAngsuran = String(pay.payment_type || pay.type || pay
+                                    .note || '')
+                                .trim().toLowerCase() === 'angsuran';
+                            const nilaiRaw = parseFloat(
+                                pay.payment_request_amount || pay.amount || 0
+                            ) || 0;
+                            const nilai = isAngsuran ? Math.abs(nilaiRaw) : nilaiRaw;
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | UPAH
+                            |--------------------------------------------------------------------------
+                            */
+                            if (isUpahSpk && !isAngsuran) {
+
+                                upahEvents.push({
+                                    type: 'upah',
+                                    date: pay.date || '',
+                                    pay: pay,
+                                    nilai: nilai
+                                });
+
+                                return;
+                            }
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | PAYMENT BAHAN LAMA
+                            |--------------------------------------------------------------------------
+                            | Jika detail bahan tersedia, jangan dihitung dua kali.
+                            |--------------------------------------------------------------------------
+                            */
+                            if (
+                                String(pay.note || '').toLowerCase() ===
+                                'bahan'
+                            ) {
+
+                                if (
+                                    Array.isArray(res.bahan_baku) &&
+                                    res.bahan_baku.length > 0
+                                ) {
+                                    return;
+                                }
+
+                                totalPayment += nilai;
+
+                                normalPaymentEvents.push({
+                                    type: 'payment',
+                                    date: pay.date || '',
+                                    pay: pay,
+                                    nilai: nilai
+                                });
+
+                                return;
+                            }
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | RETURN BAHAN
+                            |--------------------------------------------------------------------------
+                            | Return bukan payment keluar, sehingga tidak masuk
+                            | TOTAL PAYMENT. Tetapi saldo bertambah.
+                            |--------------------------------------------------------------------------
+                            */
+                            if (
+                                String(pay.note || '').toLowerCase() ===
+                                'return_bahan'
+                            ) {
+
+                                totalReturnBahan += nilai;
+
+                                normalPaymentEvents.push({
+                                    type: 'return_bahan',
+                                    date: pay.date || '',
+                                    pay: pay,
+                                    nilai: nilai
+                                });
+
+                                return;
+                            }
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | PAYMENT NORMAL
+                            |--------------------------------------------------------------------------
+                            */
+                            totalPayment += nilai;
+
+                            normalPaymentEvents.push({
+                                type: 'payment',
+                                date: pay.date || '',
+                                pay: pay,
+                                isAngsuran: isAngsuran,
+                                nilai: nilai
+                            });
+
+                        });
+
+                    }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | SORT PAYMENT NORMAL
+                    |--------------------------------------------------------------------------
+                    */
+                    normalPaymentEvents.sort(function(a, b) {
+
+                        const dateA =
+                            new Date(a.date || '1900-01-01');
+
+                        const dateB =
+                            new Date(b.date || '1900-01-01');
+
+                        return dateA - dateB;
+                    });
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | SORT BAHAN
+                    |--------------------------------------------------------------------------
+                    */
+                    bahanEvents.sort(function(a, b) {
+
+                        const dateA =
+                            new Date(a.date || '1900-01-01');
+
+                        const dateB =
+                            new Date(b.date || '1900-01-01');
+
+                        return dateA - dateB;
+                    });
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | SORT UPAH
+                    |--------------------------------------------------------------------------
+                    */
+                    upahEvents.sort(function(a, b) {
+
+                        const dateA =
+                            new Date(a.date || '1900-01-01');
+
+                        const dateB =
+                            new Date(b.date || '1900-01-01');
+
+                        return dateA - dateB;
+                    });
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | RUNNING BALANCE
+                    |--------------------------------------------------------------------------
+                    | PENTING:
+                    | saldo sekarang dihitung saat ROW ditampilkan.
+                    |
+                    | Sebelumnya:
+                    |   saldo sudah dikurangi seluruh payment + bahan di awal,
+                    |   lalu nilai saldo akhir tersebut dipakai untuk semua row.
+                    |
+                    | Sekarang:
+                    |   TOTAL SPK = saldo awal
+                    |   Payment 1 = saldo awal - payment 1
+                    |   Payment 2 = saldo sebelumnya - payment 2
+                    |   Bahan 1   = saldo sebelumnya - bahan 1
+                    |   dst.
+                    |--------------------------------------------------------------------------
+                    */
+                    let runningSaldo = totalSpk;
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | TOTAL SPK
+                    |--------------------------------------------------------------------------
+                    */
+                    paymentHtml += `
+                        <tr class="table-primary">
+                            <td></td>
+                            <td></td>
+                            <td class="fw-bold">
+                                TOTAL SPK
+                            </td>
+                            <td class="fw-bold">
+                                Rp ${totalSpk.toLocaleString('id-ID')}
+                            </td>
+                            <td class="fw-bold text-success">
+                                Rp ${runningSaldo.toLocaleString('id-ID')}
+                            </td>
+                            <td>
+                                ${
+                                    (keteranganSpk || ppnInfo)
+                                        ? `
+                                                                            <span class="badge bg-warning text-dark">
+                                                                                ${[keteranganSpk, ppnInfo].filter(Boolean).join(' | ')}
+                                                                            </span>
+                                                                          `
+                                        : '-'
+                                }
+                            </td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                        </tr>
+                    `;
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | RENDER PAYMENT NORMAL
+                    |--------------------------------------------------------------------------
+                    */
+                    normalPaymentEvents.forEach(function(event) {
+
+                        const pay = event.pay;
+                        const nilai = event.nilai;
+
+                        /*
+                        | Running balance:
+                        | - payment normal => kurangi
+                        | - return bahan  => tambah
+                        */
+                        if (event.type === 'return_bahan') {
+                            runningSaldo += nilai;
+                        } else {
+                            runningSaldo -= nilai;
+                        }
+
+                        runningSaldo = Math.max(0, runningSaldo);
+
+                        paymentNo++;
+
+                        paymentHtml += `
+                            <tr>
+
+                                <td>
+                                    ${paymentNo}
+                                </td>
+
+                                <td>
+                                    ${pay.date ?? '-'}
+                                </td>
+
+                                <td>
+                                    ${event.isAngsuran ? 'Angsuran' : (pay.note ?? '-')}
+                                </td>
+
+                                <td>
+                                    ${event.isAngsuran ? '' : ''}Rp ${Number(
+                                        event.isAngsuran
+                                            ? Math.abs(nilai)
+                                            : (pay.amount || nilai || 0)
+                                    ).toLocaleString('id-ID')}
+                                </td>
+
+                                <td class="
+                                    fw-bold
+                                    ${
+                                        runningSaldo <= 0
+                                            ? 'text-danger'
+                                            : 'text-success'
+                                    }
+                                ">
+                                    Rp ${runningSaldo.toLocaleString('id-ID')}
+                                </td>
+
+                                <td>
+                                    ${pay.note_tambahan ?? '-'}
+                                </td>
+
+                                <td>-</td>
+                                <td>-</td>
+
+                                <td>
+                                    ${
+                                        pay.is_request
+                                        ? `
+                                                                            <span class="badge bg-success">
+                                                                                ✓ Requested
+                                                                            </span>
+                                                                          `
+                                        : `
+                                                                            <span class="badge bg-warning">
+                                                                                Belum Request
+                                                                            </span>
+                                                                          `
+                                    }
+                                </td>
+
+                                <td>
+                                    ${
+                                        pay.adjustment > 0
+                                        ? `
+                                                                            <div>
+                                                                                Paid :
+                                                                                <b>
+                                                                                    Rp ${Number(
+                                                                                        pay.payment_request_amount || 0
+                                                                                    ).toLocaleString('id-ID')}
+                                                                                </b>
+                                                                            </div>
+
+                                                                            <small class="text-danger">
+                                                                                Sisa :
+                                                                                Rp ${Number(
+                                                                                    pay.remaining_amount || 0
+                                                                                ).toLocaleString('id-ID')}
+                                                                            </small>
+                                                                          `
+                                        : pay.finance_approved
+                                        ? `
+                                                                            <span class="badge bg-success">
+                                                                                Full Payment
+                                                                            </span>
+                                                                          `
+                                        : pay.is_request
+                                        ? `
+                                                                            <span class="badge bg-warning">
+                                                                                Menunggu Finance
+                                                                            </span>
+                                                                          `
+                                        : `
+                                                                            <span class="badge bg-secondary">
+                                                                                Belum Request
+                                                                            </span>
+                                                                          `
+                                    }
+                                </td>
+
+                            </tr>
+                        `;
+
+                    });
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | POTONGAN BAHAN
+                    |--------------------------------------------------------------------------
+                    | Ditampilkan setelah payment normal.
+                    | Running saldo diteruskan dari transaksi sebelumnya.
+                    |--------------------------------------------------------------------------
+                    */
+                    bahanEvents.forEach(function(event) {
+
+                        const row = event.row;
+                        const qty = event.qty;
+                        const hargaInventory = event.hargaInventory;
+                        const hargaVivi = event.hargaVivi;
+                        const hargaKontrak = event.hargaKontrak;
+                        const total = event.total;
+
+                        if (event.isReturn) {
+                            runningSaldo += total;
+                        } else if (!event.isJasa) {
+                            runningSaldo -= total;
+                            runningSaldo = Math.max(0, runningSaldo);
+                        }
+                        paymentNo++;
+
+                        let hargaKontrakHtml = '';
+
+                        if (res.can_edit_harga) {
+
+                            hargaKontrakHtml = `
+                                <input
+                                    type="number"
+                                    class="form-control form-control-sm border-0 shadow-none harga-vivi-input"
+                                    data-id="${row.id}"
+                                    value="${row.harga_vivi ?? ''}"
+                                    placeholder="${hargaInventory || 0}"
+                                    style="min-width:110px;"
+                                >
+                            `;
+
+                        } else {
+
+                            hargaKontrakHtml =
+                                hargaVivi > 0 ?
+                                'Rp ' + hargaVivi.toLocaleString('id-ID') :
+                                '-';
+
+                        }
+
+                        if (event.isJasa) {
+
+                            paymentHtml += `
+                                <tr class="payment-upah-row"
+                                    title="Jasa / upah kerja - tidak mengurangi saldo">
+
+                                    <td>
+                                        ${paymentNo}
+                                    </td>
+
+                                    <td>
+                                        ${row.tanggal ?? '-'}
+                                    </td>
+
+                                    <td>
+                                        <span class="badge bg-primary">
+                                            jasa/upah kerja
+                                        </span>
+
+                                        <div class="fw-bold mt-1">
+                                            ${row.nama_barang ?? '-'}
+                                        </div>
+
+                                        <small class="text-muted">
+                                            ${row.kode_barang ?? ''}
+                                        </small>
+                                    </td>
+
+                                    <td>
+                                        Rp ${total.toLocaleString('id-ID')}
+                                    </td>
+
+                                    <td class="fw-bold text-success">
+                                        Rp ${runningSaldo.toLocaleString('id-ID')}
+                                    </td>
+
+                                    <td>
+                                        <span class="fw-bold">
+                                            ${qty}
+                                            ${row.satuan ?? ''}
+                                        </span>
+                                    </td>
+
+                                    <td>-</td>
+
+                                    <td class="fw-bold text-success">
+                                        Rp ${total.toLocaleString('id-ID')}
+                                    </td>
+
+                                    <td>
+                                        -
+                                    </td>
+
+                                    <td>
+                                        <span class="badge bg-info">
+                                            Tidak mengurangi saldo
+                                        </span>
+                                    </td>
+
+                                </tr>
+                            `;
+
+                        } else {
+
+                            paymentHtml += `
+                                <tr class="payment-bahan-row">
+
+                                    <td>
+                                        ${paymentNo}
+                                    </td>
+
+                                    <td>
+                                        ${row.tanggal ?? '-'}
+                                    </td>
+
+                                    <td>
+                                        <span class="badge ${
+    event.isReturn ? 'bg-success' : event.isJasa ? 'bg-primary' : 'bg-danger'
+}">
+    ${
+        event.isReturn ? 'return bahan' : event.isJasa ? 'jasa/upah kerja' : 'potongan bahan'
+    }
+</span>
+
+                                        <div class="fw-bold mt-1">
+                                            ${row.nama_barang ?? '-'}
+                                        </div>
+
+                                        <small class="text-muted">
+                                            ${row.kode_barang ?? '-'}
+                                        </small>
+                                    </td>
+
+                                    <td>
+                                        Rp ${total.toLocaleString('id-ID')}
+                                    </td>
+
+                                    <td class="fw-bold
+                                        ${
+                                            runningSaldo <= 0
+                                                ? 'text-danger'
+                                                : 'text-success'
+                                        }">
+                                        Rp ${runningSaldo.toLocaleString('id-ID')}
+                                    </td>
+
+                                    <td>
+                                        <span class="fw-bold">
+                                            ${qty}
+                                            ${row.satuan ?? 'KG'}
+                                        </span>
+                                    </td>
+
+                                    <td onclick="event.stopPropagation();">
+                                        ${
+                                            hargaVivi > 0
+                                                ? hargaKontrakHtml
+                                                : (
+                                                    res.can_edit_harga
+                                                        ? hargaKontrakHtml
+                                                        : (
+                                                            hargaInventory
+                                                                ? 'Rp ' +
+                                                                    hargaInventory.toLocaleString('id-ID')
+                                                                : '-'
+                                                        )
+                                                )
+                                        }
+                                    </td>
+
+                                    <td class="fw-bold text-success">
+                                        Rp ${total.toLocaleString('id-ID')}
+                                    </td>
+
+                                    <td>
+                                        ${
+                                            event.isJasa
+                                                ? `
+                                                            <span class="badge bg-primary">
+                                                                jasa/upah kerja
+                                                            </span>
+                                                          `
+                                                : (
+                                                    row.keterangan
+                                                        ? `<span class="text-muted">${row.keterangan}</span>`
+                                                        : '-'
+                                                  )
+                                        }
+                                    </td>
+
+                                    <td>
+                                        -
+                                    </td>
+
+                                </tr>
+                            `;
+                        }
+
+                    });
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | TOTAL PAYMENT
+                    |--------------------------------------------------------------------------
+                    | Ditaruh SETELAH seluruh transaksi agar saldo akhir
+                    | benar-benar merupakan saldo terakhir.
+                    |
+                    | Upah tetap tidak masuk TOTAL PAYMENT.
+                    |--------------------------------------------------------------------------
+                    */
+                    saldo = runningSaldo;
+
+                    paymentHtml += `
+                        <tr class="table-success">
+
+                            <td colspan="3"
+                                class="text-end fw-bold">
+                                TOTAL PAYMENT
+                            </td>
+
+                            <td class="fw-bold">
+                                Rp ${totalPayment.toLocaleString('id-ID')}
+                            </td>
+
+                            <td class="fw-bold
+                                ${
+                                    saldo <= 0
+                                        ? 'text-danger'
+                                        : 'text-success'
+                                }">
+                                Rp ${saldo.toLocaleString('id-ID')}
+                            </td>
+
+                            <td>
+                                ${
+                                    keteranganSpk
+                                        ? `
+                                                                            <span class="badge bg-warning text-dark">
+                                                                                ${keteranganSpk}
+                                                                            </span>
+                                                                          `
+                                        : ''
+                                }
+                            </td>
+
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+
+                        </tr>
+                    `;
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | UPAH KERJA
+                    |--------------------------------------------------------------------------
+                    | Upah ditampilkan setelah TOTAL PAYMENT dan tidak
+                    | mengubah running saldo.
+                    |--------------------------------------------------------------------------
+                    */
+                    if (upahEvents.length > 0) {
+
+                        upahEvents.forEach(function(event) {
+
+                            const pay = event.pay;
+                            const nilai = event.nilai;
+
+                            paymentNo++;
+
+                            paymentHtml += `
+                                <tr class="payment-upah-row"
+                                    title="Upah kerja - tidak mengurangi saldo Total SPK">
+
+                                    <td>
+                                        ${paymentNo}
+                                    </td>
+
+                                    <td>
+                                        ${pay.date ?? '-'}
+                                    </td>
+
+                                    <td>
+                                        <span class="badge bg-primary">
+                                            Upah
+                                        </span>
+
+                                        <div class="fw-bold mt-1">
+                                            ${
+                                                pay.note_tambahan ??
+                                                'Upah'
+                                            }
+                                        </div>
+                                    </td>
+
+                                    <td>
+                                        Rp ${Number(
+                                            pay.amount || nilai || 0
+                                        ).toLocaleString('id-ID')}
+                                    </td>
+
+                                    <td class="fw-bold text-success">
+                                        Rp ${runningSaldo.toLocaleString('id-ID')}
+                                    </td>
+
+                                    <td>-</td>
+                                    <td>-</td>
+
+                                    <td class="fw-bold">
+                                        Rp ${Number(
+                                            pay.amount || nilai || 0
+                                        ).toLocaleString('id-ID')}
+                                    </td>
+
+                                    <td>
+                                        ${
+                                            pay.is_request
+                                            ? `
+                                                                                <span class="badge bg-success">
+                                                                                    ✓ Requested
+                                                                                </span>
+                                                                              `
+                                            : `
+                                                                                <span class="badge bg-warning">
+                                                                                    Belum Request
+                                                                                </span>
+                                                                              `
+                                        }
+                                    </td>
+
+                                    <td>
+                                        ${
+                                            pay.adjustment > 0
+                                            ? `
+                                                                                <div>
+                                                                                    Paid :
+                                                                                    <b>
+                                                                                        Rp ${Number(
+                                                                                            pay.payment_request_amount || 0
+                                                                                        ).toLocaleString('id-ID')}
+                                                                                    </b>
+                                                                                </div>
+
+                                                                                <small class="text-danger">
+                                                                                    Sisa :
+                                                                                    Rp ${Number(
+                                                                                        pay.remaining_amount || 0
+                                                                                    ).toLocaleString('id-ID')}
+                                                                                </small>
+                                                                              `
+                                            : `
+                                                                                <span class="badge bg-secondary">
+                                                                                    Tidak mengurangi saldo
+                                                                                </span>
+                                                                              `
+                                        }
+                                    </td>
+
+                                </tr>
+                            `;
+
+                        });
+
+                    }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | TIDAK ADA TRANSAKSI
+                    |--------------------------------------------------------------------------
+                    */
+                    if (
+                        normalPaymentEvents.length === 0 &&
+                        bahanEvents.length === 0 &&
+                        upahEvents.length === 0
+                    ) {
+
+                        paymentHtml += `
+                            <tr>
+                                <td colspan="10"
+                                    class="text-center text-muted py-4">
+                                    Tidak ada payment
+                                </td>
+                            </tr>
+                        `;
+                    }
+
+                    $('#qcSpkPayments')
+                        .html(paymentHtml);
+                })(res);
             },
             error: function(xhr) {
                 $('#qcSpkPayments').html(
@@ -2117,6 +3168,11 @@
         const initialParams = new URLSearchParams(window.location.search);
         $('#date_from').val(initialParams.get('date_from') || '');
         $('#date_to').val(initialParams.get('date_to') || '');
+        // Apply server date filter to the initial client-side dataset as well.
+        // This prevents PASS from including older inspections after page reload.
+        currentRows = getFilteredRows();
+        renderRows(currentRows, false);
+        if (currentRows.length) $('#btn-classify').show();
         $('#btn-filter').on('click', function() {
             const f = $('#date_from').val(),
                 t = $('#date_to').val();

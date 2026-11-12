@@ -2609,21 +2609,27 @@ class QcController extends Controller
     }
     public function laporan(Request $request)
     {
-        $dateFrom = $request->date_from;
-        $dateTo = $request->date_to;
+        $request->validate([
+            'date_from' => ['nullable', 'date_format:Y-m-d'],
+            'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
+        ]);
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
         $inspectionModel = $this->inspectionScheduleModel();
 
         $inspection = $inspectionModel::with(['kategori', 'user', 'spk', 'detailPo', 'po'])
+            ->when($dateFrom, fn ($q) => $q->where('tanggal_inspect', '>=', $dateFrom . ' 00:00:00'))
+            ->when($dateTo, fn ($q) => $q->where('tanggal_inspect', '<=', $dateTo . ' 23:59:59'))
             ->orderBy('tanggal_inspect', 'desc')
             ->get();
         // SITI (IN): jumlah unit lengkap berdasarkan komponen pada SPK.
         // Jika item memiliki custom_columns, gunakan MIN(qty IN bersih setiap komponen).
         // Tanpa komponen, gunakan IN bersih item seperti sebelumnya.
-        $pairs = $inspection->map(fn($row) => [
+        $pairs = $inspection->map(fn ($row) => [
             'spk_id' => (int) $row->spk_id,
             'detail_po_id' => (int) $row->detail_po_id,
-        ])->filter(fn($pair) => $pair['spk_id'] > 0 && $pair['detail_po_id'] > 0)
-            ->unique(fn($pair) => $pair['spk_id'] . ':' . $pair['detail_po_id'])->values();
+        ])->filter(fn ($pair) => $pair['spk_id'] > 0 && $pair['detail_po_id'] > 0)
+          ->unique(fn ($pair) => $pair['spk_id'] . ':' . $pair['detail_po_id'])->values();
 
         $sitiInMap = [];
         if ($pairs->isNotEmpty()) {
@@ -2636,19 +2642,19 @@ class QcController extends Controller
                 ->whereIn('spk_id', $pairs->pluck('spk_id')->unique())
                 ->whereIn('detail_po_id', $pairs->pluck('detail_po_id')->unique())
                 ->whereIn('type', ['in', 'service_masuk', 'service_keluar'])
-                ->when($dateFrom, fn($q) => $q->whereDate('date', '>=', $dateFrom))
-                ->when($dateTo, fn($q) => $q->whereDate('date', '<=', $dateTo))
-                ->get(['spk_id', 'detail_po_id', 'type', 'qty', 'remark']);
+                ->when($dateFrom, fn ($q) => $q->where('date', '>=', $dateFrom))
+                ->when($dateTo, fn ($q) => $q->where('date', '<=', $dateTo))
+                ->select('spk_id', 'detail_po_id', 'remark')
+                ->selectRaw("SUM(CASE WHEN type = 'service_keluar' THEN -COALESCE(qty, 0) ELSE COALESCE(qty, 0) END) AS net_qty")
+                ->groupBy('spk_id', 'detail_po_id', 'remark')
+                ->get();
 
-            $movementMap = $timeline->groupBy(
-                fn($row) =>
-                    (int) $row->spk_id . ':' . (int) $row->detail_po_id
+            $movementMap = $timeline->groupBy(fn ($row) =>
+                (int) $row->spk_id . ':' . (int) $row->detail_po_id
             );
 
-            $normalizeComponent = static fn($value) => trim((string) preg_replace(
-                '/\s+/',
-                ' ',
-                preg_replace('/[^a-z0-9]+/i', ' ', strtolower(trim((string) $value)))
+            $normalizeComponent = static fn ($value) => trim((string) preg_replace(
+                '/\s+/', ' ', preg_replace('/[^a-z0-9]+/i', ' ', strtolower(trim((string) $value)))
             ));
 
             foreach ($pairs as $pair) {
@@ -2663,9 +2669,8 @@ class QcController extends Controller
                 if (!is_array($data)) {
                     $data = [];
                 }
-                $item = collect($data['items'] ?? [])->first(
-                    fn($item) =>
-                        (int) ($item['detail_po_id'] ?? 0) === $detailId
+                $item = collect($data['items'] ?? [])->first(fn ($item) =>
+                    (int) ($item['detail_po_id'] ?? 0) === $detailId
                 );
                 $item = is_array($item) ? $item : [];
                 $components = [];
@@ -2674,18 +2679,8 @@ class QcController extends Controller
                         continue;
                     }
                     $name = '';
-                    foreach ([
-                        'nama',
-                        'name',
-                        'nama_material',
-                        'nama_bahan',
-                        'bahan',
-                        'triplek',
-                        'finishing',
-                        'komponen',
-                        'component',
-                        'description'
-                    ] as $field) {
+                    foreach (['nama', 'name', 'nama_material', 'nama_bahan', 'bahan',
+                        'triplek', 'finishing', 'komponen', 'component', 'description'] as $field) {
                         if (is_string($component[$field] ?? null) && trim($component[$field]) !== '') {
                             $name = trim($component[$field]);
                             break;
@@ -2693,19 +2688,12 @@ class QcController extends Controller
                     }
                     if ($name === '') {
                         foreach ($component as $field => $value) {
-                            if (
-                                in_array(
-                                    strtolower((string) $field),
-                                    ['material', 'satuan', 'unit', 'pcs', 'set', 'total', 'p', 'l', 't', 'qty', 'kode', 'id'],
-                                    true
-                                )
-                            ) {
+                            if (in_array(strtolower((string) $field),
+                                ['material', 'satuan', 'unit', 'pcs', 'set', 'total', 'p', 'l', 't', 'qty', 'kode', 'id'], true)) {
                                 continue;
                             }
-                            if (
-                                is_string($value) && trim($value) !== '' &&
-                                !in_array(strtolower(trim($value)), ['-', 'null', 'undefined', 'n/a', 'na'], true)
-                            ) {
+                            if (is_string($value) && trim($value) !== '' &&
+                                !in_array(strtolower(trim($value)), ['-', 'null', 'undefined', 'n/a', 'na'], true)) {
                                 $name = trim($value);
                                 break;
                             }
@@ -2722,9 +2710,8 @@ class QcController extends Controller
 
                 $movements = $movementMap->get($key, collect());
                 if (count($components) === 0) {
-                    $net = $movements->sum(
-                        fn($row) =>
-                            (strtolower((string) $row->type) === 'service_keluar' ? -1 : 1) * (float) $row->qty
+                    $net = $movements->sum(fn ($row) =>
+                        (float) $row->net_qty
                     );
                     $sitiInMap[$key] = max(0, min((float) ($item['qty'] ?? PHP_FLOAT_MAX), $net));
                     continue;
@@ -2746,8 +2733,7 @@ class QcController extends Controller
                     if ($componentIndex === null) {
                         continue;
                     }
-                    $sign = strtolower((string) $movement->type) === 'service_keluar' ? -1 : 1;
-                    $qtyByComponent[$componentIndex] += $sign * (float) $movement->qty;
+                    $qtyByComponent[$componentIndex] += (float) $movement->net_qty;
                 }
 
                 $complete = [];
@@ -2769,257 +2755,257 @@ class QcController extends Controller
 
     }
     // notify 
+    
+public function qcNotifications()
+{
+    try {
+        // ==========================================
+        // 1. QC INSPECTION - TODAY ONLY
+        // ==========================================
 
-    public function qcNotifications()
-    {
-        try {
-            // ==========================================
-            // 1. QC INSPECTION - TODAY ONLY
-            // ==========================================
+        $inspectionModel = $this->inspectionScheduleModel();
 
-            $inspectionModel = $this->inspectionScheduleModel();
-
-            $inspections = $inspectionModel::with([
+        $inspections = $inspectionModel::with([
                 'kategori',
                 'user',
                 'spk',
                 'detailPo',
                 'po',
             ])
-                ->whereDate('created_at', today())
-                ->orderByDesc('created_at')
-                ->orderByDesc('id')
-                ->limit(30)
-                ->get();
+            ->whereDate('created_at', today())
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(30)
+            ->get();
 
-            $inspectionNotifications = $inspections->map(function ($row) {
+        $inspectionNotifications = $inspections->map(function ($row) {
 
-                // SPK data bisa berupa array atau JSON
-                $spkData = $row->spk?->data ?? [];
-
-                if (is_string($spkData)) {
-                    $spkData = json_decode($spkData, true);
-                }
-
-                if (!is_array($spkData)) {
-                    $spkData = [];
-                }
-
-                // Detail PO bisa berupa array atau JSON
-                $detailData = $row->detailPo?->detail ?? [];
-
-                if (is_string($detailData)) {
-                    $detailData = json_decode($detailData, true);
-                }
-
-                if (!is_array($detailData)) {
-                    $detailData = [];
-                }
-
-                $passed = (int) ($row->passed ?? 0);
-                $rejected = (int) ($row->rejected ?? 0);
-
-                return [
-                    'id' => $row->id,
-                    'type' => 'post',
-
-                    'user' => $row->user?->name ?? 'QC',
-
-                    'po_id' => $row->po_id,
-                    'spk_id' => $row->spk_id,
-
-                    'spk_no' => $row->spk?->no_spk
-                        ?? $spkData['no_spk']
-                        ?? '-',
-
-                    'item' => $row->detailPo?->description
-                        ?? $detailData['description']
-                        ?? '-',
-
-                    'kategori' => $row->kategori?->kategori ?? 'QC',
-
-                    'passed' => $passed,
-                    'rejected' => $rejected,
-
-                    'qty' => (int) (
-                        $row->jumlah_inspect
-                        ?? ($passed + $rejected)
-                    ),
-
-                    'created_at' => $row->created_at
-                            ?->toIso8601String(),
-                ];
-            });
-
-            // ==========================================
-            // 2. QC INCOMING - TODAY ONLY
-            // ==========================================
-
-            $incomings = \App\Models\Incoming::with([
-                'user',
-                'detailPo',
-            ])
-                ->whereDate('created_at', today())
-                ->orderByDesc('created_at')
-                ->orderByDesc('id')
-                ->limit(30)
-                ->get();
-
-            $incomingNotifications = $incomings->map(function ($row) {
-
-                // Detail PO bisa berupa array atau JSON
-                $detailData = $row->detailPo?->detail ?? [];
-
-                if (is_string($detailData)) {
-                    $detailData = json_decode($detailData, true);
-                }
-
-                if (!is_array($detailData)) {
-                    $detailData = [];
-                }
-
-                return [
-                    'id' => $row->id,
-                    'type' => 'incoming',
-
-                    'user' => $row->user?->name ?? 'QC',
-
-                    'po_id' => $row->po_id,
-                    'spk_id' => $row->spk_id,
-                    'spk_no' => '-',
-
-                    'item' => $row->detailPo?->description
-                        ?? $detailData['description']
-                        ?? '-',
-
-                    'kategori' => 'QC Incoming',
-
-                    'passed' => (int) ($row->passed ?? 0),
-                    'rejected' => (int) ($row->rejected ?? 0),
-                    'qty' => (int) ($row->jumlah_incoming ?? 0),
-
-                    'created_at' => $row->created_at
-                            ?->toIso8601String(),
-                ];
-            });
-
-            // ==========================================
-            // 3. GABUNGKAN & URUTKAN NOTIFIKASI
-            // ==========================================
-
-            $notifications = $inspectionNotifications
-                ->concat($incomingNotifications)
-                ->sortByDesc('created_at')
-                ->take(30)
-                ->values();
-
-            return response()->json([
-                'success' => true,
-                'data' => $notifications,
-            ]);
-
-        } catch (\Throwable $e) {
-
-            \Illuminate\Support\Facades\Log::error(
-                'QC Notifications Error',
-                [
-                    'message' => $e->getMessage(),
-                    'line' => $e->getLine(),
-                    'file' => $e->getFile(),
-                ]
-            );
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal mengambil notifikasi QC',
-            ], 500);
-        }
-    }
-
-    public function testQcNotification(Request $request)
-    {
-        try {
-            // ========================================
-            // AMBIL SPK ASLI DARI DATABASE
-            // ========================================
-
-            $spk = \App\Models\Spk::findOrFail(25);
-
-            $spkData = $spk->data;
+            // SPK data bisa berupa array atau JSON
+            $spkData = $row->spk?->data ?? [];
 
             if (is_string($spkData)) {
                 $spkData = json_decode($spkData, true);
             }
 
-            $spkData = is_array($spkData) ? $spkData : [];
-
-            // Ambil item pertama SPK
-            $item = collect($spkData['items'] ?? [])->first();
-
-            if (!$item) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Item SPK tidak ditemukan',
-                ], 404);
+            if (!is_array($spkData)) {
+                $spkData = [];
             }
 
-            // ========================================
-            // DATA DUMMY INSPECTION
-            // ========================================
+            // Detail PO bisa berupa array atau JSON
+            $detailData = $row->detailPo?->detail ?? [];
 
-            $qty = 60;
-            $passed = 55;
-            $rejected = 5;
+            if (is_string($detailData)) {
+                $detailData = json_decode($detailData, true);
+            }
 
-            $payload = [
-                'id' => 'test-' . now()->format('YmdHisv'),
+            if (!is_array($detailData)) {
+                $detailData = [];
+            }
+
+            $passed = (int) ($row->passed ?? 0);
+            $rejected = (int) ($row->rejected ?? 0);
+
+            return [
+                'id' => $row->id,
                 'type' => 'post',
 
-                'user' => $request->user()?->name ?? 'QC TEST',
+                'user' => $row->user?->name ?? 'QC',
 
-                'po_id' => $spk->po_id,
-                'spk_id' => $spk->id,
+                'po_id' => $row->po_id,
+                'spk_id' => $row->spk_id,
 
-                'spk_no' => $spkData['no_spk'] ?? '-',
+                'spk_no' => $row->spk?->no_spk
+                    ?? $spkData['no_spk']
+                    ?? '-',
 
-                'item' => $item['nama'] ?? '-',
-                'kategori' => 'QC Rangka',
+                'item' => $row->detailPo?->description
+                    ?? $detailData['description']
+                    ?? '-',
+
+                'kategori' => $row->kategori?->kategori ?? 'QC',
 
                 'passed' => $passed,
                 'rejected' => $rejected,
-                'qty' => $qty,
 
-                'created_at' => now()->toIso8601String(),
+                'qty' => (int) (
+                    $row->jumlah_inspect
+                    ?? ($passed + $rejected)
+                ),
+
+                'created_at' => $row->created_at
+                    ?->toIso8601String(),
             ];
+        });
 
-            // ========================================
-            // KIRIM PUSHER REALTIME
-            // ========================================
+        // ==========================================
+        // 2. QC INCOMING - TODAY ONLY
+        // ==========================================
 
-            event(new \App\Events\QcInspectionSubmitted($payload));
+        $incomings = \App\Models\Incoming::with([
+                'user',
+                'detailPo',
+            ])
+            ->whereDate('created_at', today())
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(30)
+            ->get();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Dummy QC notification berhasil dikirim',
-                'data' => $payload,
-            ]);
+        $incomingNotifications = $incomings->map(function ($row) {
 
-        } catch (\Throwable $e) {
+            // Detail PO bisa berupa array atau JSON
+            $detailData = $row->detailPo?->detail ?? [];
 
-            \Illuminate\Support\Facades\Log::error(
-                'TEST QC PUSHER ERROR',
-                [
-                    'message' => $e->getMessage(),
-                    'line' => $e->getLine(),
-                ]
-            );
+            if (is_string($detailData)) {
+                $detailData = json_decode($detailData, true);
+            }
 
+            if (!is_array($detailData)) {
+                $detailData = [];
+            }
+
+            return [
+                'id' => $row->id,
+                'type' => 'incoming',
+
+                'user' => $row->user?->name ?? 'QC',
+
+                'po_id' => $row->po_id,
+                'spk_id' => $row->spk_id,
+                'spk_no' => '-',
+
+                'item' => $row->detailPo?->description
+                    ?? $detailData['description']
+                    ?? '-',
+
+                'kategori' => 'QC Incoming',
+
+                'passed' => (int) ($row->passed ?? 0),
+                'rejected' => (int) ($row->rejected ?? 0),
+                'qty' => (int) ($row->jumlah_incoming ?? 0),
+
+                'created_at' => $row->created_at
+                    ?->toIso8601String(),
+            ];
+        });
+
+        // ==========================================
+        // 3. GABUNGKAN & URUTKAN NOTIFIKASI
+        // ==========================================
+
+        $notifications = $inspectionNotifications
+            ->concat($incomingNotifications)
+            ->sortByDesc('created_at')
+            ->take(30)
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => $notifications,
+        ]);
+
+    } catch (\Throwable $e) {
+
+        \Illuminate\Support\Facades\Log::error(
+            'QC Notifications Error',
+            [
+                'message' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+            ]
+        );
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Gagal mengambil notifikasi QC',
+        ], 500);
+    }
+}
+
+public function testQcNotification(Request $request)
+{
+    try {
+        // ========================================
+        // AMBIL SPK ASLI DARI DATABASE
+        // ========================================
+
+        $spk = \App\Models\Spk::findOrFail(25);
+
+        $spkData = $spk->data;
+
+        if (is_string($spkData)) {
+            $spkData = json_decode($spkData, true);
+        }
+
+        $spkData = is_array($spkData) ? $spkData : [];
+
+        // Ambil item pertama SPK
+        $item = collect($spkData['items'] ?? [])->first();
+
+        if (!$item) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
-            ], 500);
+                'message' => 'Item SPK tidak ditemukan',
+            ], 404);
         }
+
+        // ========================================
+        // DATA DUMMY INSPECTION
+        // ========================================
+
+        $qty = 60;
+        $passed = 55;
+        $rejected = 5;
+
+        $payload = [
+            'id' => 'test-' . now()->format('YmdHisv'),
+            'type' => 'post',
+
+            'user' => $request->user()?->name ?? 'QC TEST',
+
+            'po_id' => $spk->po_id,
+            'spk_id' => $spk->id,
+
+            'spk_no' => $spkData['no_spk'] ?? '-',
+
+            'item' => $item['nama'] ?? '-',
+            'kategori' => 'QC Rangka',
+
+            'passed' => $passed,
+            'rejected' => $rejected,
+            'qty' => $qty,
+
+            'created_at' => now()->toIso8601String(),
+        ];
+
+        // ========================================
+        // KIRIM PUSHER REALTIME
+        // ========================================
+
+        event(new \App\Events\QcInspectionSubmitted($payload));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Dummy QC notification berhasil dikirim',
+            'data' => $payload,
+        ]);
+
+    } catch (\Throwable $e) {
+
+        \Illuminate\Support\Facades\Log::error(
+            'TEST QC PUSHER ERROR',
+            [
+                'message' => $e->getMessage(),
+                'line' => $e->getLine(),
+            ]
+        );
+
+        return response()->json([
+            'success' => false,
+            'message' => $e->getMessage(),
+        ], 500);
     }
+}
 
     public function monitorDetail($id)
     {
