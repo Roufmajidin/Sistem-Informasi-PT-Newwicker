@@ -1013,7 +1013,16 @@
         if (!id) return;
         $('#spkRowMenu').remove();
         // Open synchronously from user click to avoid popup blockers.
-        window.open(basePrint + '/' + encodeURIComponent(id) + '/print', '_blank', 'noopener');
+        const target = basePrint + '/' + encodeURIComponent(id) + '/print';
+        const tab = window.open('', '_blank');
+        if (!tab) {
+            alert('Popup diblokir. Izinkan popup untuk membuka Print QR.');
+            return;
+        }
+        tab.document.open();
+        tab.document.write(`<!doctype html><html lang="id"><head><meta charset="utf-8"><title>Menyiapkan QR SPK...</title><style>body{font:15px Arial,sans-serif;background:#f3f6fb;display:grid;place-items:center;min-height:100vh;margin:0;color:#23344d}.card{background:white;border-radius:12px;padding:35px 45px;text-align:center;box-shadow:0 8px 35px #0001}.spin{width:38px;height:38px;border:4px solid #dbeafe;border-top-color:#2563eb;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 20px}@keyframes spin{to{transform:rotate(360deg)}}</style></head><body><div class="card"><div class="spin"></div><strong>Menyiapkan QR SPK...</strong><p>Mohon tunggu, halaman label sedang dibuat.</p></div></body></html>`);
+        tab.document.close();
+        tab.location.replace(target);
     });
 })();
 </script>
@@ -2760,7 +2769,7 @@
                             <i class="fa fa-print"></i>
                             <span>Print QR (Browser - Fast)</span>
                         </button>
-                       
+                      
                     </div>
                 `);
 
