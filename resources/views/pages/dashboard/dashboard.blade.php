@@ -38,7 +38,10 @@
 
         $canSourcingMonitoring = $auth->accessModules()->where('name', 'Sourching Monitoring Issue')->exists();
 
-        $canTtdSpk = $auth->accessModules()->where('name', 'Ttd Spk')->exists();
+        $canTtdSpk = $auth
+            ->accessModules()
+            ->whereRaw('LOWER(name) = ?', ['ttd spk'])
+            ->exists();
 
     @endphp
 
@@ -55,14 +58,12 @@
     @endphp
 
     @php
-        // Counter signature SPK sejak 20 Januari 2026.
-        // Mapping divisi dari nomor SPK pada JSON spk.data->no_spk.
-        // Pending untuk approver login: approved_by = auth ID, approved_at null, status diajukan.
-        // Sesuaikan dengan date_from pada link Signature Center (spk.created_at).
-        // Query agregat satu kali, tanpa mengubah controller atau shortcut lain.
+        // Pending TTD SPK berdasarkan tahapan user yang sedang login.
+        // Pertahankan batas tanggal dan filter yang sama dengan shortcut.
         $signatureCounters = ['NW' => 0, 'NWR' => 0, 'NWD' => 0, 'NWS' => 0];
 
         if ($canTtdSpk) {
+            $userId = auth()->id();
             $spkNumberSql =
                 "UPPER(CONCAT(COALESCE(JSON_UNQUOTE(JSON_EXTRACT(spk.data, '$.no_spk')), ''), ' ', COALESCE(JSON_UNQUOTE(JSON_EXTRACT(spk.data, '$.no_po')), '')))";
             $prefixSql = "CASE
@@ -75,10 +76,24 @@
             $signatureRows = \Illuminate\Support\Facades\DB::table('signature_spks')
                 ->join('spk', 'spk.id', '=', 'signature_spks.spk_id')
                 ->where('signature_spks.made_at', '>=', '2026-11-08 00:00:00')
-                ->where('signature_spks.approved_by', auth()->id())
-                ->whereNull('signature_spks.approved_at')
-                ->whereRaw('LOWER(TRIM(spk.status)) = ?', ['diajukan'])
                 ->where('spk.created_at', '>=', '2026-11-08 00:00:00')
+                ->where(function ($query) use ($userId) {
+                    $query
+                        ->where(function ($q) use ($userId) {
+                            $q->where('signature_spks.checked_by', $userId)->whereNull('signature_spks.checked_at');
+                        })
+                        ->orWhere(function ($q) use ($userId) {
+                            $q->where('signature_spks.checked_by_2', $userId)
+                                ->whereNotNull('signature_spks.checked_at')
+                                ->whereNull('signature_spks.checked_at_2');
+                        })
+                        ->orWhere(function ($q) use ($userId) {
+                            $q->where('signature_spks.approved_by', $userId)
+                                ->whereNotNull('signature_spks.checked_at')
+                                ->whereNotNull('signature_spks.checked_at_2')
+                                ->whereNull('signature_spks.approved_at');
+                        });
+                })
                 ->selectRaw("{$prefixSql} AS prefix, COUNT(DISTINCT signature_spks.spk_id) AS total")
                 ->groupByRaw($prefixSql)
                 ->get();
