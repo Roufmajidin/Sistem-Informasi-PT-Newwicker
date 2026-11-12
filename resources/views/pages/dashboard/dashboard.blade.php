@@ -73,7 +73,7 @@
             'NWS' => 0,
         ];
 
-        $signatureStartDate = '2026-11-08 00:00:00';
+        $signatureStartDate = '2026-08-11 00:00:00';
 
         if ($showTtdSpk) {
             $userId = (int) $auth->id;
