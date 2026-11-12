@@ -1085,19 +1085,19 @@
                         <div class="nw-shortcut-sub">Pengajuan signature SPK</div>
                         <div class="nw-signature-counters">
                             <a class="nw-counter nw"
-                                href="{{ url('/produksi/inventor/signature') . '?key=nw&date_from=2026-10-01' }}">
+                                href="{{ url('/produksi/inventor/signature') . '?key=nw&date_from=2026-11-08' }}">
                                 <span>NW</span><strong>{{ $pendingNw ?? 0 }}</strong>
                             </a>
                             <a class="nw-counter nwr"
-                                href="{{ url('/produksi/inventor/signature') . '?key=nwr&date_from=2026-10-01' }}">
+                                href="{{ url('/produksi/inventor/signature') . '?key=nwr&date_from=2026-11-08' }}">
                                 <span>NWR</span><strong>{{ $pendingNwr ?? 0 }}</strong>
                             </a>
                             <a class="nw-counter nwd"
-                                href="{{ url('/produksi/inventor/signature') . '?key=nwd&date_from=2026-10-01' }}">
+                                href="{{ url('/produksi/inventor/signature') . '?key=nwd&date_from=2026-11-08' }}">
                                 <span>NWD</span><strong>{{ $pendingNwd ?? 0 }}</strong>
                             </a>
                             <a class="nw-counter nws"
-                                href="{{ url('/produksi/inventor/signature') . '?key=nws&date_from=2026-10-01' }}">
+                                href="{{ url('/produksi/inventor/signature') . '?key=nws&date_from=2026-11-08' }}">
                                 <span>NWS</span><strong>{{ $pendingNws ?? 0 }}</strong>
                             </a>
                         </div>
