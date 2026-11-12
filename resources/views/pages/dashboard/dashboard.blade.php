@@ -38,6 +38,8 @@
 
         $canSourcingMonitoring = $auth->accessModules()->where('name', 'Sourching Monitoring Issue')->exists();
 
+        $canTtdSpk = $auth->accessModules()->where('name', 'ttd spk')->exists();
+
     @endphp
 
     @php
@@ -60,29 +62,31 @@
         // Query agregat satu kali, tanpa mengubah controller atau shortcut lain.
         $signatureCounters = ['NW' => 0, 'NWR' => 0, 'NWD' => 0, 'NWS' => 0];
 
-        $spkNumberSql =
-            "UPPER(CONCAT(COALESCE(JSON_UNQUOTE(JSON_EXTRACT(spk.data, '$.no_spk')), ''), ' ', COALESCE(JSON_UNQUOTE(JSON_EXTRACT(spk.data, '$.no_po')), '')))";
-        $prefixSql = "CASE
-            WHEN {$spkNumberSql} REGEXP '(^|[^A-Z])NWR([^A-Z]|$)' THEN 'NWR'
-            WHEN {$spkNumberSql} REGEXP '(^|[^A-Z])NWD([^A-Z]|$)' THEN 'NWD'
-            WHEN {$spkNumberSql} REGEXP '(^|[^A-Z])NWS([^A-Z]|$)' THEN 'NWS'
-            WHEN {$spkNumberSql} REGEXP '(^|[^A-Z])NW([^A-Z]|$)' THEN 'NW'
-            ELSE NULL END";
+        if ($canTtdSpk) {
+            $spkNumberSql =
+                "UPPER(CONCAT(COALESCE(JSON_UNQUOTE(JSON_EXTRACT(spk.data, '$.no_spk')), ''), ' ', COALESCE(JSON_UNQUOTE(JSON_EXTRACT(spk.data, '$.no_po')), '')))";
+            $prefixSql = "CASE
+                WHEN {$spkNumberSql} REGEXP '(^|[^A-Z])NWR([^A-Z]|$)' THEN 'NWR'
+                WHEN {$spkNumberSql} REGEXP '(^|[^A-Z])NWD([^A-Z]|$)' THEN 'NWD'
+                WHEN {$spkNumberSql} REGEXP '(^|[^A-Z])NWS([^A-Z]|$)' THEN 'NWS'
+                WHEN {$spkNumberSql} REGEXP '(^|[^A-Z])NW([^A-Z]|$)' THEN 'NW'
+                ELSE NULL END";
 
-        $signatureRows = \Illuminate\Support\Facades\DB::table('signature_spks')
-            ->join('spk', 'spk.id', '=', 'signature_spks.spk_id')
-            ->where('signature_spks.made_at', '>=', '2026-11-08 00:00:00')
-            ->where('signature_spks.approved_by', auth()->id())
-            ->whereNull('signature_spks.approved_at')
-            ->whereRaw('LOWER(TRIM(spk.status)) = ?', ['diajukan'])
-            ->where('spk.created_at', '>=', '2026-11-08 00:00:00')
-            ->selectRaw("{$prefixSql} AS prefix, COUNT(DISTINCT signature_spks.spk_id) AS total")
-            ->groupByRaw($prefixSql)
-            ->get();
+            $signatureRows = \Illuminate\Support\Facades\DB::table('signature_spks')
+                ->join('spk', 'spk.id', '=', 'signature_spks.spk_id')
+                ->where('signature_spks.made_at', '>=', '2026-11-08 00:00:00')
+                ->where('signature_spks.approved_by', auth()->id())
+                ->whereNull('signature_spk.approved_at')
+                ->whereRaw('LOWER(TRIM(spk.status)) = ?', ['diajukan'])
+                ->where('spk.created_at', '>=', '2026-11-08 00:00:00')
+                ->selectRaw("{$prefixSql} AS prefix, COUNT(DISTINCT signature_spks.spk_id) AS total")
+                ->groupByRaw($prefixSql)
+                ->get();
 
-        foreach ($signatureRows as $signatureRow) {
-            if (array_key_exists($signatureRow->prefix ?? '', $signatureCounters)) {
-                $signatureCounters[$signatureRow->prefix] = (int) $signatureRow->total;
+            foreach ($signatureRows as $signatureRow) {
+                if (array_key_exists($signatureRow->prefix ?? '', $signatureCounters)) {
+                    $signatureCounters[$signatureRow->prefix] = (int) $signatureRow->total;
+                }
             }
         }
 
@@ -1072,32 +1076,34 @@
                 </a>
             @endif
 
-            {{-- Shortcut signature: dua tautan mandiri, tanpa nested anchor --}}
-            <div class="nw-shortcut">
-                <span class="nw-shortcut-icon blue"><i class="material-icons">draw</i></span>
-                <div class="nw-shortcut-body">
-                    <div class="nw-shortcut-title">Pengajuan TTD SPK</div>
-                    <div class="nw-shortcut-sub">Pengajuan signature SPK</div>
-                    <div class="nw-signature-counters">
-                        <a class="nw-counter nw"
-                            href="{{ url('/produksi/inventor/signature') . '?key=nw&date_from=2026-10-01' }}">
-                            <span>NW</span><strong>{{ $pendingNw ?? 0 }}</strong>
-                        </a>
-                        <a class="nw-counter nwr"
-                            href="{{ url('/produksi/inventor/signature') . '?key=nwr&date_from=2026-10-01' }}">
-                            <span>NWR</span><strong>{{ $pendingNwr ?? 0 }}</strong>
-                        </a>
-                        <a class="nw-counter nwd"
-                            href="{{ url('/produksi/inventor/signature') . '?key=nwd&date_from=2026-10-01' }}">
-                            <span>NWD</span><strong>{{ $pendingNwd ?? 0 }}</strong>
-                        </a>
-                        <a class="nw-counter nws"
-                            href="{{ url('/produksi/inventor/signature') . '?key=nws&date_from=2026-10-01' }}">
-                            <span>NWS</span><strong>{{ $pendingNws ?? 0 }}</strong>
-                        </a>
+            {{-- Shortcut TTD SPK: hanya untuk user dengan akses modul ttd spk --}}
+            @if ($canTtdSpk)
+                <div class="nw-shortcut">
+                    <span class="nw-shortcut-icon blue"><i class="material-icons">draw</i></span>
+                    <div class="nw-shortcut-body">
+                        <div class="nw-shortcut-title">Pengajuan TTD SPK</div>
+                        <div class="nw-shortcut-sub">Pengajuan signature SPK</div>
+                        <div class="nw-signature-counters">
+                            <a class="nw-counter nw"
+                                href="{{ url('/produksi/inventor/signature') . '?key=nw&date_from=2026-10-01' }}">
+                                <span>NW</span><strong>{{ $pendingNw ?? 0 }}</strong>
+                            </a>
+                            <a class="nw-counter nwr"
+                                href="{{ url('/produksi/inventor/signature') . '?key=nwr&date_from=2026-10-01' }}">
+                                <span>NWR</span><strong>{{ $pendingNwr ?? 0 }}</strong>
+                            </a>
+                            <a class="nw-counter nwd"
+                                href="{{ url('/produksi/inventor/signature') . '?key=nwd&date_from=2026-10-01' }}">
+                                <span>NWD</span><strong>{{ $pendingNwd ?? 0 }}</strong>
+                            </a>
+                            <a class="nw-counter nws"
+                                href="{{ url('/produksi/inventor/signature') . '?key=nws&date_from=2026-10-01' }}">
+                                <span>NWS</span><strong>{{ $pendingNws ?? 0 }}</strong>
+                            </a>
+                        </div>
                     </div>
                 </div>
-            </div>
+            @endif
 
             {{-- Riwayat Absen dan Ubah Password --}}
 
