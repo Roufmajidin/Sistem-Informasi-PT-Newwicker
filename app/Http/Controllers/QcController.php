@@ -2607,8 +2607,10 @@ class QcController extends Controller
         $lanjutan = $t->is_lanjutan ? ' (lanjutan)' : '';
         return "{$tanggal} â€” {$user} (Div. {$div}) inspect qty = {$qty}{$lanjutan}";
     }
-    public function laporan()
+    public function laporan(Request $request)
     {
+        $dateFrom = $request->date_from;
+        $dateTo = $request->date_to;
         $inspectionModel = $this->inspectionScheduleModel();
 
         $inspection = $inspectionModel::with(['kategori', 'user', 'spk', 'detailPo', 'po'])
@@ -2634,6 +2636,8 @@ class QcController extends Controller
                 ->whereIn('spk_id', $pairs->pluck('spk_id')->unique())
                 ->whereIn('detail_po_id', $pairs->pluck('detail_po_id')->unique())
                 ->whereIn('type', ['in', 'service_masuk', 'service_keluar'])
+                ->when($dateFrom, fn($q) => $q->whereDate('date', '>=', $dateFrom))
+                ->when($dateTo, fn($q) => $q->whereDate('date', '<=', $dateTo))
                 ->get(['spk_id', 'detail_po_id', 'type', 'qty', 'remark']);
 
             $movementMap = $timeline->groupBy(

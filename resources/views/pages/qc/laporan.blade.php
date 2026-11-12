@@ -473,6 +473,26 @@
         cursor: pointer;
     }
 
+    #qcSpkDetailModal .qc-item-ellipsis {
+        display: block;
+        max-width: 170px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    #qcSpkDetailModal .qc-timeline-in-range {
+        background: #e5f4e9 !important;
+    }
+
+    #qcSpkDetailModal .qc-timeline-out-range {
+        opacity: .65;
+    }
+
+    #qcSpkDetailModal .qc-timeline-scroll {
+        max-height: 280px;
+    }
+
     @media (max-width: 767px) {
         #qcSpkDetailModal .modal-dialog {
             max-width: 100vw;
@@ -491,7 +511,7 @@
             </div>
             <div class="modal-body">
                 <div class="row g-3">
-                    <div class="col-lg-4">
+                    <div class="col-lg-3">
                         <div class="card mb-3">
                             <div class="card-header bg-primary text-white">INFORMASI SPK</div>
                             <div class="card-body" id="qcSpkInfo">Memuat...</div>
@@ -504,7 +524,9 @@
                                         <tr>
                                             <th>Item</th>
                                             <th>Qty</th>
-                                            <th>Passed</th>
+                                            <th>Global IN</th>
+                                            <th>IN Range</th>
+                                            <th>Pass Range</th>
                                         </tr>
                                     </thead>
                                     <tbody id="qcSpkItems"></tbody>
@@ -512,7 +534,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-lg-8">
+                    <div class="col-lg-9">
                         <div class="card mb-3">
                             <div class="card-header bg-warning">INVENTORY TIMELINE <small class="ms-2"
                                     id="qcTimelineRange"></small></div>
@@ -1367,6 +1389,10 @@
 
 
     function resetFilter() {
+        if (window.location.search.includes('date_from=') || window.location.search.includes('date_to=')) {
+            window.location.href = window.location.pathname;
+            return;
+        }
 
         $('#qc-user').val('');
         $('#qc-po-prefix').val('');
@@ -1432,7 +1458,7 @@
         const filteredPassed = filteredInspections.reduce((sum, r) => sum + Number(r.passed || 0), 0);
 
         const $modal = $('#qcSpkDetailModal');
-        $("#qcTimelineRange").text(from && to ? `(${from} s/d ${to})` : "(Semua tanggal)");
+        $("#qcTimelineRange").text(from && to ? `(Global; periode ${from} s/d ${to} ditandai hijau)` : "(Global)");
         $('#qcSpkInfo').html('<span class="text-muted">Memuat data SPK...</span>');
         $('#qcSpkItems').html('');
         $('#qcSpkTimeline').html('');
@@ -1457,23 +1483,31 @@
                 const items = (Array.isArray(res.items) ? res.items : []).filter(item =>
                     !detailPoId || Number(item.detail_po_id) === detailPoId
                 );
-                $('#qcSpkItems').html(items.length ? items.map((item, i) => `
-                        <tr class="${Number(item.detail_po_id) === detailPoId ? 'table-primary' : ''}">
-                            <td><strong>${safe(item.nama)}</strong><div class="text-muted small">${safe(item.kode)}</div></td>
-                            <td class="text-end">${formatNumber(item.qty)}</td>
-                            <td class="text-end">${formatNumber(filteredPassed)}</td>
-                        </tr>`).join('') : '<tr><td colspan="3" class="text-center">Tidak ada item</td></tr>');
                 const timelines = (Array.isArray(res.timelines) ? res.timelines : []).filter(row =>
-                    inRange(row.date) && (!detailPoId || Number(row.detail_po_id || 0) === detailPoId ||
-                        (!row.detail_po_id && items.length === 1))
+                    !detailPoId || Number(row.detail_po_id || 0) === detailPoId ||
+                    (!row.detail_po_id && items.length === 1)
                 );
+                const netOf = rows => rows.reduce((total, row) => {
+                    const type = String(row.type || '').toLowerCase();
+                    if (!['in', 'service_masuk', 'service_keluar'].includes(type)) return total;
+                    return total + (type === 'service_keluar' ? -1 : 1) * Number(row.qty || 0);
+                }, 0);
+                const globalIn = Math.max(0, netOf(timelines));
+                const rangeIn = Math.max(0, netOf(timelines.filter(row => inRange(row.date))));
+                $('#qcSpkItems').html(items.length ? items.map(item => `
+                        <tr>
+                            <td><span class="qc-item-ellipsis" title="${safe(item.nama)}"><strong>${safe(item.nama)}</strong></span><small class="text-muted">${safe(item.kode)}</small></td>
+                            <td class="text-end">${formatNumber(item.qty)}</td>
+                            <td class="text-end">${formatNumber(globalIn)}</td>
+                            <td class="text-end">${formatNumber(rangeIn)}</td>
+                            <td class="text-end">${formatNumber(filteredPassed)}</td>
+                        </tr>`).join('') : '<tr><td colspan="5" class="text-center">Tidak ada item</td></tr>');
                 $('#qcSpkTimeline').html(timelines.length ? timelines.map((row, i) => `
-                        <tr><td>${i + 1}</td><td>${safe(row.date)}</td>
+                        <tr class="${inRange(row.date) ? 'qc-timeline-in-range' : 'qc-timeline-out-range'}"><td>${i + 1}</td><td>${safe(row.date)}</td>
                         <td>${safe(row.item_name)}<div class="small text-muted">${safe(row.item_code)}</div></td>
                         <td>${safe(supplier)}</td><td>${safe(row.type)}</td><td class="text-end">${formatNumber(row.qty)}</td>
                         <td>${safe(row.remark)}</td></tr>`).join('') :
-                    '<tr><td colspan="7" class="text-center">Tidak ada mutasi pada rentang tanggal ini</td></tr>'
-                    );
+                    '<tr><td colspan="7" class="text-center">Tidak ada mutasi SPK</td></tr>');
                 // Data payment dari endpoint yang sama dengan modal Inventor.
                 // Nilai di sini ditampilkan sesuai response; tidak menghitung ulang saldo/adjustment.
                 const payments = Array.isArray(res.payments) ? res.payments : [];
@@ -2078,7 +2112,24 @@
 
 
 
+        // SITI (IN) tabel dihitung server berdasarkan tanggal mutasi.
+        // Reload hanya saat range berubah; filter lain tetap client-side.
+        const initialParams = new URLSearchParams(window.location.search);
+        $('#date_from').val(initialParams.get('date_from') || '');
+        $('#date_to').val(initialParams.get('date_to') || '');
         $('#btn-filter').on('click', function() {
+            const f = $('#date_from').val(),
+                t = $('#date_to').val();
+            if (f !== (initialParams.get('date_from') || '') || t !== (initialParams.get('date_to') ||
+                    '')) {
+                const next = new URLSearchParams(window.location.search);
+                if (f) next.set('date_from', f);
+                else next.delete('date_from');
+                if (t) next.set('date_to', t);
+                else next.delete('date_to');
+                window.location.href = window.location.pathname + '?' + next.toString();
+                return;
+            }
 
             const $btn = $(this);
 
