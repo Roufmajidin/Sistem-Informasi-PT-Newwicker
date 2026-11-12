@@ -836,6 +836,8 @@ Route::middleware('auth')->prefix('pengajuan-harga/notifications')->name('pengaj
         ->name('laporan.export');
     Route::get('/laporan/warehouse-history', [LaporanController::class, 'warehouseHistory'])
         ->name('laporan.warehouse-history');
+    Route::get('/laporan/export-opname', [LaporanController::class, 'exportOpname'])
+    ->name('laporan.export-opname');
 
     // export warehouse history
     Route::get(

@@ -137,7 +137,8 @@
                             <select id="filterOpname" class="form-control" aria-label="Filter status stock opname"
                                 style="width:auto;min-width:155px;max-width:190px;">
                                 <option value=""
-                                    {{ request('opname') === null || request('opname') === '' ? 'selected' : '' }}>Filter</option>
+                                    {{ request('opname') === null || request('opname') === '' ? 'selected' : '' }}>Filter
+                                </option>
                                 <option value="has_opname" {{ request('opname') === 'has_opname' ? 'selected' : '' }}>Has
                                     Opname</option>
                             </select>
@@ -158,7 +159,7 @@
 
                             <i class="fa fa-plus"></i>
 
-                           add bahan baku
+                            add bahan baku
 
                         </button>
 
@@ -1316,6 +1317,18 @@
                 if (search) url.searchParams.set('search', search);
                 if (jenis) url.searchParams.set('jenis', jenis);
                 $export.attr('href', url.toString());
+
+                // Export khusus opname: mengikuti jenis dan search, tanpa mengubah export lama.
+                const $opnameExport = $('#btnExportOpname');
+                const hasOpname = ($('#filterOpname').val() === 'has_opname');
+                $opnameExport.toggle(hasOpname);
+                if ($opnameExport.length) {
+                    const opnameUrl = new URL("{{ route('laporan.export-opname') }}", window.location.origin);
+                    opnameUrl.searchParams.set('opname', 'has_opname');
+                    if (search) opnameUrl.searchParams.set('search', search);
+                    if (jenis) opnameUrl.searchParams.set('jenis', jenis);
+                    $opnameExport.attr('href', opnameUrl.toString());
+                }
             }
 
             function loadStok(page = 1) {
@@ -1709,7 +1722,7 @@
                         if (!res || res.is_opname !== true) {
                             toastr.warning(
                                 'Endpoint update belum mengonfirmasi penyimpanan cut-off opname. Perlu update controller terlebih dahulu.'
-                                );
+                            );
                             return;
                         }
                         $('#modalOpnameStok').modal('hide');

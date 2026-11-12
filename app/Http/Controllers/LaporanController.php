@@ -10,6 +10,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Exports\WarehouseHistoryExport;
+use App\Exports\WarehouseOpnameExport;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\MonitoringInvoice;
 use App\Models\InvLama;
@@ -20,6 +21,57 @@ use Illuminate\Support\Facades\Log;
 class LaporanController extends Controller
 {
 
+    public function exportOpname(Request $request)
+    {
+        $validated = $request->validate([
+            'jenis' => ['nullable', 'string', 'max:255'],
+            'search' => ['nullable', 'string', 'max:255'],
+            'opname' => ['nullable', 'in:has_opname'],
+        ]);
+
+        $stoks = Stok::query()
+            ->where('is_opname', true)
+            ->whereNotNull('opname_at')
+            ->when(!empty($validated['jenis']), fn($q) => $q->where('jenis', $validated['jenis']))
+            ->when(!empty($validated['search']), function ($q) use ($validated) {
+                $search = $validated['search'];
+                $q->where(function ($sub) use ($search) {
+                    $sub->where('kode_barang', 'like', "%{$search}%")
+                        ->orWhere('nama_barang', 'like', "%{$search}%");
+                });
+            })
+            ->orderBy('nama_barang')->orderBy('id')->get();
+
+        $transactions = collect();
+        if ($stoks->isNotEmpty()) {
+            $transactions = TransaksiStok::query()
+                ->with(['spk'])
+                ->join('stoks', 'stoks.id', '=', 'transaksi_stoks.stok_id')
+                ->whereIn('transaksi_stoks.stok_id', $stoks->pluck('id'))
+                ->where(function ($q) {
+                    $q->whereRaw('DATE(transaksi_stoks.tanggal) > DATE(stoks.opname_at)')
+                        ->orWhere(function ($sameDay) {
+                            $sameDay->whereRaw('DATE(transaksi_stoks.tanggal) = DATE(stoks.opname_at)')
+                                ->whereRaw('TIME(transaksi_stoks.created_at) > TIME(stoks.opname_at)');
+                        });
+                })
+                ->where(function ($q) {
+                    $q->whereNull('transaksi_stoks.keterangan')
+                        ->orWhere('transaksi_stoks.keterangan', 'not like', '%opname%');
+                })
+                ->select('transaksi_stoks.*')
+                ->orderBy('transaksi_stoks.stok_id')
+                ->orderBy('transaksi_stoks.tanggal')
+                ->orderBy('transaksi_stoks.created_at')
+                ->orderBy('transaksi_stoks.id')
+                ->get();
+        }
+
+        return Excel::download(
+            new \App\Exports\WarehouseOpnameExport($stoks, $transactions),
+            'Warehouse_Report_Opname_' . now()->format('Ymd_His') . '.xlsx'
+        );
+    }
 
     public function index(Request $request)
     {
