@@ -9,6 +9,12 @@ use App\Http\Controllers\QcController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\PengajuanController;
 use App\Http\Controllers\EmployeeLoanController;
+use App\Http\Controllers\ScanController;
+
+
+Route::post('/scan-spk/lookup', [ScanController::class, 'lookup'])
+    ->middleware(['auth:sanctum', 'throttle:120,1']);
+    
 Route::get('/ping', function () {
     return response()->json([
         'ok' => true
