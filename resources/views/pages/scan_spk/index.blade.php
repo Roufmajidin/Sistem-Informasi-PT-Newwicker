@@ -6,13 +6,13 @@
 
 <head>
 
-
+    
     <meta charset="utf-8">
 
-
+    
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 
-
+    
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title>Scanner QR SPK</title>
@@ -548,7 +548,7 @@
 
             <p>Scan label menggunakan kamera atau scanner USB.</p>
 
-        </header>
+            </header>
 
         <section class="card">
 
@@ -563,8 +563,8 @@
                 <small id="zoomHint">Geser untuk memperbesar QR dari jarak lebih jauh.</small>
             </div>
 
-            <div class="actions"><button type="button" id="startBtn">Aktifkan Kamera</button><button type="button"
-                    id="stopBtn" class="secondary" disabled>Matikan Kamera</button>
+            <div class="actions"><button type="button" id="startBtn">Aktifkan Kamera</button><button
+                    type="button"                     id="stopBtn" class="secondary" disabled>Matikan Kamera</button>
             </div>
 
             <p class="muted">Kamera memerlukan HTTPS atau localhost. Tekan Aktifkan Kamera untuk
@@ -575,20 +575,20 @@
 
                     USB</label>
 
-                <div class="manual"><input id="qrInput" placeholder="Scan atau tempel isi QR..." required><button
-                        type="submit">Cari</button></div>
+                <div class="manual"><input id="qrInput" placeholder="Scan atau tempel isi QR..."
+                        required><button                         type="submit">Cari</button></div>
 
-            </form>
+                </form>
 
             <div id="status" class="notice" role="status" aria-live="polite">Siap memindai QR SPK.</div>
 
             <div class="stats" id="stats">Label unik terbaca: 0 (sesi ini)</div>
 
-        </section>
+            </section>
 
-    </main>
+        </main>
 
-    <div id="overlay" class="overlay" hidden>
+    <div id="overlay" class="overlay" hidden style="display:none">
 
         <section id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"
             tabindex="-1">
@@ -601,20 +601,27 @@
 
                     <p class="modal-sub" id="modalSub"></p>
 
-                </div><span class="modal-icon" id="modalIcon" aria-hidden="true">✓</span>
+                    </div><span class="modal-icon" id="modalIcon" aria-hidden="true">✓</span>
 
-            </div>
+                </div>
 
             <div id="modalContent" class="modal-content"></div>
 
             <div class="modal-actions"><button type="button" id="closeModal">Scan Berikutnya</button></div>
 
-        </section>
+            </section>
 
-    </div>
+        </div>
 
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+    <script>
+        if (typeof Html5Qrcode === "undefined") {
+            document.write('<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"><\/script>');
+        }
+    </script>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+    
     <script>
         (() => {
 
@@ -695,8 +702,7 @@
                         zoomRange.value = String(actual);
                         zoomValue.textContent = Number(actual).toFixed(1) + '×';
                     } catch (_) {
-                        /* Some mobile browsers expose but reject zoom. */
-                    }
+                        /* Some mobile browsers expose but reject zoom. */ }
                 }
             }
 
@@ -870,6 +876,7 @@
                 row('Detail PO ID', d.detail_po_id);
 
                 overlay.hidden = false;
+                overlay.style.display = "flex";
 
                 document.body.classList.add('modal-open');
 
@@ -882,6 +889,7 @@
             function closeModal() {
 
                 overlay.hidden = true;
+                overlay.style.display = "none";
 
                 document.body.classList.remove('modal-open');
 
