@@ -6494,26 +6494,81 @@ class SpkController extends Controller
             });
     }
     // timeline spk
+
     public function tima()
     {
+        $decode = function ($value) {
+            for ($i = 0; $i < 2 && is_string($value); $i++) {
+                $decoded = json_decode($value, true);
+
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    return [];
+                }
+
+                $value = $decoded;
+            }
+
+            return is_array($value) ? $value : [];
+        };
+
         $timeline = SpkTimeline::latest()
             ->limit(50)
-            ->get()
-            ->map(function ($row) {
-                $data = $row->data ?? [];
-                return [
-                    'id' => $row->id,
-                    'spk_id' => $row->spk_id,
-                    'type' => $data['type'] ?? 'info',
-                    'user' => $data['user'] ?? optional($row->user)->name,
-                    'time' => $data['time'] ?? $row->created_at,
-                    'before' => $data['before'] ?? null,
-                    'after' => $data['after'] ?? null,
-                    'changes' => $data['changes'] ?? null,
-                ];
-            });
-        return response()->json($timeline);
+            ->get();
+
+        // Ambil SPK sekaligus agar tidak N+1 query
+        $spks = Spk::whereIn(
+            'id',
+            $timeline->pluck('spk_id')->filter()->unique()
+        )->get()->keyBy('id');
+
+        $result = $timeline->map(function ($row) use ($decode, $spks) {
+            $event = $decode($row->data);
+
+            $before = $decode($event['before'] ?? []);
+            $after = $decode($event['after'] ?? []);
+
+            $spk = $spks->get($row->spk_id);
+            $current = $decode($spk?->data);
+
+            // Snapshot event lebih utama daripada data terbaru.
+            $snapshot = !empty($after)
+                ? $after
+                : (!empty($before) ? $before : $current);
+
+            $items = $snapshot['items'] ?? [];
+
+            return [
+                'id' => $row->id,
+                'spk_id' => $row->spk_id,
+                'type' => $event['type'] ?? 'info',
+                'user' => $event['user'] ?? optional($row->user)->name,
+                'time' => $event['time'] ?? $row->created_at,
+                'remark' => $event['remark'] ?? null,
+
+                'no_po' => $snapshot['no_po']
+                    ?? $current['no_po']
+                    ?? '-',
+
+                'no_spk' => $snapshot['no_spk']
+                    ?? $current['no_spk']
+                    ?? $row->spk_id,
+
+                'sup' => $snapshot['sup']
+                    ?? $current['sup']
+                    ?? '-',
+
+                'items' => is_array($items) ? $items : [],
+
+                // Tetap kirim data historis asli
+                'before' => !empty($before) ? $before : null,
+                'after' => !empty($after) ? $after : null,
+                'changes' => $event['changes'] ?? null,
+            ];
+        });
+
+        return response()->json($result);
     }
+
     public function spk(Request $request)
     {
         $isRndSpk = $request->spk === 'rnd_spk';
