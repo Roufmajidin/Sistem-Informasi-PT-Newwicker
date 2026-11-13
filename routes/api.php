@@ -14,7 +14,9 @@ use App\Http\Controllers\ScanController;
 
 Route::post('/scan-spk/lookup', [ScanController::class, 'lookup'])
     ->middleware(['auth:sanctum', 'throttle:120,1']);
-    
+Route::post('/scan-spk/store', [
+        ScanController::class, 'store'
+    ])->middleware('throttle:120,1');   
 Route::get('/ping', function () {
     return response()->json([
         'ok' => true
