@@ -9,7 +9,6 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class ScanController extends Controller
@@ -25,7 +24,7 @@ class ScanController extends Controller
         return $this->handleScan($request, false);
     }
 
-    /** Verify and persist every attempt; successful labels are globally unique. */
+    /** Verify and persist only first successful scans; never persist duplicate/invalid attempts. */
     public function store(Request $request): JsonResponse
     {
         return $this->handleScan($request, true);
@@ -66,19 +65,27 @@ class ScanController extends Controller
 
         $candidates = [];
         foreach ($data['items'] as $item) {
-            if (!is_array($item)) continue;
+            if (!is_array($item))
+                continue;
             $itemId = (int) ($item['detail_po_id'] ?? $spk->detail_po_id ?? 0);
-            if ($itemId !== $parsed['detail_po_id'] || (int) ($item['qty'] ?? 0) !== $parsed['qty']) continue;
-            if ($parsed['legacy'] && trim((string) ($item['nama'] ?? '')) !== $parsed['legacy_name']) continue;
+            if ($itemId !== $parsed['detail_po_id'] || (int) ($item['qty'] ?? 0) !== $parsed['qty'])
+                continue;
+            if ($parsed['legacy'] && trim((string) ($item['nama'] ?? '')) !== $parsed['legacy_name'])
+                continue;
             $candidates[] = $item;
         }
 
         if (count($candidates) !== 1) {
             $ambiguous = count($candidates) > 1;
             return $this->failed(
-                $request, $save, $raw, $method, 'invalid',
+                $request,
+                $save,
+                $raw,
+                $method,
+                'invalid',
                 $ambiguous ? 'Beberapa item memiliki detail_po_id dan qty yang sama; QR tidak unik.' : 'Item atau jumlah label tidak sesuai dengan SPK.',
-                $ambiguous ? 409 : 404, $parsed
+                $ambiguous ? 409 : 404,
+                $parsed
             );
         }
 
@@ -93,9 +100,24 @@ class ScanController extends Controller
         // Lookup is read-only; still reports globally scanned labels.
         if (!$save) {
             $exists = SpkScanLog::query()->where($identity)->where('status', 'success')->exists();
-            return $this->respond(!$exists, $exists ? 'duplicate' : 'success',
-                $exists ? 'Label sudah pernah discan.' : 'QR SPK berhasil diverifikasi.', $result,
-                $exists ? 409 : 200);
+            return $this->respond(
+                !$exists,
+                $exists ? 'duplicate' : 'success',
+                $exists ? 'Label sudah pernah discan.' : 'QR SPK berhasil diverifikasi.',
+                $result,
+                $exists ? 409 : 200
+            );
+        }
+
+        // Detect duplicates before INSERT, so repeated scans return 409 instead of success.
+        // The database unique index remains necessary for concurrent scans.
+        $alreadyScanned = SpkScanLog::query()
+            ->where($identity)
+            ->where('status', 'success')
+            ->exists();
+
+        if ($alreadyScanned) {
+            return $this->respond(false, 'duplicate', 'Label sudah pernah discan.', $result, 409);
         }
 
         try {
@@ -117,7 +139,6 @@ class ScanController extends Controller
             if (!$duplicateKey || !SpkScanLog::query()->where($identity)->where('status', 'success')->exists()) {
                 throw $e;
             }
-            $this->writeLog($request, $raw, $method, 'duplicate', 'Label sudah pernah discan.', $parsed);
             return $this->respond(false, 'duplicate', 'Label sudah pernah discan.', $result, 409);
         }
 
@@ -141,9 +162,11 @@ class ScanController extends Controller
             return ['error' => 'Format QR tidak dikenali.'];
         }
 
-        if (!ctype_digit($spkId) || !ctype_digit($detailPoId)
+        if (
+            !ctype_digit($spkId) || !ctype_digit($detailPoId)
             || (int) $spkId < 1 || (int) $detailPoId < 1
-            || !preg_match('/^([1-9]\d*)\/([1-9]\d*)$/', $serial, $matches)) {
+            || !preg_match('/^([1-9]\d*)\/([1-9]\d*)$/', $serial, $matches)
+        ) {
             return ['error' => 'ID SPK, detail PO, atau nomor label tidak valid.'];
         }
         $sequence = (int) $matches[1];
@@ -168,12 +191,14 @@ class ScanController extends Controller
         $detailPo = DetailPo::find($parsed['detail_po_id']);
         if ($detailPo) {
             $detail = $detailPo->detail;
-            if (is_string($detail)) $detail = json_decode($detail, true);
+            if (is_string($detail))
+                $detail = json_decode($detail, true);
             if (is_array($detail)) {
                 $records = array_is_list($detail) ? $detail : [$detail];
                 $matched = [];
                 foreach ($records as $record) {
-                    if (!is_array($record)) continue;
+                    if (!is_array($record))
+                        continue;
                     $codes = array_filter([
                         trim((string) ($record['nw_code'] ?? '')),
                         trim((string) ($record['article_nr_'] ?? '')),
@@ -187,7 +212,8 @@ class ScanController extends Controller
                         break;
                     }
                 }
-                if (!$matched && count($records) === 1 && is_array($records[0])) $matched = $records[0];
+                if (!$matched && count($records) === 1 && is_array($records[0]))
+                    $matched = $records[0];
                 $finishing = trim((string) ($matched['finishing'] ?? ''));
             }
         }
@@ -209,33 +235,26 @@ class ScanController extends Controller
         ];
     }
 
-    private function failed(Request $request, bool $save, string $raw, string $method,
-        string $status, string $message, int $code, array $parsed = []): JsonResponse
-    {
-        if ($save) $this->writeLog($request, $raw, $method, $status, $message, $parsed);
+    private function failed(
+        Request $request,
+        bool $save,
+        string $raw,
+        string $method,
+        string $status,
+        string $message,
+        int $code,
+        array $parsed = []
+    ): JsonResponse {
         return $this->respond(false, $status, $message, null, $code);
     }
 
-    private function writeLog(Request $request, string $raw, string $method,
-        string $status, string $message, array $parsed = []): void
-    {
-        SpkScanLog::create([
-            'user_id' => $request->user()?->id,
-            'spk_id' => $parsed['spk_id'] ?? null,
-            'detail_po_id' => $parsed['detail_po_id'] ?? null,
-            'sequence' => $parsed['sequence'] ?? null,
-            'qty' => $parsed['qty'] ?? null,
-            'qr_raw' => $raw,
-            'scan_method' => $method,
-            'status' => $status,
-            'message' => $message,
-            'scanned_at' => now(),
-        ]);
-    }
-
-    private function respond(bool $success, string $status, string $message,
-        ?array $data, int $code): JsonResponse
-    {
+    private function respond(
+        bool $success,
+        string $status,
+        string $message,
+        ?array $data,
+        int $code
+    ): JsonResponse {
         return response()->json([
             'success' => $success,
             'status' => $status,
