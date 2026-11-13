@@ -49,6 +49,15 @@ use App\Http\Controllers\PengajuanHargaController;
 use App\Http\Controllers\PengajuanHargaNotificationController;
 use App\Http\Controllers\InventorSignatureController;
 use App\Http\Controllers\SpkQrLabelController;
+use App\Http\Controllers\ScanController;
+
+
+Route::get('/scan-spk', [ScanController::class, 'index'])
+    ->name('scan-spk.index');
+
+Route::post('/scan-spk/lookup', [ScanController::class, 'lookup'])
+    ->name('scan-spk.lookup')
+    ->middleware('throttle:120,1');
 // ==========================================================
 // MAGIC APPROVAL LINK - PUBLIC ENTRY POINT
 // ==========================================================
