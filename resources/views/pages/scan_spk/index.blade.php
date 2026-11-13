@@ -3,14 +3,14 @@
 
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Scanner QR SPK</title>
     <style>
         :root {
-            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
             color: #17233c;
-            background: #f3f6fb
+            background: #f2f5fa
         }
 
         * {
@@ -21,82 +21,81 @@
             margin: 0
         }
 
+        body.modal-open {
+            overflow: hidden
+        }
+
         .wrap {
-            max-width: 1040px;
-            margin: 32px auto;
-            padding: 0 18px
+            max-width: 760px;
+            margin: 24px auto;
+            padding: 0 16px
         }
 
         .head {
-            margin-bottom: 22px
+            margin-bottom: 18px
         }
 
         .head h1 {
-            font-size: 27px;
-            margin: 0 0 6px
+            margin: 0 0 5px;
+            font-size: 25px
+        }
+
+        .head p,
+        .muted {
+            color: #64748b;
+            font-size: 13px
         }
 
         .head p {
-            color: #64748b;
             margin: 0
         }
 
-        .layout {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-            gap: 18px
-        }
-
         .card {
-            background: #fff;
+            background: white;
             border: 1px solid #e2e8f0;
-            border-radius: 16px;
-            padding: 22px;
-            box-shadow: 0 6px 24px #17233c08
+            border-radius: 18px;
+            padding: 20px;
+            box-shadow: 0 8px 28px #15233b0a
         }
 
         .card h2 {
             font-size: 16px;
-            margin: 0 0 16px
-        }
-
-        .muted {
-            font-size: 13px;
-            color: #64748b
+            margin: 0 0 15px
         }
 
         #reader {
             width: 100%;
-            min-height: 240px;
-            border: 1px dashed #cbd5e1;
-            border-radius: 12px;
+            min-height: 230px;
             overflow: hidden;
+            border: 1px dashed #cbd5e1;
+            border-radius: 14px;
             background: #f8fafc
         }
 
         #reader video {
-            border-radius: 10px
+            border-radius: 12px
         }
 
         .actions {
             display: flex;
-            gap: 8px;
+            gap: 9px;
             flex-wrap: wrap;
             margin-top: 14px
         }
 
         button {
-            background: #1d4ed8;
-            color: #fff;
             border: 0;
-            border-radius: 9px;
-            padding: 11px 14px;
-            font-weight: 600;
+            border-radius: 11px;
+            padding: 12px 16px;
+            background: #1d4ed8;
+            color: white;
+            font-size: 14px;
+            font-weight: 700;
             cursor: pointer
         }
 
         button.secondary {
-            background: #e9effb;
+            background: #e8eefb;
             color: #1e40af
         }
 
@@ -108,25 +107,25 @@
         .manual {
             display: flex;
             gap: 8px;
-            margin-top: 12px
+            margin-top: 8px
         }
 
         .manual input {
             flex: 1;
             min-width: 0;
             border: 1px solid #cbd5e1;
-            border-radius: 9px;
-            padding: 11px;
-            font-size: 14px
+            border-radius: 10px;
+            padding: 12px;
+            font-size: 15px
         }
 
         .notice {
-            margin-top: 14px;
-            border-radius: 9px;
+            margin-top: 15px;
+            border-radius: 10px;
             padding: 12px;
-            font-size: 13px;
             background: #eff6ff;
-            color: #1d4ed8
+            color: #1d4ed8;
+            font-size: 13px
         }
 
         .notice.error {
@@ -139,24 +138,86 @@
             color: #047857
         }
 
-        .result-empty {
-            border: 1px dashed #cbd5e1;
-            border-radius: 12px;
-            padding: 36px 16px;
-            text-align: center;
-            color: #94a3b8
+        .stats {
+            margin-top: 12px;
+            font-size: 13px;
+            color: #64748b
+        }
+
+        /* Modal transparan: kamera tetap terlihat di balik overlay */
+        .overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            background: rgba(15, 23, 42, .45);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            backdrop-filter: blur(3px);
+            -webkit-backdrop-filter: blur(3px)
+        }
+
+        .overlay[hidden] {
+            display: none
+        }
+
+        .modal {
+            width: min(100%, 480px);
+            max-height: min(86dvh, 760px);
+            overflow: auto;
+            overscroll-behavior: contain;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, .94);
+            box-shadow: 0 20px 70px #0f172a45;
+            border: 1px solid #ffffffa8;
+            padding: 20px
+        }
+
+        .modal-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: flex-start
+        }
+
+        .modal-title {
+            margin: 0;
+            font-size: 19px
+        }
+
+        .modal-sub {
+            font-size: 13px;
+            color: #64748b;
+            margin: 5px 0 0
+        }
+
+        .modal-icon {
+            font-size: 25px
+        }
+
+        .modal.duplicate {
+            border: 2px solid #f59e0b
+        }
+
+        .modal.duplicate .modal-title {
+            color: #a16207
+        }
+
+        .modal.ok .modal-title {
+            color: #047857
         }
 
         .data-row {
-            padding: 11px 0;
-            border-bottom: 1px solid #eef2f7;
             display: grid;
-            grid-template-columns: 125px 1fr;
-            gap: 12px
+            grid-template-columns: 110px minmax(0, 1fr);
+            gap: 10px;
+            padding: 10px 0;
+            border-bottom: 1px solid #e8edf4
         }
 
         .data-row:last-child {
-            border-bottom: 0
+            border: 0
         }
 
         .data-row span {
@@ -165,7 +226,7 @@
         }
 
         .data-row strong {
-            font-size: 14px;
+            font-size: 13px;
             overflow-wrap: anywhere
         }
 
@@ -174,25 +235,59 @@
             background: #dbeafe;
             color: #1d4ed8;
             border-radius: 8px;
-            padding: 5px 9px;
-            font-weight: 700
+            padding: 5px 9px
         }
 
-        @media(max-width:720px) {
+        .modal-content {
+            margin: 14px 0
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 8px
+        }
+
+        .modal-actions button {
+            width: 100%;
+            min-height: 45px
+        }
+
+        @media(max-width:600px) {
             .wrap {
-                margin: 18px auto
-            }
-
-            .layout {
-                grid-template-columns: 1fr
-            }
-
-            .card {
-                padding: 16px
+                margin: 0 auto;
+                padding: 12px
             }
 
             .head h1 {
-                font-size: 23px
+                font-size: 21px
+            }
+
+            .card {
+                padding: 14px;
+                border-radius: 14px
+            }
+
+            #reader {
+                min-height: 210px
+            }
+
+            .actions button {
+                flex: 1
+            }
+
+            .overlay {
+                align-items: center;
+                padding: 12px
+            }
+
+            .modal {
+                padding: 17px;
+                border-radius: 18px;
+                max-height: 85dvh
+            }
+
+            .data-row {
+                padding: 8px 0
             }
         }
     </style>
@@ -200,80 +295,96 @@
 
 <body>
     <main class="wrap">
-        <div class="head">
+        <header class="head">
             <h1>Scanner QR SPK</h1>
-            <p>Scan label SPK menggunakan kamera atau scanner USB.</p>
-        </div>
-        <div class="layout">
-            <section class="card">
-                <h2>Scan QR Code</h2>
-                <div id="reader"></div>
-                <div class="actions">
-                    <button type="button" id="startBtn">Aktifkan Kamera</button>
-                    <button type="button" id="stopBtn" class="secondary" disabled>Matikan Kamera</button>
-                </div>
-                <p class="muted">Kamera membutuhkan HTTPS atau localhost dan izin kamera dari browser.</p>
-                <form id="manualForm" autocomplete="off">
-                    <label for="qrInput" class="muted">Input QR manual / scanner USB</label>
-                    <div class="manual"><input id="qrInput" placeholder="Scan atau tempel isi QR..." required><button
-                            type="submit">Cari</button></div>
-                </form>
-                <div id="status" class="notice" role="status" aria-live="polite">Siap memindai QR SPK.</div>
-            </section>
-            <section class="card">
-                <h2>Hasil Scan</h2>
-                <div id="empty" class="result-empty">Belum ada QR yang dipindai.</div>
-                <div id="result" hidden></div>
-            </section>
-        </div>
+            <p>Scan label menggunakan kamera atau scanner USB.</p>
+        </header>
+        <section class="card">
+            <h2>Scan QR Code</h2>
+            <div id="reader"></div>
+            <div class="actions"><button type="button" id="startBtn">Aktifkan Kamera</button><button type="button"
+                    id="stopBtn" class="secondary" disabled>Matikan Kamera</button></div>
+            <p class="muted">Kamera memerlukan HTTPS atau localhost. Tekan Aktifkan Kamera untuk mengizinkan audio.</p>
+            <form id="manualForm" autocomplete="off"><label for="qrInput" class="muted">Input QR manual / scanner
+                    USB</label>
+                <div class="manual"><input id="qrInput" placeholder="Scan atau tempel isi QR..." required><button
+                        type="submit">Cari</button></div>
+            </form>
+            <div id="status" class="notice" role="status" aria-live="polite">Siap memindai QR SPK.</div>
+            <div class="stats" id="stats">Label unik terbaca: 0 (sesi ini)</div>
+        </section>
     </main>
+    <div id="overlay" class="overlay" hidden>
+        <section id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"
+            tabindex="-1">
+            <div class="modal-head">
+                <div>
+                    <h2 class="modal-title" id="modalTitle">Hasil Scan</h2>
+                    <p class="modal-sub" id="modalSub"></p>
+                </div><span class="modal-icon" id="modalIcon" aria-hidden="true">✓</span>
+            </div>
+            <div id="modalContent" class="modal-content"></div>
+            <div class="modal-actions"><button type="button" id="closeModal">Scan Berikutnya</button></div>
+        </section>
+    </div>
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script>
         (() => {
+            'use strict';
             const lookupUrl = @json(route('scan-spk.lookup'));
             const csrf = document.querySelector('meta[name="csrf-token"]').content;
-            const status = document.getElementById('status');
-            const startBtn = document.getElementById('startBtn');
-            const stopBtn = document.getElementById('stopBtn');
-            const result = document.getElementById('result');
-            const empty = document.getElementById('empty');
-            const input = document.getElementById('qrInput');
+            const $ = id => document.getElementById(id);
+            const status = $('status'),
+                startBtn = $('startBtn'),
+                stopBtn = $('stopBtn'),
+                input = $('qrInput');
+            const overlay = $('overlay'),
+                modal = $('modal'),
+                modalContent = $('modalContent');
             let scanner = null,
                 scanning = false,
                 busy = false,
                 lastRaw = '',
-                lastAt = 0;
-            let audioContext = null;
+                lastAt = 0,
+                audioContext = null;
+            // Duplikat dihitung pada browser ini selama halaman terbuka, bukan database/global antar operator.
+            const scannedLabels = new Set();
 
             function unlockAudio() {
                 try {
-                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-                    if (!AudioCtx) return;
-                    audioContext = audioContext || new AudioCtx();
+                    const C = window.AudioContext || window.webkitAudioContext;
+                    if (!C) return;
+                    audioContext = audioContext || new C();
                     if (audioContext.state === 'suspended') audioContext.resume().catch(() => {});
-                } catch (_) {
-                    /* Audio not available on this device */ }
+                } catch (_) {}
             }
 
-            function beepSuccess() {
-                try {
-                    if (!audioContext || audioContext.state !== 'running') return;
-                    const oscillator = audioContext.createOscillator();
-                    const gain = audioContext.createGain();
-                    const now = audioContext.currentTime;
-                    oscillator.type = 'sine';
-                    oscillator.frequency.setValueAtTime(1100, now);
-                    gain.gain.setValueAtTime(0.0001, now);
-                    gain.gain.exponentialRampToValueAtTime(0.18, now + 0.012);
-                    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
-                    oscillator.connect(gain);
-                    gain.connect(audioContext.destination);
-                    oscillator.start(now);
-                    oscillator.stop(now + 0.17);
-                } catch (_) {
-                    /* Scanning must continue even if audio fails */ }
+            function tone(freq, start, duration, volume = .16) {
+                if (!audioContext || audioContext.state !== 'running') return;
+                const o = audioContext.createOscillator(),
+                    g = audioContext.createGain(),
+                    t = audioContext.currentTime + start;
+                o.type = 'sine';
+                o.frequency.setValueAtTime(freq, t);
+                g.gain.setValueAtTime(.0001, t);
+                g.gain.exponentialRampToValueAtTime(volume, t + .012);
+                g.gain.exponentialRampToValueAtTime(.0001, t + duration);
+                o.connect(g);
+                g.connect(audioContext.destination);
+                o.start(t);
+                o.stop(t + duration + .02);
             }
-            // Mobile browsers require an explicit user gesture before audio can play.
+
+            function playSound(duplicate) {
+                try {
+                    if (duplicate) {
+                        tone(480, 0, .11);
+                        tone(420, .17, .12);
+                    } else {
+                        tone(980, 0, .16);
+                    }
+                } catch (_) {}
+            }
             document.addEventListener('pointerdown', unlockAudio, {
                 once: true
             });
@@ -281,27 +392,57 @@
                 once: true
             });
 
-
             function setStatus(message, kind = '') {
                 status.textContent = message;
                 status.className = 'notice' + (kind ? ' ' + kind : '');
             }
 
-            function addRow(label, value, isSerial = false) {
-                const row = document.createElement('div');
-                row.className = 'data-row';
-                const key = document.createElement('span');
-                key.textContent = label;
-                const val = document.createElement('strong');
-                val.textContent = value ?? '-';
-                if (isSerial) val.className = 'serial';
-                row.append(key, val);
-                result.appendChild(row);
+            function row(label, value, serial = false) {
+                const r = document.createElement('div');
+                r.className = 'data-row';
+                const k = document.createElement('span');
+                k.textContent = label;
+                const v = document.createElement('strong');
+                v.textContent = value ?? '-';
+                if (serial) v.className = 'serial';
+                r.append(k, v);
+                modalContent.append(r);
             }
+
+            function showModal(d, duplicate) {
+                modal.className = 'modal ' + (duplicate ? 'duplicate' : 'ok');
+                $('modalTitle').textContent = duplicate ? 'Label Sudah Di-scan' : 'Scan Berhasil';
+                $('modalSub').textContent = duplicate ? 'Nomor urutan ini sudah terbaca pada sesi ini.' :
+                    'Label berhasil diverifikasi ke SPK.';
+                $('modalIcon').textContent = duplicate ? '⚠' : '✓';
+                modalContent.replaceChildren();
+                row('Nomor SPK', d.no_spk);
+                row('Nama Produk', d.name ?? d.nama);
+                row('Kode', d.kode);
+                row('Material', d.material);
+                row('Finishing', d.finishing);
+                row('Nomor PO', d.no_po);
+                row('SUB', d.supplier);
+                row('Nomor Label', d.number ?? d.serial ?? (d.sequence + '/' + d.qty), true);
+                row('Detail PO ID', d.detail_po_id);
+                overlay.hidden = false;
+                document.body.classList.add('modal-open');
+                $('closeModal').focus();
+            }
+
+            function closeModal() {
+                overlay.hidden = true;
+                document.body.classList.remove('modal-open');
+                lastRaw = '';
+                lastAt = 0;
+                if (!scanning) input.focus();
+            }
+            $('closeModal').addEventListener('click', closeModal);
+            // Jangan auto-close: operator harus sempat melihat detail. Kamera tetap aktif di belakang modal.
             async function lookup(raw) {
                 raw = String(raw || '').trim();
-                if (!raw || busy) return;
-                if (raw === lastRaw && Date.now() - lastAt < 2500) return;
+                if (!raw || busy || !overlay.hidden) return;
+                if (raw === lastRaw && Date.now() - lastAt < 2000) return;
                 lastRaw = raw;
                 lastAt = Date.now();
                 busy = true;
@@ -320,24 +461,21 @@
                         })
                     });
                     const payload = await response.json();
-                    if (!response.ok) throw new Error(payload.message || 'QR gagal diverifikasi.');
+                    if (!response.ok || payload.success === false) throw new Error(payload.message ||
+                        'QR gagal diverifikasi.');
                     const d = payload.data;
-                    result.replaceChildren();
-                    empty.hidden = true;
-                    result.hidden = false;
-                    addRow('Nomor SPK', d.no_spk);
-                    addRow('Nama Produk', d.nama);
-                    addRow('Kode', d.kode);
-                    addRow('Material', d.material);
-                    addRow('Nomor PO', d.no_po);
-                    addRow('SUB', d.supplier);
-                    addRow('Nomor Label', d.number ?? d.serial ?? ((d.sequence && d.qty) ? (d.sequence + '/' + d
-                        .qty) : '-'), true);
-                    addRow('Detail PO ID', d.detail_po_id);
-                    setStatus(payload.message || 'QR berhasil diverifikasi.', 'success');
-                    beepSuccess();
-                } catch (error) {
-                    setStatus(error.message || 'Terjadi kesalahan.', 'error');
+                    if (!d) throw new Error('Data SPK kosong.');
+                    const labelNo = String(d.number ?? d.serial ?? (d.sequence + '/' + d.qty));
+                    const key = [d.spk_id, d.detail_po_id, labelNo].join('|');
+                    const duplicate = scannedLabels.has(key);
+                    if (!duplicate) scannedLabels.add(key);
+                    $('stats').textContent = 'Label unik terbaca: ' + scannedLabels.size + ' (sesi ini)';
+                    setStatus(duplicate ? 'Label ' + labelNo + ' sudah pernah di-scan pada sesi ini.' : (payload
+                        .message || 'QR berhasil diverifikasi.'), duplicate ? 'error' : 'success');
+                    playSound(duplicate);
+                    showModal(d, duplicate);
+                } catch (e) {
+                    setStatus(e.message || 'Terjadi kesalahan.', 'error');
                 } finally {
                     busy = false;
                 }
@@ -346,7 +484,7 @@
                 unlockAudio();
                 if (scanning) return;
                 if (typeof Html5Qrcode === 'undefined') {
-                    setStatus('Library scanner tidak termuat. Periksa koneksi internet.', 'error');
+                    setStatus('Library scanner tidak termuat. Periksa internet.', 'error');
                     return;
                 }
                 try {
@@ -376,11 +514,11 @@
                     startBtn.disabled = false;
                     stopBtn.disabled = true;
                     setStatus('Kamera dimatikan.');
-                } catch (e) {
+                } catch (_) {
                     setStatus('Gagal menghentikan kamera.', 'error');
                 }
             });
-            document.getElementById('manualForm').addEventListener('submit', e => {
+            $('manualForm').addEventListener('submit', e => {
                 e.preventDefault();
                 unlockAudio();
                 lookup(input.value);
