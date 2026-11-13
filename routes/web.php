@@ -50,7 +50,20 @@ use App\Http\Controllers\PengajuanHargaNotificationController;
 use App\Http\Controllers\InventorSignatureController;
 use App\Http\Controllers\SpkQrLabelController;
 use App\Http\Controllers\ScanController;
+use App\Http\Controllers\IncomingWarehouseController;
 
+Route::middleware(['auth'])
+    ->prefix('warehouse/incoming')
+    ->name('warehouse.incoming.')
+    ->group(function () {
+        Route::get('/', [
+            IncomingWarehouseController::class, 'index'
+        ])->name('index');
+
+        Route::get('/data', [
+            IncomingWarehouseController::class, 'data'
+        ])->name('data');
+    });
 
 Route::get('/scan-spk', [ScanController::class, 'index'])
     ->name('scan-spk.index');
