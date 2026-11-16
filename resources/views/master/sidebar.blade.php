@@ -103,42 +103,43 @@
                          @endif
                          {{-- WAREHOUSE - OVERVIEW UNTUK SEMUA USER --}}
                          {{-- WAREHOUSE - BERDASARKAN ACCESS --}}
-                        
-@auth
-    @if (auth()->user()->accessModules()->where('name', 'Warehouse')->exists())
-        <li class="{{ request()->is('warehouse/overview*') || request()->is('laporan*') ? 'active' : '' }}">
-            <a href="#">
-                <span class="nav-caret">
-                    <i class="fa fa-caret-down"></i>
-                </span>
-                <span class="nav-icon">
-                    <i class="material-icons">store</i>
-                </span>
-                <span class="nav-text">Warehouse</span>
-            </a>
 
-            <ul class="nav-sub">
-                <li class="{{ request()->is('warehouse/overview*') ? 'active' : '' }}">
-                    <a href="{{ url('/warehouse/overview') }}">
-                        <span class="nav-icon">
-                            <i class="material-icons">swap_horiz</i>
-                        </span>
-                        <span class="nav-text">Overview</span>
-                    </a>
-                </li>
+                         @auth
+                             @if (auth()->user()->accessModules()->where('name', 'Warehouse')->exists())
+                                 <li
+                                     class="{{ request()->is('warehouse/overview*') || request()->is('laporan*') ? 'active' : '' }}">
+                                     <a href="#">
+                                         <span class="nav-caret">
+                                             <i class="fa fa-caret-down"></i>
+                                         </span>
+                                         <span class="nav-icon">
+                                             <i class="material-icons">store</i>
+                                         </span>
+                                         <span class="nav-text">Warehouse</span>
+                                     </a>
 
-                <li class="{{ request()->is('laporan*') ? 'active' : '' }}">
-                    <a href="{{ url('/laporan') }}">
-                        <span class="nav-icon">
-                            <i class="material-icons">sync_alt</i>
-                        </span>
-                        <span class="nav-text">Stok In/Out</span>
-                    </a>
-                </li>
-            </ul>
-        </li>
-    @endif
-@endauth
+                                     <ul class="nav-sub">
+                                         <li class="{{ request()->is('warehouse/overview*') ? 'active' : '' }}">
+                                             <a href="{{ url('/warehouse/overview') }}">
+                                                 <span class="nav-icon">
+                                                     <i class="material-icons">swap_horiz</i>
+                                                 </span>
+                                                 <span class="nav-text">Overview</span>
+                                             </a>
+                                         </li>
+
+                                         <li class="{{ request()->is('laporan*') ? 'active' : '' }}">
+                                             <a href="{{ url('/laporan') }}">
+                                                 <span class="nav-icon">
+                                                     <i class="material-icons">sync_alt</i>
+                                                 </span>
+                                                 <span class="nav-text">Stok In/Out</span>
+                                             </a>
+                                         </li>
+                                     </ul>
+                                 </li>
+                             @endif
+                         @endauth
 
                          @if (auth()->user()->accessModules()->where('name', 'Sourching Monitoring Issue')->exists())
                              <li class="{{ request()->routeIs('sm.*') ? 'active' : '' }}">
@@ -239,7 +240,7 @@
                              </li>
                          @endif
 
-                         @if (auth()->user()->role == 'finance')
+                         @if (auth()->user()->role == 'finance' || auth()->user()->role == 'finance acc')
                              <li>
                                  <a href="/marketing-release-order">
                                      <span class="nav-icon"><i class="material-icons">assignment_turned_in</i></span>
@@ -577,11 +578,11 @@
                              <!-- </li>
 
 
-                                                                                                     <a href="/request">
-                                                                                                         <span class="nav-icon"><i class="material-icons">event_note</i></span>
-                                                                                                         <span class="nav-text">Agenda</span>
-                                                                                                     </a>
-                                                                                                 </li> -->
+                                                                                                         <a href="/request">
+                                                                                                             <span class="nav-icon"><i class="material-icons">event_note</i></span>
+                                                                                                             <span class="nav-text">Agenda</span>
+                                                                                                         </a>
+                                                                                                     </li> -->
 
                              <li>
                                  <a href="/request">
