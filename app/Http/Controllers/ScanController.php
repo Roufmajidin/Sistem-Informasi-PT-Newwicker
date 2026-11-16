@@ -262,4 +262,5 @@ class ScanController extends Controller
             'data' => $data,
         ], $code)->header('Cache-Control', 'no-store');
     }
+    
 }

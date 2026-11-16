@@ -57,11 +57,13 @@ Route::middleware(['auth'])
     ->name('warehouse.incoming.')
     ->group(function () {
         Route::get('/', [
-            IncomingWarehouseController::class, 'index'
+            IncomingWarehouseController::class,
+            'index'
         ])->name('index');
 
         Route::get('/data', [
-            IncomingWarehouseController::class, 'data'
+            IncomingWarehouseController::class,
+            'data'
         ])->name('data');
     });
 
@@ -82,8 +84,8 @@ Route::post('/qc/test-notification', [
     QcController::class,
     'testQcNotification'
 ])
-->middleware('auth')
-->name('qc.test.notification');
+    ->middleware('auth')
+    ->name('qc.test.notification');
 
 // ==========================================
 // PUSHER BROADCASTING AUTH - QC NOTIFICATION
@@ -105,9 +107,9 @@ Route::middleware('auth')->prefix('mom')->name('mom.')->group(function () {
     Route::get('/{mom}/edit', [MomController::class, 'edit'])->name('edit');
     Route::get('/{mom}', [MomController::class, 'show'])->name('show');
     Route::delete('/{mom}', [MomController::class, 'destroy'])
-    ->name('destroy');
+        ->name('destroy');
     Route::get('/{mom}/download', [MomController::class, 'download'])->name('download');
-   
+
 });
 Route::middleware('auth')->get('/mom/ping', function () {
     return response()->json([
@@ -170,88 +172,98 @@ Broadcast::channel('sm', function ($user) {
         );
 });
 Route::middleware('auth')->group(function () {
-Route::middleware('auth')->prefix('sm')->name('sm.')->group(function () {
-    Route::get('/rekap-excel', [SmController::class, 'downloadRekap'])->name('rekap.excel');
+    Route::middleware('auth')->prefix('sm')->name('sm.')->group(function () {
+        Route::get('/rekap-excel', [SmController::class, 'downloadRekap'])->name('rekap.excel');
 
-    Route::get('/', [SmController::class, 'index'])->name('index');
-    Route::post('/', [SmController::class, 'store'])->name('store');
-    Route::put('/{issue}', [SmController::class, 'update'])->name('update');
-    Route::post('/{issue}/release', [SmController::class, 'release'])->name('release');
-    Route::put('/{issue}/director', [SmController::class, 'directorUpdate'])->name('director');
-    Route::delete('/{issue}', [SmController::class, 'destroy'])->name('destroy');
+        Route::get('/', [SmController::class, 'index'])->name('index');
+        Route::post('/', [SmController::class, 'store'])->name('store');
+        Route::put('/{issue}', [SmController::class, 'update'])->name('update');
+        Route::post('/{issue}/release', [SmController::class, 'release'])->name('release');
+        Route::put('/{issue}/director', [SmController::class, 'directorUpdate'])->name('director');
+        Route::delete('/{issue}', [SmController::class, 'destroy'])->name('destroy');
 
-    Route::get('/{issue}/messages', [SmController::class, 'messages'])->name('messages');
-    Route::post('/{issue}/messages', [SmController::class, 'sendMessage'])->name('messages.store');
-     Route::get('/{issue}/attachments/{message}',[SmController::class,'downloadAttachment'])->name('attachments.download');
-     Route::patch('/{issue}/comments', [\App\Http\Controllers\SmController::class, 'updateComments'])
-    ->name('comments.update');
+        Route::get('/{issue}/messages', [SmController::class, 'messages'])->name('messages');
+        Route::post('/{issue}/messages', [SmController::class, 'sendMessage'])->name('messages.store');
+        Route::get('/{issue}/attachments/{message}', [SmController::class, 'downloadAttachment'])->name('attachments.download');
+        Route::patch('/{issue}/comments', [\App\Http\Controllers\SmController::class, 'updateComments'])
+            ->name('comments.update');
 
-// Writer saja yang dapat menutup issue (otorisasi diperiksa di Controller).
-Route::post('/{issue}/close', [\App\Http\Controllers\SmController::class, 'closeIssue'])
-    ->name('close');
-});
+        // Writer saja yang dapat menutup issue (otorisasi diperiksa di Controller).
+        Route::post('/{issue}/close', [\App\Http\Controllers\SmController::class, 'closeIssue'])
+            ->name('close');
+    });
 
- 
-// ========================================
+
+    // ========================================
 // PENGAJUAN HARGA
 // ========================================
-Route::middleware('auth')
-    ->prefix('pengajuan-harga')
-    ->name('pengajuan-harga.')
-    ->group(function () {
-        Route::get('/directur/rekap-excel', [PengajuanHargaController::class, 'downloadDirecturRekap'])
-    ->name('directur.rekap');
+    Route::middleware('auth')
+        ->prefix('pengajuan-harga')
+        ->name('pengajuan-harga.')
+        ->group(function () {
+            Route::get('/directur/rekap-excel', [PengajuanHargaController::class, 'downloadDirecturRekap'])
+                ->name('directur.rekap');
 
+Route::get('/monitor-pengajuan', [PengajuanHargaController::class, 'monitorPengajuan'])
+    ->name('monitor');
 
-    Route::get('/directur', [ PengajuanHargaController::class,  'directurPages'])->name('directur');
-    Route::patch('/directur/{pekerjaan}', [PengajuanHargaController::class,'updateDirectur'])->name('directur.update');
-Route::post('/category', [PengajuanHargaController::class, 'storeKategori'])->name('category.store');
+            Route::get('/directur', [PengajuanHargaController::class, 'directurPages'])->name('directur');
+            Route::patch('/directur/{pekerjaan}', [PengajuanHargaController::class, 'updateDirectur'])->name('directur.update');
+            Route::post('/category', [PengajuanHargaController::class, 'storeKategori'])->name('category.store');
 
-Route::patch('/kategori/{id}', [
-    PengajuanHargaController::class,
-    'updateKategori'
-])->name('kategori.update');
+            Route::patch('/kategori/{id}', [
+                PengajuanHargaController::class,
+                'updateKategori'
+            ])->name('kategori.update');
 
-        Route::get('/', [
-            PengajuanHargaController::class, 'index'
-        ])->name('index');
+            Route::get('/', [
+                PengajuanHargaController::class,
+                'index'
+            ])->name('index');
 
-        Route::get('/search-article', [
-            PengajuanHargaController::class, 'searchArticle'
-        ])->name('search-article');
+            Route::get('/search-article', [
+                PengajuanHargaController::class,
+                'searchArticle'
+            ])->name('search-article');
 
-        Route::get('/search-material', [
-            PengajuanHargaController::class, 'searchMaterial'
-        ])->name('search-material');
+            Route::get('/search-material', [
+                PengajuanHargaController::class,
+                'searchMaterial'
+            ])->name('search-material');
 
-        Route::post('/', [
-            PengajuanHargaController::class, 'store'
-        ])->name('store');
+            Route::post('/', [
+                PengajuanHargaController::class,
+                'store'
+            ])->name('store');
 
-        Route::post('/{pengajuan}/submit', [
-            PengajuanHargaController::class, 'submit'
-        ])->name('submit');
+            Route::post('/{pengajuan}/submit', [
+                PengajuanHargaController::class,
+                'submit'
+            ])->name('submit');
 
-        Route::post('/{pengajuan}/approve', [
-            PengajuanHargaController::class, 'approve'
-        ])->name('approve');
+            Route::post('/{pengajuan}/approve', [
+                PengajuanHargaController::class,
+                'approve'
+            ])->name('approve');
 
-        // Pengajuan harga pekerjaan
-        Route::post('/save', [
-            PengajuanHargaController::class, 'savePekerjaan'
-        ])->name('save');
+            // Pengajuan harga pekerjaan
+            Route::post('/save', [
+                PengajuanHargaController::class,
+                'savePekerjaan'
+            ])->name('save');
 
-        Route::delete('/delete', [
-            PengajuanHargaController::class, 'deletePekerjaan'
-        ])->name('delete');
-    });
+            Route::delete('/delete', [
+                PengajuanHargaController::class,
+                'deletePekerjaan'
+            ])->name('delete');
+        });
     Route::patch('/pengajuan-harga/pekerjaan/{pekerjaan}/close', [\App\Http\Controllers\PengajuanHargaController::class, 'closePekerjaan'])->name('pengajuan-harga.pekerjaan.close');
-Route::patch('/pengajuan-harga/pekerjaan/{pekerjaan}/ppic-history', [\App\Http\Controllers\PengajuanHargaController::class, 'modifyPpicHistory'])->name('pengajuan-harga.ppic-history');
+    Route::patch('/pengajuan-harga/pekerjaan/{pekerjaan}/ppic-history', [\App\Http\Controllers\PengajuanHargaController::class, 'modifyPpicHistory'])->name('pengajuan-harga.ppic-history');
 
-Route::middleware('auth')->prefix('pengajuan-harga/notifications')->name('pengajuan-harga.notifications.')->group(function () {
-    Route::get('/', [PengajuanHargaNotificationController::class, 'index'])->name('index');
-    Route::get('/{id}/open', [PengajuanHargaNotificationController::class, 'open'])->whereNumber('id')->name('open');
-});
+    Route::middleware('auth')->prefix('pengajuan-harga/notifications')->name('pengajuan-harga.notifications.')->group(function () {
+        Route::get('/', [PengajuanHargaNotificationController::class, 'index'])->name('index');
+        Route::get('/{id}/open', [PengajuanHargaNotificationController::class, 'open'])->whereNumber('id')->name('open');
+    });
 
 
 
@@ -860,7 +872,7 @@ Route::middleware('auth')->prefix('pengajuan-harga/notifications')->name('pengaj
     Route::get('/laporan/warehouse-history', [LaporanController::class, 'warehouseHistory'])
         ->name('laporan.warehouse-history');
     Route::get('/laporan/export-opname', [LaporanController::class, 'exportOpname'])
-    ->name('laporan.export-opname');
+        ->name('laporan.export-opname');
 
     // export warehouse history
     Route::get(
@@ -1168,10 +1180,10 @@ Route::middleware('auth')->group(function () {
     // new
     Route::get('/cart-buyer', [BuyerController::class, 'viewClass'])->name('pameran.cartView');
     Route::get('/fetchcart-buyer', [BuyerController::class, 'index'])->name('pameran.cart');
-Route::get(
-    '/cart-buyer/export-excel',
-    [BuyerController::class, 'exportBuyerListExcel']
-)->name('pameran.buyer.exportExcel');
+    Route::get(
+        '/cart-buyer/export-excel',
+        [BuyerController::class, 'exportBuyerListExcel']
+    )->name('pameran.buyer.exportExcel');
     Route::get('/cart-export/{id}', [BuyerController::class, 'cartExport'])->name('cart.exportt');
 
     Route::post('/pameran/upload-image', [PameranContrller::class, 'uploadImage'])
@@ -1240,9 +1252,9 @@ Route::get(
     // neww routing 
     Route::get('/supplier', [SupplierController::class, 'index']);
     Route::get('/supplier/{id}/spk-preview', [
-    SupplierController::class,
-    'previewSupplierSpk'
-])->middleware('auth')->name('supplier.spk-preview');
+        SupplierController::class,
+        'previewSupplierSpk'
+    ])->middleware('auth')->name('supplier.spk-preview');
     Route::post('/supplier/store', [SupplierController::class, 'storeSupplier']);
     Route::post('/supplier/update/{id}', [SupplierController::class, 'updateSupplier']);
     Route::post('/jenis/store', [SupplierController::class, 'storeJenis']);
@@ -1280,9 +1292,9 @@ Route::get(
 
 
     // sign
-   Route::get('/produksi/inventor/signature', [InventorSignatureController::class, 'index'])->name('produksi.inventor.signature');
+    Route::get('/produksi/inventor/signature', [InventorSignatureController::class, 'index'])->name('produksi.inventor.signature');
     Route::post('/produksi/inventor/signature/{id}/approve', [InventorSignatureController::class, 'sign'])->name('produksi.inventor.signature.approve');
-Route::post('/produksi/inventor/signature/{id}/reject', [InventorSignatureController::class, 'reject'])->middleware('auth')->name('produksi.inventor.signature.reject');
+    Route::post('/produksi/inventor/signature/{id}/reject', [InventorSignatureController::class, 'reject'])->middleware('auth')->name('produksi.inventor.signature.reject');
 
     Route::post(
         '/spk/change-status/{spk}',
@@ -1328,16 +1340,18 @@ Route::post('/produksi/inventor/signature/{id}/reject', [InventorSignatureContro
         [ProduksiMnController::class, 'inventorDetail']
     );
     Route::get('/produksi/inventor/qr/{id}/preview', [SpkQrLabelController::class, 'preview'])
-    ->whereNumber('id')->name('inventor.qr.preview');
-Route::get('/produksi/inventor/qr/{id}/download', [SpkQrLabelController::class, 'download'])
-    ->whereNumber('id')->name('inventor.qr.download');
+        ->whereNumber('id')->name('inventor.qr.preview');
+    Route::get('/produksi/inventor/qr/{id}/download', [SpkQrLabelController::class, 'download'])
+        ->whereNumber('id')->name('inventor.qr.download');
     Route::post('/produksi/inventor/qr/{id}/start', [SpkQrLabelController::class, 'start'])->name('inventor.qr.start');
-Route::get('/produksi/inventor/qr/progress/{token}', [SpkQrLabelController::class, 'progress'])->name('inventor.qr.progress');
-Route::get('/produksi/inventor/qr/file/{token}', [SpkQrLabelController::class, 'file'])->name('inventor.qr.file');
-Route::get('/produksi/inventor/qr/{id}/print',
-    [\App\Http\Controllers\SpkQrLabelController::class, 'browserPrint'])
-    ->whereNumber('id')
-    ->name('inventor.qr.browser-print');
+    Route::get('/produksi/inventor/qr/progress/{token}', [SpkQrLabelController::class, 'progress'])->name('inventor.qr.progress');
+    Route::get('/produksi/inventor/qr/file/{token}', [SpkQrLabelController::class, 'file'])->name('inventor.qr.file');
+    Route::get(
+        '/produksi/inventor/qr/{id}/print',
+        [\App\Http\Controllers\SpkQrLabelController::class, 'browserPrint']
+    )
+        ->whereNumber('id')
+        ->name('inventor.qr.browser-print');
     Route::post(
         '/inventor/store',
         [ProduksiMnController::class, 'inventorStore']

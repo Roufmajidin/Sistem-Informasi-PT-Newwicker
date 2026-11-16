@@ -361,4 +361,31 @@ class PengajuanHargaController extends Controller
             'directur_date' => $pekerjaan->directur_date?->format('d-m-y H:i'),
         ]);
     }
+    public function monitorPengajuan(\Illuminate\Http\Request $request)
+{
+    $filter = $request->query('status', 'all');
+    $q = trim((string) $request->query('q', ''));
+    $query = PengajuanHargaPekerjaan::query()->with('detailPo');
+
+    // Mengikuti definisi status pada halaman Director: closed = 1 berarti Closed.
+    if ($filter === 'open') $query->where('closed', false);
+    if ($filter === 'closed') $query->where('closed', true);
+    if ($filter === 'pending') $query->whereNull('director_price')->whereNull('directur_date');
+    if ($filter === 'updated') $query->where(function ($b) {
+        $b->whereNotNull('director_price')->orWhereNotNull('directur_date');
+    });
+    if ($q !== '') {
+        $query->where(function ($b) use ($q) {
+            $b->where('sub_name', 'like', "%{$q}%")
+              ->orWhereHas('detailPo', function ($d) use ($q) {
+                  $d->where('detail', 'like', "%{$q}%")
+                    ->orWhereHas('po', fn ($p) => $p->where('order_no', 'like', "%{$q}%"));
+              });
+        });
+    }
+    $rows = $query->orderByDesc('id')->paginate(30)->withQueryString();
+    $categories = BahanKategori::query()->pluck('name', 'id');
+    return view('pages.pengajuan_harga.partials.monitor_rows', compact('rows', 'categories'));
+}
+
 }
