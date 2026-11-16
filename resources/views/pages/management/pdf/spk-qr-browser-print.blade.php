@@ -3,7 +3,8 @@
 
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>PRINT QR SPK {{ $pages[0][0]['no_spk'] ?? '' }}</title>
 
     <style>
@@ -23,15 +24,17 @@
             background: #e5e7eb;
         }
 
+        /* TOOLBAR */
+
         .toolbar {
             position: sticky;
             top: 0;
             z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 12px;
             padding: 12px 20px;
             background: #fff;
-            display: flex;
-            gap: 12px;
-            align-items: center;
             box-shadow: 0 2px 10px #0002;
         }
 
@@ -50,172 +53,147 @@
             color: #475569;
         }
 
+        /* KERTAS 165 x 200 MM */
+
         .sheet {
-            width: 210mm;
-            height: 330mm;
+            width: 165mm;
+            height: 200mm;
             margin: 8px auto;
-            padding: 2mm 5mm;
+            padding: 5.5mm;
             background: #fff;
-            display: flex;
-            flex-direction: column;
-            gap: 1.5mm;
             box-shadow: 0 2px 10px #0002;
             overflow: hidden;
+            break-inside: avoid;
         }
 
-        .sheet-header {
-            flex: 0 0 10mm;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: .25mm solid #aaa;
-            padding: 0 1mm 1mm;
-            min-width: 0;
-        }
+        /* 6 KOLOM x 5 BARIS */
 
-        .sheet-header .heading {
-            min-width: 0;
-            max-width: 155mm;
-        }
-
-        .sheet-header strong {
-            display: block;
-            font-size: 10pt;
-            line-height: 1.25;
-            overflow-wrap: anywhere;
-        }
-
-        .sheet-header .page-no {
-            font-weight: 600;
-            white-space: nowrap;
-            font-size: 9pt;
-        }
-
-        /* 5 kolom x 6 baris = 30 label */
         .labels-grid {
-            flex: 0 0 auto;
             display: grid;
-            width: 200mm;
-            height: 288mm;
-            grid-template-columns: repeat(5, 40mm);
-            grid-template-rows: repeat(6, 48mm);
-            gap: 0;
+            width: 154mm;
+            height: 189mm;
+
+            grid-template-columns: repeat(6, 24mm);
+            grid-template-rows: repeat(5, 37mm);
+
+            column-gap: 2mm;
+            row-gap: 1mm;
         }
+
+        /* STIKER 24 x 37 MM */
 
         .label {
-            position: relative;
-            width: 40mm;
-            height: 48mm;
-            border: .16mm solid #888;
-            padding: 1.8mm 1mm 3.5mm;
+            width: 24mm;
+            height: 37mm;
+            padding: 1mm .65mm .65mm;
+
+            border: .12mm solid #ddd;
+            border-radius: 1.5mm;
+
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-start;
-            gap: .35mm;
-            overflow: hidden;
-            break-inside: avoid;
+
             text-align: center;
             text-transform: uppercase;
+
+            overflow: hidden;
+            break-inside: avoid;
         }
 
-        /* Nomor SPK diperbesar */
+        /* NOMOR SPK */
+
         .label .spk {
-            font-size: 8.5pt;
-            font-weight: 700;
-            line-height: 1.05;
             width: 100%;
+            font-size: 5.5pt;
+            line-height: 1.1;
+            font-weight: 700;
+
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
 
-        /* QR Code diperbesar */
+        /* QR CODE */
+
         .label .qr {
-            width: 19mm;
-            height: 19mm;
-            flex: 0 0 19mm;
+            width: 17mm;
+            height: 17mm;
+            flex: 0 0 17mm;
             object-fit: contain;
-            margin: .2mm 0 .4mm;
+            margin: .25mm 0 .35mm;
         }
+
+        /* NAMA ITEM */
 
         .label .item {
-            font-size: 6.7pt;
+            width: 100%;
+            font-size: 5.3pt;
+            line-height: 1.1;
             font-weight: 700;
-            line-height: 1.05;
-            overflow-wrap: anywhere;
-            max-height: 6mm;
-            overflow: hidden;
-            width: 100%;
-        }
 
-        .label .code {
-            font-size: 6.5pt;
-            font-weight: 700;
-            line-height: 1.05;
-            width: 100%;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            margin-bottom: .4mm;
-        }
-
-        .label .material {
-            font-size: 5.4pt;
-            font-weight: 400;
-            line-height: 1.05;
-            width: 100%;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
+
+        /* FINISH COLOR */
 
         .label .finishing {
-            font-size: 5.5pt;
-            font-weight: 400;
-            line-height: 1.05;
             width: 100%;
+            margin-top: .4mm;
+            font-size: 5pt;
+            line-height: 1.1;
+
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
 
-        .label .po {
-            font-size: 5.6pt;
-            font-weight: 400;
-            line-height: 1.05;
-            width: 100%;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
+        /* NAMA SUB */
 
         .label .sub {
-            font-size: 5.4pt;
-            font-weight: 400;
-            line-height: 1.05;
             width: 100%;
+            margin-top: .6mm;
+            font-size: 5pt;
+            line-height: 1.1;
+
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            margin-top: .4mm;
         }
 
-        /* Nomor label jauh lebih besar */
-        .label .serial {
-            position: absolute;
-            right: 1mm;
-            bottom: .7mm;
-            font-size: 11pt;
-            font-weight: 700;
-            line-height: 1;
-            background: #fff;
-            padding-left: .7mm;
-            font-variant-numeric: tabular-nums;
+        /* NO PO DI BAWAH SUB */
+
+        .label .po {
+            width: 100%;
+            margin-top: .3mm;
+            font-size: 4.8pt;
+            line-height: 1.1;
+
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
+
+        /* NOMOR URUT */
+
+        .label .serial {
+            margin-top: auto;
+            width: 100%;
+            font-size: 9pt;
+            line-height: 1;
+            font-weight: 700;
+
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* PRINT SETTING */
 
         @page {
-            size: 210mm 330mm;
+            size: 165mm 200mm;
             margin: 0;
         }
 
@@ -223,9 +201,9 @@
 
             html,
             body {
-                background: #fff;
                 margin: 0;
                 padding: 0;
+                background: #fff;
             }
 
             .toolbar {
@@ -233,11 +211,12 @@
             }
 
             .sheet {
-                width: 210mm;
-                height: 330mm;
+                width: 165mm;
+                height: 200mm;
                 margin: 0;
-                padding: 2mm 5mm;
+                padding: 5.5mm;
                 box-shadow: none;
+
                 break-after: page;
                 page-break-after: always;
             }
@@ -258,6 +237,7 @@
 <body>
 
     <div class="toolbar">
+
         <button type="button" onclick="window.print()">
             PRINT / SAVE AS PDF
         </button>
@@ -265,75 +245,58 @@
         <small>
             {{ count($pages) }} halaman ·
             {{ array_sum(array_map('count', $pages)) }} label ·
-            F4 210 × 330 mm ·
+            Kertas 165 × 200 mm ·
             30 label/halaman ·
-            Potong 4 × 4,8 cm ·
-            Skala cetak 100%
+            Stiker 24 × 37 mm ·
+            Skala 100%
         </small>
+
     </div>
 
     @foreach ($pages as $pageIndex => $page)
         <section class="sheet">
 
-            <header class="sheet-header">
-                <div class="heading">
-                    <strong>
-                        SPK: {{ mb_strtoupper($page[0]['no_spk'] ?? '-', 'UTF-8') }}
-                    </strong>
-
-                    <strong>
-                        SUB: {{ mb_strtoupper($page[0]['supplier'] ?? '-', 'UTF-8') }}
-                    </strong>
-                </div>
-
-                <span class="page-no">
-                    PAGE {{ $pageIndex + 1 }} OF {{ count($pages) }}
-                </span>
-            </header>
-
             <div class="labels-grid">
+
                 @foreach ($page as $label)
                     <article class="label">
 
+                        {{-- NOMOR SPK --}}
                         <div class="spk">
-                            {{ mb_strtoupper($label['no_spk'] ?? '', 'UTF-8') }}
+                            {{ mb_strtoupper($label['no_spk'] ?? '-', 'UTF-8') }}
                         </div>
 
-                        <img class="qr" src="{{ $label['qr'] }}" alt="QR {{ $label['number'] }}">
+                        {{-- QR CODE --}}
+                        <img class="qr" src="{{ $label['qr'] }}" alt="QR {{ $label['number'] ?? '' }}">
 
-                        <div class="item">
-                            {{ mb_strtoupper($label['name'] ?? '', 'UTF-8') }}
+                        {{-- NAMA ITEM --}}
+                        <div class="item" title="{{ $label['name'] ?? '' }}">
+                            {{ mb_strtoupper($label['name'] ?? '-', 'UTF-8') }}
                         </div>
 
-                        <div class="code">
-                            {{ mb_strtoupper($label['kode'] ?? '', 'UTF-8') }}
-                        </div>
-
-                        <div class="material">
-                            {{ mb_strtoupper($label['material'] ?? '', 'UTF-8') }}
-                        </div>
-
-                        <div class="finishing">
-                            FINISHING:
+                        {{-- FINISH COLOR --}}
+                        <div class="finishing" title="{{ $label['finishing'] ?? '' }}">
                             {{ mb_strtoupper($label['finishing'] ?? '-', 'UTF-8') }}
                         </div>
 
-                        <div class="po">
-                            PO:
-                            {{ mb_strtoupper($label['no_po'] ?? '', 'UTF-8') }}
+                        {{-- NAMA SUB --}}
+                        <div class="sub" title="{{ $label['supplier'] ?? '' }}">
+                            {{ mb_strtoupper($label['supplier'] ?? '-', 'UTF-8') }}
                         </div>
 
-                        <div class="sub">
-                            SUB:
-                            {{ mb_strtoupper($label['supplier'] ?? '', 'UTF-8') }}
+                        {{-- NO PO DALAM KURUNG --}}
+                        <div class="po" title="{{ $label['no_po'] ?? '' }}">
+                            ({{ mb_strtoupper($label['no_po'] ?? '-', 'UTF-8') }})
                         </div>
 
+                        {{-- NOMOR URUT --}}
                         <div class="serial">
-                            {{ $label['number'] }}
+                            {{ $label['number'] ?? '' }}
                         </div>
 
                     </article>
                 @endforeach
+
             </div>
 
         </section>
