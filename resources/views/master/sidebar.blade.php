@@ -75,7 +75,13 @@
 
                              $email = strtolower(trim($user->email ?? ''));
 
-                             $isManagement = str_starts_with($email, 'info@') || str_starts_with($email, 'office@') || str_starts_with($email, 'factory@') || str_starts_with($email, 'manager@') || str_starts_with($email, 'director@') || str_starts_with($email, 'admin@');
+                             $isManagement =
+                                 str_starts_with($email, 'info@') ||
+                                 str_starts_with($email, 'office@') ||
+                                 str_starts_with($email, 'factory@') ||
+                                 str_starts_with($email, 'manager@') ||
+                                 str_starts_with($email, 'director@') ||
+                                 str_starts_with($email, 'admin@');
 
                              $pengajuanUrl = $isManagement
                                  ? url('/pengajuan-harga/directur')
@@ -396,29 +402,53 @@
 
                              </li>
 
+                             @php
+                                 $hasWarehouseOverview = auth()
+                                     ->user()
+                                     ->accessModules()
+                                     ->where('name', 'Warehouse Overview')
+                                     ->exists();
+                             @endphp
+
                              <li>
                                  <a>
-                                     <span class="nav-caret"><i class="fa fa-caret-down"></i></span>
-                                     <span class="nav-icon"><i class="material-icons">store</i></span>
+                                     <span class="nav-caret">
+                                         <i class="fa fa-caret-down"></i>
+                                     </span>
+
+                                     <span class="nav-icon">
+                                         <i class="material-icons">store</i>
+                                     </span>
+
                                      <span class="nav-text">Warehouse</span>
                                  </a>
+
                                  <ul class="nav-sub">
-                                     <li>
-                                         <a href="/warehouse/overview">
-                                             <span class="nav-icon">
-                                                 <i class="material-icons">swap_horiz</i>
-                                             </span>
-                                             <span class="nav-text">Overview </span>
-                                         </a>
-                                     </li>
+
+                                     {{-- OVERVIEW: BERDASARKAN ACCESS CONTROL --}}
+                                     @if ($hasWarehouseOverview)
+                                         <li>
+                                             <a href="/warehouse/overview">
+                                                 <span class="nav-icon">
+                                                     <i class="material-icons">swap_horiz</i>
+                                                 </span>
+
+                                                 <span class="nav-text">Overview</span>
+                                             </a>
+                                         </li>
+                                     @endif
+
+                                     {{-- STOK IN/OUT: TETAP SEPERTI SEBELUMNYA --}}
                                      <li>
                                          <a href="/laporan">
                                              <span class="nav-icon">
                                                  <i class="material-icons">sync_alt</i>
                                              </span>
-                                             <span class="nav-text">stok in/out </span>
+
+                                             <span class="nav-text">Stok In/Out</span>
                                          </a>
                                      </li>
+
                                  </ul>
                              </li>
 
@@ -533,11 +563,11 @@
                              <!-- </li>
 
 
-                                                                                             <a href="/request">
-                                                                                                 <span class="nav-icon"><i class="material-icons">event_note</i></span>
-                                                                                                 <span class="nav-text">Agenda</span>
-                                                                                             </a>
-                                                                                         </li> -->
+                                                                                                 <a href="/request">
+                                                                                                     <span class="nav-icon"><i class="material-icons">event_note</i></span>
+                                                                                                     <span class="nav-text">Agenda</span>
+                                                                                                 </a>
+                                                                                             </li> -->
 
                              <li>
                                  <a href="/request">
