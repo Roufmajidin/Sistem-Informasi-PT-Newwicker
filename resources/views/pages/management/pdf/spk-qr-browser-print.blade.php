@@ -82,13 +82,19 @@
 
         /* STIKER 24 x 37 MM */
 
+
+        /* STIKER 24 x 37 MM - TANPA BORDER */
+
         .label {
             width: 24mm;
             height: 37mm;
             padding: 1mm .65mm .65mm;
 
-            border: .12mm solid #ddd;
-            border-radius: 1.5mm;
+            border: none;
+            border-radius: 0;
+            outline: none;
+            box-shadow: none;
+            background: #fff;
 
             display: flex;
             flex-direction: column;
