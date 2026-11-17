@@ -1388,129 +1388,367 @@ class LaporanController extends Controller
             'status' => 'success',
         ]);
     }
+  
+  
+public function overview(Request $request)
+{
+    $validated = $request->validate([
+        'jenis'  => ['nullable', 'string', 'max:255'],
+        'search' => ['nullable', 'string', 'max:255'],
+    ]);
 
-    public function overview(Request $request)
-    {
-        $jenis = trim((string) $request->query('jenis', ''));
-        $search = trim((string) $request->query('search', ''));
+    $jenis = trim((string) ($validated['jenis'] ?? ''));
+    $search = trim((string) ($validated['search'] ?? ''));
 
-        $base = Stok::query()
-            ->where('is_opname', true)
-            ->whereNotNull('opname_at')
-            ->when($jenis !== '', fn($q) => $q->where('jenis', $jenis))
-            ->when($search !== '', function ($q) use ($search) {
-                $q->where(function ($sub) use ($search) {
-                    $sub->where('kode_barang', 'like', "%{$search}%")
-                        ->orWhere('nama_barang', 'like', "%{$search}%");
-                });
+    /*
+    |--------------------------------------------------------------------------
+    | 1. MASTER STOK HAS OPNAME
+    |--------------------------------------------------------------------------
+    | Semua jenis stok yang sudah opname.
+    | Belum opname tidak masuk dashboard.
+    */
+    $base = Stok::query()
+        ->where('is_opname', true)
+        ->whereNotNull('opname_at')
+        ->when($jenis !== '', function ($query) use ($jenis) {
+            $query->where('jenis', $jenis);
+        })
+        ->when($search !== '', function ($query) use ($search) {
+            $query->where(function ($sub) use ($search) {
+                $sub->where('kode_barang', 'like', "%{$search}%")
+                    ->orWhere('nama_barang', 'like', "%{$search}%");
             });
+        });
 
-        $jenisOptions = Stok::query()
-            ->where('is_opname', true)
-            ->whereNotNull('opname_at')
-            ->whereNotNull('jenis')
-            ->distinct()->orderBy('jenis')->pluck('jenis');
+    /*
+    |--------------------------------------------------------------------------
+    | 2. FILTER JENIS STOK
+    |--------------------------------------------------------------------------
+    */
+    $jenisOptions = Stok::query()
+        ->where('is_opname', true)
+        ->whereNotNull('opname_at')
+        ->whereNotNull('jenis')
+        ->distinct()
+        ->orderBy('jenis')
+        ->pluck('jenis');
 
-        // Sama persis dengan cut-off di index() Warehouse:
-        // tanggal > tanggal opname ATAU tanggal sama & jam created_at > jam opname.
-        // Keterangan penanda opname dikecualikan.
-        $movementBase = TransaksiStok::query()
-            ->join('stoks', 'stoks.id', '=', 'transaksi_stoks.stok_id')
-            ->where('stoks.is_opname', true)
-            ->whereNotNull('stoks.opname_at')
-            ->when($jenis !== '', fn($q) => $q->where('stoks.jenis', $jenis))
-            ->when($search !== '', function ($q) use ($search) {
-                $q->where(function ($sub) use ($search) {
-                    $sub->where('stoks.kode_barang', 'like', "%{$search}%")
-                        ->orWhere('stoks.nama_barang', 'like', "%{$search}%");
-                });
-            })
-            ->where(function ($q) {
-                $q->whereRaw('DATE(transaksi_stoks.tanggal) > DATE(stoks.opname_at)')
-                    ->orWhere(function ($sameDay) {
-                        $sameDay->whereRaw('DATE(transaksi_stoks.tanggal) = DATE(stoks.opname_at)')
-                            ->whereRaw('TIME(transaksi_stoks.created_at) > TIME(stoks.opname_at)');
-                    });
-            })
-            ->where(function ($q) {
-                $q->whereNull('transaksi_stoks.keterangan')
-                    ->orWhere('transaksi_stoks.keterangan', 'not like', '%opname%');
+    /*
+    |--------------------------------------------------------------------------
+    | 3. TRANSAKSI SETELAH CUT-OFF OPNAME
+    |--------------------------------------------------------------------------
+    | Mengikuti logika exportOpname().
+    |
+    | - Tanggal transaksi > tanggal opname
+    | - Atau tanggal sama dan created_at > opname_at
+    | - Transaksi penanda opname tidak dihitung
+    */
+    $movementBase = TransaksiStok::query()
+        ->join(
+            'stoks',
+            'stoks.id',
+            '=',
+            'transaksi_stoks.stok_id'
+        )
+        ->where('stoks.is_opname', true)
+        ->whereNotNull('stoks.opname_at')
+        ->when($jenis !== '', function ($query) use ($jenis) {
+            $query->where('stoks.jenis', $jenis);
+        })
+        ->when($search !== '', function ($query) use ($search) {
+            $query->where(function ($sub) use ($search) {
+                $sub->where(
+                    'stoks.kode_barang',
+                    'like',
+                    "%{$search}%"
+                )->orWhere(
+                    'stoks.nama_barang',
+                    'like',
+                    "%{$search}%"
+                );
             });
+        })
+        ->where(function ($query) {
+            $query
+                ->whereRaw(
+                    'DATE(transaksi_stoks.tanggal) > DATE(stoks.opname_at)'
+                )
+                ->orWhere(function ($sameDay) {
+                    $sameDay
+                        ->whereRaw(
+                            'DATE(transaksi_stoks.tanggal) = DATE(stoks.opname_at)'
+                        )
+                        ->whereRaw(
+                            'TIME(transaksi_stoks.created_at) > TIME(stoks.opname_at)'
+                        );
+                });
+        })
+        ->where(function ($query) {
+            $query
+                ->whereNull('transaksi_stoks.keterangan')
+                ->orWhere(
+                    'transaksi_stoks.keterangan',
+                    'not like',
+                    '%opname%'
+                );
+        });
 
-        $totals = (clone $movementBase)
-            ->select('transaksi_stoks.stok_id')
-            ->selectRaw("COALESCE(SUM(CASE WHEN transaksi_stoks.tipe = 'in' THEN transaksi_stoks.qty ELSE 0 END), 0) AS total_in")
-            ->selectRaw("COALESCE(SUM(CASE WHEN transaksi_stoks.tipe = 'out' THEN transaksi_stoks.qty ELSE 0 END), 0) AS total_out")
-            ->groupBy('transaksi_stoks.stok_id')
-            ->get()->keyBy('stok_id');
+    /*
+    |--------------------------------------------------------------------------
+    | 4. TOTAL MASUK & KELUAR PER BARANG
+    |--------------------------------------------------------------------------
+    */
+    $totals = (clone $movementBase)
+        ->select('transaksi_stoks.stok_id')
+        ->selectRaw("
+            COALESCE(
+                SUM(
+                    CASE
+                        WHEN transaksi_stoks.tipe = 'in'
+                        THEN transaksi_stoks.qty
+                        ELSE 0
+                    END
+                ), 0
+            ) AS total_in
+        ")
+        ->selectRaw("
+            COALESCE(
+                SUM(
+                    CASE
+                        WHEN transaksi_stoks.tipe = 'out'
+                        THEN transaksi_stoks.qty
+                        ELSE 0
+                    END
+                ), 0
+            ) AS total_out
+        ")
+        ->groupBy('transaksi_stoks.stok_id')
+        ->get()
+        ->keyBy('stok_id');
 
-        // Summary dihitung dari seluruh stok terfilter, bukan hanya halaman pagination.
-        $summaryRows = (clone $base)->get([
-            'id',
-            'kode_barang',
-            'nama_barang',
-            'jenis',
-            'satuan',
-            'harga',
-            'stok_awal',
-            'opname_at'
-        ])->map(function ($stok) use ($totals) {
-            $t = $totals->get($stok->id);
-            $stok->total_in = (float) ($t->total_in ?? 0);
-            $stok->total_out = (float) ($t->total_out ?? 0);
-            $stok->saldo = (float) ($stok->stok_awal ?? 0) + $stok->total_in - $stok->total_out;
-            $stok->nilai_saldo = $stok->saldo * (float) ($stok->harga ?? 0);
+    /*
+    |--------------------------------------------------------------------------
+    | 5. HITUNG SALDO SELURUH BARANG
+    |--------------------------------------------------------------------------
+    | Perhitungan ini berlaku untuk SEMUA barang terfilter,
+    | bukan hanya 25 barang pada halaman pagination.
+    |
+    | Qty opname 0 tetap dianggap nilai valid.
+    */
+    $summaryRows = (clone $base)
+        ->get()
+        ->map(function ($stok) use ($totals) {
+
+            $transaction = $totals->get($stok->id);
+
+            $stok->total_in = (float) (
+                $transaction->total_in ?? 0
+            );
+
+            $stok->total_out = (float) (
+                $transaction->total_out ?? 0
+            );
+
+            $opname = (float) ($stok->stok_awal ?? 0);
+
+            $harga = (float) ($stok->harga ?? 0);
+
+            $stok->saldo = (
+                $opname
+                + $stok->total_in
+                - $stok->total_out
+            );
+
+            $stok->nilai_saldo = $stok->saldo * $harga;
+
+            $stok->nilai_masuk = $stok->total_in * $harga;
+
+            $stok->nilai_keluar = $stok->total_out * $harga;
+
             return $stok;
         });
 
-        $summary = [
-            'items' => $summaryRows->count(),
-            'jenis' => $summaryRows->pluck('jenis')->filter()->unique()->count(),
-            'saldo_value' => $summaryRows->sum('nilai_saldo'),
-            'in_value' => $summaryRows->sum(fn($s) => $s->total_in * (float) ($s->harga ?? 0)),
-            'out_value' => $summaryRows->sum(fn($s) => $s->total_out * (float) ($s->harga ?? 0)),
-        ];
+    /*
+    |--------------------------------------------------------------------------
+    | 6. KPI DASHBOARD
+    |--------------------------------------------------------------------------
+    | Saldo nilai dihitung dari:
+    |
+    | SUM(saldo setiap barang × harga master)
+    |
+    | Inilah angka yang seharusnya mendekati Rp 270 jutaan,
+    | sesuai dashboard sebelumnya, apabila data/filter sama.
+    */
+    $summary = [
+        'items' => $summaryRows->count(),
 
-        // Grafik nilai Rp (bukan penjumlahan KG, PCS, METER).
-        // 6 bulan kalender terakhir, hanya transaksi sesudah cut-off opname.
-        $from = now()->startOfMonth()->subMonths(5)->toDateString();
-        $movementRaw = (clone $movementBase)
-            ->whereDate('transaksi_stoks.tanggal', '>=', $from)
-            ->selectRaw("DATE_FORMAT(transaksi_stoks.tanggal, '%Y-%m') AS period")
-            ->selectRaw("COALESCE(SUM(CASE WHEN transaksi_stoks.tipe = 'in' THEN transaksi_stoks.qty * COALESCE(stoks.harga, 0) ELSE 0 END), 0) AS stock_in")
-            ->selectRaw("COALESCE(SUM(CASE WHEN transaksi_stoks.tipe = 'out' THEN transaksi_stoks.qty * COALESCE(stoks.harga, 0) ELSE 0 END), 0) AS stock_out")
-            ->groupBy('period')->get()->keyBy('period');
+        'jenis' => $summaryRows
+            ->pluck('jenis')
+            ->filter()
+            ->unique()
+            ->count(),
 
-        $movement = collect(range(5, 0))->map(function ($offset) use ($movementRaw) {
-            $date = now()->startOfMonth()->subMonths($offset);
-            $row = $movementRaw->get($date->format('Y-m'));
+        'saldo_value' => $summaryRows
+            ->sum('nilai_saldo'),
+
+        'in_value' => $summaryRows
+            ->sum('nilai_masuk'),
+
+        'out_value' => $summaryRows
+            ->sum('nilai_keluar'),
+    ];
+
+    /*
+    |--------------------------------------------------------------------------
+    | 7. STOCK MOVEMENT — 6 BULAN TERAKHIR
+    |--------------------------------------------------------------------------
+    | Grafik menggunakan nilai Rupiah.
+    | Hanya transaksi setelah cut-off opname.
+    */
+    $from = now()
+        ->startOfMonth()
+        ->subMonths(5)
+        ->toDateString();
+
+    $movementRaw = (clone $movementBase)
+        ->whereDate(
+            'transaksi_stoks.tanggal',
+            '>=',
+            $from
+        )
+        ->selectRaw("
+            DATE_FORMAT(
+                transaksi_stoks.tanggal,
+                '%Y-%m'
+            ) AS period
+        ")
+        ->selectRaw("
+            COALESCE(
+                SUM(
+                    CASE
+                        WHEN transaksi_stoks.tipe = 'in'
+                        THEN transaksi_stoks.qty
+                             * COALESCE(stoks.harga, 0)
+                        ELSE 0
+                    END
+                ), 0
+            ) AS stock_in
+        ")
+        ->selectRaw("
+            COALESCE(
+                SUM(
+                    CASE
+                        WHEN transaksi_stoks.tipe = 'out'
+                        THEN transaksi_stoks.qty
+                             * COALESCE(stoks.harga, 0)
+                        ELSE 0
+                    END
+                ), 0
+            ) AS stock_out
+        ")
+        ->groupBy('period')
+        ->orderBy('period')
+        ->get()
+        ->keyBy('period');
+
+    $movement = collect(range(5, 0))
+        ->map(function ($offset) use ($movementRaw) {
+
+            $date = now()
+                ->startOfMonth()
+                ->subMonths($offset);
+
+            $period = $date->format('Y-m');
+
+            $row = $movementRaw->get($period);
+
             return [
                 'month' => $date->translatedFormat('M Y'),
-                'stock_in' => (float) ($row->stock_in ?? 0),
-                'stock_out' => (float) ($row->stock_out ?? 0),
+
+                'stock_in' => (float) (
+                    $row->stock_in ?? 0
+                ),
+
+                'stock_out' => (float) (
+                    $row->stock_out ?? 0
+                ),
             ];
-        })->values();
+        })
+        ->values();
 
-        $byJenis = $summaryRows->groupBy(fn($s) => $s->jenis ?: 'Tanpa Jenis')
-            ->map(fn($group, $name) => [
+    /*
+    |--------------------------------------------------------------------------
+    | 8. GRAFIK SALDO STOK PER JENIS
+    |--------------------------------------------------------------------------
+    | Semua jenis stok Has Opname.
+    | Nilai Rupiah, bukan total qty lintas satuan.
+    */
+    $byJenis = $summaryRows
+        ->groupBy(function ($stok) {
+            return $stok->jenis ?: 'Tanpa Jenis';
+        })
+        ->map(function ($group, $name) {
+
+            return [
                 'jenis' => $name,
+
                 'items' => $group->count(),
-                'saldo_value' => $group->sum('nilai_saldo'),
-            ])->values()->sortByDesc('saldo_value')->values();
 
-        $stoks = (clone $base)->orderBy('nama_barang')->orderBy('id')
-            ->paginate(25)->withQueryString();
+                'saldo_value' => $group
+                    ->sum('nilai_saldo'),
+            ];
+        })
+        ->values()
+        ->sortByDesc('saldo_value')
+        ->values();
 
-        $stoks->getCollection()->transform(function ($stok) use ($totals) {
-            $t = $totals->get($stok->id);
-            $stok->total_in = (float) ($t->total_in ?? 0);
-            $stok->total_out = (float) ($t->total_out ?? 0);
-            $stok->saldo = (float) ($stok->stok_awal ?? 0) + $stok->total_in - $stok->total_out;
-            $stok->nilai_saldo = $stok->saldo * (float) ($stok->harga ?? 0);
+    /*
+    |--------------------------------------------------------------------------
+    | 9. TABEL DETAIL + PAGINATION
+    |--------------------------------------------------------------------------
+    */
+    $stoks = (clone $base)
+        ->orderBy('nama_barang')
+        ->orderBy('id')
+        ->paginate(25)
+        ->withQueryString();
+
+    $stoks->getCollection()
+        ->transform(function ($stok) use ($totals) {
+
+            $transaction = $totals->get($stok->id);
+
+            $stok->total_in = (float) (
+                $transaction->total_in ?? 0
+            );
+
+            $stok->total_out = (float) (
+                $transaction->total_out ?? 0
+            );
+
+            $opname = (float) ($stok->stok_awal ?? 0);
+
+            $harga = (float) ($stok->harga ?? 0);
+
+            $stok->saldo = (
+                $opname
+                + $stok->total_in
+                - $stok->total_out
+            );
+
+            $stok->nilai_saldo = $stok->saldo * $harga;
+
             return $stok;
         });
 
-        return view('pages.laporan.overview', compact(
+    /*
+    |--------------------------------------------------------------------------
+    | 10. RETURN VIEW
+    |--------------------------------------------------------------------------
+    */
+    return view(
+        'pages.laporan.overview',
+        compact(
             'stoks',
             'summary',
             'movement',
@@ -1518,8 +1756,10 @@ class LaporanController extends Controller
             'jenisOptions',
             'jenis',
             'search'
-        ));
-    }
+        )
+    );
+}
+
     public function exportWarehouseHistory(Request $request)
     {
         $query = TransaksiStok::with([
