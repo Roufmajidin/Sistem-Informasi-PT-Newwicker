@@ -289,193 +289,221 @@ class LaporanController extends Controller
         ]);
     }
 
+
     public function warehouseHistory(Request $request)
     {
-        $query = TransaksiStok::with(['stok', 'spk']);
+        $validated = $request->validate([
+            'search' => ['nullable', 'string', 'max:255'],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+            'type' => ['nullable', 'in:in,out'],
+            'jenis' => ['nullable', 'string', 'max:255'],
+            'opname' => ['nullable', 'in:all,has_opname,belum_opname'],
+        ]);
 
-        /*
-        |--------------------------------------------------------------------------
-        | EXCLUDE OPNAME
-        |--------------------------------------------------------------------------
-        | Semua transaksi yang keterangan-nya mengandung "Opname"
-        | tidak akan ditampilkan dan tidak ikut perhitungan summary.
-        |
-        | LIKE di MySQL umumnya case-insensitive, sehingga:
-        | - Opname
-        | - OPNAME
-        | - opname
-        | - Opname Material
-        | - Stock Opname
-        | akan ikut dikecualikan.
-        */
-        $query->where(function ($q) {
-            $q->whereNull('keterangan')
-                ->orWhere('keterangan', 'not like', '%opname%');
-        });
+        $search = trim((string) ($validated['search'] ?? ''));
+        $opname = $validated['opname'] ?? 'has_opname';
 
+        $query = TransaksiStok::query()
+            ->with(['stok', 'spk'])
 
-        /*
-        |--------------------------------------------------------------------------
-        | SEARCH
-        |--------------------------------------------------------------------------
-        */
-        if ($request->filled('search')) {
+            // Transaksi penanda opname tidak dihitung.
+            ->where(function ($q) {
+                $q->whereNull('transaksi_stoks.keterangan')
+                    ->orWhere(
+                        'transaksi_stoks.keterangan',
+                        'not like',
+                        '%opname%'
+                    );
+            });
 
-            $search = $request->search;
+        // ==============================================
+        // FILTER STATUS OPNAME
+        // ==============================================
 
-            $query->where(function ($q) use ($search) {
+        if ($opname === 'has_opname') {
 
-                $q->where('po', 'like', "%{$search}%")
-                    ->orWhere('keterangan', 'like', "%{$search}%")
-                    ->orWhere('tipe', 'like', "%{$search}%")
-                    ->orWhereHas('stok', function ($qq) use ($search) {
+            $query->whereHas('stok', function ($q) {
+                $q->where('is_opname', true)
+                    ->whereNotNull('opname_at');
+            });
 
-                        $qq->where('nama_barang', 'like', "%{$search}%")
-                            ->orWhere('kode_barang', 'like', "%{$search}%");
+            // Sama dengan cut-off Warehouse Overview.
+            $query->whereExists(function ($sub) {
+                $sub->selectRaw('1')
+                    ->from('stoks')
+                    ->whereColumn(
+                        'stoks.id',
+                        'transaksi_stoks.stok_id'
+                    )
+                    ->where('stoks.is_opname', true)
+                    ->whereNotNull('stoks.opname_at')
+                    ->where(function ($cutoff) {
+
+                        $cutoff->whereRaw(
+                            'DATE(transaksi_stoks.tanggal) > DATE(stoks.opname_at)'
+                        )
+                            ->orWhere(function ($sameDay) {
+                                $sameDay->whereRaw(
+                                    'DATE(transaksi_stoks.tanggal) = DATE(stoks.opname_at)'
+                                )
+                                    ->whereRaw(
+                                        'TIME(transaksi_stoks.created_at) > TIME(stoks.opname_at)'
+                                    );
+                            });
 
                     });
+            });
 
+        } elseif ($opname === 'belum_opname') {
+
+            $query->whereHas('stok', function ($q) {
+                $q->where(function ($sub) {
+                    $sub->where('is_opname', false)
+                        ->orWhereNull('is_opname')
+                        ->orWhereNull('opname_at');
+                });
             });
         }
 
+        // ==============================================
+        // SEARCH
+        // ==============================================
 
-        /*
-        |--------------------------------------------------------------------------
-        | DATE FROM
-        |--------------------------------------------------------------------------
-        */
-        if ($request->filled('date_from')) {
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('transaksi_stoks.po', 'like', "%{$search}%")
+                    ->orWhere(
+                        'transaksi_stoks.keterangan',
+                        'like',
+                        "%{$search}%"
+                    )
+                    ->orWhere(
+                        'transaksi_stoks.tipe',
+                        'like',
+                        "%{$search}%"
+                    )
+                    ->orWhereHas('stok', function ($stok) use ($search) {
+                        $stok->where(
+                            'nama_barang',
+                            'like',
+                            "%{$search}%"
+                        )
+                            ->orWhere(
+                                'kode_barang',
+                                'like',
+                                "%{$search}%"
+                            );
+                    });
+            });
+        }
 
+        // ==============================================
+        // FILTER TANGGAL
+        // ==============================================
+
+        if (!empty($validated['date_from'])) {
             $query->whereDate(
-                'tanggal',
+                'transaksi_stoks.tanggal',
                 '>=',
-                $request->date_from
+                $validated['date_from']
             );
-
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | DATE TO
-        |--------------------------------------------------------------------------
-        */
-        if ($request->filled('date_to')) {
-
+        if (!empty($validated['date_to'])) {
             $query->whereDate(
-                'tanggal',
+                'transaksi_stoks.tanggal',
                 '<=',
-                $request->date_to
+                $validated['date_to']
             );
-
         }
 
+        // ==============================================
+        // FILTER IN / OUT
+        // ==============================================
 
-        /*
-        |--------------------------------------------------------------------------
-        | TYPE
-        |--------------------------------------------------------------------------
-        */
-        if ($request->filled('type')) {
-
+        if (!empty($validated['type'])) {
             $query->where(
-                'tipe',
-                $request->type
+                'transaksi_stoks.tipe',
+                $validated['type']
             );
-
         }
 
+        // ==============================================
+        // FILTER JENIS STOK
+        // ==============================================
 
-        /*
-        |--------------------------------------------------------------------------
-        | JENIS BAHAN
-        |--------------------------------------------------------------------------
-        */
-        if ($request->filled('jenis')) {
-
-            $query->whereHas('stok', function ($q) use ($request) {
-
-                $q->where(
-                    'jenis',
-                    $request->jenis
-                );
-
+        if (!empty($validated['jenis'])) {
+            $query->whereHas('stok', function ($q) use ($validated) {
+                $q->where('jenis', $validated['jenis']);
             });
-
         }
 
+        // ==============================================
+        // SUMMARY — SEMUA DATA SESUAI FILTER
+        // ==============================================
 
-        /*
-        |--------------------------------------------------------------------------
-        | SUMMARY
-        |--------------------------------------------------------------------------
-        |
-        | Clone dari $query.
-        | Karena $query sudah mengecualikan Opname,
-        | summary juga otomatis tidak menghitung Opname.
-        |
-        */
-        $summaryQuery = clone $query;
-
-        $summary = $summaryQuery
+        $summary = (clone $query)
             ->join(
-                'stoks',
-                'stoks.id',
+                'stoks as summary_stoks',
+                'summary_stoks.id',
                 '=',
                 'transaksi_stoks.stok_id'
             )
             ->selectRaw("
-            SUM(transaksi_stoks.qty) as total_qty,
-            SUM(
-                transaksi_stoks.qty * stoks.harga
-            ) as total_value,
-            COUNT(*) as total_transaksi
+            COUNT(*) AS total_transaksi,
+            COALESCE(SUM(transaksi_stoks.qty), 0) AS total_qty,
+            COALESCE(SUM(
+                transaksi_stoks.qty *
+                COALESCE(summary_stoks.harga, 0)
+            ), 0) AS total_value,
+            COALESCE(SUM(
+                CASE
+                    WHEN transaksi_stoks.tipe = 'in'
+                    THEN transaksi_stoks.qty *
+                         COALESCE(summary_stoks.harga, 0)
+                    ELSE 0
+                END
+            ), 0) AS total_in_value,
+            COALESCE(SUM(
+                CASE
+                    WHEN transaksi_stoks.tipe = 'out'
+                    THEN transaksi_stoks.qty *
+                         COALESCE(summary_stoks.harga, 0)
+                    ELSE 0
+                END
+            ), 0) AS total_out_value
         ")
             ->first();
 
+        // ==============================================
+        // DATA TABEL
+        // ==============================================
 
-        /*
-        |--------------------------------------------------------------------------
-        | HISTORY
-        |--------------------------------------------------------------------------
-        */
         $histories = $query
-            ->latest('tanggal')
+            ->orderByDesc('transaksi_stoks.tanggal')
+            ->orderByDesc('transaksi_stoks.created_at')
+            ->orderByDesc('transaksi_stoks.id')
             ->paginate(25)
             ->withQueryString();
 
+        // ==============================================
+        // AJAX — TETAP MENGGUNAKAN PARTIAL LAMA
+        // ==============================================
 
-        /*
-        |--------------------------------------------------------------------------
-        | AJAX
-        |--------------------------------------------------------------------------
-        */
         if ($request->ajax()) {
-
             return view(
                 'pages.laporan.partials.history_table',
-                compact(
-                    'histories',
-                    'summary'
-                )
+                compact('histories', 'summary')
             )->render();
-
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | FULL PAGE
-        |--------------------------------------------------------------------------
-        */
         return view(
             'pages.laporan.history',
-            compact(
-                'histories',
-                'summary'
-            )
+            compact('histories', 'summary', 'opname')
         );
     }
+
 
     //     public function update(Request $request)
 // {
@@ -1388,7 +1416,7 @@ class LaporanController extends Controller
             'status' => 'success',
         ]);
     }
-  
+
     public function overview(Request $request)
     {
         $jenis = trim((string) $request->query('jenis', ''));
@@ -1398,12 +1426,13 @@ class LaporanController extends Controller
             $sortStok = 'nama';
         }
         $idleDays = (int) $request->query('idle_days', 30);
-        if (!in_array($idleDays, [30, 60, 90, 180], true)) $idleDays = 30;
+        if (!in_array($idleDays, [30, 60, 90, 180], true))
+            $idleDays = 30;
 
         $base = Stok::query()
             ->where('is_opname', true)
             ->whereNotNull('opname_at')
-            ->when($jenis !== '', fn ($q) => $q->where('jenis', $jenis))
+            ->when($jenis !== '', fn($q) => $q->where('jenis', $jenis))
             ->when($search !== '', function ($q) use ($search) {
                 $q->where(function ($sub) use ($search) {
                     $sub->where('kode_barang', 'like', "%{$search}%")
@@ -1424,7 +1453,7 @@ class LaporanController extends Controller
             ->join('stoks', 'stoks.id', '=', 'transaksi_stoks.stok_id')
             ->where('stoks.is_opname', true)
             ->whereNotNull('stoks.opname_at')
-            ->when($jenis !== '', fn ($q) => $q->where('stoks.jenis', $jenis))
+            ->when($jenis !== '', fn($q) => $q->where('stoks.jenis', $jenis))
             ->when($search !== '', function ($q) use ($search) {
                 $q->where(function ($sub) use ($search) {
                     $sub->where('stoks.kode_barang', 'like', "%{$search}%")
@@ -1433,14 +1462,14 @@ class LaporanController extends Controller
             })
             ->where(function ($q) {
                 $q->whereRaw('DATE(transaksi_stoks.tanggal) > DATE(stoks.opname_at)')
-                  ->orWhere(function ($sameDay) {
-                      $sameDay->whereRaw('DATE(transaksi_stoks.tanggal) = DATE(stoks.opname_at)')
-                          ->whereRaw('TIME(transaksi_stoks.created_at) > TIME(stoks.opname_at)');
-                  });
+                    ->orWhere(function ($sameDay) {
+                        $sameDay->whereRaw('DATE(transaksi_stoks.tanggal) = DATE(stoks.opname_at)')
+                            ->whereRaw('TIME(transaksi_stoks.created_at) > TIME(stoks.opname_at)');
+                    });
             })
             ->where(function ($q) {
                 $q->whereNull('transaksi_stoks.keterangan')
-                  ->orWhere('transaksi_stoks.keterangan', 'not like', '%opname%');
+                    ->orWhere('transaksi_stoks.keterangan', 'not like', '%opname%');
             });
 
         $totals = (clone $movementBase)
@@ -1452,8 +1481,14 @@ class LaporanController extends Controller
 
         // Summary dihitung dari seluruh stok terfilter, bukan hanya halaman pagination.
         $summaryRows = (clone $base)->get([
-            'id', 'kode_barang', 'nama_barang', 'jenis', 'satuan',
-            'harga', 'stok_awal', 'opname_at'
+            'id',
+            'kode_barang',
+            'nama_barang',
+            'jenis',
+            'satuan',
+            'harga',
+            'stok_awal',
+            'opname_at'
         ])->map(function ($stok) use ($totals) {
             $t = $totals->get($stok->id);
             $stok->total_in = (float) ($t->total_in ?? 0);
@@ -1467,8 +1502,8 @@ class LaporanController extends Controller
             'items' => $summaryRows->count(),
             'jenis' => $summaryRows->pluck('jenis')->filter()->unique()->count(),
             'saldo_value' => $summaryRows->sum('nilai_saldo'),
-            'in_value' => $summaryRows->sum(fn ($s) => $s->total_in * (float) ($s->harga ?? 0)),
-            'out_value' => $summaryRows->sum(fn ($s) => $s->total_out * (float) ($s->harga ?? 0)),
+            'in_value' => $summaryRows->sum(fn($s) => $s->total_in * (float) ($s->harga ?? 0)),
+            'out_value' => $summaryRows->sum(fn($s) => $s->total_out * (float) ($s->harga ?? 0)),
         ];
 
         /*
@@ -1482,7 +1517,8 @@ class LaporanController extends Controller
          */
         $weekEvents = [];
         $addWeekEvent = function ($date, $field, $amount) use (&$weekEvents) {
-            if (!$date) return;
+            if (!$date)
+                return;
             $week = \Carbon\Carbon::parse($date)->startOfWeek(\Carbon\Carbon::MONDAY)->toDateString();
             if (!isset($weekEvents[$week])) {
                 $weekEvents[$week] = ['in' => 0.0, 'out' => 0.0];
@@ -1553,8 +1589,8 @@ class LaporanController extends Controller
         });
         // KPI saldo tetap mengikuti saldo barang × harga (tidak diubah).
 
-        $byJenis = $summaryRows->groupBy(fn ($s) => $s->jenis ?: 'Tanpa Jenis')
-            ->map(fn ($group, $name) => [
+        $byJenis = $summaryRows->groupBy(fn($s) => $s->jenis ?: 'Tanpa Jenis')
+            ->map(fn($group, $name) => [
                 'jenis' => $name,
                 'items' => $group->count(),
                 'saldo_value' => $group->sum('nilai_saldo'),
@@ -1585,15 +1621,17 @@ class LaporanController extends Controller
                 return $cmp ?: strcmp((string) $a->nama_barang, (string) $b->nama_barang);
             });
         } elseif ($sortStok === 'lama_tidak_keluar') {
-            $tableRows = $tableRows->filter(fn ($stok) =>
-                $stok->saldo > 0 && $stok->days_without_out >= $idleDays
+            $tableRows = $tableRows->filter(
+                fn($stok) =>
+                    $stok->saldo > 0 && $stok->days_without_out >= $idleDays
             )->sort(function ($a, $b) {
                 $cmp = $b->days_without_out <=> $a->days_without_out;
                 return $cmp ?: strcmp((string) $a->nama_barang, (string) $b->nama_barang);
             });
         } else {
-            $tableRows = $tableRows->sortBy(fn ($stok) =>
-                mb_strtolower((string) $stok->nama_barang) . '|' . str_pad((string) $stok->id, 12, '0', STR_PAD_LEFT)
+            $tableRows = $tableRows->sortBy(
+                fn($stok) =>
+                    mb_strtolower((string) $stok->nama_barang) . '|' . str_pad((string) $stok->id, 12, '0', STR_PAD_LEFT)
             );
         }
 
@@ -1617,57 +1655,86 @@ class LaporanController extends Controller
 
         $detectFinishingCategory = function ($value) {
             $text = strtoupper(trim((string) ($value ?? '')));
-            if (str_contains($text, 'TOMO') || str_contains($text, 'FINISHING')) return 'tomo';
-            if (str_contains($text, 'DARTO')) return 'darto';
+            if (str_contains($text, 'TOMO') || str_contains($text, 'FINISHING'))
+                return 'tomo';
+            if (str_contains($text, 'DARTO'))
+                return 'darto';
             return null;
         };
-        $fields = ['to_sub', 'kategori', 'kategori_invoice', 'bagian', 'category',
-            'supplier', 'name_sub', 'sub', 'source', 'note_tambahan'];
+        $fields = [
+            'to_sub',
+            'kategori',
+            'kategori_invoice',
+            'bagian',
+            'category',
+            'supplier',
+            'name_sub',
+            'sub',
+            'source',
+            'note_tambahan'
+        ];
         $finishingMonthly = [];
         foreach ($finishingLedger as $group) {
             $rows = $group['rows'] ?? [];
-            if ($rows instanceof \Illuminate\Support\Collection) $rows = $rows->all();
-            if (!is_array($rows)) continue;
+            if ($rows instanceof \Illuminate\Support\Collection)
+                $rows = $rows->all();
+            if (!is_array($rows))
+                continue;
 
             // Prioritas kategori GROUP sesuai Blade monitoring Finishing.
             $category = null;
             foreach ($fields as $field) {
                 $category = $detectFinishingCategory($group[$field] ?? null);
-                if ($category) break;
+                if ($category)
+                    break;
             }
             if (!$category) {
                 foreach ($rows as $row) {
-                    if (!is_array($row)) continue;
+                    if (!is_array($row))
+                        continue;
                     foreach ($fields as $field) {
                         $category = $detectFinishingCategory($row[$field] ?? null);
-                        if ($category) break 2;
+                        if ($category)
+                            break 2;
                     }
                 }
             }
-            if (!in_array($category, ['tomo', 'darto'], true)) continue;
+            if (!in_array($category, ['tomo', 'darto'], true))
+                continue;
 
             foreach ($rows as $row) {
-                if (!is_array($row)) continue;
+                if (!is_array($row))
+                    continue;
                 $tanggal = $row['tanggal'] ?? $group['tanggal'] ?? null;
-                if (empty($tanggal) || $tanggal === '-') continue;
+                if (empty($tanggal) || $tanggal === '-')
+                    continue;
                 try {
                     if (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', (string) $tanggal)) {
                         $period = \Carbon\Carbon::createFromFormat('!d/m/Y', $tanggal)->format('Y-m');
                     } else {
                         $period = \Carbon\Carbon::parse($tanggal)->format('Y-m');
                     }
-                } catch (\Throwable $e) { continue; }
+                } catch (\Throwable $e) {
+                    continue;
+                }
                 $finishingMonthly[$period] ??= [
-                    'tomo_in'=>0, 'tomo_out'=>0, 'darto_in'=>0, 'darto_out'=>0
+                    'tomo_in' => 0,
+                    'tomo_out' => 0,
+                    'darto_in' => 0,
+                    'darto_out' => 0
                 ];
-                $finishingMonthly[$period][$category.'_in'] += (float) ($row['debet'] ?? 0);
-                $finishingMonthly[$period][$category.'_out'] += (float) ($row['kredit'] ?? 0);
+                $finishingMonthly[$period][$category . '_in'] += (float) ($row['debet'] ?? 0);
+                $finishingMonthly[$period][$category . '_out'] += (float) ($row['kredit'] ?? 0);
             }
         }
         ksort($finishingMonthly);
         $finishingChart = collect();
-        $finishingTotals = ['tomo_in'=>0.0, 'tomo_out'=>0.0,
-            'darto_in'=>0.0, 'darto_out'=>0.0];
+        $finishingTotals = [
+            'tomo_in' => 0.0,
+            'tomo_out' => 0.0,
+            'darto_in' => 0.0,
+            'darto_out' => 0.0
+        ];
         if ($finishingMonthly) {
             $first = \Carbon\Carbon::createFromFormat('!Y-m', array_key_first($finishingMonthly));
             $last = now()->startOfMonth();
@@ -1694,7 +1761,17 @@ class LaporanController extends Controller
         }
 
         return view('pages.laporan.overview', compact(
-            'stoks', 'summary', 'movement', 'byJenis', 'jenisOptions', 'jenis', 'search', 'sortStok', 'idleDays', 'finishingChart', 'finishingTotals'
+            'stoks',
+            'summary',
+            'movement',
+            'byJenis',
+            'jenisOptions',
+            'jenis',
+            'search',
+            'sortStok',
+            'idleDays',
+            'finishingChart',
+            'finishingTotals'
         ));
     }
 
