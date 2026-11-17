@@ -266,12 +266,12 @@ class PengajuanController extends Controller
 
                     [
                         'name' => 'Made By',
-                        'user' => auth()->user()->name ?? 'System',
+                        'user' => auth()->user()->name ?? 'Lidiyah',
                     ],
 
                     [
                         'name' => 'Checked By',
-                        'user' => 'Ainunnisyah Uwiyah',
+                        'user' => 'Bima Seno',
                     ],
 
                     [
@@ -291,7 +291,7 @@ class PengajuanController extends Controller
 
                     [
                         'name' => 'RECORD & CASHIED By',
-                        'user' => 'Ainunnisyah Uwiyah',
+                        'user' => 'Lidiyah',
                     ],
                 ];
 
