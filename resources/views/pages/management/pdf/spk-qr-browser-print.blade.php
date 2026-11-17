@@ -80,15 +80,12 @@
             row-gap: 1mm;
         }
 
-        /* STIKER 24 x 37 MM */
-
-
         /* STIKER 24 x 37 MM - TANPA BORDER */
 
         .label {
             width: 24mm;
             height: 37mm;
-            padding: 1mm .65mm .65mm;
+            padding: 1.2mm 0.65mm 1mm;
 
             border: none;
             border-radius: 0;
@@ -112,22 +109,25 @@
         .label .spk {
             width: 100%;
             font-size: 5.5pt;
-            line-height: 1.1;
+            line-height: 1.15;
             font-weight: 700;
+
+            margin-bottom: 0.8mm;
 
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
 
-        /* QR CODE */
+        /* QR CODE 14 x 14 MM */
 
         .label .qr {
-            width: 17mm;
-            height: 17mm;
-            flex: 0 0 17mm;
+            width: 14mm;
+            height: 14mm;
+            flex: 0 0 14mm;
             object-fit: contain;
-            margin: .25mm 0 .35mm;
+
+            margin: 0.4mm 0 1.2mm;
         }
 
         /* NAMA ITEM */
@@ -135,58 +135,51 @@
         .label .item {
             width: 100%;
             font-size: 5.3pt;
-            line-height: 1.1;
+            line-height: 1.15;
             font-weight: 700;
 
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        /* FINISH COLOR */
-
-        .label .finishing {
-            width: 100%;
-            margin-top: .4mm;
-            font-size: 5pt;
-            line-height: 1.1;
+            margin-bottom: 1mm;
 
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
 
-        /* NAMA SUB */
+        /* NAMA SUPPLIER */
 
         .label .sub {
             width: 100%;
-            margin-top: .6mm;
             font-size: 5pt;
-            line-height: 1.1;
+            line-height: 1.15;
+
+            margin-bottom: 0.8mm;
 
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
 
-        /* NO PO DI BAWAH SUB */
+        /* NOMOR PO DI BAWAH SUPPLIER */
 
         .label .po {
             width: 100%;
-            margin-top: .3mm;
             font-size: 4.8pt;
-            line-height: 1.1;
+            line-height: 1.15;
 
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
 
-        /* NOMOR URUT */
+        /* NOMOR URUT PALING BAWAH */
 
+
+        /* NOMOR URUT - NAIKKAN DEKAT NO PO */
         .label .serial {
-            margin-top: auto;
+            margin-top: 0;
+            padding-top: 0;
             width: 100%;
+
             font-size: 9pt;
             line-height: 1;
             font-weight: 700;
@@ -195,6 +188,7 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
+
 
         /* PRINT SETTING */
 
@@ -227,7 +221,7 @@
                 page-break-after: always;
             }
 
-            .sheet:last-child {
+            .sheet:last-of-type {
                 break-after: auto;
                 page-break-after: auto;
             }
@@ -280,17 +274,12 @@
                             {{ mb_strtoupper($label['name'] ?? '-', 'UTF-8') }}
                         </div>
 
-                        {{-- FINISH COLOR --}}
-                        <div class="finishing" title="{{ $label['finishing'] ?? '' }}">
-                            {{ mb_strtoupper($label['finishing'] ?? '-', 'UTF-8') }}
-                        </div>
-
-                        {{-- NAMA SUB --}}
+                        {{-- NAMA SUPPLIER --}}
                         <div class="sub" title="{{ $label['supplier'] ?? '' }}">
                             {{ mb_strtoupper($label['supplier'] ?? '-', 'UTF-8') }}
                         </div>
 
-                        {{-- NO PO DALAM KURUNG --}}
+                        {{-- NOMOR PO DALAM KURUNG --}}
                         <div class="po" title="{{ $label['no_po'] ?? '' }}">
                             ({{ mb_strtoupper($label['no_po'] ?? '-', 'UTF-8') }})
                         </div>
