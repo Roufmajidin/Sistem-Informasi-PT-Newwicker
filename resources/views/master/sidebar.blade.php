@@ -267,7 +267,7 @@
                                  <a href="/spk/request-r">
                                      <span class="nav-icon">
                                          <i class="material-icons">request_quote</i>
-                                     </span>
+                                         </span>
                                      <span class="nav-text">Pengajuan SPK</span>
                                  </a>
                              </li>

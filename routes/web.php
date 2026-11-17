@@ -1339,6 +1339,10 @@ Route::middleware('auth')->group(function () {
         '/inventor/spk/{id}',
         [ProduksiMnController::class, 'inventorDetail']
     );
+    Route::get(
+    '/spk/{id}/qr-jpeg-zip',
+    [\App\Http\Controllers\SpkQrLabelController::class, 'downloadJpegZip']
+)->name('inventor.qr.jpeg-zip');
     Route::get('/produksi/inventor/qr/{id}/preview', [SpkQrLabelController::class, 'preview'])
         ->whereNumber('id')->name('inventor.qr.preview');
     Route::get('/produksi/inventor/qr/{id}/download', [SpkQrLabelController::class, 'download'])
