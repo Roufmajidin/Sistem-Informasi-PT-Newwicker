@@ -1,5 +1,1 @@
-@extends('layouts.app')
-
-@section('content')
-
-@endsection
+@include('pages.maintenance.index')
