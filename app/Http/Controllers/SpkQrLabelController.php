@@ -299,10 +299,10 @@ public function downloadJpegZip(int $id)
     // =========================================================
 
     $spkFontSize = 13;
-    $itemFontSize = 14;
-    $supplierFontSize = 13;
-    $poFontSize = 12;
-    $serialFontSize = 19;
+    $itemFontSize = 17;
+    $supplierFontSize = 17;
+    $poFontSize = 16;
+    $serialFontSize = 25;
 
     // =========================================================
     // HELPER UKUR TEKS
