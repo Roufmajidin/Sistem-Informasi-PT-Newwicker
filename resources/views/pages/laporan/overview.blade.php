@@ -6,7 +6,7 @@
             <div>
                 <div class="whov-eyebrow">WAREHOUSE · STOCK CONTROL</div>
                 <h4>Warehouse Overview</h4>
-                <p>Monitoring seluruh jenis stok yang sudah opname · Perhitungan cut-off opname terakhir</p>
+                {{-- <p>Monitoring seluruh jenis stok yang sudah opname · Perhitungan cut-off opname terakhir</p> --}}
             </div>
             <span class="whov-pill"><i class="bi bi-check2-circle"></i> Has Opname Only</span>
         </div>
@@ -21,9 +21,9 @@
             </div>
             <div class="col-6 col-xl-3">
                 <div class="whov-kpi"><span class="whov-ico green"><i class="bi bi-box-arrow-in-down"></i></span>
-                    <div><small>TOTAL MASUK (NILAI)</small><strong>Rp
-                            {{ number_format($summary['in_value'], 0, ',', '.') }}</strong><em>Setelah cut-off opname</em>
-                    </div>
+                    <div><small>PEMASUKAN include opname</small><strong>Rp
+                            {{ number_format($summary['in_value'], 0, ',', '.') }}</strong><em>Hasil opname + transaksi
+                            masuk</em></div>
                 </div>
             </div>
             <div class="col-6 col-xl-3">
@@ -42,30 +42,51 @@
             </div>
         </div>
 
-        <div class="row g-3 mb-3">
-            <div class="col-12 col-xl-8">
-                <section class="whov-panel h-100">
-                    <div class="whov-panel-head">
-                        <div>
-                            <h6>Stock In vs Stock Out</h6>
-                            <p>Pergerakan nilai transaksi 6 bulan terakhir · hanya stok Has Opname</p>
-                        </div><span class="whov-unit">Rupiah</span>
-                    </div>
-                    <div id="whov-movement" class="whov-chart"></div>
-                </section>
+        <section class="whov-panel mb-3">
+            <div class="whov-panel-head">
+                <div>
+                    <h6>Stock Movement Kumulatif — Has Opname</h6>
+                    {{-- <p>Akumulasi mingguan (Senin–Minggu) · opname + pemasukan − pengeluaran · 16 minggu terakhir</p> --}}
+                </div>
+                <span class="whov-unit">Saldo: Rp {{ number_format($summary['saldo_value'], 0, ',', '.') }}</span>
             </div>
-            <div class="col-12 col-xl-4">
-                <section class="whov-panel h-100">
-                    <div class="whov-panel-head">
-                        <div>
-                            <h6>Saldo Stok per Jenis</h6>
-                            <p>Komposisi nilai saldo semua kategori stok</p>
+            <div id="whov-movement" class="whov-chart" style="min-height:370px"></div>
+        </section>
+
+
+        <section class="whov-panel mb-3">
+            <div class="whov-panel-head">
+                <div>
+                    <h6>Finishing Monitoring — Tomo &amp; Darto</h6>
+                    <p>Invoice, pemotongan SPK, dan saldo kumulatif berdasarkan ledger monitoring Finishing</p>
+                </div>
+                <a class="whov-unit" href="{{ url('/produksi/monitoring-finishing') }}">Lihat Monitoring Finishing</a>
+            </div>
+            {{-- Dua widget, masing-masing berisi Total Invoice / Potongan Invoice / Saldo --}}
+            <div class="row g-3 px-3 pt-3">
+                @foreach (['tomo' => 'Tomo', 'darto' => 'Darto'] as $key => $label)
+                    @php
+                        $totalInvoice = (float) ($finishingTotals[$key . '_in'] ?? 0);
+                        $totalPotongan = (float) ($finishingTotals[$key . '_out'] ?? 0);
+                        $totalSaldo = $totalInvoice - $totalPotongan;
+                    @endphp
+                    <div class="col-12 col-lg-6">
+                        <div class="whov-finishing-summary">
+                            <div class="whov-finishing-summary-title">Finishing {{ $label }}</div>
+                            <div class="whov-finishing-summary-grid">
+                                <div><small>Total Invoice</small><strong>Rp
+                                        {{ number_format($totalInvoice, 0, ',', '.') }}</strong></div>
+                                <div><small>Potongan Invoice</small><strong>Rp
+                                        {{ number_format($totalPotongan, 0, ',', '.') }}</strong></div>
+                                <div><small>Saldo</small><strong>Rp {{ number_format($totalSaldo, 0, ',', '.') }}</strong>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div id="whov-jenis" class="whov-chart"></div>
-                </section>
+                @endforeach
             </div>
-        </div>
+            <div id="whov-finishing" class="whov-chart" style="min-height:370px"></div>
+        </section>
 
         <section class="whov-panel mb-4">
             <div class="whov-panel-head whov-table-head">
@@ -86,6 +107,18 @@
                         <option value="{{ $opt }}" @selected($jenis === $opt)>{{ $opt }}</option>
                     @endforeach
                 </select>
+                <select name="sort_stok" aria-label="Analisis stok" title="Urutan analisis stok">
+                    <option value="nama" @selected(($sortStok ?? 'nama') === 'nama')>Urut Nama Barang</option>
+                    <option value="keluar_terbanyak" @selected(($sortStok ?? '') === 'keluar_terbanyak')>Pengeluaran Terbanyak</option>
+                    <option value="lama_tidak_keluar" @selected(($sortStok ?? '') === 'lama_tidak_keluar')>Lama Tidak Keluar</option>
+                </select>
+                <select name="idle_days" aria-label="Minimal hari tanpa pengeluaran"
+                    title="Berlaku untuk filter Lama Tidak Keluar">
+                    @foreach ([30, 60, 90, 180] as $days)
+                        <option value="{{ $days }}" @selected(($idleDays ?? 30) == $days)>≥ {{ $days }} hari
+                        </option>
+                    @endforeach
+                </select>
                 <button class="whov-filterbtn" type="submit">Terapkan</button>
                 <a href="{{ route('warehouse.overview') }}" class="whov-reset">Reset</a>
             </form>
@@ -99,11 +132,14 @@
                             <th>Jenis Stok</th>
                             <th>Satuan</th>
                             <th>Opname Terakhir</th>
+                            <th class="text-end">Harga</th>
                             <th class="text-end">Qty Opname</th>
                             <th class="text-end">Total Masuk</th>
                             <th class="text-end">Pengeluaran</th>
                             <th class="text-end">Saldo Stok</th>
                             <th class="text-end">Nilai Saldo</th>
+                            <th>Terakhir Keluar</th>
+                            <th class="text-end">Tidak Keluar</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -117,18 +153,27 @@
                                 <td class="whov-muted">
                                     {{ $stok->opname_at ? \Carbon\Carbon::parse($stok->opname_at)->format('d/m/Y H:i') : '-' }}
                                 </td>
-                                <td class="text-end whov-num">{{ number_format((float) $stok->stok_awal, 3, ',', '.') }}
-                                </td>
+                                <td class="text-end whov-num">Rp
+                                    {{ number_format((float) ($stok->harga ?? 0), 0, ',', '.') }}</td>
+                                <td class="text-end whov-num">
+                                    {{ rtrim(rtrim(number_format((float) $stok->stok_awal, 3, ',', '.'), '0'), ',') }}</td>
                                 <td class="text-end whov-num whov-positive">
-                                    {{ number_format($stok->total_in, 3, ',', '.') }}</td>
+                                    {{ rtrim(rtrim(number_format((float) $stok->total_in, 3, ',', '.'), '0'), ',') }}</td>
                                 <td class="text-end whov-num whov-negative">
-                                    {{ number_format($stok->total_out, 3, ',', '.') }}</td>
-                                <td class="text-end whov-num"><b>{{ number_format($stok->saldo, 3, ',', '.') }}</b></td>
+                                    {{ rtrim(rtrim(number_format((float) $stok->total_out, 3, ',', '.'), '0'), ',') }}</td>
+                                <td class="text-end whov-num">
+                                    <b>{{ rtrim(rtrim(number_format((float) $stok->saldo, 3, ',', '.'), '0'), ',') }}</b>
+                                </td>
                                 <td class="text-end whov-num">Rp {{ number_format($stok->nilai_saldo, 0, ',', '.') }}</td>
+                                <td class="whov-muted">
+                                    {{ $stok->last_out_date ? \Carbon\Carbon::parse($stok->last_out_date)->format('d/m/Y') : 'Belum pernah keluar' }}
+                                </td>
+                                <td class="text-end whov-num">{{ number_format($stok->days_without_out, 0, ',', '.') }}
+                                    hari</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="11" class="text-center py-5 whov-muted">Tidak ada stok Has Opname untuk
+                                <td colspan="14" class="text-center py-5 whov-muted">Tidak ada stok Has Opname yang sesuai
                                     filter ini.</td>
                             </tr>
                         @endforelse
@@ -140,24 +185,128 @@
                 <div>{{ $stoks->links() }}</div>
             </div>
         </section>
-        <p class="whov-footnote">Catatan: KPI dan grafik menggunakan nilai Rupiah agar satuan berbeda (KG, PCS, METER, dll.)
-            tidak dijumlahkan. Harga menggunakan harga master saat ini. Total Masuk/Pengeluaran adalah transaksi setelah
-            cut-off opname, bukan seluruh transaksi historis.</p>
+        <p class="whov-footnote">Catatan: Pemasukan kumulatif mencakup hasil opname dan transaksi IN setelah opname.
+            Pengeluaran hanya transaksi OUT setelah opname. Nilai menggunakan harga master saat ini. Grafik Warehouse
+            menampilkan 16 minggu terakhir (Senin–Minggu), dengan akumulasi periode sebelumnya tetap dibawa maju. Minggu
+            berjalan menunjukkan posisi sampai data transaksi terakhir.</p>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            if (typeof ApexCharts === 'undefined') {
+                document.querySelector('#whov-finishing').textContent =
+                    'ApexCharts gagal dimuat. Periksa koneksi atau gunakan file ApexCharts lokal.';
+                return;
+            }
+            const finishing = @json($finishingChart ?? []);
+            const finishingEl = document.querySelector('#whov-finishing');
+            if (finishingEl) {
+                const rupiahFinishing = v => 'Rp ' + Number(v || 0).toLocaleString('id-ID', {
+                    maximumFractionDigits: 0
+                });
+                // Dua kelompok (Tomo dan Darto), masing-masing dua cabang: invoice & potongan.
+                // Saldo tetap ditampilkan di tooltip, bukan sebagai garis keenam.
+                new ApexCharts(finishingEl, {
+                    chart: {
+                        type: 'line',
+                        height: 370,
+                        toolbar: {
+                            show: true
+                        },
+                        zoom: {
+                            enabled: false
+                        },
+                        fontFamily: 'inherit'
+                    },
+                    series: [{
+                            name: 'Tomo · Total Invoice',
+                            data: finishing.map(x => Number(x.tomo_in || 0))
+                        },
+                        {
+                            name: 'Tomo · Potongan Invoice',
+                            data: finishing.map(x => Number(x.tomo_out || 0))
+                        },
+                        {
+                            name: 'Darto · Total Invoice',
+                            data: finishing.map(x => Number(x.darto_in || 0))
+                        },
+                        {
+                            name: 'Darto · Potongan Invoice',
+                            data: finishing.map(x => Number(x.darto_out || 0))
+                        }
+                    ],
+                    colors: ['#2563eb', '#93c5fd', '#16a34a', '#86efac'],
+                    stroke: {
+                        curve: 'smooth',
+                        width: [3, 2, 3, 2],
+                        dashArray: [0, 5, 0, 5]
+                    },
+                    markers: {
+                        size: 3,
+                        hover: {
+                            size: 6
+                        }
+                    },
+                    xaxis: {
+                        categories: finishing.map(x => x.month)
+                    },
+                    yaxis: {
+                        labels: {
+                            formatter: v => 'Rp ' + (v / 1000000).toLocaleString('id-ID', {
+                                maximumFractionDigits: 1
+                            }) + ' jt'
+                        }
+                    },
+                    tooltip: {
+                        shared: false,
+                        intersect: false,
+                        custom: function({
+                            seriesIndex,
+                            dataPointIndex,
+                            w
+                        }) {
+                            const row = finishing[dataPointIndex];
+                            if (!row) return '';
+                            const key = seriesIndex < 2 ? 'tomo' : 'darto';
+                            const title = key === 'tomo' ? 'Tomo' : 'Darto';
+                            const inv = Number(row[key + '_in'] || 0);
+                            const out = Number(row[key + '_out'] || 0);
+                            const saldo = inv - out;
+                            const period = String(row.month || '');
+                            return `<div style="padding:11px 14px;min-width:230px;font-size:12px;line-height:1.9;background:#fff;border:1px solid #e5eaf0;border-radius:8px;box-shadow:0 6px 20px #0001">
+                        <div style="font-weight:800;margin-bottom:6px">Finishing ${title} · ${period}</div>
+                        <div style="display:flex;justify-content:space-between;gap:20px"><span>Total Invoice</span><b>${rupiahFinishing(inv)}</b></div>
+                        <div style="display:flex;justify-content:space-between;gap:20px"><span>Potongan Invoice</span><b>${rupiahFinishing(out)}</b></div>
+                        <div style="display:flex;justify-content:space-between;gap:20px;border-top:1px solid #e5eaf0;padding-top:4px"><span>Saldo</span><b>${rupiahFinishing(saldo)}</b></div>
+                    </div>`;
+                        }
+                    },
+                    legend: {
+                        position: 'bottom'
+                    },
+                    grid: {
+                        borderColor: '#edf0f4',
+                        strokeDashArray: 4
+                    },
+                    noData: {
+                        text: 'Belum ada data Finishing Tomo / Darto'
+                    }
+                }).render();
+            }
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
             if (typeof ApexCharts === 'undefined') return;
             const movement = @json($movement);
-            const jenis = @json($byJenis);
             const rupiah = value => 'Rp ' + Number(value || 0).toLocaleString('id-ID', {
                 maximumFractionDigits: 0
             });
             const movementEl = document.querySelector('#whov-movement');
             if (movementEl) new ApexCharts(movementEl, {
                 chart: {
-                    type: 'area',
-                    height: 320,
+                    type: 'line',
+                    height: 365,
                     toolbar: {
                         show: false
                     },
@@ -167,41 +316,52 @@
                     fontFamily: 'inherit'
                 },
                 series: [{
-                        name: 'Stock In',
+                        name: 'Pemasukan Kumulatif include cuttof opname',
                         data: movement.map(x => Number(x.stock_in))
                     },
                     {
-                        name: 'Stock Out',
+                        name: 'Pengeluaran Kumulatif',
                         data: movement.map(x => Number(x.stock_out))
+                    },
+                    {
+                        name: 'Saldo Stok',
+                        data: movement.map(x => Number(x.balance))
                     }
                 ],
                 xaxis: {
-                    categories: movement.map(x => x.month)
+                    categories: movement.map(x => x.month),
+                    labels: {
+                        rotate: -40,
+                        rotateAlways: false,
+                        hideOverlappingLabels: true,
+                        trim: true,
+                        style: {
+                            fontSize: '10px'
+                        }
+                    },
+                    tickAmount: 8
                 },
-                colors: ['#15946e', '#e15a66'],
+                colors: ['#15946e', '#e15a66', '#3878d8'],
                 stroke: {
                     curve: 'smooth',
                     width: 3
-                },
-                fill: {
-                    type: 'solid',
-                    opacity: 0.12
                 },
                 dataLabels: {
                     enabled: false
                 },
                 markers: {
-                    size: 3
+                    size: 4
                 },
                 yaxis: {
                     labels: {
-                        formatter: v => v >= 1000000 ? 'Rp ' + (v / 1000000).toLocaleString('id-ID', {
+                        formatter: v => 'Rp ' + (v / 1000000).toLocaleString('id-ID', {
                             maximumFractionDigits: 1
-                        }) + ' jt' : rupiah(v)
+                        }) + ' jt'
                     }
                 },
                 tooltip: {
                     shared: true,
+                    intersect: false,
                     y: {
                         formatter: rupiah
                     }
@@ -213,39 +373,9 @@
                 legend: {
                     position: 'top',
                     horizontalAlign: 'left'
-                }
-            }).render();
-            const jenisEl = document.querySelector('#whov-jenis');
-            if (jenisEl) new ApexCharts(jenisEl, {
-                chart: {
-                    type: 'donut',
-                    height: 320,
-                    fontFamily: 'inherit'
-                },
-                series: jenis.map(x => Math.max(0, Number(x.saldo_value) || 0)),
-                labels: jenis.map(x => x.jenis),
-                colors: ['#3878d8', '#18a37a', '#efad4e', '#8c73d9', '#e26d76', '#39a8ba', '#8993a5'],
-                dataLabels: {
-                    enabled: false
-                },
-                legend: {
-                    position: 'bottom',
-                    fontSize: '11px'
-                },
-                tooltip: {
-                    y: {
-                        formatter: rupiah
-                    }
-                },
-                plotOptions: {
-                    pie: {
-                        donut: {
-                            size: '70%'
-                        }
-                    }
                 },
                 noData: {
-                    text: 'Belum ada nilai saldo'
+                    text: 'Belum ada data opname'
                 }
             }).render();
         });
@@ -571,5 +701,121 @@
                 flex: 1
             }
         }
+
+        .whov-finishing-summary {
+            border: 1px solid #e1e8f1;
+            border-radius: 10px;
+            background: #f8fafc;
+            padding: 12px 14px
+        }
+
+        .whov-finishing-summary-title {
+            font-weight: 800;
+            font-size: 12px;
+            margin-bottom: 10px;
+            color: #1e3658
+        }
+
+        .whov-finishing-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px
+        }
+
+        .whov-finishing-summary-grid>div {
+            min-width: 0
+        }
+
+        .whov-finishing-summary-grid small {
+            display: block;
+            font-size: 10px;
+            color: #8190a1;
+            margin-bottom: 3px
+        }
+
+        .whov-finishing-summary-grid strong {
+            display: block;
+            font-size: 13px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis
+        }
+
+        @media(max-width:575px) {
+            .whov-finishing-summary-grid {
+                grid-template-columns: 1fr
+            }
+
+            .whov-finishing-summary-grid strong {
+                font-size: 12px
+            }
+        }
     </style>
 @endsection
+
+<style>
+    .whov-mini {
+        background: #f7f9fc;
+        border: 1px solid #e8edf4;
+        border-radius: 9px;
+        padding: 12px;
+        color: #738196;
+        font-size: 11px
+    }
+
+    .whov-mini b {
+        display: block;
+        color: #24374d;
+        font-size: 14px;
+        margin-top: 4px
+    }
+
+    .whov-finishing-summary {
+        border: 1px solid #e1e8f1;
+        border-radius: 10px;
+        background: #f8fafc;
+        padding: 12px 14px
+    }
+
+    .whov-finishing-summary-title {
+        font-weight: 800;
+        font-size: 12px;
+        margin-bottom: 10px;
+        color: #1e3658
+    }
+
+    .whov-finishing-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px
+    }
+
+    .whov-finishing-summary-grid>div {
+        min-width: 0
+    }
+
+    .whov-finishing-summary-grid small {
+        display: block;
+        font-size: 10px;
+        color: #8190a1;
+        margin-bottom: 3px
+    }
+
+    .whov-finishing-summary-grid strong {
+        display: block;
+        font-size: 13px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis
+    }
+
+    @media(max-width:575px) {
+        .whov-finishing-summary-grid {
+            grid-template-columns: 1fr
+        }
+
+        .whov-finishing-summary-grid strong {
+            font-size: 12px
+        }
+    }
+</style>
