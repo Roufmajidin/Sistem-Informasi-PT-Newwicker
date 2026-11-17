@@ -213,11 +213,9 @@ class SpkQrLabelController extends Controller
         $data = $this->getSpkData($id);
         $spk = $data['spk'];
 
-        /*
-        |--------------------------------------------------------------------------
-        | NAMA ZIP / FOLDER
-        |--------------------------------------------------------------------------
-        */
+        // =====================================================
+        // NAMA ZIP DAN FOLDER
+        // =====================================================
 
         $clean = static function ($value): string {
             $value = trim((string) $value);
@@ -227,12 +225,12 @@ class SpkQrLabelController extends Controller
             return trim($value, ' .-_') ?: 'UNKNOWN';
         };
 
-        $noSpk = trim((string) $data['no_spk']);
-        $noPo = trim((string) $data['no_po']);
-        $supplier = trim((string) $data['supplier']);
-
         $folderName = mb_substr(
-            $clean($noSpk . ' ' . $noPo . ' (' . $supplier . ')'),
+            $clean(
+                trim((string) $data['no_spk']) . ' ' .
+                trim((string) $data['no_po']) . ' (' .
+                trim((string) $data['supplier']) . ')'
+            ),
             0,
             150
         );
@@ -241,91 +239,118 @@ class SpkQrLabelController extends Controller
 
         $directory = storage_path('app/spk-qr-jpeg');
 
-        if (
-            !is_dir($directory)
-            && !mkdir($directory, 0775, true)
-            && !is_dir($directory)
-        ) {
+        if (!is_dir($directory) && !mkdir($directory, 0775, true) && !is_dir($directory)) {
             abort(500, 'Gagal membuat direktori ZIP.');
         }
 
-        $zipPath = $directory
-            . DIRECTORY_SEPARATOR
-            . (string) \Illuminate\Support\Str::uuid()
-            . '.zip';
+        $zipPath = $directory . DIRECTORY_SEPARATOR
+            . (string) \Illuminate\Support\Str::uuid() . '.zip';
 
         $zip = new \ZipArchive();
 
         abort_unless(
-            $zip->open(
-                $zipPath,
-                \ZipArchive::CREATE | \ZipArchive::OVERWRITE
-            ) === true,
+            $zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) === true,
             500,
             'Gagal membuat ZIP.'
         );
 
-        /*
-        |--------------------------------------------------------------------------
-        | UKURAN STIKER 24 x 37 MM / 300 DPI
-        |--------------------------------------------------------------------------
-        */
+        // =====================================================
+        // UKURAN STIKER
+        // =====================================================
 
-        $width = 283;
-        $height = 437;
+        $width = 283;   // 24 mm @ 300 DPI
+        $height = 437;  // 37 mm @ 300 DPI
+        $qrSize = 165;  // 14 mm @ 300 DPI
 
-        $qrSize = 165; // Sekitar 14 mm.
+        // =====================================================
+        // FONT ARIAL REGULAR
+        // =====================================================
 
-        /*
-        |--------------------------------------------------------------------------
-        | FONT BOLD
-        |--------------------------------------------------------------------------
-        */
-
-        $fontCandidates = [
-            storage_path('app/fonts/DejaVuSans-Bold.ttf'),
-            storage_path('app/fonts/Arial-Bold.ttf'),
-            'C:/Windows/Fonts/arialbd.ttf',
-            '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
-            '/usr/share/fonts/dejavu-sans-fonts/DejaVuSans-Bold.ttf',
-            '/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf',
-            '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+        $regularCandidates = [
+            storage_path('app/fonts/Arial.ttf'),
+            'C:/Windows/Fonts/arial.ttf',
+            '/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf',
+            '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
         ];
 
-        $font = null;
+        $boldCandidates = [
+            storage_path('app/fonts/Arial-Bold.ttf'),
+            'C:/Windows/Fonts/arialbd.ttf',
+            '/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf',
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+        ];
 
-        foreach ($fontCandidates as $candidate) {
+        $regularFont = null;
+        $boldFont = null;
+
+        foreach ($regularCandidates as $candidate) {
             if (is_file($candidate)) {
-                $font = $candidate;
+                $regularFont = $candidate;
                 break;
             }
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | HELPER UKUR TEKS
-        |--------------------------------------------------------------------------
-        */
+        foreach ($boldCandidates as $candidate) {
+            if (is_file($candidate)) {
+                $boldFont = $candidate;
+                break;
+            }
+        }
 
-        $measureText = static function (string $text, int $fontSize) use ($font): int {
-            if ($font !== null && function_exists('imagettfbbox')) {
-                $box = imagettfbbox($fontSize, 0, $font, $text);
+        abort_unless(
+            $regularFont !== null && function_exists('imagettftext'),
+            500,
+            'Font Arial Regular / Liberation Sans tidak ditemukan di hosting.'
+        );
 
-                if ($box !== false) {
-                    return (int) abs($box[2] - $box[0]);
-                }
+        // Jika bold tidak tersedia, serial tetap menggunakan regular.
+        $boldFont = $boldFont ?: $regularFont;
+
+        // =====================================================
+        // HELPER MENGUKUR TEKS
+        // =====================================================
+
+        $measure = static function (string $text, int $fontSize, string $font): int {
+            $box = imagettfbbox($fontSize, 0, $font, $text);
+
+            if ($box === false) {
+                return 0;
             }
 
-            return strlen($text) * imagefontwidth(5);
+            return (int) abs($box[2] - $box[0]);
         };
 
-        /*
-        |--------------------------------------------------------------------------
-        | HELPER WRAP TEKS
-        |--------------------------------------------------------------------------
-        */
+        // =====================================================
+        // HELPER MEMOTONG TEKS JIKA TERLALU PANJANG
+        // =====================================================
 
-        $wrapText = static function (string $text, int $fontSize, int $maxWidth, int $maxLines = 2) use ($measureText): array {
+        $fitText = static function (string $text, int $fontSize, string $font, int $maxWidth = 263) use ($measure): string {
+            $text = mb_strtoupper(trim($text), 'UTF-8');
+
+            if ($text === '') {
+                return '-';
+            }
+
+            if ($measure($text, $fontSize, $font) <= $maxWidth) {
+                return $text;
+            }
+
+            while (
+                mb_strlen($text, 'UTF-8') > 1
+                && $measure($text . '...', $fontSize, $font) > $maxWidth
+            ) {
+                $text = mb_substr($text, 0, -1, 'UTF-8');
+            }
+
+            return rtrim($text) . '...';
+        };
+
+        // =====================================================
+        // HELPER WRAP NAMA ITEM / SUPPLIER
+        // =====================================================
+
+        $wrapText = static function (string $text, int $fontSize, string $font, int $maxWidth = 263, int $maxLines = 2) use ($measure, $fitText): array {
             $text = mb_strtoupper(trim($text), 'UTF-8');
 
             if ($text === '') {
@@ -341,10 +366,7 @@ class SpkQrLabelController extends Controller
                     ? $word
                     : $current . ' ' . $word;
 
-                if (
-                    $current === ''
-                    || $measureText($candidate, $fontSize) <= $maxWidth
-                ) {
+                if ($current === '' || $measure($candidate, $fontSize, $font) <= $maxWidth) {
                     $current = $candidate;
                 } else {
                     $lines[] = $current;
@@ -362,106 +384,38 @@ class SpkQrLabelController extends Controller
                 $lines[] = $remaining;
             }
 
-            foreach ($lines as $index => $line) {
-                if ($measureText($line, $fontSize) <= $maxWidth) {
-                    continue;
-                }
-
-                $original = $line;
-
-                while (
-                    mb_strlen($line, 'UTF-8') > 1
-                    && $measureText($line . '...', $fontSize) > $maxWidth
-                ) {
-                    $line = mb_substr($line, 0, -1, 'UTF-8');
-                }
-
-                if ($line !== $original) {
-                    $line = rtrim($line) . '...';
-                }
-
-                $lines[$index] = $line;
-            }
-
-            return $lines;
+            return array_map(
+                fn($line) => $fitText($line, $fontSize, $font, $maxWidth),
+                $lines
+            );
         };
 
-        /*
-        |--------------------------------------------------------------------------
-        | HELPER DRAW TEXT CENTER
-        |--------------------------------------------------------------------------
-        */
+        // =====================================================
+        // HELPER DRAW TEXT CENTER
+        // =====================================================
 
-        $drawText = static function (\GdImage $image, string $text, int $y, int $fontSize, int $maxWidth = 263) use ($font, $width, $measureText): void {
-            $text = mb_strtoupper(trim($text), 'UTF-8');
+        $drawText = static function (\GdImage $image, string $text, int $baselineY, int $fontSize, string $font, int $maxWidth = 263) use ($fitText, $measure, $width): void {
+            $text = $fitText($text, $fontSize, $font, $maxWidth);
+            $textWidth = $measure($text, $fontSize, $font);
 
-            if ($text === '') {
-                $text = '-';
-            }
-
+            $x = (int) round(($width - $textWidth) / 2);
             $black = imagecolorallocate($image, 0, 0, 0);
-            $original = $text;
 
-            while (
-                mb_strlen($text, 'UTF-8') > 1
-                && $measureText($text, $fontSize) > $maxWidth
-            ) {
-                $text = mb_substr($text, 0, -1, 'UTF-8');
-            }
-
-            if ($text !== $original) {
-                while (
-                    mb_strlen($text, 'UTF-8') > 1
-                    && $measureText($text . '...', $fontSize) > $maxWidth
-                ) {
-                    $text = mb_substr($text, 0, -1, 'UTF-8');
-                }
-
-                $text = rtrim($text) . '...';
-            }
-
-            $textWidth = $measureText($text, $fontSize);
-            $x = max(4, (int) round(($width - $textWidth) / 2));
-
-            if ($font !== null && function_exists('imagettftext')) {
-                imagettftext(
-                    $image,
-                    $fontSize,
-                    0,
-                    $x,
-                    $y,
-                    $black,
-                    $font,
-                    $text
-                );
-                return;
-            }
-
-            $builtinFont = 5;
-            $charWidth = imagefontwidth($builtinFont);
-            $maxChars = max(1, (int) floor($maxWidth / $charWidth));
-            $text = mb_substr($text, 0, $maxChars, 'UTF-8');
-
-            $x = max(
-                4,
-                (int) (($width - strlen($text) * $charWidth) / 2)
-            );
-
-            imagestring(
+            imagettftext(
                 $image,
-                $builtinFont,
-                $x,
-                max(0, $y - 15),
-                $text,
-                $black
+                $fontSize,
+                0,
+                max(4, $x),
+                $baselineY,
+                $black,
+                $font,
+                $text
             );
         };
 
-        /*
-        |--------------------------------------------------------------------------
-        | GENERATE JPEG ZIP
-        |--------------------------------------------------------------------------
-        */
+        // =====================================================
+        // GENERATE JPEG ZIP
+        // =====================================================
 
         $writer = new \Endroid\QrCode\Writer\PngWriter();
 
@@ -489,7 +443,7 @@ class SpkQrLabelController extends Controller
                 for ($sequence = 1; $sequence <= $item['qty']; $sequence++) {
                     $serial = $sequence . '/' . $item['qty'];
 
-                    // Payload QR tetap sama dengan sistem lama.
+                    // Payload QR tetap sama dengan Browser Print lama.
                     $value = implode(',', [
                         $spk->id,
                         $item['detail_po_id'],
@@ -521,89 +475,82 @@ class SpkQrLabelController extends Controller
                         $white = imagecolorallocate($image, 255, 255, 255);
                         imagefill($image, 0, 0, $white);
 
-                        /*
-                        |----------------------------------------------------------
-                        | HITUNG LAYOUT SELURUH KONTEN
-                        |----------------------------------------------------------
-                        |
-                        | Semua elemen diposisikan sebagai satu blok:
-                        | No SPK -> QR -> Item -> Supplier -> PO -> Serial.
-                        |
-                        | Dengan demikian margin atas dan bawah seimbang.
-                        |
-                        */
+                        // =================================================
+                        // FONT SIZE
+                        // =================================================
 
-                        $itemLines = $wrapText($item['nama'], 15, 263, 2);
-                        $supplierLines = $wrapText($data['supplier'], 14, 263, 2);
+                        $spkFontSize = 9;
+                        $itemFontSize = 11;
+                        $supplierFontSize = 10;
+                        $poFontSize = 9;
+                        $serialFontSize = 15;
 
-                        $spkFontSize = 13;
-                        $itemFontSize = 15;
-                        $supplierFontSize = 14;
-                        $poFontSize = 14;
-                        $serialFontSize = 22;
+                        // =================================================
+                        // WRAP TEKS
+                        // =================================================
 
-                        // Jarak antar elemen.
-                        $gapSpkQr = 10;
-                        $gapQrItem = 14;
-                        $gapItemSupplier = 9;
-                        $gapSupplierPo = 9;
-                        $gapPoSerial = 9;
+                        $itemLines = $wrapText(
+                            $item['nama'],
+                            $itemFontSize,
+                            $regularFont,
+                            263,
+                            2
+                        );
 
-                        $itemLineHeight = 21;
+                        $supplierLines = $wrapText(
+                            $data['supplier'],
+                            $supplierFontSize,
+                            $regularFont,
+                            263,
+                            2
+                        );
+
+                        // =================================================
+                        // LAYOUT CENTER VERTIKAL
+                        // =================================================
+
+                        $spkHeight = 18;
+                        $itemLineHeight = 22;
                         $supplierLineHeight = 20;
+                        $poHeight = 19;
+                        $serialHeight = 27;
 
-                        // Tinggi perkiraan masing-masing bagian.
-                        $spkHeight = 19;
-                        $itemHeight = count($itemLines) * $itemLineHeight;
-                        $supplierHeight = count($supplierLines) * $supplierLineHeight;
-                        $poHeight = 20;
-                        $serialHeight = 30;
+                        $gapSpkQr = 9;
+                        $gapQrItem = 12;
+                        $gapItemSupplier = 7;
+                        $gapSupplierPo = 6;
+                        $gapPoSerial = 5;
 
-                        $totalContentHeight =
+                        $totalHeight =
                             $spkHeight
                             + $gapSpkQr
                             + $qrSize
                             + $gapQrItem
-                            + $itemHeight
+                            + count($itemLines) * $itemLineHeight
                             + $gapItemSupplier
-                            + $supplierHeight
+                            + count($supplierLines) * $supplierLineHeight
                             + $gapSupplierPo
                             + $poHeight
                             + $gapPoSerial
                             + $serialHeight;
 
-                        // Center seluruh konten dalam tinggi 437 px.
-                        $top = (int) round(
-                            ($height - $totalContentHeight) / 2
+                        $y = max(
+                            8,
+                            (int) round(($height - $totalHeight) / 2)
                         );
 
-                        // Minimal margin atas 12 px.
-                        $top = max(12, $top);
-
-                        /*
-                        |----------------------------------------------------------
-                        | NO SPK
-                        |----------------------------------------------------------
-                        */
-
-                        $y = $top;
-
-                        // drawText menggunakan baseline.
+                        // No SPK
                         $drawText(
                             $image,
                             $data['no_spk'],
-                            $y + $spkHeight,
-                            $spkFontSize
+                            $y + 15,
+                            $spkFontSize,
+                            $regularFont
                         );
 
                         $y += $spkHeight + $gapSpkQr;
 
-                        /*
-                        |----------------------------------------------------------
-                        | QR CODE
-                        |----------------------------------------------------------
-                        */
-
+                        // QR
                         imagecopyresized(
                             $image,
                             $qrImage,
@@ -619,18 +566,14 @@ class SpkQrLabelController extends Controller
 
                         $y += $qrSize + $gapQrItem;
 
-                        /*
-                        |----------------------------------------------------------
-                        | NAMA ITEM
-                        |----------------------------------------------------------
-                        */
-
+                        // Nama item
                         foreach ($itemLines as $line) {
                             $drawText(
                                 $image,
                                 $line,
-                                $y + $itemLineHeight,
-                                $itemFontSize
+                                $y + 17,
+                                $itemFontSize,
+                                $regularFont
                             );
 
                             $y += $itemLineHeight;
@@ -638,18 +581,14 @@ class SpkQrLabelController extends Controller
 
                         $y += $gapItemSupplier;
 
-                        /*
-                        |----------------------------------------------------------
-                        | SUPPLIER
-                        |----------------------------------------------------------
-                        */
-
+                        // Supplier
                         foreach ($supplierLines as $line) {
                             $drawText(
                                 $image,
                                 $line,
-                                $y + $supplierLineHeight,
-                                $supplierFontSize
+                                $y + 16,
+                                $supplierFontSize,
+                                $regularFont
                             );
 
                             $y += $supplierLineHeight;
@@ -657,39 +596,29 @@ class SpkQrLabelController extends Controller
 
                         $y += $gapSupplierPo;
 
-                        /*
-                        |----------------------------------------------------------
-                        | NOMOR PO
-                        |----------------------------------------------------------
-                        */
-
+                        // No PO
                         $drawText(
                             $image,
                             '(' . ($data['no_po'] ?: '-') . ')',
-                            $y + $poHeight,
-                            $poFontSize
+                            $y + 15,
+                            $poFontSize,
+                            $regularFont
                         );
 
                         $y += $poHeight + $gapPoSerial;
 
-                        /*
-                        |----------------------------------------------------------
-                        | SERIAL
-                        |----------------------------------------------------------
-                        */
-
+                        // Nomor urut (Bold)
                         $drawText(
                             $image,
                             $serial,
-                            $y + $serialHeight,
-                            $serialFontSize
+                            $y + 23,
+                            $serialFontSize,
+                            $boldFont
                         );
 
-                        /*
-                        |----------------------------------------------------------
-                        | JPEG 300 DPI
-                        |----------------------------------------------------------
-                        */
+                        // =================================================
+                        // JPEG 300 DPI
+                        // =================================================
 
                         if (function_exists('imageresolution')) {
                             imageresolution($image, 300, 300);
@@ -699,20 +628,11 @@ class SpkQrLabelController extends Controller
                         $encoded = imagejpeg($image, null, 95);
                         $jpegData = ob_get_clean();
 
-                        if (
-                            !$encoded
-                            || !is_string($jpegData)
-                            || $jpegData === ''
-                        ) {
+                        if (!$encoded || !is_string($jpegData) || $jpegData === '') {
                             throw new \RuntimeException('Gagal membuat JPEG.');
                         }
 
-                        /*
-                        |----------------------------------------------------------
-                        | NAMA FILE JPEG: 1.jpg, 2.jpg, 3.jpg
-                        |----------------------------------------------------------
-                        */
-
+                        // Nama file: 1.jpg, 2.jpg, 3.jpg
                         $filename = $sequence . '.jpg';
 
                         if (!$zip->addFromString($itemFolder . $filename, $jpegData)) {
