@@ -262,13 +262,13 @@ class PengajuanController extends Controller
                 // =========================
                 // 🔥 APPROVAL STEP
                 // =========================
+                
                 $steps = [
 
                     [
                         'name' => 'Made By',
                         'user' => auth()->user()->name ?? 'Lidiyah',
                     ],
-
                     [
                         'name' => 'Checked By',
                         'user' => 'Bima Seno',

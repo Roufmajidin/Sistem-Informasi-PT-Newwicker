@@ -51,6 +51,7 @@ use App\Http\Controllers\InventorSignatureController;
 use App\Http\Controllers\SpkQrLabelController;
 use App\Http\Controllers\ScanController;
 use App\Http\Controllers\IncomingWarehouseController;
+use App\Http\Controllers\ArController2026;
 
 Route::middleware(['auth'])
     ->prefix('warehouse/incoming')
@@ -95,10 +96,22 @@ Route::post('/qc/test-notification', [
 Broadcast::routes([
     'middleware' => ['web', 'auth'],
 ]);
+ // ar
+
+Route::prefix('ars2026')->name('ars2026.')->group(function () {
+    Route::get('/', [ArController2026::class, 'index'])->name('index');
+    Route::get('/data', [ArController2026::class, 'data'])->name('data');
+    Route::post('/months', [ArController2026::class, 'storeMonth'])->name('months.store');
+    Route::post('/', [ArController2026::class, 'store'])->name('store');
+    Route::put('/{ar}', [ArController2026::class, 'update'])->name('update');
+    Route::delete('/{ar}', [ArController2026::class, 'destroy'])->name('destroy');
+});
+
 
 // Muat channel authorization
 require_once base_path('routes/channels.php');
 Route::middleware('auth')->prefix('mom')->name('mom.')->group(function () {
+   
     // 
     Route::get('/', [MomController::class, 'index'])->name('index');
     Route::get('/list', [MomController::class, 'listing'])->name('list');
