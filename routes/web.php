@@ -203,6 +203,9 @@ Route::middleware('auth')->group(function () {
         ->group(function () {
             Route::get('/directur/rekap-excel', [PengajuanHargaController::class, 'downloadDirecturRekap'])
                 ->name('directur.rekap');
+Route::post('/monitor-close', [PengajuanHargaController::class, 'closeMonitorPengajuan'])
+    ->name('monitor.close');
+
 
 Route::get('/monitor-pengajuan', [PengajuanHargaController::class, 'monitorPengajuan'])
     ->name('monitor');

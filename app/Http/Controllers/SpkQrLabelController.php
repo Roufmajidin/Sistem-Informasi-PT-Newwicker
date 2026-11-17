@@ -200,653 +200,630 @@ class SpkQrLabelController extends Controller
     /** JPEG 24x37mm @ 300 DPI, one JPEG per serial, packed in ZIP. */
 
 
-public function downloadJpegZip(int $id)
-{
-    // =========================================================
-    // VALIDASI
-    // =========================================================
+    public function downloadJpegZip(int $id)
+    {
+        // =========================================================
+        // VALIDASI
+        // =========================================================
 
-    abort_unless(extension_loaded('gd'), 500, 'GD belum aktif.');
-    abort_unless(class_exists(\ZipArchive::class), 500, 'ZIP belum aktif.');
-    abort_unless(
-        class_exists(\Endroid\QrCode\Writer\PngWriter::class),
-        500,
-        'Endroid QR Code belum tersedia.'
-    );
-    abort_unless(
-        function_exists('imagettftext') && function_exists('imagettfbbox'),
-        500,
-        'GD FreeType belum tersedia.'
-    );
-
-    // =========================================================
-    // FONT
-    // =========================================================
-
-    $regularFont = storage_path('app/fonts/LiberationSans-Regular.ttf');
-    $boldFont = storage_path('app/fonts/LiberationSans-Bold.ttf');
-
-    abort_unless(
-        is_file($regularFont) && is_readable($regularFont),
-        500,
-        'LiberationSans-Regular.ttf tidak ditemukan.'
-    );
-
-    $hasRealBold = is_file($boldFont) && is_readable($boldFont);
-    $font = $hasRealBold ? $boldFont : $regularFont;
-
-    // Jika tidak ada file Bold, gunakan double draw.
-    $simulateBold = !$hasRealBold;
-
-    \Illuminate\Support\Facades\Log::info('SPK JPEG FONT CHECK', [
-        'font' => $font,
-        'real_bold' => $hasRealBold,
-        'simulate_bold' => $simulateBold,
-    ]);
-
-    // =========================================================
-    // DATA SPK
-    // =========================================================
-
-    $data = $this->getSpkData($id);
-    $spk = $data['spk'];
-
-    $noSpk = trim((string) ($data['no_spk'] ?? ''));
-    $noPo = trim((string) ($data['no_po'] ?? ''));
-    $supplier = trim((string) ($data['supplier'] ?? ''));
-
-    // =========================================================
-    // HELPER NAMA FILE
-    // =========================================================
-
-    $clean = static function ($value): string {
-        $value = trim((string) $value);
-
-        $value = preg_replace(
-            '/[\\\\\/:*?"<>|\x00-\x1F]+/u',
-            '-',
-            $value
+        abort_unless(extension_loaded('gd'), 500, 'GD belum aktif.');
+        abort_unless(class_exists(\ZipArchive::class), 500, 'ZIP belum aktif.');
+        abort_unless(
+            class_exists(\Endroid\QrCode\Writer\PngWriter::class),
+            500,
+            'Endroid QR Code belum tersedia.'
+        );
+        abort_unless(
+            function_exists('imagettftext') && function_exists('imagettfbbox'),
+            500,
+            'GD FreeType belum tersedia.'
         );
 
-        $value = preg_replace('/\s+/u', ' ', $value);
+        // =========================================================
+        // FONT
+        // =========================================================
 
-        return trim($value, ' .-_') ?: 'UNKNOWN';
-    };
+        $regularFont = storage_path('app/fonts/LiberationSans-Regular.ttf');
+        $boldFont = storage_path('app/fonts/LiberationSans-Bold.ttf');
 
-    $folderName = mb_substr(
-        $clean($noSpk . ' ' . $noPo . ' (' . $supplier . ')'),
-        0,
-        150
-    );
+        abort_unless(
+            is_file($regularFont) && is_readable($regularFont),
+            500,
+            'LiberationSans-Regular.ttf tidak ditemukan.'
+        );
 
-    $zipFilename = $folderName . '.zip';
+        $hasRealBold = is_file($boldFont) && is_readable($boldFont);
+        $font = $hasRealBold ? $boldFont : $regularFont;
 
-    // =========================================================
-    // UKURAN STIKER 24 x 37 MM @ 300 DPI
-    // =========================================================
+        // Jika tidak ada file Bold, gunakan double draw.
+        $simulateBold = !$hasRealBold;
 
-    $width = 283;
-    $height = 437;
+        \Illuminate\Support\Facades\Log::info('SPK JPEG FONT CHECK', [
+            'font' => $font,
+            'real_bold' => $hasRealBold,
+            'simulate_bold' => $simulateBold,
+        ]);
 
-    // QR tetap 14 mm.
-    $qrSize = 165;
+        // =========================================================
+        // DATA SPK
+        // =========================================================
 
-    // Margin kiri-kanan.
-    $maxTextWidth = 263;
+        $data = $this->getSpkData($id);
+        $spk = $data['spk'];
 
-    // =========================================================
-    // FONT DIPERBESAR
-    // =========================================================
+        $noSpk = trim((string) ($data['no_spk'] ?? ''));
+        $noPo = trim((string) ($data['no_po'] ?? ''));
+        $supplier = trim((string) ($data['supplier'] ?? ''));
 
-    $spkFontSize = 13;
-    $itemFontSize = 17;
-    $supplierFontSize = 17;
-    $poFontSize = 16;
-    $serialFontSize = 25;
+        // =========================================================
+        // HELPER NAMA FILE
+        // =========================================================
 
-    // =========================================================
-    // HELPER UKUR TEKS
-    // =========================================================
+        $clean = static function ($value): string {
+            $value = trim((string) $value);
 
-    $measureText = static function (
-        string $text,
-        int $fontSize
-    ) use ($font, $simulateBold): int {
-        $box = imagettfbbox($fontSize, 0, $font, $text);
+            $value = preg_replace(
+                '/[\\\\\/:*?"<>|\x00-\x1F]+/u',
+                '-',
+                $value
+            );
 
-        if ($box === false) {
-            throw new \RuntimeException('Gagal mengukur teks.');
-        }
+            $value = preg_replace('/\s+/u', ' ', $value);
 
-        $minX = min($box[0], $box[2], $box[4], $box[6]);
-        $maxX = max($box[0], $box[2], $box[4], $box[6]);
+            return trim($value, ' .-_') ?: 'UNKNOWN';
+        };
 
-        return (int) ($maxX - $minX + ($simulateBold ? 1 : 0));
-    };
+        $folderName = mb_substr(
+            $clean($noSpk . ' ' . $noPo . ' (' . $supplier . ')'),
+            0,
+            150
+        );
 
-    // =========================================================
-    // HELPER ELLIPSIS
-    // =========================================================
+        $zipFilename = $folderName . '.zip';
 
-    $fitText = static function (
-        string $text,
-        int $fontSize,
-        int $maxWidth
-    ) use ($measureText): string {
-        $text = mb_strtoupper(trim($text), 'UTF-8');
+        // =========================================================
+        // UKURAN STIKER 24 x 37 MM @ 300 DPI
+        // =========================================================
 
-        if ($text === '') {
-            return '-';
-        }
+        $width = 283;
+        $height = 437;
 
-        if ($measureText($text, $fontSize) <= $maxWidth) {
-            return $text;
-        }
+        // QR tetap 14 mm.
+        $qrSize = 165;
 
-        while (mb_strlen($text, 'UTF-8') > 1) {
-            $text = mb_substr($text, 0, -1, 'UTF-8');
+        // Margin kiri-kanan.
+        $maxTextWidth = 263;
 
-            if ($measureText($text . '...', $fontSize) <= $maxWidth) {
-                return rtrim($text) . '...';
+        // =========================================================
+        // FONT DIPERBESAR
+        // =========================================================
+
+        $spkFontSize = 13;
+        $itemFontSize = 17;
+        $supplierFontSize = 17;
+        $poFontSize = 16;
+        $serialFontSize = 25;
+
+        // =========================================================
+        // HELPER UKUR TEKS
+        // =========================================================
+
+        $measureText = static function (string $text, int $fontSize) use ($font, $simulateBold): int {
+            $box = imagettfbbox($fontSize, 0, $font, $text);
+
+            if ($box === false) {
+                throw new \RuntimeException('Gagal mengukur teks.');
             }
-        }
 
-        return '...';
-    };
+            $minX = min($box[0], $box[2], $box[4], $box[6]);
+            $maxX = max($box[0], $box[2], $box[4], $box[6]);
 
-    // =========================================================
-    // HELPER WRAP TEKS
-    // =========================================================
+            return (int) ($maxX - $minX + ($simulateBold ? 1 : 0));
+        };
 
-    $wrapText = static function (
-        string $text,
-        int $fontSize,
-        int $maxWidth,
-        int $maxLines = 2
-    ) use ($measureText, $fitText): array {
-        $text = mb_strtoupper(trim($text), 'UTF-8');
+        // =========================================================
+        // HELPER ELLIPSIS
+        // =========================================================
 
-        if ($text === '') {
-            return ['-'];
-        }
+        $fitText = static function (string $text, int $fontSize, int $maxWidth) use ($measureText): string {
+            $text = mb_strtoupper(trim($text), 'UTF-8');
 
-        $words = preg_split('/\s+/u', $text);
+            if ($text === '') {
+                return '-';
+            }
 
-        $lines = [];
-        $current = '';
+            if ($measureText($text, $fontSize) <= $maxWidth) {
+                return $text;
+            }
 
-        foreach ($words as $word) {
-            $candidate = $current === ''
-                ? $word
-                : $current . ' ' . $word;
+            while (mb_strlen($text, 'UTF-8') > 1) {
+                $text = mb_substr($text, 0, -1, 'UTF-8');
 
-            if (
-                $current === ''
-                || $measureText($candidate, $fontSize) <= $maxWidth
-            ) {
-                $current = $candidate;
-            } else {
+                if ($measureText($text . '...', $fontSize) <= $maxWidth) {
+                    return rtrim($text) . '...';
+                }
+            }
+
+            return '...';
+        };
+
+        // =========================================================
+        // HELPER WRAP TEKS
+        // =========================================================
+
+        $wrapText = static function (string $text, int $fontSize, int $maxWidth, int $maxLines = 2) use ($measureText, $fitText): array {
+            $text = mb_strtoupper(trim($text), 'UTF-8');
+
+            if ($text === '') {
+                return ['-'];
+            }
+
+            $words = preg_split('/\s+/u', $text);
+
+            $lines = [];
+            $current = '';
+
+            foreach ($words as $word) {
+                $candidate = $current === ''
+                    ? $word
+                    : $current . ' ' . $word;
+
+                if (
+                    $current === ''
+                    || $measureText($candidate, $fontSize) <= $maxWidth
+                ) {
+                    $current = $candidate;
+                } else {
+                    $lines[] = $current;
+                    $current = $word;
+                }
+            }
+
+            if ($current !== '') {
                 $lines[] = $current;
-                $current = $word;
             }
-        }
 
-        if ($current !== '') {
-            $lines[] = $current;
-        }
+            if (count($lines) > $maxLines) {
+                $remaining = implode(
+                    ' ',
+                    array_slice($lines, $maxLines - 1)
+                );
 
-        if (count($lines) > $maxLines) {
-            $remaining = implode(
-                ' ',
-                array_slice($lines, $maxLines - 1)
-            );
+                $lines = array_slice($lines, 0, $maxLines - 1);
+                $lines[] = $remaining;
+            }
 
-            $lines = array_slice($lines, 0, $maxLines - 1);
-            $lines[] = $remaining;
-        }
+            foreach ($lines as $index => $line) {
+                $lines[$index] = $fitText(
+                    $line,
+                    $fontSize,
+                    $maxWidth
+                );
+            }
 
-        foreach ($lines as $index => $line) {
-            $lines[$index] = $fitText(
-                $line,
+            return $lines;
+        };
+
+        // =========================================================
+        // DRAW TEXT CENTER + BOLD
+        // =========================================================
+
+        $drawText = static function (\GdImage $image, string $text, int $baselineY, int $fontSize) use ($font, $width, $maxTextWidth, $fitText, $simulateBold): void {
+            $text = $fitText(
+                $text,
                 $fontSize,
-                $maxWidth
+                $maxTextWidth
             );
-        }
 
-        return $lines;
-    };
-
-    // =========================================================
-    // DRAW TEXT CENTER + BOLD
-    // =========================================================
-
-    $drawText = static function (
-        \GdImage $image,
-        string $text,
-        int $baselineY,
-        int $fontSize
-    ) use (
-        $font,
-        $width,
-        $maxTextWidth,
-        $fitText,
-        $simulateBold
-    ): void {
-        $text = $fitText(
-            $text,
-            $fontSize,
-            $maxTextWidth
-        );
-
-        $box = imagettfbbox(
-            $fontSize,
-            0,
-            $font,
-            $text
-        );
-
-        if ($box === false) {
-            throw new \RuntimeException(
-                'Gagal menghitung posisi teks.'
+            $box = imagettfbbox(
+                $fontSize,
+                0,
+                $font,
+                $text
             );
-        }
 
-        $minX = min($box[0], $box[2], $box[4], $box[6]);
-        $maxX = max($box[0], $box[2], $box[4], $box[6]);
+            if ($box === false) {
+                throw new \RuntimeException(
+                    'Gagal menghitung posisi teks.'
+                );
+            }
 
-        $textWidth = $maxX - $minX
-            + ($simulateBold ? 1 : 0);
+            $minX = min($box[0], $box[2], $box[4], $box[6]);
+            $maxX = max($box[0], $box[2], $box[4], $box[6]);
 
-        $x = (int) round(
-            ($width - $textWidth) / 2 - $minX
-        );
+            $textWidth = $maxX - $minX
+                + ($simulateBold ? 1 : 0);
 
-        $black = imagecolorallocate($image, 0, 0, 0);
+            $x = (int) round(
+                ($width - $textWidth) / 2 - $minX
+            );
 
-        // Teks utama.
-        imagettftext(
-            $image,
-            $fontSize,
-            0,
-            max(4, $x),
-            $baselineY,
-            $black,
-            $font,
-            $text
-        );
+            $black = imagecolorallocate($image, 0, 0, 0);
 
-        // Simulasi bold jika font Bold belum ada.
-        if ($simulateBold) {
+            // Teks utama.
             imagettftext(
                 $image,
                 $fontSize,
                 0,
-                max(4, $x + 1),
+                max(4, $x),
                 $baselineY,
                 $black,
                 $font,
                 $text
             );
-        }
-    };
 
-    // =========================================================
-    // FOLDER TEMPORARY ZIP
-    // =========================================================
-
-    $directory = storage_path('app/spk-qr-jpeg');
-
-    if (
-        !is_dir($directory)
-        && !mkdir($directory, 0775, true)
-        && !is_dir($directory)
-    ) {
-        abort(500, 'Gagal membuat direktori ZIP.');
-    }
-
-    $zipPath = $directory
-        . DIRECTORY_SEPARATOR
-        . (string) \Illuminate\Support\Str::uuid()
-        . '.zip';
-
-    $zip = new \ZipArchive();
-
-    abort_unless(
-        $zip->open(
-            $zipPath,
-            \ZipArchive::CREATE | \ZipArchive::OVERWRITE
-        ) === true,
-        500,
-        'Gagal membuat ZIP.'
-    );
-
-    $writer = new \Endroid\QrCode\Writer\PngWriter();
-
-    $multipleItems = count($data['items']) > 1;
-    $generated = 0;
-    $zipClosed = false;
-
-    try {
-        $zip->addEmptyDir($folderName . '/');
-
-        foreach ($data['items'] as $itemIndex => $item) {
-            $itemFolder = $folderName . '/';
-
-            if ($multipleItems) {
-                $itemFolder .= ($itemIndex + 1)
-                    . '_'
-                    . mb_substr($clean($item['nama']), 0, 80)
-                    . '/';
-
-                $zip->addEmptyDir($itemFolder);
-            }
-
-            $qty = max(0, (int) $item['qty']);
-
-            for ($sequence = 1; $sequence <= $qty; $sequence++) {
-                $serial = $sequence . '/' . $qty;
-
-                // Payload QR tidak berubah.
-                $value = implode(',', [
-                    $spk->id,
-                    $item['detail_po_id'],
-                    $serial,
-                ]);
-
-                $qrCode = \Endroid\QrCode\QrCode::create($value)
-                    ->setSize(300)
-                    ->setMargin(6)
-                    ->setErrorCorrectionLevel(
-                        \Endroid\QrCode\ErrorCorrectionLevel::Medium
-                    );
-
-                $pngData = $writer
-                    ->write($qrCode)
-                    ->getString();
-
-                $qrImage = imagecreatefromstring($pngData);
-
-                if (!$qrImage) {
-                    throw new \RuntimeException(
-                        'Gagal membuat QR.'
-                    );
-                }
-
-                $image = imagecreatetruecolor(
-                    $width,
-                    $height
+            // Simulasi bold jika font Bold belum ada.
+            if ($simulateBold) {
+                imagettftext(
+                    $image,
+                    $fontSize,
+                    0,
+                    max(4, $x + 1),
+                    $baselineY,
+                    $black,
+                    $font,
+                    $text
                 );
-
-                if (!$image) {
-                    imagedestroy($qrImage);
-
-                    throw new \RuntimeException(
-                        'Gagal membuat kanvas JPEG.'
-                    );
-                }
-
-                try {
-                    // =========================================
-                    // BACKGROUND PUTIH
-                    // =========================================
-
-                    $white = imagecolorallocate(
-                        $image,
-                        255,
-                        255,
-                        255
-                    );
-
-                    imagefill(
-                        $image,
-                        0,
-                        0,
-                        $white
-                    );
-
-                    // =========================================
-                    // WRAP ITEM DAN SUPPLIER
-                    // =========================================
-
-                    $itemLines = $wrapText(
-                        (string) $item['nama'],
-                        $itemFontSize,
-                        $maxTextWidth,
-                        2
-                    );
-
-                    $supplierLines = $wrapText(
-                        $supplier,
-                        $supplierFontSize,
-                        $maxTextWidth,
-                        2
-                    );
-
-                    // =========================================
-                    // JARAK LEBIH RAPAT
-                    // =========================================
-
-                    $spkHeight = 23;
-                    $itemLineHeight = 25;
-                    $supplierLineHeight = 23;
-                    $poHeight = 22;
-                    $serialHeight = 32;
-
-                    $gapSpkQr = 5;
-                    $gapQrItem = 7;
-                    $gapItemSupplier = 3;
-                    $gapSupplierPo = 3;
-                    $gapPoSerial = 2;
-
-                    // =========================================
-                    // HITUNG TOTAL TINGGI KONTEN
-                    // =========================================
-
-                    $totalHeight =
-                        $spkHeight
-                        + $gapSpkQr
-                        + $qrSize
-                        + $gapQrItem
-                        + count($itemLines) * $itemLineHeight
-                        + $gapItemSupplier
-                        + count($supplierLines) * $supplierLineHeight
-                        + $gapSupplierPo
-                        + $poHeight
-                        + $gapPoSerial
-                        + $serialHeight;
-
-                    // Jaga seluruh konten tetap di tengah.
-                    $y = max(
-                        6,
-                        (int) round(
-                            ($height - $totalHeight) / 2
-                        )
-                    );
-
-                    // =========================================
-                    // NO SPK
-                    // =========================================
-
-                    $drawText(
-                        $image,
-                        $noSpk,
-                        $y + 19,
-                        $spkFontSize
-                    );
-
-                    $y += $spkHeight + $gapSpkQr;
-
-                    // =========================================
-                    // QR CODE
-                    // =========================================
-
-                    imagecopyresized(
-                        $image,
-                        $qrImage,
-                        (int) round(
-                            ($width - $qrSize) / 2
-                        ),
-                        $y,
-                        0,
-                        0,
-                        $qrSize,
-                        $qrSize,
-                        imagesx($qrImage),
-                        imagesy($qrImage)
-                    );
-
-                    $y += $qrSize + $gapQrItem;
-
-                    // =========================================
-                    // NAMA ITEM
-                    // =========================================
-
-                    foreach ($itemLines as $line) {
-                        $drawText(
-                            $image,
-                            $line,
-                            $y + 20,
-                            $itemFontSize
-                        );
-
-                        $y += $itemLineHeight;
-                    }
-
-                    $y += $gapItemSupplier;
-
-                    // =========================================
-                    // SUPPLIER
-                    // =========================================
-
-                    foreach ($supplierLines as $line) {
-                        $drawText(
-                            $image,
-                            $line,
-                            $y + 19,
-                            $supplierFontSize
-                        );
-
-                        $y += $supplierLineHeight;
-                    }
-
-                    $y += $gapSupplierPo;
-
-                    // =========================================
-                    // NO PO DALAM KURUNG
-                    // =========================================
-
-                    $drawText(
-                        $image,
-                        '(' . ($noPo ?: '-') . ')',
-                        $y + 18,
-                        $poFontSize
-                    );
-
-                    $y += $poHeight + $gapPoSerial;
-
-                    // =========================================
-                    // SERIAL LEBIH BESAR
-                    // =========================================
-
-                    $drawText(
-                        $image,
-                        $serial,
-                        $y + 27,
-                        $serialFontSize
-                    );
-
-                    // =========================================
-                    // JPEG 300 DPI
-                    // =========================================
-
-                    if (function_exists('imageresolution')) {
-                        imageresolution(
-                            $image,
-                            300,
-                            300
-                        );
-                    }
-
-                    ob_start();
-
-                    $encoded = imagejpeg(
-                        $image,
-                        null,
-                        95
-                    );
-
-                    $jpegData = ob_get_clean();
-
-                    if (
-                        !$encoded
-                        || !is_string($jpegData)
-                        || $jpegData === ''
-                    ) {
-                        throw new \RuntimeException(
-                            'Gagal membuat JPEG.'
-                        );
-                    }
-
-                    // =========================================
-                    // NAMA FILE 1.jpg, 2.jpg, DST.
-                    // =========================================
-
-                    $filename = $sequence . '.jpg';
-
-                    if (
-                        !$zip->addFromString(
-                            $itemFolder . $filename,
-                            $jpegData
-                        )
-                    ) {
-                        throw new \RuntimeException(
-                            'Gagal menambahkan JPEG: ' . $filename
-                        );
-                    }
-
-                    $generated++;
-                } finally {
-                    imagedestroy($qrImage);
-                    imagedestroy($image);
-                }
             }
+        };
+
+        // =========================================================
+        // FOLDER TEMPORARY ZIP
+        // =========================================================
+
+        $directory = storage_path('app/spk-qr-jpeg');
+
+        if (
+            !is_dir($directory)
+            && !mkdir($directory, 0775, true)
+            && !is_dir($directory)
+        ) {
+            abort(500, 'Gagal membuat direktori ZIP.');
         }
 
-        if (!$zip->close()) {
-            throw new \RuntimeException(
-                'Gagal menyelesaikan ZIP.'
+        $zipPath = $directory
+            . DIRECTORY_SEPARATOR
+            . (string) \Illuminate\Support\Str::uuid()
+            . '.zip';
+
+        $zip = new \ZipArchive();
+
+        abort_unless(
+            $zip->open(
+                $zipPath,
+                \ZipArchive::CREATE | \ZipArchive::OVERWRITE
+            ) === true,
+            500,
+            'Gagal membuat ZIP.'
+        );
+
+        $writer = new \Endroid\QrCode\Writer\PngWriter();
+
+        $multipleItems = count($data['items']) > 1;
+        $generated = 0;
+        $zipClosed = false;
+
+        try {
+            $zip->addEmptyDir($folderName . '/');
+
+            foreach ($data['items'] as $itemIndex => $item) {
+                $itemFolder = $folderName . '/';
+
+                if ($multipleItems) {
+                    $itemFolder .= ($itemIndex + 1)
+                        . '_'
+                        . mb_substr($clean($item['nama']), 0, 80)
+                        . '/';
+
+                    $zip->addEmptyDir($itemFolder);
+                }
+
+                $qty = max(0, (int) $item['qty']);
+
+                for ($sequence = 1; $sequence <= $qty; $sequence++) {
+                    $serial = $sequence . '/' . $qty;
+
+                    // Payload QR tidak berubah.
+                    $value = implode(',', [
+                        $spk->id,
+                        $item['detail_po_id'],
+                        $serial,
+                    ]);
+
+                    $qrCode = \Endroid\QrCode\QrCode::create($value)
+                        ->setSize(300)
+                        ->setMargin(6)
+                        ->setErrorCorrectionLevel(
+                            \Endroid\QrCode\ErrorCorrectionLevel::Medium
+                        );
+
+                    $pngData = $writer
+                        ->write($qrCode)
+                        ->getString();
+
+                    $qrImage = imagecreatefromstring($pngData);
+
+                    if (!$qrImage) {
+                        throw new \RuntimeException(
+                            'Gagal membuat QR.'
+                        );
+                    }
+
+                    $image = imagecreatetruecolor(
+                        $width,
+                        $height
+                    );
+
+                    if (!$image) {
+                        imagedestroy($qrImage);
+
+                        throw new \RuntimeException(
+                            'Gagal membuat kanvas JPEG.'
+                        );
+                    }
+
+                    try {
+                        // =========================================
+                        // BACKGROUND PUTIH
+                        // =========================================
+
+                        $white = imagecolorallocate(
+                            $image,
+                            255,
+                            255,
+                            255
+                        );
+
+                        imagefill(
+                            $image,
+                            0,
+                            0,
+                            $white
+                        );
+
+                        // =========================================
+                        // WRAP ITEM DAN SUPPLIER
+                        // =========================================
+
+                        $itemLines = $wrapText(
+                            (string) $item['nama'],
+                            $itemFontSize,
+                            $maxTextWidth,
+                            2
+                        );
+
+                        $supplierLines = $wrapText(
+                            $supplier,
+                            $supplierFontSize,
+                            $maxTextWidth,
+                            2
+                        );
+
+                        // =========================================
+                        // JARAK LEBIH RAPAT
+                        // =========================================
+
+                        $spkHeight = 23;
+                        $itemLineHeight = 25;
+                        $supplierLineHeight = 23;
+                        $poHeight = 22;
+                        $serialHeight = 32;
+
+                        $gapSpkQr = 5;
+                        $gapQrItem = 7;
+                        $gapItemSupplier = 3;
+                        $gapSupplierPo = 3;
+                        $gapPoSerial = 2;
+
+                        // =========================================
+                        // HITUNG TOTAL TINGGI KONTEN
+                        // =========================================
+
+                        $totalHeight =
+                            $spkHeight
+                            + $gapSpkQr
+                            + $qrSize
+                            + $gapQrItem
+                            + count($itemLines) * $itemLineHeight
+                            + $gapItemSupplier
+                            + count($supplierLines) * $supplierLineHeight
+                            + $gapSupplierPo
+                            + $poHeight
+                            + $gapPoSerial
+                            + $serialHeight;
+
+                        // Jaga seluruh konten tetap di tengah.
+                        $y = max(
+                            6,
+                            (int) round(
+                                ($height - $totalHeight) / 2
+                            )
+                        );
+
+                        // =========================================
+                        // NO SPK
+                        // =========================================
+
+                        $drawText(
+                            $image,
+                            $noSpk,
+                            $y + 19,
+                            $spkFontSize
+                        );
+
+                        $y += $spkHeight + $gapSpkQr;
+
+                        // =========================================
+                        // QR CODE
+                        // =========================================
+
+                        imagecopyresized(
+                            $image,
+                            $qrImage,
+                            (int) round(
+                                ($width - $qrSize) / 2
+                            ),
+                            $y,
+                            0,
+                            0,
+                            $qrSize,
+                            $qrSize,
+                            imagesx($qrImage),
+                            imagesy($qrImage)
+                        );
+
+                        $y += $qrSize + $gapQrItem;
+
+                        // =========================================
+                        // NAMA ITEM
+                        // =========================================
+
+                        foreach ($itemLines as $line) {
+                            $drawText(
+                                $image,
+                                $line,
+                                $y + 20,
+                                $itemFontSize
+                            );
+
+                            $y += $itemLineHeight;
+                        }
+
+                        $y += $gapItemSupplier;
+
+                        // =========================================
+                        // SUPPLIER
+                        // =========================================
+
+                        foreach ($supplierLines as $line) {
+                            $drawText(
+                                $image,
+                                $line,
+                                $y + 19,
+                                $supplierFontSize
+                            );
+
+                            $y += $supplierLineHeight;
+                        }
+
+                        $y += $gapSupplierPo;
+
+                        // =========================================
+                        // NO PO DALAM KURUNG
+                        // =========================================
+
+                        $drawText(
+                            $image,
+                            '(' . ($noPo ?: '-') . ')',
+                            $y + 18,
+                            $poFontSize
+                        );
+
+                        $y += $poHeight + $gapPoSerial;
+
+                        // =========================================
+                        // SERIAL LEBIH BESAR
+                        // =========================================
+
+                        $drawText(
+                            $image,
+                            $serial,
+                            $y + 27,
+                            $serialFontSize
+                        );
+
+                        // =========================================
+                        // JPEG 300 DPI
+                        // =========================================
+
+                        if (function_exists('imageresolution')) {
+                            imageresolution(
+                                $image,
+                                300,
+                                300
+                            );
+                        }
+
+                        ob_start();
+
+                        $encoded = imagejpeg(
+                            $image,
+                            null,
+                            95
+                        );
+
+                        $jpegData = ob_get_clean();
+
+                        if (
+                            !$encoded
+                            || !is_string($jpegData)
+                            || $jpegData === ''
+                        ) {
+                            throw new \RuntimeException(
+                                'Gagal membuat JPEG.'
+                            );
+                        }
+
+                        // =========================================
+                        // NAMA FILE 1.jpg, 2.jpg, DST.
+                        // =========================================
+
+                        $filename = $sequence . '.jpg';
+
+                        if (
+                            !$zip->addFromString(
+                                $itemFolder . $filename,
+                                $jpegData
+                            )
+                        ) {
+                            throw new \RuntimeException(
+                                'Gagal menambahkan JPEG: ' . $filename
+                            );
+                        }
+
+                        $generated++;
+                    } finally {
+                        imagedestroy($qrImage);
+                        imagedestroy($image);
+                    }
+                }
+            }
+
+            if (!$zip->close()) {
+                throw new \RuntimeException(
+                    'Gagal menyelesaikan ZIP.'
+                );
+            }
+
+            $zipClosed = true;
+        } catch (\Throwable $e) {
+            if (!$zipClosed) {
+                $zip->close();
+            }
+
+            @unlink($zipPath);
+
+            throw $e;
+        }
+
+        if ($generated === 0) {
+            @unlink($zipPath);
+
+            abort(
+                422,
+                'Tidak ada label yang berhasil dibuat.'
             );
         }
 
-        $zipClosed = true;
-    } catch (\Throwable $e) {
-        if (!$zipClosed) {
-            $zip->close();
-        }
-
-        @unlink($zipPath);
-
-        throw $e;
+        return response()->download(
+            $zipPath,
+            $zipFilename,
+            [
+                'Content-Type' => 'application/zip',
+                'Cache-Control' => 'private, no-store',
+            ]
+        )->deleteFileAfterSend(true);
     }
-
-    if ($generated === 0) {
-        @unlink($zipPath);
-
-        abort(
-            422,
-            'Tidak ada label yang berhasil dibuat.'
-        );
-    }
-
-    return response()->download(
-        $zipPath,
-        $zipFilename,
-        [
-            'Content-Type' => 'application/zip',
-            'Cache-Control' => 'private, no-store',
-        ]
-    )->deleteFileAfterSend(true);
-}
 
 
 }

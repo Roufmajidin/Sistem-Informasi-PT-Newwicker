@@ -1050,7 +1050,7 @@
                                                                             placeholder="0"
                                                                             @disabled($isFactory ? $field !== 'director_price' : $field === 'director_price')><small
                                                                             class="ph-price-date"
-                                                                            data-date="{{ $field }}">{{ $job->{$field === 'ppic_price' ? 'ppic_date' : ($field === 'director_price' ? 'directur_date' : 'sub_date')}?->format('d-m-y H:i') ?? '—' }}</small>
+                                                                            data-date="{{ $field }}" title="{{ $field === 'ppic_price' ? 'Tanggal update PPIC' : ($field === 'director_price' ? 'Tanggal update Director' : 'Tanggal pengajuan Sub') }}">{{ $job->{$field === 'ppic_price' ? 'ppic_date' : ($field === 'director_price' ? 'directur_date' : 'sub_date')}?->format('d-m-Y H:i') ?? '—' }}</small>
 
                                                                     </div>
                                                                 @endforeach
@@ -1127,7 +1127,7 @@
                                                                             placeholder="0"
                                                                             @disabled($isFactory ? $field !== 'director_price' : $field === 'director_price')><small
                                                                             class="ph-price-date"
-                                                                            data-date="{{ $field }}">—</small>
+                                                                            data-date="{{ $field }}" title="{{ $field === 'ppic_price' ? 'Tanggal update PPIC' : ($field === 'director_price' ? 'Tanggal update Director' : 'Tanggal pengajuan Sub') }}">—</small>
 
                                                                     </div>
                                                                 @endforeach
@@ -1374,11 +1374,11 @@
 
                 if (s.includes(',')) {
 
-                    s = s.replace(/\\./g, '').replace(',', '.');
+                    s = s.replace(/\./g, '').replace(',', '.');
 
-                } else if (/^\d{1,3}(\\.\d{3})+$/.test(s)) {
+                } else if (/^\d{1,3}(\.\d{3})+$/.test(s)) {
 
-                    s = s.replace(/\\./g, '');
+                    s = s.replace(/\./g, '');
 
                 }
 
@@ -1392,9 +1392,9 @@
 
                 let raw = el.value.replace(/[^\d,.]/g, '');
 
-                // Koma = pemisah desimal. Titik lama dari database boleh sebagai desimal.
+                // Koma = desimal; titik tiga digit = pemisah ribuan.
 
-                if (!raw.includes(',') && /^\d+\\.\d{1,2}$/.test(raw)) {
+                if (!raw.includes(',') && /^\d+\.\d{1,2}$/.test(raw)) {
 
                     raw = raw.replace('.', ',');
 
@@ -2257,6 +2257,8 @@
             const search = document.getElementById('phMonitorSearch'),
                 status = document.getElementById('phMonitorStatus');
             const endpoint = @json(route('pengajuan-harga.monitor'));
+            const closeEndpoint = @json(route('pengajuan-harga.monitor.close'));
+            const csrfMonitor = document.querySelector('meta[name="csrf-token"]')?.content || @json(csrf_token());
             let controller = null;
             async function load(url) {
                 if (controller) controller.abort();
@@ -2311,6 +2313,32 @@
                 if (e.key === 'Enter') {
                     e.preventDefault();
                     apply()
+                }
+            });
+            // Close from monitor: server persists status, then refresh current filter.
+            body.addEventListener('click', async e => {
+                const button = e.target.closest('.ph-monitor-do-close');
+                if (!button) return;
+                const id = button.dataset.id;
+                if (!id || !confirm('Close pengajuan ini?')) return;
+                button.disabled = true;
+                try {
+                    const response = await fetch(closeEndpoint, {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': csrfMonitor
+                        },
+                        body: JSON.stringify({id})
+                    });
+                    const result = await response.json().catch(() => ({}));
+                    if (!response.ok) throw new Error(result.message || 'Gagal close pengajuan');
+                    apply();
+                } catch (err) {
+                    alert(err.message);
+                    button.disabled = false;
                 }
             });
             body.addEventListener('click', e => {
