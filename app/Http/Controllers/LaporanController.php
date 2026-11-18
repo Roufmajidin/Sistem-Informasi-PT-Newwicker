@@ -2105,7 +2105,7 @@ class LaporanController extends Controller
 
 
 
-        return view('pages.warehouse.overview', compact(
+        return view('pages.laporan.overview', compact(
 
             'stoks',
 
