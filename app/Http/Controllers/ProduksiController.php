@@ -276,7 +276,7 @@ class ProduksiController extends Controller
 
         if ($request->ajax()) {
             return response()->json([
-                'html' => view('pages.mutasi.mutasi._rows', compact('a'))->render(),
+                'html' => view('pages.mutasi.mutasi_rows', compact('a'))->render(),
                 'has_more' => $a->hasMorePages(),
             ]);
         }
