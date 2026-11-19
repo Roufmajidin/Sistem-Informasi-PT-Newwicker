@@ -1524,7 +1524,7 @@
                             if (status !== 'abort' && version === generation) {
                                 $status.html(
                                     '<button type="button" class="btn btn-sm btn-outline-primary" id="retryMutasiLoad">Gagal memuat. Coba lagi</button>'
-                                    );
+                                );
                             }
                         }).always(function() {
                             if (version !== generation) return;
@@ -1593,16 +1593,16 @@
 
             <script>
                 /*
-                                        |--------------------------------------------------------------------------
-                                        | SPK HOVER PREVIEW + IN
-                                        |--------------------------------------------------------------------------
-                                        | - Items + Qty dibaca langsung dari data SPK.
-                                        | - IN diambil dari endpoint timeline yang SUDAH WORK.
-                                        | - Menggunakan fetch native, bukan $.ajax().
-                                        | - Tidak menggunakan $.ajax().then().catch().
-                                        | - Tidak mengubah click/modal existing.
-                                        |--------------------------------------------------------------------------
-                                        */
+                                                    |--------------------------------------------------------------------------
+                                                    | SPK HOVER PREVIEW + IN
+                                                    |--------------------------------------------------------------------------
+                                                    | - Items + Qty dibaca langsung dari data SPK.
+                                                    | - IN diambil dari endpoint timeline yang SUDAH WORK.
+                                                    | - Menggunakan fetch native, bukan $.ajax().
+                                                    | - Tidak menggunakan $.ajax().then().catch().
+                                                    | - Tidak mengubah click/modal existing.
+                                                    |--------------------------------------------------------------------------
+                                                    */
 
                 (function() {
 
@@ -2366,8 +2366,8 @@
 
             <style>
                 /* =========================================================
-                           SPK HOVER PREVIEW
-                           ========================================================= */
+                               SPK HOVER PREVIEW
+                               ========================================================= */
                 #tbodySpk tr.pilih-spk {
                     cursor: pointer;
                     transition: all 0.15s ease;
@@ -2512,8 +2512,8 @@
 
 
                 /* =========================================================
-                                       STICKY HEADER
-                                       ========================================================= */
+                                           STICKY HEADER
+                                           ========================================================= */
 
                 .spk-table-wrap {
                     max-height: calc(100vh - 220px);
@@ -2552,8 +2552,8 @@
                 }
 
                 /* =========================================================
-                                           ITEM DETAIL + COMPONENTS
-                                           ========================================================= */
+                                               ITEM DETAIL + COMPONENTS
+                                               ========================================================= */
 
                 .item-detail-grid {
                     display: grid;
@@ -2778,8 +2778,8 @@
                 }
 
                 /* =========================================================
-                           ITEM PICKER
-                           ========================================================= */
+                               ITEM PICKER
+                               ========================================================= */
 
                 .item-picker-wrap {
                     margin-bottom: 18px;
@@ -2973,8 +2973,8 @@
 
 
                 /* =========================================================
-                           MICRO UI IMPROVEMENT + PERFORMANCE
-                           ========================================================= */
+                               MICRO UI IMPROVEMENT + PERFORMANCE
+                               ========================================================= */
                 .spk-table-wrap {
                     contain: layout paint;
                     border-radius: 12px;
