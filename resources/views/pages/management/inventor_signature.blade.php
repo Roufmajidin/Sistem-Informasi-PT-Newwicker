@@ -1686,6 +1686,14 @@
             opacity: .6;
         }
 
+        .sig-custom-item-row td {
+            background: #f0f8ff !important;
+        }
+
+        .sig-custom-item-row td:nth-child(3) {
+            color: #1e40af;
+        }
+
         /* Foto produk: klik untuk membuka gambar resolusi asli di tab baru */
         .sig-image-zoom-link {
             display: inline-block;
@@ -1914,10 +1922,56 @@
 
                 $grandTotal = 0;
 
-                foreach ($items as $it) {
-                    $line = $asNumber($it['total'] ?? 0);
+                // Custom columns adalah rincian tambahan per item (misalnya JASA SETTING).
+                // Abaikan placeholder kosong seperti [] dan hitung hanya baris yang memiliki isi.
+                $getCustomRows = function ($item) {
+                    $result = [];
+                    $raw = $item['custom_columns'] ?? [];
+                    if (!is_array($raw)) {
+                        return $result;
+                    }
+                    foreach ($raw as $entry) {
+                        if (!is_array($entry) || empty($entry)) {
+                            continue;
+                        }
+                        // Mendukung bentuk nested array maupun associative array.
+                        $candidates = array_is_list($entry) ? $entry : [$entry];
+                        foreach ($candidates as $row) {
+                            if (!is_array($row) || empty($row)) {
+                                continue;
+                            }
+                            $hasValue = false;
+                            foreach ($row as $value) {
+                                if (is_scalar($value) && trim((string) $value) !== '') {
+                                    $hasValue = true;
+                                    break;
+                                }
+                            }
+                            if ($hasValue) {
+                                $result[] = $row;
+                            }
+                        }
+                    }
+                    return $result;
+                };
 
+                $customRowTotal = function ($row) use ($asNumber) {
+                    if (isset($row['total']) && $row['total'] !== '' && $row['total'] !== null) {
+                        return $asNumber($row['total']);
+                    }
+                    $qty = $asNumber($row['qty'] ?? ($row['pcs'] ?? 0));
+                    return $asNumber($row['harga'] ?? 0) * $qty;
+                };
+
+                foreach ($items as $it) {
+                    if (!is_array($it)) {
+                        continue;
+                    }
+                    $line = $asNumber($it['total'] ?? 0);
                     $grandTotal += $line ?: $asNumber($it['harga'] ?? 0) * $asNumber($it['qty'] ?? ($it['pcs'] ?? 0));
+                    foreach ($getCustomRows($it) as $customRow) {
+                        $grandTotal += $customRowTotal($customRow);
+                    }
                 }
 
                 $special = (bool) preg_match(
@@ -2061,6 +2115,32 @@
                                     <td>{{ is_scalar($item['catatan'] ?? null) ? $item['catatan'] : '-' }}</td>
 
                                 </tr>
+
+                                {{-- Baris tambahan dari JSON items[].custom_columns --}}
+                                @foreach ($getCustomRows($item) as $customRow)
+                                    @php
+                                        $customQty =
+                                            $customRow['qty'] ?? ($customRow['pcs'] ?? ($customRow['set'] ?? '-'));
+                                        $customName =
+                                            $customRow['nama'] ??
+                                            ($customRow['material'] ?? ($customRow['description'] ?? 'Item tambahan'));
+                                    @endphp
+                                    <tr class="sig-custom-item-row">
+                                        <td>—</td>
+                                        <td></td>
+                                        <td><strong>{{ $customName }}</strong><small
+                                                style="display:block;color:#64748b">Tambahan item</small></td>
+                                        <td>{{ $customRow['p'] ?? '-' }}</td>
+                                        <td>{{ $customRow['l'] ?? '-' }}</td>
+                                        <td>{{ $customRow['t'] ?? '-' }}</td>
+                                        <td>{{ !empty($customRow['nama']) ? $customRow['material'] ?? '-' : '-' }}</td>
+                                        <td>{{ $customQty }}</td>
+                                        <td>{{ $rupiah($customRow['harga'] ?? 0) }}</td>
+                                        <td>{{ $rupiah($customRowTotal($customRow)) }}</td>
+                                        <td>{{ is_scalar($customRow['catatan'] ?? null) ? $customRow['catatan'] : '-' }}
+                                        </td>
+                                    </tr>
+                                @endforeach
                             @endforeach
 
                         </tbody>
@@ -2499,19 +2579,19 @@
                     } = commentTarget;
                     const response = await fetch(@json(url('/produksi/inventor/signature')) + '/' + encodeURIComponent(
                         id) + '/comment', {
-                            method: 'POST',
-                            credentials: 'same-origin',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Accept': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
-                                    ?.content || @json(csrf_token())
-                            },
-                            body: JSON.stringify({
-                                type,
-                                message
-                            })
-                        });
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
+                                ?.content || @json(csrf_token())
+                        },
+                        body: JSON.stringify({
+                            type,
+                            message
+                        })
+                    });
                     const result = await response.json();
                     if (!response.ok || !result.success) throw new Error(result.message || JSON.stringify(
                         result.errors || 'Gagal menyimpan komentar'));
