@@ -1706,6 +1706,29 @@
             outline: 2px solid #2563eb;
             outline-offset: 3px;
         }
+
+        .sig-view-tabs {
+            display: flex;
+            gap: 8px;
+            margin: 0 0 12px;
+        }
+
+        .sig-view-tabs a {
+            padding: 9px 15px;
+            border: 1px solid #d8dee8;
+            border-radius: 5px;
+            background: #fff;
+            color: #26394e;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 12px;
+        }
+
+        .sig-view-tabs a.active {
+            background: #26394e;
+            color: #fff;
+            border-color: #26394e;
+        }
     </style>
 
     <div class="sig-wrap">
@@ -1718,11 +1741,21 @@
 
                 <div>Antrean tanda tangan dan monitoring SPK {{ auth()->user()->name }}</div>
 
-            </div><strong id="sig-count">{{ $documents->count() }} Pending</strong>
+            </div><strong id="sig-count">{{ $documents->count() }}
+                {{ $viewMode === 'signed' ? 'Sudah TTD' : 'Pending' }}</strong>
 
         </div>
 
+        @if ($canViewSigned)
+            <nav class="sig-view-tabs" aria-label="Status tanda tangan SPK">
+                <a class="{{ $viewMode === 'pending' ? 'active' : '' }}"
+                    href="{{ request()->fullUrlWithQuery(['view' => 'pending']) }}">Pending</a>
+                <a class="{{ $viewMode === 'signed' ? 'active' : '' }}"
+                    href="{{ request()->fullUrlWithQuery(['view' => 'signed']) }}">Sudah TTD</a>
+            </nav>
+        @endif
         <form method="GET" class="sig-filter-form">
+            <input type="hidden" name="view" value="{{ $viewMode }}">
 
             <label>Cari SPK / PO / Supplier<input class="sig-search" name="q" value="{{ $search }}"
                     placeholder="Cari nomor SPK, PO, atau supplier..." /></label>
@@ -1913,11 +1946,11 @@
                             #{{ $loop->iteration }}</span><strong>{{ $d['no_spk'] ?? 'SPK #' . $model->id }}</strong>
                     </div>
 
-                    <span>Menunggu:
+                    <span>{{ $viewMode === 'signed' ? 'Status:' : 'Menunggu:' }}
 
-                        {{ ['checked' => 'Checker 1', 'checked_2' => 'Checker 2', 'approved' => 'Approved By'][$stage] ?? 'Menunggu' }}
+                        {{ ['checked' => 'Checker 1', 'checked_2' => 'Checker 2', 'approved' => 'Approved By'][$stage] ?? 'Sudah TTD' }}
 
-                        @if ($isMaker && !$type)
+                        @if ($isMaker && !$type && $viewMode === 'pending')
                             · Monitoring Maker
                         @endif
 
@@ -2466,19 +2499,19 @@
                     } = commentTarget;
                     const response = await fetch(@json(url('/produksi/inventor/signature')) + '/' + encodeURIComponent(
                         id) + '/comment', {
-                        method: 'POST',
-                        credentials: 'same-origin',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
-                                ?.content || @json(csrf_token())
-                        },
-                        body: JSON.stringify({
-                            type,
-                            message
-                        })
-                    });
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
+                                    ?.content || @json(csrf_token())
+                            },
+                            body: JSON.stringify({
+                                type,
+                                message
+                            })
+                        });
                     const result = await response.json();
                     if (!response.ok || !result.success) throw new Error(result.message || JSON.stringify(
                         result.errors || 'Gagal menyimpan komentar'));

@@ -181,10 +181,19 @@ class InventorSignatureController extends Controller
             'key' => ['nullable', 'string', 'max:20', 'regex:/^[a-zA-Z0-9_-]+$/'],
 
             'date_from' => 'nullable|date_format:Y-m-d',
+            'view' => 'nullable|in:pending,signed',
 
         ]);
 
         $userId = (int) $request->user()->id;
+        $email = strtolower(trim((string) $request->user()->email));
+        $signedDivisions = match ($email) {
+            'intan@gmail.com' => ['NWD', 'NWS'],
+            'nurk@gmail.com', 'vivia@gmail.com' => ['NW', 'NWR'],
+            default => [],
+        };
+        $canViewSigned = $signedDivisions !== [];
+        $viewMode = ($validated['view'] ?? 'pending') === 'signed' && $canViewSigned ? 'signed' : 'pending';
 
         $search = trim((string) ($validated['q'] ?? ''));
 
@@ -202,29 +211,22 @@ class InventorSignatureController extends Controller
 
         $dateFrom = $dateFromInput !== '' ? Carbon::createFromFormat('!Y-m-d', $dateFromInput)->startOfDay() : null;
 
-        $signatures = SignatureSpk::with([
-
+        $signaturesQuery = SignatureSpk::with([
             'madeBy.karyawan.divisi',
-
             'checkedBy.karyawan.divisi',
-
             'checkedBy2.karyawan.divisi',
-
             'approvedBy.karyawan.divisi',
-
             'supplier',
-
-        ])->where(function ($query) use ($userId) {
-
-            $query->where('made_by', $userId)
-
-                ->orWhere('checked_by', $userId)
-
-                ->orWhere('checked_by_2', $userId)
-
-                ->orWhere('approved_by', $userId);
-
-        })->orderByDesc('spk_id')->get();
+        ]);
+        if ($viewMode === 'pending') {
+            $signaturesQuery->where(function ($query) use ($userId) {
+                $query->where('made_by', $userId)
+                    ->orWhere('checked_by', $userId)
+                    ->orWhere('checked_by_2', $userId)
+                    ->orWhere('approved_by', $userId);
+            });
+        }
+        $signatures = $signaturesQuery->orderByDesc('spk_id')->get();
 
         // Filter at database level: only submitted SPKs created on/after Start Date.
 
@@ -234,7 +236,7 @@ class InventorSignatureController extends Controller
 
             ->whereIn('id', $signatures->pluck('spk_id')->unique())
 
-            ->whereRaw('LOWER(TRIM(status)) = ?', ['diajukan']);
+            ->whereRaw('LOWER(TRIM(status)) = ?', [$viewMode === 'signed' ? 'approved' : 'diajukan']);
 
         if ($dateFrom !== null) {
 
@@ -244,7 +246,7 @@ class InventorSignatureController extends Controller
 
         $spks = $spkQuery->get()->keyBy('id');
 
-        $documents = $signatures->map(function (SignatureSpk $signature) use ($spks, $userId, $search, $key) {
+        $documents = $signatures->map(function (SignatureSpk $signature) use ($spks, $userId, $search, $key, $viewMode, $signedDivisions) {
 
             $spk = $spks->get($signature->spk_id);
 
@@ -257,6 +259,9 @@ class InventorSignatureController extends Controller
             $data = $this->spkData($spk);
 
             $division = $this->division($spk);
+            if ($viewMode === 'signed' && !in_array($division, $signedDivisions, true)) {
+                return null;
+            }
 
             if ($key !== '' && $division !== $key) {
 
@@ -288,10 +293,12 @@ class InventorSignatureController extends Controller
 
             $pendingStages = $this->pendingStages($signature, $spk);
 
-            if ($pendingStages === []) {
-
-                return null; // Supplier and Made By are excluded from completion criteria.
-
+            if ($viewMode === 'signed') {
+                // Only fully signed SPKs are shown in the completed tab.
+                if ($pendingStages !== [])
+                    return null;
+            } elseif ($pendingStages === []) {
+                return null; // Existing pending behavior.
             }
 
             $isMaker = $signature->made_by !== null && (int) $signature->made_by === $userId;
@@ -300,7 +307,7 @@ class InventorSignatureController extends Controller
 
             $type = $pendingTypes[0] ?? null;
 
-            $stage = $pendingStages[0];
+            $stage = $pendingStages[0] ?? null;
 
             $makerName = match ($division) {
 
@@ -329,7 +336,7 @@ class InventorSignatureController extends Controller
                 'checked_2' => 'Menunggu Checker 2',
 
                 'approved' => 'Menunggu Approved By',
-
+                default => 'Sudah TTD',
             };
 
             return [
@@ -386,7 +393,9 @@ class InventorSignatureController extends Controller
 
             'dateFromInput',
 
-            'totalPending'
+            'totalPending',
+            'viewMode',
+            'canViewSigned'
 
         ));
 
