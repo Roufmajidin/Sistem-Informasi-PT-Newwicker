@@ -259,20 +259,11 @@ class ProduksiController extends Controller
     //mutasi mba siti
     public function mutasi(Request $request)
     {
-        $search = trim((string) $request->query('search', ''));
-        $query = Spk::query()->with('po')->orderByDesc('id');
-
-        if ($search !== '') {
-            $query->where(function ($q) use ($search) {
-                $q->whereHas('po', function ($po) use ($search) {
-                    $po->where('order_no', 'like', '%' . $search . '%')
-                        ->orWhere('company_name', 'like', '%' . $search . '%');
-                })->orWhere('data', 'like', '%' . $search . '%');
-            });
-        }
-
-        // simplePaginate menghindari query COUNT(*) pada setiap load.
-        $a = $query->simplePaginate(30)->withQueryString();
+        $a = Spk::query()
+            ->with('po')
+            ->orderByDesc('id')
+            ->simplePaginate(10)
+            ->withQueryString();
 
         if ($request->ajax()) {
             return response()->json([
@@ -283,7 +274,6 @@ class ProduksiController extends Controller
 
         return view('pages.mutasi.index', compact('a'));
     }
-
 
     public function mutasidetail($id)
     {
