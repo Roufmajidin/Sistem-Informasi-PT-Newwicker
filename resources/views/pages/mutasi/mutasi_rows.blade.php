@@ -33,8 +33,9 @@
 
                     <div class="input-group">
 
-                        <button type="button" id="mobileSearchButton" class="input-group-text bg-white mutasi-search-button"
-                            aria-label="Fokus pencarian SPK" title="Cari SPK">
+                        <button type="button" id="mobileSearchButton"
+                            class="input-group-text bg-white mutasi-search-button" aria-label="Fokus pencarian SPK"
+                            title="Cari SPK">
                             <i class="fas fa-search text-secondary" aria-hidden="true"></i>
                         </button>
 
@@ -120,8 +121,8 @@
                     <div class="modal-header">
                         <h5 class="modal-title" id="judulSpk">Detail SPK</h5>
 
-                        <button type="button" class="close mutasi-close-button" id="mutasiMobileClose"
-                            data-dismiss="modal" aria-label="Tutup detail SPK"><span aria-hidden="true">&times;</span></button>
+                        <button type="button" class="close mutasi-close-button" id="mutasiMobileClose" data-dismiss="modal"
+                            aria-label="Tutup detail SPK"><span aria-hidden="true">&times;</span></button>
                     </div>
 
                     <div class="modal-body">
@@ -225,13 +226,17 @@
                         if (typeof window.renderMobileItemTabs === 'function') window.renderMobileItemTabs();
                         $('#modalSpk').modal('show');
                         if (window.matchMedia('(max-width: 767.98px)').matches) {
-                            var $firstItem = $('#itemSelect option').filter(function() { return this.value !== ''; }).first();
+                            var $firstItem = $('#itemSelect option').filter(function() {
+                                return this.value !== '';
+                            }).first();
                             if ($firstItem.length) {
                                 $('#itemSelect').val($firstItem.val());
                                 loadSelectedMutasiItem();
-                                if (typeof window.syncMutasiMobileActiveTab === 'function') window.syncMutasiMobileActiveTab();
+                                if (typeof window.syncMutasiMobileActiveTab === 'function') window
+                                    .syncMutasiMobileActiveTab();
                             } else {
-                                $('#itemInfo').html('<div class="alert alert-info">Item belum tersedia untuk SPK ini.</div>');
+                                $('#itemInfo').html(
+                                    '<div class="alert alert-info">Item belum tersedia untuk SPK ini.</div>');
                             }
                         }
                     }
@@ -812,7 +817,7 @@
                     photo = String(photo).trim();
                     if (!photo) return '';
                     if (photo.startsWith('http://') || photo.startsWith('https://') || photo.startsWith('data:image/'))
-                return photo;
+                        return photo;
                     if (photo.startsWith('//')) return window.location.protocol + photo;
                     if (photo.startsWith('/')) return photo;
                     if (photo.startsWith('storage/')) return '/' + photo;
@@ -880,6 +885,7 @@
                         '<div class="mutasi-loading-timeline"><span class="spinner-border spinner-border-sm" role="status"></span> Memuat timeline mutasi...</div>'
                     );
                 }
+
                 function loadSelectedMutasiItem() {
 
                     const requestSequence = ++mutasiItemRequestSequence;
@@ -894,7 +900,8 @@
 
                     let item = items[index];
                     if (!item) {
-                        $('#itemInfo').html('<div class="alert alert-warning">Data item tidak ditemukan. Silakan pilih ulang.</div>');
+                        $('#itemInfo').html(
+                            '<div class="alert alert-warning">Data item tidak ditemukan. Silakan pilih ulang.</div>');
                         return;
                     }
 
@@ -1041,10 +1048,10 @@
                             console.error('Gagal mengambil timeline mutasi:', xhr.responseText);
                             $('#itemInfo').html(
                                 '<div class="alert alert-warning mb-0">Detail item belum dapat dimuat. Silakan pilih item kembali.</div>'
-                                );
+                            );
                             $('#timelineTable').html(
                                 '<div class="alert alert-warning mb-0">Gagal memuat timeline. Periksa koneksi lalu coba lagi.</div>'
-                                );
+                            );
                         }
                     });
 
@@ -1168,7 +1175,8 @@
                         try {
                             select.showPicker();
                         } catch (_) {
-                            /* browser may restrict programmatic picker */ }
+                            /* browser may restrict programmatic picker */
+                        }
                     }
                 });
                 $(document).on('change', '#tbodyTimeline .type', function() {
@@ -1214,7 +1222,12 @@
                             $(this).children('td').first().text(i + 1);
                         });
                         refreshMutasiSummary();
-                        Swal.fire({icon: 'success', title: 'Baris dibatalkan', timer: 1500, showConfirmButton: false});
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Baris dibatalkan',
+                            timer: 1500,
+                            showConfirmButton: false
+                        });
                         return;
                     }
 
@@ -1223,26 +1236,45 @@
                         const deleteResponse = await $.ajax({
                             url: "{{ url('/mutasi/timeline') }}/" + encodeURIComponent(rowId),
                             type: 'DELETE',
-                            headers: {'X-CSRF-TOKEN': "{{ csrf_token() }}"},
-                            data: {spk_id: currentSpkId, detail_po_id: detailPoId}
+                            headers: {
+                                'X-CSRF-TOKEN': "{{ csrf_token() }}"
+                            },
+                            data: {
+                                spk_id: currentSpkId,
+                                detail_po_id: detailPoId
+                            }
                         });
                         if (deleteResponse?.success !== true) {
-                            throw {responseJSON: {message: 'Server tidak mengonfirmasi penghapusan.'}};
+                            throw {
+                                responseJSON: {
+                                    message: 'Server tidak mengonfirmasi penghapusan.'
+                                }
+                            };
                         }
                         // Hapus row langsung agar UI responsif, kemudian sinkronkan dari DB.
                         $row.remove();
                         refreshMutasiSummary();
-                        document.dispatchEvent(new CustomEvent('mutasi:timeline-changed', {detail: {spkId: currentSpkId}}));
+                        document.dispatchEvent(new CustomEvent('mutasi:timeline-changed', {
+                            detail: {
+                                spkId: currentSpkId
+                            }
+                        }));
                         if (String($('#itemSelect').val()) === String(detailPoId)) {
                             $('#itemSelect').trigger('change');
                         }
-                        Swal.fire({icon: 'success', title: 'Mutasi berhasil dihapus', timer: 1700, showConfirmButton: false});
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Mutasi berhasil dihapus',
+                            timer: 1700,
+                            showConfirmButton: false
+                        });
                     } catch (xhr) {
                         $button.prop('disabled', false);
                         Swal.fire({
                             icon: 'error',
                             title: 'Gagal menghapus',
-                            text: xhr.responseJSON?.message || 'Data belum dihapus. Periksa endpoint DELETE di Laravel.'
+                            text: xhr.responseJSON?.message ||
+                                'Data belum dihapus. Periksa endpoint DELETE di Laravel.'
                         });
                     }
                 });
@@ -1367,7 +1399,11 @@
                             // Tetap di modal dan refresh item yang sedang dipilih.
                             // Event change memuat ulang timeline dari database,
                             // menampilkan skeleton loading, lalu menghitung ulang ringkasan.
-                            document.dispatchEvent(new CustomEvent('mutasi:timeline-changed', {detail: {spkId: currentSpkId}}));
+                            document.dispatchEvent(new CustomEvent('mutasi:timeline-changed', {
+                                detail: {
+                                    spkId: currentSpkId
+                                }
+                            }));
                             const selectedDetailPoId = $('#itemSelect').val();
                             if (selectedDetailPoId) {
                                 $('#itemSelect').trigger('change');
@@ -1432,7 +1468,7 @@
 
                 });
                 // Server-side search + load next page ONLY after actual downward scrolling.
-                (function () {
+                (function() {
                     const $body = $('#tbodySpk');
                     const $status = $('#mutasiLoadStatus');
                     const sentinel = document.getElementById('mutasiLoadSentinel');
@@ -1462,13 +1498,18 @@
                             url: endpoint,
                             method: 'GET',
                             dataType: 'json',
-                            data: { page: page, search: keyword },
-                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                        }).done(function (res) {
+                            data: {
+                                page: page,
+                                search: keyword
+                            },
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest'
+                            }
+                        }).done(function(res) {
                             if (version !== generation) return;
                             if (reset) $body.empty();
                             // Remove placeholder from a previously empty first page.
-                            $body.find('tr:not(.pilih-spk)').filter(function () {
+                            $body.find('tr:not(.pilih-spk)').filter(function() {
                                 return $(this).find('td[colspan="6"]').length > 0;
                             }).remove();
                             if (res.html) $body.append(res.html);
@@ -1476,13 +1517,16 @@
                             if (!$body.find('tr.pilih-spk').length) {
                                 $body.html('<tr><td colspan="6" class="text-center">Tidak ada data SPK</td></tr>');
                             }
-                            $status.text(nextPage ? 'Scroll ke bawah untuk memuat SPK berikutnya' : 'Semua hasil sudah ditampilkan');
+                            $status.text(nextPage ? 'Scroll ke bawah untuk memuat SPK berikutnya' :
+                                'Semua hasil sudah ditampilkan');
                             syncCards();
-                        }).fail(function (request, status) {
+                        }).fail(function(request, status) {
                             if (status !== 'abort' && version === generation) {
-                                $status.html('<button type="button" class="btn btn-sm btn-outline-primary" id="retryMutasiLoad">Gagal memuat. Coba lagi</button>');
+                                $status.html(
+                                    '<button type="button" class="btn btn-sm btn-outline-primary" id="retryMutasiLoad">Gagal memuat. Coba lagi</button>'
+                                    );
                             }
-                        }).always(function () {
+                        }).always(function() {
                             if (version !== generation) return;
                             busy = false;
                             xhr = null;
@@ -1505,12 +1549,12 @@
                     }
 
                     $('#searchSpk').off('input.mutasiServer keyup.mutasiServer')
-                        .on('input.mutasiServer', function () {
+                        .on('input.mutasiServer', function() {
                             clearTimeout(searchTimer);
                             searchTimer = setTimeout(restartSearch, 350);
                         });
 
-                    $(document).on('click', '#retryMutasiLoad', function () {
+                    $(document).on('click', '#retryMutasiLoad', function() {
                         loadPage(nextPage === 1);
                     });
 
@@ -1529,28 +1573,36 @@
                             scrollArmed = false;
                         }
                     }
-                    window.addEventListener('scroll', onScroll, { passive: true });
-                    window.addEventListener('wheel', function (event) {
+                    window.addEventListener('scroll', onScroll, {
+                        passive: true
+                    });
+                    window.addEventListener('wheel', function(event) {
                         // Allow another load after a new deliberate downward wheel action.
                         if (event.deltaY > 0) scrollArmed = false;
-                    }, { passive: true });
-                    window.addEventListener('touchstart', function () { scrollArmed = false; }, { passive: true });
+                    }, {
+                        passive: true
+                    });
+                    window.addEventListener('touchstart', function() {
+                        scrollArmed = false;
+                    }, {
+                        passive: true
+                    });
                     $status.text(nextPage ? 'Scroll ke bawah untuk memuat SPK berikutnya' : 'Semua hasil sudah ditampilkan');
                 })();
             </script>
 
             <script>
                 /*
-                            |--------------------------------------------------------------------------
-                            | SPK HOVER PREVIEW + IN
-                            |--------------------------------------------------------------------------
-                            | - Items + Qty dibaca langsung dari data SPK.
-                            | - IN diambil dari endpoint timeline yang SUDAH WORK.
-                            | - Menggunakan fetch native, bukan $.ajax().
-                            | - Tidak menggunakan $.ajax().then().catch().
-                            | - Tidak mengubah click/modal existing.
-                            |--------------------------------------------------------------------------
-                            */
+                                        |--------------------------------------------------------------------------
+                                        | SPK HOVER PREVIEW + IN
+                                        |--------------------------------------------------------------------------
+                                        | - Items + Qty dibaca langsung dari data SPK.
+                                        | - IN diambil dari endpoint timeline yang SUDAH WORK.
+                                        | - Menggunakan fetch native, bukan $.ajax().
+                                        | - Tidak menggunakan $.ajax().then().catch().
+                                        | - Tidak mengubah click/modal existing.
+                                        |--------------------------------------------------------------------------
+                                        */
 
                 (function() {
 
@@ -1722,8 +1774,7 @@
 
 
                         return Array.isArray(items) ?
-                            items :
-                            [];
+                            items : [];
 
                     }
 
@@ -2061,8 +2112,7 @@
                                     })
                                     .then(function(res) {
                                         const timeline = Array.isArray(res.timeline) ?
-                                            res.timeline :
-                                            [];
+                                            res.timeline : [];
 
                                         if (!cache.timeline) cache.timeline = {};
                                         cache.timeline[cacheKey] = timeline;
@@ -2098,8 +2148,7 @@
                                 item.qty_in = qtyIn;
 
                                 const customColumns = Array.isArray(item.custom_columns) ?
-                                    item.custom_columns :
-                                    [];
+                                    item.custom_columns : [];
 
                                 item.hover_components = customColumns.length > 0 ?
                                     getComponentRows(item, timeline) :
@@ -2317,8 +2366,8 @@
 
             <style>
                 /* =========================================================
-                       SPK HOVER PREVIEW
-                       ========================================================= */
+                           SPK HOVER PREVIEW
+                           ========================================================= */
                 #tbodySpk tr.pilih-spk {
                     cursor: pointer;
                     transition: all 0.15s ease;
@@ -2463,8 +2512,8 @@
 
 
                 /* =========================================================
-                                   STICKY HEADER
-                                   ========================================================= */
+                                       STICKY HEADER
+                                       ========================================================= */
 
                 .spk-table-wrap {
                     max-height: calc(100vh - 220px);
@@ -2503,8 +2552,8 @@
                 }
 
                 /* =========================================================
-                                       ITEM DETAIL + COMPONENTS
-                                       ========================================================= */
+                                           ITEM DETAIL + COMPONENTS
+                                           ========================================================= */
 
                 .item-detail-grid {
                     display: grid;
@@ -2729,8 +2778,8 @@
                 }
 
                 /* =========================================================
-                       ITEM PICKER
-                       ========================================================= */
+                           ITEM PICKER
+                           ========================================================= */
 
                 .item-picker-wrap {
                     margin-bottom: 18px;
@@ -2924,8 +2973,8 @@
 
 
                 /* =========================================================
-                       MICRO UI IMPROVEMENT + PERFORMANCE
-                       ========================================================= */
+                           MICRO UI IMPROVEMENT + PERFORMANCE
+                           ========================================================= */
                 .spk-table-wrap {
                     contain: layout paint;
                     border-radius: 12px;
@@ -3665,7 +3714,7 @@
                     }
                 }
             </style>
-        
+
             {{-- Bottom navigation removed per request --}}
             {{-- <nav class="mutasi-mobile-nav" id="mutasiMobileNav" aria-label="Navigasi Monitoring SPK">
                 <a href="#" class="is-active" onclick="event.preventDefault();window.scrollTo({top:0,behavior:'smooth'})"><i class="fas fa-clipboard-list"></i>SPK</a>
@@ -3676,253 +3725,723 @@
             {{-- Mobile-only UI layer: no changes to save/delete/timeline endpoints --}}
             <style>
                 #mutasiPagePreloader {
-                    position: fixed; inset: 0; z-index: 99999;
-                    display: grid; place-items: center;
+                    position: fixed;
+                    inset: 0;
+                    z-index: 99999;
+                    display: grid;
+                    place-items: center;
                     background: #f5f8fd;
                     transition: opacity .22s ease, visibility .22s ease;
                 }
-                #mutasiPagePreloader.is-hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+
+                #mutasiPagePreloader.is-hidden {
+                    opacity: 0;
+                    visibility: hidden;
+                    pointer-events: none;
+                }
+
                 .mutasi-preloader-card {
-                    display: flex; flex-direction: column; align-items: center;
-                    gap: 12px; padding: 30px 36px; background: white;
-                    border: 1px solid #e4ebf5; border-radius: 18px;
-                    box-shadow: 0 14px 44px rgba(26,50,91,.08);
-                    color: #132c54; font-size: 14px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 12px;
+                    padding: 30px 36px;
+                    background: white;
+                    border: 1px solid #e4ebf5;
+                    border-radius: 18px;
+                    box-shadow: 0 14px 44px rgba(26, 50, 91, .08);
+                    color: #132c54;
+                    font-size: 14px;
                 }
-                .mutasi-preloader-card small { color: #71819a; font-size: 12px; }
-                .mobile-item-tabs, .mutasi-mobile-nav { display: none; }
+
+                .mutasi-preloader-card small {
+                    color: #71819a;
+                    font-size: 12px;
+                }
+
+                .mobile-item-tabs,
+                .mutasi-mobile-nav {
+                    display: none;
+                }
+
                 @media (max-width: 767.98px) {
-                    .container-fluid.py-4 { padding: 12px !important; }
-                    .card-header.bg-white { border-radius: 15px 15px 0 0; padding: 14px !important; }
-                    .card-header .d-flex { gap: 12px !important; }
-                    .card-header h4 { font-size: 18px; }
-                    .card-header .d-flex > div:last-child {
-                        min-width: 0 !important; max-width: none !important; width: 100% !important;
+                    .container-fluid.py-4 {
+                        padding: 12px !important;
                     }
-                    .spk-table-wrap { display: none !important; }
-                    #mobileSpkCards { display: grid; gap: 8px; padding-bottom: 78px; }
-                    .mutasi-mobile-nav { display:flex; }
+
+                    .card-header.bg-white {
+                        border-radius: 15px 15px 0 0;
+                        padding: 14px !important;
+                    }
+
+                    .card-header .d-flex {
+                        gap: 12px !important;
+                    }
+
+                    .card-header h4 {
+                        font-size: 18px;
+                    }
+
+                    .card-header .d-flex>div:last-child {
+                        min-width: 0 !important;
+                        max-width: none !important;
+                        width: 100% !important;
+                    }
+
+                    .spk-table-wrap {
+                        display: none !important;
+                    }
+
+                    #mobileSpkCards {
+                        display: grid;
+                        gap: 8px;
+                        padding-bottom: 78px;
+                    }
+
                     .mutasi-mobile-nav {
-                        position: fixed; bottom: 0; left: 0; right: 0; z-index: 1040;
-                        background: white; border-top: 1px solid #e2e9f4;
-                        display: flex; justify-content: space-around;
+                        display: flex;
+                    }
+
+                    .mutasi-mobile-nav {
+                        position: fixed;
+                        bottom: 0;
+                        left: 0;
+                        right: 0;
+                        z-index: 1040;
+                        background: white;
+                        border-top: 1px solid #e2e9f4;
+                        display: flex;
+                        justify-content: space-around;
                         padding: 9px 8px max(9px, env(safe-area-inset-bottom));
-                        box-shadow: 0 -4px 18px rgba(20,48,86,.06);
+                        box-shadow: 0 -4px 18px rgba(20, 48, 86, .06);
                     }
-                    .mutasi-mobile-nav a { display:flex; flex-direction:column; align-items:center; gap:3px;
-                        text-decoration:none; font-size:10px; color:#7a89a1; font-weight:600; }
-                    .mutasi-mobile-nav a.is-active { color:#1d5de5; }
-                    .mutasi-mobile-nav i { font-size:17px; }
-                    .mobile-spk-card { text-align:left; width:100%; font-family:inherit; }
-                    .mobile-spk-card .mobile-spk-buyer { margin:5px 0 4px; }
-                    #modalSpk #itemInfo:empty::after {
-                        content:"Pilih item untuk menampilkan detail dan timeline";
-                        display:block; padding:18px; text-align:center;
-                        color:#71819a; font-size:12px;
+
+                    .mutasi-mobile-nav a {
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        gap: 3px;
+                        text-decoration: none;
+                        font-size: 10px;
+                        color: #7a89a1;
+                        font-weight: 600;
                     }
+
+                    .mutasi-mobile-nav a.is-active {
+                        color: #1d5de5;
+                    }
+
+                    .mutasi-mobile-nav i {
+                        font-size: 17px;
+                    }
+
                     .mobile-spk-card {
-                        background: white; border: 1px solid #e2eaf5;
-                        border-radius: 14px; padding: 13px; cursor: pointer;
-                        box-shadow: 0 3px 12px rgba(16,44,84,.035);
+                        text-align: left;
+                        width: 100%;
+                        font-family: inherit;
                     }
-                    .mobile-spk-card:active { background: #f0f6ff; }
-                    .mobile-spk-top { display:flex; align-items:center; justify-content:space-between; gap:8px; }
-                    .mobile-spk-number { color:#1454c5; font-size:12px; font-weight:800; overflow-wrap:anywhere; }
-                    .mobile-spk-arrow { color:#2365e8; }
-                    .mobile-spk-buyer { color:#172c4b; font-size:13px; font-weight:700; margin:8px 0 5px; }
-                    .mobile-spk-meta { display:flex; flex-wrap:wrap; gap:6px; }
-                    .mobile-spk-meta span { font-size:10px; padding:5px 7px; border-radius:7px; background:#f0f5fb; color:#52647c; }
-                    #spkHoverPreview { display:none !important; }
+
+                    .mobile-spk-card .mobile-spk-buyer {
+                        margin: 5px 0 4px;
+                    }
+
+                    #modalSpk #itemInfo:empty::after {
+                        content: "Pilih item untuk menampilkan detail dan timeline";
+                        display: block;
+                        padding: 18px;
+                        text-align: center;
+                        color: #71819a;
+                        font-size: 12px;
+                    }
+
+                    .mobile-spk-card {
+                        background: white;
+                        border: 1px solid #e2eaf5;
+                        border-radius: 14px;
+                        padding: 13px;
+                        cursor: pointer;
+                        box-shadow: 0 3px 12px rgba(16, 44, 84, .035);
+                    }
+
+                    .mobile-spk-card:active {
+                        background: #f0f6ff;
+                    }
+
+                    .mobile-spk-top {
+                        display: flex;
+                        align-items: center;
+                        justify-content: space-between;
+                        gap: 8px;
+                    }
+
+                    .mobile-spk-number {
+                        color: #1454c5;
+                        font-size: 12px;
+                        font-weight: 800;
+                        overflow-wrap: anywhere;
+                    }
+
+                    .mobile-spk-arrow {
+                        color: #2365e8;
+                    }
+
+                    .mobile-spk-buyer {
+                        color: #172c4b;
+                        font-size: 13px;
+                        font-weight: 700;
+                        margin: 8px 0 5px;
+                    }
+
+                    .mobile-spk-meta {
+                        display: flex;
+                        flex-wrap: wrap;
+                        gap: 6px;
+                    }
+
+                    .mobile-spk-meta span {
+                        font-size: 10px;
+                        padding: 5px 7px;
+                        border-radius: 7px;
+                        background: #f0f5fb;
+                        color: #52647c;
+                    }
+
+                    #spkHoverPreview {
+                        display: none !important;
+                    }
+
                     #modalSpk .modal-dialog.modal-custom {
-                        width:100% !important; max-width:none !important;
-                        margin:0 !important; height:100dvh !important;
+                        width: 100% !important;
+                        max-width: none !important;
+                        margin: 0 !important;
+                        height: 100dvh !important;
                     }
+
                     #modalSpk .modal-content {
-                        height:100dvh !important; max-height:100dvh !important;
-                        border:0 !important; border-radius:0 !important;
+                        height: 100dvh !important;
+                        max-height: 100dvh !important;
+                        border: 0 !important;
+                        border-radius: 0 !important;
                     }
-                    #modalSpk .modal-header { padding:14px 16px !important; }
-                    #modalSpk .modal-title { font-size:15px !important; overflow-wrap:anywhere; }
-                    #modalSpk .modal-body { padding:12px !important; padding-top:12px !important; overflow-y:auto !important; }
-                    #modalSpk .item-picker-wrap { display:none !important; }
+
+                    #modalSpk .modal-header {
+                        padding: 14px 16px !important;
+                    }
+
+                    #modalSpk .modal-title {
+                        font-size: 15px !important;
+                        overflow-wrap: anywhere;
+                    }
+
+                    #modalSpk .modal-body {
+                        padding: 12px !important;
+                        padding-top: 12px !important;
+                        overflow-y: auto !important;
+                    }
+
+                    #modalSpk .item-picker-wrap {
+                        display: none !important;
+                    }
+
                     #modalSpk .mobile-item-tabs {
-                        display:flex; align-items:center; position:relative;
-                        gap:4px; margin:0 0 8px; min-width:0;
+                        display: flex;
+                        align-items: center;
+                        position: relative;
+                        gap: 4px;
+                        margin: 0 0 8px;
+                        min-width: 0;
                     }
+
                     #modalSpk .mobile-item-tabs-track {
-                        position:relative; z-index:2;
-                        display:flex; flex:1; gap:5px; min-width:0;
-                        overflow-x:auto; scroll-behavior:smooth;
-                        scroll-snap-type:x proximity; padding:2px 3px 5px 2px;
-                        scrollbar-width:none;
+                        position: relative;
+                        z-index: 2;
+                        display: flex;
+                        flex: 1;
+                        gap: 5px;
+                        min-width: 0;
+                        overflow-x: auto;
+                        scroll-behavior: smooth;
+                        scroll-snap-type: x proximity;
+                        padding: 2px 3px 5px 2px;
+                        scrollbar-width: none;
                     }
-                    #modalSpk .mobile-item-tabs-track::-webkit-scrollbar { display:none; }
+
+                    #modalSpk .mobile-item-tabs-track::-webkit-scrollbar {
+                        display: none;
+                    }
+
                     #modalSpk .mobile-item-tab {
-                        position:relative; z-index:2; pointer-events:auto !important;
-                        cursor:pointer; touch-action:manipulation;
-                        flex:0 0 116px; max-width:116px; min-height:45px;
-                        display:flex; align-items:center; gap:5px; text-align:left;
-                        background:#fff; border:1px solid #e3eaf4; border-radius:8px;
-                        padding:5px; color:#243b5b; scroll-snap-align:start;
+                        position: relative;
+                        z-index: 2;
+                        pointer-events: auto !important;
+                        cursor: pointer;
+                        touch-action: manipulation;
+                        flex: 0 0 116px;
+                        max-width: 116px;
+                        min-height: 45px;
+                        display: flex;
+                        align-items: center;
+                        gap: 5px;
+                        text-align: left;
+                        background: #fff;
+                        border: 1px solid #e3eaf4;
+                        border-radius: 8px;
+                        padding: 5px;
+                        color: #243b5b;
+                        scroll-snap-align: start;
                     }
+
                     #modalSpk .mobile-item-tab.is-active {
-                        border-color:#2563eb; background:#edf5ff;
-                        box-shadow:0 0 0 1px #2563eb inset;
+                        border-color: #2563eb;
+                        background: #edf5ff;
+                        box-shadow: 0 0 0 1px #2563eb inset;
                     }
+
                     #modalSpk .mobile-item-tab img {
-                        width:30px; height:32px; object-fit:cover; border-radius:5px;
-                        background:#f3f6fa; flex-shrink:0;
+                        width: 30px;
+                        height: 32px;
+                        object-fit: cover;
+                        border-radius: 5px;
+                        background: #f3f6fa;
+                        flex-shrink: 0;
                     }
-                    #modalSpk .mobile-item-tab-label { min-width:0; }
+
+                    #modalSpk .mobile-item-tab-label {
+                        min-width: 0;
+                    }
+
                     #modalSpk .mobile-item-tab-code {
-                        display:block; color:#174fc1; font-size:9px; font-weight:800;
-                        white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+                        display: block;
+                        color: #174fc1;
+                        font-size: 9px;
+                        font-weight: 800;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
                     }
-                    #modalSpk .mobile-item-tab-qty { display:block; font-size:9px; color:#71809a; margin-top:2px; }
+
+                    #modalSpk .mobile-item-tab-qty {
+                        display: block;
+                        font-size: 9px;
+                        color: #71809a;
+                        margin-top: 2px;
+                    }
+
                     #modalSpk .mobile-item-next {
-                        flex:0 0 28px; height:34px; border:1px solid #d9e6fb;
-                        border-radius:11px; background:#fff; color:#1763e5;
-                        box-shadow:0 3px 12px rgba(25,86,179,.10);
+                        flex: 0 0 28px;
+                        height: 34px;
+                        border: 1px solid #d9e6fb;
+                        border-radius: 11px;
+                        background: #fff;
+                        color: #1763e5;
+                        box-shadow: 0 3px 12px rgba(25, 86, 179, .10);
                     }
-                    #modalSpk .mobile-item-next:disabled { opacity:.35; }
-                    #modalSpk .item-detail-grid { grid-template-columns:minmax(0,1fr) !important; }
-                    #modalSpk .item-detail-card { min-width:0; }
-                    #modalSpk .item-detail-card-header { flex-wrap:wrap; gap:7px; }
-                    #modalSpk .item-detail-title, #modalSpk .component-name { overflow-wrap:anywhere; }
-                    #modalSpk .component-table-wrap { overflow-x:auto; }
-                    #modalSpk .component-table { min-width:330px; }
-                    #modalSpk .rnd-service-grid { grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
-                    #modalSpk #timelineTable { max-height:none !important; overflow:visible !important; }
-                    #modalSpk #timelineTable > table,
-                    #modalSpk #timelineTable > table tbody,
-                    #modalSpk #timelineTable > table tr,
-                    #modalSpk #timelineTable > table td { display:block; width:100%; }
-                    #modalSpk #timelineTable > table { border:0 !important; }
-                    #modalSpk #timelineTable > table thead { display:none; }
-                    #modalSpk #timelineTable > table tbody tr {
-                        margin:0 0 12px; padding:12px; background:#fff;
-                        border:1px solid #e0e8f4; border-radius:12px;
+
+                    #modalSpk .mobile-item-next:disabled {
+                        opacity: .35;
                     }
-                    #modalSpk #timelineTable > table tbody td {
-                        border:0 !important; padding:5px 0 !important;
-                        display:grid; grid-template-columns:70px minmax(0,1fr);
-                        gap:8px; align-items:center;
+
+                    #modalSpk .item-detail-grid {
+                        grid-template-columns: minmax(0, 1fr) !important;
                     }
-                    #modalSpk #timelineTable > table tbody td::before {
-                        font-size:11px; font-weight:700; color:#667894;
+
+                    #modalSpk .item-detail-card {
+                        min-width: 0;
                     }
-                    #modalSpk #timelineTable > table tbody td:nth-child(1)::before { content:"No"; }
-                    #modalSpk #timelineTable > table tbody td:nth-child(2)::before { content:"Tanggal"; }
-                    #modalSpk #timelineTable > table tbody td:nth-child(3)::before { content:"Type"; }
-                    #modalSpk #timelineTable > table tbody td:nth-child(4)::before { content:"Qty"; }
-                    #modalSpk #timelineTable > table tbody td:nth-child(5)::before { content:"Remark"; }
-                    #modalSpk #timelineTable > table tbody td:nth-child(6)::before { content:"Aksi"; }
-                    #modalSpk #timelineTable .tanggal, #modalSpk #timelineTable .type,
-                    #modalSpk #timelineTable .qty, #modalSpk #timelineTable .remark {
-                        width:100%; min-width:0; font-size:16px !important;
+
+                    #modalSpk .item-detail-card-header {
+                        flex-wrap: wrap;
+                        gap: 7px;
                     }
-                    #modalSpk #timelineTable > .d-flex { gap:10px; }
-                    #modalSpk #timelineTable > .d-flex .btn {
-                        flex:1; min-height:42px; font-size:12px;
+
+                    #modalSpk .item-detail-title,
+                    #modalSpk .component-name {
+                        overflow-wrap: anywhere;
                     }
-                    #modalSpk .mutasi-loading-grid { grid-template-columns:1fr !important; }
-                }
-                /* V9: mobile-only compact dashboard + editable timeline table */
-                @media (max-width: 767.98px) {
-                    #mobileSpkCards { gap: 0 !important; padding-bottom: 76px !important; background:#fff;
-                        border:1px solid #e8eef7; border-radius:12px; overflow:hidden; }
-                    #mobileSpkCards .mobile-spk-card {
-                        border:0 !important; border-bottom:1px solid #edf1f7 !important;
-                        border-radius:0 !important; box-shadow:none !important;
-                        display:flex; align-items:center; gap:10px; padding:11px 9px !important;
-                        min-height:82px; background:#fff !important;
+
+                    #modalSpk .component-table-wrap {
+                        overflow-x: auto;
                     }
-                    #mobileSpkCards .mobile-spk-card:active { background:#eef5ff !important; }
-                    #mobileSpkCards .mobile-spk-index { flex:0 0 25px; width:25px; height:27px;
-                        display:grid; place-items:center; border-radius:8px; background:#edf4ff;
-                        color:#2458b8; font-weight:800; font-size:11px; }
-                    #mobileSpkCards .mobile-spk-content { flex:1; min-width:0; }
-                    #mobileSpkCards .mobile-spk-top { display:block; }
-                    #mobileSpkCards .mobile-spk-number { font-size:11px; line-height:1.4; }
-                    #mobileSpkCards .mobile-spk-buyer { font-size:11px; margin:3px 0 !important; }
-                    #mobileSpkCards .mobile-spk-meta { display:block; }
-                    #mobileSpkCards .mobile-spk-meta span { display:block; background:none;
-                        border-radius:0; padding:0; font-size:10px; line-height:1.55; }
-                    #mobileSpkCards .mobile-spk-arrow { flex:0 0 18px; color:#244b8e; }
-                    #mobileSpkCards .mobile-spk-detail-label { flex:0 0 auto; display:inline-flex;
-                        align-items:center; justify-content:center; padding:6px 9px;
-                        border-radius:7px; background:#edf4ff; color:#2458b8;
-                        font-size:10px; font-weight:800; white-space:nowrap; }
-                    #modalSpk #timelineTable { width:100%; overflow-x:auto !important; }
-                    #modalSpk #timelineTable > table { display:table !important; width:100% !important;
-                        min-width:0 !important; border-collapse:collapse !important; table-layout:fixed !important;
-                        font-size:10px !important; }
-                    #modalSpk #timelineTable > table thead { display:table-header-group !important; }
-                    #modalSpk #timelineTable > table tbody { display:table-row-group !important; }
-                    #modalSpk #timelineTable > table tr { display:table-row !important; }
-                    #modalSpk #timelineTable > table th,
-                    #modalSpk #timelineTable > table td { display:table-cell !important;
-                        width:auto !important; border:1px solid #e5ebf4 !important;
-                        padding:5px 3px !important; vertical-align:middle !important; }
-                    #modalSpk #timelineTable > table thead th { position:sticky; top:0; z-index:2;
-                        background:#eef3fb !important; color:#32445f !important;
-                        font-size:9px !important; white-space:nowrap; }
-                    #modalSpk #timelineTable > table tbody tr { margin:0 !important;
-                        background:#fff !important; border:0 !important; border-radius:0 !important; }
-                    #modalSpk #timelineTable > table tbody td::before { display:none !important; content:none !important; }
-                    #modalSpk #timelineTable > table th:nth-child(1),
-                    #modalSpk #timelineTable > table td:nth-child(1) { width:7% !important; text-align:center; }
-                    #modalSpk #timelineTable > table th:nth-child(2),
-                    #modalSpk #timelineTable > table td:nth-child(2) { width:27% !important; }
-                    #modalSpk #timelineTable > table th:nth-child(3),
-                    #modalSpk #timelineTable > table td:nth-child(3) { width:23% !important; }
-                    #modalSpk #timelineTable > table th:nth-child(4),
-                    #modalSpk #timelineTable > table td:nth-child(4) { width:12% !important; }
-                    #modalSpk #timelineTable > table th:nth-child(5),
-                    #modalSpk #timelineTable > table td:nth-child(5) { width:18% !important; }
-                    #modalSpk #timelineTable > table th:nth-child(6),
-                    #modalSpk #timelineTable > table td:nth-child(6) { width:13% !important; text-align:center; }
+
+                    #modalSpk .component-table {
+                        min-width: 330px;
+                    }
+
+                    #modalSpk .rnd-service-grid {
+                        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                    }
+
+                    #modalSpk #timelineTable {
+                        max-height: none !important;
+                        overflow: visible !important;
+                    }
+
+                    #modalSpk #timelineTable>table,
+                    #modalSpk #timelineTable>table tbody,
+                    #modalSpk #timelineTable>table tr,
+                    #modalSpk #timelineTable>table td {
+                        display: block;
+                        width: 100%;
+                    }
+
+                    #modalSpk #timelineTable>table {
+                        border: 0 !important;
+                    }
+
+                    #modalSpk #timelineTable>table thead {
+                        display: none;
+                    }
+
+                    #modalSpk #timelineTable>table tbody tr {
+                        margin: 0 0 12px;
+                        padding: 12px;
+                        background: #fff;
+                        border: 1px solid #e0e8f4;
+                        border-radius: 12px;
+                    }
+
+                    #modalSpk #timelineTable>table tbody td {
+                        border: 0 !important;
+                        padding: 5px 0 !important;
+                        display: grid;
+                        grid-template-columns: 70px minmax(0, 1fr);
+                        gap: 8px;
+                        align-items: center;
+                    }
+
+                    #modalSpk #timelineTable>table tbody td::before {
+                        font-size: 11px;
+                        font-weight: 700;
+                        color: #667894;
+                    }
+
+                    #modalSpk #timelineTable>table tbody td:nth-child(1)::before {
+                        content: "No";
+                    }
+
+                    #modalSpk #timelineTable>table tbody td:nth-child(2)::before {
+                        content: "Tanggal";
+                    }
+
+                    #modalSpk #timelineTable>table tbody td:nth-child(3)::before {
+                        content: "Type";
+                    }
+
+                    #modalSpk #timelineTable>table tbody td:nth-child(4)::before {
+                        content: "Qty";
+                    }
+
+                    #modalSpk #timelineTable>table tbody td:nth-child(5)::before {
+                        content: "Remark";
+                    }
+
+                    #modalSpk #timelineTable>table tbody td:nth-child(6)::before {
+                        content: "Aksi";
+                    }
+
                     #modalSpk #timelineTable .tanggal,
                     #modalSpk #timelineTable .type,
                     #modalSpk #timelineTable .qty,
-                    #modalSpk #timelineTable .remark { display:block !important; width:100% !important;
-                        min-width:0 !important; height:30px !important; padding:3px 2px !important;
-                        font-size:10px !important; border-radius:5px !important; }
-                    #modalSpk #timelineTable .hapus-row { padding:5px 6px !important; font-size:11px !important; }
-                    #modalSpk #timelineTable > .d-flex { margin-top:10px; }
+                    #modalSpk #timelineTable .remark {
+                        width: 100%;
+                        min-width: 0;
+                        font-size: 16px !important;
+                    }
+
+                    #modalSpk #timelineTable>.d-flex {
+                        gap: 10px;
+                    }
+
+                    #modalSpk #timelineTable>.d-flex .btn {
+                        flex: 1;
+                        min-height: 42px;
+                        font-size: 12px;
+                    }
+
+                    #modalSpk .mutasi-loading-grid {
+                        grid-template-columns: 1fr !important;
+                    }
                 }
+
+                /* V9: mobile-only compact dashboard + editable timeline table */
                 @media (max-width: 767.98px) {
-                    #mobileSpkCards { padding-bottom: 12px !important; }
-                    #modalSpk .modal-header { position:sticky; top:0; z-index:1055; background:#fff; }
-                    #modalSpk #mutasiMobileClose { display:flex !important; align-items:center; justify-content:center;
-                        width:32px !important; height:32px !important; min-width:32px; opacity:1 !important;
-                        cursor:pointer; pointer-events:auto !important; background-color:#f1f5fa;
-                        border-radius:50%; }
-                    #modalSpk #mutasiMobileClose span { font-size:25px; line-height:1; color:#334155; }
-                    #modalSpk #mobileItemNext { cursor:pointer; pointer-events:auto !important; }
+                    #mobileSpkCards {
+                        gap: 0 !important;
+                        padding-bottom: 76px !important;
+                        background: #fff;
+                        border: 1px solid #e8eef7;
+                        border-radius: 12px;
+                        overflow: hidden;
+                    }
+
+                    #mobileSpkCards .mobile-spk-card {
+                        border: 0 !important;
+                        border-bottom: 1px solid #edf1f7 !important;
+                        border-radius: 0 !important;
+                        box-shadow: none !important;
+                        display: flex;
+                        align-items: center;
+                        gap: 10px;
+                        padding: 11px 9px !important;
+                        min-height: 82px;
+                        background: #fff !important;
+                    }
+
+                    #mobileSpkCards .mobile-spk-card:active {
+                        background: #eef5ff !important;
+                    }
+
+                    #mobileSpkCards .mobile-spk-index {
+                        flex: 0 0 25px;
+                        width: 25px;
+                        height: 27px;
+                        display: grid;
+                        place-items: center;
+                        border-radius: 8px;
+                        background: #edf4ff;
+                        color: #2458b8;
+                        font-weight: 800;
+                        font-size: 11px;
+                    }
+
+                    #mobileSpkCards .mobile-spk-content {
+                        flex: 1;
+                        min-width: 0;
+                    }
+
+                    #mobileSpkCards .mobile-spk-top {
+                        display: block;
+                    }
+
+                    #mobileSpkCards .mobile-spk-number {
+                        font-size: 11px;
+                        line-height: 1.4;
+                    }
+
+                    #mobileSpkCards .mobile-spk-buyer {
+                        font-size: 11px;
+                        margin: 3px 0 !important;
+                    }
+
+                    #mobileSpkCards .mobile-spk-meta {
+                        display: block;
+                    }
+
+                    #mobileSpkCards .mobile-spk-meta span {
+                        display: block;
+                        background: none;
+                        border-radius: 0;
+                        padding: 0;
+                        font-size: 10px;
+                        line-height: 1.55;
+                    }
+
+                    #mobileSpkCards .mobile-spk-arrow {
+                        flex: 0 0 18px;
+                        color: #244b8e;
+                    }
+
+                    #mobileSpkCards .mobile-spk-detail-label {
+                        flex: 0 0 auto;
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                        padding: 6px 9px;
+                        border-radius: 7px;
+                        background: #edf4ff;
+                        color: #2458b8;
+                        font-size: 10px;
+                        font-weight: 800;
+                        white-space: nowrap;
+                    }
+
+                    #modalSpk #timelineTable {
+                        width: 100%;
+                        overflow-x: auto !important;
+                    }
+
+                    #modalSpk #timelineTable>table {
+                        display: table !important;
+                        width: 100% !important;
+                        min-width: 0 !important;
+                        border-collapse: collapse !important;
+                        table-layout: fixed !important;
+                        font-size: 10px !important;
+                    }
+
+                    #modalSpk #timelineTable>table thead {
+                        display: table-header-group !important;
+                    }
+
+                    #modalSpk #timelineTable>table tbody {
+                        display: table-row-group !important;
+                    }
+
+                    #modalSpk #timelineTable>table tr {
+                        display: table-row !important;
+                    }
+
+                    #modalSpk #timelineTable>table th,
+                    #modalSpk #timelineTable>table td {
+                        display: table-cell !important;
+                        width: auto !important;
+                        border: 1px solid #e5ebf4 !important;
+                        padding: 5px 3px !important;
+                        vertical-align: middle !important;
+                    }
+
+                    #modalSpk #timelineTable>table thead th {
+                        position: sticky;
+                        top: 0;
+                        z-index: 2;
+                        background: #eef3fb !important;
+                        color: #32445f !important;
+                        font-size: 9px !important;
+                        white-space: nowrap;
+                    }
+
+                    #modalSpk #timelineTable>table tbody tr {
+                        margin: 0 !important;
+                        background: #fff !important;
+                        border: 0 !important;
+                        border-radius: 0 !important;
+                    }
+
+                    #modalSpk #timelineTable>table tbody td::before {
+                        display: none !important;
+                        content: none !important;
+                    }
+
+                    #modalSpk #timelineTable>table th:nth-child(1),
+                    #modalSpk #timelineTable>table td:nth-child(1) {
+                        width: 7% !important;
+                        text-align: center;
+                    }
+
+                    #modalSpk #timelineTable>table th:nth-child(2),
+                    #modalSpk #timelineTable>table td:nth-child(2) {
+                        width: 27% !important;
+                    }
+
+                    #modalSpk #timelineTable>table th:nth-child(3),
+                    #modalSpk #timelineTable>table td:nth-child(3) {
+                        width: 23% !important;
+                    }
+
+                    #modalSpk #timelineTable>table th:nth-child(4),
+                    #modalSpk #timelineTable>table td:nth-child(4) {
+                        width: 12% !important;
+                    }
+
+                    #modalSpk #timelineTable>table th:nth-child(5),
+                    #modalSpk #timelineTable>table td:nth-child(5) {
+                        width: 18% !important;
+                    }
+
+                    #modalSpk #timelineTable>table th:nth-child(6),
+                    #modalSpk #timelineTable>table td:nth-child(6) {
+                        width: 13% !important;
+                        text-align: center;
+                    }
+
+                    #modalSpk #timelineTable .tanggal,
+                    #modalSpk #timelineTable .type,
+                    #modalSpk #timelineTable .qty,
+                    #modalSpk #timelineTable .remark {
+                        display: block !important;
+                        width: 100% !important;
+                        min-width: 0 !important;
+                        height: 30px !important;
+                        padding: 3px 2px !important;
+                        font-size: 10px !important;
+                        border-radius: 5px !important;
+                    }
+
+                    #modalSpk #timelineTable .hapus-row {
+                        padding: 5px 6px !important;
+                        font-size: 11px !important;
+                    }
+
+                    #modalSpk #timelineTable>.d-flex {
+                        margin-top: 10px;
+                    }
                 }
+
+                @media (max-width: 767.98px) {
+                    #mobileSpkCards {
+                        padding-bottom: 12px !important;
+                    }
+
+                    #modalSpk .modal-header {
+                        position: sticky;
+                        top: 0;
+                        z-index: 1055;
+                        background: #fff;
+                    }
+
+                    #modalSpk #mutasiMobileClose {
+                        display: flex !important;
+                        align-items: center;
+                        justify-content: center;
+                        width: 32px !important;
+                        height: 32px !important;
+                        min-width: 32px;
+                        opacity: 1 !important;
+                        cursor: pointer;
+                        pointer-events: auto !important;
+                        background-color: #f1f5fa;
+                        border-radius: 50%;
+                    }
+
+                    #modalSpk #mutasiMobileClose span {
+                        font-size: 25px;
+                        line-height: 1;
+                        color: #334155;
+                    }
+
+                    #modalSpk #mobileItemNext {
+                        cursor: pointer;
+                        pointer-events: auto !important;
+                    }
+                }
+
                 /* V12: keep focused transaction inputs visible above the mobile keyboard */
                 @media (max-width: 767.98px) {
+
                     #modalSpk .modal-dialog.modal-custom,
                     #modalSpk .modal-content {
                         height: var(--mutasi-visible-height, 100dvh) !important;
                         max-height: var(--mutasi-visible-height, 100dvh) !important;
                     }
-                    #modalSpk .modal-content { display:flex !important; flex-direction:column !important; }
-                    #modalSpk .modal-header { flex:0 0 auto; }
-                    #modalSpk .modal-body {
-                        flex:1 1 auto !important; min-height:0 !important;
-                        overflow-y:auto !important; overscroll-behavior:contain;
-                        -webkit-overflow-scrolling:touch;
-                        padding-bottom:24px !important;
+
+                    #modalSpk .modal-content {
+                        display: flex !important;
+                        flex-direction: column !important;
                     }
+
+                    #modalSpk .modal-header {
+                        flex: 0 0 auto;
+                    }
+
+                    #modalSpk .modal-body {
+                        flex: 1 1 auto !important;
+                        min-height: 0 !important;
+                        overflow-y: auto !important;
+                        overscroll-behavior: contain;
+                        -webkit-overflow-scrolling: touch;
+                        padding-bottom: 24px !important;
+                    }
+
                     #modalSpk #timelineTable input,
                     #modalSpk #timelineTable select,
-                    #modalSpk #timelineTable textarea { scroll-margin-block:85px 30px; }
+                    #modalSpk #timelineTable textarea {
+                        scroll-margin-block: 85px 30px;
+                    }
                 }
+
                 /* V14: mobile search/header remains visible while scrolling the SPK list. */
                 @media (max-width: 767.98px) {
-                    .container-fluid.py-4 > .card-header.bg-white {
+                    .container-fluid.py-4>.card-header.bg-white {
                         position: sticky !important;
                         top: 0 !important;
                         z-index: 1020 !important;
@@ -3933,60 +4452,91 @@
                         padding: 10px 12px !important;
                         margin-bottom: 8px;
                     }
-                    .container-fluid.py-4 > .card-header.bg-white .d-flex {
+
+                    .container-fluid.py-4>.card-header.bg-white .d-flex {
                         gap: 7px !important;
                     }
-                    .container-fluid.py-4 > .card-header.bg-white h4 {
+
+                    .container-fluid.py-4>.card-header.bg-white h4 {
                         font-size: 15px !important;
                     }
-                    .container-fluid.py-4 > .card-header.bg-white small {
+
+                    .container-fluid.py-4>.card-header.bg-white small {
                         font-size: 10px !important;
                         line-height: 1.35;
                         display: block;
                     }
-                    .container-fluid.py-4 > .card-header.bg-white #searchSpk {
+
+                    .container-fluid.py-4>.card-header.bg-white #searchSpk {
                         min-height: 36px;
                         font-size: 12px;
                     }
-                    .container-fluid.py-4 > .card-header.bg-white .input-group-text {
+
+                    .container-fluid.py-4>.card-header.bg-white .input-group-text {
                         padding: 7px 10px;
                     }
-                    .container-fluid.py-4 > .card-body { overflow: visible !important; }
+
+                    .container-fluid.py-4>.card-body {
+                        overflow: visible !important;
+                    }
                 }
-                @media (min-width: 768px) { #mobileSpkCards { display:none !important; } }
+
+                @media (min-width: 768px) {
+                    #mobileSpkCards {
+                        display: none !important;
+                    }
+                }
+
                 @media (prefers-reduced-motion: reduce) {
-                    #mutasiPagePreloader, #modalSpk .mobile-item-tabs-track { transition:none; scroll-behavior:auto; }
+
+                    #mutasiPagePreloader,
+                    #modalSpk .mobile-item-tabs-track {
+                        transition: none;
+                        scroll-behavior: auto;
+                    }
                 }
             </style>
             <script>
-                (function () {
+                (function() {
                     // Preload initial page only; never block existing AJAX actions.
                     function hidePagePreloader() {
                         var el = document.getElementById('mutasiPagePreloader');
                         if (!el) return;
                         el.classList.add('is-hidden');
-                        setTimeout(function () { if (el.parentNode) el.remove(); }, 300);
+                        setTimeout(function() {
+                            if (el.parentNode) el.remove();
+                        }, 300);
                     }
                     if (document.readyState === 'loading') {
-                        document.addEventListener('DOMContentLoaded', hidePagePreloader, {once:true});
+                        document.addEventListener('DOMContentLoaded', hidePagePreloader, {
+                            once: true
+                        });
                     } else {
                         hidePagePreloader();
                     }
-                    window.addEventListener('load', hidePagePreloader, {once:true});
+                    window.addEventListener('load', hidePagePreloader, {
+                        once: true
+                    });
 
                     // iOS/Android keyboard: resize modal to visual viewport and reveal active field.
                     (function setupMobileKeyboardScroll() {
                         var modal = document.getElementById('modalSpk');
                         if (!modal) return;
                         var pending;
-                        function isMobile() { return window.matchMedia('(max-width: 767.98px)').matches; }
+
+                        function isMobile() {
+                            return window.matchMedia('(max-width: 767.98px)').matches;
+                        }
+
                         function updateViewport() {
                             if (!isMobile()) return;
                             var height = window.visualViewport ? window.visualViewport.height : window.innerHeight;
                             modal.style.setProperty('--mutasi-visible-height', Math.round(height) + 'px');
                             // visualViewport may be offset when the browser pans the layout.
-                            modal.style.top = window.visualViewport ? Math.round(window.visualViewport.offsetTop) + 'px' : '0px';
+                            modal.style.top = window.visualViewport ? Math.round(window.visualViewport.offsetTop) + 'px' :
+                                '0px';
                         }
+
                         function revealFocusedInput() {
                             if (!isMobile() || !modal.classList.contains('show')) return;
                             var field = document.activeElement;
@@ -4003,6 +4553,7 @@
                                 scroller.scrollTop -= topSafe - fieldRect.top;
                             }
                         }
+
                         function refreshFocusedInput() {
                             updateViewport();
                             clearTimeout(pending);
@@ -4025,11 +4576,19 @@
                         });
                         updateViewport();
                     })();
+
                     function escapeText(value) {
                         return String(value == null ? '' : value).replace(/[&<>"']/g, function(c) {
-                            return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+                            return {
+                                '&': '&amp;',
+                                '<': '&lt;',
+                                '>': '&gt;',
+                                '"': '&quot;',
+                                "'": '&#39;'
+                            } [c];
                         });
                     }
+
                     function buildMobileSpkCards() {
                         var body = document.getElementById('tbodySpk');
                         if (!body) return;
@@ -4037,37 +4596,50 @@
                         if (!container) {
                             container = document.createElement('div');
                             container.id = 'mobileSpkCards';
-                            container.setAttribute('aria-label','Daftar SPK');
+                            container.setAttribute('aria-label', 'Daftar SPK');
                             var wrap = document.querySelector('.spk-table-wrap');
-                            if (wrap) wrap.insertAdjacentElement('afterend',container);
+                            if (wrap) wrap.insertAdjacentElement('afterend', container);
                         }
                         container.innerHTML = '';
                         body.querySelectorAll('tr.pilih-spk').forEach(function(row) {
                             var td = row.querySelectorAll('td');
                             var card = document.createElement('button');
-                            card.type='button'; card.className='mobile-spk-card';
+                            card.type = 'button';
+                            card.className = 'mobile-spk-card';
                             card.dataset.search = row.getAttribute('data-search') || '';
                             card.innerHTML =
-                                '<span class="mobile-spk-index">'+escapeText(td[0]?.textContent.trim() || '-')+'</span>'+
-                                '<span class="mobile-spk-content">'+
-                                '<span class="mobile-spk-top"><span class="mobile-spk-number">'+escapeText(td[1]?.textContent.trim() || '-')+'</span></span>'+
-                                '<span class="mobile-spk-buyer">'+escapeText(td[3]?.textContent.trim() || '-')+'</span>'+
-                                '<span class="mobile-spk-meta"><span>PO: '+escapeText(td[2]?.textContent.trim() || '-')+'</span>'+
-                                '<span>Jenis: '+escapeText(td[4]?.textContent.trim() || '-')+'</span>'+
-                                '<span>Supplier: '+escapeText(td[5]?.textContent.trim() || '-')+'</span></span></span>'+
+                                '<span class="mobile-spk-index">' + escapeText(td[0]?.textContent.trim() || '-') +
+                                '</span>' +
+                                '<span class="mobile-spk-content">' +
+                                '<span class="mobile-spk-top"><span class="mobile-spk-number">' + escapeText(td[1]
+                                    ?.textContent.trim() || '-') + '</span></span>' +
+                                '<span class="mobile-spk-buyer">' + escapeText(td[3]?.textContent.trim() || '-') +
+                                '</span>' +
+                                '<span class="mobile-spk-meta"><span>PO: ' + escapeText(td[2]?.textContent.trim() ||
+                                    '-') + '</span>' +
+                                '<span>Jenis: ' + escapeText(td[4]?.textContent.trim() || '-') + '</span>' +
+                                '<span>Supplier: ' + escapeText(td[5]?.textContent.trim() || '-') +
+                                '</span></span></span>' +
                                 '<span class="mobile-spk-detail-label" aria-hidden="true">Detail</span>';
-                            card.addEventListener('click',function(){ row.click(); });
+                            card.addEventListener('click', function() {
+                                row.click();
+                            });
                             container.appendChild(card);
                         });
                         if (!container.children.length) {
-                            container.innerHTML='<div class="text-center text-muted p-4">Tidak ada data SPK</div>';
+                            container.innerHTML = '<div class="text-center text-muted p-4">Tidak ada data SPK</div>';
                         }
                     }
-                    window.mutasiRebuildMobileCards = function() { buildMobileSpkCards(); syncMobileSearch(); };
+                    window.mutasiRebuildMobileCards = function() {
+                        buildMobileSpkCards();
+                        syncMobileSearch();
+                    };
+
                     function syncMobileSearch() {
                         var term = (document.getElementById('searchSpk')?.value || '').toLowerCase().trim();
-                        document.querySelectorAll('#mobileSpkCards .mobile-spk-card').forEach(function(card){
-                            card.style.display = String(card.dataset.search || '').toLowerCase().includes(term) ? '' : 'none';
+                        document.querySelectorAll('#mobileSpkCards .mobile-spk-card').forEach(function(card) {
+                            card.style.display = String(card.dataset.search || '').toLowerCase().includes(term) ? '' :
+                                'none';
                         });
                     }
                     window.renderMobileItemTabs = function() {
@@ -4077,23 +4649,29 @@
                         track.innerHTML = '';
                         (Array.isArray(items) ? items : []).forEach(function(item, index) {
                             var button = document.createElement('button');
-                            button.type='button'; button.className='mobile-item-tab';
-                            button.setAttribute('role','tab');
+                            button.type = 'button';
+                            button.className = 'mobile-item-tab';
+                            button.setAttribute('role', 'tab');
                             var photo = typeof getItemPhotoUrl === 'function' ? getItemPhotoUrl(item.photo) : '';
                             var code = item.kode || item.nama || 'Item ' + (index + 1);
                             button.innerHTML =
-                                '<img alt="" src="'+escapeText(photo || "{{ asset('storage/rouf.jpeg') }}")+'">'+
-                                '<span class="mobile-item-tab-label"><span class="mobile-item-tab-code">'+escapeText(code)+'</span>'+
-                                '<span class="mobile-item-tab-qty">'+escapeText(item.qty ?? 0)+' '+escapeText(item.satuan || 'pcs')+'</span></span>';
-                            button.querySelector('img').onerror=function(){
-                                this.onerror=null; this.src="{{ asset('storage/rouf.jpeg') }}";
+                                '<img alt="" src="' + escapeText(photo || "{{ asset('storage/rouf.jpeg') }}") +
+                                '">' +
+                                '<span class="mobile-item-tab-label"><span class="mobile-item-tab-code">' +
+                                escapeText(code) + '</span>' +
+                                '<span class="mobile-item-tab-qty">' + escapeText(item.qty ?? 0) + ' ' + escapeText(
+                                    item.satuan || 'pcs') + '</span></span>';
+                            button.querySelector('img').onerror = function() {
+                                this.onerror = null;
+                                this.src = "{{ asset('storage/rouf.jpeg') }}";
                             };
-                            button.addEventListener('click',function(event){
+                            button.addEventListener('click', function(event) {
                                 event.preventDefault();
                                 event.stopPropagation();
                                 // Select by the same data-index used by the existing change handler.
-                                var option = Array.from(select.options).find(function(o){
-                                    return o.value !== '' && o.getAttribute('data-index') === String(index);
+                                var option = Array.from(select.options).find(function(o) {
+                                    return o.value !== '' && o.getAttribute('data-index') ===
+                                        String(index);
                                 });
                                 if (!option) {
                                     document.getElementById('itemInfo').innerHTML =
@@ -4115,6 +4693,7 @@
                         syncActiveMobileTab(false);
                         requestAnimationFrame(updateNextButton);
                     };
+
                     function syncActiveMobileTab(shouldScroll) {
                         var track = document.getElementById('mobileItemTabsTrack');
                         var select = document.getElementById('itemSelect');
@@ -4124,18 +4703,24 @@
                         track.querySelectorAll('.mobile-item-tab').forEach(function(tab, i) {
                             var active = hasSelection && i === index;
                             tab.classList.toggle('is-active', active);
-                            tab.setAttribute('aria-selected', active ? 'true':'false');
+                            tab.setAttribute('aria-selected', active ? 'true' : 'false');
                             if (active && shouldScroll && window.matchMedia('(max-width: 767.98px)').matches) {
                                 // Align the clicked item to the LEFT edge of the horizontal strip.
                                 // Scroll the strip only: scrollIntoView can also move the whole modal.
                                 var targetLeft = tab.offsetLeft - track.offsetLeft;
                                 var maxLeft = Math.max(0, track.scrollWidth - track.clientWidth);
-                                track.scrollTo({left: Math.min(Math.max(0, targetLeft), maxLeft), behavior:'smooth'});
+                                track.scrollTo({
+                                    left: Math.min(Math.max(0, targetLeft), maxLeft),
+                                    behavior: 'smooth'
+                                });
                             }
                         });
                         updateNextButton();
                     }
-                    window.syncMutasiMobileActiveTab = function() { syncActiveMobileTab(true); };
+                    window.syncMutasiMobileActiveTab = function() {
+                        syncActiveMobileTab(true);
+                    };
+
                     function updateNextButton() {
                         var next = document.getElementById('mobileItemNext');
                         var track = document.getElementById('mobileItemTabsTrack');
@@ -4145,14 +4730,19 @@
                         next.disabled = !canScroll || atEnd;
                         next.setAttribute('aria-disabled', next.disabled ? 'true' : 'false');
                     }
+
                     function selectNextMobileItem() {
                         var track = document.getElementById('mobileItemTabsTrack');
                         if (!track) return;
                         // Arrow only scrolls the tab strip; it must NOT change the selected item.
                         var step = Math.max(110, Math.round(track.clientWidth * 0.72));
-                        track.scrollBy({left:step,behavior:'smooth'});
+                        track.scrollBy({
+                            left: step,
+                            behavior: 'smooth'
+                        });
                         window.setTimeout(updateNextButton, 350);
                     }
+
                     function closeMutasiDetail() {
                         var modal = document.getElementById('modalSpk');
                         if (!modal) return;
@@ -4174,41 +4764,48 @@
                         e.stopPropagation();
                         closeMutasiDetail();
                     }, true);
-                    document.addEventListener('DOMContentLoaded',function(){
+                    document.addEventListener('DOMContentLoaded', function() {
                         buildMobileSpkCards();
                         // Search now runs server-side, including unloaded SPK.
-                        document.getElementById('itemSelect')?.addEventListener('change',function(){
+                        document.getElementById('itemSelect')?.addEventListener('change', function() {
                             syncActiveMobileTab(true);
                         });
-                        document.getElementById('mobileItemTabsTrack')?.addEventListener('scroll',updateNextButton,{passive:true});
+                        document.getElementById('mobileItemTabsTrack')?.addEventListener('scroll', updateNextButton, {
+                            passive: true
+                        });
                         // Handle arrow clicks even if the tabbar is rebuilt dynamically.
-                        document.addEventListener('click',function(event){
+                        document.addEventListener('click', function(event) {
                             if (!event.target.closest('#mobileItemNext')) return;
                             event.preventDefault();
                             selectNextMobileItem();
-                        },true);
+                        }, true);
                         var search = document.getElementById('searchSpk');
-                        document.getElementById('mobileSearchButton')?.addEventListener('click',function(){
+                        document.getElementById('mobileSearchButton')?.addEventListener('click', function() {
                             if (!search) return;
                             search.focus();
                             if (typeof search.select === 'function' && search.value) search.select();
                         });
                         var clear = document.getElementById('mobileSearchClear');
-                        function updateSearchClear(){
-                            if(clear) clear.style.display = search && search.value ? 'inline-flex':'none';
+
+                        function updateSearchClear() {
+                            if (clear) clear.style.display = search && search.value ? 'inline-flex' : 'none';
                         }
-                        search?.addEventListener('input',updateSearchClear);
-                        clear?.addEventListener('click',function(){
-                            if(!search) return;
-                            search.value='';
-                            search.dispatchEvent(new Event('input',{bubbles:true}));
-                            search.dispatchEvent(new Event('keyup',{bubbles:true}));
+                        search?.addEventListener('input', updateSearchClear);
+                        clear?.addEventListener('click', function() {
+                            if (!search) return;
+                            search.value = '';
+                            search.dispatchEvent(new Event('input', {
+                                bubbles: true
+                            }));
+                            search.dispatchEvent(new Event('keyup', {
+                                bubbles: true
+                            }));
                             search.focus();
                             updateSearchClear();
                         });
                         updateSearchClear();
-                        window.addEventListener('resize',updateNextButton);
-                        $('#modalSpk').on('shown.bs.modal',function(){
+                        window.addEventListener('resize', updateNextButton);
+                        $('#modalSpk').on('shown.bs.modal', function() {
                             updateNextButton();
                             syncActiveMobileTab(true);
                         });
@@ -4221,53 +4818,125 @@
 
             <style>
                 @media (max-width:767.98px) {
-                    .container-fluid.py-4 > .card-header.bg-white {
-                        position:sticky !important; top:0 !important; z-index:1030 !important;
-                        background:#fff !important;
+                    .container-fluid.py-4>.card-header.bg-white {
+                        position: sticky !important;
+                        top: 0 !important;
+                        z-index: 1030 !important;
+                        background: #fff !important;
                     }
-                    .container-fluid.py-4 > .card-header.bg-white .input-group { display:flex; align-items:stretch; }
-                    .container-fluid.py-4 > .card-header.bg-white #searchSpk { flex:1 1 auto; min-width:0; }
-                    #mobileSearchClear { align-items:center; justify-content:center; width:35px; padding:0;
-                        color:#52617a; font-size:20px; border-radius:0 7px 7px 0; }
-                    .mutasi-search-button { display:flex; align-items:center; justify-content:center;
-                        width:43px; min-width:43px; padding:0; border:1px solid #dce5f2;
-                        border-right:0; border-radius:10px 0 0 10px; cursor:pointer;
-                        color:#2563eb; touch-action:manipulation; }
-                    .mutasi-search-button i { font-size:16px; color:#2563eb !important; }
-                    .mutasi-search-button:focus-visible { outline:2px solid #2563eb; outline-offset:2px; }
-                    #modalSpk #mobileItemNext { position:relative; z-index:20; touch-action:manipulation;
-                        display:flex; align-items:center; justify-content:center; cursor:pointer; }
-                    #modalSpk #mobileItemNext i { font-size:13px; }
-                    #modalSpk #mobileItemNext:disabled { cursor:default; opacity:.35; }
+
+                    .container-fluid.py-4>.card-header.bg-white .input-group {
+                        display: flex;
+                        align-items: stretch;
+                    }
+
+                    .container-fluid.py-4>.card-header.bg-white #searchSpk {
+                        flex: 1 1 auto;
+                        min-width: 0;
+                    }
+
+                    #mobileSearchClear {
+                        align-items: center;
+                        justify-content: center;
+                        width: 35px;
+                        padding: 0;
+                        color: #52617a;
+                        font-size: 20px;
+                        border-radius: 0 7px 7px 0;
+                    }
+
+                    .mutasi-search-button {
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        width: 43px;
+                        min-width: 43px;
+                        padding: 0;
+                        border: 1px solid #dce5f2;
+                        border-right: 0;
+                        border-radius: 10px 0 0 10px;
+                        cursor: pointer;
+                        color: #2563eb;
+                        touch-action: manipulation;
+                    }
+
+                    .mutasi-search-button i {
+                        font-size: 16px;
+                        color: #2563eb !important;
+                    }
+
+                    .mutasi-search-button:focus-visible {
+                        outline: 2px solid #2563eb;
+                        outline-offset: 2px;
+                    }
+
+                    #modalSpk #mobileItemNext {
+                        position: relative;
+                        z-index: 20;
+                        touch-action: manipulation;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        cursor: pointer;
+                    }
+
+                    #modalSpk #mobileItemNext i {
+                        font-size: 13px;
+                    }
+
+                    #modalSpk #mobileItemNext:disabled {
+                        cursor: default;
+                        opacity: .35;
+                    }
                 }
-                @media (min-width:768px) { #mobileSearchClear { display:none !important; } }
+
+                @media (min-width:768px) {
+                    #mobileSearchClear {
+                        display: none !important;
+                    }
+                }
             </style>
             {{-- Mobile timeline: read-only UI. Desktop editing is unchanged. --}}
             <style>
                 @media (max-width: 767.98px) {
                     #modalSpk #timelineTable .mobile-readonly-notice {
-                        margin: 0 0 9px; padding: 9px 11px; border-radius: 9px;
-                        background: #eef5ff; color: #24518b; font-size: 11px;
+                        margin: 0 0 9px;
+                        padding: 9px 11px;
+                        border-radius: 9px;
+                        background: #eef5ff;
+                        color: #24518b;
+                        font-size: 11px;
                         border: 1px solid #dbeafe;
                     }
+
                     #modalSpk #timelineTable input:disabled,
                     #modalSpk #timelineTable select:disabled,
                     #modalSpk #timelineTable textarea:disabled {
-                        background: #f5f7fb !important; color: #34465e !important;
-                        -webkit-text-fill-color: #34465e; opacity: 1 !important;
-                        border-color: #e2e8f0 !important; cursor: default;
+                        background: #f5f7fb !important;
+                        color: #34465e !important;
+                        -webkit-text-fill-color: #34465e;
+                        opacity: 1 !important;
+                        border-color: #e2e8f0 !important;
+                        cursor: default;
                     }
+
                     #modalSpk #timelineTable #btnTambah,
                     #modalSpk #timelineTable #btnSave,
-                    #modalSpk #timelineTable .hapus-row { display: none !important; }
-                    #modalSpk #timelineTable > table th:last-child,
-                    #modalSpk #timelineTable > table td:last-child { display: none !important; }
+                    #modalSpk #timelineTable .hapus-row {
+                        display: none !important;
+                    }
+
+                    #modalSpk #timelineTable>table th:last-child,
+                    #modalSpk #timelineTable>table td:last-child {
+                        display: none !important;
+                    }
                 }
             </style>
             <script>
-                (function () {
+                (function() {
                     const mobile = () => window.matchMedia('(max-width: 767.98px)').matches;
                     const timeline = () => document.getElementById('timelineTable');
+
                     function applyMobileReadonly() {
                         const root = timeline();
                         if (!root || !mobile()) return;
@@ -4281,21 +4950,29 @@
                         if (root.querySelector('table') && !root.querySelector('.mobile-readonly-notice')) {
                             const info = document.createElement('div');
                             info.className = 'mobile-readonly-notice';
-                            info.textContent = 'Mode lihat saja di HP. Untuk tambah, edit, atau hapus transaksi, gunakan desktop.';
+                            info.textContent =
+                                'Mode lihat saja di HP. Untuk tambah, edit, atau hapus transaksi, gunakan desktop.';
                             root.prepend(info);
                         }
                     }
                     // Guard actions at capture phase, before existing jQuery handlers run.
-                    document.addEventListener('click', function (e) {
+                    document.addEventListener('click', function(e) {
                         if (!mobile()) return;
-                        const target = e.target.closest('#timelineTable #btnTambah, #timelineTable #btnSave, #timelineTable .hapus-row');
-                        if (target) { e.preventDefault(); e.stopImmediatePropagation(); }
+                        const target = e.target.closest(
+                            '#timelineTable #btnTambah, #timelineTable #btnSave, #timelineTable .hapus-row');
+                        if (target) {
+                            e.preventDefault();
+                            e.stopImmediatePropagation();
+                        }
                     }, true);
                     // Timeline HTML is regenerated by existing AJAX; reapply read-only on every render.
                     function init() {
                         const root = timeline();
                         if (!root) return;
-                        new MutationObserver(applyMobileReadonly).observe(root, {childList:true, subtree:true});
+                        new MutationObserver(applyMobileReadonly).observe(root, {
+                            childList: true,
+                            subtree: true
+                        });
                         applyMobileReadonly();
                         window.addEventListener('resize', applyMobileReadonly);
                     }
