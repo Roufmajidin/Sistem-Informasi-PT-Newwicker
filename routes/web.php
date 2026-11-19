@@ -1312,7 +1312,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/produksi/inventor/signature', [InventorSignatureController::class, 'index'])->name('produksi.inventor.signature');
     Route::post('/produksi/inventor/signature/{id}/approve', [InventorSignatureController::class, 'sign'])->name('produksi.inventor.signature.approve');
     Route::post('/produksi/inventor/signature/{id}/reject', [InventorSignatureController::class, 'reject'])->middleware('auth')->name('produksi.inventor.signature.reject');
-
+Route::post(
+    '/produksi/inventor/signature/{id}/comment',
+    [InventorSignatureController::class, 'comment']
+)
+  ->name('produksi.inventor.signature.comment');
     Route::post(
         '/spk/change-status/{spk}',
         [SpkController::class, 'changeStatus']
