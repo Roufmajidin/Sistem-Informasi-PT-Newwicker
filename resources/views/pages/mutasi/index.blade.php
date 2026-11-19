@@ -74,7 +74,7 @@
 
                     <tbody id="tbodySpk">
 
-                        @include('pages.mutasi._rows', ['a' => $a])
+                        @include('pages.mutasi.mutasi_rows', ['a' => $a])
 
                     </tbody>
 
