@@ -91,7 +91,7 @@
                     <tfoot id="ars-summary-foot"></tfoot>
                 </table>
             </div>
-            
+
         </div>
     </div>
     <style>
@@ -825,7 +825,7 @@
         }
 
         /* Freeze kolom No + Nama Pelanggan saat scroll horizontal.
-       Lebar konsisten dengan dua kolom pertama pada colgroup (48px + 210px). */
+           Lebar konsisten dengan dua kolom pertama pada colgroup (48px + 210px). */
         #ars2026-app #ars-table thead th.ars-sticky-no,
         #ars2026-app #ars-table tbody td.ars-sticky-no {
             position: sticky !important;
@@ -909,7 +909,7 @@
         }
 
         /* Freeze tiga kolom: No (48px), Nama Pelanggan (210px), No. PO (165px).
-       Offset disamakan persis dengan colgroup untuk mencegah overlap. */
+           Offset disamakan persis dengan colgroup untuk mencegah overlap. */
         #ars2026-app #ars-table thead th.ars-sticky-no,
         #ars2026-app #ars-table tbody tr.ars-data-row td.ars-sticky-no {
             position: sticky !important;
@@ -1443,7 +1443,7 @@
                 }));
                 el('ars-summary-body').innerHTML = totals.map((t, i) =>
                     `<tr><td>${months[i]}</td><td>${t.idr?'Rp '+fmt(t.idr):'–'}</td><td>${t.usd?'$ '+fmt(t.usd):'–'}</td></tr>`
-                    ).join('');
+                ).join('');
                 const total = totals.reduce((a, t) => ({
                     idr: a.idr + t.idr,
                     usd: a.usd + t.usd
@@ -1729,7 +1729,7 @@
                                 if (/^INV[-/]/i.test(String(value ?? '').trim()))
                                     throw new Error('Baris ' + (rowOffset + 1) +
                                         ': nomor invoice masuk ke kolom tanggal. Klik sel Nama Pelanggan sebelum paste dan pastikan kolom No Excel tidak ikut, atau salin mulai dari No. Invoice ke sel No. Invoice.'
-                                        );
+                                    );
                             }
                             patch[field] = pasteValue(field, value);
                         });
@@ -1754,7 +1754,7 @@
                 }
                 if (!confirm(
                         `Paste ${plan.length} baris dari Excel? ${createCount} baris baru akan dibuat dan perubahan langsung tersimpan.`
-                        )) return;
+                    )) return;
                 pasteProcessing = true;
                 busy = true;
                 el('ars-body').querySelectorAll('.ars-add-month').forEach(btn => btn.disabled = true);
@@ -1817,7 +1817,7 @@
                 if (t.dataset.type === 'number') {
                     const value = String(r[t.dataset.field] ?? '').trim();
                     t.value = value === '' ? '' : fmt(num(value), t.dataset.field === 'container_count' ? 0 :
-                    2);
+                        2);
                 }
                 const td = t.closest('td');
                 if (td) {
@@ -1846,7 +1846,8 @@
                     status(err.message, true);
                     btn.disabled = false
                 } finally {
-                    busy = false
+                    busy = false;
+                    applyEditMode();
                 }
             });
             el('ars-body').addEventListener('click', async e => {
@@ -1891,7 +1892,7 @@
                 try {
                     // Kirim bulan tujuan secara eksplisit; jangan bergantung pada bulan terakhir yang mungkin stale.
                     const last = Math.max(0, ...activeMonths, ...rows.map(r => Number(r.month_number) ||
-                    0));
+                        0));
                     const requested = last + 1;
                     if (requested > 12) throw new Error('Desember sudah menjadi bulan terakhir.');
                     const result = await api(urls.addMonth, 'POST', {

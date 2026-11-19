@@ -1490,84 +1490,84 @@ class QcController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        Log::info(
-            'QC PO DETAIL API PERFORMANCE',
-            [
+        // Log::info(
+        //     'QC PO DETAIL API PERFORMANCE',
+        //     [
 
-                'divisi' =>
-                    $divisiQc,
+        //         'divisi' =>
+        //             $divisiQc,
 
-                'query' =>
-                    round(
-                        $queryTime,
-                        4
-                    ),
+        //         'query' =>
+        //             round(
+        //                 $queryTime,
+        //                 4
+        //             ),
 
-                'bom' =>
-                    round(
-                        $bomTime,
-                        4
-                    ),
+        //         'bom' =>
+        //             round(
+        //                 $bomTime,
+        //                 4
+        //             ),
 
-                'cad' =>
-                    round(
-                        $cadTime,
-                        4
-                    ),
+        //         'cad' =>
+        //             round(
+        //                 $cadTime,
+        //                 4
+        //             ),
 
-                'inspection' =>
-                    round(
-                        $inspectionTime,
-                        4
-                    ),
+        //         'inspection' =>
+        //             round(
+        //                 $inspectionTime,
+        //                 4
+        //             ),
 
-                'process' =>
-                    round(
-                        $processTime,
-                        4
-                    ),
+        //         'process' =>
+        //             round(
+        //                 $processTime,
+        //                 4
+        //             ),
 
-                'to_array' =>
-                    round(
-                        $toArrayTime,
-                        4
-                    ),
+        //         'to_array' =>
+        //             round(
+        //                 $toArrayTime,
+        //                 4
+        //             ),
 
-                'normalize' =>
-                    round(
-                        $normalizeTime,
-                        4
-                    ),
+        //         'normalize' =>
+        //             round(
+        //                 $normalizeTime,
+        //                 4
+        //             ),
 
-                'json' =>
-                    round(
-                        $jsonTime,
-                        4
-                    ),
+        //         'json' =>
+        //             round(
+        //                 $jsonTime,
+        //                 4
+        //             ),
 
-                'total' =>
-                    round(
-                        $totalTime,
-                        4
-                    ),
+        //         'total' =>
+        //             round(
+        //                 $totalTime,
+        //                 4
+        //             ),
 
-                'json_bytes' =>
-                    strlen($json),
+        //         'json_bytes' =>
+        //             strlen($json),
 
-                'po_count' =>
-                    $pos->count(),
+        //         'po_count' =>
+        //             $pos->count(),
 
-                'detail_count' =>
-                    $details->count(),
+        //         'detail_count' =>
+        //             $details->count(),
 
-                'article_count' =>
-                    $articleNumbers->count(),
+        //         'article_count' =>
+        //             $articleNumbers->count(),
 
-                'detail_po_id_count' =>
-                    $detailPoIds->count(),
+        //         'detail_po_id_count' =>
+        //             $detailPoIds->count(),
 
-            ]
-        );
+        //     ]
+        // );
 
 
         /*
@@ -1629,12 +1629,12 @@ class QcController extends Controller
             // DEBUG REQUEST
             // ============================
 
-            Log::info('QC PO SEARCH REQUEST', [
-                'q' => $q,
-                'divisi' => $divisi,
-                'page' => $page,
-                'url' => $request->fullUrl(),
-            ]);
+            // Log::info('QC PO SEARCH REQUEST', [
+            //     'q' => $q,
+            //     'divisi' => $divisi,
+            //     'page' => $page,
+            //     'url' => $request->fullUrl(),
+            // ]);
 
             // ============================
             // BASE QUERY
@@ -1716,10 +1716,10 @@ class QcController extends Controller
 
         } catch (\Throwable $e) {
 
-            Log::error('QC PO DASHBOARD ERROR', [
-                'message' => $e->getMessage(),
-                'line' => $e->getLine(),
-            ]);
+            // Log::error('QC PO DASHBOARD ERROR', [
+            //     'message' => $e->getMessage(),
+            //     'line' => $e->getLine(),
+            // ]);
 
             return response()->json([
                 'status' => 'error',
@@ -2556,14 +2556,14 @@ class QcController extends Controller
                 'tanggal' => $inspectSchedule->tanggal_inspect,
                 'is_lanjutan' => $isLanjutan,
             ]);
-            Log::info('Timeline QC Saved', [
-                'schedule_id' => $inspectSchedule->id,
-                'lanjutan' => $isLanjutan,
-            ]);
+            // Log::info('Timeline QC Saved', [
+            //     'schedule_id' => $inspectSchedule->id,
+            //     'lanjutan' => $isLanjutan,
+            // ]);
         } catch (\Throwable $e) {
-            Log::error('Timeline QC Error', [
-                'msg' => $e->getMessage(),
-            ]);
+            // Log::error('Timeline QC Error', [
+            //     'msg' => $e->getMessage(),
+            // ]);
         }
     }
     // timeline qc
@@ -2928,14 +2928,14 @@ class QcController extends Controller
 
         } catch (\Throwable $e) {
 
-            \Illuminate\Support\Facades\Log::error(
-                'QC Notifications Error',
-                [
-                    'message' => $e->getMessage(),
-                    'line' => $e->getLine(),
-                    'file' => $e->getFile(),
-                ]
-            );
+            // \Illuminate\Support\Facades\Log::error(
+            //     'QC Notifications Error',
+            //     [
+            //         'message' => $e->getMessage(),
+            //         'line' => $e->getLine(),
+            //         'file' => $e->getFile(),
+            //     ]
+            // );
 
             return response()->json([
                 'success' => false,
@@ -3014,13 +3014,13 @@ class QcController extends Controller
 
         } catch (\Throwable $e) {
 
-            \Illuminate\Support\Facades\Log::error(
-                'TEST QC PUSHER ERROR',
-                [
-                    'message' => $e->getMessage(),
-                    'line' => $e->getLine(),
-                ]
-            );
+            // \Illuminate\Support\Facades\Log::error(
+            //     'TEST QC PUSHER ERROR',
+            //     [
+            //         'message' => $e->getMessage(),
+            //         'line' => $e->getLine(),
+            //     ]
+            // );
 
             return response()->json([
                 'success' => false,
@@ -3300,21 +3300,21 @@ class QcController extends Controller
 
 
 
-            Log::info('========== QC MODE ==========', [
+            // Log::info('========== QC MODE ==========', [
 
-                'mode' => self::USE_TEST_INSPECTION
+            //     'mode' => self::USE_TEST_INSPECTION
 
-                    ? 'TEST'
+            //         ? 'TEST'
 
-                    : 'PRODUCTION',
+            //         : 'PRODUCTION',
 
-                'inspect_schedule_model' => $inspectionModel,
+            //     'inspect_schedule_model' => $inspectionModel,
 
-                'qc_report_model' => $qcReportModel,
+            //     'qc_report_model' => $qcReportModel,
 
-                'report_photo_model' => $reportPhotoModel,
+            //     'report_photo_model' => $reportPhotoModel,
 
-            ]);
+            // ]);
 
 
 
@@ -3494,41 +3494,41 @@ class QcController extends Controller
 
 
 
-            Log::info(
+            // Log::info(
 
-                '================ QC INSERT ================='
+            //     '================ QC INSERT ================='
 
-            );
-
-
-
-            Log::info('QC REQUEST', [
-
-                'po' => $po_id,
-
-                'detail_po' => $detail_po_id,
-
-                'spk' => $spk_id,
-
-                'kategori' => $kategoriName,
+            // );
 
 
 
-                'is_reinspect' => $isReinspect,
+            // Log::info('QC REQUEST', [
 
-                'is_service' => $isService,
+            //     'po' => $po_id,
 
-                'nw_service' => $nwService,
+            //     'detail_po' => $detail_po_id,
+
+            //     'spk' => $spk_id,
+
+            //     'kategori' => $kategoriName,
 
 
 
-                'mode' => self::USE_TEST_INSPECTION
+            //     'is_reinspect' => $isReinspect,
 
-                    ? 'TEST'
+            //     'is_service' => $isService,
 
-                    : 'PRODUCTION',
+            //     'nw_service' => $nwService,
 
-            ]);
+
+
+            //     'mode' => self::USE_TEST_INSPECTION
+
+            //         ? 'TEST'
+
+            //         : 'PRODUCTION',
+
+            // ]);
 
 
 
@@ -4592,10 +4592,10 @@ class QcController extends Controller
                     'created_at' => now()->toIso8601String(),
                 ]));
             } catch (\Throwable $notificationError) {
-                Log::warning('Pusher QC Inspection gagal', [
-                    'inspection_id' => $inspectSchedule->id,
-                    'error' => $notificationError->getMessage(),
-                ]);
+                // Log::warning('Pusher QC Inspection gagal', [
+                //     'inspection_id' => $inspectSchedule->id,
+                //     'error' => $notificationError->getMessage(),
+                // ]);
             }
 
 
@@ -4603,35 +4603,35 @@ class QcController extends Controller
 
 
 
-            Log::info(
+            // Log::info(
 
-                '===== QC INSERT SUCCESS =====',
+            //     '===== QC INSERT SUCCESS =====',
 
-                [
+            //     [
 
-                    'mode' =>
+            //         'mode' =>
 
-                        self::USE_TEST_INSPECTION
+            //             self::USE_TEST_INSPECTION
 
-                        ? 'TEST'
+            //             ? 'TEST'
 
-                        : 'PRODUCTION',
-
-
-
-                    'inspect_schedule_id' =>
-
-                        $inspectSchedule->id,
+            //             : 'PRODUCTION',
 
 
 
-                    'batch' =>
+            //         'inspect_schedule_id' =>
 
-                        $batchKe,
+            //             $inspectSchedule->id,
 
-                ]
 
-            );
+
+            //         'batch' =>
+
+            //             $batchKe,
+
+            //     ]
+
+            // );
 
 
 
@@ -4701,41 +4701,41 @@ class QcController extends Controller
 
 
 
-            Log::error(
+            // Log::error(
 
-                'QC ERROR',
+            //     'QC ERROR',
 
-                [
+            //     [
 
-                    'msg' =>
+            //         'msg' =>
 
-                        $e->getMessage(),
-
-
-
-                    'line' =>
-
-                        $e->getLine(),
+            //             $e->getMessage(),
 
 
 
-                    'file' =>
+            //         'line' =>
 
-                        $e->getFile(),
+            //             $e->getLine(),
 
 
 
-                    'mode' =>
+            //         'file' =>
 
-                        self::USE_TEST_INSPECTION
+            //             $e->getFile(),
 
-                        ? 'TEST'
 
-                        : 'PRODUCTION',
 
-                ]
+            //         'mode' =>
 
-            );
+            //             self::USE_TEST_INSPECTION
+
+            //             ? 'TEST'
+
+            //             : 'PRODUCTION',
+
+            //     ]
+
+            // );
 
 
 
@@ -8936,10 +8936,10 @@ class QcController extends Controller
             $totalQueryTime += $query->time;
             $totalQueries++;
 
-            Log::info('QC PO SQL', [
-                'sql' => $query->sql,
-                'time_ms' => round($query->time, 2),
-            ]);
+            // Log::info('QC PO SQL', [
+            //     'sql' => $query->sql,
+            //     'time_ms' => round($query->time, 2),
+            // ]);
         });
 
         // =====================================================
@@ -9069,21 +9069,21 @@ class QcController extends Controller
             2
         );
 
-        Log::info('QC PO PERFORMANCE', [
-            'divisi' => $divisi ?: 'ALL',
-            'page' => $page,
-            'per_page' => $perPage,
-            'returned_rows' => $pos->count(),
-            'total_rows' => $pos->total(),
-            'query_count' => $totalQueries,
-            'sql_time_ms' => round($totalQueryTime, 2),
-            'pagination_time_ms' => $paginationTime,
-            'controller_time_ms' => $duration,
-            'memory_mb' => round(
-                memory_get_peak_usage(true) / 1024 / 1024,
-                2
-            ),
-        ]);
+        // Log::info('QC PO PERFORMANCE', [
+        //     'divisi' => $divisi ?: 'ALL',
+        //     'page' => $page,
+        //     'per_page' => $perPage,
+        //     'returned_rows' => $pos->count(),
+        //     'total_rows' => $pos->total(),
+        //     'query_count' => $totalQueries,
+        //     'sql_time_ms' => round($totalQueryTime, 2),
+        //     'pagination_time_ms' => $paginationTime,
+        //     'controller_time_ms' => $duration,
+        //     'memory_mb' => round(
+        //         memory_get_peak_usage(true) / 1024 / 1024,
+        //         2
+        //     ),
+        // ]);
 
         return response()->json($responseData);
     }
@@ -10296,10 +10296,10 @@ class QcController extends Controller
                 'created_at' => now()->toIso8601String(),
             ]));
         } catch (\Throwable $notificationError) {
-            \Illuminate\Support\Facades\Log::warning('Pusher QC Incoming gagal', [
-                'incoming_id' => $incoming->id,
-                'error' => $notificationError->getMessage(),
-            ]);
+            // \Illuminate\Support\Facades\Log::warning('Pusher QC Incoming gagal', [
+            //     'incoming_id' => $incoming->id,
+            //     'error' => $notificationError->getMessage(),
+            // ]);
         }
 
         return response()->json([

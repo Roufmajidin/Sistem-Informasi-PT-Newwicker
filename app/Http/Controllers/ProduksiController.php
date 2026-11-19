@@ -177,7 +177,7 @@ class ProduksiController extends Controller
         $totalMasuk = $timelineCat->where('type', 'in')->sum('qty');
         $totalOut = $timelineCat->where('type', 'out')->where('is_service', 0)->sum('qty');
         $totalService = $timelineCat->where('type', 'out')->where('is_service', 1)->sum('qty');
-        Log::info("Timeline kategori '{$sup}' | IN: {$totalMasuk}, OUT biasa: {$totalOut}, OUT service: {$totalService}, maxQtySPK: {$maxQtySPK}");
+        // Log::info("Timeline kategori '{$sup}' | IN: {$totalMasuk}, OUT biasa: {$totalOut}, OUT service: {$totalService}, maxQtySPK: {$maxQtySPK}");
         $sisa = $maxQtySPK - $request->qty;
         $u = $totalMasuk + $request->qty - $totalService;
         $totalUsedCat = $totalMasuk - $totalOut - $totalService + $request->qty;
@@ -207,7 +207,7 @@ class ProduksiController extends Controller
 
             } else {
                 $s = $totalMasuk - $totalService;
-                Log::info("service '{$u}'");
+                // Log::info("service '{$u}'");
                 if ($totalMasuk < $request->qty) {
                     return response()->json([
                         'success' => false,

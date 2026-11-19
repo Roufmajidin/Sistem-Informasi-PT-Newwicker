@@ -870,7 +870,7 @@ class KaryawanController extends Controller
             return response()->json(['html' => $html]);
         } catch (\Throwable $e) {
             // Debug error ke log
-            Log::error($e);
+            // Log::error($e);
 
             return response()->json([
                 'error' => true,

@@ -87,10 +87,10 @@ class PameranContrller extends Controller
 
     public function import(Request $request)
     {
-        Log::info("🔥 MASUK CONTROLLER IMPORT");
+        // Log::info("🔥 MASUK CONTROLLER IMPORT");
 
-        Log::info("🔥 File ada? : " . ($request->hasFile('file') ? 'YA' : 'TIDAK'));
-        Log::info("🔥 exhibition_id = " . $request->exhibition_id);
+        // Log::info("🔥 File ada? : " . ($request->hasFile('file') ? 'YA' : 'TIDAK'));
+        // Log::info("🔥 exhibition_id = " . $request->exhibition_id);
 
         $request->validate([
             'file'          => 'required|mimes:xlsx,xls,csv',
@@ -99,11 +99,11 @@ class PameranContrller extends Controller
 
         try {
 
-            Log::info("🚀 Mulai proses Excel::import...");
+            // Log::info("🚀 Mulai proses Excel::import...");
 
-            Excel::import(new ProductPameranImport($request->exhibition_id), $request->file('file'));
+            // Excel::import(new ProductPameranImport($request->exhibition_id), $request->file('file'));
 
-            Log::info("✔ Import selesai tanpa error");
+            // Log::info("✔ Import selesai tanpa error");
 
             return response()->json([
                 'status'  => 'success',
@@ -111,11 +111,11 @@ class PameranContrller extends Controller
             ]);
         } catch (\Exception $e) {
 
-            Log::error("❌ ERROR CONTROLLER: " . $e->getMessage(), [
-                'line'  => $e->getLine(),
-                'file'  => $e->getFile(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+            // Log::error("❌ ERROR CONTROLLER: " . $e->getMessage(), [
+            //     'line'  => $e->getLine(),
+            //     'file'  => $e->getFile(),
+            //     'trace' => $e->getTraceAsString(),
+            // ]);
 
             return response()->json([
                 'status'  => 'error',

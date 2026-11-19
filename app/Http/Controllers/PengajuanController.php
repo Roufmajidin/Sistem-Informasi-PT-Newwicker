@@ -101,10 +101,10 @@ class PengajuanController extends Controller
                 // =========================
                 // 🔥 DEBUG LOG
                 // =========================
-                Log::info([
-                    'meta' => $meta,
-                    'details_count' => count($details),
-                ]);
+                // Log::info([
+                //     'meta' => $meta,
+                //     'details_count' => count($details),
+                // ]);
 
                 // =========================
                 // 🔥 VALIDASI META
@@ -217,9 +217,9 @@ class PengajuanController extends Controller
 
                         } catch (\Exception $e) {
 
-                            Log::warning([
-                                'detail_date_error' => $d['date'],
-                            ]);
+                            // Log::warning([
+                            //     'detail_date_error' => $d['date'],
+                            // ]);
                         }
                     }
 
@@ -344,11 +344,11 @@ class PengajuanController extends Controller
 
             DB::rollback();
 
-            Log::error([
-                'message' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile(),
-            ]);
+            // Log::error([
+            //     'message' => $e->getMessage(),
+            //     'line' => $e->getLine(),
+            //     'file' => $e->getFile(),
+            // ]);
 
             return response()->json([
                 'status' => false,
@@ -1054,7 +1054,7 @@ class PengajuanController extends Controller
         $path = public_path('assets/' . $filename);
 
         if (!file_exists($path)) {
-            \Log::error('TTD tidak ditemukan: ' . $path);
+            // \Log::error('TTD tidak ditemukan: ' . $path);
             return;
         }
 

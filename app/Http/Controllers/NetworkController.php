@@ -103,12 +103,12 @@ class NetworkController extends Controller
 
         } catch (\Throwable $e) {
 
-            Log::error('NETWORK WIFI USERS ERROR', [
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+            // Log::error('NETWORK WIFI USERS ERROR', [
+            //     'message' => $e->getMessage(),
+            //     'file' => $e->getFile(),
+            //     'line' => $e->getLine(),
+            //     'trace' => $e->getTraceAsString(),
+            // ]);
 
             return response()->json([
                 'success' => false,

@@ -803,22 +803,22 @@ class PurchasingController extends Controller
 
         } catch (\Throwable $e) {
 
-            Log::error(
-                'SAVE DRAFT PURCHASING ERROR',
-                [
-                    'message' =>
-                        $e->getMessage(),
+            // Log::error(
+            //     'SAVE DRAFT PURCHASING ERROR',
+            //     [
+            //         'message' =>
+            //             $e->getMessage(),
 
-                    'line' =>
-                        $e->getLine(),
+            //         'line' =>
+            //             $e->getLine(),
 
-                    'file' =>
-                        $e->getFile(),
+            //         'file' =>
+            //             $e->getFile(),
 
-                    'trace' =>
-                        $e->getTraceAsString(),
-                ]
-            );
+            //         'trace' =>
+            //             $e->getTraceAsString(),
+            //     ]
+            // );
 
 
             return response()->json([
@@ -918,14 +918,14 @@ class PurchasingController extends Controller
                 'approved_at' => optional($step->approved_at)->toDateTimeString(),
             ]);
         } catch (\Throwable $e) {
-            Log::error('APPROVE PURCHASING ERROR', [
-                'pengajuan_id' => $id,
-                'step_order' => $request->input('step_order'),
-                'user_id' => auth()->id(),
-                'message' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile(),
-            ]);
+            // Log::error('APPROVE PURCHASING ERROR', [
+            //     'pengajuan_id' => $id,
+            //     'step_order' => $request->input('step_order'),
+            //     'user_id' => auth()->id(),
+            //     'message' => $e->getMessage(),
+            //     'line' => $e->getLine(),
+            //     'file' => $e->getFile(),
+            // ]);
 
             return response()->json([
                 'success' => false,
@@ -1098,10 +1098,10 @@ class PurchasingController extends Controller
                 'is_draft' => 1,
             ]);
         } catch (\Throwable $e) {
-            Log::error('PUBLISH PURCHASING ERROR', [
-                'pengajuan_id' => $id,
-                'message' => $e->getMessage(),
-            ]);
+            // Log::error('PUBLISH PURCHASING ERROR', [
+            //     'pengajuan_id' => $id,
+            //     'message' => $e->getMessage(),
+            // ]);
 
             return response()->json([
                 'success' => false,
@@ -1435,11 +1435,11 @@ class PurchasingController extends Controller
                 'message' => 'Detail barang pengajuan tidak ditemukan.',
             ], 404);
         } catch (\Throwable $e) {
-            Log::error('ADD TO WAREHOUSE ERROR', [
-                'item_id' => $id,
-                'user_id' => auth()->id(),
-                'error' => $e->getMessage(),
-            ]);
+            // Log::error('ADD TO WAREHOUSE ERROR', [
+            //     'item_id' => $id,
+            //     'user_id' => auth()->id(),
+            //     'error' => $e->getMessage(),
+            // ]);
 
             return response()->json([
                 'success' => false,
@@ -2828,15 +2828,15 @@ class PurchasingController extends Controller
                                 ->path($attachment->file_path);
                         }
                     } catch (\Throwable $attachmentPathError) {
-                        Log::warning(
-                            'PURCHASING EXPORT ATTACHMENT PATH ERROR',
-                            [
-                                'pengajuan_id' => $pengajuan->id,
-                                'file_id' => $attachment->id,
-                                'file_path' => $attachment->file_path,
-                                'message' => $attachmentPathError->getMessage(),
-                            ]
-                        );
+                        // Log::warning(
+                        //     'PURCHASING EXPORT ATTACHMENT PATH ERROR',
+                        //     [
+                        //         'pengajuan_id' => $pengajuan->id,
+                        //         'file_id' => $attachment->id,
+                        //         'file_path' => $attachment->file_path,
+                        //         'message' => $attachmentPathError->getMessage(),
+                        //     ]
+                        // );
                     }
 
                     if (!$filePath || !is_file($filePath)) {
@@ -3073,16 +3073,16 @@ class PurchasingController extends Controller
                 ]
             );
         } catch (\Throwable $e) {
-            Log::error(
-                'EXPORT PURCHASING ERROR',
-                [
-                    'pengajuan_id' => $id,
-                    'message' => $e->getMessage(),
-                    'file' => $e->getFile(),
-                    'line' => $e->getLine(),
-                    'trace' => $e->getTraceAsString(),
-                ]
-            );
+            // Log::error(
+            //     'EXPORT PURCHASING ERROR',
+            //     [
+            //         'pengajuan_id' => $id,
+            //         'message' => $e->getMessage(),
+            //         'file' => $e->getFile(),
+            //         'line' => $e->getLine(),
+            //         'trace' => $e->getTraceAsString(),
+            //     ]
+            // );
 
             abort(
                 500,

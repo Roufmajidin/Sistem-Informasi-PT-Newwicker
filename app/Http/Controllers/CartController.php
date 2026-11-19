@@ -281,7 +281,7 @@ class CartController extends Controller
         // }
         foreach ($request->items as $item) {
             $exhibition = Exhibition::where('name', $item['exhibition_name'])->first();
-            Log::info("Checkout for exhibition: " . $item['exhibition_name'] . " (ID: " . ($exhibition ? $exhibition->id : 'not found') . ")");
+            // Log::info("Checkout for exhibition: " . $item['exhibition_name'] . " (ID: " . ($exhibition ? $exhibition->id : 'not found') . ")");
 
             $p = ProductPameran::find($item['cart_id']);
 

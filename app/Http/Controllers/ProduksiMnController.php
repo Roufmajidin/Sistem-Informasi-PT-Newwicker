@@ -2986,13 +2986,13 @@ class ProduksiMnController extends Controller
 
         $result = $result->values()->toArray();
 
-        Log::info('PRODUCTION MONITORING TIME', [
-            'time' => round(microtime(true) - $start, 3),
-            'search' => $request->input('search_po'),
-            'brand' => $request->input('brand'),
-            'sort' => $request->input('sort'),
-            'total_po' => count($result),
-        ]);
+        // Log::info('PRODUCTION MONITORING TIME', [
+        //     'time' => round(microtime(true) - $start, 3),
+        //     'search' => $request->input('search_po'),
+        //     'brand' => $request->input('brand'),
+        //     'sort' => $request->input('sort'),
+        //     'total_po' => count($result),
+        // ]);
 
         return $result;
     }

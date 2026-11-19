@@ -230,7 +230,7 @@ class MarketingController extends Controller
 
         // Simpan file ke storage
         $path = $file->storeAs('imports', uniqid() . '_' . $file->getClientOriginalName());
-        Log::info("✅ File berhasil disimpan di: " . storage_path("app/$path"));
+        // Log::info("✅ File berhasil disimpan di: " . storage_path("app/$path"));
 
         // Jalankan Job (queue)
         ImportProdukJob::dispatch(storage_path("app/$path"), Auth::user()->id, $photoCol, $codeCol);

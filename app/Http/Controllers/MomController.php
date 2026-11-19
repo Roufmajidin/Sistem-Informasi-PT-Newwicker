@@ -54,11 +54,11 @@ class MomController extends Controller
 
             $filename = "Mom-{$subject}-{$tanggal}-newwicker.id.pdf";
 
-            \Illuminate\Support\Facades\Log::info('MoM PDF generated', [
-                'mom_id' => $mom->id,
-                'duration_seconds' => round(microtime(true) - $start, 2),
-                'pdf_bytes' => strlen($content),
-            ]);
+            // \Illuminate\Support\Facades\Log::info('MoM PDF generated', [
+            //     'mom_id' => $mom->id,
+            //     'duration_seconds' => round(microtime(true) - $start, 2),
+            //     'pdf_bytes' => strlen($content),
+            // ]);
 
             return response($content, 200, [
                 'Content-Type' => 'application/pdf',
@@ -69,11 +69,11 @@ class MomController extends Controller
             ]);
 
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('MoM PDF failed', [
-                'mom_id' => $mom->id,
-                'duration_seconds' => round(microtime(true) - $start, 2),
-                'error' => $e->getMessage(),
-            ]);
+            // \Illuminate\Support\Facades\Log::error('MoM PDF failed', [
+            //     'mom_id' => $mom->id,
+            //     'duration_seconds' => round(microtime(true) - $start, 2),
+            //     'error' => $e->getMessage(),
+            // ]);
 
             throw $e;
         }

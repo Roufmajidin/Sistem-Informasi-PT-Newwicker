@@ -295,13 +295,13 @@ class PoController extends Controller
         $items = $request->items;
         // dd($request->all());
 
-        Log::info('Start import Excel PO', [
-            'user_id' => auth()->id(),
-            'company' => $company,
-        ]);
+        // Log::info('Start import Excel PO', [
+        //     'user_id' => auth()->id(),
+        //     'company' => $company,
+        // ]);
 
         if (empty($items)) {
-            Log::warning('Import gagal: items kosong');
+            // Log::warning('Import gagal: items kosong');
             return response()->json(['items' => []]);
         }
 
@@ -314,10 +314,10 @@ class PoController extends Controller
             ->exists();
 
         if ($exists) {
-            Log::warning('Duplicate PO detected', [
-                'order_no' => $orderNo,
-                'company' => $companyName,
-            ]);
+            // Log::warning('Duplicate PO detected', [
+            //     'order_no' => $orderNo,
+            //     'company' => $companyName,
+            // ]);
 
             return response()->json([
                 'status' => 'error',
@@ -337,10 +337,10 @@ class PoController extends Controller
             'contact_person' => $company['contact_person'] ?? "-",
         ]);
 
-        Log::info('PO created', [
-            'po_id' => $po->id,
-            'order_no' => $orderNo,
-        ]);
+        // Log::info('PO created', [
+        //     'po_id' => $po->id,
+        //     'order_no' => $orderNo,
+        // ]);
 
         // ======================
         // NORMALIZE KEY ITEMS
@@ -364,10 +364,10 @@ class PoController extends Controller
             ]);
         }
 
-        Log::info('Detail PO inserted', [
-            'po_id' => $po->id,
-            'total_items' => count($items),
-        ]);
+        // Log::info('Detail PO inserted', [
+        //     'po_id' => $po->id,
+        //     'total_items' => count($items),
+        // ]);
 
         // ======================
         // SIMPAN TIMELINE
@@ -382,9 +382,9 @@ class PoController extends Controller
             'jenis' => 'pfi',
         ]);
 
-        Log::info('Timeline created', [
-            'po_id' => $po->id,
-        ]);
+        // Log::info('Timeline created', [
+        //     'po_id' => $po->id,
+        // ]);
 
         return response()->json([
             'status' => 'success',
@@ -725,11 +725,11 @@ class PoController extends Controller
         } catch (\Throwable $e) {
             DB::rollBack();
 
-            Log::error('Gagal menambah PFI item', [
-                'user_id' => Auth::id(),
-                'po_id' => $request->input('po_id'),
-                'error' => $e->getMessage(),
-            ]);
+            // Log::error('Gagal menambah PFI item', [
+            //     'user_id' => Auth::id(),
+            //     'po_id' => $request->input('po_id'),
+            //     'error' => $e->getMessage(),
+            // ]);
 
             return response()->json([
                 'success' => false,
@@ -785,10 +785,10 @@ class PoController extends Controller
 
         } catch (\Throwable $e) {
 
-            Log::error('Gagal upload foto PFI item', [
-                'user_id' => Auth::id(),
-                'error' => $e->getMessage(),
-            ]);
+            // Log::error('Gagal upload foto PFI item', [
+            //     'user_id' => Auth::id(),
+            //     'error' => $e->getMessage(),
+            // ]);
 
             return response()->json([
                 'success' => false,

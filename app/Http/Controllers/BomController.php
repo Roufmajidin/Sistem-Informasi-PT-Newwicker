@@ -410,7 +410,7 @@ class BomController extends Controller
         // dd($id);
         $start = microtime(true);
 
-        Log::info("========== BOM SHOW START : {$id} ==========");
+        // Log::info("========== BOM SHOW START : {$id} ==========");
 
         // ======================================================
         // Load BOM
@@ -431,7 +431,7 @@ class BomController extends Controller
         //         ];
         //     })
         // );
-        Log::info('1. Load BOM : ' . round((microtime(true) - $timer) * 1000, 2) . ' ms');
+        // Log::info('1. Load BOM : ' . round((microtime(true) - $timer) * 1000, 2) . ' ms');
 
         // ======================================================
         // Material Price
@@ -440,7 +440,7 @@ class BomController extends Controller
 
         $materialPrices = MaterialPrice::all();
 
-        Log::info('2. MaterialPrice::all() : ' . round((microtime(true) - $timer) * 1000, 2) . ' ms');
+        // Log::info('2. MaterialPrice::all() : ' . round((microtime(true) - $timer) * 1000, 2) . ' ms');
 
         // ======================================================
         // Material List
@@ -460,7 +460,7 @@ class BomController extends Controller
                 return $row;
             });
 
-        Log::info('3. Load Materials : ' . round((microtime(true) - $timer) * 1000, 2) . ' ms');
+        // Log::info('3. Load Materials : ' . round((microtime(true) - $timer) * 1000, 2) . ' ms');
 
         // ======================================================
         // Finishing
@@ -480,7 +480,7 @@ class BomController extends Controller
                 return $row;
             });
 
-        Log::info('4. Load Finishings : ' . round((microtime(true) - $timer) * 1000, 2) . ' ms');
+        // Log::info('4. Load Finishings : ' . round((microtime(true) - $timer) * 1000, 2) . ' ms');
 
         // ======================================================
         // Merge Material
@@ -491,7 +491,7 @@ class BomController extends Controller
             ->concat($finishings)
             ->values();
 
-        Log::info('5. Merge Materials : ' . round((microtime(true) - $timer) * 1000, 2) . ' ms');
+        // Log::info('5. Merge Materials : ' . round((microtime(true) - $timer) * 1000, 2) . ' ms');
 
         // ======================================================
         // Build BOM Data
@@ -601,7 +601,7 @@ class BomController extends Controller
             ];
         }
 
-        Log::info('6. Build BOM Data : ' . round((microtime(true) - $timer) * 1000, 2) . ' ms');
+        // Log::info('6. Build BOM Data : ' . round((microtime(true) - $timer) * 1000, 2) . ' ms');
 
         // ======================================================
         // Render View
@@ -621,9 +621,9 @@ class BomController extends Controller
             )
         );
 
-        Log::info('7. Build View : ' . round((microtime(true) - $timer) * 1000, 2) . ' ms');
+        // Log::info('7. Build View : ' . round((microtime(true) - $timer) * 1000, 2) . ' ms');
 
-        Log::info('========== TOTAL SHOW : ' . round((microtime(true) - $start) * 1000, 2) . ' ms ==========');
+        // Log::info('========== TOTAL SHOW : ' . round((microtime(true) - $start) * 1000, 2) . ' ms ==========');
 
         return $view;
     }
@@ -773,11 +773,11 @@ class BomController extends Controller
                         'level' => 1,
 
                     ]);
-                    Log::info('ITEM SAVE', [
-                        'harga' => $item['price'] ?? null,
-                        'harga_type' => gettype($item['price'] ?? null),
-                        'material_type' => $item['material_type'] ?? null,
-                    ]);
+                    // Log::info('ITEM SAVE', [
+                    //     'harga' => $item['price'] ?? null,
+                    //     'harga_type' => gettype($item['price'] ?? null),
+                    //     'material_type' => $item['material_type'] ?? null,
+                    // ]);
                 }
 
             }

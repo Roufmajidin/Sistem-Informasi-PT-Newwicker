@@ -96,7 +96,7 @@ Route::post('/qc/test-notification', [
 Broadcast::routes([
     'middleware' => ['web', 'auth'],
 ]);
- // ar
+// ar
 
 Route::prefix('ars2026')->name('ars2026.')->group(function () {
     Route::get('/', [ArController2026::class, 'index'])->name('index');
@@ -111,7 +111,7 @@ Route::prefix('ars2026')->name('ars2026.')->group(function () {
 // Muat channel authorization
 require_once base_path('routes/channels.php');
 Route::middleware('auth')->prefix('mom')->name('mom.')->group(function () {
-   
+
     // 
     Route::get('/', [MomController::class, 'index'])->name('index');
     Route::get('/list', [MomController::class, 'listing'])->name('list');
@@ -216,12 +216,12 @@ Route::middleware('auth')->group(function () {
         ->group(function () {
             Route::get('/directur/rekap-excel', [PengajuanHargaController::class, 'downloadDirecturRekap'])
                 ->name('directur.rekap');
-Route::post('/monitor-close', [PengajuanHargaController::class, 'closeMonitorPengajuan'])
-    ->name('monitor.close');
+            Route::post('/monitor-close', [PengajuanHargaController::class, 'closeMonitorPengajuan'])
+                ->name('monitor.close');
 
 
-Route::get('/monitor-pengajuan', [PengajuanHargaController::class, 'monitorPengajuan'])
-    ->name('monitor');
+            Route::get('/monitor-pengajuan', [PengajuanHargaController::class, 'monitorPengajuan'])
+                ->name('monitor');
 
             Route::get('/directur', [PengajuanHargaController::class, 'directurPages'])->name('directur');
             Route::patch('/directur/{pekerjaan}', [PengajuanHargaController::class, 'updateDirectur'])->name('directur.update');
@@ -1356,9 +1356,9 @@ Route::middleware('auth')->group(function () {
         [ProduksiMnController::class, 'inventorDetail']
     );
     Route::get(
-    '/spk/{id}/qr-jpeg-zip',
-    [\App\Http\Controllers\SpkQrLabelController::class, 'downloadJpegZip']
-)->name('inventor.qr.jpeg-zip');
+        '/spk/{id}/qr-jpeg-zip',
+        [\App\Http\Controllers\SpkQrLabelController::class, 'downloadJpegZip']
+    )->name('inventor.qr.jpeg-zip');
     Route::get('/produksi/inventor/qr/{id}/preview', [SpkQrLabelController::class, 'preview'])
         ->whereNumber('id')->name('inventor.qr.preview');
     Route::get('/produksi/inventor/qr/{id}/download', [SpkQrLabelController::class, 'download'])

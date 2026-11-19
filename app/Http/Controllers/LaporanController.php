@@ -1167,14 +1167,14 @@ class LaporanController extends Controller
         // =====================================================
         // 3. DEBUG REQUEST
         // =====================================================
-        Log::info('STORE TRANSAKSI REQUEST', [
-            'stok_id' => $request->stok_id,
-            'spk_id' => $request->spk_id,
-            'qty_in' => $qtyIn,
-            'qty_out' => $qtyOut,
-            'return_raw' => $request->input('return'),
-            'return_normalized' => $isReturn,
-        ]);
+        // Log::info('STORE TRANSAKSI REQUEST', [
+        //     'stok_id' => $request->stok_id,
+        //     'spk_id' => $request->spk_id,
+        //     'qty_in' => $qtyIn,
+        //     'qty_out' => $qtyOut,
+        //     'return_raw' => $request->input('return'),
+        //     'return_normalized' => $isReturn,
+        // ]);
 
         // =====================================================
         // 4. VALIDASI TRANSAKSI
@@ -1257,11 +1257,11 @@ class LaporanController extends Controller
                 ->whereIn('id', $savedIds)
                 ->get(['id', 'spk_id', 'return']);
 
-            Log::info('STORE TRANSAKSI RESULT', [
-                'ids' => $savedIds,
-                'return_requested' => $isReturn,
-                'saved_rows' => $saved->toArray(),
-            ]);
+            // Log::info('STORE TRANSAKSI RESULT', [
+            //     'ids' => $savedIds,
+            //     'return_requested' => $isReturn,
+            //     'saved_rows' => $saved->toArray(),
+            // ]);
 
             // =================================================
             // 8. RESPONSE
@@ -1272,11 +1272,11 @@ class LaporanController extends Controller
             ]);
 
         } catch (\Throwable $e) {
-            Log::error('STORE TRANSAKSI ERROR', [
-                'message' => $e->getMessage(),
-                'stok_id' => $request->stok_id,
-                'return' => $isReturn,
-            ]);
+            // Log::error('STORE TRANSAKSI ERROR', [
+            //     'message' => $e->getMessage(),
+            //     'stok_id' => $request->stok_id,
+            //     'return' => $isReturn,
+            // ]);
 
             return response()->json([
                 'success' => false,

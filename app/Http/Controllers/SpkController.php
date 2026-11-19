@@ -7619,17 +7619,17 @@ class SpkController extends Controller
 
                 if (!$request->spk) {
 
-                    Log::warning('SPK NOT FOUND', [
+                    // Log::warning('SPK NOT FOUND', [
 
-                        'payment_request_id' =>
+                    //     'payment_request_id' =>
 
-                            $request->id,
+                    //         $request->id,
 
-                        'spk_id' =>
+                    //     'spk_id' =>
 
-                            $request->spk_id,
+                    //         $request->spk_id,
 
-                    ]);
+                    // ]);
 
                     return null;
 
@@ -7855,23 +7855,23 @@ class SpkController extends Controller
 
                         if (!$request->spk) {
 
-                            Log::warning(
+                            // Log::warning(
 
-                                'SPK NOT FOUND IN DRAFT',
+                            //     'SPK NOT FOUND IN DRAFT',
 
-                                [
+                            //     [
 
-                                    'payment_request_id' =>
+                            //         'payment_request_id' =>
 
-                                        $request->id,
+                            //             $request->id,
 
-                                    'spk_id' =>
+                            //         'spk_id' =>
 
-                                        $request->spk_id,
+                            //             $request->spk_id,
 
-                                ]
+                            //     ]
 
-                            );
+                            // );
 
                             return null;
 
@@ -8352,27 +8352,27 @@ class SpkController extends Controller
 
                 */
 
-                Log::info(
+                // Log::info(
 
-                    'PAYMENT REQUEST DRAFT APPROVERS',
+                //     'PAYMENT REQUEST DRAFT APPROVERS',
 
-                    [
+                //     [
 
-                        'draft_id' =>
+                //         'draft_id' =>
 
-                            $draft->id,
+                //             $draft->id,
 
-                        'request_no' =>
+                //         'request_no' =>
 
-                            $draft->request_no,
+                //             $draft->request_no,
 
-                        'approvals' =>
+                //         'approvals' =>
 
-                            $approvalList->toArray(),
+                //             $approvalList->toArray(),
 
-                    ]
+                //     ]
 
-                );
+                // );
 
                 /*
 

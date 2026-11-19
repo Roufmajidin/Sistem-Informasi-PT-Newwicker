@@ -240,7 +240,7 @@ class RndController extends Controller
 
                 if (count($matches) > 1) {
 
-                    Log::warning('RND buyer folder duplicate; migration skipped', ['po_id' => $po->id, 'buyer' => $buyer]);
+                    // Log::warning('RND buyer folder duplicate; migration skipped', ['po_id' => $po->id, 'buyer' => $buyer]);
 
                     return;
 
@@ -262,7 +262,7 @@ class RndController extends Controller
 
                             === mb_strtolower(trim((string) ($source['name'] ?? $po->order_no)))) {
 
-                        Log::warning('RND PO destination collision; migration skipped', ['po_id' => $po->id, 'buyer' => $buyer]);
+                        // Log::warning('RND PO destination collision; migration skipped', ['po_id' => $po->id, 'buyer' => $buyer]);
 
                         return;
 
@@ -272,11 +272,11 @@ class RndController extends Controller
 
                 $drive->moveArchiveItem($sourceId, $rootId, $buyerId);
 
-                Log::info('RND legacy PO folder grouped under Buyer', [
+                // Log::info('RND legacy PO folder grouped under Buyer', [
 
-                    'po_id' => $po->id, 'buyer' => $buyer, 'drive_folder_id' => $sourceId,
+                //     'po_id' => $po->id, 'buyer' => $buyer, 'drive_folder_id' => $sourceId,
 
-                ]);
+                // ]);
 
             });
 
@@ -284,7 +284,7 @@ class RndController extends Controller
 
             // Jangan blokir fitur buka artikel/upload jika proses pengelompokan gagal.
 
-            Log::warning('RND grouping skipped', ['po_id' => $po->id, 'error' => $e->getMessage()]);
+            // Log::warning('RND grouping skipped', ['po_id' => $po->id, 'error' => $e->getMessage()]);
 
         }
 
@@ -550,13 +550,13 @@ class RndController extends Controller
 
                 $markBinding('article_lock_acquired');
 
-                Log::info('RND article lock acquired', [
+                // Log::info('RND article lock acquired', [
 
-                    'po_id' => $po->id, 'detail_po_id' => $item->id,
+                //     'po_id' => $po->id, 'detail_po_id' => $item->id,
 
-                    'elapsed_from_start_ms' => (int) round((microtime(true) - $bindingStarted) * 1000),
+                //     'elapsed_from_start_ms' => (int) round((microtime(true) - $bindingStarted) * 1000),
 
-                ]);
+                // ]);
 
                 $record = RndArchiveFolder::query()
 
@@ -602,13 +602,13 @@ class RndController extends Controller
 
                 $markBinding('article_drive_lookup_done');
 
-                Log::info('RND article folder lookup timing', [
+                // Log::info('RND article folder lookup timing', [
 
-                    'po_id' => $po->id, 'detail_po_id' => $item->id,
+                //     'po_id' => $po->id, 'detail_po_id' => $item->id,
 
-                    'drive_lookup_ms' => (int) round((microtime(true) - $driveLookupStarted) * 1000),
+                //     'drive_lookup_ms' => (int) round((microtime(true) - $driveLookupStarted) * 1000),
 
-                ]);
+                // ]);
 
                 if ($record) {
                     throw new \RuntimeException('Folder artikel sudah ada di database tetapi Google Drive Folder ID kosong. Periksa metadata sebelum membuat folder baru.');
@@ -663,10 +663,10 @@ class RndController extends Controller
                     $markBinding('article_drive_create');
                     $created = $drive->createFolder($folderName, $poDriveId);
                     $markBinding('article_drive_create_done');
-                    Log::info('RND article folder create timing', [
-                        'po_id' => $po->id, 'detail_po_id' => $item->id,
-                        'drive_create_ms' => (int) round((microtime(true) - $driveCreateStarted) * 1000),
-                    ]);
+                    // Log::info('RND article folder create timing', [
+                    //     'po_id' => $po->id, 'detail_po_id' => $item->id,
+                    //     'drive_create_ms' => (int) round((microtime(true) - $driveCreateStarted) * 1000),
+                    // ]);
                     $driveFolderId = (string) $created['id'];
                 }
 
@@ -694,21 +694,21 @@ class RndController extends Controller
 
                     }
 
-                    Log::warning('RND Drive folder already bound to another DB record', [
+                    // Log::warning('RND Drive folder already bound to another DB record', [
 
-                        'drive_folder_id' => $driveFolderId,
+                    //     'drive_folder_id' => $driveFolderId,
 
-                        'existing_db_folder_id' => $existingByDriveId->id,
+                    //     'existing_db_folder_id' => $existingByDriveId->id,
 
-                        'existing_po_id' => $existingByDriveId->po_id,
+                    //     'existing_po_id' => $existingByDriveId->po_id,
 
-                        'existing_detail_po_id' => $existingByDriveId->detail_po_id,
+                    //     'existing_detail_po_id' => $existingByDriveId->detail_po_id,
 
-                        'requested_po_id' => $po->id,
+                    //     'requested_po_id' => $po->id,
 
-                        'requested_detail_po_id' => $item->id,
+                    //     'requested_detail_po_id' => $item->id,
 
-                    ]);
+                    // ]);
 
                     throw new \RuntimeException(
 
@@ -784,17 +784,17 @@ class RndController extends Controller
 
             $markBinding('finished');
 
-            Log::info('RND article binding full timing', [
+            // Log::info('RND article binding full timing', [
 
-                'po_id' => $po->id,
+            //     'po_id' => $po->id,
 
-                'detail_po_id' => $item->id,
+            //     'detail_po_id' => $item->id,
 
-                'total_ms' => (int) round((microtime(true) - $bindingStarted) * 1000),
+            //     'total_ms' => (int) round((microtime(true) - $bindingStarted) * 1000),
 
-                'phases' => $bindingTimings,
+            //     'phases' => $bindingTimings,
 
-            ]);
+            // ]);
 
         }
 
@@ -1012,13 +1012,13 @@ class RndController extends Controller
 
             $driveItems = $drive->listFolderContents($folder->google_drive_folder_id);
 
-            Log::info('RND archive open Drive listing timing', ['detail_po_id' => $detailPo->id, 'ms' => (int) round((microtime(true) - $openListStarted) * 1000)]);
+            // Log::info('RND archive open Drive listing timing', ['detail_po_id' => $detailPo->id, 'ms' => (int) round((microtime(true) - $openListStarted) * 1000)]);
 
             $openSyncStarted = microtime(true);
 
             $this->syncDriveFilesToDatabase($folder, $driveItems);
 
-            Log::info('RND archive open DB sync timing', ['detail_po_id' => $detailPo->id, 'ms' => (int) round((microtime(true) - $openSyncStarted) * 1000)]);
+            // Log::info('RND archive open DB sync timing', ['detail_po_id' => $detailPo->id, 'ms' => (int) round((microtime(true) - $openSyncStarted) * 1000)]);
 
             $files = RndArchiveFile::query()
 
@@ -1074,15 +1074,15 @@ class RndController extends Controller
 
         } catch (Throwable $e) {
 
-            Log::error('RND openArticleArchive gagal', [
+            // Log::error('RND openArticleArchive gagal', [
 
-                'po_id' => $po->id,
+            //     'po_id' => $po->id,
 
-                'detail_po_id' => $detailPo->id,
+            //     'detail_po_id' => $detailPo->id,
 
-                'error' => $e->getMessage(),
+            //     'error' => $e->getMessage(),
 
-            ]);
+            // ]);
 
             return response()->json([
 
@@ -1124,13 +1124,13 @@ class RndController extends Controller
 
                 if ((int) $existing->folder_id !== (int) $folder->id) {
 
-                    Log::warning('RND file Drive tercatat di folder DB berbeda; tidak dipindahkan otomatis', [
+                    // Log::warning('RND file Drive tercatat di folder DB berbeda; tidak dipindahkan otomatis', [
 
-                        'drive_file_id' => $item['id'], 'expected_folder_id' => $folder->id,
+                    //     'drive_file_id' => $item['id'], 'expected_folder_id' => $folder->id,
 
-                        'actual_folder_id' => $existing->folder_id,
+                    //     'actual_folder_id' => $existing->folder_id,
 
-                    ]);
+                    // ]);
 
                 }
 
@@ -1501,25 +1501,25 @@ class RndController extends Controller
 
                     ];
 
-                    Log::info('RND photo uploaded', [
+                    // Log::info('RND photo uploaded', [
 
-                        'po_id' => $po->id,
+                    //     'po_id' => $po->id,
 
-                        'detail_po_id' => $detailPo->id,
+                    //     'detail_po_id' => $detailPo->id,
 
-                        'folder_id' => $folder->id,
+                    //     'folder_id' => $folder->id,
 
-                        'file' => $originalName,
+                    //     'file' => $originalName,
 
-                        'file_size_bytes' => (int) ($photo->getSize() ?? 0),
+                    //     'file_size_bytes' => (int) ($photo->getSize() ?? 0),
 
-                        'drive_upload_ms' => $driveDurationMs,
+                    //     'drive_upload_ms' => $driveDurationMs,
 
-                        'database_save_ms' => $dbDurationMs,
+                    //     'database_save_ms' => $dbDurationMs,
 
-                        'total_file_ms' => (int) round((microtime(true) - $fileStartedAt) * 1000),
+                    //     'total_file_ms' => (int) round((microtime(true) - $fileStartedAt) * 1000),
 
-                    ]);
+                    // ]);
 
                 } catch (Throwable $fileError) {
 
@@ -1531,23 +1531,23 @@ class RndController extends Controller
 
                     ];
 
-                    Log::error('RND upload satu foto gagal', [
+                    // Log::error('RND upload satu foto gagal', [
 
-                        'po_id' => $po->id,
+                    //     'po_id' => $po->id,
 
-                        'detail_po_id' => $detailPo->id,
+                    //     'detail_po_id' => $detailPo->id,
 
-                        'folder_id' => $folder->id,
+                    //     'folder_id' => $folder->id,
 
-                        'file' => $originalName,
+                    //     'file' => $originalName,
 
-                        'file_size_bytes' => (int) ($photo->getSize() ?? 0),
+                    //     'file_size_bytes' => (int) ($photo->getSize() ?? 0),
 
-                        'total_file_ms' => (int) round((microtime(true) - $fileStartedAt) * 1000),
+                    //     'total_file_ms' => (int) round((microtime(true) - $fileStartedAt) * 1000),
 
-                        'error' => $fileError->getMessage(),
+                    //     'error' => $fileError->getMessage(),
 
-                    ]);
+                    // ]);
 
                 }
 
@@ -1587,17 +1587,17 @@ class RndController extends Controller
 
         } catch (Throwable $e) {
 
-            Log::error('RND uploadArticlePhotos gagal', [
+            // Log::error('RND uploadArticlePhotos gagal', [
 
-                'po_id' => $po->id,
+            //     'po_id' => $po->id,
 
-                'detail_po_id' => $detailPo->id,
+            //     'detail_po_id' => $detailPo->id,
 
-                'folder_id' => $folder?->id,
+            //     'folder_id' => $folder?->id,
 
-                'error' => $e->getMessage(),
+            //     'error' => $e->getMessage(),
 
-            ]);
+            // ]);
 
             return response()->json([
 
@@ -1897,17 +1897,17 @@ class RndController extends Controller
 
         } catch (Throwable $e) {
 
-            Log::error('RND browseArchiveFolder gagal', [
+            // Log::error('RND browseArchiveFolder gagal', [
 
-                'po_id' => $po->id,
+            //     'po_id' => $po->id,
 
-                'detail_po_id' => $detailPo->id,
+            //     'detail_po_id' => $detailPo->id,
 
-                'folder_id' => $folder,
+            //     'folder_id' => $folder,
 
-                'error' => $e->getMessage(),
+            //     'error' => $e->getMessage(),
 
-            ]);
+            // ]);
 
             return response()->json([
 
@@ -2067,15 +2067,15 @@ class RndController extends Controller
 
         } catch (Throwable $e) {
 
-            Log::error('RND createArchiveFolder gagal', [
+            // Log::error('RND createArchiveFolder gagal', [
 
-                'po_id' => $po->id,
+            //     'po_id' => $po->id,
 
-                'detail_po_id' => $detailPo->id,
+            //     'detail_po_id' => $detailPo->id,
 
-                'error' => $e->getMessage(),
+            //     'error' => $e->getMessage(),
 
-            ]);
+            // ]);
 
             return response()->json([
 
@@ -2281,13 +2281,13 @@ class RndController extends Controller
 
         } catch (Throwable $e) {
 
-            Log::error('RND renameArchiveItem gagal', [
+            // Log::error('RND renameArchiveItem gagal', [
 
-                'drive_item_id' => $folder,
+            //     'drive_item_id' => $folder,
 
-                'error' => $e->getMessage(),
+            //     'error' => $e->getMessage(),
 
-            ]);
+            // ]);
 
             return response()->json([
 
@@ -2419,13 +2419,13 @@ class RndController extends Controller
 
         } catch (Throwable $e) {
 
-            Log::error('RND deleteArchiveItem gagal', [
+            // Log::error('RND deleteArchiveItem gagal', [
 
-                'drive_item_id' => $folder,
+            //     'drive_item_id' => $folder,
 
-                'error' => $e->getMessage(),
+            //     'error' => $e->getMessage(),
 
-            ]);
+            // ]);
 
             return response()->json([
 
@@ -2531,7 +2531,7 @@ class RndController extends Controller
 
                 } catch (Throwable $rollback) {
 
-                    Log::critical('RND move rollback gagal', ['id' => $folder, 'error' => $rollback->getMessage()]);
+                    // Log::critical('RND move rollback gagal', ['id' => $folder, 'error' => $rollback->getMessage()]);
 
                 }
 
@@ -2555,7 +2555,7 @@ class RndController extends Controller
 
         } catch (Throwable $e) {
 
-            Log::error('RND move gagal', ['id' => $folder, 'error' => $e->getMessage()]);
+            // Log::error('RND move gagal', ['id' => $folder, 'error' => $e->getMessage()]);
 
             return response()->json(['success' => false, 'message' => config('app.debug') ? $e->getMessage() : 'Gagal memindahkan item.'], 500);
 
@@ -2619,7 +2619,8 @@ class RndController extends Controller
 
                 } catch (Throwable $rollback) {
 
-                    Log::critical('RND copy rollback gagal', ['id' => $copied['id']]);
+                    // 
+                    // Log::critical('RND copy rollback gagal', ['id' => $copied['id']]);
 
                 }
 
@@ -2641,7 +2642,7 @@ class RndController extends Controller
 
         } catch (Throwable $e) {
 
-            Log::error('RND copy gagal', ['id' => $folder, 'error' => $e->getMessage()]);
+            // Log::error('RND copy gagal', ['id' => $folder, 'error' => $e->getMessage()]);
 
             return response()->json(['success' => false, 'message' => config('app.debug') ? $e->getMessage() : 'Gagal menyalin file.'], 500);
 
