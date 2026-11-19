@@ -35,7 +35,7 @@
 
             </div>
 
-            <div class="col-6 col-xl-3">
+            {{-- <div class="col-6 col-xl-3">
 
                 <div class="whov-kpi"><span class="whov-ico green"><i class="bi bi-box-arrow-in-down"></i></span>
 
@@ -46,7 +46,7 @@
 
                 </div>
 
-            </div>
+            </div> --}}
 
             <div class="col-6 col-xl-3">
 
