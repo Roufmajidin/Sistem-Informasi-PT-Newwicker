@@ -258,22 +258,13 @@ class ProduksiController extends Controller
     }
     //mutasi mba siti
     public function mutasi(Request $request)
-    {
-        $a = Spk::query()
-            ->with('po')
-            ->orderByDesc('id')
-            ->simplePaginate(10)
-            ->withQueryString();
-
-        if ($request->ajax()) {
-            return response()->json([
-                'html' => view('pages.mutasi.mutasi_rows', compact('a'))->render(),
-                'has_more' => $a->hasMorePages(),
-            ]);
-        }
-
-        return view('pages.mutasi.index', compact('a'));
-    }
+{
+    return response()->json([
+        'success' => true,
+        'message' => 'Controller mutasi berhasil dipanggil',
+        'memory_mb' => round(memory_get_usage(true) / 1048576, 2),
+    ]);
+}
 
     public function mutasidetail($id)
     {
