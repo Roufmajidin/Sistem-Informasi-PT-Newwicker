@@ -17,9 +17,8 @@ class ActivityLogMiddleware
     |--------------------------------------------------------------------------
     */
 
-    // FALSE = Activity Log nonaktif
-    // TRUE  = Activity Log aktif kembali
-    private const ENABLE_LOG = false;
+    // Activity Log aktif
+    private const ENABLE_LOG = true;
 
     // Cache module route selama 1 jam
     private const CACHE_SECONDS = 3600;
@@ -32,7 +31,7 @@ class ActivityLogMiddleware
 
     public function handle(Request $request, Closure $next)
     {
-        // Tidak ada query database atau broadcasting.
+        // Tidak melakukan query atau broadcast di sini.
         return $next($request);
     }
 
@@ -44,8 +43,6 @@ class ActivityLogMiddleware
 
     public function terminate(Request $request, $response): void
     {
-        // Activity Log dimatikan.
-        // Tidak ada query atau INSERT ke database.
         if (!self::ENABLE_LOG) {
             return;
         }
@@ -58,13 +55,11 @@ class ActivityLogMiddleware
             |--------------------------------------------------------------------------
             */
 
-            if (
-                $request->routeIs(
-                    'it.index',
-                    'it.data',
-                    'pusher.auth'
-                )
-            ) {
+            if ($request->routeIs(
+                'it.index',
+                'it.data',
+                'pusher.auth'
+            )) {
                 return;
             }
 
@@ -135,9 +130,9 @@ class ActivityLogMiddleware
                             'route_name',
                             $routeName
                         )
-                            ->where('method', $method)
-                            ->where('is_active', true)
-                            ->value('module_id') ?? '__none__';
+                        ->where('method', $method)
+                        ->where('is_active', true)
+                        ->value('module_id') ?? '__none__';
                     }
                 );
 

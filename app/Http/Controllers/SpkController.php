@@ -6574,79 +6574,65 @@ class SpkController extends Controller
         $isRndSpk = $request->spk === 'rnd_spk';
         return view('pages.spk.all', compact('isRndSpk'));
     }
-    public function allspk()
+      public function allspk()
     {
-        $poList = Po::all();
-        $spks = Spk::all();
-        $detailPo = DetailPo::all();
-        $result = $poList->map(function ($po) use ($spks, $detailPo) {
-            // =========================
-            // SPK per PO
-            // =========================
-            $spkList = $spks
-                ->where('po_id', $po->id)
-                ->map(function ($spk) {
-                    return [
-                        'id' => $spk->id,
-                        'data' => $spk->data,
-                    ];
-                });
-            // =========================
-            // DETAIL PO ITEMS
-            // =========================
-            $items = $detailPo
-                ->where('po_id', $po->id)
-                ->map(function ($item) use ($spkList) {
-                    $detail = is_string($item->detail)
-                        ? json_decode($item->detail, true)
-                        : $item->detail;
-                    /**
-                     * STRUKTUR:
-                     * kategori → supplier → total_qty
-                     */
-                    $summary = [];
-                    foreach ($spkList as $spk) {
-                        $spkId = $spk['id'];         // ✅ AMAN
-                        $data = $spk['data'] ?? []; // 🔥 KUNCI UTAMA
-                        $supplier = $data['sup'] ?? '-';
-                        $kategori = $data['kategori'] ?? '-';
-                        $noSpk = $data['no_spk'] ?? '-';
-                        foreach ($data['items'] ?? [] as $spkItem) {
-                            if (
-                                isset($spkItem['detail_po_id']) &&
-                                $spkItem['detail_po_id'] == $item->id
-                            ) {
-                                $qty = (int) ($spkItem['qty'] ?? 0);
-                                // init kategori
-                                if (!isset($summary[$kategori])) {
-                                    $summary[$kategori] = [];
-                                }
-                                // init supplier
-                                if (!isset($summary[$kategori][$supplier])) {
-                                    $summary[$kategori][$supplier] = [
-                                        'total_qty' => 0,
-                                        'spks' => [],
-                                    ];
-                                }
-                                // total qty supplier
-                                $summary[$kategori][$supplier]['total_qty'] += $qty;
-                                // detail per SPK
-                                $summary[$kategori][$supplier]['spks'][] = [
-                                    'spk_id' => $spkId,
-                                    'no_spk' => $noSpk,
-                                    'qty' => $qty,
-                                    'tgl_selesai' => $data['tgl_selesai'] ?? null, // 🔥 INI
-                                ];
-                            }
-                        }
+        // Ambil kolom yang diperlukan, lalu indeks berdasarkan PO dan detail item.
+        $poList = Po::select('id', 'order_no', 'company_name')->get();
+        $detailsByPo = DetailPo::select('id', 'po_id', 'detail')->get()->groupBy('po_id');
+        $spksByPo = Spk::select('id', 'po_id', 'data')->get()->groupBy('po_id');
+
+        $result = $poList->map(function ($po) use ($detailsByPo, $spksByPo) {
+            $summaryByDetail = [];
+
+            foreach ($spksByPo->get($po->id, collect()) as $spk) {
+                $data = $spk->data;
+                if (is_string($data)) {
+                    $data = json_decode($data, true);
+                }
+                if (!is_array($data)) {
+                    $data = [];
+                }
+
+                $supplier = $data['sup'] ?? '-';
+                $kategori = $data['kategori'] ?? '-';
+                $noSpk = $data['no_spk'] ?? '-';
+
+                foreach (($data['items'] ?? []) as $spkItem) {
+                    if (!is_array($spkItem) || !isset($spkItem['detail_po_id'])) {
+                        continue;
                     }
-                    return [
-                        'id' => $item->id,
-                        'detail' => $detail,
-                        'summary' => $summary,
+                    $detailId = (string) $spkItem['detail_po_id'];
+                    $qty = (int) ($spkItem['qty'] ?? 0);
+
+                    if (!isset($summaryByDetail[$detailId][$kategori][$supplier])) {
+                        $summaryByDetail[$detailId][$kategori][$supplier] = [
+                            'total_qty' => 0,
+                            'spks' => [],
+                        ];
+                    }
+                    $bucket = &$summaryByDetail[$detailId][$kategori][$supplier];
+                    $bucket['total_qty'] += $qty;
+                    $bucket['spks'][] = [
+                        'spk_id' => $spk->id,
+                        'no_spk' => $noSpk,
+                        'qty' => $qty,
+                        'tgl_selesai' => $data['tgl_selesai'] ?? null,
                     ];
-                })
-                ->values();
+                    unset($bucket);
+                }
+            }
+
+            $items = $detailsByPo->get($po->id, collect())->map(function ($item) use ($summaryByDetail) {
+                $detail = is_string($item->detail)
+                    ? json_decode($item->detail, true)
+                    : $item->detail;
+                return [
+                    'id' => $item->id,
+                    'detail' => $detail,
+                    'summary' => $summaryByDetail[(string) $item->id] ?? [],
+                ];
+            })->values();
+
             return [
                 'data_po' => [
                     'id' => $po->id,
@@ -6656,8 +6642,10 @@ class SpkController extends Controller
                 ],
             ];
         });
+
         return response()->json($result);
     }
+
     // get spk
     public function spkEdit($id)
     {
