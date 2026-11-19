@@ -1128,6 +1128,8 @@ Route::post('/logout', [AuthController::class, 'logoutWeb'])->name('logout')->mi
 // ==========================================================
 // RESUME AUTH PROTECTION FOR INTERNAL ROUTES
 // ==========================================================
+Route::get('/download-api', [PameranContrller::class, 'downloadPameranJson'])->name('downloadPameranJson');
+
 Route::middleware('auth')->group(function () {
 
 
@@ -1186,7 +1188,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/pameran/filter', [PameranContrller::class, 'getByExhibition'])->name('pameran.filter');
     Route::get('/all-event-config', [PameranContrller::class, 'allEentConfig'])->name('eventconfig');
     Route::get('/pameran-api', [PameranContrller::class, 'getPameranData'])->name('getPameranData');
-    Route::get('/download-api', [PameranContrller::class, 'downloadPameranJson'])->name('downloadPameranJson');
 
     Route::get('/pameran/categories', [PameranContrller::class, 'getCategories'])->name('getCategories');
 
