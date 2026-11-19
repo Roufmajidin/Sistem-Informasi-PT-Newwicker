@@ -171,45 +171,52 @@ class InventorSignatureController extends Controller
 
     }
 
+
     public function index(Request $request)
     {
-
         $validated = $request->validate([
-
             'q' => 'nullable|string|max:200',
-
-            'key' => ['nullable', 'string', 'max:20', 'regex:/^[a-zA-Z0-9_-]+$/'],
-
+            'key' => ['nullable', 'string', 'max:20', 'regex:/^[a-zA-Z0-9\_-]+$/'],
             'date_from' => 'nullable|date_format:Y-m-d',
             'view' => 'nullable|in:pending,signed',
-
         ]);
 
         $userId = (int) $request->user()->id;
         $email = strtolower(trim((string) $request->user()->email));
+
         $signedDivisions = match ($email) {
             'intan@gmail.com' => ['NWD', 'NWS'],
             'nurk@gmail.com', 'vivia@gmail.com' => ['NW', 'NWR'],
             default => [],
         };
+
         $canViewSigned = $signedDivisions !== [];
-        $viewMode = ($validated['view'] ?? 'pending') === 'signed' && $canViewSigned ? 'signed' : 'pending';
+
+        $viewMode = ($validated['view'] ?? 'pending') === 'signed'
+            && $canViewSigned
+            ? 'signed'
+            : 'pending';
 
         $search = trim((string) ($validated['q'] ?? ''));
-
         $key = strtoupper(trim((string) ($validated['key'] ?? '')));
 
         // Empty / ALL means no division restriction.
-
         if ($key === 'ALL') {
-
             $key = '';
-
         }
 
         $dateFromInput = (string) ($validated['date_from'] ?? '');
 
-        $dateFrom = $dateFromInput !== '' ? Carbon::createFromFormat('!Y-m-d', $dateFromInput)->startOfDay() : null;
+        $dateFrom = $dateFromInput !== ''
+            ? Carbon::createFromFormat('!Y-m-d', $dateFromInput)->startOfDay()
+            : null;
+
+        /*
+        |--------------------------------------------------------------------------
+        | SIGNATURE QUERY
+        |--------------------------------------------------------------------------
+        | Pertahankan seluruh relasi dan aturan akses existing.
+        */
 
         $signaturesQuery = SignatureSpk::with([
             'madeBy.karyawan.divisi',
@@ -218,6 +225,7 @@ class InventorSignatureController extends Controller
             'approvedBy.karyawan.divisi',
             'supplier',
         ]);
+
         if ($viewMode === 'pending') {
             $signaturesQuery->where(function ($query) use ($userId) {
                 $query->where('made_by', $userId)
@@ -226,180 +234,222 @@ class InventorSignatureController extends Controller
                     ->orWhere('approved_by', $userId);
             });
         }
-        $signatures = $signaturesQuery->orderByDesc('spk_id')->get();
 
-        // Filter at database level: only submitted SPKs created on/after Start Date.
+        $signatures = $signaturesQuery
+            ->orderByDesc('spk_id')
+            ->get();
 
-        // created_at belongs to the SPK record, not the signature record.
+        /*
+        |--------------------------------------------------------------------------
+        | SPK QUERY + CUTOFF
+        |--------------------------------------------------------------------------
+        | FIX:
+        | SPK dibuat sebelum cutoff tetapi di-update/diajukan setelah cutoff
+        | tetap dapat masuk ke proses filtering.
+        |
+        | Status tetap mengikuti tab:
+        | pending = diajukan
+        | signed  = approved
+        */
 
         $spkQuery = Spk::query()
-
-            ->whereIn('id', $signatures->pluck('spk_id')->unique())
-
-            ->whereRaw('LOWER(TRIM(status)) = ?', [$viewMode === 'signed' ? 'approved' : 'diajukan']);
+            ->whereIn(
+                'id',
+                $signatures->pluck('spk_id')->unique()
+            )
+            ->whereRaw(
+                'LOWER(TRIM(status)) = ?',
+                [$viewMode === 'signed' ? 'approved' : 'diajukan']
+            );
 
         if ($dateFrom !== null) {
+            $cutoff = $dateFrom->toDateTimeString();
 
-            $spkQuery->where('created_at', '>=', $dateFrom->toDateTimeString());
-
+            $spkQuery->where(function ($query) use ($cutoff) {
+                $query->where('created_at', '>=', $cutoff)
+                    ->orWhere('updated_at', '>=', $cutoff);
+            });
         }
 
         $spks = $spkQuery->get()->keyBy('id');
 
-        $documents = $signatures->map(function (SignatureSpk $signature) use ($spks, $userId, $search, $key, $viewMode, $signedDivisions) {
+        /*
+        |--------------------------------------------------------------------------
+        | DOCUMENTS
+        |--------------------------------------------------------------------------
+        | Seluruh logic existing dipertahankan.
+        */
 
-            $spk = $spks->get($signature->spk_id);
+        $documents = $signatures->map(
+            function (SignatureSpk $signature) use ($spks, $userId, $search, $key, $viewMode, $signedDivisions) {
+                $spk = $spks->get($signature->spk_id);
 
-            if (!$spk || $this->blocked($spk)) {
-
-                return null;
-
-            }
-
-            $data = $this->spkData($spk);
-
-            $division = $this->division($spk);
-            if ($viewMode === 'signed' && !in_array($division, $signedDivisions, true)) {
-                return null;
-            }
-
-            if ($key !== '' && $division !== $key) {
-
-                return null;
-
-            }
-
-            if ($search !== '') {
-
-                $haystack = mb_strtolower(implode(' ', [
-
-                    (string) ($data['no_spk'] ?? ''),
-
-                    (string) ($data['no_po'] ?? ''),
-
-                    (string) ($data['sup'] ?? ''),
-
-                    (string) ($signature->supplier?->name ?? ''),
-
-                ]));
-
-                if (!str_contains($haystack, mb_strtolower($search))) {
-
+                if (!$spk || $this->blocked($spk)) {
                     return null;
-
                 }
 
-            }
+                $data = $this->spkData($spk);
+                $division = $this->division($spk);
 
-            $pendingStages = $this->pendingStages($signature, $spk);
-
-            if ($viewMode === 'signed') {
-                // Only fully signed SPKs are shown in the completed tab.
-                if ($pendingStages !== [])
+                if (
+                    $viewMode === 'signed'
+                    && !in_array($division, $signedDivisions, true)
+                ) {
                     return null;
-            } elseif ($pendingStages === []) {
-                return null; // Existing pending behavior.
+                }
+
+                if ($key !== '' && $division !== $key) {
+                    return null;
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | SEARCH EXISTING
+                |--------------------------------------------------------------------------
+                */
+
+                if ($search !== '') {
+                    $haystack = mb_strtolower(implode(' ', [
+                        (string) ($data['no_spk'] ?? ''),
+                        (string) ($data['no_po'] ?? ''),
+                        (string) ($data['sup'] ?? ''),
+                        (string) ($signature->supplier?->name ?? ''),
+                    ]));
+
+                    if (!str_contains($haystack, mb_strtolower($search))) {
+                        return null;
+                    }
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | PENDING STAGES
+                |--------------------------------------------------------------------------
+                */
+
+                $pendingStages = $this->pendingStages(
+                    $signature,
+                    $spk
+                );
+
+                if ($viewMode === 'signed') {
+                    // Only fully signed SPKs are shown in completed tab.
+                    if ($pendingStages !== []) {
+                        return null;
+                    }
+                } elseif ($pendingStages === []) {
+                    return null;
+                }
+
+                $isMaker = $signature->made_by !== null
+                    && (int) $signature->made_by === $userId;
+
+                $pendingTypes = $this->pendingTypes(
+                    $signature,
+                    $spk,
+                    $userId
+                );
+
+                $type = $pendingTypes[0] ?? null;
+                $stage = $pendingStages[0] ?? null;
+
+                /*
+                |--------------------------------------------------------------------------
+                | MAKER NAME
+                |--------------------------------------------------------------------------
+                */
+
+                $makerName = match ($division) {
+                    'NW', 'NWR' => 'Nur Khasanah',
+                    'NWD', 'NWS' => 'Intan',
+                    default => $signature->madeBy?->name ?? '-',
+                };
+
+                $makerDivision = match ($division) {
+                    'NW', 'NWR' => 'Purchasing',
+                    'NWD', 'NWS' => 'RnD Engineering',
+                    default => $signature->madeBy?->karyawan?->divisi?->nama ?? '',
+                };
+
+                /*
+                |--------------------------------------------------------------------------
+                | STATUS LABEL
+                |--------------------------------------------------------------------------
+                */
+
+                $statusLabel = match ($stage) {
+                    'checked' => 'Menunggu Checker 1',
+                    'checked_2' => 'Menunggu Checker 2',
+                    'approved' => 'Menunggu Approved By',
+                    default => 'Sudah TTD',
+                };
+
+                return [
+                    'spk' => $spk,
+                    'signature' => $signature,
+                    'data' => $data,
+
+                    'type' => $type,
+                    'types' => $pendingTypes,
+
+                    'stage' => $stage,
+                    'pendingStages' => $pendingStages,
+
+                    'isMaker' => $isMaker,
+                    'division' => $division,
+
+                    'makerName' => $makerName,
+                    'makerDivision' => $makerDivision,
+
+                    'status_label' => $statusLabel,
+
+                    'pendingChecker1' => in_array(
+                        'checked',
+                        $pendingStages,
+                        true
+                    ),
+
+                    'pendingChecker2' => in_array(
+                        'checked_2',
+                        $pendingStages,
+                        true
+                    ),
+
+                    'pendingApproved' => in_array(
+                        'approved',
+                        $pendingStages,
+                        true
+                    ),
+                ];
             }
-
-            $isMaker = $signature->made_by !== null && (int) $signature->made_by === $userId;
-
-            $pendingTypes = $this->pendingTypes($signature, $spk, $userId);
-
-            $type = $pendingTypes[0] ?? null;
-
-            $stage = $pendingStages[0] ?? null;
-
-            $makerName = match ($division) {
-
-                'NW', 'NWR' => 'Nur Khasanah',
-
-                'NWD', 'NWS' => 'Intan',
-
-                default => $signature->madeBy?->name ?? '-',
-
-            };
-
-            $makerDivision = match ($division) {
-
-                'NW', 'NWR' => 'Purchasing',
-
-                'NWD', 'NWS' => 'RnD Engineering',
-
-                default => $signature->madeBy?->karyawan?->divisi?->nama ?? '',
-
-            };
-
-            $statusLabel = match ($stage) {
-
-                'checked' => 'Menunggu Checker 1',
-
-                'checked_2' => 'Menunggu Checker 2',
-
-                'approved' => 'Menunggu Approved By',
-                default => 'Sudah TTD',
-            };
-
-            return [
-
-                'spk' => $spk,
-
-                'signature' => $signature,
-
-                'data' => $data,
-
-                'type' => $type,
-
-                'types' => $pendingTypes,
-
-                'stage' => $stage,
-
-                'pendingStages' => $pendingStages,
-
-                'isMaker' => $isMaker,
-
-                'division' => $division,
-
-                'makerName' => $makerName,
-
-                'makerDivision' => $makerDivision,
-
-                'status_label' => $statusLabel,
-
-                'pendingChecker1' => in_array('checked', $pendingStages, true),
-
-                'pendingChecker2' => in_array('checked_2', $pendingStages, true),
-
-                'pendingApproved' => in_array('approved', $pendingStages, true),
-
-            ];
-
-        })->filter()->values();
+        )->filter()->values();
 
         $totalPending = $documents->count();
 
-        // The Blade date input needs the original YYYY-MM-DD string.
+        /*
+        |--------------------------------------------------------------------------
+        | RETURN VIEW
+        |--------------------------------------------------------------------------
+        */
 
+        // Blade tetap menerima format tanggal YYYY-MM-DD.
         $dateFrom = $dateFromInput;
 
-        return view('pages.management.inventor_signature', compact(
-
-            'documents',
-
-            'search',
-
-            'key',
-
-            'dateFrom',
-
-            'dateFromInput',
-
-            'totalPending',
-            'viewMode',
-            'canViewSigned'
-
-        ));
-
+        return view(
+            'pages.management.inventor_signature',
+            compact(
+                'documents',
+                'search',
+                'key',
+                'dateFrom',
+                'dateFromInput',
+                'totalPending',
+                'viewMode',
+                'canViewSigned'
+            )
+        );
     }
+
 
     public function sign(Request $request, int $id)
     {
