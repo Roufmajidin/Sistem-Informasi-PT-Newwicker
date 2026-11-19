@@ -257,12 +257,33 @@ class ProduksiController extends Controller
         return response()->json(['success' => true]);
     }
     //mutasi mba siti
-    public function mutasi()
+    public function mutasi(Request $request)
     {
-        $a = Spk::with(['po', 'detailPo'])->get();
-        // dd($a);
+        $search = trim((string) $request->query('search', ''));
+        $query = Spk::query()->with('po')->orderByDesc('id');
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('po', function ($po) use ($search) {
+                    $po->where('order_no', 'like', '%' . $search . '%')
+                        ->orWhere('company_name', 'like', '%' . $search . '%');
+                })->orWhere('data', 'like', '%' . $search . '%');
+            });
+        }
+
+        // simplePaginate menghindari query COUNT(*) pada setiap load.
+        $a = $query->simplePaginate(30)->withQueryString();
+
+        if ($request->ajax()) {
+            return response()->json([
+                'html' => view('pages.mutasi.mutasi_rows', compact('a'))->render(),
+                'has_more' => $a->hasMorePages(),
+            ]);
+        }
+
         return view('pages.mutasi.index', compact('a'));
     }
+
     public function mutasidetail($id)
     {
         $spk = Spk::with('po')->findOrFail($id);
@@ -423,29 +444,29 @@ class ProduksiController extends Controller
             'message' => 'Timeline berhasil disimpan.'
         ]);
     }
-   
-public function destroyMutasiTimeline(\Illuminate\Http\Request $request, int $id)
-{
-    $data = $request->validate([
-        'spk_id' => ['required', 'integer'],
-        'detail_po_id' => ['required', 'integer'],
-    ]);
 
-    $timeline = ProductionTimeline::query()
-        ->whereKey($id)
-        ->where('spk_id', $data['spk_id'])
-        ->where('detail_po_id', $data['detail_po_id'])
-        ->firstOrFail();
+    public function destroyMutasiTimeline(\Illuminate\Http\Request $request, int $id)
+    {
+        $data = $request->validate([
+            'spk_id' => ['required', 'integer'],
+            'detail_po_id' => ['required', 'integer'],
+        ]);
 
-    // Pastikan user memiliki izin hapus melalui middleware/policy.
-    $timeline->delete();
+        $timeline = ProductionTimeline::query()
+            ->whereKey($id)
+            ->where('spk_id', $data['spk_id'])
+            ->where('detail_po_id', $data['detail_po_id'])
+            ->firstOrFail();
 
-    return response()->json([
-        'success' => true,
-        'message' => 'Data mutasi berhasil dihapus.',
-        'deleted_id' => $id,
-    ]);
-}
+        // Pastikan user memiliki izin hapus melalui middleware/policy.
+        $timeline->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Data mutasi berhasil dihapus.',
+            'deleted_id' => $id,
+        ]);
+    }
 
 
 
