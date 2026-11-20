@@ -32,21 +32,21 @@
                     </select> --}}
                     <select id="filter-type" class="form-control" style="width:180px;">
 
-    <option value="">-- Pilih --</option>
+                        <option value="">-- Pilih --</option>
 
-    @if(auth()->user()?->hasAccess('pengajuan_all_divisi'))
-        <option value="All Divisi">All Divisi</option>
-    @endif
+                        @if (auth()->user()?->hasAccess('pengajuan_all_divisi'))
+                            <option value="All Divisi">All Divisi</option>
+                        @endif
 
-    @if(auth()->user()?->hasAccess('pengajuan_finance'))
-        <option value="Finance">Finance</option>
-    @endif
+                        @if (auth()->user()?->hasAccess('pengajuan_finance'))
+                            <option value="Finance">Finance</option>
+                        @endif
 
-    @if(auth()->user()?->hasAccess('pengajuan_spk'))
-        <option value="Spk">Pengajuan SPK</option>
-    @endif
+                        @if (auth()->user()?->hasAccess('pengajuan_spk'))
+                            <option value="Spk">Pengajuan SPK</option>
+                        @endif
 
-</select>
+                    </select>
 
                     <!-- QR BUTTON -->
                     <div id="btn-qr"
@@ -816,6 +816,15 @@
                 }
             }
         </style>
+        @php
+            $approvalImageVersions = [];
+
+            for ($i = 1; $i <= 10; $i++) {
+                $path = public_path("assets/{$i}.png");
+
+                $approvalImageVersions[$i] = is_file($path) ? filemtime($path) : 1;
+            }
+        @endphp
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
         <script src="https://unpkg.com/html5-qrcode"></script>
         <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -824,6 +833,9 @@
         <script src="https://cdn.jsdelivr.net/npm/zoomist@1/dist/zoomist.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
         <script>
+            // Versi gambar approval mengikuti waktu perubahan masing-masing file.
+            const approvalImageVersions = @json($approvalImageVersions);
+
             // ===== FINANCE EXCEL STATE =====
             let excelMeta = {};
             let excelDetails = [];
@@ -1695,7 +1707,8 @@
                             // IMAGE STEP
                             // =========================
                             let stepNumber = index + 1;
-                            let stepImage = `/assets/${stepNumber}.png`;
+                            let stepImage =
+                                `/assets/${stepNumber}.png?v=${approvalImageVersions[stepNumber] ?? 1}`;
 
                             let block = '';
 
