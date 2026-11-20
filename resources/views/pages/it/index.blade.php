@@ -444,6 +444,26 @@
             </div>
 
 
+            <div class="card border-0 shadow-sm rounded-3 mb-4">
+                <div class="card-header bg-white border-0 py-3">
+                    <strong>Web Requests by User</strong>
+                    <div class="text-muted small">Top 10 user · 7 hari terakhir · jumlah HTTP request</div>
+                </div>
+                <div class="card-body">
+                    <div id="webUserRequestsChart" style="min-height:340px;"></div>
+                    <div id="webUserRequestsBadges" class="d-flex flex-wrap gap-2 mt-3">
+                        @forelse ($webUserRequests as $userRequest)
+                            <span
+                                class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-3 py-2">
+                                {{ $userRequest->name }} · {{ number_format($userRequest->total) }} requests
+                            </span>
+                        @empty
+                            <span class="text-muted small">Belum ada request.</span>
+                        @endforelse
+                    </div>
+                </div>
+            </div>
+
             {{-- ===================================================== --}}
             {{-- WEB ACTIVITY TABLE --}}
             {{-- ===================================================== --}}
@@ -902,6 +922,26 @@
             </div>
 
 
+            <div class="card border-0 shadow-sm rounded-3 mb-4">
+                <div class="card-header bg-white border-0 py-3">
+                    <strong>API Requests by User</strong>
+                    <div class="text-muted small">Top 10 user · 7 hari terakhir · jumlah HTTP request</div>
+                </div>
+                <div class="card-body">
+                    <div id="apiUserRequestsChart" style="min-height:340px;"></div>
+                    <div id="apiUserRequestsBadges" class="d-flex flex-wrap gap-2 mt-3">
+                        @forelse ($apiUserRequests as $userRequest)
+                            <span
+                                class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-3 py-2">
+                                {{ $userRequest->name }} · {{ number_format($userRequest->total) }} requests
+                            </span>
+                        @empty
+                            <span class="text-muted small">Belum ada request.</span>
+                        @endforelse
+                    </div>
+                </div>
+            </div>
+
             {{-- ===================================================== --}}
             {{-- API ACTIVITY TABLE --}}
             {{-- ===================================================== --}}
@@ -1110,6 +1150,125 @@
 {{-- ============================================================= --}}
 
 <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script>
+    // Ranking requests per user. Bar chart + badge nama dan total request.
+    function createUserRankingChart(id, rows) {
+        const el = document.getElementById(id + 'UserRequestsChart');
+        if (!el || typeof ApexCharts === 'undefined') return null;
+        const chart = new ApexCharts(el, {
+            chart: {
+                type: 'area',
+                height: 340,
+                toolbar: {
+                    show: false
+                },
+                zoom: {
+                    enabled: false
+                },
+                animations: {
+                    enabled: true
+                }
+            },
+            series: [{
+                name: 'Requests',
+                data: rows.map(r => Number(r.total))
+            }],
+            xaxis: {
+                categories: rows.map(r => r.name || 'Unknown'),
+                labels: {
+                    rotate: -35,
+                    trim: true,
+                    hideOverlappingLabels: false
+                }
+            },
+            stroke: {
+                curve: 'smooth',
+                width: 3
+            },
+            fill: {
+                type: 'gradient',
+                gradient: {
+                    shadeIntensity: 1,
+                    opacityFrom: 0.35,
+                    opacityTo: 0.04,
+                    stops: [0, 95, 100]
+                }
+            },
+            markers: {
+                size: 5,
+                hover: {
+                    size: 7
+                }
+            },
+            dataLabels: {
+                enabled: true,
+                offsetY: -12,
+                background: {
+                    enabled: true,
+                    borderRadius: 6,
+                    padding: 5,
+                    opacity: 0.95
+                },
+                formatter: v => Number(v).toLocaleString('id-ID')
+            },
+            grid: {
+                borderColor: '#e9edf3',
+                strokeDashArray: 3
+            },
+            yaxis: {
+                min: 0,
+                labels: {
+                    formatter: v => Math.round(v).toLocaleString('id-ID')
+                }
+            },
+            tooltip: {
+                y: {
+                    formatter: v => Number(v).toLocaleString('id-ID') + ' requests'
+                }
+            },
+            noData: {
+                text: 'Belum ada request'
+            }
+        });
+        chart.render();
+        return chart;
+    }
+
+    function initializeUserRankingCharts() {
+        webUserRequestsChart = createUserRankingChart('web', @json($webUserRequests));
+        apiUserRequestsChart = createUserRankingChart('api', @json($apiUserRequests));
+    }
+
+    function updateUserRankingChart(id, rows) {
+        const chart = id === 'web' ? webUserRequestsChart : apiUserRequestsChart;
+        if (chart) {
+            chart.updateOptions({
+                xaxis: {
+                    categories: rows.map(r => r.name || 'Unknown')
+                },
+                series: [{
+                    name: 'Requests',
+                    data: rows.map(r => Number(r.total))
+                }]
+            });
+        }
+        const badges = document.getElementById(id + 'UserRequestsBadges');
+        if (!badges) return;
+        badges.replaceChildren();
+        if (!rows.length) {
+            badges.textContent = 'Belum ada request.';
+            return;
+        }
+        rows.forEach(row => {
+            const badge = document.createElement('span');
+            badge.className =
+                'badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-3 py-2';
+            badge.textContent = (row.name || 'Unknown') + ' · ' +
+                Number(row.total).toLocaleString('id-ID') + ' requests';
+            badges.appendChild(badge);
+        });
+    }
+</script>
 
 <script>
     let voiceEnabled = true;
@@ -1119,132 +1278,135 @@
     let apiActivityByDayChart = null;
     let apiEndpointChart = null;
 
+    let webUserRequestsChart = null;
+    let apiUserRequestsChart = null;
     let dashboardRefreshing = false;
 
-  function speakActivity(activity) {
+    function speakActivity(activity) {
 
-    if (!voiceEnabled) {
-        return;
+        if (!voiceEnabled) {
+            return;
+        }
+
+        if (!('speechSynthesis' in window)) {
+            console.warn('Speech Synthesis tidak tersedia.');
+            return;
+        }
+
+        const user =
+            activity.user_name ??
+            activity.user?.name ??
+            'User';
+
+        const url =
+            activity.url ??
+            '';
+
+        const route =
+            activity.route_name ??
+            '';
+
+        const method =
+            String(activity.method ?? 'GET').toUpperCase();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | JANGAN GUNAKAN ROUTE "generated:..."
+        |--------------------------------------------------------------------------
+        */
+
+        const isGeneratedRoute =
+            route &&
+            route.toLowerCase().startsWith('generated:');
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | TENTUKAN IDENTITAS HALAMAN
+        |--------------------------------------------------------------------------
+        */
+
+        let page = '';
+
+        if (
+            url &&
+            url !== '/' &&
+            url !== '#'
+        ) {
+
+            page = url;
+
+        } else if (
+            route &&
+            !isGeneratedRoute
+        ) {
+
+            page = route;
+
+        } else {
+
+            page = 'halaman tersebut';
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | KALIMAT VOICE
+        |--------------------------------------------------------------------------
+        */
+
+        let text = '';
+
+
+        if (method === 'POST') {
+
+            text =
+                `${user} menyimpan data pada ${page}`;
+
+        } else if (
+            method === 'PUT' ||
+            method === 'PATCH'
+        ) {
+
+            text =
+                `${user} memperbarui data pada ${page}`;
+
+        } else if (method === 'DELETE') {
+
+            text =
+                `${user} menghapus data pada ${page}`;
+
+        } else {
+
+            text =
+                `${user} mengakses ${page}`;
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SPEAK
+        |--------------------------------------------------------------------------
+        */
+
+        window.speechSynthesis.cancel();
+
+        const utterance =
+            new SpeechSynthesisUtterance(text);
+
+        utterance.lang = 'id-ID';
+        utterance.rate = 0.95;
+        utterance.pitch = 1;
+        utterance.volume = 1;
+
+        window.speechSynthesis.speak(
+            utterance
+        );
     }
 
-    if (!('speechSynthesis' in window)) {
-        console.warn('Speech Synthesis tidak tersedia.');
-        return;
-    }
-
-    const user =
-        activity.user_name ??
-        activity.user?.name ??
-        'User';
-
-    const url =
-        activity.url ??
-        '';
-
-    const route =
-        activity.route_name ??
-        '';
-
-    const method =
-        String(activity.method ?? 'GET').toUpperCase();
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | JANGAN GUNAKAN ROUTE "generated:..."
-    |--------------------------------------------------------------------------
-    */
-
-    const isGeneratedRoute =
-        route &&
-        route.toLowerCase().startsWith('generated:');
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | TENTUKAN IDENTITAS HALAMAN
-    |--------------------------------------------------------------------------
-    */
-
-    let page = '';
-
-    if (
-        url &&
-        url !== '/' &&
-        url !== '#'
-    ) {
-
-        page = url;
-
-    } else if (
-        route &&
-        !isGeneratedRoute
-    ) {
-
-        page = route;
-
-    } else {
-
-        page = 'halaman tersebut';
-
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | KALIMAT VOICE
-    |--------------------------------------------------------------------------
-    */
-
-    let text = '';
-
-
-    if (method === 'POST') {
-
-        text =
-            `${user} menyimpan data pada ${page}`;
-
-    } else if (
-        method === 'PUT' ||
-        method === 'PATCH'
-    ) {
-
-        text =
-            `${user} memperbarui data pada ${page}`;
-
-    } else if (method === 'DELETE') {
-
-        text =
-            `${user} menghapus data pada ${page}`;
-
-    } else {
-
-        text =
-            `${user} mengakses ${page}`;
-
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | SPEAK
-    |--------------------------------------------------------------------------
-    */
-
-    window.speechSynthesis.cancel();
-
-    const utterance =
-        new SpeechSynthesisUtterance(text);
-
-    utterance.lang = 'id-ID';
-    utterance.rate = 0.95;
-    utterance.pitch = 1;
-    utterance.volume = 1;
-
-    window.speechSynthesis.speak(
-        utterance
-    );
-}
     function showLiveActivity(activity) {
         const container =
             document.getElementById(
@@ -1464,143 +1626,143 @@
         }
 
 
-     if (soundToggle) {
+        if (soundToggle) {
 
-    soundToggle.addEventListener(
-        'click',
-        function () {
+            soundToggle.addEventListener(
+                'click',
+                function() {
 
-            soundEnabled =
-                !soundEnabled;
+                    soundEnabled = !soundEnabled;
 
-            this.textContent =
-                soundEnabled
-                    ? '🔔 Sound ON'
-                    : '🔕 Sound OFF';
+                    this.textContent =
+                        soundEnabled ?
+                        '🔔 Sound ON' :
+                        '🔕 Sound OFF';
+
+                }
+            );
 
         }
-    );
-
-}
 
 
 
-    
-    /*
-    |--------------------------------------------------------------------------
-    | INITIAL CHART
-    |--------------------------------------------------------------------------
-    */
 
-    initializeCharts();
+        /*
+        |--------------------------------------------------------------------------
+        | INITIAL CHART
+        |--------------------------------------------------------------------------
+        */
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | SEARCH WEB USER
-    |--------------------------------------------------------------------------
-    */
-
-    const searchUser = document.getElementById('searchUser');
-
-    if (searchUser) {
-
-        searchUser.addEventListener('input', function() {
-
-            const keyword = this.value.toLowerCase();
-
-            document
-                .querySelectorAll('#activityTableBody .activity-row')
-                .forEach(row => {
-
-                    const user =
-                        row.querySelector('.user-name')
-                        ?.textContent
-                        .toLowerCase() ?? '';
-
-                    row.style.display =
-                        user.includes(keyword) ?
-                        '' :
-                        'none';
-
-                });
-
-        });
-
-    }
+        initializeCharts();
+        initializeUserRankingCharts();
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | SEARCH API USER
-    |--------------------------------------------------------------------------
-    */
+        /*
+        |--------------------------------------------------------------------------
+        | SEARCH WEB USER
+        |--------------------------------------------------------------------------
+        */
 
-    const searchAppUser =
-        document.getElementById('searchAppUser');
+        const searchUser = document.getElementById('searchUser');
 
-    if (searchAppUser) {
+        if (searchUser) {
 
-        searchAppUser.addEventListener('input', function() {
+            searchUser.addEventListener('input', function() {
 
-            const keyword =
-                this.value.toLowerCase();
+                const keyword = this.value.toLowerCase();
 
-            document
-                .querySelectorAll('#appActivityTableBody .app-activity-row')
-                .forEach(row => {
+                document
+                    .querySelectorAll('#activityTableBody .activity-row')
+                    .forEach(row => {
 
-                    const user =
-                        row.querySelector('.app-user-name')
-                        ?.textContent
-                        .toLowerCase() ?? '';
+                        const user =
+                            row.querySelector('.user-name')
+                            ?.textContent
+                            .toLowerCase() ?? '';
 
-                    row.style.display =
-                        user.includes(keyword) ?
-                        '' :
-                        'none';
+                        row.style.display =
+                            user.includes(keyword) ?
+                            '' :
+                            'none';
 
-                });
+                    });
 
-        });
-
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | ECHO / PUSHER
-    |--------------------------------------------------------------------------
-    */
-
-    // Pusher hanya menjadi sinyal. Data tetap diambil dari ActivityLog.
-    // Pembaruan penuh dibatasi agar query grafik tidak membebani hosting.
-    let refreshTimer = null;
-    const scheduleDashboardRefresh = () => {
-        if (refreshTimer !== null) return;
-        refreshTimer = setTimeout(() => {
-            refreshTimer = null;
-            refreshITDashboard();
-        }, 10000);
-    };
-
-    if (typeof window.Echo !== 'undefined') {
-        window.Echo.channel('it-dashboard')
-            .listen('.activity.logged', function(activity) {
-                // Tampilkan event yang diterima, dan sinkronkan tabel lengkap.
-                showLiveActivity(activity);
-                speakActivity(activity);
-                scheduleDashboardRefresh();
             });
-    } else {
-        console.warn('Echo tidak tersedia; sinkronisasi berkala tetap aktif.');
-    }
 
-    // Cadangan untuk aktivitas yang tidak memicu Pusher karena throttle,
-    // dan saat Pusher/worker terputus. Maksimal satu refresh per 60 detik.
-    setInterval(() => {
-        if (!document.hidden) scheduleDashboardRefresh();
-    }, 60000);
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SEARCH API USER
+        |--------------------------------------------------------------------------
+        */
+
+        const searchAppUser =
+            document.getElementById('searchAppUser');
+
+        if (searchAppUser) {
+
+            searchAppUser.addEventListener('input', function() {
+
+                const keyword =
+                    this.value.toLowerCase();
+
+                document
+                    .querySelectorAll('#appActivityTableBody .app-activity-row')
+                    .forEach(row => {
+
+                        const user =
+                            row.querySelector('.app-user-name')
+                            ?.textContent
+                            .toLowerCase() ?? '';
+
+                        row.style.display =
+                            user.includes(keyword) ?
+                            '' :
+                            'none';
+
+                    });
+
+            });
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | ECHO / PUSHER
+        |--------------------------------------------------------------------------
+        */
+
+        // Pusher hanya menjadi sinyal. Data tetap diambil dari ActivityLog.
+        // Pembaruan penuh dibatasi agar query grafik tidak membebani hosting.
+        let refreshTimer = null;
+        const scheduleDashboardRefresh = () => {
+            if (refreshTimer !== null) return;
+            refreshTimer = setTimeout(() => {
+                refreshTimer = null;
+                refreshITDashboard();
+            }, 10000);
+        };
+
+        if (typeof window.Echo !== 'undefined') {
+            window.Echo.channel('it-dashboard')
+                .listen('.activity.logged', function(activity) {
+                    // Tampilkan event yang diterima, dan sinkronkan tabel lengkap.
+                    showLiveActivity(activity);
+                    speakActivity(activity);
+                    scheduleDashboardRefresh();
+                });
+        } else {
+            console.warn('Echo tidak tersedia; sinkronisasi berkala tetap aktif.');
+        }
+
+        // Cadangan untuk aktivitas yang tidak memicu Pusher karena throttle,
+        // dan saat Pusher/worker terputus. Maksimal satu refresh per 60 detik.
+        setInterval(() => {
+            if (!document.hidden) scheduleDashboardRefresh();
+        }, 60000);
 
     });
 
@@ -1757,6 +1919,7 @@
         updateActivityByModuleChart(
             data.activityByModule
         );
+        updateUserRankingChart('web', data.webUserRequests ?? []);
 
 
         /*
@@ -1819,6 +1982,7 @@
         updateApiEndpointChart(
             data.apiEndpointUsage
         );
+        updateUserRankingChart('api', data.apiUserRequests ?? []);
 
     }
 
