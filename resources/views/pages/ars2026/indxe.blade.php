@@ -825,7 +825,7 @@
         }
 
         /* Freeze kolom No + Nama Pelanggan saat scroll horizontal.
-               Lebar konsisten dengan dua kolom pertama pada colgroup (48px + 210px). */
+           Lebar konsisten dengan dua kolom pertama pada colgroup (48px + 210px). */
         #ars2026-app #ars-table thead th.ars-sticky-no,
         #ars2026-app #ars-table tbody td.ars-sticky-no {
             position: sticky !important;
@@ -909,7 +909,7 @@
         }
 
         /* Freeze tiga kolom: No (48px), Nama Pelanggan (210px), No. PO (165px).
-               Offset disamakan persis dengan colgroup untuk mencegah overlap. */
+           Offset disamakan persis dengan colgroup untuk mencegah overlap. */
         #ars2026-app #ars-table thead th.ars-sticky-no,
         #ars2026-app #ars-table tbody tr.ars-data-row td.ars-sticky-no {
             position: sticky !important;
@@ -1629,6 +1629,29 @@
                 'settlement_date', 'settlement_amount', null, 'description', 'remark'
             ];
 
+            // Format Excel shipment yang diberikan user: 16 kolom,
+            // tanpa FOB PEB dan Description, tetapi ada dua kolom hasil rumus.
+            const shipmentExcelColumns = [
+                'customer_name', 'po_number', 'invoice_number', 'shipment_date',
+                'peb_submission_number', 'peb_number', 'fob_usd', 'exchange_rate',
+                'container_count', null, 'deposit_date', 'deposit_amount',
+                'settlement_date', 'settlement_amount', null, 'remark'
+            ];
+
+            function isExcelDateText(value) {
+                return /^\d{1,4}[\/-]\d{1,2}[\/-]\d{2,4}$/.test(String(value ?? '').trim());
+            }
+
+            function isShipmentExcelLayout(cells) {
+                // Pembeda dari 16 field database biasa: kolom 11 adalah tanggal
+                // deposit, kolom 10 adalah jumlah Rp (rumus), kolom 9 container.
+                return cells.length === 16 &&
+                    isExcelDateText(cells[3]) &&
+                    isExcelDateText(cells[10]) &&
+                    isExcelDateText(cells[12]) &&
+                    /^\s*\d+(?:[.,]\d+)?\s*$/.test(String(cells[8] ?? ''));
+            }
+
             function excelDate(value) {
                 const v = String(value ?? '').trim();
                 if (!v) return '';
@@ -1723,7 +1746,9 @@
                             if ((cells.length === 17 || cells.length === 19) && firstIsNo) {
                                 cells.shift();
                             }
-                            if (cells.length === 16) {
+                            if (isShipmentExcelLayout(cells)) {
+                                columnMap = shipmentExcelColumns;
+                            } else if (cells.length === 16) {
                                 columnMap = pasteColumns.filter(field => field !== null);
                             } else if (cells.length === 18) {
                                 columnMap = pasteColumns.slice();
@@ -1731,9 +1756,7 @@
                         }
 
                         if (cells.length > columnMap.length) {
-                            throw new Error(
-                                `Baris ${rowOffset + 1}: jumlah kolom Excel (${cells.length}) melebihi kolom ARS yang tersedia (${columnMap.length}). Periksa kolom No atau posisi sel awal paste.`
-                                );
+                            throw new Error(`Baris ${rowOffset + 1}: jumlah kolom Excel (${cells.length}) melebihi kolom ARS yang tersedia (${columnMap.length}). Periksa kolom No atau posisi sel awal paste.`);
                         }
 
                         const patch = {};
@@ -1747,10 +1770,8 @@
                                     shipment_date: 'Tanggal Shipment',
                                     deposit_date: 'Tanggal Deposit',
                                     settlement_date: 'Tanggal Pelunasan'
-                                } [field] || field;
-                                throw new Error(
-                                    `Baris ${rowOffset + 1}, kolom ${label}: ${err.message}. Pastikan sel awal paste dan urutan kolom Excel benar.`
-                                    );
+                                }[field] || field;
+                                throw new Error(`Baris ${rowOffset + 1}, kolom ${label}: ${err.message}. Pastikan sel awal paste dan urutan kolom Excel benar.`);
                             }
                         });
                         if (Object.keys(patch).length) plan.push({
