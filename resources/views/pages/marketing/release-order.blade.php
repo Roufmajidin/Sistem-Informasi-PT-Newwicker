@@ -1196,7 +1196,7 @@
                                         <th>Category</th>
                                         <th>Status</th>
                                         @if ($canSeeAgreementDate)
-                                            <th>Agreement Buyers Date</th>
+                                            <th>Buyers Deadline</th>
                                         @endif
                                         <th>Actual Shipment date</th>
                                         @if (in_array(strtolower(auth()->user()->role), ['marketing', 'sales', 'export', 'finance']))
