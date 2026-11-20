@@ -826,6 +826,23 @@
                     $approvalImageVersions[$id] = filemtime($path);
                 }
             }
+            // Approval lama menyimpan user_name. Cocokkan nama dengan users.name
+            // agar tetap menggunakan file gambar berformat ID: public/assets/141.png.
+            // Nama duplikat tidak dipetakan untuk mencegah tanda tangan salah orang.
+            $approvalUsernameToId = [];
+            $approvalDuplicateNames = [];
+            foreach (\App\Models\User::query()->select('id', 'name')->get() as $approvalUser) {
+                $nameKey = mb_strtolower(trim(preg_replace('/\s+/u', ' ', (string) $approvalUser->name)), 'UTF-8');
+                if ($nameKey === '') {
+                    continue;
+                }
+                if (isset($approvalUsernameToId[$nameKey])) {
+                    unset($approvalUsernameToId[$nameKey]);
+                    $approvalDuplicateNames[$nameKey] = true;
+                } elseif (!isset($approvalDuplicateNames[$nameKey])) {
+                    $approvalUsernameToId[$nameKey] = (string) $approvalUser->id;
+                }
+            }
             $defaultApprovalImageExists = is_file(public_path('assets/default.png'));
             $defaultApprovalImageVersion = $defaultApprovalImageExists
                 ? filemtime(public_path('assets/default.png'))
@@ -841,6 +858,7 @@
         <script>
             // Versi gambar approval mengikuti waktu perubahan masing-masing file.
             const approvalImageVersions = @json($approvalImageVersions);
+            const approvalUsernameToId = @json($approvalUsernameToId);
 
             // ===== FINANCE EXCEL STATE =====
             let excelMeta = {};
@@ -1714,15 +1732,32 @@
                             // =========================
                             // Gunakan ID user, bukan nomor urut approval.
                             // Jika ID belum tersedia di response, jangan menampilkan tanda tangan user lain.
-                            let approvalUserId = step.user_id ?? step.user?.id ?? null;
-                            let hasUserImage = approvalUserId !== null &&
+                            // Utamakan ID yang valid, lalu cari berdasarkan user_name.
+                            // Data approval lama sering hanya mempunyai user_name.
+                            let approvalNameKey = String(step.user_name ?? step.user?.name ?? '')
+                                .trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+                            // Prioritaskan pencocokan nama karena approval_steps.user sering null.
+                            // Hanya pakai ID apabila nama pada step memang cocok dengan user terkait.
+                            const mappedApprovalId = approvalUsernameToId[approvalNameKey] ?? null;
+                            const relatedApprovalId = step.user?.id ?? null;
+                            const approvalUserId = mappedApprovalId ?? relatedApprovalId;
+                            const hasUserImage = approvalUserId !== null &&
                                 Object.prototype.hasOwnProperty.call(approvalImageVersions, String(
                                     approvalUserId));
-                            let stepImage = hasUserImage ?
+                            const stepImage = hasUserImage ?
                                 `/assets/${encodeURIComponent(approvalUserId)}.png?v=${approvalImageVersions[approvalUserId]}` :
-                                @json($defaultApprovalImageExists) ?
-                                `/assets/default.png?v=${@json($defaultApprovalImageVersion)}` :
-                                null;
+                                (@json($defaultApprovalImageExists) ?
+                                    `/assets/default.png?v=${@json($defaultApprovalImageVersion)}` :
+                                    null);
+                            if (isApproved && !hasUserImage) {
+                                console.warn('Gambar approval belum ditemukan:', {
+                                    user_name: step.user_name,
+                                    user_id_terpetakan: mappedApprovalId,
+                                    file_yang_diharapkan: approvalUserId ?
+                                        `/assets/${approvalUserId}.png` :
+                                        '(nama tidak cocok / duplikat di users)'
+                                });
+                            }
 
                             let block = '';
 
