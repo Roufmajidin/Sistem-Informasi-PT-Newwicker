@@ -825,7 +825,7 @@
         }
 
         /* Freeze kolom No + Nama Pelanggan saat scroll horizontal.
-           Lebar konsisten dengan dua kolom pertama pada colgroup (48px + 210px). */
+               Lebar konsisten dengan dua kolom pertama pada colgroup (48px + 210px). */
         #ars2026-app #ars-table thead th.ars-sticky-no,
         #ars2026-app #ars-table tbody td.ars-sticky-no {
             position: sticky !important;
@@ -909,7 +909,7 @@
         }
 
         /* Freeze tiga kolom: No (48px), Nama Pelanggan (210px), No. PO (165px).
-           Offset disamakan persis dengan colgroup untuk mencegah overlap. */
+               Offset disamakan persis dengan colgroup untuk mencegah overlap. */
         #ars2026-app #ars-table thead th.ars-sticky-no,
         #ars2026-app #ars-table tbody tr.ars-data-row td.ars-sticky-no {
             position: sticky !important;
@@ -1712,26 +1712,46 @@
                 try {
                     grid.forEach((originalCells, rowOffset) => {
                         let cells = originalCells.slice();
-                        // Excel sering menyertakan kolom "No" paling kiri. Kolom No pada ARS otomatis.
-                        // Jika nomor urut diikuti nama pelanggan dan nomor invoice, abaikan nomor urut.
-                        if (startColumn === 0 && /^\d+$/.test(String(cells[0] ?? '').trim()) &&
-                            cells.length >= 5 && /\/\d{1,2}\/20\d{2}$/.test(String(cells[3] ?? '')
-                                .trim())) {
-                            cells.shift();
+                        let columnMap = pasteColumns.slice(startColumn);
+
+                        // Paste satu baris penuh dapat berasal dari Excel dengan atau tanpa
+                        // kolom hasil rumus (Jumlah Rp dan Sisa Piutang USD).
+                        // 16 = semua field database; 18 = semua kolom worksheet tanpa No.
+                        // 17/19 = format yang sama tetapi dengan kolom No di paling kiri.
+                        if (startColumn === 0) {
+                            const firstIsNo = /^\d+$/.test(String(cells[0] ?? '').trim());
+                            if ((cells.length === 17 || cells.length === 19) && firstIsNo) {
+                                cells.shift();
+                            }
+                            if (cells.length === 16) {
+                                columnMap = pasteColumns.filter(field => field !== null);
+                            } else if (cells.length === 18) {
+                                columnMap = pasteColumns.slice();
+                            }
                         }
-                        // Pastikan nomor invoice tidak pernah dimasukkan ke kolom tanggal.
+
+                        if (cells.length > columnMap.length) {
+                            throw new Error(
+                                `Baris ${rowOffset + 1}: jumlah kolom Excel (${cells.length}) melebihi kolom ARS yang tersedia (${columnMap.length}). Periksa kolom No atau posisi sel awal paste.`
+                                );
+                        }
+
                         const patch = {};
                         cells.forEach((value, colOffset) => {
-                            const field = pasteColumns[startColumn + colOffset];
-                            if (!field) return;
-                            if (field === 'shipment_date' || field === 'deposit_date' ||
-                                field === 'settlement_date') {
-                                if (/^INV[-/]/i.test(String(value ?? '').trim()))
-                                    throw new Error('Baris ' + (rowOffset + 1) +
-                                        ': nomor invoice masuk ke kolom tanggal. Klik sel Nama Pelanggan sebelum paste dan pastikan kolom No Excel tidak ikut, atau salin mulai dari No. Invoice ke sel No. Invoice.'
+                            const field = columnMap[colOffset];
+                            if (!field) return; // Kolom rumus otomatis tidak ditimpa.
+                            try {
+                                patch[field] = pasteValue(field, value);
+                            } catch (err) {
+                                const label = {
+                                    shipment_date: 'Tanggal Shipment',
+                                    deposit_date: 'Tanggal Deposit',
+                                    settlement_date: 'Tanggal Pelunasan'
+                                } [field] || field;
+                                throw new Error(
+                                    `Baris ${rowOffset + 1}, kolom ${label}: ${err.message}. Pastikan sel awal paste dan urutan kolom Excel benar.`
                                     );
                             }
-                            patch[field] = pasteValue(field, value);
                         });
                         if (Object.keys(patch).length) plan.push({
                             rowOffset,
@@ -1740,7 +1760,7 @@
                     });
                 } catch (err) {
                     status(err.message, true);
-                    return
+                    return;
                 }
                 if (!plan.length) return;
                 // Avoid writing into hidden rows when a search/month filter is active.
