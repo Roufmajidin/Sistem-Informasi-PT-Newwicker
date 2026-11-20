@@ -3,570 +3,1505 @@
 @section('content')
     @include('pages.spk.stylespk')
     @include('pages.marketing.style')
+    @php
+        $agreementEmail = strtolower((string) (auth()->user()->email ?? ''));
+        $agreementEmailPrefix = explode('@', $agreementEmail)[0];
+        $canSeeAgreementDate = in_array($agreementEmailPrefix, ['office', 'info', 'sales'], true);
+    @endphp
 
     <style>
-    /* New independent UI layer; existing JS, DOM IDs, routes and handlers remain untouched. */
-    #detail-view { --ui-ink:#18253b; --ui-muted:#69788e; --ui-line:#e7ebf1; --ui-brand:#2563eb; --ui-soft:#f7f9fc; color:var(--ui-ink); }
-    #detail-view > .col-sm-12 > .box { background:transparent; box-shadow:none; border:0; }
-    #detail-view .box-body { padding:14px 16px 8px; }
-    #detail-view #btn-back { background:white; color:#334155; border:1px solid var(--ui-line); border-radius:9px; padding:9px 13px; font-size:12px; font-weight:600; box-shadow:none; }
-    #detail-view #btn-back:hover { background:#f1f5f9; }
-    #detail-view hr { border-color:var(--ui-line); margin:14px 0; }
-    #detail-view .table-info { display:block; border:1px solid var(--ui-line); border-radius:14px; background:white; padding:9px; margin:12px 0 8px; box-shadow:0 3px 16px rgba(15,23,42,.035); }
-    #detail-view .table-info tbody { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; }
-    #detail-view .table-info tr { display:flex; flex-direction:column; background:var(--ui-soft); padding:10px 12px; border-radius:9px; min-width:0; }
-    #detail-view .table-info td { display:block; border:0 !important; padding:0 !important; width:auto !important; background:transparent !important; overflow-wrap:anywhere; }
-    #detail-view .table-info td:first-child { color:var(--ui-muted); font-size:10px; text-transform:uppercase; font-weight:700; letter-spacing:.05em; margin-bottom:4px; }
-    #detail-view .table-info td:last-child { font-size:13px; font-weight:700; color:var(--ui-ink); }
-    #detail-action-bar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:12px 0; padding:0 3px; }
-    #detail-action-bar .btn { border-radius:9px; padding:9px 14px; font-size:12px; font-weight:700; border:1px solid transparent; box-shadow:none; }
-    #btn-save-all { background:#2563eb; color:white; }
-    #btn-save-all:hover { background:#1d4ed8; }
-    #btn-add-item { background:#fff; border-color:#cbd5e1 !important; color:#334155; }
-    #btn-add-item:hover { background:#f8fafc; }
-    #detail-view .freeze-wrapper { position:relative; width:100%; max-height:min(68vh,680px); overflow:auto; border:1px solid var(--ui-line); border-radius:13px; background:white; box-shadow:0 4px 18px rgba(15,23,42,.045); scrollbar-width:thin; scrollbar-color:#bac5d4 #f4f6fa; }
-    /* Top scrollbar hidden: avoids overlap with the two-level sticky header. Native horizontal scrollbar remains. */
-    #detail-view .detail-scroll-top { display:none !important; }
-    #detail-view .detail-scroll-top-inner { height:1px; }
-    #detail-table { width:max-content; min-width:0; margin:0; table-layout:fixed; border-collapse:separate; border-spacing:0; font-size:11px; line-height:1.35; color:#334155; }
-    #detail-table th, #detail-table td { border:0 !important; border-bottom:1px solid #edf0f5 !important; vertical-align:middle; }
-    #detail-table thead th { position:sticky; background:#f6f8fb !important; color:#475569 !important; z-index:20; font-size:10px; font-weight:750; letter-spacing:.02em; white-space:nowrap; text-align:left; box-shadow:0 1px 0 #e4e9f1; }
-    #detail-table thead .header-top th { top:0; height:34px; padding:8px 9px; }
-    #detail-table thead .header-bottom th { top:34px; height:26px; padding:5px 8px; z-index:21; }
-    #detail-table thead .header-top th[rowspan="2"] { vertical-align:middle; }
-    #detail-table thead .dimension-group { text-align:center; background:#eef2f8 !important; }
-    #detail-table tbody td { height:52px; padding:5px 9px; background:#fff !important; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    #detail-table tbody tr:nth-child(even) td { background:#fcfdff !important; }
-    #detail-table tbody tr:hover td { background:#f1f6ff !important; }
-    #detail-table tbody tr.editing td { background:#fff8e7 !important; }
-    #detail-table tbody tr.new-item-row td { background:#eff6ff !important; border-top:1px solid #93c5fd !important; }
-    #detail-table .description-cell { font-weight:700; color:#1e293b; }
-    #detail-table .dimension-cell { text-align:center; font-variant-numeric:tabular-nums; padding-left:3px !important; padding-right:3px !important; }
-    /* Dimension groups: compact numeric cells and clear group boundaries. */
-    #detail-table thead .dimension-group { background:#e9f0fa !important; color:#29436c !important; font-size:10px; letter-spacing:.01em; text-align:center; border-left:2px solid #c6d5e8 !important; }
-    #detail-table thead .dimension-sub { background:#f2f6fc !important; text-align:center; padding:4px 2px !important; font-weight:700; color:#49617e; }
-    #detail-table td[data-key="item_w"], #detail-table td[data-key="pack_w"],
-    #detail-table td[data-key="item_w_inch"], #detail-table td[data-key="pack_w_inch"] { border-left:2px solid #c6d5e8 !important; }
-    #detail-table td[data-key^="item_"]:not([data-key="item_w"]):not([data-key="item_d"]):not([data-key="item_h"]),
-    #detail-table td[data-key^="pack_"] { font-variant-numeric:tabular-nums; }
-    #detail-table tbody td[data-key="article_nr_"], #detail-table tbody td[data-key="article_nr_nw"] { padding-left:7px; padding-right:5px; }
+        /* New independent UI layer; existing JS, DOM IDs, routes and handlers remain untouched. */
+        #detail-view {
+            --ui-ink: #18253b;
+            --ui-muted: #69788e;
+            --ui-line: #e7ebf1;
+            --ui-brand: #2563eb;
+            --ui-soft: #f7f9fc;
+            color: var(--ui-ink);
+        }
 
-    #detail-table .number-cell { text-align:right; font-variant-numeric:tabular-nums; }
-    #detail-table .photo-cell { text-align:center; }
-    #detail-table .photo-cell img { width:42px; height:42px; object-fit:contain; display:block; margin:auto; border-radius:8px; background:#f8fafc; border:1px solid #e8edf4; }
-    #detail-table .cell-text { display:block; width:100%; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:middle; }
-    #detail-table td[data-key] { min-width:0; max-width:0; }
-    #detail-table td[data-key] .cell-text { cursor:default; }
-    #detail-table td[data-key="act"] { overflow:visible; }
-    #detail-table .btn-xs { border-radius:7px; font-size:10px; font-weight:700; padding:4px 7px; margin:1px; border:0; }
-    #detail-table .btn-primary { background:#2563eb; }
-    #detail-table .btn-warning { background:#f5ad42; color:#583b11; }
-    #detail-table .inline-input, #detail-table .new-item-input { min-width:65px; height:30px; padding:4px 6px; border:1px solid #cbd5e1; border-radius:6px; background:white; font-size:11px; }
-    #detail-table .inline-input:focus, #detail-table .new-item-input:focus { border-color:#2563eb; box-shadow:0 0 0 2px #dbeafe; outline:none; }
-    /* Freeze only PHOTO and DESCRIPTION, each with its own exact left offset. */
-    #detail-table th.freeze-photo, #detail-table td.freeze-photo {
-        position:sticky !important; left:44px !important; min-width:72px;
-        width:72px; max-width:72px; background:#fff !important;
-        z-index:12; box-shadow:1px 0 0 #e2e8f0;
-    }
-    #detail-table th.freeze-description, #detail-table td.freeze-description {
-        position:sticky !important; left:116px !important; width:220px;
-        min-width:220px; max-width:220px; background:#fff !important;
-        z-index:11; box-shadow:2px 0 5px -3px rgba(15,23,42,.22);
-    }
-    #detail-table thead th.freeze-photo, #detail-table thead th.freeze-description {
-        z-index:35 !important; background:#f6f8fb !important;
-    }
-    #detail-table tbody tr:nth-child(even) td.freeze-photo,
-    #detail-table tbody tr:nth-child(even) td.freeze-description { background:#fcfdff !important; }
-    #detail-table tbody tr:hover td.freeze-photo,
-    #detail-table tbody tr:hover td.freeze-description { background:#f1f6ff !important; }
-    #detail-table tbody tr.editing td.freeze-photo,
-    #detail-table tbody tr.editing td.freeze-description { background:#fff8e7 !important; }
-    #detail-table tbody td.freeze-description { text-align:left; }
-    #detail-table .sticky-col { /* legacy class retained for JS compatibility */ }
-    /* Summary is OUTSIDE the scrollable table, always visible under it. */
-    #detail-view .po-summary-outside { display:grid; gap:0; margin-top:0; border:1px solid #e2e8f0;
-        border-top:0; border-radius:0 0 12px 12px; overflow:hidden; background:white; }
-    #detail-view .po-summary-line { display:flex; justify-content:flex-end; align-items:center;
-        gap:20px; padding:9px 16px; border-bottom:1px solid rgba(15,23,42,.06); font-size:12px; }
-    #detail-view .po-summary-line:last-child { border-bottom:0; }
-    #detail-view .po-summary-label { font-weight:650; text-align:right; flex:1; }
-    #detail-view .po-summary-value { font-weight:800; min-width:145px; text-align:right; font-variant-numeric:tabular-nums; }
-    #detail-view .footer-cbm { background:#f1f5f9; color:#334155; }
-    #detail-view .footer-fob { background:#eaf6ef; color:#166534; }
-    #detail-view .footer-discount { background:#fff0f0; color:#b42318; }
-    #detail-view .footer-grand { background:#e7f0ff; color:#1d4ed8; }
-    #detail-view .freeze-wrapper { border-radius:12px 12px 0 0; }
-    .new-item-field-wrap,.new-item-photo-wrap { position:relative; }
-    .new-item-badge { display:inline-block; font-size:9px; padding:2px 5px; background:#2563eb; color:white; border-radius:5px; }
-    .new-image-editor { min-width:82px; text-align:center; outline:none; cursor:pointer; }
-    .new-image-editor.paste-target { outline:2px solid #60a5fa; border-radius:8px; }
-    .new-image-preview { width:66px; height:52px; margin:0 auto 4px; border:1px dashed #cbd5e1; border-radius:7px; display:flex; align-items:center; justify-content:center; overflow:hidden; font-size:9px; color:#64748b; }
-    .new-image-preview img { width:100%; height:100%; object-fit:contain; }
-    .new-image-actions { display:flex; justify-content:center; gap:3px; flex-wrap:wrap; }
-    .new-image-actions .btn { font-size:9px; padding:3px 5px; }
-    .paste-success { position:absolute; bottom:2px; right:2px; background:#16a34a; color:white; font-size:9px; border-radius:4px; padding:2px 4px; }
-    .new-act-placeholder { color:#94a3b8; }
-    #chatModal .modal-dialog { max-width:680px; }
-    #chatModal .release-chat-caret { display:inline-block; width:2px; height:13px; margin-left:3px; vertical-align:-2px; background:#2563eb; animation:releaseChatBlink .85s steps(1) infinite; }
-    @keyframes releaseChatBlink { 50% { opacity:0; } }
-    @media(max-width:900px) { #detail-view .table-info tbody { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-    @media(max-width:600px) { #detail-view .box-body { padding:10px 8px; } #detail-view .table-info tbody { grid-template-columns:1fr 1fr; } #detail-view .table-info tr { padding:8px; } #detail-view .freeze-wrapper { max-height:65vh; } #detail-table tbody td { height:48px; padding:4px 7px; } }
+        #detail-view>.col-sm-12>.box {
+            background: transparent;
+            box-shadow: none;
+            border: 0;
+        }
 
-    /* UI vNext: compact, clean toolbar and readable detail summary */
-    .po-heading {display:flex;align-items:center;gap:12px;}
-    .po-heading-icon {width:38px;height:38px;border-radius:11px;background:#eaf1ff;color:#2563eb;display:flex;align-items:center;justify-content:center;font-size:17px;}
-    .po-heading h2 {margin:0 0 3px;font-size:19px;font-weight:750;letter-spacing:-.025em;color:#15263d;}
-    .po-heading small {font-size:11px;color:#7b899c;}
-    .po-filter-toolbar {display:flex!important;align-items:end!important;gap:16px!important;justify-content:space-between!important;margin:8px 0 16px;padding:16px!important;background:#f8fafc;border:1px solid #e8edf4;border-radius:13px;}
-    .po-filter-toolbar > div:first-child {max-width:440px!important;flex:1;}
-    .po-filter-toolbar > div:last-child {width:150px!important;}
-    .po-filter-toolbar .form-control {height:38px;border:1px solid #dce4ef;border-radius:9px;background:white;font-size:12px;box-shadow:none;}
-    .po-filter-toolbar .form-control:focus {border-color:#93b4f6;box-shadow:0 0 0 3px rgba(37,99,235,.08);}
-    #detail-view .po-detail-heading {display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #e9edf4;}
-    #detail-view .po-detail-eyebrow {color:#2563eb;font-size:10px;font-weight:800;letter-spacing:.12em;}
-    #detail-view .po-detail-heading h3 {margin:3px 0;font-size:19px;font-weight:750;color:#15263d;}
-    #detail-view .po-detail-heading p {margin:0;color:#8490a3;font-size:11px;}
-    #detail-view .detail-scroll-top {display:block!important;width:100%;height:16px;overflow-x:auto;overflow-y:hidden;background:#f8fafc;border:1px solid #e4eaf2;border-bottom:0;border-radius:12px 12px 0 0;scrollbar-width:thin;scrollbar-color:#9aacc6 #edf2f8;}
-    #detail-view .detail-scroll-top-inner {height:1px;}
-    #detail-view .freeze-wrapper {border-radius:0!important;}
-    #detail-view .po-summary-outside {display:grid!important;position:relative;z-index:1;min-height:0;}
-    #detail-view .po-summary-outside:empty {display:none!important;}
-    #detail-view .po-summary-line {min-height:35px;padding:8px 16px;}
-    #detail-view .po-summary-label {flex:0 1 210px;}
-    #detail-view .po-summary-value {min-width:120px;}
-    @media(max-width:650px) {.po-filter-toolbar{align-items:stretch!important;flex-direction:column;}.po-filter-toolbar>div:first-child,.po-filter-toolbar>div:last-child{width:100%!important;max-width:none!important;}#detail-view .po-detail-heading{align-items:flex-start;}}
-    /* Hide list filters only while the PO detail view is active. */
-    .po-filter-toolbar.po-filter-hidden { display:none !important; }
+        #detail-view .box-body {
+            padding: 14px 16px 8px;
+        }
 
-    /* Numbering visual only: never added to editable detail fields or API payloads. */
-    #detail-table tbody { counter-reset: po-row; }
-    #detail-table tbody tr:not(.new-item-row) { counter-increment: po-row; }
-    #detail-table .po-row-number::before { content: counter(po-row); }
-    #detail-table th.freeze-no, #detail-table td.freeze-no {
-        position:sticky !important; left:0 !important; width:44px; min-width:44px;
-        max-width:44px; z-index:13; text-align:center; background:#fff !important;
-        font-variant-numeric:tabular-nums; color:#64748b;
-        box-shadow:1px 0 0 #e2e8f0;
-    }
-    #detail-table thead th.freeze-no { z-index:36 !important; background:#f6f8fb !important; }
-    #detail-table tbody tr:nth-child(even) td.freeze-no { background:#fcfdff !important; }
-    #detail-table tbody tr:hover td.freeze-no { background:#f1f6ff !important; }
-    #detail-table tbody tr.editing td.freeze-no { background:#fff8e7 !important; }
-    /* Remove excess whitespace above the Release PFI filter section. */
-    .padding > .box > .box-body { padding-top:4px !important; }
-    .padding > .box > .box-header { margin-bottom:0 !important; padding-bottom:4px !important; min-height:0 !important; }
-    .padding > .box > .box-body > .po-filter-toolbar { margin-top:0 !important; }
+        #detail-view #btn-back {
+            background: white;
+            color: #334155;
+            border: 1px solid var(--ui-line);
+            border-radius: 9px;
+            padding: 9px 13px;
+            font-size: 12px;
+            font-weight: 600;
+            box-shadow: none;
+        }
+
+        #detail-view #btn-back:hover {
+            background: #f1f5f9;
+        }
+
+        #detail-view hr {
+            border-color: var(--ui-line);
+            margin: 14px 0;
+        }
+
+        #detail-view .table-info {
+            display: block;
+            border: 1px solid var(--ui-line);
+            border-radius: 14px;
+            background: white;
+            padding: 9px;
+            margin: 12px 0 8px;
+            box-shadow: 0 3px 16px rgba(15, 23, 42, .035);
+        }
+
+        #detail-view .table-info tbody {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        #detail-view .table-info tr {
+            display: flex;
+            flex-direction: column;
+            background: var(--ui-soft);
+            padding: 10px 12px;
+            border-radius: 9px;
+            min-width: 0;
+        }
+
+        #detail-view .table-info td {
+            display: block;
+            border: 0 !important;
+            padding: 0 !important;
+            width: auto !important;
+            background: transparent !important;
+            overflow-wrap: anywhere;
+        }
+
+        #detail-view .table-info td:first-child {
+            color: var(--ui-muted);
+            font-size: 10px;
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: .05em;
+            margin-bottom: 4px;
+        }
+
+        #detail-view .table-info td:last-child {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--ui-ink);
+        }
+
+        #detail-action-bar {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin: 12px 0;
+            padding: 0 3px;
+        }
+
+        #detail-action-bar .btn {
+            border-radius: 9px;
+            padding: 9px 14px;
+            font-size: 12px;
+            font-weight: 700;
+            border: 1px solid transparent;
+            box-shadow: none;
+        }
+
+        #btn-save-all {
+            background: #2563eb;
+            color: white;
+        }
+
+        #btn-save-all:hover {
+            background: #1d4ed8;
+        }
+
+        #btn-add-item {
+            background: #fff;
+            border-color: #cbd5e1 !important;
+            color: #334155;
+        }
+
+        #btn-add-item:hover {
+            background: #f8fafc;
+        }
+
+        #detail-view .freeze-wrapper {
+            position: relative;
+            width: 100%;
+            max-height: min(68vh, 680px);
+            overflow: auto;
+            border: 1px solid var(--ui-line);
+            border-radius: 13px;
+            background: white;
+            box-shadow: 0 4px 18px rgba(15, 23, 42, .045);
+            scrollbar-width: thin;
+            scrollbar-color: #bac5d4 #f4f6fa;
+        }
+
+        /* Top scrollbar hidden: avoids overlap with the two-level sticky header. Native horizontal scrollbar remains. */
+        #detail-view .detail-scroll-top {
+            display: none !important;
+        }
+
+        #detail-view .detail-scroll-top-inner {
+            height: 1px;
+        }
+
+        #detail-table {
+            width: max-content;
+            min-width: 0;
+            margin: 0;
+            table-layout: fixed;
+            border-collapse: separate;
+            border-spacing: 0;
+            font-size: 11px;
+            line-height: 1.35;
+            color: #334155;
+        }
+
+        #detail-table th,
+        #detail-table td {
+            border: 0 !important;
+            border-bottom: 1px solid #edf0f5 !important;
+            vertical-align: middle;
+        }
+
+        #detail-table thead th {
+            position: sticky;
+            background: #f6f8fb !important;
+            color: #475569 !important;
+            z-index: 20;
+            font-size: 10px;
+            font-weight: 750;
+            letter-spacing: .02em;
+            white-space: nowrap;
+            text-align: left;
+            box-shadow: 0 1px 0 #e4e9f1;
+        }
+
+        #detail-table thead .header-top th {
+            top: 0;
+            height: 34px;
+            padding: 8px 9px;
+        }
+
+        #detail-table thead .header-bottom th {
+            top: 34px;
+            height: 26px;
+            padding: 5px 8px;
+            z-index: 21;
+        }
+
+        #detail-table thead .header-top th[rowspan="2"] {
+            vertical-align: middle;
+        }
+
+        #detail-table thead .dimension-group {
+            text-align: center;
+            background: #eef2f8 !important;
+        }
+
+        #detail-table tbody td {
+            height: 52px;
+            padding: 5px 9px;
+            background: #fff !important;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        #detail-table tbody tr:nth-child(even) td {
+            background: #fcfdff !important;
+        }
+
+        #detail-table tbody tr:hover td {
+            background: #f1f6ff !important;
+        }
+
+        #detail-table tbody tr.editing td {
+            background: #fff8e7 !important;
+        }
+
+        #detail-table tbody tr.new-item-row td {
+            background: #eff6ff !important;
+            border-top: 1px solid #93c5fd !important;
+        }
+
+        #detail-table .description-cell {
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        #detail-table .dimension-cell {
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+            padding-left: 3px !important;
+            padding-right: 3px !important;
+        }
+
+        /* Dimension groups: compact numeric cells and clear group boundaries. */
+        #detail-table thead .dimension-group {
+            background: #e9f0fa !important;
+            color: #29436c !important;
+            font-size: 10px;
+            letter-spacing: .01em;
+            text-align: center;
+            border-left: 2px solid #c6d5e8 !important;
+        }
+
+        #detail-table thead .dimension-sub {
+            background: #f2f6fc !important;
+            text-align: center;
+            padding: 4px 2px !important;
+            font-weight: 700;
+            color: #49617e;
+        }
+
+        #detail-table td[data-key="item_w"],
+        #detail-table td[data-key="pack_w"],
+        #detail-table td[data-key="item_w_inch"],
+        #detail-table td[data-key="pack_w_inch"] {
+            border-left: 2px solid #c6d5e8 !important;
+        }
+
+        #detail-table td[data-key^="item_"]:not([data-key="item_w"]):not([data-key="item_d"]):not([data-key="item_h"]),
+        #detail-table td[data-key^="pack_"] {
+            font-variant-numeric: tabular-nums;
+        }
+
+        #detail-table tbody td[data-key="article_nr_"],
+        #detail-table tbody td[data-key="article_nr_nw"] {
+            padding-left: 7px;
+            padding-right: 5px;
+        }
+
+        #detail-table .number-cell {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        #detail-table .photo-cell {
+            text-align: center;
+        }
+
+        #detail-table .photo-cell img {
+            width: 42px;
+            height: 42px;
+            object-fit: contain;
+            display: block;
+            margin: auto;
+            border-radius: 8px;
+            background: #f8fafc;
+            border: 1px solid #e8edf4;
+        }
+
+        #detail-table .cell-text {
+            display: block;
+            width: 100%;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            vertical-align: middle;
+        }
+
+        #detail-table td[data-key] {
+            min-width: 0;
+            max-width: 0;
+        }
+
+        #detail-table td[data-key] .cell-text {
+            cursor: default;
+        }
+
+        #detail-table td[data-key="act"] {
+            overflow: visible;
+        }
+
+        #detail-table .btn-xs {
+            border-radius: 7px;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 4px 7px;
+            margin: 1px;
+            border: 0;
+        }
+
+        #detail-table .btn-primary {
+            background: #2563eb;
+        }
+
+        #detail-table .btn-warning {
+            background: #f5ad42;
+            color: #583b11;
+        }
+
+        #detail-table .inline-input,
+        #detail-table .new-item-input {
+            min-width: 65px;
+            height: 30px;
+            padding: 4px 6px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            background: white;
+            font-size: 11px;
+        }
+
+        #detail-table .inline-input:focus,
+        #detail-table .new-item-input:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 2px #dbeafe;
+            outline: none;
+        }
+
+        /* Freeze only PHOTO and DESCRIPTION, each with its own exact left offset. */
+        #detail-table th.freeze-photo,
+        #detail-table td.freeze-photo {
+            position: sticky !important;
+            left: 44px !important;
+            min-width: 72px;
+            width: 72px;
+            max-width: 72px;
+            background: #fff !important;
+            z-index: 12;
+            box-shadow: 1px 0 0 #e2e8f0;
+        }
+
+        #detail-table th.freeze-description,
+        #detail-table td.freeze-description {
+            position: sticky !important;
+            left: 116px !important;
+            width: 220px;
+            min-width: 220px;
+            max-width: 220px;
+            background: #fff !important;
+            z-index: 11;
+            box-shadow: 2px 0 5px -3px rgba(15, 23, 42, .22);
+        }
+
+        #detail-table thead th.freeze-photo,
+        #detail-table thead th.freeze-description {
+            z-index: 35 !important;
+            background: #f6f8fb !important;
+        }
+
+        #detail-table tbody tr:nth-child(even) td.freeze-photo,
+        #detail-table tbody tr:nth-child(even) td.freeze-description {
+            background: #fcfdff !important;
+        }
+
+        #detail-table tbody tr:hover td.freeze-photo,
+        #detail-table tbody tr:hover td.freeze-description {
+            background: #f1f6ff !important;
+        }
+
+        #detail-table tbody tr.editing td.freeze-photo,
+        #detail-table tbody tr.editing td.freeze-description {
+            background: #fff8e7 !important;
+        }
+
+        #detail-table tbody td.freeze-description {
+            text-align: left;
+        }
+
+        #detail-table .sticky-col {
+            /* legacy class retained for JS compatibility */
+        }
+
+        /* Summary is OUTSIDE the scrollable table, always visible under it. */
+        #detail-view .po-summary-outside {
+            display: grid;
+            gap: 0;
+            margin-top: 0;
+            border: 1px solid #e2e8f0;
+            border-top: 0;
+            border-radius: 0 0 12px 12px;
+            overflow: hidden;
+            background: white;
+        }
+
+        #detail-view .po-summary-line {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 20px;
+            padding: 9px 16px;
+            border-bottom: 1px solid rgba(15, 23, 42, .06);
+            font-size: 12px;
+        }
+
+        #detail-view .po-summary-line:last-child {
+            border-bottom: 0;
+        }
+
+        #detail-view .po-summary-label {
+            font-weight: 650;
+            text-align: right;
+            flex: 1;
+        }
+
+        #detail-view .po-summary-value {
+            font-weight: 800;
+            min-width: 145px;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        #detail-view .footer-cbm {
+            background: #f1f5f9;
+            color: #334155;
+        }
+
+        #detail-view .footer-fob {
+            background: #eaf6ef;
+            color: #166534;
+        }
+
+        #detail-view .footer-discount {
+            background: #fff0f0;
+            color: #b42318;
+        }
+
+        #detail-view .footer-grand {
+            background: #e7f0ff;
+            color: #1d4ed8;
+        }
+
+        #detail-view .freeze-wrapper {
+            border-radius: 12px 12px 0 0;
+        }
+
+        .new-item-field-wrap,
+        .new-item-photo-wrap {
+            position: relative;
+        }
+
+        .new-item-badge {
+            display: inline-block;
+            font-size: 9px;
+            padding: 2px 5px;
+            background: #2563eb;
+            color: white;
+            border-radius: 5px;
+        }
+
+        .new-image-editor {
+            min-width: 82px;
+            text-align: center;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .new-image-editor.paste-target {
+            outline: 2px solid #60a5fa;
+            border-radius: 8px;
+        }
+
+        .new-image-preview {
+            width: 66px;
+            height: 52px;
+            margin: 0 auto 4px;
+            border: 1px dashed #cbd5e1;
+            border-radius: 7px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            font-size: 9px;
+            color: #64748b;
+        }
+
+        .new-image-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .new-image-actions {
+            display: flex;
+            justify-content: center;
+            gap: 3px;
+            flex-wrap: wrap;
+        }
+
+        .new-image-actions .btn {
+            font-size: 9px;
+            padding: 3px 5px;
+        }
+
+        .paste-success {
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            background: #16a34a;
+            color: white;
+            font-size: 9px;
+            border-radius: 4px;
+            padding: 2px 4px;
+        }
+
+        .new-act-placeholder {
+            color: #94a3b8;
+        }
+
+        #chatModal .modal-dialog {
+            max-width: 680px;
+        }
+
+        #chatModal .release-chat-caret {
+            display: inline-block;
+            width: 2px;
+            height: 13px;
+            margin-left: 3px;
+            vertical-align: -2px;
+            background: #2563eb;
+            animation: releaseChatBlink .85s steps(1) infinite;
+        }
+
+        @keyframes releaseChatBlink {
+            50% {
+                opacity: 0;
+            }
+        }
+
+        @media(max-width:900px) {
+            #detail-view .table-info tbody {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media(max-width:600px) {
+            #detail-view .box-body {
+                padding: 10px 8px;
+            }
+
+            #detail-view .table-info tbody {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            #detail-view .table-info tr {
+                padding: 8px;
+            }
+
+            #detail-view .freeze-wrapper {
+                max-height: 65vh;
+            }
+
+            #detail-table tbody td {
+                height: 48px;
+                padding: 4px 7px;
+            }
+        }
+
+        /* UI vNext: compact, clean toolbar and readable detail summary */
+        .po-heading {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .po-heading-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 11px;
+            background: #eaf1ff;
+            color: #2563eb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 17px;
+        }
+
+        .po-heading h2 {
+            margin: 0 0 3px;
+            font-size: 19px;
+            font-weight: 750;
+            letter-spacing: -.025em;
+            color: #15263d;
+        }
+
+        .po-heading small {
+            font-size: 11px;
+            color: #7b899c;
+        }
+
+        .po-filter-toolbar {
+            display: flex !important;
+            align-items: end !important;
+            gap: 16px !important;
+            justify-content: space-between !important;
+            margin: 8px 0 16px;
+            padding: 16px !important;
+            background: #f8fafc;
+            border: 1px solid #e8edf4;
+            border-radius: 13px;
+        }
+
+        .po-filter-toolbar>div:first-child {
+            max-width: 440px !important;
+            flex: 1;
+        }
+
+        .po-filter-toolbar>div:last-child {
+            width: 150px !important;
+        }
+
+        .po-filter-toolbar .form-control {
+            height: 38px;
+            border: 1px solid #dce4ef;
+            border-radius: 9px;
+            background: white;
+            font-size: 12px;
+            box-shadow: none;
+        }
+
+        .po-filter-toolbar .form-control:focus {
+            border-color: #93b4f6;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, .08);
+        }
+
+        #detail-view .po-detail-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e9edf4;
+        }
+
+        #detail-view .po-detail-eyebrow {
+            color: #2563eb;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .12em;
+        }
+
+        #detail-view .po-detail-heading h3 {
+            margin: 3px 0;
+            font-size: 19px;
+            font-weight: 750;
+            color: #15263d;
+        }
+
+        #detail-view .po-detail-heading p {
+            margin: 0;
+            color: #8490a3;
+            font-size: 11px;
+        }
+
+        #detail-view .detail-scroll-top {
+            display: block !important;
+            width: 100%;
+            height: 16px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            background: #f8fafc;
+            border: 1px solid #e4eaf2;
+            border-bottom: 0;
+            border-radius: 12px 12px 0 0;
+            scrollbar-width: thin;
+            scrollbar-color: #9aacc6 #edf2f8;
+        }
+
+        #detail-view .detail-scroll-top-inner {
+            height: 1px;
+        }
+
+        #detail-view .freeze-wrapper {
+            border-radius: 0 !important;
+        }
+
+        #detail-view .po-summary-outside {
+            display: grid !important;
+            position: relative;
+            z-index: 1;
+            min-height: 0;
+        }
+
+        #detail-view .po-summary-outside:empty {
+            display: none !important;
+        }
+
+        #detail-view .po-summary-line {
+            min-height: 35px;
+            padding: 8px 16px;
+        }
+
+        #detail-view .po-summary-label {
+            flex: 0 1 210px;
+        }
+
+        #detail-view .po-summary-value {
+            min-width: 120px;
+        }
+
+        @media(max-width:650px) {
+            .po-filter-toolbar {
+                align-items: stretch !important;
+                flex-direction: column;
+            }
+
+            .po-filter-toolbar>div:first-child,
+            .po-filter-toolbar>div:last-child {
+                width: 100% !important;
+                max-width: none !important;
+            }
+
+            #detail-view .po-detail-heading {
+                align-items: flex-start;
+            }
+        }
+
+        /* Compact PO table and bordered cells, without changing existing functionality. */
+        #default-table .po-wrapper {
+            border: 1px solid #dce3ec;
+            border-radius: 8px;
+        }
+
+        #default-table #po-table {
+            border-collapse: collapse;
+        }
+
+        #default-table #po-table th,
+        #default-table #po-table td {
+            border: 1px solid #e3e8ef !important;
+            padding: 7px 9px !important;
+        }
+
+        #default-table #po-table th {
+            white-space: nowrap;
+        }
+
+        .release-pfi-tabs {
+            display: flex;
+            gap: 5px;
+            border-bottom: 1px solid #dce3ec;
+            margin: 0 0 9px;
+            padding: 0 4px;
+        }
+
+        .release-pfi-tab {
+            padding: 9px 16px;
+            background: transparent;
+            border: 1px solid transparent;
+            border-bottom: 2px solid transparent;
+            border-radius: 6px 6px 0 0;
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+            cursor: pointer;
+        }
+
+        .release-pfi-tab.active {
+            color: #29457d;
+            background: #f2f6fd;
+            border-color: #dce3ec;
+            border-bottom-color: #29457d;
+        }
+
+        .release-pfi-tab:hover {
+            color: #29457d;
+        }
+
+        .release-pfi-tabs.po-filter-hidden {
+            display: none !important;
+        }
+
+        .release-tab-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 23px;
+            padding: 2px 7px;
+            margin-left: 7px;
+            border-radius: 12px;
+            background: #e4eaf4;
+            color: #29457d;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .release-pfi-tab.active .release-tab-count {
+            background: #29457d;
+            color: #fff;
+        }
+
+        /* Only hide Category column in Has Shipment list, never in PO detail. */
+        /* Category is visible on BOTH tabs for shipment timing. */
+
+        /* Hide list filters only while the PO detail view is active. */
+        .po-filter-toolbar.po-filter-hidden {
+            display: none !important;
+        }
+
+        /* Numbering visual only: never added to editable detail fields or API payloads. */
+        #detail-table tbody {
+            counter-reset: po-row;
+        }
+
+        #detail-table tbody tr:not(.new-item-row) {
+            counter-increment: po-row;
+        }
+
+        #detail-table .po-row-number::before {
+            content: counter(po-row);
+        }
+
+        #detail-table th.freeze-no,
+        #detail-table td.freeze-no {
+            position: sticky !important;
+            left: 0 !important;
+            width: 44px;
+            min-width: 44px;
+            max-width: 44px;
+            z-index: 13;
+            text-align: center;
+            background: #fff !important;
+            font-variant-numeric: tabular-nums;
+            color: #64748b;
+            box-shadow: 1px 0 0 #e2e8f0;
+        }
+
+        #detail-table thead th.freeze-no {
+            z-index: 36 !important;
+            background: #f6f8fb !important;
+        }
+
+        #detail-table tbody tr:nth-child(even) td.freeze-no {
+            background: #fcfdff !important;
+        }
+
+        #detail-table tbody tr:hover td.freeze-no {
+            background: #f1f6ff !important;
+        }
+
+        #detail-table tbody tr.editing td.freeze-no {
+            background: #fff8e7 !important;
+        }
+
+        /* Remove excess whitespace above the Release PFI filter section. */
+        .padding>.box>.box-body {
+            padding-top: 4px !important;
+        }
+
+        .padding>.box>.box-header {
+            margin-bottom: 0 !important;
+            padding-bottom: 4px !important;
+            min-height: 0 !important;
+        }
+
+        .padding>.box>.box-body>.po-filter-toolbar {
+            margin-top: 0 !important;
+        }
 
         /* Enter-to-search hint: presentation only, no automatic search request. */
         #release-enter-hint {
-            display: none; margin-top: 6px; padding: 5px 10px;
-            color: #4b628a; font-size: 12px; line-height: 1.5;
-            background: #eef4ff; border: 1px solid #dbe7fc;
-            border-radius: 6px; width: fit-content;
+            display: none;
+            margin-top: 6px;
+            padding: 5px 10px;
+            color: #4b628a;
+            font-size: 12px;
+            line-height: 1.5;
+            background: #eef4ff;
+            border: 1px solid #dbe7fc;
+            border-radius: 6px;
+            width: fit-content;
         }
-        #release-enter-hint.is-visible { display: block; }
+
+        #release-enter-hint.is-visible {
+            display: block;
+        }
+
         #release-enter-hint kbd {
-            display: inline-block; padding: 1px 6px; margin-left: 3px;
-            border: 1px solid #c8d5ec; border-radius: 4px;
-            background: #fff; color: #253e6a; font-size: 11px;
-            font-family: inherit; box-shadow: 0 1px 0 #c8d5ec;
+            display: inline-block;
+            padding: 1px 6px;
+            margin-left: 3px;
+            border: 1px solid #c8d5ec;
+            border-radius: 4px;
+            background: #fff;
+            color: #253e6a;
+            font-size: 11px;
+            font-family: inherit;
+            box-shadow: 0 1px 0 #c8d5ec;
         }
+
         /* Release PFI: loading layer only over the PO listing. */
-        #default-table { position: relative; }
+        #default-table {
+            position: relative;
+        }
+
         #release-po-loading {
-            position: absolute; inset: 0; z-index: 20;
+            position: absolute;
+            inset: 0;
+            z-index: 20;
             background: rgba(255, 255, 255, .78);
-            display: none; align-items: center; justify-content: center;
+            display: none;
+            align-items: center;
+            justify-content: center;
             min-height: 150px;
         }
-        #release-po-loading.is-active { display: flex; }
-        .release-po-loading-card {
-            display: flex; align-items: center; gap: 12px;
-            padding: 14px 20px; border-radius: 10px;
-            background: #fff; box-shadow: 0 4px 22px rgba(0,0,0,.12);
-            color: #2d4379; font-weight: 600;
+
+        #release-po-loading.is-active {
+            display: flex;
         }
+
+        .release-po-loading-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 20px;
+            border-radius: 10px;
+            background: #fff;
+            box-shadow: 0 4px 22px rgba(0, 0, 0, .12);
+            color: #2d4379;
+            font-weight: 600;
+        }
+
         .release-po-spinner {
-            width: 23px; height: 23px; border: 3px solid #dce6f7;
-            border-top-color: #2d4379; border-radius: 50%;
+            width: 23px;
+            height: 23px;
+            border: 3px solid #dce6f7;
+            border-top-color: #2d4379;
+            border-radius: 50%;
             animation: release-po-spin .75s linear infinite;
         }
-        @keyframes release-po-spin { to { transform: rotate(360deg); } }
+
+        @keyframes release-po-spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* A calm plane flight after Actual Shipment is saved. */
+        .release-plane-flight {
+            position: fixed;
+            z-index: 99999;
+            pointer-events: none;
+            width: 74px;
+            height: 74px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #e8f3ff, #fff);
+            border: 1px solid #bfdbfe;
+            box-shadow: 0 10px 32px rgba(37, 99, 235, .23);
+            color: #2563eb;
+            will-change: transform, opacity;
+        }
+
+        .release-plane-flight svg {
+            width: 39px;
+            height: 39px;
+            transform: rotate(-35deg);
+        }
+
+        .release-plane-trail {
+            position: fixed;
+            z-index: 99998;
+            pointer-events: none;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #93c5fd;
+            box-shadow: 0 0 15px #60a5fa;
+            will-change: transform, opacity;
+        }
+
+        #po-table-body tr.release-shipping {
+            background: #eff6ff !important;
+        }
+
+        .release-tab-arrival {
+            animation: releaseTabArrival .8s ease-out;
+        }
+
+        @keyframes releaseTabArrival {
+
+            0%,
+            100% {
+                box-shadow: none;
+            }
+
+            35% {
+                box-shadow: 0 0 0 8px rgba(59, 130, 246, .2);
+            }
+        }
+
+        .release-timing {
+            display: inline-block;
+            padding: 5px 9px;
+            border-radius: 7px;
+            font-size: 11px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .release-late {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .release-early {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .release-on-time {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .release-due {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .release-pending {
+            background: #eff6ff;
+            color: #334155;
+        }
+
+        .release-order-status {
+            display: inline-block;
+            border-radius: 99px;
+            padding: 4px 10px;
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .release-status-open {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .release-status-closed {
+            background: #dcfce7;
+            color: #166534;
+        }
     </style>
     <div class="padding">
         <div class="box">
             <div class="box-header">
-              @section('btn')
-            <div>
+            @section('btn')
+                <div>
 
-                <h4 class="upah-title">
-                    Release PFI
-                </h4>
+                    <h4 class="upah-title">
+                        Release PFI
+                    </h4>
 
-                <div class="upah-subtitle">
-                    
+                    <div class="upah-subtitle">
+
+                    </div>
+
+                </div>
+            @endsection
+        </div> <input type="hidden" id="role" value="{{ auth()->user()->role }}">
+        <input type="hidden" id="id" value="{{ auth()->user()->role }}">
+        <div class="box-body">
+            {{-- Tabs: reuse existing PO list and detail renderer --}}
+            <div id="release-pfi-tabs" class="release-pfi-tabs" role="tablist" aria-label="Release PFI status">
+                <button type="button" class="release-pfi-tab active" data-tab="release_order" role="tab"
+                    aria-selected="true">Release Order <span class="release-tab-count"
+                        id="release-count-order">…</span></button>
+                <button type="button" class="release-pfi-tab" data-tab="has_shipment" role="tab"
+                    aria-selected="false">Shipped <span class="release-tab-count"
+                        id="release-count-shipment">…</span></button>
+            </div>
+            <div class="box-header d-flex justify-content-between align-items-center flex-wrap gap-3 po-filter-toolbar">
+
+                {{-- LEFT : SEARCH --}}
+                <div style="max-width:350px; width:100%;">
+
+                    <div class="release-search-line">
+                        <input type="text" id="search-qc" class="form-control"
+                            placeholder="Search PO / Product Name / Article Code" autocomplete="off">
+                        <span id="release-found-counter" class="release-found-counter" style="display:none"
+                            aria-live="polite"></span>
+                    </div>
+                    <div id="release-enter-hint" role="status" aria-live="polite">Press <kbd>Enter</kbd> to search
+                    </div>
+
+                </div>
+
+                {{-- RIGHT : FILTER --}}
+                <div style="width:180px;">
+
+                    <select id="filter-spk-type" class="form-control">
+
+                        <option value="">
+                            Semua
+                        </option>
+
+                        <option value="NW">
+                            NW
+                        </option>
+
+                        <option value="NWS">
+                            NWS
+                        </option>
+
+                    </select>
+
                 </div>
 
             </div>
-        @endsection
-        </div>   <input type="hidden" id="role" value="{{ auth()->user()->role }}">
-            <input type="hidden" id="id" value="{{ auth()->user()->role }}">
-            <div class="box-body">
-                <div class="box-header d-flex justify-content-between align-items-center flex-wrap gap-3 po-filter-toolbar">
-
-                    {{-- LEFT : SEARCH --}}
-                    <div style="max-width:350px; width:100%;">
-
-                        <div class="release-search-line">
-                            <input type="text" id="search-qc" class="form-control" placeholder="Search PO / Product Name / Article Code" autocomplete="off">
-                            <span id="release-found-counter" class="release-found-counter" style="display:none" aria-live="polite"></span>
-                        </div>
-                        <div id="release-enter-hint" role="status" aria-live="polite">Press <kbd>Enter</kbd> to search</div>
-
-                    </div>
-
-                    {{-- RIGHT : FILTER --}}
-                    <div style="width:180px;">
-
-                        <select id="filter-spk-type" class="form-control">
-
-                            <option value="">
-                                Semua
-                            </option>
-
-                            <option value="NW">
-                                NW
-                            </option>
-
-                            <option value="NWS">
-                                NWS
-                            </option>
-
-                        </select>
-
-                    </div>
-
+            <!--<div class="col-12 d-flex justify-content-end">-->
+            <!--    <a href="/semua-spk"-->
+            <!--        class="btn btn-primary btn-sm">-->
+            <!--        All SPK-->
+            <!--    </a>-->
+            <!--</div>-->
+            <div class="row" id="default-table">
+                <div id="release-po-loading" role="status" aria-live="polite" aria-label="Memuat daftar PO">
+                    <div class="release-po-loading-card"><span class="release-po-spinner"
+                            aria-hidden="true"></span><span>Memuat data PO...</span></div>
                 </div>
-                <!--<div class="col-12 d-flex justify-content-end">-->
-                <!--    <a href="/semua-spk"-->
-                <!--        class="btn btn-primary btn-sm">-->
-                <!--        All SPK-->
-                <!--    </a>-->
-                <!--</div>-->
-                <div class="row" id="default-table">
-                    <div id="release-po-loading" role="status" aria-live="polite" aria-label="Memuat daftar PO">
-                        <div class="release-po-loading-card"><span class="release-po-spinner" aria-hidden="true"></span><span>Memuat data PO...</span></div>
+                <div class="col-sm-12">
+                    <div class="box">
+                        <div class="table-responsive po-wrapper">
+
+                            <table id="po-table" class="table-bordered">
+                                <thead>
+                                    <tr class="">
+                                        <th id="sort-order-no"
+                                            style="cursor:pointer;white-space:nowrap;user-select:none;">
+
+                                            Order No
+
+                                            <i id="sort-order-icon" class="fa fa-sort ml-1" style="color:white">
+                                            </i>
+
+                                        </th>
+                                        <th>Company Name</th>
+                                        <th width="120">Action</th>
+
+                                        <th>Country</th>
+
+                                        <th>Release date</th>
+                                        <th>Deadline Shipment</th>
+                                        <th>Category</th>
+                                        <th>Status</th>
+                                        @if ($canSeeAgreementDate)
+                                            <th>Agreement Buyers Date</th>
+                                        @endif
+                                        <th>Actual Shipment date</th>
+                                        @if (in_array(strtolower(auth()->user()->role), ['marketing', 'sales', 'export', 'finance']))
+                                            <th>Value</th>
+                                        @endif
+                                        <th>CBM</th>
+                                        <th>DO Released</th>
+                                        <th>Remark</th>
+
+                                    </tr>
+                                </thead>
+                                <tbody id="po-table-body">
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted">
+                                            Loading...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
                     </div>
-                    <div class="col-sm-12">
-                        <div class="box">
-                            <div class="table-responsive po-wrapper">
-
-                                <table id="po-table" class="table-bordered">
-                                    <thead>
-                                        <tr class="">
-                                            <th id="sort-order-no"
-                                                style="cursor:pointer;white-space:nowrap;user-select:none;">
-
-                                                Order No
-
-                                                <i id="sort-order-icon" class="fa fa-sort ml-1" style="color:white">
-                                                </i>
-
-                                            </th>
-                                            <th>Company Name</th>
-                                            <th width="120">Action</th>
-
-                                            <th>Country</th>
-
-                                            <th>Release date</th>
-                                            <th>Shipment Date</th>
-                                            <th>Category</th>
-                                            <th>Actual Ship</th>
-                                            @if (in_array(strtolower(auth()->user()->role), ['marketing', 'sales', 'export', 'finance']))
-                                                <th>Value</th>
-                                            @endif
-                                            <th>Cont Numb</th>
-                                            <th>DO Released</th>
-                                            <th>Remark</th>
-
-                                        </tr>
-                                    </thead>
-                                    <tbody id="po-table-body">
-                                        <tr>
-                                            <td colspan="4" class="text-center text-muted">
-                                                Loading...
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                </div>
+            </div>
+            <div class="row" id="detail-view" style="display:none;">
+                <div class="col-sm-12">
+                    <div class="box">
+                        <div class="box-body">
+                            <div class="po-detail-heading">
+                                <div>
+                                    <div class="po-detail-eyebrow">PURCHASE ORDER</div>
+                                    <h3>Order Details</h3>
+                                    <p>Informasi pesanan dan rincian produk</p>
+                                </div><button class="btn btn-default btn-sm" id="btn-back"><i
+                                        class="fa fa-arrow-left"></i> Back</button>
                             </div>
-
-                        </div>
-                    </div>
-                </div>
-                <div class="row" id="detail-view" style="display:none;">
-                    <div class="col-sm-12">
-                        <div class="box">
-                            <div class="box-body">
-                                <div class="po-detail-heading"><div><div class="po-detail-eyebrow">PURCHASE ORDER</div><h3>Order Details</h3><p>Informasi pesanan dan rincian produk</p></div><button class="btn btn-default btn-sm" id="btn-back"><i class="fa fa-arrow-left"></i> All Orders</button></div>
-                                @php
-                                    $user = auth()->user();
-                                    $divisi = optional($user->karyawan->divisi)->nama;
-                                @endphp
-                                @if ($divisi == 'PURCHASING')
-                                    <div class="row">
-                                        <div class="col-12 d-flex justify-content-end">
-                                            <a href="#" class="btn btn-primary btn-sm" id="btn-buat-spk">
-                                                Buat SPK
-                                            </a>
-                                        </div>
+                            @php
+                                $user = auth()->user();
+                                $divisi = optional($user->karyawan->divisi)->nama;
+                            @endphp
+                            @if ($divisi == 'PURCHASING')
+                                <div class="row">
+                                    <div class="col-12 d-flex justify-content-end">
+                                        <a href="#" class="btn btn-primary btn-sm" id="btn-buat-spk">
+                                            Buat SPK
+                                        </a>
                                     </div>
-                                @endif
-                                <table class="table table-bordered table-info">
-                                    <tr>
-                                        <td width="200"><b>Order No</b></td>
-                                        <td id="d-order"></td>
-                                    </tr>
-                                    <tr>
-                                        <td><b>Company Name</b></td>
-                                        <td id="d-company"></td>
-                                    </tr>
-                                    <tr>
-                                        <td><b>Shipment Date</b></td>
-                                        <td id="d-ship"></td>
-                                    </tr>
-                                    <tr>
-                                        <td><b>Country</b></td>
-                                        <td id="d-country"></td>
-                                    </tr>
+                                </div>
+                            @endif
+                            <table class="table table-bordered table-info">
+                                <tr>
+                                    <td width="200"><b>Order No</b></td>
+                                    <td id="d-order"></td>
+                                </tr>
+                                <tr>
+                                    <td><b>Company Name</b></td>
+                                    <td id="d-company"></td>
+                                </tr>
+                                <tr>
+                                    <td><b>Shipment Date</b></td>
+                                    <td id="d-ship"></td>
+                                </tr>
+                                <tr>
+                                    <td><b>Country</b></td>
+                                    <td id="d-country"></td>
+                                </tr>
 
-                                </table>
-                            </div>
-                            <div id="detail-action-bar">
-                                <button id="btn-save-all" class="btn btn-success btn-sm">
-                                    💾 Save All Changes
+                            </table>
+                        </div>
+                        <div id="detail-action-bar">
+                            <button id="btn-save-all" class="btn btn-success btn-sm">
+                                💾 Save All Changes
+                            </button>
+
+                            @if (strtolower((string) auth()->user()->name) === 'rodiyah')
+                                <button id="btn-add-item" type="button" class="btn btn-primary btn-sm">
+                                    <i class="fa fa-plus"></i> Add Items
                                 </button>
-
-                                @if (strtolower((string) auth()->user()->name) === 'rodiyah')
-                                    <button id="btn-add-item" type="button" class="btn btn-primary btn-sm">
-                                        <i class="fa fa-plus"></i> Add Items
-                                    </button>
-                                @endif
-                            </div>
-                            <div class="detail-scroll-top" id="detail-scroll-top" aria-label="Scroll kolom tabel ke kanan dan kiri">
-                                <div class="detail-scroll-top-inner" id="detail-scroll-top-inner"></div>
-                            </div>
-                            <div class="freeze-wrapper">
-                                <table class="table table-bordered table-striped" id="detail-table">
-                                    <thead id="detail-table-head"></thead>
-                                    <tbody id="detail-item-table"></tbody>
-                                </table>
-                            </div>
-                            <div id="detail-table-foot" class="po-summary-outside" aria-label="Ringkasan PO"></div>
+                            @endif
                         </div>
+                        <div class="detail-scroll-top" id="detail-scroll-top"
+                            aria-label="Scroll kolom tabel ke kanan dan kiri">
+                            <div class="detail-scroll-top-inner" id="detail-scroll-top-inner"></div>
+                        </div>
+                        <div class="freeze-wrapper">
+                            <table class="table table-bordered table-striped" id="detail-table">
+                                <thead id="detail-table-head"></thead>
+                                <tbody id="detail-item-table"></tbody>
+                            </table>
+                        </div>
+                        <div id="detail-table-foot" class="po-summary-outside" aria-label="Ringkasan PO"></div>
                     </div>
                 </div>
             </div>
         </div>
-        <!-- CHAT MODAL -->
-        <div class="modal fade" id="chatModal" tabindex="-1">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h4 class="modal-title">Chat Room <span class="release-chat-caret" aria-hidden="true"></span></h4>
-                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+    </div>
+    <!-- CHAT MODAL -->
+    <div class="modal fade" id="chatModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">Chat Room <span class="release-chat-caret" aria-hidden="true"></span>
+                    </h4>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div id="chat-box" style="height:400px; overflow:auto; background:#f5f5f5; padding:10px;">
                     </div>
-                    <div class="modal-body">
-                        <div id="chat-box" style="height:400px; overflow:auto; background:#f5f5f5; padding:10px;">
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <input type="hidden" id="chat-room-id">
-                        <div class="input-group">
-                            <input type="text" id="chat-input" class="form-control" placeholder="Type message...">
-                            <span class="input-group-btn">
-                                <button class="btn btn-primary" id="btn-send-chat">Send</button>
-                            </span>
-                        </div>
+                </div>
+                <div class="modal-footer">
+                    <input type="hidden" id="chat-room-id">
+                    <div class="input-group">
+                        <input type="text" id="chat-input" class="form-control" placeholder="Type message...">
+                        <span class="input-group-btn">
+                            <button class="btn btn-primary" id="btn-send-chat">Send</button>
+                        </span>
                     </div>
                 </div>
             </div>
         </div>
-        <div id="save-status">
-            ✔ All changes saved
-        </div>
-        <div id="loadingOverlay">
-            <div class="loading-content">
-                <div class="spinner-border text-primary" style="width:60px;height:60px"></div>
+    </div>
+    <div id="save-status">
+        ✔ All changes saved
+    </div>
+    <div id="loadingOverlay">
+        <div class="loading-content">
+            <div class="spinner-border text-primary" style="width:60px;height:60px"></div>
 
-                <h5 class="mt-3">
-                    Sedang mengambil data...
-                </h5>
+            <h5 class="mt-3">
+                Sedang mengambil data...
+            </h5>
 
-                <small class="text-muted">
-                    Mohon tunggu sebentar
-                </small>
-            </div>
+            <small class="text-muted">
+                Mohon tunggu sebentar
+            </small>
         </div>
-        <pre id="result"></pre>
+    </div>
+    <pre id="result"></pre>
+    @push('scripts')
+        <script>
+            let orderSort = 'asc';
+            const currentUsername = @json(auth()->user()->name);
+            window.currentUsername = currentUsername;
+        </script>
+        <script>
+            const CURRENT_USER_ID = {{ auth()->id() }};
+        </script>
         @push('scripts')
             <script>
-                let orderSort = 'asc';
-                const currentUsername = @json(auth()->user()->name);
-                window.currentUsername = currentUsername;
-            </script>
-            <script>
-                const CURRENT_USER_ID = {{ auth()->id() }};
-            </script>
-            @push('scripts')
-                <script>
-                    /* =====================================================
-                                                                                   INIT PAGE (WAJIB UNTUK PJAX)
-                                                                                ===================================================== */
-                    /* ===== ROLE ===== */
-                    const role = ($('#role').val() || '').toLowerCase();
-                    const canEdit = ['marketing', 'sales', 'export', 'finance'].includes(role);
-                    const canSeeValue = ['marketing', 'sales', 'export', 'finance'].includes(role);
+                /* =====================================================
+                                                                                                           INIT PAGE (WAJIB UNTUK PJAX)
+                                                                                                        ===================================================== */
+                /* ===== ROLE ===== */
+                const role = ($('#role').val() || '').toLowerCase();
+                const canEdit = ['marketing', 'sales', 'export', 'finance'].includes(role);
+                const canSeeValue = ['marketing', 'sales', 'export', 'finance'].includes(role);
+                const canSeeAgreement = @json($canSeeAgreementDate);
 
-                    function initPage() {
-                        console.log('INIT PAGE JALAN');
+                function initPage() {
+                    console.log('INIT PAGE JALAN');
 
 
 
-                        if (role !== 'marketing') {
-                            $('#btn-save-all')
-                                .prop('disabled', true)
-                                .addClass('disabled');
-                        }
-                        /* ===== LOAD TABLE ===== */
-                        loadPoTable();
-                        initDetailTopScroll();
-                        // Pencarian hanya dijalankan dengan Enter; hint muncul saat berhenti mengetik.
-                        let releaseHintTimer = null;
-                        const releaseHint = document.getElementById('release-enter-hint');
-                        const hideReleaseHint = () => {
-                            clearTimeout(releaseHintTimer);
-                            if (releaseHint) releaseHint.classList.remove('is-visible');
-                        };
-                        $('#search-qc')
-                            .off('keyup.releaseSearch input.releaseSearch keydown.releaseSearch')
-                            .on('input.releaseSearch', function() {
-                                hideReleaseHint();
-                                const typed = this.value.trim();
-                                if (!typed) {
-                                    // Kosong = kembali ke tampilan awal seperti sebelumnya.
-                                    if (releaseAppliedKeyword !== '') {
-                                        releaseAppliedKeyword = '';
-                                        loadPoTable('', $('#filter-spk-type').val());
-                                    }
-                                    return;
+                    if (role !== 'marketing') {
+                        $('#btn-save-all')
+                            .prop('disabled', true)
+                            .addClass('disabled');
+                    }
+                    /* ===== LOAD TABLE ===== */
+                    loadPoTable();
+                    initDetailTopScroll();
+                    // Pencarian hanya dijalankan dengan Enter; hint muncul saat berhenti mengetik.
+                    let releaseHintTimer = null;
+                    const releaseHint = document.getElementById('release-enter-hint');
+                    const hideReleaseHint = () => {
+                        clearTimeout(releaseHintTimer);
+                        if (releaseHint) releaseHint.classList.remove('is-visible');
+                    };
+                    $('#search-qc')
+                        .off('keyup.releaseSearch input.releaseSearch keydown.releaseSearch')
+                        .on('input.releaseSearch', function() {
+                            hideReleaseHint();
+                            const typed = this.value.trim();
+                            if (!typed) {
+                                // Kosong = kembali ke tampilan awal seperti sebelumnya.
+                                if (releaseAppliedKeyword !== '') {
+                                    releaseAppliedKeyword = '';
+                                    loadPoTable('', $('#filter-spk-type').val());
                                 }
-                                if (typed === releaseAppliedKeyword) return;
-                                // Hint saja, tidak mengirim AJAX selama user mengetik.
-                                releaseHintTimer = setTimeout(() => {
-                                    const current = $('#search-qc').val().trim();
-                                    if (current && current !== releaseAppliedKeyword && releaseHint) {
-                                        releaseHint.classList.add('is-visible');
-                                    }
-                                }, 600);
-                            })
-                            .on('keydown.releaseSearch', function(event) {
-                                if (event.key !== 'Enter' || event.isComposing) return;
-                                event.preventDefault();
-                                hideReleaseHint();
-                                releaseAppliedKeyword = this.value.trim();
-                                loadPoTable(releaseAppliedKeyword, $('#filter-spk-type').val());
-                            });
-                        /* ===== BACK BUTTON ===== */
-                        $('#btn-back')
-                            .off('click')
-                            .on('click', function() {
-                                $('#detail-view').hide();
-                                $('#default-table').show();
-                                $('.po-filter-toolbar').removeClass('po-filter-hidden');
-                            });
-                        $('#filter-spk-type')
-                            .off('change')
-                            .on('change', function() {
-
-                                loadPoTable(
-                                    releaseAppliedKeyword,
-                                    $(this).val()
-                                );
-
-                            });
-                    }
-                    /* =====================================================
-                       TOP HORIZONTAL SCROLL SYNC
-                       Menampilkan indicator/scrollbar horizontal tepat di
-                       bawah header dan menyinkronkannya dengan tabel utama.
-                    ===================================================== */
-                    function initDetailTopScroll() {
-                        const wrapper = document.querySelector('.freeze-wrapper');
-                        const topScroll = document.getElementById('detail-scroll-top');
-                        const topInner = document.getElementById('detail-scroll-top-inner');
-                        const table = document.getElementById('detail-table');
-
-                        if (!wrapper || !topScroll || !topInner || !table) return;
-
-                        const syncWidth = () => {
-                            topInner.style.width = table.scrollWidth + 'px';
-                            topScroll.scrollLeft = wrapper.scrollLeft;
-                            topScroll.style.display = table.scrollWidth > wrapper.clientWidth + 2 ? 'block' : 'none';
-                        };
-
-                        topScroll.onscroll = function() {
-                            wrapper.scrollLeft = topScroll.scrollLeft;
-                        };
-
-                        wrapper.addEventListener('scroll', function() {
-                            if (Math.abs(topScroll.scrollLeft - wrapper.scrollLeft) > 1) {
-                                topScroll.scrollLeft = wrapper.scrollLeft;
+                                return;
                             }
+                            if (typed === releaseAppliedKeyword) return;
+                            // Hint saja, tidak mengirim AJAX selama user mengetik.
+                            releaseHintTimer = setTimeout(() => {
+                                const current = $('#search-qc').val().trim();
+                                if (current && current !== releaseAppliedKeyword && releaseHint) {
+                                    releaseHint.classList.add('is-visible');
+                                }
+                            }, 600);
+                        })
+                        .on('keydown.releaseSearch', function(event) {
+                            if (event.key !== 'Enter' || event.isComposing) return;
+                            event.preventDefault();
+                            hideReleaseHint();
+                            releaseAppliedKeyword = this.value.trim();
+                            loadPoTable(releaseAppliedKeyword, $('#filter-spk-type').val());
                         });
+                    $('#release-pfi-tabs .release-pfi-tab').off('click.releaseTab').on('click.releaseTab', function() {
+                        const tab = $(this).data('tab');
+                        if (tab === releaseActiveTab) return;
+                        releaseActiveTab = tab;
+                        $('#po-table').removeClass('release-hide-category');
+                        $('#release-pfi-tabs .release-pfi-tab').removeClass('active').attr('aria-selected', 'false');
+                        $(this).addClass('active').attr('aria-selected', 'true');
+                        loadPoTable(releaseAppliedKeyword, $('#filter-spk-type').val());
+                    });
+                    /* ===== BACK BUTTON ===== */
+                    $('#btn-back')
+                        .off('click')
+                        .on('click', function() {
+                            $('#detail-view').hide();
+                            $('#default-table').show();
+                            $('.po-filter-toolbar, #release-pfi-tabs').removeClass('po-filter-hidden');
+                        });
+                    $('#filter-spk-type')
+                        .off('change')
+                        .on('change', function() {
 
-                        requestAnimationFrame(syncWidth);
-                        setTimeout(syncWidth, 250);
-                        setTimeout(syncWidth, 700);
+                            loadPoTable(
+                                releaseAppliedKeyword,
+                                $(this).val()
+                            );
 
-                        if (window.ResizeObserver) {
-                            const ro = new ResizeObserver(syncWidth);
-                            ro.observe(table);
+                        });
+                }
+                /* =====================================================
+                   TOP HORIZONTAL SCROLL SYNC
+                   Menampilkan indicator/scrollbar horizontal tepat di
+                   bawah header dan menyinkronkannya dengan tabel utama.
+                ===================================================== */
+                function initDetailTopScroll() {
+                    const wrapper = document.querySelector('.freeze-wrapper');
+                    const topScroll = document.getElementById('detail-scroll-top');
+                    const topInner = document.getElementById('detail-scroll-top-inner');
+                    const table = document.getElementById('detail-table');
+
+                    if (!wrapper || !topScroll || !topInner || !table) return;
+
+                    const syncWidth = () => {
+                        topInner.style.width = table.scrollWidth + 'px';
+                        topScroll.scrollLeft = wrapper.scrollLeft;
+                        topScroll.style.display = table.scrollWidth > wrapper.clientWidth + 2 ? 'block' : 'none';
+                    };
+
+                    topScroll.onscroll = function() {
+                        wrapper.scrollLeft = topScroll.scrollLeft;
+                    };
+
+                    wrapper.addEventListener('scroll', function() {
+                        if (Math.abs(topScroll.scrollLeft - wrapper.scrollLeft) > 1) {
+                            topScroll.scrollLeft = wrapper.scrollLeft;
                         }
+                    });
+
+                    requestAnimationFrame(syncWidth);
+                    setTimeout(syncWidth, 250);
+                    setTimeout(syncWidth, 700);
+
+                    if (window.ResizeObserver) {
+                        const ro = new ResizeObserver(syncWidth);
+                        ro.observe(table);
+                    }
+                }
+
+                /* =====================================================
+                   LOAD TABLE
+                ===================================================== */
+                // const role = ($('#role').val() || '').toLowerCase();
+
+                function canEditField(field) {
+                    if (field === 'agreement_buyers_date') return canSeeAgreement;
+
+                    switch (role) {
+
+                        case 'marketing':
+                            return true;
+
+                        case 'export':
+                            return [
+                                'act_ship',
+                                'cont_numb',
+                                'do_released'
+                            ].includes(field);
+
+                        default:
+                            return false;
                     }
 
-                    /* =====================================================
-                       LOAD TABLE
-                    ===================================================== */
-                    // const role = ($('#role').val() || '').toLowerCase();
+                }
 
-                    function canEditField(field) {
+                function editableTd(field, value, id, type = 'text') {
 
-                        switch (role) {
+                    let editable = canEditField(field);
 
-                            case 'marketing':
-                                return true;
-
-                            case 'export':
-                                return [
-                                    'act_ship',
-                                    'cont_numb',
-                                    'do_released'
-                                ].includes(field);
-
-                            default:
-                                return false;
-                        }
-
-                    }
-
-                    function editableTd(field, value, id, type = 'text') {
-
-                        let editable = canEditField(field);
-
-                        return `
+                    return `
                 <td>
                     <input
                         type="${type}"
@@ -578,174 +1513,260 @@
                     >
                 </td>
             `;
+                }
+                // dedaline
+                function deadlineProgress(releaseDate, shipmentDate, actualShip = '') {
+                    // Shipment date = contractual deadline; Actual Shipment = completed shipment.
+                    const parseDay = v => {
+                        if (!v || v === '-') return null;
+                        const normalized = normalizeDate(String(v));
+                        if (!normalized) return null;
+                        const d = new Date(normalized + 'T00:00:00');
+                        return Number.isNaN(d.getTime()) ? null : d;
+                    };
+                    const deadline = parseDay(shipmentDate);
+                    const actual = parseDay(actualShip);
+                    if (!deadline) return '<span class="text-muted">No deadline</span>';
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const dayDiff = (a, b) => Math.round((a.getTime() - b.getTime()) / 86400000);
+                    if (actual) {
+                        const delta = dayDiff(actual, deadline);
+                        if (delta > 0)
+                        return `<span class="release-timing release-late">Shipped · Late ${delta} day${delta === 1 ? '' : 's'}</span>`;
+                        if (delta < 0)
+                        return `<span class="release-timing release-early">Shipped · ${Math.abs(delta)} day${delta === -1 ? '' : 's'} early</span>`;
+                        return '<span class="release-timing release-on-time">Shipped · On time</span>';
                     }
-                    // dedaline
-                    function deadlineProgress(releaseDate, shipmentDate) {
+                    const remaining = dayDiff(deadline, today);
+                    if (remaining < 0)
+                    return `<span class="release-timing release-late">Overdue ${Math.abs(remaining)} day${remaining === -1 ? '' : 's'}</span>`;
+                    if (remaining === 0) return '<span class="release-timing release-due">Due today</span>';
+                    return `<span class="release-timing ${remaining <= 7 ? 'release-due' : 'release-pending'}">${remaining} day${remaining === 1 ? '' : 's'} remaining</span>`;
+                }
+                // Search JSON PO; keep original PO renderer and handlers.
+                let releaseActiveTab = 'release_order';
+                let releaseAppliedKeyword = '';
+                let releaseSearchSequence = 0;
+                let releaseSearchAbort = null;
+                let releaseCountCacheKey = null;
+                let releaseCountController = null;
+                let releaseCountsDirty = true;
 
-                        if (!releaseDate || !shipmentDate) {
-                            return '<span class="text-muted">-</span>';
-                        }
+                function releaseRefreshCounts(term, type, force = false) {
+                    const key = JSON.stringify([term, type]);
+                    if (!force && !releaseCountsDirty && releaseCountCacheKey === key) return;
+                    if (releaseCountController) releaseCountController.abort();
+                    releaseCountController = new AbortController();
+                    releaseCountCacheKey = key;
+                    releaseCountsDirty = false;
+                    fetch(`{{ route('marketing.ajax.po') }}?counts=1&q=${encodeURIComponent(term)}&type=${encodeURIComponent(type)}`, {
+                            signal: releaseCountController.signal
+                        }).then(r => {
+                            if (!r.ok) throw Error('Count failed');
+                            return r.json();
+                        })
+                        .then(data => {
+                            if (releaseCountCacheKey !== key) return;
+                            const a = document.getElementById('release-count-order');
+                            const b = document.getElementById('release-count-shipment');
+                            if (a) a.textContent = Number(data.release_order || 0).toLocaleString('id-ID');
+                            if (b) b.textContent = Number(data.has_shipment || 0).toLocaleString('id-ID');
+                        }).catch(err => {
+                            if (err.name !== 'AbortError') console.warn('PO counts:', err);
+                        });
+                }
 
-                        let start = new Date(releaseDate);
-                        let end = new Date(shipmentDate);
-                        let now = new Date();
+                function releaseHasShipment(po) {
+                    const d = String(po.act_ship ?? '').trim();
+                    return d !== '' && d !== '-' && d !== '0000-00-00' && d !== '0000-00-00 00:00:00';
+                }
 
-                        let totalDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-
-                        if (totalDays <= 0) {
-                            return '-';
-                        }
-
-                        let elapsedDays = Math.ceil((now - start) / (1000 * 60 * 60 * 24));
-
-                        let percent = (elapsedDays / totalDays) * 100;
-
-                        percent = Math.max(0, Math.min(100, percent));
-
-                        let barColor = '#28a745';
-                        let textColor = '#2F437F';
-
-                        if (percent >= 60) {
-                            barColor = '#f0ad4e';
-                            textColor = '#2F437F';
-                        }
-
-                        if (percent >= 85) {
-                            barColor = '#dc3545';
-                            textColor = '#dc3545';
-                        }
-
-                        // ===== OVERDUE =====
-
-                        if (now > end) {
-
-                            let late = Math.ceil((now - end) / (1000 * 60 * 60 * 24));
-
-                            return `
-        <div style="min-width:180px">
-
-            <div class="progress" style="height:18px;border-radius:20px">
-
-                <div class="progress-bar"
-                    style="
-                        width:100%;
-                        background:#dc3545;
-                        font-size:11px;
-                    ">
-                    100%
-                </div>
-
-            </div>
-
-            <div style="
-                font-size:11px;
-                margin-top:3px;
-                color:#dc3545;
-                font-weight:bold;
-            ">
-                ${totalDays} / ${totalDays} Hari
-                <br>
-                🔴 Late ${late} Hari
-            </div>
-
-        </div>
-        `;
-                        }
-
-                        let sisa = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
-
-                        return `
-    <div style="min-width:180px">
-
-        <div class="progress" style="height:18px;border-radius:20px">
-
-            <div class="progress-bar"
-                style="
-                    width:${percent}%;
-                    background:${barColor};
-                    font-size:11px;
-                ">
-                ${Math.round(percent)}%
-            </div>
-
-        </div>
-
-        <div style="
-            font-size:11px;
-            margin-top:3px;
-            color:${textColor};
-            font-weight:bold;
-        ">
-
-            ${Math.max(0,elapsedDays)} / ${totalDays} Hari
-            <br>
-
-            🟢 Sisa ${sisa} Hari
-
-        </div>
-
-    </div>
-    `;
+                function releaseAnimateToShipped(row, done) {
+                    const target = document.querySelector('[data-tab="has_shipment"]');
+                    const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                    if (!row || !target || reduced || !Element.prototype.animate) {
+                        done();
+                        return;
                     }
 
-                    // Search JSON PO; keep original PO renderer and handlers.
-                    let releaseAppliedKeyword = '';
-                    let releaseSearchSequence = 0;
-                    let releaseSearchAbort = null;
-                    function releaseEscapeHtml(value) {
-                        return String(value ?? '').replace(/[&<>"']/g, ch =>
-                            ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-                    }
-                    function loadPoTable(keyword = '', type = '') {
-                        const seq = ++releaseSearchSequence;
-                        const loadingLayer = document.getElementById('release-po-loading');
-                        if (loadingLayer) loadingLayer.classList.add('is-active');
-                        const term = String(keyword || '').trim();
-                        const counter = document.getElementById('release-found-counter');
-                        if (releaseSearchAbort) releaseSearchAbort.abort();
-                        releaseSearchAbort = new AbortController();
-                        const signal = releaseSearchAbort.signal;
-                        if (counter) {
-                            counter.style.display = term ? 'inline-block' : 'none';
-                            if (term) counter.textContent = 'Searching...';
+                    const from = row.getBoundingClientRect();
+                    const to = target.getBoundingClientRect();
+                    const startX = from.left + Math.min(from.width * .65, 240);
+                    const startY = from.top + from.height / 2;
+                    const endX = to.left + to.width / 2;
+                    const endY = to.top + to.height / 2;
+                    const duration = 2400; // intentionally slower, clearly visible
+                    const plane = document.createElement('div');
+                    plane.className = 'release-plane-flight';
+                    plane.setAttribute('aria-hidden', 'true');
+                    plane.innerHTML =
+                        `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4Z"/></svg>`;
+                    plane.style.left = (startX - 37) + 'px';
+                    plane.style.top = (startY - 37) + 'px';
+                    document.body.appendChild(plane);
+                    row.classList.add('release-shipping');
+
+                    const dx = endX - startX,
+                        dy = endY - startY;
+                    const lift = Math.max(90, Math.min(190, Math.abs(dy) * .35 + 70));
+                    const keyframes = [{
+                            transform: 'translate(0px,0px) scale(.85) rotate(-12deg)',
+                            opacity: 0,
+                            offset: 0
+                        },
+                        {
+                            transform: `translate(${dx*.12}px,${dy*.12-lift*.42}px) scale(1) rotate(-7deg)`,
+                            opacity: 1,
+                            offset: .16
+                        },
+                        {
+                            transform: `translate(${dx*.48}px,${dy*.48-lift}px) scale(1.12) rotate(0deg)`,
+                            opacity: 1,
+                            offset: .48
+                        },
+                        {
+                            transform: `translate(${dx*.8}px,${dy*.8-lift*.55}px) scale(.8) rotate(8deg)`,
+                            opacity: 1,
+                            offset: .78
+                        },
+                        {
+                            transform: `translate(${dx}px,${dy}px) scale(.22) rotate(15deg)`,
+                            opacity: 0,
+                            offset: 1
                         }
-                        // Existing endpoint retains sorting, type filtering and full PO fields.
-                        const oldUrl = `{{ route('marketing.ajax.po') }}?q=${encodeURIComponent(term)}&type=${encodeURIComponent(type)}&sort=${encodeURIComponent(orderSort)}`;
-                        const listPromise = fetch(oldUrl, {signal}).then(r => {if (!r.ok) throw Error('PO list failed'); return r.json();});
-                        const matchPromise = term ? fetch(`{{ route('marketing.release-order.search') }}?q=${encodeURIComponent(term)}&type=${encodeURIComponent(type)}`, {signal})
-                            .then(r => {if (!r.ok) throw Error('JSON search failed'); return r.json();}) : Promise.resolve({data:[],total_po:0});
-                        Promise.all([listPromise,matchPromise]).then(([normalPos,found]) => {
+                    ];
+                    const flight = plane.animate(keyframes, {
+                        duration,
+                        easing: 'ease-in-out',
+                        fill: 'forwards'
+                    });
+                    // A soft dotted wake, without copying the entire table row.
+                    const trails = [];
+                    [0, 160, 320].forEach((delay, i) => {
+                        const dot = document.createElement('span');
+                        dot.className = 'release-plane-trail';
+                        dot.style.left = (startX - 6) + 'px';
+                        dot.style.top = (startY - 6) + 'px';
+                        document.body.appendChild(dot);
+                        trails.push(dot);
+                        dot.animate(keyframes.map(k => ({
+                            transform: k.transform.replace(/scale\([^)]*\)/, `scale(${.22-i*.04})`),
+                            opacity: k.offset > .8 ? 0 : Math.max(0, .35 - i * .08),
+                            offset: k.offset
+                        })), {
+                            duration: duration,
+                            delay: delay,
+                            easing: 'ease-in-out',
+                            fill: 'forwards'
+                        });
+                    });
+                    let finished = false;
+                    const finish = () => {
+                        if (finished) return;
+                        finished = true;
+                        plane.remove();
+                        trails.forEach(el => el.remove());
+                        target.classList.add('release-tab-arrival');
+                        setTimeout(() => target.classList.remove('release-tab-arrival'), 850);
+                        done();
+                    };
+                    flight.onfinish = finish;
+                    flight.oncancel = finish;
+                    setTimeout(finish, duration + 250);
+                }
+
+                function releaseEscapeHtml(value) {
+                    return String(value ?? '').replace(/[&<>"']/g, ch =>
+                        ({
+                            '&': '&amp;',
+                            '<': '&lt;',
+                            '>': '&gt;',
+                            '"': '&quot;',
+                            "'": '&#39;'
+                        } [ch]));
+                }
+
+                function loadPoTable(keyword = '', type = '') {
+                    const seq = ++releaseSearchSequence;
+                    const loadingLayer = document.getElementById('release-po-loading');
+                    if (loadingLayer) loadingLayer.classList.add('is-active');
+                    const term = String(keyword || '').trim();
+                    const counter = document.getElementById('release-found-counter');
+                    if (releaseSearchAbort) releaseSearchAbort.abort();
+                    releaseSearchAbort = new AbortController();
+                    const signal = releaseSearchAbort.signal;
+                    // Badge counts are cached; tab changes do not run another COUNT query.
+                    releaseRefreshCounts(term, type);
+                    if (counter) {
+                        counter.style.display = term ? 'inline-block' : 'none';
+                        if (term) counter.textContent = 'Searching...';
+                    }
+                    // Existing endpoint retains sorting, type filtering and full PO fields.
+                    const oldUrl =
+                        `{{ route('marketing.ajax.po') }}?q=${encodeURIComponent(term)}&type=${encodeURIComponent(type)}&sort=${encodeURIComponent(orderSort)}&tab=${encodeURIComponent(releaseActiveTab)}`;
+                    const listPromise = fetch(oldUrl, {
+                        signal
+                    }).then(r => {
+                        if (!r.ok) throw Error('PO list failed');
+                        return r.json();
+                    });
+                    const matchPromise = term ? fetch(
+                            `{{ route('marketing.release-order.search') }}?q=${encodeURIComponent(term)}&type=${encodeURIComponent(type)}`, {
+                                signal
+                            })
+                        .then(r => {
+                            if (!r.ok) throw Error('JSON search failed');
+                            return r.json();
+                        }) : Promise.resolve({
+                            data: [],
+                            total_po: 0
+                        });
+                    Promise.all([listPromise, matchPromise]).then(([normalPos, found]) => {
+                        if (seq !== releaseSearchSequence) return;
+                        const tbody = document.getElementById('po-table-body');
+                        if (!tbody) return;
+                        const matchMap = new Map((found.data || []).map(p => [String(p.id), p]));
+                        // Existing API may filter by PO/company. Fetch unfiltered list to include JSON-only matches.
+                        const combined = new Map(normalPos.map(p => [String(p.id), p]));
+                        const extraIds = [...matchMap.keys()].filter(id => !combined.has(id));
+                        const finish = allPos => {
                             if (seq !== releaseSearchSequence) return;
-                            const tbody = document.getElementById('po-table-body');
-                            if (!tbody) return;
-                            const matchMap = new Map((found.data || []).map(p => [String(p.id),p]));
-                            // Existing API may filter by PO/company. Fetch unfiltered list to include JSON-only matches.
-                            const combined = new Map(normalPos.map(p => [String(p.id),p]));
-                            const extraIds = [...matchMap.keys()].filter(id => !combined.has(id));
-                            const finish = allPos => {
-                                if (seq !== releaseSearchSequence) return;
-                                const termLower = term.toLowerCase();
-                                const rows = term ? allPos.filter(p =>
-                                    String(p.order_no ?? '').toLowerCase().includes(termLower) ||
-                                    String(p.company_name ?? '').toLowerCase().includes(termLower) ||
-                                    matchMap.has(String(p.id))) : allPos;
-                                if (counter && term) counter.textContent = `Found in ${rows.length} POs`;
-                                tbody.innerHTML = '';
-                                if (!rows.length) {
-                                    tbody.innerHTML = '<tr><td colspan="13" class="text-center text-muted">Belum ada data</td></tr>';
-                                    return;
+                            const termLower = term.toLowerCase();
+                            const rows = term ? allPos.filter(p =>
+                                String(p.order_no ?? '').toLowerCase().includes(termLower) ||
+                                String(p.company_name ?? '').toLowerCase().includes(termLower) ||
+                                matchMap.has(String(p.id))) : allPos;
+                            // Release Order contains ALL orders; Shipped is a subset.
+                            if (releaseActiveTab === 'has_shipment') {
+                                for (let i = rows.length - 1; i >= 0; i--) {
+                                    if (!releaseHasShipment(rows[i])) rows.splice(i, 1);
                                 }
-                                rows.forEach(po => {
-                                    let deleteButton = '';
-                                    if (currentUsername.toLowerCase() === 'rodiyah') {
-                                        deleteButton = `<button class="btn btn-danger btn-xs btn-delete-po" data-id="${po.id}">Delete</button>`;
-                                    }
-                                    const matches = matchMap.get(String(po.id))?.matched_items || [];
-                                    const tip = matches.map(item =>
-                                        `${item.description || item.nw_description || '-'} | ${item.article_code || '-'} | Qty: ${item.qty ?? '-'}`).join('\n');
-                                    const badge = matches.length ? `<span class="release-match-badge" title="${releaseEscapeHtml(tip)}">&#128269; ${matches.length} matched item(s)</span>` : '';
-                                    const orderCell = editableTd('order_no',po.order_no,po.id).replace('</td>', `${badge}</td>`);
-                                    tbody.innerHTML += `
+                            }
+                            if (counter && term) counter.textContent = `Found in ${rows.length} POs`;
+                            tbody.innerHTML = '';
+                            if (!rows.length) {
+                                tbody.innerHTML =
+                                    '<tr><td colspan="13" class="text-center text-muted">Belum ada data</td></tr>';
+                                return;
+                            }
+                            const rowHtml = [];
+                            rows.forEach(po => {
+                                let deleteButton = '';
+                                if (currentUsername.toLowerCase() === 'rodiyah') {
+                                    deleteButton =
+                                        `<button class="btn btn-danger btn-xs btn-delete-po" data-id="${po.id}">Delete</button>`;
+                                }
+                                const matches = matchMap.get(String(po.id))?.matched_items || [];
+                                const tip = matches.map(item =>
+                                    `${item.description || item.nw_description || '-'} | ${item.article_code || '-'} | Qty: ${item.qty ?? '-'}`
+                                ).join('\n');
+                                const badge = matches.length ?
+                                    `<span class="release-match-badge" title="${releaseEscapeHtml(tip)}">&#128269; ${matches.length} matched item(s)</span>` :
+                                    '';
+                                const orderCell = editableTd('order_no', po.order_no, po.id).replace('</td>',
+                                    `${badge}</td>`);
+                                rowHtml.push(`
                                        <tr>
                                             ${orderCell}
                                             ${editableTd('company_name',po.company_name,po.id)}
@@ -753,475 +1774,500 @@
                                             ${editableTd('country',po.country,po.id)}
                                             ${editableTd('release_date',po.release_date,po.id,'date')}
                                             ${editableTd('shipment_date',normalizeDate(po.shipment_date),po.id,'date')}
-                                            <td>${deadlineProgress(normalizeDate(po.release_date),normalizeDate(po.shipment_date))}</td>
-                                            ${editableTd('act_ship',po.act_ship,po.id,'date')}
+                                            <td>${deadlineProgress(po.release_date,po.shipment_date,po.act_ship)}</td>
+                                            <td><span class="release-order-status ${releaseHasShipment(po) ? 'release-status-closed' : 'release-status-open'}">${releaseHasShipment(po) ? 'CLOSE' : 'OPEN'}</span></td>
+                                            ${canSeeAgreement ? editableTd('agreement_buyers_date',normalizeDate(po.agreement_buyers_date),po.id,'date') : ''}
+                                            ${editableTd('act_ship',normalizeDate(po.act_ship),po.id,'date')}
                                             ${canSeeValue ? editableTd('value', po.value, po.id, 'number') : ''}
                                             ${editableTd('cont_numb',po.cont_numb,po.id)}
                                             ${editableTd('do_released',po.do_released,po.id)}
                                             ${editableTd('remark',po.remark,po.id)}
-                                       </tr>`;
-                                });
-                            };
-                            if (!extraIds.length) return finish(normalPos);
-                            // Reuse old API without keyword to obtain complete row data for JSON matches.
-                            fetch(`{{ route('marketing.ajax.po') }}?q=&type=${encodeURIComponent(type)}&sort=${encodeURIComponent(orderSort)}`, {signal})
-                                .then(r => {if (!r.ok) throw Error('PO fallback failed'); return r.json();})
-                                .then(finish);
-                        }).catch(err => {
-                            if (err.name === 'AbortError' || seq !== releaseSearchSequence) return;
-                            console.error('Release Order search:', err);
-                            if (counter && term) counter.textContent = 'Search failed';
-                        }).finally(() => {
-                            // Request lama tidak boleh menutup loading milik request terbaru.
-                            if (seq === releaseSearchSequence && loadingLayer) {
-                                loadingLayer.classList.remove('is-active');
-                            }
-                        });
-                    }
-                    /* =====================================================
-                       VIEW DETAIL
-                    ===================================================== */
-                    // normalize
-                    function normalizeDate(date) {
-
-                        if (!date || date == '-') return '';
-
-                        date = date.trim();
-
-                        // Kalau sudah format YYYY-MM-DD
-                        if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-                            return date;
-                        }
-
-                        // Buang tulisan dalam kurung
-                        date = date.replace(/\(.*?\)/g, '');
-
-                        const months = {
-                            january: '01',
-                            february: '02',
-                            march: '03',
-                            april: '04',
-                            may: '05',
-                            june: '06',
-                            july: '07',
-                            august: '08',
-                            september: '09',
-                            october: '10',
-                            november: '11',
-                            december: '12'
+                                       </tr>`);
+                            });
+                            tbody.innerHTML = rowHtml.join('');
                         };
-
-                        let m = date.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/i);
-
-                        if (!m) return '';
-
-                        let day = m[1].padStart(2, '0');
-                        let month = months[m[2].toLowerCase()];
-
-                        return `${m[3]}-${month}-${day}`;
-                    }
-                    // update
-                    $(document).on('change', '.po-edit', function() {
-                        if ($(this).prop('readonly')) {
-                            return;
+                        if (!extraIds.length) return finish(normalPos);
+                        // Reuse old API without keyword to obtain complete row data for JSON matches.
+                        fetch(`{{ route('marketing.ajax.po') }}?q=&type=${encodeURIComponent(type)}&sort=${encodeURIComponent(orderSort)}&tab=${encodeURIComponent(releaseActiveTab)}`, {
+                                signal
+                            })
+                            .then(r => {
+                                if (!r.ok) throw Error('PO fallback failed');
+                                return r.json();
+                            })
+                            .then(finish);
+                    }).catch(err => {
+                        if (err.name === 'AbortError' || seq !== releaseSearchSequence) return;
+                        console.error('Release Order search:', err);
+                        if (counter && term) counter.textContent = 'Search failed';
+                    }).finally(() => {
+                        // Request lama tidak boleh menutup loading milik request terbaru.
+                        if (seq === releaseSearchSequence && loadingLayer) {
+                            loadingLayer.classList.remove('is-active');
                         }
-                        let input = $(this);
+                    });
+                }
+                /* =====================================================
+                   VIEW DETAIL
+                ===================================================== */
+                // normalize
+                function normalizeDate(date) {
 
-                        $.ajax({
-                            beforeSend: function() {
+                    if (!date || date == '-') return '';
 
-                                showSaving();
+                    date = date.trim();
 
-                            },
-                            url: '/marketing/po/update-field',
+                    // Kalau sudah format YYYY-MM-DD
+                    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+                        return date;
+                    }
 
-                            type: 'POST',
+                    // Buang tulisan dalam kurung
+                    date = date.replace(/\(.*?\)/g, '');
 
-                            headers: {
-                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                            },
+                    const months = {
+                        january: '01',
+                        february: '02',
+                        march: '03',
+                        april: '04',
+                        may: '05',
+                        june: '06',
+                        july: '07',
+                        august: '08',
+                        september: '09',
+                        october: '10',
+                        november: '11',
+                        december: '12'
+                    };
 
-                            data: {
-                                id: input.data('id'),
-                                field: input.data('field'),
-                                value: input.val()
-                            },
+                    let m = date.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/i);
 
-                            success: function() {
-                                showSaved();
-                                input.addClass('is-valid');
+                    if (!m) return '';
 
-                                setTimeout(function() {
+                    let day = m[1].padStart(2, '0');
+                    let month = months[m[2].toLowerCase()];
 
-                                    input.removeClass('is-valid');
+                    return `${m[3]}-${month}-${day}`;
+                }
+                // update
+                $(document).on('change', '.po-edit', function() {
+                    if ($(this).prop('readonly')) {
+                        return;
+                    }
+                    let input = $(this);
 
-                                }, 800);
+                    $.ajax({
+                        beforeSend: function() {
 
+                            showSaving();
+
+                        },
+                        url: '/marketing/po/update-field',
+
+                        type: 'POST',
+
+                        headers: {
+                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                        },
+
+                        data: {
+                            id: input.data('id'),
+                            field: input.data('field'),
+                            value: input.val()
+                        },
+
+                        success: function() {
+                            showSaved();
+                            input.addClass('is-valid');
+                            if (input.data('field') === 'act_ship') {
+                                releaseCountsDirty = true;
+                                const savedDate = String(input.val() || '').trim();
+                                const nowShipped = savedDate !== '' && savedDate !== '0000-00-00';
+                                const leavingCurrentTab = (releaseActiveTab === 'has_shipment' && !nowShipped);
+                                const refresh = () => loadPoTable(releaseAppliedKeyword, $('#filter-spk-type')
+                                    .val());
+                                if (nowShipped && releaseActiveTab === 'release_order') {
+                                    // Keep row in Release Order; animate plane, then refresh status/counts.
+                                    releaseAnimateToShipped(input.closest('tr')[0], refresh);
+                                } else {
+                                    refresh();
+                                }
                             }
 
-                        });
+                            setTimeout(function() {
+
+                                input.removeClass('is-valid');
+
+                            }, 800);
+
+                        }
 
                     });
-                    // delete
-                    $(document).off('click', '.btn-delete-po')
-                        .on('click', '.btn-delete-po', function() {
 
-                            let id = $(this).data('id');
+                });
+                // delete
+                $(document).off('click', '.btn-delete-po')
+                    .on('click', '.btn-delete-po', function() {
 
-                            Swal.fire({
-                                    title: 'Yakin hapus?',
-                                    text: 'Data PO dan detail akan dihapus',
-                                    icon: 'warning',
-                                    showCancelButton: true,
-                                    confirmButtonText: 'Ya Hapus',
-                                    cancelButtonText: 'Batal',
-                                    confirmButtonColor: '#d33'
-                                })
-                                .then((result) => {
-
-                                    if (!result.isConfirmed) return;
-
-                                    $.ajax({
-
-                                        url: '/marketing/po-delete/' + id,
-                                        type: 'DELETE',
-
-                                        headers: {
-                                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                                        },
-
-                                        success: function(res) {
-
-                                            Swal.fire({
-                                                icon: 'success',
-                                                title: 'Berhasil',
-                                                text: res.message
-                                            });
-
-                                            loadPoTable();
-
-                                        },
-
-                                        error: function(xhr) {
-
-                                            Swal.fire({
-                                                icon: 'error',
-                                                title: 'Gagal',
-                                                text: xhr.responseJSON?.message || 'Delete gagal'
-                                            });
-
-                                        }
-
-                                    });
-
-                                });
-
-                        });
-                    $(document).off('click', '.btn-view').on('click', '.btn-view', function() {
                         let id = $(this).data('id');
-                        $('#btn-buat-spk').attr('href', '/spk/' + id);
-                        fetch(`/marketing/po-detail/${id}`)
-                            .then(res => res.json())
-                            .then(res => {
-                                $('#default-table').hide();
-                                $('#detail-view').show();
-                                $('.po-filter-toolbar').addClass('po-filter-hidden');
-                                $('#d-order').text(res.po.order_no);
-                                $('#d-company').text(res.po.company_name);
-                                $('#d-ship').text(res.po.shipment_date ?? '-');
-                                $('#d-country').text(res.po.country ?? '-');
-                                let thead = $('#detail-table-head');
-                                let tbody = $('#detail-item-table');
-                                let foot = $('#detail-table-foot');
-                                thead.html('');
-                                tbody.html('');
-                                foot.html('');
-                                if (!res.items.length) return;
-                                // =====================================================
-                                // COLLECT ALL KEYS FROM ALL ITEMS
-                                // =====================================================
-                                let allKeysSet = new Set();
 
-                                res.items.forEach(item => {
-                                    const detail = item.detail || {};
-                                    Object.keys(detail).forEach(key => allKeysSet.add(key));
-                                });
+                        Swal.fire({
+                                title: 'Yakin hapus?',
+                                text: 'Data PO dan detail akan dihapus',
+                                icon: 'warning',
+                                showCancelButton: true,
+                                confirmButtonText: 'Ya Hapus',
+                                cancelButtonText: 'Batal',
+                                confirmButtonColor: '#d33'
+                            })
+                            .then((result) => {
 
-                                // INCH: tampil hanya bila minimal satu item memiliki nilai.
-                                // Alias sumber Excel lama tetap dibaca tanpa mengubah database.
-                                const inchAliases = {
-                                    item_w_inch: ['item_w_inch', 'item_w_(inch)', 'item_w_(in)', 'dimension_(inch)',
-                                        'dimention_(inch)', 'dimension_inch', 'dimention_inch'
-                                    ],
-                                    item_d_inch: ['item_d_inch', 'item_d_(inch)', 'item_d_(in)', 'd_inch'],
-                                    item_h_inch: ['item_h_inch', 'item_h_(inch)', 'item_h_(in)', 'h_inch'],
-                                    pack_w_inch: ['pack_w_inch', 'packing_w_inch', 'pack_w_(inch)', 'packing_w_(inch)'],
-                                    pack_d_inch: ['pack_d_inch', 'packing_d_inch', 'pack_d_(inch)', 'packing_d_(inch)'],
-                                    pack_h_inch: ['pack_h_inch', 'packing_h_inch', 'pack_h_(inch)', 'packing_h_(inch)']
-                                };
-                                const hasDimensionValue = value => value !== null && value !== undefined && String(value)
-                                    .trim() !== '';
-                                const getInchValue = (detail, key) => {
-                                    for (const alias of (inchAliases[key] || [key])) {
-                                        if (hasDimensionValue(detail[alias])) return detail[alias];
-                                    }
-                                    return '';
-                                };
-                                const activeInchKeys = Object.keys(inchAliases).filter(key =>
-                                    res.items.some(item => hasDimensionValue(getInchValue(item.detail || {}, key)))
-                                );
-                                // Hilangkan alias mentah agar tidak muncul dua kolom untuk satu nilai.
-                                const inchAliasSet = new Set(Object.values(inchAliases).flat());
-                                allKeysSet = new Set([...allKeysSet].filter(key => !inchAliasSet.has(key)));
-                                activeInchKeys.forEach(key => allKeysSet.add(key));
-                                let allKeys = [...allKeysSet];
+                                if (!result.isConfirmed) return;
 
-                                // =====================================================
-                                // HEADER PRIORITY
-                                // =====================================================
-                                // Urutan mengikuti kolom A:S pada file Excel referensi.
-                                // ACT tetap disisipkan sebelum QTY oleh logika yang sudah ada.
-                                const priority = [
-                                    'no_', 'photo', 'description', 'article_nr_', 'article_nr_nw',
-                                    'nw_code', 'sub_category', 'remark',
-                                    'item_w', 'item_d', 'item_h',
-                                    'pack_w', 'pack_d', 'pack_h',
-                                    'composition', 'finishing', 'qty', 'cbm',
-                                    'fob_jakarta_in_usd', 'total_cbm', 'value_in_usd',
-                                    'item_w_inch', 'item_d_inch', 'item_h_inch',
-                                    'pack_w_inch', 'pack_d_inch', 'pack_h_inch',
-                                    'cushion', 'glass'
-                                ];
+                                $.ajax({
 
-                                const role = $('#role').val();
+                                    url: '/marketing/po-delete/' + id,
+                                    type: 'DELETE',
 
-                                // =====================================================
-                                // BUILD KEYS
-                                // =====================================================
-                                let keys = [
-                                    ...priority.filter(k => allKeys.includes(k)),
-                                    ...allKeys.filter(k => !priority.includes(k))
-                                ];
-
-                                // =====================================================
-                                // ROLE FILTER
-                                // =====================================================
-                                if (role !== 'marketing') {
-                                    keys = keys.filter(k =>
-                                        k !== 'value_in_usd' &&
-                                        k !== 'fob_jakarta_in_usd'
-                                    );
-                                }
-
-                                // =====================================================
-                                // INSERT ACT DIRECTLY AFTER ARTICLE NR
-                                // =====================================================
-                                keys = keys.filter(k => k !== 'act');
-                                const articleIndex = keys.indexOf('article_nr_') >= 0
-                                    ? keys.indexOf('article_nr_')
-                                    : (keys.indexOf('article_nr_nw') >= 0
-                                        ? keys.indexOf('article_nr_nw')
-                                        : keys.indexOf('nw_code'));
-                                keys.splice(articleIndex >= 0 ? articleIndex + 1 : Math.min(2, keys.length), 0, 'act');
-
-                                // =====================================================
-                                // INDEX
-                                // =====================================================
-                                let descIndex = keys.indexOf('description');
-                                let cbmIndex = keys.includes('total_cbm') ?
-                                    keys.indexOf('total_cbm') :
-                                    keys.indexOf('cbm');
-                                let priceIndex = keys.includes('value_in_usd') ?
-                                    keys.indexOf('value_in_usd') :
-                                    keys.indexOf('fob_jakarta_in_usd');
-
-                                // =====================================================
-                                // NORMALIZE PACKING ALIAS UNTUK DISPLAY
-                                // packing_w/d/h tetap didukung jika data lama memakainya.
-                                // =====================================================
-                                const packingAlias = {
-                                    packing_w: 'pack_w',
-                                    packing_d: 'pack_d',
-                                    packing_h: 'pack_h'
-                                };
-
-                                keys = keys.map(k => packingAlias[k] || k);
-
-                                // Hilangkan duplikat akibat pack_* + packing_* muncul bersamaan.
-                                keys = [...new Set(keys)];
-
-                                // Pastikan grup W/D/H berurutan, termasuk data lama yang tidak punya W.
-                                const dimensionGroups = [
-                                    ['item_w', 'item_d', 'item_h'],
-                                    ['item_w_inch', 'item_d_inch', 'item_h_inch'],
-                                    ['pack_w', 'pack_d', 'pack_h'],
-                                    ['pack_w_inch', 'pack_d_inch', 'pack_h_inch']
-                                ];
-                                for (const group of dimensionGroups) {
-                                    const present = group.filter(key => keys.includes(key));
-                                    if (!present.length) continue;
-                                    const firstIndex = Math.min(...present.map(key => keys.indexOf(key)));
-                                    keys = keys.filter(key => !group.includes(key));
-                                    keys.splice(firstIndex, 0, ...present);
-                                }
-                                // Keep the frozen pair at the very beginning, including when NO exists.
-                                const frozenKeys = ['photo', 'description'].filter(k => keys.includes(k));
-                                keys = [...frozenKeys, ...keys.filter(k => !frozenKeys.includes(k))];
-
-                                // Hitung ulang index setelah alias dan pengurutan kolom.
-                                descIndex = keys.indexOf('description');
-                                cbmIndex = keys.includes('total_cbm') ? keys.indexOf('total_cbm') : keys.indexOf('cbm');
-                                priceIndex = keys.includes('value_in_usd') ? keys.indexOf('value_in_usd') : keys.indexOf(
-                                    'fob_jakarta_in_usd');
-
-                                // Dipakai oleh modal Add Items. ACT bukan field detail_po.
-                                window.currentMarketingPoId = id;
-                                window.currentDetailKeys = keys;
-                                window.currentDetailItems = res.items || [];
-
-                                // =====================================================
-                                // COLUMN WIDTHS
-                                // Ini yang menghilangkan jarak besar antar W/D/H.
-                                // =====================================================
-                                const columnWidth = key => {
-                                    const widths = {
-                                        no_: 38,
-                                        photo: 72,
-                                        description: 220,
-                                        article_nr_: 92,
-                                        article_nr_nw: 92,
-                                        nw_code: 95,
-                                        sub_category: 105,
-                                        act: 112,
-                                        qty: 48,
-                                        remark: 135,
-                                        cushion: 75,
-                                        glass: 65,
-                                        item_w: 58,
-                                        item_d: 58,
-                                        item_h: 58,
-                                        item_w_inch: 66,
-                                        item_d_inch: 66,
-                                        item_h_inch: 66,
-                                        pack_w: 58,
-                                        pack_d: 58,
-                                        pack_h: 58,
-                                        pack_w_inch: 66,
-                                        pack_d_inch: 66,
-                                        pack_h_inch: 66,
-                                        composition: 130,
-                                        finishing: 130,
-                                        cbm: 78,
-                                        total_cbm: 92,
-                                        value_in_usd: 105,
-                                        fob_jakarta_in_usd: 120
-                                    };
-
-                                    return widths[key] || 120;
-                                };
-
-                                // =====================================================
-                                // COLGROUP - WIDTH TETAP
-                                // =====================================================
-                                $('#detail-table colgroup').remove();
-                                let colgroup = $('<colgroup></colgroup>');
-                                keys.forEach(k => {
-                                    colgroup.append(
-                                        `<col style="width:${columnWidth(k)}px;min-width:${columnWidth(k)}px;">`
-                                    );
-                                });
-                                colgroup.prepend('<col style="width:44px;min-width:44px;">');
-                                $('#detail-table').prepend(colgroup);
-                                // Explicit pixel width prevents browsers from stretching columns to fill the viewport.
-                                $('#detail-table').css('width', (44 + keys.reduce((sum, key) => sum + columnWidth(key), 0)) + 'px');
-
-                                // =====================================================
-                                // HEADER 2 LEVEL
-                                // =====================================================
-                                let headerTop = $('<tr class="header-top"></tr>');
-                                let headerBottom = $('<tr class="header-bottom"></tr>');
-
-                                const itemDimensionKeys = ['item_w', 'item_d', 'item_h', 'item_w_inch', 'item_d_inch',
-                                    'item_h_inch'
-                                ];
-                                const packingDimensionKeys = ['pack_w', 'pack_d', 'pack_h', 'pack_w_inch', 'pack_d_inch',
-                                    'pack_h_inch'
-                                ];
-                                const dimensionHeaderGroups = [{
-                                        keys: ['item_w', 'item_d', 'item_h'],
-                                        title: 'ITEM DIMENSION (CM)',
-                                        cls: 'item-group'
+                                    headers: {
+                                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                                     },
-                                    {
-                                        keys: ['item_w_inch', 'item_d_inch', 'item_h_inch'],
-                                        title: 'ITEM DIMENSION (INCH)',
-                                        cls: 'item-group inch-group'
-                                    },
-                                    {
-                                        keys: ['pack_w', 'pack_d', 'pack_h'],
-                                        title: 'PACKING DIMENSION (CM)',
-                                        cls: 'packing-group'
-                                    },
-                                    {
-                                        keys: ['pack_w_inch', 'pack_d_inch', 'pack_h_inch'],
-                                        title: 'PACKING DIMENSION (INCH)',
-                                        cls: 'packing-group inch-group'
-                                    }
-                                ];
-                                const groupedKeys = new Set(dimensionHeaderGroups.flatMap(group => group.keys));
-                                keys.forEach((k, i) => {
-                                    const group = dimensionHeaderGroups.find(group => group.keys.includes(k));
-                                    if (group) {
-                                        const present = group.keys.filter(key => keys.includes(key));
-                                        if (k !== present[0]) return;
-                                        headerTop.append(
-                                            `<th colspan="${present.length}" class="dimension-group ${group.cls}">${group.title}</th>`
-                                            );
-                                        present.forEach(key => {
-                                            const axis = key.match(/_([wdh])(?:_inch)?$/)?.[1]
-                                            ?.toUpperCase() || key;
-                                            headerBottom.append(
-                                                `<th class="dimension-sub" data-header-key="${key}">${axis}</th>`
-                                                );
+
+                                    success: function(res) {
+
+                                        Swal.fire({
+                                            icon: 'success',
+                                            title: 'Berhasil',
+                                            text: res.message
                                         });
-                                        return;
+
+                                        loadPoTable();
+
+                                    },
+
+                                    error: function(xhr) {
+
+                                        Swal.fire({
+                                            icon: 'error',
+                                            title: 'Gagal',
+                                            text: xhr.responseJSON?.message || 'Delete gagal'
+                                        });
+
                                     }
-                                    const cls = k === 'photo' ? 'freeze-photo' : (k === 'description' ? 'freeze-description sticky-col' : '');
-                                    const label = k === 'act' ? 'ACT' : k.replaceAll('_', ' ').toUpperCase();
-                                    headerTop.append(`<th rowspan="2" class="${cls}">${escapeHtml(label)}</th>`);
+
                                 });
 
-                                headerTop.prepend('<th rowspan="2" class="freeze-no">NO</th>');
-                                thead.append(headerTop);
-                                thead.append(headerBottom);
-                                // =========================
-                                // TOTAL
-                                // =========================
-                                let totalCbm = 0;
-                                let totalPrice = 0;
-                                // =========================
-                                // BODY
-                                // =========================
-                                res.items.forEach(item => {
-                                    let detail = item.detail || {};
-                                    let row = $(`<tr class="editable-row" data-id="${item.id}"></tr>`);
-                                    let rawCode =
-                                        detail.article_code ||
-                                        detail.article_nr_ ||
-                                        detail.nw_code ||
-                                        '';
-                                    let articleCode = encodeURIComponent(rawCode);
-                                    keys.forEach((key, i) => {
-                                        let cls = key === 'photo' ? 'freeze-photo' : (key === 'description' ? 'freeze-description sticky-col' : '');
-                                        // 🔥 ACT COLUMN
-                                        if (key === 'act') {
-                                            let rawCode =
-                                                // detail.article_code ||
-                                                detail.article_nr_ ||
-                                                detail.nw_code ||
-                                                '';
-                                            let articleCode = encodeURIComponent(rawCode);
-                                            row.append(`
+                            });
+
+                    });
+                $(document).off('click', '.btn-view').on('click', '.btn-view', function() {
+                    let id = $(this).data('id');
+                    $('#btn-buat-spk').attr('href', '/spk/' + id);
+                    fetch(`/marketing/po-detail/${id}`)
+                        .then(res => res.json())
+                        .then(res => {
+                            $('#default-table').hide();
+                            $('#detail-view').show();
+                            $('.po-filter-toolbar, #release-pfi-tabs').addClass('po-filter-hidden');
+                            $('#d-order').text(res.po.order_no);
+                            $('#d-company').text(res.po.company_name);
+                            $('#d-ship').text(res.po.shipment_date ?? '-');
+                            $('#d-country').text(res.po.country ?? '-');
+                            let thead = $('#detail-table-head');
+                            let tbody = $('#detail-item-table');
+                            let foot = $('#detail-table-foot');
+                            thead.html('');
+                            tbody.html('');
+                            foot.html('');
+                            if (!res.items.length) return;
+                            // =====================================================
+                            // COLLECT ALL KEYS FROM ALL ITEMS
+                            // =====================================================
+                            let allKeysSet = new Set();
+
+                            res.items.forEach(item => {
+                                const detail = item.detail || {};
+                                Object.keys(detail).forEach(key => allKeysSet.add(key));
+                            });
+
+                            // INCH: tampil hanya bila minimal satu item memiliki nilai.
+                            // Alias sumber Excel lama tetap dibaca tanpa mengubah database.
+                            const inchAliases = {
+                                item_w_inch: ['item_w_inch', 'item_w_(inch)', 'item_w_(in)', 'dimension_(inch)',
+                                    'dimention_(inch)', 'dimension_inch', 'dimention_inch'
+                                ],
+                                item_d_inch: ['item_d_inch', 'item_d_(inch)', 'item_d_(in)', 'd_inch'],
+                                item_h_inch: ['item_h_inch', 'item_h_(inch)', 'item_h_(in)', 'h_inch'],
+                                pack_w_inch: ['pack_w_inch', 'packing_w_inch', 'pack_w_(inch)', 'packing_w_(inch)'],
+                                pack_d_inch: ['pack_d_inch', 'packing_d_inch', 'pack_d_(inch)', 'packing_d_(inch)'],
+                                pack_h_inch: ['pack_h_inch', 'packing_h_inch', 'pack_h_(inch)', 'packing_h_(inch)']
+                            };
+                            const hasDimensionValue = value => value !== null && value !== undefined && String(value)
+                                .trim() !== '';
+                            const getInchValue = (detail, key) => {
+                                for (const alias of (inchAliases[key] || [key])) {
+                                    if (hasDimensionValue(detail[alias])) return detail[alias];
+                                }
+                                return '';
+                            };
+                            const activeInchKeys = Object.keys(inchAliases).filter(key =>
+                                res.items.some(item => hasDimensionValue(getInchValue(item.detail || {}, key)))
+                            );
+                            // Hilangkan alias mentah agar tidak muncul dua kolom untuk satu nilai.
+                            const inchAliasSet = new Set(Object.values(inchAliases).flat());
+                            allKeysSet = new Set([...allKeysSet].filter(key => !inchAliasSet.has(key)));
+                            activeInchKeys.forEach(key => allKeysSet.add(key));
+                            let allKeys = [...allKeysSet];
+
+                            // =====================================================
+                            // HEADER PRIORITY
+                            // =====================================================
+                            // Urutan mengikuti kolom A:S pada file Excel referensi.
+                            // ACT tetap disisipkan sebelum QTY oleh logika yang sudah ada.
+                            const priority = [
+                                'no_', 'photo', 'description', 'article_nr_', 'article_nr_nw',
+                                'nw_code', 'sub_category', 'remark',
+                                'item_w', 'item_d', 'item_h',
+                                'pack_w', 'pack_d', 'pack_h',
+                                'composition', 'finishing', 'qty', 'cbm',
+                                'fob_jakarta_in_usd', 'total_cbm', 'value_in_usd',
+                                'item_w_inch', 'item_d_inch', 'item_h_inch',
+                                'pack_w_inch', 'pack_d_inch', 'pack_h_inch',
+                                'cushion', 'glass'
+                            ];
+
+                            const role = $('#role').val();
+
+                            // =====================================================
+                            // BUILD KEYS
+                            // =====================================================
+                            let keys = [
+                                ...priority.filter(k => allKeys.includes(k)),
+                                ...allKeys.filter(k => !priority.includes(k))
+                            ];
+
+                            // =====================================================
+                            // ROLE FILTER
+                            // =====================================================
+                            if (role !== 'marketing') {
+                                keys = keys.filter(k =>
+                                    k !== 'value_in_usd' &&
+                                    k !== 'fob_jakarta_in_usd'
+                                );
+                            }
+
+                            // =====================================================
+                            // INSERT ACT DIRECTLY AFTER ARTICLE NR
+                            // =====================================================
+                            keys = keys.filter(k => k !== 'act');
+                            const articleIndex = keys.indexOf('article_nr_') >= 0 ?
+                                keys.indexOf('article_nr_') :
+                                (keys.indexOf('article_nr_nw') >= 0 ?
+                                    keys.indexOf('article_nr_nw') :
+                                    keys.indexOf('nw_code'));
+                            keys.splice(articleIndex >= 0 ? articleIndex + 1 : Math.min(2, keys.length), 0, 'act');
+
+                            // =====================================================
+                            // INDEX
+                            // =====================================================
+                            let descIndex = keys.indexOf('description');
+                            let cbmIndex = keys.includes('total_cbm') ?
+                                keys.indexOf('total_cbm') :
+                                keys.indexOf('cbm');
+                            let priceIndex = keys.includes('value_in_usd') ?
+                                keys.indexOf('value_in_usd') :
+                                keys.indexOf('fob_jakarta_in_usd');
+
+                            // =====================================================
+                            // NORMALIZE PACKING ALIAS UNTUK DISPLAY
+                            // packing_w/d/h tetap didukung jika data lama memakainya.
+                            // =====================================================
+                            const packingAlias = {
+                                packing_w: 'pack_w',
+                                packing_d: 'pack_d',
+                                packing_h: 'pack_h'
+                            };
+
+                            keys = keys.map(k => packingAlias[k] || k);
+
+                            // Hilangkan duplikat akibat pack_* + packing_* muncul bersamaan.
+                            keys = [...new Set(keys)];
+
+                            // Pastikan grup W/D/H berurutan, termasuk data lama yang tidak punya W.
+                            const dimensionGroups = [
+                                ['item_w', 'item_d', 'item_h'],
+                                ['item_w_inch', 'item_d_inch', 'item_h_inch'],
+                                ['pack_w', 'pack_d', 'pack_h'],
+                                ['pack_w_inch', 'pack_d_inch', 'pack_h_inch']
+                            ];
+                            for (const group of dimensionGroups) {
+                                const present = group.filter(key => keys.includes(key));
+                                if (!present.length) continue;
+                                const firstIndex = Math.min(...present.map(key => keys.indexOf(key)));
+                                keys = keys.filter(key => !group.includes(key));
+                                keys.splice(firstIndex, 0, ...present);
+                            }
+                            // Keep the frozen pair at the very beginning, including when NO exists.
+                            const frozenKeys = ['photo', 'description'].filter(k => keys.includes(k));
+                            keys = [...frozenKeys, ...keys.filter(k => !frozenKeys.includes(k))];
+
+                            // Hitung ulang index setelah alias dan pengurutan kolom.
+                            descIndex = keys.indexOf('description');
+                            cbmIndex = keys.includes('total_cbm') ? keys.indexOf('total_cbm') : keys.indexOf('cbm');
+                            priceIndex = keys.includes('value_in_usd') ? keys.indexOf('value_in_usd') : keys.indexOf(
+                                'fob_jakarta_in_usd');
+
+                            // Dipakai oleh modal Add Items. ACT bukan field detail_po.
+                            window.currentMarketingPoId = id;
+                            window.currentDetailKeys = keys;
+                            window.currentDetailItems = res.items || [];
+
+                            // =====================================================
+                            // COLUMN WIDTHS
+                            // Ini yang menghilangkan jarak besar antar W/D/H.
+                            // =====================================================
+                            const columnWidth = key => {
+                                const widths = {
+                                    no_: 38,
+                                    photo: 72,
+                                    description: 220,
+                                    article_nr_: 92,
+                                    article_nr_nw: 92,
+                                    nw_code: 95,
+                                    sub_category: 105,
+                                    act: 112,
+                                    qty: 48,
+                                    remark: 135,
+                                    cushion: 75,
+                                    glass: 65,
+                                    item_w: 58,
+                                    item_d: 58,
+                                    item_h: 58,
+                                    item_w_inch: 66,
+                                    item_d_inch: 66,
+                                    item_h_inch: 66,
+                                    pack_w: 58,
+                                    pack_d: 58,
+                                    pack_h: 58,
+                                    pack_w_inch: 66,
+                                    pack_d_inch: 66,
+                                    pack_h_inch: 66,
+                                    composition: 130,
+                                    finishing: 130,
+                                    cbm: 78,
+                                    total_cbm: 92,
+                                    value_in_usd: 105,
+                                    fob_jakarta_in_usd: 120
+                                };
+
+                                return widths[key] || 120;
+                            };
+
+                            // =====================================================
+                            // COLGROUP - WIDTH TETAP
+                            // =====================================================
+                            $('#detail-table colgroup').remove();
+                            let colgroup = $('<colgroup></colgroup>');
+                            keys.forEach(k => {
+                                colgroup.append(
+                                    `<col style="width:${columnWidth(k)}px;min-width:${columnWidth(k)}px;">`
+                                );
+                            });
+                            colgroup.prepend('<col style="width:44px;min-width:44px;">');
+                            $('#detail-table').prepend(colgroup);
+                            // Explicit pixel width prevents browsers from stretching columns to fill the viewport.
+                            $('#detail-table').css('width', (44 + keys.reduce((sum, key) => sum + columnWidth(key),
+                                0)) + 'px');
+
+                            // =====================================================
+                            // HEADER 2 LEVEL
+                            // =====================================================
+                            let headerTop = $('<tr class="header-top"></tr>');
+                            let headerBottom = $('<tr class="header-bottom"></tr>');
+
+                            const itemDimensionKeys = ['item_w', 'item_d', 'item_h', 'item_w_inch', 'item_d_inch',
+                                'item_h_inch'
+                            ];
+                            const packingDimensionKeys = ['pack_w', 'pack_d', 'pack_h', 'pack_w_inch', 'pack_d_inch',
+                                'pack_h_inch'
+                            ];
+                            const dimensionHeaderGroups = [{
+                                    keys: ['item_w', 'item_d', 'item_h'],
+                                    title: 'ITEM DIMENSION (CM)',
+                                    cls: 'item-group'
+                                },
+                                {
+                                    keys: ['item_w_inch', 'item_d_inch', 'item_h_inch'],
+                                    title: 'ITEM DIMENSION (INCH)',
+                                    cls: 'item-group inch-group'
+                                },
+                                {
+                                    keys: ['pack_w', 'pack_d', 'pack_h'],
+                                    title: 'PACKING DIMENSION (CM)',
+                                    cls: 'packing-group'
+                                },
+                                {
+                                    keys: ['pack_w_inch', 'pack_d_inch', 'pack_h_inch'],
+                                    title: 'PACKING DIMENSION (INCH)',
+                                    cls: 'packing-group inch-group'
+                                }
+                            ];
+                            const groupedKeys = new Set(dimensionHeaderGroups.flatMap(group => group.keys));
+                            keys.forEach((k, i) => {
+                                const group = dimensionHeaderGroups.find(group => group.keys.includes(k));
+                                if (group) {
+                                    const present = group.keys.filter(key => keys.includes(key));
+                                    if (k !== present[0]) return;
+                                    headerTop.append(
+                                        `<th colspan="${present.length}" class="dimension-group ${group.cls}">${group.title}</th>`
+                                    );
+                                    present.forEach(key => {
+                                        const axis = key.match(/_([wdh])(?:_inch)?$/)?.[1]
+                                            ?.toUpperCase() || key;
+                                        headerBottom.append(
+                                            `<th class="dimension-sub" data-header-key="${key}">${axis}</th>`
+                                        );
+                                    });
+                                    return;
+                                }
+                                const cls = k === 'photo' ? 'freeze-photo' : (k === 'description' ?
+                                    'freeze-description sticky-col' : '');
+                                const label = k === 'act' ? 'ACT' : k.replaceAll('_', ' ').toUpperCase();
+                                headerTop.append(`<th rowspan="2" class="${cls}">${escapeHtml(label)}</th>`);
+                            });
+
+                            headerTop.prepend('<th rowspan="2" class="freeze-no">NO</th>');
+                            thead.append(headerTop);
+                            thead.append(headerBottom);
+                            // =========================
+                            // TOTAL
+                            // =========================
+                            let totalCbm = 0;
+                            let totalPrice = 0;
+                            // =========================
+                            // BODY
+                            // =========================
+                            res.items.forEach(item => {
+                                let detail = item.detail || {};
+                                let row = $(`<tr class="editable-row" data-id="${item.id}"></tr>`);
+                                let rawCode =
+                                    detail.article_code ||
+                                    detail.article_nr_ ||
+                                    detail.nw_code ||
+                                    '';
+                                let articleCode = encodeURIComponent(rawCode);
+                                keys.forEach((key, i) => {
+                                    let cls = key === 'photo' ? 'freeze-photo' : (key ===
+                                        'description' ? 'freeze-description sticky-col' : '');
+                                    // 🔥 ACT COLUMN
+                                    if (key === 'act') {
+                                        let rawCode =
+                                            // detail.article_code ||
+                                            detail.article_nr_ ||
+                                            detail.nw_code ||
+                                            '';
+                                        let articleCode = encodeURIComponent(rawCode);
+                                        row.append(`
         <td class="${cls}">
             <a href="/cad/${articleCode}" class="btn btn-xs btn-primary">CAD</a>
           <button class="btn btn-xs btn-warning btn-chat"
@@ -1230,266 +2276,277 @@
 </button>
         </td>
     `);
-                                            return;
-                                        }
-                                        // =====================================================
-                                        // VALUE + CELL CLASS
-                                        // =====================================================
-                                        let value = detail[key] ?? '';
-                                        if (activeInchKeys.includes(key)) value = getInchValue(detail, key);
+                                        return;
+                                    }
+                                    // =====================================================
+                                    // VALUE + CELL CLASS
+                                    // =====================================================
+                                    let value = detail[key] ?? '';
+                                    if (activeInchKeys.includes(key)) value = getInchValue(detail, key);
 
-                                        // Backward compatibility untuk data lama.
-                                        if (value === '' && key === 'item_w') {
-                                            value = detail['dimention_(cm)'] ?? detail['dimension_(cm)'] ??
-                                                detail['dimension'] ?? '';
-                                        }
-                                        if (value === '' && key === 'item_d') {
-                                            value = detail['d'] ?? '';
-                                        }
-                                        if (value === '' && key === 'item_h') {
-                                            value = detail['h'] ?? '';
-                                        }
-                                        if (value === '' && key === 'pack_w') {
-                                            value = detail['packing_w'] ?? '';
-                                        }
-                                        if (value === '' && key === 'pack_d') {
-                                            value = detail['packing_d'] ?? '';
-                                        }
-                                        if (value === '' && key === 'pack_h') {
-                                            value = detail['packing_h'] ?? '';
-                                        }
+                                    // Backward compatibility untuk data lama.
+                                    if (value === '' && key === 'item_w') {
+                                        value = detail['dimention_(cm)'] ?? detail['dimension_(cm)'] ??
+                                            detail['dimension'] ?? '';
+                                    }
+                                    if (value === '' && key === 'item_d') {
+                                        value = detail['d'] ?? '';
+                                    }
+                                    if (value === '' && key === 'item_h') {
+                                        value = detail['h'] ?? '';
+                                    }
+                                    if (value === '' && key === 'pack_w') {
+                                        value = detail['packing_w'] ?? '';
+                                    }
+                                    if (value === '' && key === 'pack_d') {
+                                        value = detail['packing_d'] ?? '';
+                                    }
+                                    if (value === '' && key === 'pack_h') {
+                                        value = detail['packing_h'] ?? '';
+                                    }
 
-                                        let cellClasses = [cls];
+                                    let cellClasses = [cls];
 
-                                        if (itemDimensionKeys.includes(key) || packingDimensionKeys
-                                            .includes(key)) {
-                                            cellClasses.push('dimension-cell');
-                                        }
+                                    if (itemDimensionKeys.includes(key) || packingDimensionKeys
+                                        .includes(key)) {
+                                        cellClasses.push('dimension-cell');
+                                    }
 
-                                        if (key === 'description') {
-                                            cellClasses.push('description-cell');
-                                        }
+                                    if (key === 'description') {
+                                        cellClasses.push('description-cell');
+                                    }
 
-                                        if (key.includes('photo')) {
-                                            cellClasses.push('photo-cell');
-                                        }
+                                    if (key.includes('photo')) {
+                                        cellClasses.push('photo-cell');
+                                    }
 
-                                        if (['qty', 'cbm', 'total_cbm', 'value_in_usd',
-                                                'fob_jakarta_in_usd'
-                                            ].includes(key)) {
-                                            cellClasses.push('number-cell');
-                                        }
+                                    if (['qty', 'cbm', 'total_cbm', 'value_in_usd',
+                                            'fob_jakarta_in_usd'
+                                        ].includes(key)) {
+                                        cellClasses.push('number-cell');
+                                    }
 
-                                        let td = $(
-                                            `<td class="${cellClasses.filter(Boolean).join(' ')}" data-key="${key}"></td>`
-                                        );
-                                        // FORMAT CBM
-                                        if ((key === 'cbm' || key === 'total_cbm') && value !== '') {
-                                            value = isNaN(value) ? '0.00' : parseFloat(value).toFixed(2);
-                                            if (key === 'total_cbm') totalCbm += parseFloat(value);
-                                        }
-                                        // FORMAT PRICE
-                                        // Total FOB dihitung sekali setelah semua baris dirender.
-                                        // INCH: pembulatan hanya pada tampilan, nilai asli tetap disimpan.
-                                        const isInchDimension = activeInchKeys.includes(key);
-                                        const rawInchValue = isInchDimension ? value : null;
-                                        if (isInchDimension && value !== '' && value !== null &&
-                                            Number.isFinite(Number(value))) {
-                                            value = Number(value).toFixed(2);
-                                            td.attr('data-raw-inch', String(rawInchValue));
-                                            td.attr('title', 'Nilai asli: ' + rawInchValue);
-                                        }
-                                        // IMAGE
-                                        if (key.includes('photo') && typeof value === 'string' && value
-                                            .startsWith('http')) {
-                                            td.html(`<img src="${value}" alt="Photo">`);
-                                        } else {
-                                            td.html(`<span class="cell-text">${escapeHtml(value)}</span>`);
-                                            if (!isInchDimension) td.attr('title', String(value ?? ''));
-                                        }
-                                        row.append(td);
-                                    });
-                                    row.prepend('<td class="freeze-no po-row-number"></td>');
-                                    tbody.append(row);
+                                    let td = $(
+                                        `<td class="${cellClasses.filter(Boolean).join(' ')}" data-key="${key}"></td>`
+                                    );
+                                    // FORMAT CBM
+                                    if ((key === 'cbm' || key === 'total_cbm') && value !== '') {
+                                        value = isNaN(value) ? '0.00' : parseFloat(value).toFixed(2);
+                                        if (key === 'total_cbm') totalCbm += parseFloat(value);
+                                    }
+                                    // FORMAT PRICE
+                                    // Total FOB dihitung sekali setelah semua baris dirender.
+                                    // INCH: pembulatan hanya pada tampilan, nilai asli tetap disimpan.
+                                    const isInchDimension = activeInchKeys.includes(key);
+                                    const rawInchValue = isInchDimension ? value : null;
+                                    if (isInchDimension && value !== '' && value !== null &&
+                                        Number.isFinite(Number(value))) {
+                                        value = Number(value).toFixed(2);
+                                        td.attr('data-raw-inch', String(rawInchValue));
+                                        td.attr('title', 'Nilai asli: ' + rawInchValue);
+                                    }
+                                    // IMAGE
+                                    if (key.includes('photo') && typeof value === 'string' && value
+                                        .startsWith('http')) {
+                                        td.html(`<img src="${value}" alt="Photo">`);
+                                    } else {
+                                        td.html(`<span class="cell-text">${escapeHtml(value)}</span>`);
+                                        if (!isInchDimension) td.attr('title', String(value ?? ''));
+                                    }
+                                    row.append(td);
                                 });
-                                // =============================================
-                                // SUMMARY: 4 sticky rows, mengikuti grid Excel
-                                // =============================================
-                                const numberValue = raw => {
-                                    if (raw === null || raw === undefined || raw === '') return 0;
-                                    const value = String(raw).replace(/,/g, '');
-                                    return Number.isFinite(Number(value)) ? Number(value) : 0;
-                                };
-                                const cbmField = keys.includes('total_cbm') ? 'total_cbm' : 'cbm';
-                                const priceField = 'value_in_usd'; // Total FOB Price = SUM(value_in_usd), bukan FOB per unit
-                                // Satu kolom sumber saja supaya nilai FOB tidak terhitung dua kali.
-                                totalCbm = res.items.reduce((sum, item) =>
-                                    sum + numberValue((item.detail || {})[cbmField]), 0);
-                                totalPrice = res.items.reduce((sum, item) =>
-                                    sum + numberValue((item.detail || {}).value_in_usd), 0);
-                                const discountAmount = totalPrice * 0.02;
-                                const grandTotal = totalPrice - discountAmount;
-                                const money = value => Number(value).toLocaleString('en-US', {
-                                    minimumFractionDigits: 2, maximumFractionDigits: 2
+                                row.prepend('<td class="freeze-no po-row-number"></td>');
+                                tbody.append(row);
+                            });
+                            // =============================================
+                            // SUMMARY: 4 sticky rows, mengikuti grid Excel
+                            // =============================================
+                            const numberValue = raw => {
+                                if (raw === null || raw === undefined || raw === '') return 0;
+                                const value = String(raw).replace(/,/g, '');
+                                return Number.isFinite(Number(value)) ? Number(value) : 0;
+                            };
+                            const cbmField = keys.includes('total_cbm') ? 'total_cbm' : 'cbm';
+                            const priceField =
+                                'value_in_usd'; // Total FOB Price = SUM(value_in_usd), bukan FOB per unit
+                            // Satu kolom sumber saja supaya nilai FOB tidak terhitung dua kali.
+                            totalCbm = res.items.reduce((sum, item) =>
+                                sum + numberValue((item.detail || {})[cbmField]), 0);
+                            totalPrice = res.items.reduce((sum, item) =>
+                                sum + numberValue((item.detail || {}).value_in_usd), 0);
+                            const discountAmount = totalPrice * 0.02;
+                            const grandTotal = totalPrice - discountAmount;
+                            const money = value => Number(value).toLocaleString('en-US', {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2
+                            });
+                            const footerRows = [];
+
+                            function addSummaryRow(cls, label, value, targetKey) {
+                                const index = keys.indexOf(targetKey);
+                                if (index < 0) return;
+                                // Satu TD per kolom: grid footer sama persis dengan header/body.
+                                let cells = keys.map((key, i) => {
+                                    if (i === index)
+                                        return `<td class="footer-value">${escapeHtml(value)}</td>`;
+                                    if (i === index - 1)
+                                        return `<td class="footer-label">${escapeHtml(label)}</td>`;
+                                    return '<td></td>';
                                 });
-                                const footerRows = [];
-                                function addSummaryRow(cls, label, value, targetKey) {
-                                    const index = keys.indexOf(targetKey);
-                                    if (index < 0) return;
-                                    // Satu TD per kolom: grid footer sama persis dengan header/body.
-                                    let cells = keys.map((key, i) => {
-                                        if (i === index) return `<td class="footer-value">${escapeHtml(value)}</td>`;
-                                        if (i === index - 1) return `<td class="footer-label">${escapeHtml(label)}</td>`;
-                                        return '<td></td>';
-                                    });
-                                    // Bila kolom target pertama, label ditempatkan di value cell.
-                                    if (index === 0) cells[0] = `<td class="footer-value">${escapeHtml(label + ': ' + value)}</td>`;
-                                    footerRows.push({cls, cells: cells.join('')});
-                                }
-                                if (keys.includes(cbmField)) {
-                                    addSummaryRow('footer-cbm', 'Total CBM', totalCbm.toFixed(2), cbmField);
-                                }
-                                if (role === 'marketing' && keys.includes(priceField)) {
-                                    addSummaryRow('footer-fob', 'Total FOB Price', money(totalPrice), priceField);
-                                    // addSummaryRow('footer-discount', 'Discount 2%', '- ' + money(discountAmount), priceField);
-                                    addSummaryRow('footer-grand', 'Total FOB Price', money(grandTotal), priceField);
-                                }
-                                // Summary is a separate panel, not part of the scrollable table.
-                                foot.html(footerRows.map(row => {
-                                    const label = row.cls === 'footer-cbm' ? 'Total CBM' :
-                                        row.cls === 'footer-discount' ? 'Discount 2%' : 'Total FOB Price';
-                                    const value = row.cls === 'footer-cbm' ? totalCbm.toFixed(2) :
-                                        row.cls === 'footer-fob' ? money(totalPrice) :
-                                        row.cls === 'footer-discount' ? '- ' + money(discountAmount) : money(grandTotal);
-                                    return `<div class="po-summary-line ${row.cls}">
+                                // Bila kolom target pertama, label ditempatkan di value cell.
+                                if (index === 0) cells[0] =
+                                    `<td class="footer-value">${escapeHtml(label + ': ' + value)}</td>`;
+                                footerRows.push({
+                                    cls,
+                                    cells: cells.join('')
+                                });
+                            }
+                            if (keys.includes(cbmField)) {
+                                addSummaryRow('footer-cbm', 'Total CBM', totalCbm.toFixed(2), cbmField);
+                            }
+                            if (role === 'marketing' && keys.includes(priceField)) {
+                                addSummaryRow('footer-fob', 'Total FOB Price', money(totalPrice), priceField);
+                                // addSummaryRow('footer-discount', 'Discount 2%', '- ' + money(discountAmount), priceField);
+                                addSummaryRow('footer-grand', 'Total FOB Price', money(grandTotal), priceField);
+                            }
+                            // Summary is a separate panel, not part of the scrollable table.
+                            foot.html(footerRows.map(row => {
+                                const label = row.cls === 'footer-cbm' ? 'Total CBM' :
+                                    row.cls === 'footer-discount' ? 'Discount 2%' : 'Total FOB Price';
+                                const value = row.cls === 'footer-cbm' ? totalCbm.toFixed(2) :
+                                    row.cls === 'footer-fob' ? money(totalPrice) :
+                                    row.cls === 'footer-discount' ? '- ' + money(discountAmount) : money(
+                                        grandTotal);
+                                return `<div class="po-summary-line ${row.cls}">
                                         <span class="po-summary-label">${label}</span>
                                         <span class="po-summary-value">${value}</span>
                                     </div>`;
-                                }).join(''));
-                                // Refresh scrollbar width after dynamic columns and rows render.
-                                requestAnimationFrame(() => {
-                                    const wrapper = document.querySelector('#detail-view .freeze-wrapper');
-                                    const bar = document.getElementById('detail-scroll-top');
-                                    const inner = document.getElementById('detail-scroll-top-inner');
-                                    const table = document.getElementById('detail-table');
-                                    if (wrapper && bar && inner && table) {
-                                        inner.style.width = table.scrollWidth + 'px';
-                                        bar.style.display = table.scrollWidth > wrapper.clientWidth + 2 ? 'block' : 'none';
-                                    }
-                                });
-
+                            }).join(''));
+                            // Refresh scrollbar width after dynamic columns and rows render.
+                            requestAnimationFrame(() => {
+                                const wrapper = document.querySelector('#detail-view .freeze-wrapper');
+                                const bar = document.getElementById('detail-scroll-top');
+                                const inner = document.getElementById('detail-scroll-top-inner');
+                                const table = document.getElementById('detail-table');
+                                if (wrapper && bar && inner && table) {
+                                    inner.style.width = table.scrollWidth + 'px';
+                                    bar.style.display = table.scrollWidth > wrapper.clientWidth + 2 ? 'block' :
+                                        'none';
+                                }
                             });
-                    });
-                    /* =====================================================
-                       EDIT ROW (AMAN PJAX)
-                    ===================================================== */
-                    $(document).off('click', '.editable-row').on('click', '.editable-row', function() {
-                        const role = $('#role').val();
-                        if (role !== 'marketing') return;
-                        let row = $(this);
-                        $('.editable-row.editing').not(row).each(function() {
-                            exitEdit($(this));
+
                         });
-                        if (row.hasClass('editing')) return;
-                        row.addClass('editing').css('background', '#fff8e1');
-                        row.find('td[data-key]').each(function() {
-                            let td = $(this);
-                            let key = td.data('key');
-                            if (key && key.toLowerCase().includes('photo')) return;
-                            let text = td.attr('data-raw-inch') ?? td.find('.cell-text').text().trim();
-                            td.attr('data-original', text);
-                            td.html(`
+                });
+                /* =====================================================
+                   EDIT ROW (AMAN PJAX)
+                ===================================================== */
+                $(document).off('click', '.editable-row').on('click', '.editable-row', function() {
+                    const role = $('#role').val();
+                    if (role !== 'marketing') return;
+                    let row = $(this);
+                    $('.editable-row.editing').not(row).each(function() {
+                        exitEdit($(this));
+                    });
+                    if (row.hasClass('editing')) return;
+                    row.addClass('editing').css('background', '#fff8e1');
+                    row.find('td[data-key]').each(function() {
+                        let td = $(this);
+                        let key = td.data('key');
+                        if (key && key.toLowerCase().includes('photo')) return;
+                        let text = td.attr('data-raw-inch') ?? td.find('.cell-text').text().trim();
+                        td.attr('data-original', text);
+                        td.html(`
             <input type="text"
                 class="form-control form-control-sm inline-input"
                 value="${text}">
         `);
-                        });
                     });
-                    /* =====================================================
-                       EXIT EDIT
-                    ===================================================== */
-                    function exitEdit(row) {
-                        row.removeClass('editing').css('background', '');
-                        row.find('td[data-key]').each(function() {
-                            let td = $(this);
-                            let input = td.find('input');
-                            if (!input.length) return;
-                            let val = input.val();
-                            td.html(`<span class="cell-text">${val}</span>`);
-                        });
-                    }
-                    /* =====================================================
-                       ADD ITEM INLINE - KHUSUS RODIYAH
-                       Add langsung menjadi BARIS PALING ATAS.
-                       Baris diberi marker NEW + mode editing.
-                    ===================================================== */
-                    function addItemLabel(key) {
-                        const labels = {
-                            no_: 'NO',
-                            photo: 'PHOTO',
-                            description: 'DESCRIPTION',
-                            article_nr_: 'ARTICLE NR',
-                            article_nr_nw: 'ARTICLE NR NW',
-                            nw_code: 'NW CODE',
-                            sub_category: 'SUB CATEGORY',
-                            qty: 'QTY',
-                            remark: 'REMARK',
-                            cushion: 'CUSHION',
-                            glass: 'GLASS',
-                            item_w: 'ITEM W',
-                            item_d: 'ITEM D',
-                            item_h: 'ITEM H',
-                            pack_w: 'PACK W',
-                            pack_d: 'PACK D',
-                            pack_h: 'PACK H',
-                            item_w_inch: 'ITEM W (INCH)',
-                            item_d_inch: 'ITEM D (INCH)',
-                            item_h_inch: 'ITEM H (INCH)',
-                            pack_w_inch: 'PACK W (INCH)',
-                            pack_d_inch: 'PACK D (INCH)',
-                            pack_h_inch: 'PACK H (INCH)',
-                            composition: 'COMPOSITION',
-                            finishing: 'FINISHING',
-                            cbm: 'CBM',
-                            total_cbm: 'TOTAL CBM',
-                            value_in_usd: 'VALUE IN USD',
-                            fob_jakarta_in_usd: 'FOB JAKARTA IN USD'
-                        };
-                        return labels[key] || key.replaceAll('_', ' ').toUpperCase();
-                    }
+                });
+                /* =====================================================
+                   EXIT EDIT
+                ===================================================== */
+                function exitEdit(row) {
+                    row.removeClass('editing').css('background', '');
+                    row.find('td[data-key]').each(function() {
+                        let td = $(this);
+                        let input = td.find('input');
+                        if (!input.length) return;
+                        let val = input.val();
+                        td.html(`<span class="cell-text">${val}</span>`);
+                    });
+                }
+                /* =====================================================
+                   ADD ITEM INLINE - KHUSUS RODIYAH
+                   Add langsung menjadi BARIS PALING ATAS.
+                   Baris diberi marker NEW + mode editing.
+                ===================================================== */
+                function addItemLabel(key) {
+                    const labels = {
+                        no_: 'NO',
+                        photo: 'PHOTO',
+                        description: 'DESCRIPTION',
+                        article_nr_: 'ARTICLE NR',
+                        article_nr_nw: 'ARTICLE NR NW',
+                        nw_code: 'NW CODE',
+                        sub_category: 'SUB CATEGORY',
+                        qty: 'QTY',
+                        remark: 'REMARK',
+                        cushion: 'CUSHION',
+                        glass: 'GLASS',
+                        item_w: 'ITEM W',
+                        item_d: 'ITEM D',
+                        item_h: 'ITEM H',
+                        pack_w: 'PACK W',
+                        pack_d: 'PACK D',
+                        pack_h: 'PACK H',
+                        item_w_inch: 'ITEM W (INCH)',
+                        item_d_inch: 'ITEM D (INCH)',
+                        item_h_inch: 'ITEM H (INCH)',
+                        pack_w_inch: 'PACK W (INCH)',
+                        pack_d_inch: 'PACK D (INCH)',
+                        pack_h_inch: 'PACK H (INCH)',
+                        composition: 'COMPOSITION',
+                        finishing: 'FINISHING',
+                        cbm: 'CBM',
+                        total_cbm: 'TOTAL CBM',
+                        value_in_usd: 'VALUE IN USD',
+                        fob_jakarta_in_usd: 'FOB JAKARTA IN USD'
+                    };
+                    return labels[key] || key.replaceAll('_', ' ').toUpperCase();
+                }
 
-                    function addItemInputType(key) {
-                        if (['qty', 'item_w', 'item_d', 'item_h', 'pack_w', 'pack_d', 'pack_h', 'item_w_inch', 'item_d_inch',
-                                'item_h_inch', 'pack_w_inch', 'pack_d_inch', 'pack_h_inch', 'cbm', 'total_cbm', 'value_in_usd',
-                                'fob_jakarta_in_usd'
-                            ].includes(key)) {
-                            return 'number';
-                        }
-                        return 'text';
+                function addItemInputType(key) {
+                    if (['qty', 'item_w', 'item_d', 'item_h', 'pack_w', 'pack_d', 'pack_h', 'item_w_inch', 'item_d_inch',
+                            'item_h_inch', 'pack_w_inch', 'pack_d_inch', 'pack_h_inch', 'cbm', 'total_cbm', 'value_in_usd',
+                            'fob_jakarta_in_usd'
+                        ].includes(key)) {
+                        return 'number';
                     }
+                    return 'text';
+                }
 
-                    function nextItemNo() {
-                        let maxNo = 0;
-                        (window.currentDetailItems || []).forEach(item => {
-                            const raw = item.detail?.no_;
-                            const n = parseInt(raw, 10);
-                            if (!isNaN(n)) maxNo = Math.max(maxNo, n);
-                        });
-                        return maxNo + 1;
-                    }
+                function nextItemNo() {
+                    let maxNo = 0;
+                    (window.currentDetailItems || []).forEach(item => {
+                        const raw = item.detail?.no_;
+                        const n = parseInt(raw, 10);
+                        if (!isNaN(n)) maxNo = Math.max(maxNo, n);
+                    });
+                    return maxNo + 1;
+                }
 
-                    function escapeHtml(value) {
-                        return $('<div>').text(value ?? '').html();
-                    }
+                function escapeHtml(value) {
+                    return $('<div>').text(value ?? '').html();
+                }
 
-                    function buildNewItemInput(key) {
-                        const value = key === 'no_' ? nextItemNo() : '';
-                        const type = addItemInputType(key);
-                        const isLong = ['description', 'remark', 'cushion', 'glass', 'composition', 'finishing', 'packaging'].includes(
-                            key);
+                function buildNewItemInput(key) {
+                    const value = key === 'no_' ? nextItemNo() : '';
+                    const type = addItemInputType(key);
+                    const isLong = ['description', 'remark', 'cushion', 'glass', 'composition', 'finishing', 'packaging'].includes(
+                        key);
 
-                        if (key.includes('photo')) {
-                            return `
+                    if (key.includes('photo')) {
+                        return `
                     <div class="new-image-editor" data-image-key="${key}" tabindex="0" title="Klik area foto lalu Ctrl+V untuk paste gambar dari Excel">
                         <input type="file"
                             class="new-photo-file"
@@ -1515,658 +2572,659 @@
                         </div>
                     </div>
                 `;
-                        }
-
-                        const input = isLong ?
-                            `<textarea class="form-control form-control-sm new-item-input" data-key="${key}" placeholder="${addItemLabel(key)}"></textarea>` :
-                            `<input type="${type}" class="form-control form-control-sm new-item-input" data-key="${key}" value="${escapeHtml(value)}" placeholder="${addItemLabel(key)}" ${type === 'number' ? 'step="any"' : ''}>`;
-
-                        return input;
                     }
 
-                    function createNewItemRow() {
-                        if (!window.currentMarketingPoId) {
-                            alert('PO belum dipilih');
-                            return;
-                        }
+                    const input = isLong ?
+                        `<textarea class="form-control form-control-sm new-item-input" data-key="${key}" placeholder="${addItemLabel(key)}"></textarea>` :
+                        `<input type="${type}" class="form-control form-control-sm new-item-input" data-key="${key}" value="${escapeHtml(value)}" placeholder="${addItemLabel(key)}" ${type === 'number' ? 'step="any"' : ''}>`;
 
-                        const tbody = $('#detail-item-table');
-                        if (!tbody.length) return;
+                    return input;
+                }
 
-                        // Jangan membuat 2 baris baru sekaligus.
-                        const existingNew = tbody.find('tr.new-item-row');
-                        if (existingNew.length) {
-                            existingNew.find('.new-item-input').first().focus();
-                            return;
-                        }
+                function createNewItemRow() {
+                    if (!window.currentMarketingPoId) {
+                        alert('PO belum dipilih');
+                        return;
+                    }
 
-                        const keys = (window.currentDetailKeys || []);
-                        if (!keys.length) {
-                            alert('Header item belum tersedia');
-                            return;
-                        }
+                    const tbody = $('#detail-item-table');
+                    if (!tbody.length) return;
 
-                        const row = $('<tr class="editable-row editing new-item-row" data-id="new"></tr>');
+                    // Jangan membuat 2 baris baru sekaligus.
+                    const existingNew = tbody.find('tr.new-item-row');
+                    if (existingNew.length) {
+                        existingNew.find('.new-item-input').first().focus();
+                        return;
+                    }
 
-                        keys.forEach((key, index) => {
-                            const cls = key === 'photo' ? 'freeze-photo' : (key === 'description' ? 'freeze-description sticky-col' : '');
-                            let html = buildNewItemInput(key);
+                    const keys = (window.currentDetailKeys || []);
+                    if (!keys.length) {
+                        alert('Header item belum tersedia');
+                        return;
+                    }
 
-                            if (key === 'no_') {
-                                html = `
+                    const row = $('<tr class="editable-row editing new-item-row" data-id="new"></tr>');
+
+                    keys.forEach((key, index) => {
+                        const cls = key === 'photo' ? 'freeze-photo' : (key === 'description' ?
+                            'freeze-description sticky-col' : '');
+                        let html = buildNewItemInput(key);
+
+                        if (key === 'no_') {
+                            html = `
                         <div class="new-item-field-wrap">
                             <span class="new-item-badge">NEW</span>
                             ${html}
                         </div>
                     `;
-                            }
+                        }
 
-                            if (key === 'photo') {
-                                html = `
+                        if (key === 'photo') {
+                            html = `
                         <div class="new-item-photo-wrap">
                             <span class="new-item-badge">NEW</span>
                             ${html}
                         </div>
                     `;
-                            }
-
-                            if (key === 'act') {
-                                // ACT adalah kolom CAD/CHAT pada item lama.
-                                // Pada row NEW kolom ini sengaja dikosongkan agar
-                                // posisi kolom setelahnya (terutama QTY) tidak bergeser.
-                                html = '<span class="new-act-placeholder">—</span>';
-                            }
-
-                            row.append(`<td class="${cls}" data-key="${key}">${html}</td>`);
-                        });
-
-                        row.prepend('<td class="freeze-no"><span class="new-item-badge">NEW</span></td>');
-                        tbody.prepend(row);
-
-                        // Scroll kembali ke bagian paling atas agar baris baru terlihat.
-                        $('.freeze-wrapper').scrollTop(0);
-
-                        const firstInput = row.find('.new-item-input').first();
-                        if (firstInput.length) {
-                            firstInput.focus();
                         }
+
+                        if (key === 'act') {
+                            // ACT adalah kolom CAD/CHAT pada item lama.
+                            // Pada row NEW kolom ini sengaja dikosongkan agar
+                            // posisi kolom setelahnya (terutama QTY) tidak bergeser.
+                            html = '<span class="new-act-placeholder">—</span>';
+                        }
+
+                        row.append(`<td class="${cls}" data-key="${key}">${html}</td>`);
+                    });
+
+                    row.prepend('<td class="freeze-no"><span class="new-item-badge">NEW</span></td>');
+                    tbody.prepend(row);
+
+                    // Scroll kembali ke bagian paling atas agar baris baru terlihat.
+                    $('.freeze-wrapper').scrollTop(0);
+
+                    const firstInput = row.find('.new-item-input').first();
+                    if (firstInput.length) {
+                        firstInput.focus();
                     }
+                }
 
-                    $(document).off('click', '#btn-add-item').on('click', '#btn-add-item', function() {
-                        const username = (window.currentUsername || '').toLowerCase();
-                        if (username !== 'rodiyah') {
-                            alert('❌ Tidak ada akses');
-                            return;
-                        }
-                        createNewItemRow();
-                    });
+                $(document).off('click', '#btn-add-item').on('click', '#btn-add-item', function() {
+                    const username = (window.currentUsername || '').toLowerCase();
+                    if (username !== 'rodiyah') {
+                        alert('❌ Tidak ada akses');
+                        return;
+                    }
+                    createNewItemRow();
+                });
 
-                    // Browse gambar dari gallery/file picker.
-                    $(document).off('click', '.btn-browse-new-image').on('click', '.btn-browse-new-image', function(e) {
-                        e.preventDefault();
-                        $(this).closest('.new-image-editor').find('.new-photo-file').trigger('click');
-                    });
+                // Browse gambar dari gallery/file picker.
+                $(document).off('click', '.btn-browse-new-image').on('click', '.btn-browse-new-image', function(e) {
+                    e.preventDefault();
+                    $(this).closest('.new-image-editor').find('.new-photo-file').trigger('click');
+                });
 
-                    $(document).off('change', '.new-photo-file').on('change', '.new-photo-file', function() {
-                        const file = this.files?.[0];
-                        if (!file) return;
-                        uploadNewItemImage(file, $(this).closest('.new-image-editor'));
-                    });
+                $(document).off('change', '.new-photo-file').on('change', '.new-photo-file', function() {
+                    const file = this.files?.[0];
+                    if (!file) return;
+                    uploadNewItemImage(file, $(this).closest('.new-image-editor'));
+                });
 
-                    // Upload gambar ke storage Laravel.
-                    function uploadNewItemImage(file, editor) {
-                        if (!file || !editor?.length) return Promise.reject(new Error('File gambar tidak valid'));
+                // Upload gambar ke storage Laravel.
+                function uploadNewItemImage(file, editor) {
+                    if (!file || !editor?.length) return Promise.reject(new Error('File gambar tidak valid'));
 
-                        const formData = new FormData();
-                        formData.append('image', file);
+                    const formData = new FormData();
+                    formData.append('image', file);
 
-                        editor.attr('data-uploading', '1');
-                        editor.find('.new-image-empty').html('<i class="fa fa-spinner fa-spin"></i><br>Uploading...');
+                    editor.attr('data-uploading', '1');
+                    editor.find('.new-image-empty').html('<i class="fa fa-spinner fa-spin"></i><br>Uploading...');
 
-                        return fetch('/marketing/po-detail/upload-image', {
-                                method: 'POST',
-                                headers: {
-                                    'Accept': 'application/json',
-                                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                                },
-                                body: formData
-                            })
-                            .then(async res => {
-                                const data = await res.json().catch(() => ({}));
-                                if (!res.ok) {
-                                    throw new Error(data.message || 'Upload gambar gagal');
-                                }
-                                return data;
-                            })
-                            .then(data => {
-                                const url = data.url || data.path;
-                                if (!url) throw new Error('URL gambar tidak diterima server');
+                    return fetch('/marketing/po-detail/upload-image', {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                            },
+                            body: formData
+                        })
+                        .then(async res => {
+                            const data = await res.json().catch(() => ({}));
+                            if (!res.ok) {
+                                throw new Error(data.message || 'Upload gambar gagal');
+                            }
+                            return data;
+                        })
+                        .then(data => {
+                            const url = data.url || data.path;
+                            if (!url) throw new Error('URL gambar tidak diterima server');
 
-                                editor.find('.new-photo-value').val(url);
-                                editor.find('.new-image-preview').html(`<img src="${escapeHtml(url)}" alt="Preview">`);
-                                editor.attr('data-uploading', '0');
-                                return url;
-                            })
-                            .catch(err => {
-                                editor.attr('data-uploading', '0');
-                                editor.find('.new-image-preview').html(`
+                            editor.find('.new-photo-value').val(url);
+                            editor.find('.new-image-preview').html(`<img src="${escapeHtml(url)}" alt="Preview">`);
+                            editor.attr('data-uploading', '0');
+                            return url;
+                        })
+                        .catch(err => {
+                            editor.attr('data-uploading', '0');
+                            editor.find('.new-image-preview').html(`
                     <span class="new-image-empty text-danger">
                         <i class="fa fa-exclamation-triangle"></i><br>${escapeHtml(err.message)}
                     </span>
                 `);
-                                throw err;
-                            });
-                    }
+                            throw err;
+                        });
+                }
 
-                    // =====================================================
-                    // PASTE IMAGE DARI EXCEL / CLIPBOARD
-                    // =====================================================
-                    let newItemPasteBusy = false;
+                // =====================================================
+                // PASTE IMAGE DARI EXCEL / CLIPBOARD
+                // =====================================================
+                let newItemPasteBusy = false;
 
-                    function getActiveNewImageEditor() {
-                        const focused = $(document.activeElement).closest('.new-image-editor');
-                        if (focused.length) return focused;
+                function getActiveNewImageEditor() {
+                    const focused = $(document.activeElement).closest('.new-image-editor');
+                    if (focused.length) return focused;
 
-                        const row = $('#detail-item-table tr.new-item-row');
-                        return row.find('.new-image-editor.paste-target').first();
-                    }
+                    const row = $('#detail-item-table tr.new-item-row');
+                    return row.find('.new-image-editor.paste-target').first();
+                }
 
-                    async function uploadClipboardImageFromBrowser(editor) {
-                        if (!editor?.length || newItemPasteBusy) return false;
+                async function uploadClipboardImageFromBrowser(editor) {
+                    if (!editor?.length || newItemPasteBusy) return false;
 
-                        // Chrome/Edge HTTPS: Clipboard API biasanya bisa membaca
-                        // image/png dari gambar yang di-copy dari Excel.
-                        if (!navigator.clipboard || !navigator.clipboard.read) {
-                            return false;
-                        }
-
-                        try {
-                            const clipboardItems = await navigator.clipboard.read();
-
-                            for (const clipboardItem of clipboardItems) {
-                                const imageType = clipboardItem.types.find(type =>
-                                    type === 'image/png' ||
-                                    type === 'image/jpeg' ||
-                                    type === 'image/webp'
-                                );
-
-                                if (!imageType) continue;
-
-                                const blob = await clipboardItem.getType(imageType);
-                                const extension = imageType.split('/')[1] || 'png';
-                                const file = new File(
-                                    [blob],
-                                    `excel-paste-${Date.now()}.${extension}`, {
-                                        type: imageType
-                                    }
-                                );
-
-                                newItemPasteBusy = true;
-                                try {
-                                    await uploadNewItemImage(file, editor);
-                                    editor.find('.paste-success').remove();
-                                    editor.find('.new-image-actions').append(
-                                        '<span class="paste-success">✓ Pasted</span>'
-                                    );
-                                } finally {
-                                    newItemPasteBusy = false;
-                                }
-
-                                return true;
-                            }
-                        } catch (err) {
-                            console.debug('[NEW ITEM] Clipboard API:', err);
-                        }
-
+                    // Chrome/Edge HTTPS: Clipboard API biasanya bisa membaca
+                    // image/png dari gambar yang di-copy dari Excel.
+                    if (!navigator.clipboard || !navigator.clipboard.read) {
                         return false;
                     }
 
-                    async function handleNewItemImagePaste(event) {
-                        const row = $('#detail-item-table tr.new-item-row');
-                        if (!row.length) return;
+                    try {
+                        const clipboardItems = await navigator.clipboard.read();
+
+                        for (const clipboardItem of clipboardItems) {
+                            const imageType = clipboardItem.types.find(type =>
+                                type === 'image/png' ||
+                                type === 'image/jpeg' ||
+                                type === 'image/webp'
+                            );
+
+                            if (!imageType) continue;
+
+                            const blob = await clipboardItem.getType(imageType);
+                            const extension = imageType.split('/')[1] || 'png';
+                            const file = new File(
+                                [blob],
+                                `excel-paste-${Date.now()}.${extension}`, {
+                                    type: imageType
+                                }
+                            );
+
+                            newItemPasteBusy = true;
+                            try {
+                                await uploadNewItemImage(file, editor);
+                                editor.find('.paste-success').remove();
+                                editor.find('.new-image-actions').append(
+                                    '<span class="paste-success">✓ Pasted</span>'
+                                );
+                            } finally {
+                                newItemPasteBusy = false;
+                            }
+
+                            return true;
+                        }
+                    } catch (err) {
+                        console.debug('[NEW ITEM] Clipboard API:', err);
+                    }
+
+                    return false;
+                }
+
+                async function handleNewItemImagePaste(event) {
+                    const row = $('#detail-item-table tr.new-item-row');
+                    if (!row.length) return;
+
+                    const editor = getActiveNewImageEditor();
+                    if (!editor.length) return;
+
+                    const clipboard = event.clipboardData;
+                    if (!clipboard) return;
+
+                    let file = null;
+
+                    // Cara pertama: ClipboardEvent langsung menyediakan image/png.
+                    for (const item of clipboard.items) {
+                        if (item.type && item.type.startsWith('image/')) {
+                            file = item.getAsFile();
+                            if (file) break;
+                        }
+                    }
+
+                    // Cara kedua: Excel/browser memasukkan image sebagai HTML data URI.
+                    if (!file) {
+                        const html = clipboard.getData('text/html');
+                        const match = html && html.match(
+                            /<img[^>]+src=["']([^"']+)["']/i
+                        );
+
+                        if (match && match[1] && match[1].startsWith('data:image/')) {
+                            try {
+                                const response = await fetch(match[1]);
+                                const blob = await response.blob();
+                                file = new File(
+                                    [blob],
+                                    `excel-paste-${Date.now()}.png`, {
+                                        type: blob.type || 'image/png'
+                                    }
+                                );
+                            } catch (err) {
+                                console.debug('[NEW ITEM] HTML image:', err);
+                            }
+                        }
+                    }
+
+                    if (!file) {
+                        // Jangan preventDefault kalau clipboard event tidak berisi image,
+                        // supaya Ctrl+V tetap normal untuk input teks.
+                        return;
+                    }
+
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    if (newItemPasteBusy) return;
+
+                    newItemPasteBusy = true;
+                    try {
+                        await uploadNewItemImage(file, editor);
+                        editor.find('.paste-success').remove();
+                        editor.find('.new-image-actions').append(
+                            '<span class="paste-success">✓ Pasted</span>'
+                        );
+                    } catch (err) {
+                        alert('❌ ' + (err.message || 'Gagal paste gambar'));
+                    } finally {
+                        newItemPasteBusy = false;
+                    }
+                }
+
+                // Klik area foto = jadikan target paste aktif.
+                $(document).off('click.newItemImageFocus', '.new-image-editor')
+                    .on('click.newItemImageFocus', '.new-image-editor', function(e) {
+                        if ($(e.target).closest('button,input').length) return;
+
+                        $('.new-image-editor.paste-target').removeClass('paste-target');
+                        $(this).addClass('paste-target').trigger('focus');
+                    });
+
+                // Tombol Paste juga langsung mengaktifkan area foto dan mencoba
+                // Clipboard API dengan user gesture.
+                $(document).off('click.newItemPaste', '.btn-paste-help')
+                    .on('click.newItemPaste', '.btn-paste-help', async function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+
+                        const editor = $(this).closest('.new-image-editor');
+                        $('.new-image-editor.paste-target').removeClass('paste-target');
+                        editor.addClass('paste-target').trigger('focus');
+
+                        const pasted = await uploadClipboardImageFromBrowser(editor);
+
+                        if (!pasted) {
+                            alert(
+                                'Gambar belum terbaca dari clipboard. ' +
+                                'Klik area PHOTO, lalu tekan Ctrl+V setelah menyalin gambar dari Excel.'
+                            );
+                        }
+                    });
+
+                // Paste langsung dari Ctrl+V.
+                $(document).off('paste.newItemImage')
+                    .on('paste.newItemImage', handleNewItemImagePaste);
+
+                // Fallback khusus Ctrl+V menggunakan Clipboard API.
+                // Ini penting pada Chrome/Edge ketika Excel tidak mengirim image
+                // sebagai ClipboardEvent image/* tetapi Clipboard API tetap bisa membacanya.
+                $(document).off('keydown.newItemPaste')
+                    .on('keydown.newItemPaste', async function(e) {
+                        if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'v') return;
 
                         const editor = getActiveNewImageEditor();
                         if (!editor.length) return;
 
-                        const clipboard = event.clipboardData;
-                        if (!clipboard) return;
+                        // Kalau sedang mengetik di field biasa, jangan ganggu paste teks.
+                        const active = document.activeElement;
+                        const isTextField = active && ['INPUT', 'TEXTAREA'].includes(active.tagName) &&
+                            !$(active).closest('.new-image-editor').length;
 
-                        let file = null;
+                        if (isTextField) return;
 
-                        // Cara pertama: ClipboardEvent langsung menyediakan image/png.
-                        for (const item of clipboard.items) {
-                            if (item.type && item.type.startsWith('image/')) {
-                                file = item.getAsFile();
-                                if (file) break;
-                            }
-                        }
-
-                        // Cara kedua: Excel/browser memasukkan image sebagai HTML data URI.
-                        if (!file) {
-                            const html = clipboard.getData('text/html');
-                            const match = html && html.match(
-                                /<img[^>]+src=["']([^"']+)["']/i
-                            );
-
-                            if (match && match[1] && match[1].startsWith('data:image/')) {
-                                try {
-                                    const response = await fetch(match[1]);
-                                    const blob = await response.blob();
-                                    file = new File(
-                                        [blob],
-                                        `excel-paste-${Date.now()}.png`, {
-                                            type: blob.type || 'image/png'
-                                        }
-                                    );
-                                } catch (err) {
-                                    console.debug('[NEW ITEM] HTML image:', err);
-                                }
-                            }
-                        }
-
-                        if (!file) {
-                            // Jangan preventDefault kalau clipboard event tidak berisi image,
-                            // supaya Ctrl+V tetap normal untuk input teks.
-                            return;
-                        }
-
-                        event.preventDefault();
-                        event.stopPropagation();
-
-                        if (newItemPasteBusy) return;
-
-                        newItemPasteBusy = true;
-                        try {
-                            await uploadNewItemImage(file, editor);
-                            editor.find('.paste-success').remove();
-                            editor.find('.new-image-actions').append(
-                                '<span class="paste-success">✓ Pasted</span>'
-                            );
-                        } catch (err) {
-                            alert('❌ ' + (err.message || 'Gagal paste gambar'));
-                        } finally {
-                            newItemPasteBusy = false;
-                        }
-                    }
-
-                    // Klik area foto = jadikan target paste aktif.
-                    $(document).off('click.newItemImageFocus', '.new-image-editor')
-                        .on('click.newItemImageFocus', '.new-image-editor', function(e) {
-                            if ($(e.target).closest('button,input').length) return;
-
-                            $('.new-image-editor.paste-target').removeClass('paste-target');
-                            $(this).addClass('paste-target').trigger('focus');
-                        });
-
-                    // Tombol Paste juga langsung mengaktifkan area foto dan mencoba
-                    // Clipboard API dengan user gesture.
-                    $(document).off('click.newItemPaste', '.btn-paste-help')
-                        .on('click.newItemPaste', '.btn-paste-help', async function(e) {
+                        const pasted = await uploadClipboardImageFromBrowser(editor);
+                        if (pasted) {
                             e.preventDefault();
                             e.stopPropagation();
-
-                            const editor = $(this).closest('.new-image-editor');
-                            $('.new-image-editor.paste-target').removeClass('paste-target');
-                            editor.addClass('paste-target').trigger('focus');
-
-                            const pasted = await uploadClipboardImageFromBrowser(editor);
-
-                            if (!pasted) {
-                                alert(
-                                    'Gambar belum terbaca dari clipboard. ' +
-                                    'Klik area PHOTO, lalu tekan Ctrl+V setelah menyalin gambar dari Excel.'
-                                );
-                            }
-                        });
-
-                    // Paste langsung dari Ctrl+V.
-                    $(document).off('paste.newItemImage')
-                        .on('paste.newItemImage', handleNewItemImagePaste);
-
-                    // Fallback khusus Ctrl+V menggunakan Clipboard API.
-                    // Ini penting pada Chrome/Edge ketika Excel tidak mengirim image
-                    // sebagai ClipboardEvent image/* tetapi Clipboard API tetap bisa membacanya.
-                    $(document).off('keydown.newItemPaste')
-                        .on('keydown.newItemPaste', async function(e) {
-                            if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'v') return;
-
-                            const editor = getActiveNewImageEditor();
-                            if (!editor.length) return;
-
-                            // Kalau sedang mengetik di field biasa, jangan ganggu paste teks.
-                            const active = document.activeElement;
-                            const isTextField = active && ['INPUT', 'TEXTAREA'].includes(active.tagName) &&
-                                !$(active).closest('.new-image-editor').length;
-
-                            if (isTextField) return;
-
-                            const pasted = await uploadClipboardImageFromBrowser(editor);
-                            if (pasted) {
-                                e.preventDefault();
-                                e.stopPropagation();
-                            }
-                        });
-
-                    /* =====================================================
-                       SAVE - EXISTING + NEW ROW
-                    ===================================================== */
-                    $(document).off('click', '#btn-save-all').on('click', '#btn-save-all', function() {
-                        const role = $('#role').val();
-                        if (role !== 'marketing') {
-                            alert('❌ Tidak ada akses');
-                            return;
-                        }
-
-                        const button = $(this);
-                        const newRow = $('#detail-item-table tr.new-item-row');
-
-                        if (newRow.find('.new-image-editor[data-uploading="1"]').length) {
-                            alert('Mohon tunggu upload gambar selesai.');
-                            return;
-                        }
-
-                        let payload = [];
-                        let newItems = [];
-
-                        $('#detail-item-table tr.editable-row').each(function() {
-                            let row = $(this);
-
-                            // ==============================================
-                            // BARIS BARU
-                            // ==============================================
-                            if (row.hasClass('new-item-row')) {
-                                let detail = {};
-
-                                row.find('td[data-key]').each(function() {
-                                    const td = $(this);
-                                    const key = td.data('key');
-                                    if (!key || key === 'act') return;
-
-                                    if (key.toLowerCase().includes('photo')) {
-                                        detail[key] = td.find('.new-photo-value').val() || null;
-                                        return;
-                                    }
-
-                                    const input = td.find('.new-item-input');
-                                    let value = input.length ? input.val() : '';
-                                    value = value === null ? '' : String(value).trim();
-                                    detail[key] = value === '' ? null : value;
-                                });
-
-                                // Tidak dianggap kosong hanya karena sebagian field belum diisi.
-                                // Yang penting ada minimal satu value nyata.
-                                const hasValue = Object.values(detail).some(v => v !== null && String(v).trim() !== '');
-                                if (hasValue) {
-                                    newItems.push(detail);
-                                }
-                                return;
-                            }
-
-                            // ==============================================
-                            // BARIS LAMA - LOGIC EXISTING TETAP
-                            // ==============================================
-                            let itemId = row.data('id');
-                            let changedData = {};
-
-                            row.find('td[data-key]').each(function() {
-                                let td = $(this);
-                                let key = td.data('key');
-                                if (!key || key.toLowerCase().includes('photo')) return;
-                                let newVal = td.find('input').length ?
-                                    td.find('input').val().trim() :
-                                    td.find('.cell-text').text().trim();
-                                let oldVal = td.attr('data-original') ?? '';
-                                if (newVal !== oldVal) {
-                                    changedData[key] = newVal;
-                                }
-                            });
-
-                            if (Object.keys(changedData).length > 0) {
-                                payload.push({
-                                    id: itemId,
-                                    detail: changedData
-                                });
-                            }
-                        });
-
-                        if (!payload.length && !newItems.length) {
-                            alert('Tidak ada perubahan');
-                            return;
-                        }
-
-                        button.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Saving...');
-                        showSaving();
-
-                        const requests = [];
-
-                        if (payload.length) {
-                            requests.push(
-                                fetch('/marketing/po-item-update-bulk', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                                    },
-                                    body: JSON.stringify({
-                                        items: payload
-                                    })
-                                }).then(async res => {
-                                    const data = await res.json().catch(() => ({}));
-                                    if (!res.ok || !data.success) {
-                                        throw new Error(data.message || 'Gagal menyimpan perubahan item lama');
-                                    }
-                                    return data;
-                                })
-                            );
-                        }
-
-                        newItems.forEach(detail => {
-                            requests.push(
-                                fetch('/marketing/po-detail/add-item', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                        'Accept': 'application/json',
-                                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                                    },
-                                    body: JSON.stringify({
-                                        po_id: window.currentMarketingPoId,
-                                        detail: detail
-                                    })
-                                }).then(async res => {
-                                    const data = await res.json().catch(() => ({}));
-                                    if (!res.ok || !data.success) {
-                                        throw new Error(data.message || 'Gagal menambah item baru');
-                                    }
-                                    return data;
-                                })
-                            );
-                        });
-
-                        Promise.all(requests)
-                            .then(() => {
-                                showSaved();
-                                $(`.btn-view[data-id="${window.currentMarketingPoId}"]`).trigger('click');
-                            })
-                            .catch(err => {
-                                alert('❌ ' + (err.message || 'Gagal menyimpan'));
-                                $('#save-status').hide();
-                            })
-                            .finally(() => {
-                                button.prop('disabled', false).html('💾 Save All Changes');
-                            });
-                    });
-
-                    /* =====================================================
-                       ENTER = EXIT EDIT
-                    ===================================================== */
-                    $(document).off('keydown', '.inline-input').on('keydown', '.inline-input', function(e) {
-                        if (e.key === 'Enter') {
-                            e.preventDefault();
-                            exitEdit($(this).closest('tr'));
                         }
                     });
 
-                    /* =====================================================
-                       SAVE
-                    ===================================================== */
-                    /* =====================================================
-                           ENTER = EXIT EDIT
-                        ===================================================== */
-                    $(document).off('keydown', '.inline-input').on('keydown', '.inline-input', function(e) {
-                        if (e.key === 'Enter') {
-                            e.preventDefault();
-                            exitEdit($(this).closest('tr'));
-                        }
-                    });
-                    /* =====================================================
-                       HELPER
-                    ===================================================== */
-                    function emptyTds(count) {
-                        return '<td></td>'.repeat(count);
-                    }
-                    /* =====================================================
-                       TRIGGER
-                    ===================================================== */
-                    $(document).ready(initPage);
-                    $(document).on('pjax:end', initPage);
-
-                    function showSaving() {
-
-                        $('#save-status')
-                            .stop(true, true)
-                            .css('background', '#0d6efd')
-                            .text('💾 Saving...')
-                            .fadeIn(150);
-
-                    }
-
-                    function showSaved() {
-
-                        $('#save-status')
-                            .css('background', '#198754')
-                            .text('✔ All changes saved');
-
-                        setTimeout(function() {
-
-                            $('#save-status').fadeOut();
-
-                        }, 1200);
-
-                    }
-                    $(document).on('click', '#sort-order-no', function() {
-
-                        orderSort = orderSort === 'asc' ?
-                            'desc' :
-                            'asc';
-
-                        loadPoTable(
-                            releaseAppliedKeyword,
-                            $('#filter-spk-type').val()
-                        );
-
-                    });
-                </script>
-            @endpush
-        @endpush
-
-
-        {{-- Pusher Live Chat: shared presence-upah-transaksi, independent of Upah transaction scripts. --}}
-        <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
-        <script>
-            (function() {
-                'use strict';
-                if (window.__releaseOrderUpahPusherSetup) return;
-                window.__releaseOrderUpahPusherSetup = true;
-
-                function setup() {
-                    if (window.upahRealtimeChannel) return;
-                    const key = @json(config('broadcasting.connections.pusher.key'));
-                    const cluster = @json(config('broadcasting.connections.pusher.options.cluster'));
-                    if (!key || typeof Pusher === 'undefined') {
-                        console.warn('[Release Order Chat] Pusher belum dikonfigurasi.');
+                /* =====================================================
+                   SAVE - EXISTING + NEW ROW
+                ===================================================== */
+                $(document).off('click', '#btn-save-all').on('click', '#btn-save-all', function() {
+                    const role = $('#role').val();
+                    if (role !== 'marketing') {
+                        alert('❌ Tidak ada akses');
                         return;
                     }
-                    const pusher = new Pusher(key, {
-                        cluster: cluster || 'ap1',
-                        forceTLS: true,
-                        authEndpoint: @json(route('pusher.auth')),
-                        auth: {
-                            headers: {
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ||
-                                    @json(csrf_token())
+
+                    const button = $(this);
+                    const newRow = $('#detail-item-table tr.new-item-row');
+
+                    if (newRow.find('.new-image-editor[data-uploading="1"]').length) {
+                        alert('Mohon tunggu upload gambar selesai.');
+                        return;
+                    }
+
+                    let payload = [];
+                    let newItems = [];
+
+                    $('#detail-item-table tr.editable-row').each(function() {
+                        let row = $(this);
+
+                        // ==============================================
+                        // BARIS BARU
+                        // ==============================================
+                        if (row.hasClass('new-item-row')) {
+                            let detail = {};
+
+                            row.find('td[data-key]').each(function() {
+                                const td = $(this);
+                                const key = td.data('key');
+                                if (!key || key === 'act') return;
+
+                                if (key.toLowerCase().includes('photo')) {
+                                    detail[key] = td.find('.new-photo-value').val() || null;
+                                    return;
+                                }
+
+                                const input = td.find('.new-item-input');
+                                let value = input.length ? input.val() : '';
+                                value = value === null ? '' : String(value).trim();
+                                detail[key] = value === '' ? null : value;
+                            });
+
+                            // Tidak dianggap kosong hanya karena sebagian field belum diisi.
+                            // Yang penting ada minimal satu value nyata.
+                            const hasValue = Object.values(detail).some(v => v !== null && String(v).trim() !== '');
+                            if (hasValue) {
+                                newItems.push(detail);
                             }
+                            return;
+                        }
+
+                        // ==============================================
+                        // BARIS LAMA - LOGIC EXISTING TETAP
+                        // ==============================================
+                        let itemId = row.data('id');
+                        let changedData = {};
+
+                        row.find('td[data-key]').each(function() {
+                            let td = $(this);
+                            let key = td.data('key');
+                            if (!key || key.toLowerCase().includes('photo')) return;
+                            let newVal = td.find('input').length ?
+                                td.find('input').val().trim() :
+                                td.find('.cell-text').text().trim();
+                            let oldVal = td.attr('data-original') ?? '';
+                            if (newVal !== oldVal) {
+                                changedData[key] = newVal;
+                            }
+                        });
+
+                        if (Object.keys(changedData).length > 0) {
+                            payload.push({
+                                id: itemId,
+                                detail: changedData
+                            });
                         }
                     });
-                    window.upahRealtimePusher = pusher;
-                    window.upahRealtimeChannelName = 'presence-upah-transaksi';
-                    window.upahRealtimeChannel = pusher.subscribe(window.upahRealtimeChannelName);
-                }
-                if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setup);
-                else setup();
-            })();
-        </script>
 
-        <!-- =========================================================
+                    if (!payload.length && !newItems.length) {
+                        alert('Tidak ada perubahan');
+                        return;
+                    }
+
+                    button.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Saving...');
+                    showSaving();
+
+                    const requests = [];
+
+                    if (payload.length) {
+                        requests.push(
+                            fetch('/marketing/po-item-update-bulk', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                                },
+                                body: JSON.stringify({
+                                    items: payload
+                                })
+                            }).then(async res => {
+                                const data = await res.json().catch(() => ({}));
+                                if (!res.ok || !data.success) {
+                                    throw new Error(data.message || 'Gagal menyimpan perubahan item lama');
+                                }
+                                return data;
+                            })
+                        );
+                    }
+
+                    newItems.forEach(detail => {
+                        requests.push(
+                            fetch('/marketing/po-detail/add-item', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Accept': 'application/json',
+                                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                                },
+                                body: JSON.stringify({
+                                    po_id: window.currentMarketingPoId,
+                                    detail: detail
+                                })
+                            }).then(async res => {
+                                const data = await res.json().catch(() => ({}));
+                                if (!res.ok || !data.success) {
+                                    throw new Error(data.message || 'Gagal menambah item baru');
+                                }
+                                return data;
+                            })
+                        );
+                    });
+
+                    Promise.all(requests)
+                        .then(() => {
+                            showSaved();
+                            $(`.btn-view[data-id="${window.currentMarketingPoId}"]`).trigger('click');
+                        })
+                        .catch(err => {
+                            alert('❌ ' + (err.message || 'Gagal menyimpan'));
+                            $('#save-status').hide();
+                        })
+                        .finally(() => {
+                            button.prop('disabled', false).html('💾 Save All Changes');
+                        });
+                });
+
+                /* =====================================================
+                   ENTER = EXIT EDIT
+                ===================================================== */
+                $(document).off('keydown', '.inline-input').on('keydown', '.inline-input', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        exitEdit($(this).closest('tr'));
+                    }
+                });
+
+                /* =====================================================
+                   SAVE
+                ===================================================== */
+                /* =====================================================
+                       ENTER = EXIT EDIT
+                    ===================================================== */
+                $(document).off('keydown', '.inline-input').on('keydown', '.inline-input', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        exitEdit($(this).closest('tr'));
+                    }
+                });
+                /* =====================================================
+                   HELPER
+                ===================================================== */
+                function emptyTds(count) {
+                    return '<td></td>'.repeat(count);
+                }
+                /* =====================================================
+                   TRIGGER
+                ===================================================== */
+                $(document).ready(initPage);
+                $(document).on('pjax:end', initPage);
+
+                function showSaving() {
+
+                    $('#save-status')
+                        .stop(true, true)
+                        .css('background', '#0d6efd')
+                        .text('💾 Saving...')
+                        .fadeIn(150);
+
+                }
+
+                function showSaved() {
+
+                    $('#save-status')
+                        .css('background', '#198754')
+                        .text('✔ All changes saved');
+
+                    setTimeout(function() {
+
+                        $('#save-status').fadeOut();
+
+                    }, 1200);
+
+                }
+                $(document).on('click', '#sort-order-no', function() {
+
+                    orderSort = orderSort === 'asc' ?
+                        'desc' :
+                        'asc';
+
+                    loadPoTable(
+                        releaseAppliedKeyword,
+                        $('#filter-spk-type').val()
+                    );
+
+                });
+            </script>
+        @endpush
+    @endpush
+
+
+    {{-- Pusher Live Chat: shared presence-upah-transaksi, independent of Upah transaction scripts. --}}
+    <script src="https://js.pusher.com/8.4.0/pusher.min.js"></script>
+    <script>
+        (function() {
+            'use strict';
+            if (window.__releaseOrderUpahPusherSetup) return;
+            window.__releaseOrderUpahPusherSetup = true;
+
+            function setup() {
+                if (window.upahRealtimeChannel) return;
+                const key = @json(config('broadcasting.connections.pusher.key'));
+                const cluster = @json(config('broadcasting.connections.pusher.options.cluster'));
+                if (!key || typeof Pusher === 'undefined') {
+                    console.warn('[Release Order Chat] Pusher belum dikonfigurasi.');
+                    return;
+                }
+                const pusher = new Pusher(key, {
+                    cluster: cluster || 'ap1',
+                    forceTLS: true,
+                    authEndpoint: @json(route('pusher.auth')),
+                    auth: {
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ||
+                                @json(csrf_token())
+                        }
+                    }
+                });
+                window.upahRealtimePusher = pusher;
+                window.upahRealtimeChannelName = 'presence-upah-transaksi';
+                window.upahRealtimeChannel = pusher.subscribe(window.upahRealtimeChannelName);
+            }
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setup);
+            else setup();
+        })();
+    </script>
+
+    <!-- =========================================================
          UPAH LIVE CHAT - WHATSAPP STYLE
          Realtime Pusher + typing indicator
          Menggunakan channel Pusher yang sama:
          presence-upah-transaksi
          Tidak mengubah logic transaksi/cursor yang sudah ada.
     ========================================================= -->
-        <script>
-            (function() {
-                'use strict';
+    <script>
+        (function() {
+            'use strict';
 
-                let upahChatInitialized = false;
-                let upahChatSubscribed = false;
-                let upahTypingTimer = null;
-                let upahTypingActive = false;
-                let upahTypingUsers = {};
+            let upahChatInitialized = false;
+            let upahChatSubscribed = false;
+            let upahTypingTimer = null;
+            let upahTypingActive = false;
+            let upahTypingUsers = {};
 
-                const UPAH_CHAT_EVENT = 'client-upah-live-message';
-                const UPAH_TYPING_EVENT = 'client-upah-typing';
-                // Endpoint Laravel untuk menyimpan gambar hasil paste/upload.
-                // Sesuaikan hanya jika route Anda menggunakan URL lain.
-                const UPAH_CHAT_UPLOAD_URL = '/transaksi/upah/chat/upload-image';
+            const UPAH_CHAT_EVENT = 'client-upah-live-message';
+            const UPAH_TYPING_EVENT = 'client-upah-typing';
+            // Endpoint Laravel untuk menyimpan gambar hasil paste/upload.
+            // Sesuaikan hanya jika route Anda menggunakan URL lain.
+            const UPAH_CHAT_UPLOAD_URL = '/transaksi/upah/chat/upload-image';
 
-                let upahPendingImage = null;
-                let upahImageUploading = false;
+            let upahPendingImage = null;
+            let upahImageUploading = false;
 
-                const currentUserId = String(@json(auth()->id()));
-                const currentUserName = @json(auth()->user()->name ?? 'User');
+            const currentUserId = String(@json(auth()->id()));
+            const currentUserName = @json(auth()->user()->name ?? 'User');
 
-                function getUpahChatChannel() {
-                    return window.upahRealtimeChannel || null;
+            function getUpahChatChannel() {
+                return window.upahRealtimeChannel || null;
+            }
+
+            function escapeUpahChatHtml(value) {
+                return String(value ?? '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            }
+
+            function scrollUpahChatToBottom() {
+                const box = document.getElementById('upahChatMessages');
+
+                if (box) {
+                    box.scrollTop = box.scrollHeight;
+                }
+            }
+
+            function injectUpahChatStyle() {
+
+                if (document.getElementById('upahChatRealtimeStyle')) {
+                    return;
                 }
 
-                function escapeUpahChatHtml(value) {
-                    return String(value ?? '')
-                        .replace(/&/g, '&amp;')
-                        .replace(/</g, '&lt;')
-                        .replace(/>/g, '&gt;')
-                        .replace(/"/g, '&quot;')
-                        .replace(/'/g, '&#039;');
-                }
+                const style = document.createElement('style');
+                style.id = 'upahChatRealtimeStyle';
 
-                function scrollUpahChatToBottom() {
-                    const box = document.getElementById('upahChatMessages');
-
-                    if (box) {
-                        box.scrollTop = box.scrollHeight;
-                    }
-                }
-
-                function injectUpahChatStyle() {
-
-                    if (document.getElementById('upahChatRealtimeStyle')) {
-                        return;
-                    }
-
-                    const style = document.createElement('style');
-                    style.id = 'upahChatRealtimeStyle';
-
-                    style.innerHTML = `
+                style.innerHTML = `
             #upahChatModal {
                 position: fixed !important;
                 inset: 0 !important;
@@ -2538,18 +3596,18 @@
             }
         `;
 
-                    document.head.appendChild(style);
-                }
+                document.head.appendChild(style);
+            }
 
-                function ensureUpahChatModal() {
+            function ensureUpahChatModal() {
 
-                    // Jangan hanya mengecek #upahChatModal. Pada halaman Upah bisa saja
-                    // sudah ada modal dengan ID tersebut tetapi isinya berasal dari Blade
-                    // lama dan belum mempunyai #upahChatMessages.
-                    let modal = document.getElementById('upahChatModal');
+                // Jangan hanya mengecek #upahChatModal. Pada halaman Upah bisa saja
+                // sudah ada modal dengan ID tersebut tetapi isinya berasal dari Blade
+                // lama dan belum mempunyai #upahChatMessages.
+                let modal = document.getElementById('upahChatModal');
 
-                    if (!modal) {
-                        $('body').append(`
+                if (!modal) {
+                    $('body').append(`
             <div id="upahChatModal" aria-hidden="true">
 
                 <div class="upah-chat-window">
@@ -2635,284 +3693,284 @@
             </div>
         `);
 
-                        modal = document.getElementById('upahChatModal');
-                    }
-
-                    // Repair modal yang sudah ada tetapi elemen chat-nya tidak lengkap.
-                    if (!modal) {
-                        console.error('[UPAH CHAT] Gagal membuat #upahChatModal.');
-                        return;
-                    }
-
-                    if (!document.getElementById('upahChatMessages')) {
-                        const windowEl = modal.querySelector('.upah-chat-window') || modal;
-                        const typingEl = document.getElementById('upahChatTyping');
-                        const inputArea = modal.querySelector('.upah-chat-input-area');
-
-                        const messagesEl = document.createElement('div');
-                        messagesEl.id = 'upahChatMessages';
-                        messagesEl.className = 'upah-chat-messages';
-                        messagesEl.innerHTML =
-                            '<div class="upah-chat-empty">Belum ada pesan.<br>Mulai percakapan dengan user lain.</div>';
-
-                        if (typingEl && typingEl.parentNode === windowEl) {
-                            windowEl.insertBefore(messagesEl, typingEl);
-                        } else if (inputArea && inputArea.parentNode === windowEl) {
-                            windowEl.insertBefore(messagesEl, inputArea);
-                        } else {
-                            windowEl.appendChild(messagesEl);
-                        }
-
-                        console.log('[UPAH CHAT] #upahChatMessages diperbaiki/dibuat.');
-                    }
-
-                    // Pastikan typing area juga tersedia.
-                    if (!document.getElementById('upahChatTyping')) {
-                        const windowEl = modal.querySelector('.upah-chat-window') || modal;
-                        const typingEl = document.createElement('div');
-                        typingEl.id = 'upahChatTyping';
-                        typingEl.className = 'upah-chat-typing';
-                        windowEl.appendChild(typingEl);
-                    }
+                    modal = document.getElementById('upahChatModal');
                 }
 
-                function clearEmptyState() {
-                    $('#upahChatMessages .upah-chat-empty').remove();
+                // Repair modal yang sudah ada tetapi elemen chat-nya tidak lengkap.
+                if (!modal) {
+                    console.error('[UPAH CHAT] Gagal membuat #upahChatModal.');
+                    return;
                 }
 
-                function scrollUpahChatToBottom() {
-                    const box = document.getElementById('upahChatMessages');
+                if (!document.getElementById('upahChatMessages')) {
+                    const windowEl = modal.querySelector('.upah-chat-window') || modal;
+                    const typingEl = document.getElementById('upahChatTyping');
+                    const inputArea = modal.querySelector('.upah-chat-input-area');
 
-                    if (box) {
-                        box.scrollTop = box.scrollHeight;
-                    }
-                }
+                    const messagesEl = document.createElement('div');
+                    messagesEl.id = 'upahChatMessages';
+                    messagesEl.className = 'upah-chat-messages';
+                    messagesEl.innerHTML =
+                        '<div class="upah-chat-empty">Belum ada pesan.<br>Mulai percakapan dengan user lain.</div>';
 
-
-                function clearUpahPendingImage() {
-                    upahPendingImage = null;
-                    $('#upahChatImageInput').val('');
-                    $('#upahChatImagePreview')
-                        .removeClass('show');
-                    $('#upahChatImagePreviewImg').attr('src', '');
-                    $('#upahChatImagePreviewInfo').text('');
-                }
-
-                function setUpahPendingImage(file) {
-                    if (!file || !file.type || !file.type.startsWith('image/')) {
-                        alert('File yang dipilih harus berupa gambar.');
-                        return;
-                    }
-
-                    if (file.size > 8 * 1024 * 1024) {
-                        alert('Ukuran gambar maksimal 8 MB.');
-                        return;
-                    }
-
-                    upahPendingImage = file;
-
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        $('#upahChatImagePreviewImg').attr('src', e.target.result);
-                        $('#upahChatImagePreviewInfo').text(
-                            file.name + ' • ' + Math.round(file.size / 1024) + ' KB'
-                        );
-                        $('#upahChatImagePreview').addClass('show');
-                        $('#upahChatInput').trigger('focus');
-                    };
-                    reader.readAsDataURL(file);
-                }
-
-                async function uploadUpahChatImage(file) {
-                    const csrf = $('meta[name="csrf-token"]').attr('content') || '';
-                    const formData = new FormData();
-                    formData.append('image', file);
-                    formData.append('_token', csrf);
-
-                    const response = await fetch(UPAH_CHAT_UPLOAD_URL, {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRF-TOKEN': csrf,
-                            'Accept': 'application/json'
-                        },
-                        body: formData,
-                        credentials: 'same-origin'
-                    });
-
-                    if (!response.ok) {
-                        const text = await response.text();
-                        throw new Error('Upload gambar gagal (' + response.status + '): ' + text);
-                    }
-
-                    const result = await response.json();
-
-                    if (!result.success || !result.url) {
-                        throw new Error(result.message || 'URL gambar tidak diterima dari server.');
-                    }
-
-                    return result.url;
-                }
-
-                function appendUpahChatMessage(data) {
-
-                    console.log('[UPAH CHAT] RENDER MESSAGE:', data);
-
-                    // Pastikan modal dan container selalu tersedia, termasuk ketika
-                    // pesan diterima sebelum user menekan Ctrl+Shift+Z.
-                    ensureUpahChatModal();
-
-                    let box = document.getElementById('upahChatMessages');
-
-                    if (!box && document.body) {
-                        console.warn('[UPAH CHAT] Container pesan belum ada, membuat ulang modal.');
-                        ensureUpahChatModal();
-                        box = document.getElementById('upahChatMessages');
-                    }
-
-                    if (!box) {
-                        console.error('[UPAH CHAT] #upahChatMessages tidak ditemukan saat render.');
-                        return;
-                    }
-
-                    if (!data || typeof data !== 'object') {
-                        console.warn('[UPAH CHAT] Payload message tidak valid:', data);
-                        return;
-                    }
-
-                    const message = String(data.message ?? '').trim();
-                    const imageUrl = String(data.image_url ?? '').trim();
-
-                    if (!message && !imageUrl) {
-                        console.warn('[UPAH CHAT] Message kosong:', data);
-                        return;
-                    }
-
-                    clearEmptyState();
-
-                    const senderId = String(data.user_id ?? '');
-                    const name = escapeUpahChatHtml(data.name || 'User');
-                    const safeMessage = escapeUpahChatHtml(message);
-                    const safeImageUrl = escapeUpahChatHtml(imageUrl);
-                    const isMine = senderId === currentUserId;
-
-                    const timestamp = Number(data.timestamp);
-                    const date = Number.isFinite(timestamp) && timestamp > 0 ?
-                        new Date(timestamp) :
-                        new Date();
-
-                    const time = date.toLocaleTimeString('id-ID', {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    });
-
-                    const messageEl = document.createElement('div');
-                    messageEl.className = 'upah-chat-message ' + (isMine ? 'mine' : 'other');
-
-                    const nameEl = document.createElement('div');
-                    nameEl.className = 'upah-chat-message-name';
-                    nameEl.textContent = data.name || 'User';
-                    messageEl.appendChild(nameEl);
-
-                    if (message) {
-                        const textEl = document.createElement('div');
-                        textEl.className = 'upah-chat-message-content';
-                        textEl.textContent = message;
-                        messageEl.appendChild(textEl);
-                    }
-
-                    if (imageUrl) {
-                        const image = document.createElement('img');
-                        image.className = 'upah-chat-image';
-                        image.src = imageUrl;
-                        image.alt = 'Gambar';
-                        image.loading = 'lazy';
-                        image.addEventListener('click', function() {
-                            window.open(imageUrl, '_blank', 'noopener');
-                        });
-                        messageEl.appendChild(image);
-                    }
-
-                    const meta = document.createElement('div');
-                    meta.className = 'upah-chat-message-meta';
-                    meta.textContent = time + (isMine ? '  ✓✓' : '');
-                    messageEl.appendChild(meta);
-
-                    box.appendChild(messageEl);
-
-                    // Paksa browser melakukan layout sebelum scroll.
-                    requestAnimationFrame(function() {
-                        box.scrollTop = box.scrollHeight;
-                    });
-
-                    console.log(
-                        '[UPAH CHAT] MESSAGE RENDERED:', {
-                            senderId: senderId,
-                            mine: isMine,
-                            message: message
-                        }
-                    );
-                }
-
-                function renderUpahTyping() {
-
-                    const typingBox = $('#upahChatTyping');
-
-                    if (!typingBox.length) {
-                        return;
-                    }
-
-                    const now = Date.now();
-
-                    Object.keys(upahTypingUsers).forEach(function(userId) {
-
-                        if (
-                            now - upahTypingUsers[userId].lastSeen >
-                            3500
-                        ) {
-                            delete upahTypingUsers[userId];
-                        }
-                    });
-
-                    const names = Object.keys(upahTypingUsers)
-                        .map(function(id) {
-                            return upahTypingUsers[id].name;
-                        })
-                        .filter(Boolean);
-
-                    if (!names.length) {
-
-                        typingBox
-                            .removeClass('show')
-                            .html('');
-
-                        return;
-                    }
-
-                    let text;
-
-                    if (names.length === 1) {
-
-                        text = escapeUpahChatHtml(names[0]) +
-                            ' sedang mengetik';
-
-                    } else if (names.length === 2) {
-
-                        text =
-                            escapeUpahChatHtml(names[0]) +
-                            ' dan ' +
-                            escapeUpahChatHtml(names[1]) +
-                            ' sedang mengetik';
-
+                    if (typingEl && typingEl.parentNode === windowEl) {
+                        windowEl.insertBefore(messagesEl, typingEl);
+                    } else if (inputArea && inputArea.parentNode === windowEl) {
+                        windowEl.insertBefore(messagesEl, inputArea);
                     } else {
-
-                        text =
-                            names.length +
-                            ' orang sedang mengetik';
+                        windowEl.appendChild(messagesEl);
                     }
+
+                    console.log('[UPAH CHAT] #upahChatMessages diperbaiki/dibuat.');
+                }
+
+                // Pastikan typing area juga tersedia.
+                if (!document.getElementById('upahChatTyping')) {
+                    const windowEl = modal.querySelector('.upah-chat-window') || modal;
+                    const typingEl = document.createElement('div');
+                    typingEl.id = 'upahChatTyping';
+                    typingEl.className = 'upah-chat-typing';
+                    windowEl.appendChild(typingEl);
+                }
+            }
+
+            function clearEmptyState() {
+                $('#upahChatMessages .upah-chat-empty').remove();
+            }
+
+            function scrollUpahChatToBottom() {
+                const box = document.getElementById('upahChatMessages');
+
+                if (box) {
+                    box.scrollTop = box.scrollHeight;
+                }
+            }
+
+
+            function clearUpahPendingImage() {
+                upahPendingImage = null;
+                $('#upahChatImageInput').val('');
+                $('#upahChatImagePreview')
+                    .removeClass('show');
+                $('#upahChatImagePreviewImg').attr('src', '');
+                $('#upahChatImagePreviewInfo').text('');
+            }
+
+            function setUpahPendingImage(file) {
+                if (!file || !file.type || !file.type.startsWith('image/')) {
+                    alert('File yang dipilih harus berupa gambar.');
+                    return;
+                }
+
+                if (file.size > 8 * 1024 * 1024) {
+                    alert('Ukuran gambar maksimal 8 MB.');
+                    return;
+                }
+
+                upahPendingImage = file;
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    $('#upahChatImagePreviewImg').attr('src', e.target.result);
+                    $('#upahChatImagePreviewInfo').text(
+                        file.name + ' • ' + Math.round(file.size / 1024) + ' KB'
+                    );
+                    $('#upahChatImagePreview').addClass('show');
+                    $('#upahChatInput').trigger('focus');
+                };
+                reader.readAsDataURL(file);
+            }
+
+            async function uploadUpahChatImage(file) {
+                const csrf = $('meta[name="csrf-token"]').attr('content') || '';
+                const formData = new FormData();
+                formData.append('image', file);
+                formData.append('_token', csrf);
+
+                const response = await fetch(UPAH_CHAT_UPLOAD_URL, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrf,
+                        'Accept': 'application/json'
+                    },
+                    body: formData,
+                    credentials: 'same-origin'
+                });
+
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error('Upload gambar gagal (' + response.status + '): ' + text);
+                }
+
+                const result = await response.json();
+
+                if (!result.success || !result.url) {
+                    throw new Error(result.message || 'URL gambar tidak diterima dari server.');
+                }
+
+                return result.url;
+            }
+
+            function appendUpahChatMessage(data) {
+
+                console.log('[UPAH CHAT] RENDER MESSAGE:', data);
+
+                // Pastikan modal dan container selalu tersedia, termasuk ketika
+                // pesan diterima sebelum user menekan Ctrl+Shift+Z.
+                ensureUpahChatModal();
+
+                let box = document.getElementById('upahChatMessages');
+
+                if (!box && document.body) {
+                    console.warn('[UPAH CHAT] Container pesan belum ada, membuat ulang modal.');
+                    ensureUpahChatModal();
+                    box = document.getElementById('upahChatMessages');
+                }
+
+                if (!box) {
+                    console.error('[UPAH CHAT] #upahChatMessages tidak ditemukan saat render.');
+                    return;
+                }
+
+                if (!data || typeof data !== 'object') {
+                    console.warn('[UPAH CHAT] Payload message tidak valid:', data);
+                    return;
+                }
+
+                const message = String(data.message ?? '').trim();
+                const imageUrl = String(data.image_url ?? '').trim();
+
+                if (!message && !imageUrl) {
+                    console.warn('[UPAH CHAT] Message kosong:', data);
+                    return;
+                }
+
+                clearEmptyState();
+
+                const senderId = String(data.user_id ?? '');
+                const name = escapeUpahChatHtml(data.name || 'User');
+                const safeMessage = escapeUpahChatHtml(message);
+                const safeImageUrl = escapeUpahChatHtml(imageUrl);
+                const isMine = senderId === currentUserId;
+
+                const timestamp = Number(data.timestamp);
+                const date = Number.isFinite(timestamp) && timestamp > 0 ?
+                    new Date(timestamp) :
+                    new Date();
+
+                const time = date.toLocaleTimeString('id-ID', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                const messageEl = document.createElement('div');
+                messageEl.className = 'upah-chat-message ' + (isMine ? 'mine' : 'other');
+
+                const nameEl = document.createElement('div');
+                nameEl.className = 'upah-chat-message-name';
+                nameEl.textContent = data.name || 'User';
+                messageEl.appendChild(nameEl);
+
+                if (message) {
+                    const textEl = document.createElement('div');
+                    textEl.className = 'upah-chat-message-content';
+                    textEl.textContent = message;
+                    messageEl.appendChild(textEl);
+                }
+
+                if (imageUrl) {
+                    const image = document.createElement('img');
+                    image.className = 'upah-chat-image';
+                    image.src = imageUrl;
+                    image.alt = 'Gambar';
+                    image.loading = 'lazy';
+                    image.addEventListener('click', function() {
+                        window.open(imageUrl, '_blank', 'noopener');
+                    });
+                    messageEl.appendChild(image);
+                }
+
+                const meta = document.createElement('div');
+                meta.className = 'upah-chat-message-meta';
+                meta.textContent = time + (isMine ? '  ✓✓' : '');
+                messageEl.appendChild(meta);
+
+                box.appendChild(messageEl);
+
+                // Paksa browser melakukan layout sebelum scroll.
+                requestAnimationFrame(function() {
+                    box.scrollTop = box.scrollHeight;
+                });
+
+                console.log(
+                    '[UPAH CHAT] MESSAGE RENDERED:', {
+                        senderId: senderId,
+                        mine: isMine,
+                        message: message
+                    }
+                );
+            }
+
+            function renderUpahTyping() {
+
+                const typingBox = $('#upahChatTyping');
+
+                if (!typingBox.length) {
+                    return;
+                }
+
+                const now = Date.now();
+
+                Object.keys(upahTypingUsers).forEach(function(userId) {
+
+                    if (
+                        now - upahTypingUsers[userId].lastSeen >
+                        3500
+                    ) {
+                        delete upahTypingUsers[userId];
+                    }
+                });
+
+                const names = Object.keys(upahTypingUsers)
+                    .map(function(id) {
+                        return upahTypingUsers[id].name;
+                    })
+                    .filter(Boolean);
+
+                if (!names.length) {
 
                     typingBox
-                        .addClass('show')
-                        .html(`
+                        .removeClass('show')
+                        .html('');
+
+                    return;
+                }
+
+                let text;
+
+                if (names.length === 1) {
+
+                    text = escapeUpahChatHtml(names[0]) +
+                        ' sedang mengetik';
+
+                } else if (names.length === 2) {
+
+                    text =
+                        escapeUpahChatHtml(names[0]) +
+                        ' dan ' +
+                        escapeUpahChatHtml(names[1]) +
+                        ' sedang mengetik';
+
+                } else {
+
+                    text =
+                        names.length +
+                        ' orang sedang mengetik';
+                }
+
+                typingBox
+                    .addClass('show')
+                    .html(`
                 ${text}
                 <span class="upah-typing-dots">
                     <span></span>
@@ -2920,808 +3978,846 @@
                     <span></span>
                 </span>
             `);
+            }
+
+            function receiveTyping(data) {
+
+                if (!data) {
+                    return;
                 }
 
-                function receiveTyping(data) {
+                const userId = String(data.user_id ?? '');
 
-                    if (!data) {
-                        return;
-                    }
-
-                    const userId = String(data.user_id ?? '');
-
-                    if (!userId || userId === currentUserId) {
-                        return;
-                    }
-
-                    if (data.typing === false) {
-
-                        delete upahTypingUsers[userId];
-
-                    } else {
-
-                        upahTypingUsers[userId] = {
-                            name: data.name || 'User',
-                            lastSeen: Date.now()
-                        };
-                    }
-
-                    renderUpahTyping();
+                if (!userId || userId === currentUserId) {
+                    return;
                 }
 
-                function sendTypingState(isTyping) {
+                if (data.typing === false) {
 
-                    const channel = getUpahChatChannel();
+                    delete upahTypingUsers[userId];
 
-                    if (!channel || !upahChatSubscribed) {
-                        return;
-                    }
+                } else {
 
-                    try {
-
-                        channel.trigger(UPAH_TYPING_EVENT, {
-                            user_id: currentUserId,
-                            name: currentUserName,
-                            typing: !!isTyping,
-                            timestamp: Date.now()
-                        });
-
-                    } catch (error) {
-
-                        console.warn(
-                            '[UPAH CHAT] typing trigger gagal:',
-                            error
-                        );
-                    }
+                    upahTypingUsers[userId] = {
+                        name: data.name || 'User',
+                        lastSeen: Date.now()
+                    };
                 }
 
-                function stopTyping() {
+                renderUpahTyping();
+            }
 
-                    if (!upahTypingActive) {
-                        return;
-                    }
+            function sendTypingState(isTyping) {
 
-                    upahTypingActive = false;
+                const channel = getUpahChatChannel();
 
-                    if (upahTypingTimer) {
-                        clearTimeout(upahTypingTimer);
-                        upahTypingTimer = null;
-                    }
-
-                    sendTypingState(false);
+                if (!channel || !upahChatSubscribed) {
+                    return;
                 }
 
-                function handleTypingInput() {
+                try {
 
-                    if (!upahChatSubscribed) {
-                        return;
-                    }
+                    channel.trigger(UPAH_TYPING_EVENT, {
+                        user_id: currentUserId,
+                        name: currentUserName,
+                        typing: !!isTyping,
+                        timestamp: Date.now()
+                    });
 
-                    if (!upahTypingActive) {
+                } catch (error) {
 
-                        upahTypingActive = true;
+                    console.warn(
+                        '[UPAH CHAT] typing trigger gagal:',
+                        error
+                    );
+                }
+            }
 
-                        sendTypingState(true);
-                    }
+            function stopTyping() {
 
-                    if (upahTypingTimer) {
-                        clearTimeout(upahTypingTimer);
-                    }
-
-                    upahTypingTimer = setTimeout(function() {
-
-                        stopTyping();
-
-                    }, 1800);
+                if (!upahTypingActive) {
+                    return;
                 }
 
-                function bindUpahChat() {
+                upahTypingActive = false;
 
-                    const channel = getUpahChatChannel();
-
-                    if (!channel) {
-                        return false;
-                    }
-
-                    if (upahChatInitialized) {
-                        return true;
-                    }
-
-                    console.log(
-                        '[UPAH CHAT] Binding channel:',
-                        window.upahRealtimeChannelName || channel.name
-                    );
-
-                    /*
-                     * PENTING:
-                     * subscription_succeeded menentukan bahwa client benar-benar
-                     * sudah masuk ke presence-upah-transaksi.
-                     */
-                    channel.bind(
-                        'pusher:subscription_succeeded',
-                        function(members) {
-
-                            upahChatSubscribed = true;
-
-                            console.log(
-                                '[UPAH CHAT] Pusher subscription READY:',
-                                window.upahRealtimeChannelName || channel.name,
-                                'members:',
-                                members ? members.count : '?'
-                            );
-
-                            const status = $('#upahChatModal .upah-chat-status');
-
-                            if (status.length) {
-                                status.text('online • Live Chat');
-                            }
-                        }
-                    );
-
-                    /*
-                     * MESSAGE
-                     */
-                    channel.bind(
-                        UPAH_CHAT_EVENT,
-                        function(data) {
-
-                            console.log(
-                                '[UPAH CHAT] MESSAGE RECEIVED:',
-                                data
-                            );
-
-                            appendUpahChatMessage(data);
-
-                            // AUTO OPEN: pesan dari user lain langsung membuka chat.
-                            // Gunakan currentUserId (variabel yang memang tersedia di chat).
-                            if (String(data.user_id) !== String(currentUserId)) {
-                                setTimeout(function() {
-                                    if (typeof window.openUpahChat === 'function') {
-                                        window.openUpahChat();
-                                    } else {
-                                        // Fallback jika fungsi global belum siap.
-                                        ensureUpahChatModal();
-                                        const modal = $('#upahChatModal');
-                                        if (modal.length) {
-                                            modal.addClass('show')
-                                                .css('display', 'block')
-                                                .attr('aria-hidden', 'false');
-                                            setTimeout(function() {
-                                                $('#upahChatInput').trigger('focus');
-                                                scrollUpahChatToBottom();
-                                            }, 50);
-                                        }
-                                    }
-                                }, 50);
-                            }
-                        }
-                    );
-
-                    /*
-                     * TYPING
-                     */
-                    channel.bind(
-                        UPAH_TYPING_EVENT,
-                        function(data) {
-
-                            console.log(
-                                '[UPAH CHAT] TYPING RECEIVED:',
-                                data
-                            );
-
-                            receiveTyping(data);
-                        }
-                    );
-
-                    /*
-                     * DEBUG ERROR
-                     */
-                    channel.bind(
-                        'pusher:subscription_error',
-                        function(status) {
-
-                            upahChatSubscribed = false;
-
-                            console.error(
-                                '[UPAH CHAT] Subscription error:',
-                                status
-                            );
-                        }
-                    );
-
-                    upahChatInitialized = true;
-
-                    console.log(
-                        '[UPAH CHAT] Event listener berhasil dipasang.'
-                    );
-
-                    return true;
+                if (upahTypingTimer) {
+                    clearTimeout(upahTypingTimer);
+                    upahTypingTimer = null;
                 }
 
-                window.sendUpahChat = async function() {
+                sendTypingState(false);
+            }
 
-                    const input = $('#upahChatInput');
+            function handleTypingInput() {
 
-                    if (!input.length) {
-                        return;
-                    }
+                if (!upahChatSubscribed) {
+                    return;
+                }
 
-                    const message = String(
-                        input.val() || ''
-                    ).trim();
+                if (!upahTypingActive) {
 
-                    if (!message && !upahPendingImage) {
-                        return;
-                    }
+                    upahTypingActive = true;
 
-                    const channel = getUpahChatChannel();
+                    sendTypingState(true);
+                }
 
-                    if (!channel) {
-                        console.error(
-                            '[UPAH CHAT] Channel Pusher tidak ditemukan.'
-                        );
-                        return;
-                    }
+                if (upahTypingTimer) {
+                    clearTimeout(upahTypingTimer);
+                }
 
-                    if (!upahChatSubscribed) {
-                        console.warn(
-                            '[UPAH CHAT] Channel belum subscribed. Pesan tidak dikirim.'
-                        );
-                        return;
-                    }
-
-                    if (upahImageUploading) {
-                        return;
-                    }
+                upahTypingTimer = setTimeout(function() {
 
                     stopTyping();
 
-                    let imageUrl = '';
+                }, 1800);
+            }
 
-                    try {
+            function bindUpahChat() {
 
-                        if (upahPendingImage) {
+                const channel = getUpahChatChannel();
 
-                            upahImageUploading = true;
+                if (!channel) {
+                    return false;
+                }
 
-                            $('#upahChatSend')
-                                .prop('disabled', true)
-                                .css('opacity', '.6');
+                if (upahChatInitialized) {
+                    return true;
+                }
 
-                            $('#upahChatImagePreviewInfo')
-                                .text('Mengunggah gambar...');
+                console.log(
+                    '[UPAH CHAT] Binding channel:',
+                    window.upahRealtimeChannelName || channel.name
+                );
 
-                            imageUrl = await uploadUpahChatImage(
-                                upahPendingImage
-                            );
-                        }
+                /*
+                 * PENTING:
+                 * subscription_succeeded menentukan bahwa client benar-benar
+                 * sudah masuk ke presence-upah-transaksi.
+                 */
+                channel.bind(
+                    'pusher:subscription_succeeded',
+                    function(members) {
 
-                        const data = {
-                            user_id: currentUserId,
-                            name: currentUserName,
-                            message: message,
-                            image_url: imageUrl,
-                            timestamp: Date.now()
-                        };
+                        upahChatSubscribed = true;
 
                         console.log(
-                            '[UPAH CHAT] SEND:',
-                            data
+                            '[UPAH CHAT] Pusher subscription READY:',
+                            window.upahRealtimeChannelName || channel.name,
+                            'members:',
+                            members ? members.count : '?'
                         );
 
-                        channel.trigger(
-                            UPAH_CHAT_EVENT,
+                        const status = $('#upahChatModal .upah-chat-status');
+
+                        if (status.length) {
+                            status.text('online • Live Chat');
+                        }
+                    }
+                );
+
+                /*
+                 * MESSAGE
+                 */
+                channel.bind(
+                    UPAH_CHAT_EVENT,
+                    function(data) {
+
+                        console.log(
+                            '[UPAH CHAT] MESSAGE RECEIVED:',
                             data
                         );
 
                         appendUpahChatMessage(data);
 
-                        input
-                            .val('')
-                            .css('height', 'auto')
-                            .trigger('focus');
+                        // AUTO OPEN: pesan dari user lain langsung membuka chat.
+                        // Gunakan currentUserId (variabel yang memang tersedia di chat).
+                        if (String(data.user_id) !== String(currentUserId)) {
+                            setTimeout(function() {
+                                if (typeof window.openUpahChat === 'function') {
+                                    window.openUpahChat();
+                                } else {
+                                    // Fallback jika fungsi global belum siap.
+                                    ensureUpahChatModal();
+                                    const modal = $('#upahChatModal');
+                                    if (modal.length) {
+                                        modal.addClass('show')
+                                            .css('display', 'block')
+                                            .attr('aria-hidden', 'false');
+                                        setTimeout(function() {
+                                            $('#upahChatInput').trigger('focus');
+                                            scrollUpahChatToBottom();
+                                        }, 50);
+                                    }
+                                }
+                            }, 50);
+                        }
+                    }
+                );
 
-                        clearUpahPendingImage();
+                /*
+                 * TYPING
+                 */
+                channel.bind(
+                    UPAH_TYPING_EVENT,
+                    function(data) {
 
-                    } catch (error) {
+                        console.log(
+                            '[UPAH CHAT] TYPING RECEIVED:',
+                            data
+                        );
+
+                        receiveTyping(data);
+                    }
+                );
+
+                /*
+                 * DEBUG ERROR
+                 */
+                channel.bind(
+                    'pusher:subscription_error',
+                    function(status) {
+
+                        upahChatSubscribed = false;
 
                         console.error(
-                            '[UPAH CHAT] Kirim/upload gagal:',
-                            error
+                            '[UPAH CHAT] Subscription error:',
+                            status
                         );
-
-                        alert(
-                            'Gagal mengirim pesan/gambar. Periksa route upload gambar.'
-                        );
-
-                    } finally {
-
-                        upahImageUploading = false;
-
-                        $('#upahChatSend')
-                            .prop('disabled', false)
-                            .css('opacity', '');
-                    }
-                };
-
-                window.openUpahChat = function() {
-
-                    ensureUpahChatModal();
-
-                    const modal = $('#upahChatModal');
-
-                    if (!modal.length) {
-                        return;
-                    }
-
-                    modal
-                        .addClass('show')
-                        .css('display', 'block')
-                        .attr('aria-hidden', 'false');
-
-                    // Fokus ke input chat dan posisikan caret (kursor berkedip)
-                    // di akhir teks, termasuk setelah dialog selesai dirender.
-                    function focusLiveChatCaret() {
-                        if (!modal.hasClass('show')) return;
-                        const input = document.getElementById('upahChatInput');
-                        if (!input) return;
-                        input.focus({
-                            preventScroll: true
-                        });
-                        const end = input.value.length;
-                        try {
-                            input.setSelectionRange(end, end);
-                        } catch (err) {}
-                        scrollUpahChatToBottom();
-                    }
-
-                    requestAnimationFrame(focusLiveChatCaret);
-                    setTimeout(focusLiveChatCaret, 80);
-                    setTimeout(function() {
-                        // Jangan merebut fokus jika user sudah pindah ke kontrol lain.
-                        if (modal.hasClass('show') &&
-                            (!modal[0].contains(document.activeElement) ||
-                                document.activeElement === document.body)) {
-                            focusLiveChatCaret();
-                        }
-                    }, 250);
-                };
-
-                window.closeUpahChat = function() {
-
-                    const modal = $('#upahChatModal');
-
-                    if (!modal.length) {
-                        return;
-                    }
-
-                    stopTyping();
-
-                    modal
-                        .removeClass('show')
-                        .css('display', '')
-                        .attr('aria-hidden', 'true');
-
-                    $('#upahChatInput').val('');
-                };
-
-
-                /*
-                 * Attachment button.
-                 */
-                $(document).on(
-                    'click',
-                    '#upahChatAttach',
-                    function(e) {
-                        e.preventDefault();
-                        $('#upahChatImageInput').trigger('click');
                     }
                 );
 
-                $(document).on(
-                    'change',
-                    '#upahChatImageInput',
-                    function() {
-                        if (this.files && this.files[0]) {
-                            setUpahPendingImage(this.files[0]);
-                        }
-                    }
+                upahChatInitialized = true;
+
+                console.log(
+                    '[UPAH CHAT] Event listener berhasil dipasang.'
                 );
 
-                $(document).on(
-                    'click',
-                    '#upahChatImageRemove',
-                    function(e) {
-                        e.preventDefault();
-                        clearUpahPendingImage();
-                        $('#upahChatInput').trigger('focus');
-                    }
-                );
+                return true;
+            }
 
-                /*
-                 * WhatsApp-style paste image from clipboard.
-                 * Ctrl+V screenshot / copied image => preview => Send.
-                 */
-                $(document).on(
-                    'paste',
-                    '#upahChatInput',
-                    function(e) {
+            window.sendUpahChat = async function() {
 
-                        const clipboard = e.originalEvent && e.originalEvent.clipboardData;
+                const input = $('#upahChatInput');
 
-                        if (!clipboard || !clipboard.items) {
-                            return;
-                        }
-
-                        for (let i = 0; i < clipboard.items.length; i++) {
-
-                            const item = clipboard.items[i];
-
-                            if (item.type && item.type.indexOf('image/') === 0) {
-
-                                const file = item.getAsFile();
-
-                                if (file) {
-                                    e.preventDefault();
-                                    setUpahPendingImage(file);
-                                }
-
-                                return;
-                            }
-                        }
-                    }
-                );
-
-                function initUpahChat() {
-
-                    injectUpahChatStyle();
-                    ensureUpahChatModal();
-
-                    if (bindUpahChat()) {
-                        return;
-                    }
-
-                    let attempts = 0;
-
-                    const timer = setInterval(function() {
-
-                        attempts++;
-
-                        if (bindUpahChat()) {
-
-                            clearInterval(timer);
-                            return;
-                        }
-
-                        if (attempts >= 80) {
-
-                            clearInterval(timer);
-
-                            console.error(
-                                '[UPAH CHAT] Channel Pusher tidak ditemukan setelah 20 detik.'
-                            );
-                        }
-
-                    }, 250);
+                if (!input.length) {
+                    return;
                 }
 
-                /*
-                 * Ctrl + Shift + Z
-                 */
-                window.addEventListener(
-                    'keydown',
-                    function(e) {
+                const message = String(
+                    input.val() || ''
+                ).trim();
 
-                        if (
-                            e.ctrlKey &&
-                            e.shiftKey &&
-                            e.code === 'KeyZ'
-                        ) {
+                if (!message && !upahPendingImage) {
+                    return;
+                }
 
-                            e.preventDefault();
-                            e.stopPropagation();
-                            e.stopImmediatePropagation();
+                const channel = getUpahChatChannel();
 
-                            window.openUpahChat();
+                if (!channel) {
+                    console.error(
+                        '[UPAH CHAT] Channel Pusher tidak ditemukan.'
+                    );
+                    return;
+                }
 
-                            return false;
+                if (!upahChatSubscribed) {
+                    console.warn(
+                        '[UPAH CHAT] Channel belum subscribed. Pesan tidak dikirim.'
+                    );
+                    return;
+                }
+
+                if (upahImageUploading) {
+                    return;
+                }
+
+                stopTyping();
+
+                let imageUrl = '';
+
+                try {
+
+                    if (upahPendingImage) {
+
+                        upahImageUploading = true;
+
+                        $('#upahChatSend')
+                            .prop('disabled', true)
+                            .css('opacity', '.6');
+
+                        $('#upahChatImagePreviewInfo')
+                            .text('Mengunggah gambar...');
+
+                        imageUrl = await uploadUpahChatImage(
+                            upahPendingImage
+                        );
+                    }
+
+                    const data = {
+                        user_id: currentUserId,
+                        name: currentUserName,
+                        message: message,
+                        image_url: imageUrl,
+                        timestamp: Date.now()
+                    };
+
+                    console.log(
+                        '[UPAH CHAT] SEND:',
+                        data
+                    );
+
+                    channel.trigger(
+                        UPAH_CHAT_EVENT,
+                        data
+                    );
+
+                    appendUpahChatMessage(data);
+
+                    input
+                        .val('')
+                        .css('height', 'auto')
+                        .trigger('focus');
+
+                    clearUpahPendingImage();
+
+                } catch (error) {
+
+                    console.error(
+                        '[UPAH CHAT] Kirim/upload gagal:',
+                        error
+                    );
+
+                    alert(
+                        'Gagal mengirim pesan/gambar. Periksa route upload gambar.'
+                    );
+
+                } finally {
+
+                    upahImageUploading = false;
+
+                    $('#upahChatSend')
+                        .prop('disabled', false)
+                        .css('opacity', '');
+                }
+            };
+
+            window.openUpahChat = function() {
+
+                ensureUpahChatModal();
+
+                const modal = $('#upahChatModal');
+
+                if (!modal.length) {
+                    return;
+                }
+
+                modal
+                    .addClass('show')
+                    .css('display', 'block')
+                    .attr('aria-hidden', 'false');
+
+                // Fokus ke input chat dan posisikan caret (kursor berkedip)
+                // di akhir teks, termasuk setelah dialog selesai dirender.
+                function focusLiveChatCaret() {
+                    if (!modal.hasClass('show')) return;
+                    const input = document.getElementById('upahChatInput');
+                    if (!input) return;
+                    input.focus({
+                        preventScroll: true
+                    });
+                    const end = input.value.length;
+                    try {
+                        input.setSelectionRange(end, end);
+                    } catch (err) {}
+                    scrollUpahChatToBottom();
+                }
+
+                requestAnimationFrame(focusLiveChatCaret);
+                setTimeout(focusLiveChatCaret, 80);
+                setTimeout(function() {
+                    // Jangan merebut fokus jika user sudah pindah ke kontrol lain.
+                    if (modal.hasClass('show') &&
+                        (!modal[0].contains(document.activeElement) ||
+                            document.activeElement === document.body)) {
+                        focusLiveChatCaret();
+                    }
+                }, 250);
+            };
+
+            window.closeUpahChat = function() {
+
+                const modal = $('#upahChatModal');
+
+                if (!modal.length) {
+                    return;
+                }
+
+                stopTyping();
+
+                modal
+                    .removeClass('show')
+                    .css('display', '')
+                    .attr('aria-hidden', 'true');
+
+                $('#upahChatInput').val('');
+            };
+
+
+            /*
+             * Attachment button.
+             */
+            $(document).on(
+                'click',
+                '#upahChatAttach',
+                function(e) {
+                    e.preventDefault();
+                    $('#upahChatImageInput').trigger('click');
+                }
+            );
+
+            $(document).on(
+                'change',
+                '#upahChatImageInput',
+                function() {
+                    if (this.files && this.files[0]) {
+                        setUpahPendingImage(this.files[0]);
+                    }
+                }
+            );
+
+            $(document).on(
+                'click',
+                '#upahChatImageRemove',
+                function(e) {
+                    e.preventDefault();
+                    clearUpahPendingImage();
+                    $('#upahChatInput').trigger('focus');
+                }
+            );
+
+            /*
+             * WhatsApp-style paste image from clipboard.
+             * Ctrl+V screenshot / copied image => preview => Send.
+             */
+            $(document).on(
+                'paste',
+                '#upahChatInput',
+                function(e) {
+
+                    const clipboard = e.originalEvent && e.originalEvent.clipboardData;
+
+                    if (!clipboard || !clipboard.items) {
+                        return;
+                    }
+
+                    for (let i = 0; i < clipboard.items.length; i++) {
+
+                        const item = clipboard.items[i];
+
+                        if (item.type && item.type.indexOf('image/') === 0) {
+
+                            const file = item.getAsFile();
+
+                            if (file) {
+                                e.preventDefault();
+                                setUpahPendingImage(file);
+                            }
+
+                            return;
                         }
+                    }
+                }
+            );
 
-                        if (
-                            e.key === 'Escape' &&
-                            $('#upahChatModal').hasClass('show')
-                        ) {
+            function initUpahChat() {
 
-                            e.preventDefault();
+                injectUpahChatStyle();
+                ensureUpahChatModal();
 
-                            window.closeUpahChat();
-                        }
+                if (bindUpahChat()) {
+                    return;
+                }
 
-                    },
-                    true
-                );
+                let attempts = 0;
 
-                /*
-                 * Close
-                 */
-                $(document).on(
-                    'click',
-                    '#upahChatClose',
-                    function(e) {
+                const timer = setInterval(function() {
+
+                    attempts++;
+
+                    if (bindUpahChat()) {
+
+                        clearInterval(timer);
+                        return;
+                    }
+
+                    if (attempts >= 80) {
+
+                        clearInterval(timer);
+
+                        console.error(
+                            '[UPAH CHAT] Channel Pusher tidak ditemukan setelah 20 detik.'
+                        );
+                    }
+
+                }, 250);
+            }
+
+            /*
+             * Ctrl + Shift + Z
+             */
+            window.addEventListener(
+                'keydown',
+                function(e) {
+
+                    if (
+                        e.ctrlKey &&
+                        e.shiftKey &&
+                        e.code === 'KeyZ'
+                    ) {
 
                         e.preventDefault();
                         e.stopPropagation();
+                        e.stopImmediatePropagation();
+
+                        window.openUpahChat();
+
+                        return false;
+                    }
+
+                    if (
+                        e.key === 'Escape' &&
+                        $('#upahChatModal').hasClass('show')
+                    ) {
+
+                        e.preventDefault();
 
                         window.closeUpahChat();
                     }
-                );
 
-                /*
-                 * Send
-                 */
-                $(document).on(
-                    'click',
-                    '#upahChatSend',
-                    function(e) {
+                },
+                true
+            );
+
+            /*
+             * Close
+             */
+            $(document).on(
+                'click',
+                '#upahChatClose',
+                function(e) {
+
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    window.closeUpahChat();
+                }
+            );
+
+            /*
+             * Send
+             */
+            $(document).on(
+                'click',
+                '#upahChatSend',
+                function(e) {
+
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    window.sendUpahChat();
+                }
+            );
+
+            /*
+             * Input:
+             * - Enter = send
+             * - Shift + Enter = new line
+             * - Ctrl + Enter = send
+             */
+            $(document).on(
+                'keydown',
+                '#upahChatInput',
+                function(e) {
+
+                    if (
+                        e.key === 'Enter' &&
+                        !e.shiftKey
+                    ) {
 
                         e.preventDefault();
-                        e.stopPropagation();
+
+                        window.sendUpahChat();
+
+                        return;
+                    }
+
+                    if (
+                        e.key === 'Enter' &&
+                        e.ctrlKey
+                    ) {
+
+                        e.preventDefault();
 
                         window.sendUpahChat();
                     }
-                );
+                }
+            );
 
-                /*
-                 * Input:
-                 * - Enter = send
-                 * - Shift + Enter = new line
-                 * - Ctrl + Enter = send
-                 */
-                $(document).on(
-                    'keydown',
-                    '#upahChatInput',
-                    function(e) {
+            /*
+             * Detect typing realtime.
+             */
+            $(document).on(
+                'input',
+                '#upahChatInput',
+                function() {
 
-                        if (
-                            e.key === 'Enter' &&
-                            !e.shiftKey
-                        ) {
+                    const value = String(
+                        $(this).val() || ''
+                    ).trim();
 
-                            e.preventDefault();
+                    if (value.length > 0) {
 
-                            window.sendUpahChat();
+                        handleTypingInput();
 
-                            return;
-                        }
+                    } else {
 
-                        if (
-                            e.key === 'Enter' &&
-                            e.ctrlKey
-                        ) {
-
-                            e.preventDefault();
-
-                            window.sendUpahChat();
-                        }
-                    }
-                );
-
-                /*
-                 * Detect typing realtime.
-                 */
-                $(document).on(
-                    'input',
-                    '#upahChatInput',
-                    function() {
-
-                        const value = String(
-                            $(this).val() || ''
-                        ).trim();
-
-                        if (value.length > 0) {
-
-                            handleTypingInput();
-
-                        } else {
-
-                            stopTyping();
-                        }
-
-                        /*
-                         * Auto resize textarea seperti WhatsApp.
-                         */
-                        this.style.height = 'auto';
-                        this.style.height =
-                            Math.min(this.scrollHeight, 105) + 'px';
-                    }
-                );
-
-                /*
-                 * Jika pindah tab / window, kirim typing=false.
-                 */
-                $(window).on(
-                    'blur',
-                    function() {
                         stopTyping();
                     }
-                );
-
-                $(document).ready(function() {
-
-                    initUpahChat();
 
                     /*
-                     * Refresh typing indicator setiap 1 detik
-                     * supaya user otomatis hilang setelah timeout.
+                     * Auto resize textarea seperti WhatsApp.
                      */
-                    setInterval(function() {
-                        renderUpahTyping();
-                    }, 1000);
-                });
-
-            })();
-        </script>
-
-        {{-- Remote mouse cursors: same Pusher event/channel as Transaksi Upah. --}}
-        <style>
-            #releaseRemoteCursors {
-                position: fixed;
-                inset: 0;
-                pointer-events: none;
-                z-index: 9999999;
-            }
-
-            .release-remote-cursor {
-                position: fixed;
-                pointer-events: none;
-                transform: translate(-1px, -1px);
-                transition: left 90ms linear, top 90ms linear;
-                will-change: left, top;
-            }
-
-            .release-remote-cursor-arrow {
-                width: 0;
-                height: 0;
-                border-bottom: 15px solid transparent;
-                border-left: 11px solid #2563eb;
-                transform: rotate(-42deg);
-                filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .25));
-            }
-
-            .release-remote-cursor-name {
-                position: absolute;
-                left: 9px;
-                top: 12px;
-                padding: 3px 7px;
-                border-radius: 4px;
-                background: #2563eb;
-                color: #fff;
-                font-size: 10px;
-                font-weight: 700;
-                line-height: 1.2;
-                white-space: nowrap;
-                box-shadow: 0 2px 5px rgba(0, 0, 0, .18);
-            }
-
-            .release-remote-cursor.is-idle {
-                opacity: .45;
-            }
-        .release-search-line {display:flex;align-items:center;gap:10px;min-width:0}
-     .release-search-line .form-control {flex:1;min-width:0}
-     .release-found-counter {white-space:nowrap;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:9px 11px;border-radius:9px;font-size:11px;font-weight:700}
-     .release-match-badge {display:inline-block;margin:5px 0 0;padding:3px 7px;background:#eaf3ff;border:1px solid #bfdbfe;color:#1d4ed8;border-radius:6px;font-size:10px;font-weight:700;cursor:help;white-space:normal}
-     @media(max-width:650px){.release-search-line{flex-wrap:wrap}}
-     </style>
-        <div id="releaseRemoteCursors" aria-hidden="true"></div>
-        <script>
-            (function() {
-                'use strict';
-                // Share the existing Pusher connection created for the chat; never subscribe twice.
-                const myId = @json(auth()->id());
-                const myName = @json(auth()->user()->name ?? 'User');
-                const root = document.getElementById('releaseRemoteCursors');
-                if (!myId || !root) return;
-                const cursors = new Map();
-                let channel = null,
-                    attached = false,
-                    lastSent = 0,
-                    lastX = null,
-                    lastY = null;
-
-                function remove(id) {
-                    const key = String(id),
-                        state = cursors.get(key);
-                    if (state) {
-                        state.el.remove();
-                        cursors.delete(key);
-                    }
+                    this.style.height = 'auto';
+                    this.style.height =
+                        Math.min(this.scrollHeight, 105) + 'px';
                 }
+            );
 
-                function update(data) {
-                    if (!data || data.user_id == null || String(data.user_id) === String(myId)) return;
-                    const x = Number(data.x),
-                        y = Number(data.y);
-                    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-                    const id = String(data.user_id);
-                    let state = cursors.get(id);
-                    if (!state) {
-                        const el = document.createElement('div');
-                        el.className = 'release-remote-cursor';
-                        const arrow = document.createElement('div');
-                        arrow.className = 'release-remote-cursor-arrow';
-                        const name = document.createElement('div');
-                        name.className = 'release-remote-cursor-name';
-                        el.append(arrow, name);
-                        root.appendChild(el);
-                        state = {
-                            el,
-                            name,
-                            lastMove: 0
-                        };
-                        cursors.set(id, state);
-                    }
-                    state.name.textContent = String(data.name || 'User');
-                    state.el.style.left = x + 'px';
-                    state.el.style.top = y + 'px';
-                    state.lastMove = Date.now();
-                    state.el.classList.remove('is-idle');
+            /*
+             * Jika pindah tab / window, kirim typing=false.
+             */
+            $(window).on(
+                'blur',
+                function() {
+                    stopTyping();
                 }
+            );
 
-                function onMove(event) {
-                    if (!channel || !channel.subscribed) return;
-                    const now = Date.now(),
-                        x = event.clientX,
-                        y = event.clientY;
-                    if (now - lastSent < 150) return;
-                    if (lastX !== null && Math.hypot(x - lastX, y - lastY) < 5) return;
-                    lastSent = now;
-                    lastX = x;
-                    lastY = y;
-                    try {
-                        channel.trigger('client-upah-cursor', {
-                            user_id: myId,
-                            name: myName,
-                            x,
-                            y
-                        });
-                    } catch (err) {
-                        console.warn('[RELEASE ORDER Cursor] Send failed', err);
-                    }
-                }
+            $(document).ready(function() {
 
-                function attach() {
-                    if (attached) return true;
-                    const shared = window.upahRealtimeChannel;
-                    if (!shared || typeof shared.bind !== 'function') return false;
-                    channel = shared;
-                    attached = true;
-                    channel.bind('client-upah-cursor', update);
-                    channel.bind('pusher:member_removed', function(member) {
-                        if (member) remove(member.id);
-                    });
-                    document.addEventListener('mousemove', onMove, {
-                        passive: true
-                    });
-                    console.log('[RELEASE ORDER Cursor] Attached to', channel.name);
-                    return true;
-                }
-                if (!attach()) {
-                    let attempts = 0;
-                    const wait = setInterval(function() {
-                        if (attach() || ++attempts >= 100) clearInterval(wait);
-                    }, 100);
-                }
-                const idle = setInterval(function() {
-                    const now = Date.now();
-                    cursors.forEach(function(state) {
-                        state.el.classList.toggle('is-idle', now - state.lastMove > 5000);
-                    });
+                initUpahChat();
+
+                /*
+                 * Refresh typing indicator setiap 1 detik
+                 * supaya user otomatis hilang setelah timeout.
+                 */
+                setInterval(function() {
+                    renderUpahTyping();
                 }, 1000);
-                window.addEventListener('beforeunload', function() {
-                    clearInterval(idle);
-                    document.removeEventListener('mousemove', onMove);
-                    if (channel) channel.unbind('client-upah-cursor', update);
+            });
+
+        })();
+    </script>
+
+    {{-- Remote mouse cursors: same Pusher event/channel as Transaksi Upah. --}}
+    <style>
+        #releaseRemoteCursors {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 9999999;
+        }
+
+        .release-remote-cursor {
+            position: fixed;
+            pointer-events: none;
+            transform: translate(-1px, -1px);
+            transition: left 90ms linear, top 90ms linear;
+            will-change: left, top;
+        }
+
+        .release-remote-cursor-arrow {
+            width: 0;
+            height: 0;
+            border-bottom: 15px solid transparent;
+            border-left: 11px solid #2563eb;
+            transform: rotate(-42deg);
+            filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .25));
+        }
+
+        .release-remote-cursor-name {
+            position: absolute;
+            left: 9px;
+            top: 12px;
+            padding: 3px 7px;
+            border-radius: 4px;
+            background: #2563eb;
+            color: #fff;
+            font-size: 10px;
+            font-weight: 700;
+            line-height: 1.2;
+            white-space: nowrap;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, .18);
+        }
+
+        .release-remote-cursor.is-idle {
+            opacity: .45;
+        }
+
+        .release-search-line {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0
+        }
+
+        .release-search-line .form-control {
+            flex: 1;
+            min-width: 0
+        }
+
+        .release-found-counter {
+            white-space: nowrap;
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+            padding: 9px 11px;
+            border-radius: 9px;
+            font-size: 11px;
+            font-weight: 700
+        }
+
+        .release-match-badge {
+            display: inline-block;
+            margin: 5px 0 0;
+            padding: 3px 7px;
+            background: #eaf3ff;
+            border: 1px solid #bfdbfe;
+            color: #1d4ed8;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+            cursor: help;
+            white-space: normal
+        }
+
+        @media(max-width:650px) {
+            .release-search-line {
+                flex-wrap: wrap
+            }
+        }
+    </style>
+    <div id="releaseRemoteCursors" aria-hidden="true"></div>
+    <script>
+        (function() {
+            'use strict';
+            // Share the existing Pusher connection created for the chat; never subscribe twice.
+            const myId = @json(auth()->id());
+            const myName = @json(auth()->user()->name ?? 'User');
+            const root = document.getElementById('releaseRemoteCursors');
+            if (!myId || !root) return;
+            const cursors = new Map();
+            let channel = null,
+                attached = false,
+                lastSent = 0,
+                lastX = null,
+                lastY = null;
+
+            function remove(id) {
+                const key = String(id),
+                    state = cursors.get(key);
+                if (state) {
+                    state.el.remove();
+                    cursors.delete(key);
+                }
+            }
+
+            function update(data) {
+                if (!data || data.user_id == null || String(data.user_id) === String(myId)) return;
+                const x = Number(data.x),
+                    y = Number(data.y);
+                if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+                const id = String(data.user_id);
+                let state = cursors.get(id);
+                if (!state) {
+                    const el = document.createElement('div');
+                    el.className = 'release-remote-cursor';
+                    const arrow = document.createElement('div');
+                    arrow.className = 'release-remote-cursor-arrow';
+                    const name = document.createElement('div');
+                    name.className = 'release-remote-cursor-name';
+                    el.append(arrow, name);
+                    root.appendChild(el);
+                    state = {
+                        el,
+                        name,
+                        lastMove: 0
+                    };
+                    cursors.set(id, state);
+                }
+                state.name.textContent = String(data.name || 'User');
+                state.el.style.left = x + 'px';
+                state.el.style.top = y + 'px';
+                state.lastMove = Date.now();
+                state.el.classList.remove('is-idle');
+            }
+
+            function onMove(event) {
+                if (!channel || !channel.subscribed) return;
+                const now = Date.now(),
+                    x = event.clientX,
+                    y = event.clientY;
+                if (now - lastSent < 150) return;
+                if (lastX !== null && Math.hypot(x - lastX, y - lastY) < 5) return;
+                lastSent = now;
+                lastX = x;
+                lastY = y;
+                try {
+                    channel.trigger('client-upah-cursor', {
+                        user_id: myId,
+                        name: myName,
+                        x,
+                        y
+                    });
+                } catch (err) {
+                    console.warn('[RELEASE ORDER Cursor] Send failed', err);
+                }
+            }
+
+            function attach() {
+                if (attached) return true;
+                const shared = window.upahRealtimeChannel;
+                if (!shared || typeof shared.bind !== 'function') return false;
+                channel = shared;
+                attached = true;
+                channel.bind('client-upah-cursor', update);
+                channel.bind('pusher:member_removed', function(member) {
+                    if (member) remove(member.id);
                 });
-            })();
-        </script>
-    @endsection
+                document.addEventListener('mousemove', onMove, {
+                    passive: true
+                });
+                console.log('[RELEASE ORDER Cursor] Attached to', channel.name);
+                return true;
+            }
+            if (!attach()) {
+                let attempts = 0;
+                const wait = setInterval(function() {
+                    if (attach() || ++attempts >= 100) clearInterval(wait);
+                }, 100);
+            }
+            const idle = setInterval(function() {
+                const now = Date.now();
+                cursors.forEach(function(state) {
+                    state.el.classList.toggle('is-idle', now - state.lastMove > 5000);
+                });
+            }, 1000);
+            window.addEventListener('beforeunload', function() {
+                clearInterval(idle);
+                document.removeEventListener('mousemove', onMove);
+                if (channel) channel.unbind('client-upah-cursor', update);
+            });
+        })();
+    </script>
+@endsection

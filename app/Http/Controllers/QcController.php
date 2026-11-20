@@ -1870,63 +1870,68 @@ class QcController extends Controller
         // dd( $pos );
         return response()->json($pos);
     }
-
     public function ajaxPoList(Request $request)
     {
         $q = trim((string) $request->query('q', ''));
         $type = $request->query('type');
         $sort = $request->query('sort') === 'asc' ? 'asc' : 'desc';
+        $tab = $request->query('tab', 'release_order');
 
-        $query = Po::query()
-            ->select([
-                'id',
-                'order_no',
-                'company_name',
-                'country',
-                'release_date',
-                'shipment_date',
-                'act_ship',
-                'value',
-                'cont_numb',
-                'do_released',
-            ]);
+        $query = Po::query()->select([
+            'id',
+            'order_no',
+            'company_name',
+            'country',
+            'release_date',
+            'shipment_date',
+            'act_ship',
+            'value',
+            'cont_numb',
+            'do_released',
+            'status',
+        ]);
 
-        /*
-        |--------------------------------------------------------------------------
-        | SEARCH PO / COMPANY
-        |--------------------------------------------------------------------------
-        */
+        // Restrict buyer agreement data to authorized email local-parts.
+        $email = strtolower(trim((string) (auth()->user()->email ?? '')));
+        $localPart = explode('@', $email)[0];
+        if (in_array($localPart, ['office', 'info', 'sales'], true)) {
+            $query->addSelect('agreement_buyers_date');
+        }
+
         if ($q !== '') {
             $query->where(function ($sub) use ($q) {
                 $sub->where('order_no', 'LIKE', '%' . $q . '%')
                     ->orWhere('company_name', 'LIKE', '%' . $q . '%');
             });
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | FILTER NW / NWS
-        |--------------------------------------------------------------------------
-        */
         if ($type === 'NWS') {
             $query->where('order_no', 'LIKE', 'NWS%');
-
         } elseif ($type === 'NW') {
             $query->where('order_no', 'LIKE', 'NW%')
                 ->where('order_no', 'NOT LIKE', 'NWS%');
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | SORT + LIMIT
-        |--------------------------------------------------------------------------
-        */
-        $pos = $query
-            ->orderBy('order_no', $sort)
-            ->limit(100)
-            ->get();
+        $withShipment = static function ($builder) {
+            return $builder->whereNotNull('act_ship')
+                ->where('act_ship', '<>', '')
+                ->where('act_ship', '<>', '-')
+                ->where('act_ship', '<>', '0000-00-00')
+                ->where('act_ship', '<>', '0000-00-00 00:00:00');
+        };
 
-        return response()->json($pos);
+        if ($request->boolean('counts')) {
+            return response()->json([
+                'release_order' => (clone $query)->count(),
+                'has_shipment' => $withShipment(clone $query)->count(),
+            ]);
+        }
+
+        // Release Order = ALL. Shipped = only orders with actual shipment.
+        if ($tab === 'has_shipment') {
+            $withShipment($query);
+        }
+
+        return response()->json($query->orderBy('order_no', $sort)->limit(100)->get());
     }
 
     //   public function ajaxPoList(Request $request)
@@ -10372,4 +10377,3 @@ class QcController extends Controller
 
 }
 
-    

@@ -1363,9 +1363,10 @@ class PoController extends Controller
         $request->validate([
             'id' => 'required|exists:po,id',
             'field' => 'required|string',
-            'value' => 'nullable'
+            'value' => 'nullable',
         ]);
 
+        // Daftar field lama tetap dipertahankan.
         $allowed = [
             'order_no',
             'company_name',
@@ -1377,25 +1378,64 @@ class PoController extends Controller
             'cont_numb',
             'do_released',
             'remark',
-            'category'
+            'category',
+            'agreement_buyers_date',
         ];
 
-        if (!in_array($request->field, $allowed)) {
+        $field = (string) $request->input('field');
+
+        if (!in_array($field, $allowed, true)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Field tidak diizinkan'
+                'message' => 'Field tidak diizinkan',
             ], 422);
         }
 
-        $po = Po::findOrFail($request->id);
+        // Pembatasan akses field Agreement Buyers Date di sisi server.
+        $email = strtolower(trim((string) optional($request->user())->email));
+        $emailLocal = explode('@', $email)[0];
+        $canAccessAgreement = in_array($emailLocal, ['office', 'info', 'sales'], true);
 
-        $po->{$request->field} = $request->value;
+        if ($field === 'agreement_buyers_date' && !$canAccessAgreement) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tidak memiliki akses ke Agreement Buyers Date',
+            ], 403);
+        }
+
+        if (in_array($field, ['release_date', 'shipment_date', 'act_ship', 'agreement_buyers_date'], true)) {
+            $request->validate([
+                'value' => 'nullable|date_format:Y-m-d',
+            ]);
+        }
+
+        $po = Po::findOrFail($request->input('id'));
+        $value = $request->input('value');
+
+        // Untuk input date kosong, simpan NULL agar status dan filter konsisten.
+        if (
+            in_array($field, ['release_date', 'shipment_date', 'act_ship', 'agreement_buyers_date'], true)
+            && ($value === '' || $value === null)
+        ) {
+            $value = null;
+        }
+
+        $po->{$field} = $value;
+
+        // Status diturunkan otomatis dari Actual Shipment; tidak perlu diedit manual.
+        // Sinkronkan juga ketika field lain diperbarui agar data lama tetap konsisten.
+        $actualShip = trim((string) $po->act_ship);
+        $hasShipped = !in_array($actualShip, ['', '-', '0000-00-00', '0000-00-00 00:00:00'], true);
+        $po->status = $hasShipped ? 'close' : 'open';
 
         $po->save();
 
         return response()->json([
             'success' => true,
-            'message' => 'Data berhasil disimpan'
+            'message' => 'Data berhasil disimpan',
+            'status' => $po->status,
+            'act_ship' => $po->act_ship,
         ]);
     }
+
 }

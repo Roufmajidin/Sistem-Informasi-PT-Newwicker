@@ -22,7 +22,9 @@ class Po extends Model
         'packing',
         'contact_person',
         'detail',
-        'etd'
+        'etd',
+        'agreement_buyers_date',
+        'status',
     ];
 
     public function details()
