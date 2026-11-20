@@ -52,6 +52,7 @@ use App\Http\Controllers\SpkQrLabelController;
 use App\Http\Controllers\ScanController;
 use App\Http\Controllers\IncomingWarehouseController;
 use App\Http\Controllers\ArController2026;
+use App\Http\Controllers\TomoController;
 
 Route::middleware(['auth'])
     ->prefix('warehouse/incoming')
@@ -67,7 +68,9 @@ Route::middleware(['auth'])
             'data'
         ])->name('data');
     });
-
+Route::get('/produksi/tomo', [TomoController::class, 'index'])
+    ->name('produksi.tomo');
+    
 Route::get('/scan-spk', [ScanController::class, 'index'])
     ->name('scan-spk.index');
 
