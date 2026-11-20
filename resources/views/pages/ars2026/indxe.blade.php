@@ -1638,6 +1638,25 @@
                 'settlement_date', 'settlement_amount', null, 'remark'
             ];
 
+            // Shipment lengkap dengan FOB PEB: 17 kolom, termasuk 2 kolom rumus.
+            // Urutan: customer, PO, invoice, shipment, pengajuan PEB, PEB,
+            // FOB, FOB PEB, kurs, container, jumlah IDR, deposit date,
+            // deposit USD, settlement date, settlement USD, sisa USD, remark.
+            const shipmentExcelWithPebColumns = [
+                'customer_name', 'po_number', 'invoice_number', 'shipment_date',
+                'peb_submission_number', 'peb_number', 'fob_usd', 'fob_peb_usd',
+                'exchange_rate', 'container_count', null, 'deposit_date',
+                'deposit_amount', 'settlement_date', 'settlement_amount', null, 'remark'
+            ];
+
+            function isShipmentWithPebLayout(cells) {
+                return cells.length === 17 &&
+                    isExcelDateText(cells[3]) &&
+                    isExcelDateText(cells[11]) &&
+                    isExcelDateText(cells[13]) &&
+                    Number.isFinite(excelNumber(cells[9]) === '' ? NaN : Number(excelNumber(cells[9])));
+            }
+
             function isExcelDateText(value) {
                 return /^\d{1,4}[\/-]\d{1,2}[\/-]\d{2,4}$/.test(String(value ?? '').trim());
             }
@@ -1728,8 +1747,23 @@
                 }
                 const grid = clipboard.replace(/\r\n?/g, '\n').replace(/\n$/, '').split('\n').map(line =>
                     line.split('\t'));
-                const visible = filtered();
-                const startRow = visible.findIndex(r => r.id === Number(target.dataset.id));
+                // Baris yang diklik menentukan BULAN TUJUAN paste.
+                // Jangan pernah melanjutkan paste ke baris bulan berikutnya.
+                const targetId = Number(target.dataset.id);
+                const anchor = rows.find(r => Number(r.id) === targetId);
+                if (!anchor) return;
+                const targetMonth = Number(anchor.month_number);
+                if (!Number.isInteger(targetMonth) || targetMonth < 1 || targetMonth > 12) {
+                    status('Bulan target belum valid. Pilih baris pada bulan ARS yang benar.', true);
+                    return;
+                }
+                const visible = filtered().slice().sort((a, b) =>
+                    Number(a.month_number) - Number(b.month_number) ||
+                    Number(a.sort_order || a.id) - Number(b.sort_order || b.id) ||
+                    Number(a.id) - Number(b.id)
+                );
+                const monthRows = visible.filter(r => Number(r.month_number) === targetMonth);
+                const startRow = monthRows.findIndex(r => Number(r.id) === targetId);
                 if (startRow < 0) return;
                 const plan = [];
                 try {
@@ -1743,10 +1777,13 @@
                         // 17/19 = format yang sama tetapi dengan kolom No di paling kiri.
                         if (startColumn === 0) {
                             const firstIsNo = /^\d+$/.test(String(cells[0] ?? '').trim());
-                            if ((cells.length === 17 || cells.length === 19) && firstIsNo) {
+                            if (firstIsNo && ((cells.length === 17 || cells.length === 19) ||
+                                (cells.length === 18 && isShipmentWithPebLayout(cells.slice(1))))) {
                                 cells.shift();
                             }
-                            if (isShipmentExcelLayout(cells)) {
+                            if (isShipmentWithPebLayout(cells)) {
+                                columnMap = shipmentExcelWithPebColumns;
+                            } else if (isShipmentExcelLayout(cells)) {
                                 columnMap = shipmentExcelColumns;
                             } else if (cells.length === 16) {
                                 columnMap = pasteColumns.filter(field => field !== null);
@@ -1786,15 +1823,15 @@
                 if (!plan.length) return;
                 // Avoid writing into hidden rows when a search/month filter is active.
                 // Appended rows are created at the bottom of the unfiltered sheet.
-                const existingCount = Math.min(plan.length, Math.max(0, visible.length - startRow));
+                const existingCount = Math.min(plan.length, Math.max(0, monthRows.length - startRow));
                 const createCount = plan.length - existingCount;
-                if (createCount > 0 && (el('ars-search').value.trim() || el('ars-month').value !== '')) {
-                    status('Untuk paste yang menambah baris, kosongkan pencarian dan pilih Semua bulan dahulu.',
+                if (createCount > 0 && el('ars-search').value.trim()) {
+                    status('Untuk paste yang menambah baris, kosongkan pencarian dahulu. Filter bulan boleh tetap aktif.',
                         true);
                     return;
                 }
                 if (!confirm(
-                        `Paste ${plan.length} baris dari Excel? ${createCount} baris baru akan dibuat dan perubahan langsung tersimpan.`
+                        `Paste ${plan.length} baris ke bulan ${months[targetMonth - 1]} 2026? ${existingCount} baris bulan ini akan diperbarui, ${createCount} baris baru dibuat. Baris bulan lain tidak akan diubah.`
                     )) return;
                 pasteProcessing = true;
                 busy = true;
@@ -1806,12 +1843,13 @@
                             rowOffset,
                             patch
                         } = plan[i];
-                        const current = visible[startRow + rowOffset];
+                        const current = monthRows[startRow + rowOffset];
                         if (current) {
                             const candidate = {
                                 ...current,
                                 ...patch
                             };
+                            candidate.month_number = targetMonth;
                             const result = await api(url(urls.update, current.id), 'PUT', payload(
                                 candidate));
                             Object.assign(current, result.row);
@@ -1819,8 +1857,7 @@
                             const candidate = {
                                 ...empty(),
                                 ...patch,
-                                month_number: (visible[startRow]?.month_number || activeMonths.at(-1) ||
-                                    1)
+                                month_number: targetMonth
                             };
                             const result = await api(urls.store, 'POST', payload(candidate));
                             rows.push(result.row);
@@ -1830,7 +1867,7 @@
                     }
                     sortRows();
                     render();
-                    status(`${completed} baris berhasil ditempel dan disimpan.`);
+                    status(`${completed} baris berhasil ditempel ke bulan ${months[targetMonth - 1]} 2026 dan disimpan.`);
                 } catch (err) {
                     status(`Paste berhenti pada baris ${completed+1}: ${err.message}. ${completed} baris sebelumnya sudah tersimpan. Memuat ulang data...`,
                         true);
