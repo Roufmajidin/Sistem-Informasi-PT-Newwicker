@@ -1160,36 +1160,36 @@
             return;
         }
 
-        // Grid modul 3 kolom: semua user dan modul tetap ditampilkan.
-        const width = 1060;
+        // Ultra compact: 3 kolom, chip pendek, dan jarak cabang minimum.
+        const width = 830;
         const cols = 3;
-        const cardW = 218,
-            cardH = 38,
-            gapX = 12,
-            gapY = 12;
+        const cardW = 172,
+            cardH = 25,
+            gapX = 5,
+            gapY = 5;
         const rowStep = cardH + gapY;
-        const xMain = 30,
-            xUser = 75,
-            xHub = 337,
-            xCards = 367;
-        const groupGap = 25;
+        const xMain = 14,
+            xUser = 37,
+            xHub = 280,
+            xCards = 292;
+        const groupGap = 9;
         const layout = [];
-        let cursor = 36;
+        let cursor = 12;
         rows.forEach((user, i) => {
             const count = Math.max(1, (user.modules || []).length);
             const lines = Math.ceil(count / cols);
-            const h = Math.max(100, lines * rowStep + 22);
+            const h = Math.max(44, lines * rowStep + 8);
             layout.push({
                 top: cursor,
-                center: cursor + 35,
+                center: cursor + 18,
                 height: h,
                 color: treePalette[i % treePalette.length]
             });
             cursor += h + groupGap;
         });
-        const height = cursor + 8;
+        const height = cursor + 2;
         const parts = [
-            `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="User activity tree Web dan API hari ini" style="width:100%;height:auto;min-width:760px;display:block">`
+            `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="User activity tree Web dan API hari ini" style="width:100%;height:auto;min-width:580px;display:block">`
         ];
         if (rows.length > 1) {
             parts.push(
@@ -1205,33 +1205,33 @@
             const mods = Array.isArray(user.modules) ? user.modules : [];
             const total = Number(user.total || 0).toLocaleString('id-ID');
             parts.push(
-                `<circle cx="${xMain}" cy="${center}" r="8" fill="${color}" stroke="#fff" stroke-width="2.5"/>`
+                `<circle cx="${xMain}" cy="${center}" r="5" fill="${color}" stroke="#fff" stroke-width="1.5"/>`
                 );
             parts.push(
-                `<path d="M${xMain+9} ${center} H${xUser-12}" stroke="${color}" stroke-width="3" fill="none"/>`
+                `<path d="M${xMain+6} ${center} H${xUser-5}" stroke="${color}" stroke-width="3" fill="none"/>`
                 );
             parts.push(
-                `<text x="${xUser}" y="${center-6}" font-size="17" font-weight="700" fill="currentColor">${treeEscape(user.name || 'Unknown')}</text>`
+                `<text x="${xUser}" y="${center-3}" font-size="12" font-weight="700" fill="currentColor">${treeEscape(user.name || 'Unknown')}</text>`
                 );
             parts.push(
-                `<text x="${xUser}" y="${center+16}" font-size="12" font-weight="600" fill="${color}">${total} requests</text>`
+                `<text x="${xUser}" y="${center+11}" font-size="9" font-weight="600" fill="${color}">${total} requests</text>`
                 );
             if (!mods.length) return;
             const rowCount = Math.ceil(mods.length / cols);
-            const firstY = top + 17 + cardH / 2;
+            const firstY = top + 4 + cardH / 2;
             const lastY = firstY + (rowCount - 1) * rowStep;
             const hubY = (firstY + lastY) / 2;
             // Cabang pendek ke tulang modul; tiap baris punya tiga chip sejajar.
             parts.push(
-                `<path d="M${xUser+175} ${center} C${xHub-35} ${center}, ${xHub-35} ${hubY}, ${xHub} ${hubY}" fill="none" stroke="${color}" stroke-width="2.3" stroke-linecap="round"/>`
+                `<path d="M${xUser+155} ${center} C${xHub-18} ${center}, ${xHub-18} ${hubY}, ${xHub} ${hubY}" fill="none" stroke="${color}" stroke-width="1.6" stroke-linecap="round"/>`
                 );
             if (rowCount > 1) parts.push(
-                `<path d="M${xHub} ${firstY} V${lastY}" stroke="${color}" stroke-opacity="0.5" stroke-width="2" fill="none"/>`
+                `<path d="M${xHub} ${firstY} V${lastY}" stroke="${color}" stroke-opacity="0.5" stroke-width="1.3" fill="none"/>`
                 );
             for (let r = 0; r < rowCount; r++) {
                 const cy = firstY + r * rowStep;
                 parts.push(
-                    `<path d="M${xHub} ${cy} H${xCards-7}" stroke="${color}" stroke-opacity="0.65" stroke-width="2"/>`
+                    `<path d="M${xHub} ${cy} H${xCards-7}" stroke="${color}" stroke-opacity="0.65" stroke-width="1.3"/>`
                     );
                 for (let c = 0; c < cols; c++) {
                     const j = r * cols + c;
@@ -1239,24 +1239,24 @@
                     const mod = mods[j];
                     const x = xCards + c * (cardW + gapX);
                     const y = cy - cardH / 2;
-                    const badgeX = x + cardW - 47;
+                    const badgeX = x + cardW - 38;
                     const name = String(mod.name ?? 'Unknown');
                     // SVG tooltip mempertahankan nama lengkap saat terpotong.
-                    const short = name.length > 20 ? name.slice(0, 19) + '…' : name;
+                    const short = name.length > 17 ? name.slice(0, 16) + '…' : name;
                     parts.push(
                         `<g><title>${treeEscape(name)}: ${Number(mod.total||0).toLocaleString('id-ID')} requests</title>`
                         );
                     parts.push(
-                        `<rect x="${x}" y="${y}" width="${cardW}" height="${cardH}" rx="9" fill="${color}" fill-opacity="0.09" stroke="${color}" stroke-opacity="0.2"/>`
+                        `<rect x="${x}" y="${y}" width="${cardW}" height="${cardH}" rx="5" fill="${color}" fill-opacity="0.09" stroke="${color}" stroke-opacity="0.2"/>`
                         );
-                    parts.push(`<circle cx="${x+11}" cy="${cy}" r="3.5" fill="${color}"/>`);
+                    parts.push(`<circle cx="${x+7}" cy="${cy}" r="2.5" fill="${color}"/>`);
                     parts.push(
-                        `<text x="${x+21}" y="${cy+4}" font-size="11.5" fill="currentColor">${treeEscape(short)}</text>`
+                        `<text x="${x+13}" y="${cy+3}" font-size="9.5" fill="currentColor">${treeEscape(short)}</text>`
                         );
                     parts.push(
-                        `<rect x="${badgeX}" y="${y+8}" width="39" height="22" rx="11" fill="${color}"/>`);
+                    `<rect x="${badgeX}" y="${y+4}" width="33" height="17" rx="8" fill="${color}"/>`);
                     parts.push(
-                        `<text x="${badgeX+19.5}" y="${cy+4}" font-size="10.5" font-weight="700" text-anchor="middle" fill="#fff">${Number(mod.total||0).toLocaleString('id-ID')}</text></g>`
+                        `<text x="${badgeX+16.5}" y="${cy+3}" font-size="9" font-weight="700" text-anchor="middle" fill="#fff">${Number(mod.total||0).toLocaleString('id-ID')}</text></g>`
                         );
                 }
             }
