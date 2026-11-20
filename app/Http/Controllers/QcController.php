@@ -1888,6 +1888,7 @@ class QcController extends Controller
             'value',
             'cont_numb',
             'do_released',
+            'remark',
             'status',
         ]);
 
@@ -1933,6 +1934,7 @@ class QcController extends Controller
 
         return response()->json($query->orderBy('order_no', $sort)->limit(100)->get());
     }
+
 
     //   public function ajaxPoList(Request $request)
 // {

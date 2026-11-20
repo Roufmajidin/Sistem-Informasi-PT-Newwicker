@@ -1083,12 +1083,12 @@
             font-weight: 800;
         }
 
-        .release-status-open {
+        .release-status-outstanding {
             background: #dbeafe;
             color: #1d4ed8;
         }
 
-        .release-status-closed {
+        .release-status-shipped {
             background: #dcfce7;
             color: #166534;
         }
@@ -1775,7 +1775,7 @@
                                             ${editableTd('release_date',po.release_date,po.id,'date')}
                                             ${editableTd('shipment_date',normalizeDate(po.shipment_date),po.id,'date')}
                                             <td>${deadlineProgress(po.release_date,po.shipment_date,po.act_ship)}</td>
-                                            <td><span class="release-order-status ${releaseHasShipment(po) ? 'release-status-closed' : 'release-status-open'}">${releaseHasShipment(po) ? 'CLOSE' : 'OPEN'}</span></td>
+                                            <td><span class="release-order-status ${releaseHasShipment(po) ? 'release-status-shipped' : 'release-status-outstanding'}">${releaseHasShipment(po) ? 'SHIPPED' : 'OUTSTANDING'}</span></td>
                                             ${canSeeAgreement ? editableTd('agreement_buyers_date',normalizeDate(po.agreement_buyers_date),po.id,'date') : ''}
                                             ${editableTd('act_ship',normalizeDate(po.act_ship),po.id,'date')}
                                             ${canSeeValue ? editableTd('value', po.value, po.id, 'number') : ''}
@@ -1876,7 +1876,7 @@
                             value: input.val()
                         },
 
-                        success: function() {
+                        success: function(response) {
                             showSaved();
                             input.addClass('is-valid');
                             if (input.data('field') === 'act_ship') {
