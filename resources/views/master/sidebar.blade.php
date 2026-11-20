@@ -65,7 +65,16 @@
                              </a>
                          </li>
                      @endif
-
+                     @if (Auth::check() && Auth::user()->accessModules()->where('name', 'Ar')->exists())
+                         <li>
+                             <a href="/ars2026">
+                                 <span class="nav-icon">
+                                     <i class="material-icons">assignment</i>
+                                 </span>
+                                 <span class="nav-text">Ar Buyer</span>
+                             </a>
+                         </li>
+                     @endif
                      @auth
 
                          @php
@@ -225,7 +234,7 @@
                                      </li>
 
                                      <li>
-                                         <a href="/ar_buyer">
+                                         <a href="/ars2026">
                                              <span class="nav-text">• AR Buyer</span>
                                          </a>
                                      </li>
@@ -267,7 +276,7 @@
                                  <a href="/spk/request-r">
                                      <span class="nav-icon">
                                          <i class="material-icons">request_quote</i>
-                                         </span>
+                                     </span>
                                      <span class="nav-text">Pengajuan SPK</span>
                                  </a>
                              </li>
@@ -578,11 +587,11 @@
                              <!-- </li>
 
 
-                                                                                                         <a href="/request">
-                                                                                                             <span class="nav-icon"><i class="material-icons">event_note</i></span>
-                                                                                                             <span class="nav-text">Agenda</span>
-                                                                                                         </a>
-                                                                                                     </li> -->
+                                                                                                             <a href="/request">
+                                                                                                                 <span class="nav-icon"><i class="material-icons">event_note</i></span>
+                                                                                                                 <span class="nav-text">Agenda</span>
+                                                                                                             </a>
+                                                                                                         </li> -->
 
                              <li>
                                  <a href="/request">
