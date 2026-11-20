@@ -4,7 +4,11 @@
                                 $searchItem = '';
 
                                 foreach ($spk->data['items'] ?? [] as $item) {
-                                    $searchItem .= ' ' . ($item['nama'] ?? '') . ' ' . ($item['kode'] ?? '');
+                                    $searchItem .=
+                                        ' ' .
+                                        ($item['nama'] ?? ($item['name'] ?? ($item['nama_item'] ?? ''))) .
+                                        ' ' .
+                                        ($item['kode'] ?? ($item['article_nr'] ?? ''));
                                 }
 
                             @endphp

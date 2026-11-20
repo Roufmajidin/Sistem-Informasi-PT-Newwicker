@@ -1467,7 +1467,7 @@
                     resetModal();
 
                 });
-                // Infinite scroll + server-side search; event delegation lain tetap aktif.
+                // Infinite scroll 30 SPK, hanya setelah user scroll; pencarian server-side.
                 (function() {
                     const $body = $('#tbodySpk');
                     const $status = $('#mutasiLoadStatus');
@@ -1475,10 +1475,13 @@
                     const endpoint = @json(route('mutasi.index'));
                     let nextPage = {{ $a->hasMorePages() ? 2 : 'null' }};
                     let busy = false;
-                    let request = null;
+                    let xhr = null;
                     let searchTimer = null;
                     let generation = 0;
-                    let keyword = '';
+                    let keyword = String($('#searchSpk').val() || '').trim();
+                    let scrollArmed = false;
+                    let failed = false;
+                    let lastAutoPage = 0;
 
                     function syncCards() {
                         if (typeof window.mutasiRebuildMobileCards === 'function') {
@@ -1486,16 +1489,26 @@
                         }
                     }
 
+                    function statusIdle() {
+                        if (failed) return;
+                        $status.text(nextPage === null ? 'Semua SPK sudah ditampilkan' :
+                            'Scroll ke bawah untuk memuat 30 SPK berikutnya');
+                    }
+
                     function loadPage(reset = false) {
-                        if (busy || (!reset && nextPage === null)) return;
+                        if (busy || (!reset && (nextPage === null || failed))) return;
                         const page = reset ? 1 : nextPage;
                         const version = generation;
                         busy = true;
-                        $status.text('Memuat SPK...');
-                        request = $.ajax({
+                        scrollArmed = false;
+                        $status.html(
+                            '<span class="spinner-border spinner-border-sm text-primary me-2" role="status"></span>Memuat 30 SPK...'
+                            );
+                        xhr = $.ajax({
                             url: endpoint,
                             type: 'GET',
                             dataType: 'json',
+                            timeout: 25000,
                             data: {
                                 page: page,
                                 search: keyword
@@ -1506,83 +1519,102 @@
                             success: function(res) {
                                 if (version !== generation) return;
                                 if (reset) $body.empty();
-                                if (res.html) $body.append(res.html);
-                                nextPage = res.has_more ? page + 1 : null;
+                                if (res.html) {
+                                    if (!reset) $body.find('tr:not(.pilih-spk)').remove();
+                                    $body.append(res.html);
+                                }
+                                nextPage = res.has_more ? (Number(res.next_page) || page + 1) : null;
                                 if (!$body.find('tr.pilih-spk').length) {
                                     $body.html(
                                         '<tr><td colspan="6" class="text-center">Tidak ada data SPK</td></tr>');
                                 }
-                                $status.text(nextPage ? 'Scroll ke bawah untuk memuat SPK berikutnya' :
-                                    'Semua SPK sudah ditampilkan');
+                                failed = false;
                                 syncCards();
+                                statusIdle();
                             },
-                            error: function(xhr, status) {
-                                if (status !== 'abort' && version === generation) {
-                                    $status.html(
-                                        '<button type="button" class="btn btn-sm btn-outline-primary" id="retryMutasiLoad">Gagal memuat. Coba lagi</button>'
-                                        );
-                                }
+                            error: function(req, status) {
+                                if (version !== generation || status === 'abort') return;
+                                failed = true;
+                                $status.html(
+                                    '<button type="button" class="btn btn-sm btn-outline-primary" id="retryMutasiLoad">Gagal memuat (' +
+                                    (status === 'timeout' ? 'timeout' : req.status || 'koneksi') +
+                                    '). Coba lagi</button>');
                             },
                             complete: function() {
                                 if (version !== generation) return;
                                 busy = false;
-                                request = null;
-                                // Jika layar masih belum penuh, lanjutkan memuat otomatis.
-                                if (nextPage && sentinel && sentinel.getBoundingClientRect().top < window
-                                    .innerHeight + 250) {
-                                    loadPage();
-                                }
+                                xhr = null;
+                                // Jangan auto-request berikutnya: tunggu scroll user lagi.
                             }
                         });
                     }
 
                     function restartSearch() {
                         generation++;
-                        if (request) request.abort();
+                        if (xhr) xhr.abort();
+                        xhr = null;
                         busy = false;
+                        failed = false;
                         nextPage = 1;
+                        lastAutoPage = 0;
+                        scrollArmed = false;
                         keyword = String($('#searchSpk').val() || '').trim();
                         $body.empty();
                         syncCards();
                         loadPage(true);
                     }
 
+                    function nearBottom() {
+                        if (!sentinel) return false;
+                        return sentinel.getBoundingClientRect().top <= window.innerHeight + 150;
+                    }
+
+                    function tryNext() {
+                        if (!scrollArmed || busy || failed || nextPage === null) return;
+                        if (!nearBottom() || lastAutoPage === nextPage) return;
+                        lastAutoPage = nextPage;
+                        loadPage();
+                    }
                     $('#searchSpk').off('keyup.mutasiServer input.mutasiServer')
                         .on('input.mutasiServer', function() {
                             clearTimeout(searchTimer);
                             searchTimer = setTimeout(restartSearch, 350);
                         });
                     $(document).on('click', '#retryMutasiLoad', function() {
-                        loadPage();
+                        failed = false;
+                        lastAutoPage = 0;
+                        loadPage(nextPage === 1);
                     });
-                    if ('IntersectionObserver' in window && sentinel) {
-                        const observer = new IntersectionObserver(function(entries) {
-                            if (entries[0].isIntersecting) loadPage();
-                        }, {
-                            rootMargin: '350px'
-                        });
-                        observer.observe(sentinel);
-                    } else {
-                        $(window).on('scroll.mutasiInfinite', function() {
-                            if (sentinel && sentinel.getBoundingClientRect().top < window.innerHeight + 350) loadPage();
-                        });
-                    }
-                    $status.text(nextPage ? 'Scroll ke bawah untuk memuat SPK berikutnya' : 'Semua SPK sudah ditampilkan');
+                    // Mendukung halaman yang scroll di window maupun container layout.
+                    window.addEventListener('scroll', function() {
+                        scrollArmed = true;
+                        tryNext();
+                    }, {
+                        passive: true
+                    });
+                    document.addEventListener('scroll', function() {
+                        scrollArmed = true;
+                        tryNext();
+                    }, {
+                        passive: true,
+                        capture: true
+                    });
+                    statusIdle();
                 })();
             </script>
 
             <script>
                 /*
-                                        |--------------------------------------------------------------------------
-                                        | SPK HOVER PREVIEW + IN
-                                        |--------------------------------------------------------------------------
-                                        | - Items + Qty dibaca langsung dari data SPK.
-                                        | - IN diambil dari endpoint timeline yang SUDAH WORK.
-                                        | - Menggunakan fetch native, bukan $.ajax().
-                                        | - Tidak menggunakan $.ajax().then().catch().
-                                        | - Tidak mengubah click/modal existing.
-                                        |--------------------------------------------------------------------------
-                                        */
+                                                    |--------------------------------------------------------------------------
+                                                    | SPK HOVER PREVIEW + IN
+                                                    |--------------------------------------------------------------------------
+                                                    | - Items + Qty dibaca langsung dari data SPK.
+                                                    | - IN diambil dari endpoint timeline yang SUDAH WORK.
+                                                    | - Menggunakan fetch native, bukan $.ajax().
+                                                    | - Tidak menggunakan $.ajax().then().catch().
+                                                    | - Tidak mengubah click/modal existing.
+                                                    |--------------------------------------------------------------------------
+                                                    */
 
                 (function() {
 
@@ -2346,8 +2378,8 @@
 
             <style>
                 /* =========================================================
-                           SPK HOVER PREVIEW
-                           ========================================================= */
+                               SPK HOVER PREVIEW
+                               ========================================================= */
                 #tbodySpk tr.pilih-spk {
                     cursor: pointer;
                     transition: all 0.15s ease;
@@ -2492,8 +2524,8 @@
 
 
                 /* =========================================================
-                                       STICKY HEADER
-                                       ========================================================= */
+                                           STICKY HEADER
+                                           ========================================================= */
 
                 .spk-table-wrap {
                     max-height: calc(100vh - 220px);
@@ -2532,8 +2564,8 @@
                 }
 
                 /* =========================================================
-                                           ITEM DETAIL + COMPONENTS
-                                           ========================================================= */
+                                               ITEM DETAIL + COMPONENTS
+                                               ========================================================= */
 
                 .item-detail-grid {
                     display: grid;
@@ -2758,8 +2790,8 @@
                 }
 
                 /* =========================================================
-                           ITEM PICKER
-                           ========================================================= */
+                               ITEM PICKER
+                               ========================================================= */
 
                 .item-picker-wrap {
                     margin-bottom: 18px;
@@ -2953,8 +2985,8 @@
 
 
                 /* =========================================================
-                           MICRO UI IMPROVEMENT + PERFORMANCE
-                           ========================================================= */
+                               MICRO UI IMPROVEMENT + PERFORMANCE
+                               ========================================================= */
                 .spk-table-wrap {
                     contain: layout paint;
                     border-radius: 12px;
@@ -4616,10 +4648,9 @@
                     };
 
                     function syncMobileSearch() {
-                        var term = (document.getElementById('searchSpk')?.value || '').toLowerCase().trim();
+                        // Hasil sudah difilter server-side, jangan filter ulang hanya dari baris lokal.
                         document.querySelectorAll('#mobileSpkCards .mobile-spk-card').forEach(function(card) {
-                            card.style.display = String(card.dataset.search || '').toLowerCase().includes(term) ? '' :
-                                'none';
+                            card.style.display = '';
                         });
                     }
                     window.renderMobileItemTabs = function() {

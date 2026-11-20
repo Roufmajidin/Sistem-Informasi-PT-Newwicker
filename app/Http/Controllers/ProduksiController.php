@@ -257,23 +257,70 @@ class ProduksiController extends Controller
         return response()->json(['success' => true]);
     }
     //mutasi mba siti
+
+    // Replace ONLY mutasi() in ProduksiController.php
+
     public function mutasi(Request $request)
     {
-        $a = Spk::query()
+        $search = trim((string) $request->query('search', ''));
+
+        $query = Spk::query()
             ->with('po')
-            ->orderByDesc('id')
-            ->simplePaginate(10)
+            ->orderByDesc('id');
+
+        if ($search !== '') {
+
+            $like = '%' . addcslashes(
+                mb_strtolower($search),
+                '%_\\'
+            ) . '%';
+
+            $query->where(function ($q) use ($like) {
+
+                // No SPK, Sub, No PO, Jenis,
+                // Nama Item, Kode Item, dll.
+                $q->whereRaw(
+                    'LOWER(CAST(`spk`.`data` AS CHAR)) LIKE ?',
+                    [$like]
+                );
+
+                // PO dan Buyer dari tabel relasi
+                $q->orWhereHas('po', function ($po) use ($like) {
+                    $po->whereRaw(
+                        'LOWER(order_no) LIKE ?',
+                        [$like]
+                    )->orWhereRaw(
+                            'LOWER(company_name) LIKE ?',
+                            [$like]
+                        );
+                });
+
+            });
+        }
+
+        $a = $query
+            ->simplePaginate(30)
             ->withQueryString();
 
         if ($request->ajax()) {
             return response()->json([
-                'html' => view('pages.mutasi.mutasi_rows', compact('a'))->render(),
+                'html' => view(
+                    'pages.mutasi.mutasi_rows',
+                    compact('a')
+                )->render(),
+
                 'has_more' => $a->hasMorePages(),
+
+                'next_page' => $a->hasMorePages()
+                    ? $a->currentPage() + 1
+                    : null,
             ]);
         }
 
         return view('pages.mutasi.index', compact('a'));
     }
+
+
 
     public function mutasidetail($id)
     {
