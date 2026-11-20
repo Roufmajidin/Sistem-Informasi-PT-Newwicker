@@ -68,7 +68,7 @@
 
         }
 
-        /* User Activity Tree: satu SVG responsif, tinggi mengikuti semua user aktif. */
+        /* Compact User Activity Tree: modul tiga kolom, tinggi dinamis. */
         .it-tree-viewport {
             width: 100%;
             overflow-x: auto;
@@ -463,8 +463,8 @@
             <div class="card border-0 shadow-sm rounded-3 mb-4">
                 <div class="card-header bg-white border-0 py-3">
                     <strong>User Activity Tree — Web + API</strong>
-                    <div class="text-muted small">Seluruh user aktif hari ini · Web + API digabung · User → Module →
-                        Requests</div>
+                    <div class="text-muted small">Seluruh user aktif hari ini · Web + API digabung · Compact module
+                        branches</div>
                 </div>
                 <div class="card-body">
                     <div id="combinedUserRequestsChart" class="it-tree-viewport"></div>
@@ -1159,68 +1159,107 @@
             el.innerHTML = '<div class="text-muted text-center py-5">Belum ada request user hari ini.</div>';
             return;
         }
-        // Ukuran tiap jalur mengikuti jumlah modul, tidak memotong user/modul.
-        const positions = [];
-        let currentY = 38;
+
+        // Grid modul 3 kolom: semua user dan modul tetap ditampilkan.
+        const width = 1060;
+        const cols = 3;
+        const cardW = 218,
+            cardH = 38,
+            gapX = 12,
+            gapY = 12;
+        const rowStep = cardH + gapY;
+        const xMain = 30,
+            xUser = 75,
+            xHub = 337,
+            xCards = 367;
+        const groupGap = 25;
+        const layout = [];
+        let cursor = 36;
         rows.forEach((user, i) => {
             const count = Math.max(1, (user.modules || []).length);
-            const height = Math.max(82, count * 30 + 24);
-            positions.push({
-                y: currentY,
-                height,
+            const lines = Math.ceil(count / cols);
+            const h = Math.max(100, lines * rowStep + 22);
+            layout.push({
+                top: cursor,
+                center: cursor + 35,
+                height: h,
                 color: treePalette[i % treePalette.length]
             });
-            currentY += height;
+            cursor += h + groupGap;
         });
-        const totalHeight = currentY + 16;
-        const width = 900;
-        const xMain = 42,
-            xUser = 155,
-            xStart = 365,
-            xDot = 475,
-            xModule = 495,
-            xBadge = 780;
-        const parts = [];
-        parts.push(
-            `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${totalHeight}" role="img" aria-label="User activity tree hari ini" style="width:100%;height:auto;min-width:620px;display:block">`
-            );
+        const height = cursor + 8;
+        const parts = [
+            `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="User activity tree Web dan API hari ini" style="width:100%;height:auto;min-width:760px;display:block">`
+        ];
         if (rows.length > 1) {
             parts.push(
-                `<path d="M${xMain} ${positions[0].y} V${positions[positions.length-1].y}" fill="none" stroke="#64748b" stroke-width="4" stroke-linecap="round"/>`
+                `<path d="M${xMain} ${layout[0].center} V${layout[layout.length-1].center}" fill="none" stroke="#64748b" stroke-width="3" stroke-linecap="round"/>`
                 );
         }
         rows.forEach((user, i) => {
             const {
-                y,
+                top,
+                center,
                 color
-            } = positions[i];
-            const mods = user.modules || [];
+            } = layout[i];
+            const mods = Array.isArray(user.modules) ? user.modules : [];
             const total = Number(user.total || 0).toLocaleString('id-ID');
             parts.push(
-            `<circle cx="${xMain}" cy="${y}" r="9" fill="${color}" stroke="#fff" stroke-width="3"/>`);
-            parts.push(
-                `<path d="M${xMain+10} ${y} H${xUser-13}" fill="none" stroke="${color}" stroke-width="3"/>`);
-            parts.push(
-                `<text x="${xUser}" y="${y-9}" font-size="16" font-weight="700" fill="currentColor">${treeEscape(user.name || 'Unknown')}</text>`
+                `<circle cx="${xMain}" cy="${center}" r="8" fill="${color}" stroke="#fff" stroke-width="2.5"/>`
                 );
             parts.push(
-            `<text x="${xUser}" y="${y+12}" font-size="13" fill="${color}">${total} requests</text>`);
-            mods.forEach((mod, j) => {
-                const my = y + (j - (mods.length - 1) / 2) * 30;
+                `<path d="M${xMain+9} ${center} H${xUser-12}" stroke="${color}" stroke-width="3" fill="none"/>`
+                );
+            parts.push(
+                `<text x="${xUser}" y="${center-6}" font-size="17" font-weight="700" fill="currentColor">${treeEscape(user.name || 'Unknown')}</text>`
+                );
+            parts.push(
+                `<text x="${xUser}" y="${center+16}" font-size="12" font-weight="600" fill="${color}">${total} requests</text>`
+                );
+            if (!mods.length) return;
+            const rowCount = Math.ceil(mods.length / cols);
+            const firstY = top + 17 + cardH / 2;
+            const lastY = firstY + (rowCount - 1) * rowStep;
+            const hubY = (firstY + lastY) / 2;
+            // Cabang pendek ke tulang modul; tiap baris punya tiga chip sejajar.
+            parts.push(
+                `<path d="M${xUser+175} ${center} C${xHub-35} ${center}, ${xHub-35} ${hubY}, ${xHub} ${hubY}" fill="none" stroke="${color}" stroke-width="2.3" stroke-linecap="round"/>`
+                );
+            if (rowCount > 1) parts.push(
+                `<path d="M${xHub} ${firstY} V${lastY}" stroke="${color}" stroke-opacity="0.5" stroke-width="2" fill="none"/>`
+                );
+            for (let r = 0; r < rowCount; r++) {
+                const cy = firstY + r * rowStep;
                 parts.push(
-                    `<path d="M${xStart} ${y} C${xStart+54} ${y}, ${xDot-55} ${my}, ${xDot} ${my}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round"/>`
+                    `<path d="M${xHub} ${cy} H${xCards-7}" stroke="${color}" stroke-opacity="0.65" stroke-width="2"/>`
                     );
-                parts.push(`<circle cx="${xDot}" cy="${my}" r="5.5" fill="${color}"/>`);
-                parts.push(
-                    `<text x="${xModule}" y="${my+5}" font-size="14" fill="currentColor">${treeEscape(mod.name)}</text>`
-                    );
-                parts.push(
-                    `<rect x="${xBadge}" y="${my-13}" width="95" height="26" rx="13" fill="${color}" fill-opacity="0.17"/>`
-                    );
-                parts.push(
-                    `<text x="${xBadge+47.5}" y="${my+5}" text-anchor="middle" font-size="13" font-weight="700" fill="${color}">${Number(mod.total || 0).toLocaleString('id-ID')}</text>`
-                    );
-            });
+                for (let c = 0; c < cols; c++) {
+                    const j = r * cols + c;
+                    if (j >= mods.length) break;
+                    const mod = mods[j];
+                    const x = xCards + c * (cardW + gapX);
+                    const y = cy - cardH / 2;
+                    const badgeX = x + cardW - 47;
+                    const name = String(mod.name ?? 'Unknown');
+                    // SVG tooltip mempertahankan nama lengkap saat terpotong.
+                    const short = name.length > 20 ? name.slice(0, 19) + '…' : name;
+                    parts.push(
+                        `<g><title>${treeEscape(name)}: ${Number(mod.total||0).toLocaleString('id-ID')} requests</title>`
+                        );
+                    parts.push(
+                        `<rect x="${x}" y="${y}" width="${cardW}" height="${cardH}" rx="9" fill="${color}" fill-opacity="0.09" stroke="${color}" stroke-opacity="0.2"/>`
+                        );
+                    parts.push(`<circle cx="${x+11}" cy="${cy}" r="3.5" fill="${color}"/>`);
+                    parts.push(
+                        `<text x="${x+21}" y="${cy+4}" font-size="11.5" fill="currentColor">${treeEscape(short)}</text>`
+                        );
+                    parts.push(
+                        `<rect x="${badgeX}" y="${y+8}" width="39" height="22" rx="11" fill="${color}"/>`);
+                    parts.push(
+                        `<text x="${badgeX+19.5}" y="${cy+4}" font-size="10.5" font-weight="700" text-anchor="middle" fill="#fff">${Number(mod.total||0).toLocaleString('id-ID')}</text></g>`
+                        );
+                }
+            }
         });
         parts.push('</svg>');
         el.innerHTML = parts.join('');
