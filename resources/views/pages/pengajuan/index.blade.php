@@ -819,11 +819,17 @@
         @php
             $approvalImageVersions = [];
 
-            for ($i = 1; $i <= 10; $i++) {
-                $path = public_path("assets/{$i}.png");
-
-                $approvalImageVersions[$i] = is_file($path) ? filemtime($path) : 1;
+            // Ambil file gambar bernama ID user: public/assets/12.png, 25.png, dst.
+            foreach (glob(public_path('assets/[0-9]*.png')) ?: [] as $path) {
+                $id = pathinfo($path, PATHINFO_FILENAME);
+                if (ctype_digit($id)) {
+                    $approvalImageVersions[$id] = filemtime($path);
+                }
             }
+            $defaultApprovalImageExists = is_file(public_path('assets/default.png'));
+            $defaultApprovalImageVersion = $defaultApprovalImageExists
+                ? filemtime(public_path('assets/default.png'))
+                : 1;
         @endphp
         <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
         <script src="https://unpkg.com/html5-qrcode"></script>
@@ -1706,9 +1712,17 @@
                             // =========================
                             // IMAGE STEP
                             // =========================
-                            let stepNumber = index + 1;
-                            let stepImage =
-                                `/assets/${stepNumber}.png?v=${approvalImageVersions[stepNumber] ?? 1}`;
+                            // Gunakan ID user, bukan nomor urut approval.
+                            // Jika ID belum tersedia di response, jangan menampilkan tanda tangan user lain.
+                            let approvalUserId = step.user_id ?? step.user?.id ?? null;
+                            let hasUserImage = approvalUserId !== null &&
+                                Object.prototype.hasOwnProperty.call(approvalImageVersions, String(
+                                    approvalUserId));
+                            let stepImage = hasUserImage ?
+                                `/assets/${encodeURIComponent(approvalUserId)}.png?v=${approvalImageVersions[approvalUserId]}` :
+                                @json($defaultApprovalImageExists) ?
+                                `/assets/default.png?v=${@json($defaultApprovalImageVersion)}` :
+                                null;
 
                             let block = '';
 
@@ -1720,7 +1734,7 @@
                                 block = `
                         <div style="text-align:center;">
                             <small>${step.step_name}</small><br>
-                            <img src="${stepImage}" width="100" height="80"><br>
+                            ${stepImage ? `<img src="${stepImage}" width="100" height="80"><br>` : ''}
                             <small>${userName}</small>
                         </div>
                     `;
