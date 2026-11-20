@@ -259,29 +259,20 @@ class ProduksiController extends Controller
     //mutasi mba siti
     public function mutasi(Request $request)
     {
-        $before = memory_get_usage(true);
-
         $a = Spk::query()
-            ->select([
-                'id',
-                'po_id',
-                'detail_po_id',
-                'data'
-            ])
-            ->with([
-                'po:id,order_no,company_name'
-            ])
+            ->with('po')
             ->orderByDesc('id')
-            ->limit(10)
-            ->get();
+            ->simplePaginate(10)
+            ->withQueryString();
 
-        return response()->json([
-            'success' => true,
-            'jumlah_spk' => $a->count(),
-            'memory_before_mb' => round($before / 1048576, 2),
-            'memory_after_mb' => round(memory_get_usage(true) / 1048576, 2),
-            'memory_peak_mb' => round(memory_get_peak_usage(true) / 1048576, 2),
-        ]);
+        if ($request->ajax()) {
+            return response()->json([
+                'html' => view('pages.mutasi.mutasi_rows', compact('a'))->render(),
+                'has_more' => $a->hasMorePages(),
+            ]);
+        }
+
+        return view('pages.mutasi.index', compact('a'));
     }
 
     public function mutasidetail($id)
