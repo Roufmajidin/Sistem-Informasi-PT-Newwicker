@@ -893,20 +893,80 @@ class PoController extends Controller
         return response()->json($pos);
     }
 
-    public function ajaxPoList(Request $request)
+
+    public function ajaxPoList(\Illuminate\Http\Request $request)
     {
-        $q = $request->q;
+        $q = trim((string) $request->query('q', ''));
+        $type = strtoupper(trim((string) $request->query('type', '')));
+        $sort = $request->query('sort') === 'asc' ? 'asc' : 'desc';
+        $tab = $request->query('tab', 'release_order');
 
-        $pos = Po::query()
-            ->when($q, function ($query) use ($q) {
-                $query->where('order_no', 'like', "%{$q}%")
-                    ->orWhere('company_name', 'like', "%{$q}%");
-            })
-            ->latest()
-            ->get();
+        $applyType = static function ($builder) use ($type) {
+            if ($type === 'NWS') {
+                $builder->where('order_no', 'LIKE', 'NWS%');
+            } elseif ($type === 'NW') {
+                $builder->where('order_no', 'LIKE', 'NW%')
+                    ->where('order_no', 'NOT LIKE', 'NWS%');
+            }
+            return $builder;
+        };
 
+        $applySearch = static function ($builder) use ($q) {
+            if ($q !== '') {
+                $builder->where(function ($sub) use ($q) {
+                    $sub->where('order_no', 'LIKE', '%' . $q . '%')
+                        ->orWhere('company_name', 'LIKE', '%' . $q . '%');
+                });
+            }
+            return $builder;
+        };
+
+        $applyShipped = static function ($builder) {
+            return $builder->whereNotNull('act_ship')
+                ->whereRaw("CAST(act_ship AS CHAR) NOT LIKE '0000-00-00%'");
+        };
+
+        if ($request->boolean('counts')) {
+            $base = $applySearch($applyType(\App\Models\Po::query()));
+            return response()->json([
+                'release_order' => (clone $base)->count(),
+                'has_shipment' => $applyShipped(clone $base)->count(),
+            ]);
+        }
+
+        // Tidak memilih remark: kolom tersebut tidak ada di tabel po.
+        $columns = [
+            'id',
+            'order_no',
+            'company_name',
+            'country',
+            'release_date',
+            'shipment_date',
+            'act_ship',
+            'status',
+            'value',
+            'cont_numb',
+            'do_released',
+        ];
+        $email = strtolower(trim((string) (auth()->user()->email ?? '')));
+        $localPart = explode('@', $email)[0];
+        if (in_array($localPart, ['office', 'info', 'sales'], true)) {
+            $columns[] = 'agreement_buyers_date';
+        }
+
+        $query = $applySearch($applyType(\App\Models\Po::query()->select($columns)));
+        if ($tab === 'has_shipment') {
+            $applyShipped($query);
+        }
+
+        $pos = $query->orderBy('order_no', $sort)->limit(100)->get();
+        // Frontend lama mengharapkan property remark; kosongkan tanpa SQL SELECT.
+        $pos->each(function ($po) {
+            $po->setAttribute('remark', ''); });
         return response()->json($pos);
     }
+
+
 
     public function ajaxPo(Request $request)
     {
@@ -1359,82 +1419,84 @@ class PoController extends Controller
     }
     // update
     public function updatePoField(Request $request)
-{
-    $request->validate([
-        'id' => 'required|exists:po,id',
-        'field' => 'required|string',
-        'value' => 'nullable',
-    ]);
-
-    // Daftar field lama tetap dipertahankan.
-    $allowed = [
-        'order_no',
-        'company_name',
-        'country',
-        'release_date',
-        'shipment_date',
-        'act_ship',
-        'value',
-        'cont_numb',
-        'do_released',
-        'remark',
-        'category',
-        'agreement_buyers_date',
-    ];
-
-    $field = (string) $request->input('field');
-
-    if (!in_array($field, $allowed, true)) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Field tidak diizinkan',
-        ], 422);
-    }
-
-    // Pembatasan akses field Agreement Buyers Date di sisi server.
-    $email = strtolower(trim((string) optional($request->user())->email));
-    $emailLocal = explode('@', $email)[0];
-    $canAccessAgreement = in_array($emailLocal, ['office', 'info', 'sales'], true);
-
-    if ($field === 'agreement_buyers_date' && !$canAccessAgreement) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Tidak memiliki akses ke Agreement Buyers Date',
-        ], 403);
-    }
-
-    if (in_array($field, ['release_date', 'shipment_date', 'act_ship', 'agreement_buyers_date'], true)) {
+    {
         $request->validate([
-            'value' => 'nullable|date_format:Y-m-d',
+            'id' => 'required|exists:po,id',
+            'field' => 'required|string',
+            'value' => 'nullable',
+        ]);
+
+        // Daftar field lama tetap dipertahankan.
+        $allowed = [
+            'order_no',
+            'company_name',
+            'country',
+            'release_date',
+            'shipment_date',
+            'act_ship',
+            'value',
+            'cont_numb',
+            'do_released',
+            'remark',
+            'category',
+            'agreement_buyers_date',
+        ];
+
+        $field = (string) $request->input('field');
+
+        if (!in_array($field, $allowed, true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Field tidak diizinkan',
+            ], 422);
+        }
+
+        // Pembatasan akses field Agreement Buyers Date di sisi server.
+        $email = strtolower(trim((string) optional($request->user())->email));
+        $emailLocal = explode('@', $email)[0];
+        $canAccessAgreement = in_array($emailLocal, ['office', 'info', 'sales'], true);
+
+        if ($field === 'agreement_buyers_date' && !$canAccessAgreement) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tidak memiliki akses ke Agreement Buyers Date',
+            ], 403);
+        }
+
+        if (in_array($field, ['release_date', 'shipment_date', 'act_ship', 'agreement_buyers_date'], true)) {
+            $request->validate([
+                'value' => 'nullable|date_format:Y-m-d',
+            ]);
+        }
+
+        $po = Po::findOrFail($request->input('id'));
+        $value = $request->input('value');
+
+        // Untuk input date kosong, simpan NULL agar status dan filter konsisten.
+        if (
+            in_array($field, ['release_date', 'shipment_date', 'act_ship', 'agreement_buyers_date'], true)
+            && ($value === '' || $value === null)
+        ) {
+            $value = null;
+        }
+
+        $po->{$field} = $value;
+
+        // Status diturunkan otomatis dari Actual Shipment; tidak perlu diedit manual.
+        // Sinkronkan juga ketika field lain diperbarui agar data lama tetap konsisten.
+        $actualShip = trim((string) $po->act_ship);
+        $hasShipped = $actualShip !== '' && $actualShip !== '-' && !str_starts_with($actualShip, '0000-00-00');
+        $po->status = $hasShipped ? 'SHIPPED' : 'OUTSTANDING';
+
+        $po->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Data berhasil disimpan',
+            'status' => $po->status,
+            'act_ship' => $po->act_ship,
         ]);
     }
-
-    $po = Po::findOrFail($request->input('id'));
-    $value = $request->input('value');
-
-    // Untuk input date kosong, simpan NULL agar status dan filter konsisten.
-    if (in_array($field, ['release_date', 'shipment_date', 'act_ship', 'agreement_buyers_date'], true)
-        && ($value === '' || $value === null)) {
-        $value = null;
-    }
-
-    $po->{$field} = $value;
-
-    // Status diturunkan otomatis dari Actual Shipment; tidak perlu diedit manual.
-    // Sinkronkan juga ketika field lain diperbarui agar data lama tetap konsisten.
-    $actualShip = trim((string) $po->act_ship);
-    $hasShipped = $actualShip !== '' && $actualShip !== '-' && !str_starts_with($actualShip, '0000-00-00');
-    $po->status = $hasShipped ? 'SHIPPED' : 'OUTSTANDING';
-
-    $po->save();
-
-    return response()->json([
-        'success' => true,
-        'message' => 'Data berhasil disimpan',
-        'status' => $po->status,
-        'act_ship' => $po->act_ship,
-    ]);
-}
 
 
 }

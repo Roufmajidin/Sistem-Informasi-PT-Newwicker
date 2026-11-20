@@ -1696,6 +1696,7 @@
                     if (releaseSearchAbort) releaseSearchAbort.abort();
                     releaseSearchAbort = new AbortController();
                     const signal = releaseSearchAbort.signal;
+                    const requestTimeout = setTimeout(() => releaseSearchAbort.abort(), 20000);
                     // Badge counts are cached; tab changes do not run another COUNT query.
                     releaseRefreshCounts(term, type);
                     if (counter) {
@@ -1708,7 +1709,7 @@
                     const listPromise = fetch(oldUrl, {
                         signal
                     }).then(r => {
-                        if (!r.ok) throw Error('PO list failed');
+                        if (!r.ok) throw Error('PO list failed (HTTP ' + r.status + ')');
                         return r.json();
                     });
                     const matchPromise = term ? fetch(
@@ -1781,7 +1782,7 @@
                                             ${canSeeValue ? editableTd('value', po.value, po.id, 'number') : ''}
                                             ${editableTd('cont_numb',po.cont_numb,po.id)}
                                             ${editableTd('do_released',po.do_released,po.id)}
-                                            ${editableTd('remark',po.remark,po.id)}
+                                            ${editableTd('remark',po.remark ?? '',po.id)}
                                        </tr>`);
                             });
                             tbody.innerHTML = rowHtml.join('');
@@ -1797,11 +1798,21 @@
                             })
                             .then(finish);
                     }).catch(err => {
-                        if (err.name === 'AbortError' || seq !== releaseSearchSequence) return;
+                        if (seq !== releaseSearchSequence) return;
+                        if (err.name === 'AbortError') {
+                            const tbody = document.getElementById('po-table-body');
+                            if (tbody) tbody.innerHTML =
+                                '<tr><td colspan="14" class="text-center text-danger">Request PO terlalu lama (20 detik). Cek Network / Laravel log.</td></tr>';
+                            return;
+                        }
                         console.error('Release Order search:', err);
                         if (counter && term) counter.textContent = 'Search failed';
+                        const tbody = document.getElementById('po-table-body');
+                        if (tbody) tbody.innerHTML =
+                            '<tr><td colspan="14" class="text-center text-danger">Gagal memuat PO. Periksa Laravel log / Network response.</td></tr>';
                     }).finally(() => {
                         // Request lama tidak boleh menutup loading milik request terbaru.
+                        clearTimeout(requestTimeout);
                         if (seq === releaseSearchSequence && loadingLayer) {
                             loadingLayer.classList.remove('is-active');
                         }
