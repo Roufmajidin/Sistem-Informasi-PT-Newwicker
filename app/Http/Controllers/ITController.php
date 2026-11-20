@@ -756,23 +756,52 @@ class ITController extends Controller
 
 
 
-        // Request ranking: aggregate langsung di database, 7 hari terakhir.
-        $requestRankingBase = ActivityLog::query()
+        // User Activity Tree: seluruh user aktif HARI INI, agregasi di SQL.
+        // Pisahkan WEB dan API sesuai konvensi dashboard yang sudah ada.
+        $treeRows = ActivityLog::query()
             ->join('users', 'users.id', '=', 'activity_logs.user_id')
-            ->where('activity_logs.created_at', '>=', now()->subDays(6)->startOfDay())
-            ->whereNotNull('activity_logs.user_id');
+            ->where('activity_logs.created_at', '>=', today()->startOfDay())
+            ->where('activity_logs.created_at', '<', today()->addDay()->startOfDay())
+            ->whereNotNull('activity_logs.user_id')
+            ->select([
+                'activity_logs.user_id',
+                'users.name',
+                DB::raw("CASE WHEN activity_logs.url LIKE '/api/%' THEN 'api' ELSE 'web' END AS channel"),
+                DB::raw("SUBSTRING_INDEX(TRIM(LEADING '/' FROM activity_logs.url), '/', 1) AS module_prefix"),
+                DB::raw('COUNT(*) AS requests'),
+            ])
+            ->groupBy('activity_logs.user_id', 'users.name', 'channel', 'module_prefix')
+            ->get();
 
-        $webUserRequests = (clone $requestRankingBase)
-            ->where('activity_logs.url', 'not like', '/api/%')
-            ->select('activity_logs.user_id', 'users.name', DB::raw('COUNT(*) as total'))
-            ->groupBy('activity_logs.user_id', 'users.name')
-            ->orderByDesc('total')->limit(10)->get();
+        $buildTree = function (?string $channel) use ($treeRows, $moduleMap) {
+            return ($channel === null ? $treeRows : $treeRows->where('channel', $channel))
+                ->groupBy('user_id')
+                ->map(function ($entries) use ($moduleMap) {
+                    $first = $entries->first();
+                    $modules = [];
+                    foreach ($entries as $entry) {
+                        $prefix = strtolower(trim((string) $entry->module_prefix));
+                        $module = $prefix === '' ? 'Dashboard'
+                            : ($moduleMap[$prefix] ?? ucfirst(str_replace('-', ' ', $prefix)));
+                        $modules[$module] = ($modules[$module] ?? 0) + (int) $entry->requests;
+                    }
+                    arsort($modules);
+                    return [
+                        'user_id' => (int) $first->user_id,
+                        'name' => (string) $first->name,
+                        'total' => array_sum($modules),
+                        'modules' => collect($modules)->map(function ($total, $name) {
+                            return ['name' => $name, 'total' => (int) $total];
+                        })->values()->all(),
+                    ];
+                })
+                ->sortByDesc('total')
+                ->values();
+        };
 
-        $apiUserRequests = (clone $requestRankingBase)
-            ->where('activity_logs.url', 'like', '/api/%')
-            ->select('activity_logs.user_id', 'users.name', DB::raw('COUNT(*) as total'))
-            ->groupBy('activity_logs.user_id', 'users.name')
-            ->orderByDesc('total')->limit(10)->get();
+        $webUserRequests = $buildTree('web');
+        $apiUserRequests = $buildTree('api');
+        $combinedUserRequests = $buildTree(null);
 
         return compact(
 
@@ -796,6 +825,7 @@ class ITController extends Controller
 
             'activities',
             'webUserRequests',
+            'combinedUserRequests',
 
 
 
@@ -942,6 +972,7 @@ class ITController extends Controller
 
             'activityByModule' => $data['activityByModule'],
             'webUserRequests' => $data['webUserRequests'],
+            'combinedUserRequests' => $data['combinedUserRequests'],
 
 
 
@@ -1020,6 +1051,7 @@ class ITController extends Controller
 
 
             'apiUserRequests' => $data['apiUserRequests'],
+            'combinedUserRequests' => $data['combinedUserRequests'],
             'apiEndpointUsage' => $data['apiEndpointUsage']
 
                 ->map(function ($item) {

@@ -67,6 +67,21 @@
             }
 
         }
+
+        /* User Activity Tree: satu SVG responsif, tinggi mengikuti semua user aktif. */
+        .it-tree-viewport {
+            width: 100%;
+            overflow-x: auto;
+            overflow-y: visible;
+        }
+
+        .it-tree-viewport svg {
+            color: #212529;
+        }
+
+        .it-tree-viewport text {
+            font-family: inherit, Arial, sans-serif;
+        }
     </style>
     <div class="container-fluid px-4 py-3">
 
@@ -444,23 +459,15 @@
             </div>
 
 
+            {{-- USER ACTIVITY TREE - COMBINED WEB + API / TODAY --}}
             <div class="card border-0 shadow-sm rounded-3 mb-4">
                 <div class="card-header bg-white border-0 py-3">
-                    <strong>Web Requests by User</strong>
-                    <div class="text-muted small">Top 10 user · 7 hari terakhir · jumlah HTTP request</div>
+                    <strong>User Activity Tree — Web + API</strong>
+                    <div class="text-muted small">Seluruh user aktif hari ini · Web + API digabung · User → Module →
+                        Requests</div>
                 </div>
                 <div class="card-body">
-                    <div id="webUserRequestsChart" style="min-height:340px;"></div>
-                    <div id="webUserRequestsBadges" class="d-flex flex-wrap gap-2 mt-3">
-                        @forelse ($webUserRequests as $userRequest)
-                            <span
-                                class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-3 py-2">
-                                {{ $userRequest->name }} · {{ number_format($userRequest->total) }} requests
-                            </span>
-                        @empty
-                            <span class="text-muted small">Belum ada request.</span>
-                        @endforelse
-                    </div>
+                    <div id="combinedUserRequestsChart" class="it-tree-viewport"></div>
                 </div>
             </div>
 
@@ -922,26 +929,6 @@
             </div>
 
 
-            <div class="card border-0 shadow-sm rounded-3 mb-4">
-                <div class="card-header bg-white border-0 py-3">
-                    <strong>API Requests by User</strong>
-                    <div class="text-muted small">Top 10 user · 7 hari terakhir · jumlah HTTP request</div>
-                </div>
-                <div class="card-body">
-                    <div id="apiUserRequestsChart" style="min-height:340px;"></div>
-                    <div id="apiUserRequestsBadges" class="d-flex flex-wrap gap-2 mt-3">
-                        @forelse ($apiUserRequests as $userRequest)
-                            <span
-                                class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-3 py-2">
-                                {{ $userRequest->name }} · {{ number_format($userRequest->total) }} requests
-                            </span>
-                        @empty
-                            <span class="text-muted small">Belum ada request.</span>
-                        @endforelse
-                    </div>
-                </div>
-            </div>
-
             {{-- ===================================================== --}}
             {{-- API ACTIVITY TABLE --}}
             {{-- ===================================================== --}}
@@ -1151,122 +1138,100 @@
 
 <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 <script>
-    // Ranking requests per user. Bar chart + badge nama dan total request.
-    function createUserRankingChart(id, rows) {
-        const el = document.getElementById(id + 'UserRequestsChart');
-        if (!el || typeof ApexCharts === 'undefined') return null;
-        const chart = new ApexCharts(el, {
-            chart: {
-                type: 'area',
-                height: 340,
-                toolbar: {
-                    show: false
-                },
-                zoom: {
-                    enabled: false
-                },
-                animations: {
-                    enabled: true
-                }
-            },
-            series: [{
-                name: 'Requests',
-                data: rows.map(r => Number(r.total))
-            }],
-            xaxis: {
-                categories: rows.map(r => r.name || 'Unknown'),
-                labels: {
-                    rotate: -35,
-                    trim: true,
-                    hideOverlappingLabels: false
-                }
-            },
-            stroke: {
-                curve: 'smooth',
-                width: 3
-            },
-            fill: {
-                type: 'gradient',
-                gradient: {
-                    shadeIntensity: 1,
-                    opacityFrom: 0.35,
-                    opacityTo: 0.04,
-                    stops: [0, 95, 100]
-                }
-            },
-            markers: {
-                size: 5,
-                hover: {
-                    size: 7
-                }
-            },
-            dataLabels: {
-                enabled: true,
-                offsetY: -12,
-                background: {
-                    enabled: true,
-                    borderRadius: 6,
-                    padding: 5,
-                    opacity: 0.95
-                },
-                formatter: v => Number(v).toLocaleString('id-ID')
-            },
-            grid: {
-                borderColor: '#e9edf3',
-                strokeDashArray: 3
-            },
-            yaxis: {
-                min: 0,
-                labels: {
-                    formatter: v => Math.round(v).toLocaleString('id-ID')
-                }
-            },
-            tooltip: {
-                y: {
-                    formatter: v => Number(v).toLocaleString('id-ID') + ' requests'
-                }
-            },
-            noData: {
-                text: 'Belum ada request'
-            }
+    // Git-style User Activity Tree. SVG native: ringan, tanpa library tambahan.
+    const treePalette = ['#3b82f6', '#10b981', '#f59e0b', '#a855f7', '#06b6d4', '#ec4899', '#f97316', '#64748b'];
+
+    function treeEscape(s) {
+        return String(s ?? '').replace(/[&<>"']/g, c => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        } [c]));
+    }
+
+    function renderUserActivityTree(channel, users) {
+        const el = document.getElementById(channel + 'UserRequestsChart');
+        if (!el) return;
+        const rows = Array.isArray(users) ? users : [];
+        if (!rows.length) {
+            el.innerHTML = '<div class="text-muted text-center py-5">Belum ada request user hari ini.</div>';
+            return;
+        }
+        // Ukuran tiap jalur mengikuti jumlah modul, tidak memotong user/modul.
+        const positions = [];
+        let currentY = 38;
+        rows.forEach((user, i) => {
+            const count = Math.max(1, (user.modules || []).length);
+            const height = Math.max(82, count * 30 + 24);
+            positions.push({
+                y: currentY,
+                height,
+                color: treePalette[i % treePalette.length]
+            });
+            currentY += height;
         });
-        chart.render();
-        return chart;
+        const totalHeight = currentY + 16;
+        const width = 900;
+        const xMain = 42,
+            xUser = 155,
+            xStart = 365,
+            xDot = 475,
+            xModule = 495,
+            xBadge = 780;
+        const parts = [];
+        parts.push(
+            `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${totalHeight}" role="img" aria-label="User activity tree hari ini" style="width:100%;height:auto;min-width:620px;display:block">`
+            );
+        if (rows.length > 1) {
+            parts.push(
+                `<path d="M${xMain} ${positions[0].y} V${positions[positions.length-1].y}" fill="none" stroke="#64748b" stroke-width="4" stroke-linecap="round"/>`
+                );
+        }
+        rows.forEach((user, i) => {
+            const {
+                y,
+                color
+            } = positions[i];
+            const mods = user.modules || [];
+            const total = Number(user.total || 0).toLocaleString('id-ID');
+            parts.push(
+            `<circle cx="${xMain}" cy="${y}" r="9" fill="${color}" stroke="#fff" stroke-width="3"/>`);
+            parts.push(
+                `<path d="M${xMain+10} ${y} H${xUser-13}" fill="none" stroke="${color}" stroke-width="3"/>`);
+            parts.push(
+                `<text x="${xUser}" y="${y-9}" font-size="16" font-weight="700" fill="currentColor">${treeEscape(user.name || 'Unknown')}</text>`
+                );
+            parts.push(
+            `<text x="${xUser}" y="${y+12}" font-size="13" fill="${color}">${total} requests</text>`);
+            mods.forEach((mod, j) => {
+                const my = y + (j - (mods.length - 1) / 2) * 30;
+                parts.push(
+                    `<path d="M${xStart} ${y} C${xStart+54} ${y}, ${xDot-55} ${my}, ${xDot} ${my}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round"/>`
+                    );
+                parts.push(`<circle cx="${xDot}" cy="${my}" r="5.5" fill="${color}"/>`);
+                parts.push(
+                    `<text x="${xModule}" y="${my+5}" font-size="14" fill="currentColor">${treeEscape(mod.name)}</text>`
+                    );
+                parts.push(
+                    `<rect x="${xBadge}" y="${my-13}" width="95" height="26" rx="13" fill="${color}" fill-opacity="0.17"/>`
+                    );
+                parts.push(
+                    `<text x="${xBadge+47.5}" y="${my+5}" text-anchor="middle" font-size="13" font-weight="700" fill="${color}">${Number(mod.total || 0).toLocaleString('id-ID')}</text>`
+                    );
+            });
+        });
+        parts.push('</svg>');
+        el.innerHTML = parts.join('');
     }
 
     function initializeUserRankingCharts() {
-        webUserRequestsChart = createUserRankingChart('web', @json($webUserRequests));
-        apiUserRequestsChart = createUserRankingChart('api', @json($apiUserRequests));
+        renderUserActivityTree('combined', @json($combinedUserRequests));
     }
 
-    function updateUserRankingChart(id, rows) {
-        const chart = id === 'web' ? webUserRequestsChart : apiUserRequestsChart;
-        if (chart) {
-            chart.updateOptions({
-                xaxis: {
-                    categories: rows.map(r => r.name || 'Unknown')
-                },
-                series: [{
-                    name: 'Requests',
-                    data: rows.map(r => Number(r.total))
-                }]
-            });
-        }
-        const badges = document.getElementById(id + 'UserRequestsBadges');
-        if (!badges) return;
-        badges.replaceChildren();
-        if (!rows.length) {
-            badges.textContent = 'Belum ada request.';
-            return;
-        }
-        rows.forEach(row => {
-            const badge = document.createElement('span');
-            badge.className =
-                'badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-3 py-2';
-            badge.textContent = (row.name || 'Unknown') + ' · ' +
-                Number(row.total).toLocaleString('id-ID') + ' requests';
-            badges.appendChild(badge);
-        });
+    function updateUserRankingChart(channel, rows) {
+        renderUserActivityTree(channel, rows);
     }
 </script>
 
@@ -1278,8 +1243,6 @@
     let apiActivityByDayChart = null;
     let apiEndpointChart = null;
 
-    let webUserRequestsChart = null;
-    let apiUserRequestsChart = null;
     let dashboardRefreshing = false;
 
     function speakActivity(activity) {
@@ -1919,7 +1882,7 @@
         updateActivityByModuleChart(
             data.activityByModule
         );
-        updateUserRankingChart('web', data.webUserRequests ?? []);
+        updateUserRankingChart('combined', data.combinedUserRequests ?? []);
 
 
         /*
@@ -1982,7 +1945,7 @@
         updateApiEndpointChart(
             data.apiEndpointUsage
         );
-        updateUserRankingChart('api', data.apiUserRequests ?? []);
+        updateUserRankingChart('combined', data.combinedUserRequests ?? []);
 
     }
 
