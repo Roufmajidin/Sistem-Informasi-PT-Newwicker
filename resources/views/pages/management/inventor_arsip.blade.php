@@ -184,254 +184,19 @@
                                    <th width="120">Action </th>
                                </tr>
                            </thead>
-                           <tbody>
-                               @forelse($spks as $spk)
-                                   <tr class="spk-row" data-id="{{ $spk['id'] }}" data-status="{{ $spk['status'] }}">
-                                       <td>
-                                           {{ $loop->iteration }}
-                                       </td>
-                                       {{-- CLICK FOR INPUT --}}
-                                       <td class="{{ $hideHarga ? '' : 'inventor-row' }} spk-col"
-                                           data-id="{{ $spk['id'] }}">
-                                           <div class="fw-bold text-primary">
-                                               {{ $spk['no_spk'] }}
-                                           </div>
-                                       </td>
-                                       <td style="font-size:12px" class="inventor-row" data-id="{{ $spk['id'] }}">
-
-                                           <div class="fw-bold">
-                                               {{ $spk['supplier'] }}
-                                           </div>
-
-                                           @foreach ($spk['items'] as $item)
-                                               <div class="item-spk"
-                                                   title="{{ $item['nama'] }} ({{ $item['qty'] }} {{ $item['satuan'] ?? 'pcs' }})">
-                                                   • {{ $item['nama'] }}
-                                                   ({{ $item['qty'] }} {{ $item['satuan'] ?? 'pcs' }})
-                                               </div>
-                                           @endforeach
-
-                                       </td>
-                                       <td class="inventor-row" data-id="{{ $spk['id'] }}">
-                                           <span class="badge bg-info">
-                                               {{ strtoupper($spk['kategori']) }}
-                                           </span>
-                                       </td>
-                                       <td class="inventor-row po-col" data-id="{{ $spk['id'] }}">
-                                           {{ $spk['no_po'] }}
-                                       </td>
-                                       <td class="inventor-row" data-id="{{ $spk['id'] }}">
-                                           {{ $spk['tgl_terima'] }}
-                                       </td>
-                                       <td class="inventor-row" data-id="{{ $spk['id'] }}">
-                                           {{ $spk['tgl_selesai'] }}
-                                       </td>
-                                       <td style="width:20px">
-                                           <div class="deadline-card">
-
-                                               <div class="deadline-bar">
-
-                                                   <div class="deadline-fill deadline-{{ $spk['deadline_color'] }}"
-                                                       style="width: {{ $spk['deadline_percent'] }}%">
-                                                   </div>
-
-                                               </div>
-
-                                               <div class="deadline-footer">
-                                                   <span>
-                                                       {{ $spk['deadline_text'] }}
-                                                   </span>
-
-                                                   <span>
-                                                       <!-- {{ $spk['deadline_percent'] }}% -->
-                                                   </span>
-                                               </div>
-
-                                           </div>
-                                       </td>
-                                       {{-- <td>"{{ $spk['status'] }}"</td> --}}
-                                       @if (!$hideHarga)
-                                           {{-- VIVI --}}
-                                           <td class="text-center">
-
-                                               @if (!empty($spk['signature']['checked_at']))
-                                                   <a href="{{ url('/spk/edit/' . $spk['id']) }}">
-                                                       <span class="badge bg-success">
-                                                           <i class="fa fa-check"></i>
-                                                           Signed
-                                                       </span>
-                                                   </a>
-
-                                                   <br>
-
-                                                   <small class="text-muted">
-                                                       {{ $spk['signature']['checked_by'] }}
-                                                   </small>
-                                               @elseif($spk['status'] == 'diajukan')
-                                                   <a href="{{ url('/spk/edit/' . $spk['id']) }}">
-                                                       <span class="badge bg-warning">
-                                                           Pending
-                                                       </span>
-                                                   </a>
-                                               @else
-                                                   <span class="text-muted">-</span>
-                                               @endif
-
-                                           </td>
-
-                                           {{-- DIDIN --}}
-                                           <td class="text-center">
-
-                                               @if (!empty($spk['signature']['checked_at_2']))
-                                                   <a href="{{ url('/spk/edit/' . $spk['id']) }}">
-                                                       <span class="badge bg-success">
-                                                           <i class="fa fa-check"></i>
-                                                           Signed
-                                                       </span>
-                                                   </a>
-
-                                                   <br>
-
-                                                   <small class="text-muted">
-                                                       {{ $spk['signature']['checked_by_2'] }}
-                                                   </small>
-                                               @elseif($spk['status'] == 'diajukan')
-                                                   <a href="{{ url('/spk/edit/' . $spk['id']) }}">
-                                                       <span class="badge bg-warning">
-                                                           Pending
-                                                       </span>
-                                                   </a>
-                                               @else
-                                                   <span class="text-muted">-</span>
-                                               @endif
-
-                                           </td>
-
-                                           {{-- MR STANLEY --}}
-                                           <td class="text-center">
-
-                                               @if (!empty($spk['signature']['approved_at']))
-                                                   <a href="{{ url('/spk/edit/' . $spk['id']) }}">
-                                                       <span class="badge bg-success">
-                                                           <i class="fa fa-check"></i>
-                                                           Signed
-                                                       </span>
-                                                   </a>
-
-                                                   <br>
-
-                                                   <small class="text-muted">
-                                                       {{ $spk['signature']['approved_by'] }}
-                                                   </small>
-                                               @elseif($spk['status'] == 'diajukan' && auth()->id() == 191)
-                                                   <button type="button" class="btn btn-warning btn-sm btn-approve-spk"
-                                                       data-id="{{ $spk['id'] }}">
-                                                       Pending Approval
-                                                   </button>
-                                               @elseif($spk['status'] == 'diajukan')
-                                                   <a href="{{ url('/spk/edit/' . $spk['id']) }}">
-                                                       <span class="badge bg-warning">
-                                                           Pending Mr. Stanley
-                                                       </span>
-                                                   </a>
-                                               @else
-                                                   <span class="text-muted">-</span>
-                                               @endif
-
-                                           </td>
-                                       @endif
-                                       <td class="text-center inventor-row" data-id="{{ $spk['id'] }}">
-                                           {{ count($spk['items']) }}
-                                       </td>
-                                       {{-- DETAIL BUTTON --}}
-                                       <td>
-
-                                           {{-- Selain Admin Produksi dan bukan John/Aji --}}
-                                           @if (auth()->user()->role != 'admin produksi' && !in_array(auth()->user()->email, ['john@gmail.com', 'aji@gmail.com']))
-                                               @if ($spk['status'] == 'draft')
-                                                   <button type="button" class="btn btn-success btn-sm btn-ajukan"
-                                                       data-id="{{ $spk['id'] }}" data-spk="{{ $spk['no_spk'] }}">
-                                                       Ajukan
-                                                   </button>
-                                               @endif
-                                           @endif
-
-                                           {{-- Detail boleh untuk semua selain Admin Produksi, termasuk John & Aji --}}
-                                           @if (auth()->user()->role != 'admin produksi' || in_array(auth()->user()->email, ['john@gmail.com', 'aji@gmail.com']))
-                                               <button type="button" class="btn btn-primary btn-sm btn-detail"
-                                                   data-id="{{ $spk['id'] }}">
-                                                   Detail
-                                               </button>
-                                           @endif
-
-                                       </td>
-                                   </tr>
-                               @empty
-                                   <tr>
-                                       <td colspan="10" class="text-center text-muted py-5">
-                                           Tidak ada data SPK
-                                       </td>
-                                   </tr>
-                               @endforelse
+                           <tbody id="inventorLazyTbody">
+                               @include('pages.management.partials.inventor_arsip_rows', ['spks' => $spks])
                            </tbody>
                        </table>
                    </div>
                    {{-- MOBILE ONLY: SPK cards. Desktop table above remains unchanged. --}}
                    <div class="spk-mobile-list" id="spkMobileList">
-                       @forelse($spks as $spk)
-                           <article class="spk-mobile-card" data-id="{{ $spk['id'] }}"
-                               data-status="{{ $spk['status'] }}"
-                               data-supplier="{{ strtolower($spk['supplier'] ?? '') }}"
-                               data-search="{{ strtolower(($spk['no_spk'] ?? '') . ' ' . ($spk['no_po'] ?? '') . ' ' . ($spk['supplier'] ?? '')) }}"
-                               data-spktype="{{ str_contains(strtoupper($spk['no_spk'] ?? ''), 'NWS') ? 'NWS' : 'NW' }}">
-                               <div class="spk-mobile-card-top">
-                                   <div class="spk-mobile-card-title">{{ $spk['no_spk'] }}</div>
-                               </div>
-                               <div class="spk-mobile-supplier">{{ $spk['supplier'] }}</div>
-                               <div class="spk-mobile-items">
-                                   {{ collect($spk['items'])->take(2)->pluck('nama')->join(' · ') }}</div>
-                               <div class="spk-mobile-progress">
-                                   <div class="spk-mobile-progress-label">
-                                       <span>{{ strtoupper($spk['kategori'] ?? '-') }}</span><strong>{{ $spk['deadline_text'] }}</strong>
-                                   </div>
-                                   <div class="spk-mobile-track">
-                                       <div class="deadline-{{ $spk['deadline_color'] }}"
-                                           style="width:{{ max(3, min(100, (float) $spk['deadline_percent'])) }}%"></div>
-                                   </div>
-                               </div>
-                               <div class="spk-mobile-metadata">
-                                   <span><i class="fa fa-file-text-o"></i> {{ $spk['no_po'] ?? '-' }}</span>
-                                   <span><i class="fa fa-calendar"></i> {{ $spk['tgl_terima'] ?? '-' }}</span>
-                                   <span><i class="fa fa-flag"></i> {{ $spk['tgl_selesai'] ?? '-' }}</span>
-                                   <span class="spk-mobile-qty">{{ count($spk['items']) }} item</span>
-                               </div>
-                               <div class="spk-mobile-actions">
-                                   @if (auth()->user()->role != 'admin produksi' || in_array(auth()->user()->email, ['john@gmail.com', 'aji@gmail.com']))
-                                       <button type="button" class="spk-mobile-detail" data-id="{{ $spk['id'] }}"><i
-                                               class="fa fa-list-alt"></i> Lihat
-                                           Detail</button>
-                                   @endif
-                                   @php
-                                       $mEmail = strtolower(trim((string) auth()->user()->email));
-                                       $mRole = strtolower(trim((string) auth()->user()->role));
-                                       $mCanAjukan =
-                                           $mEmail === 'nurk@gmail.com' ||
-                                           ($mRole !== 'admin produksi' &&
-                                               !in_array($mEmail, ['john@gmail.com', 'aji@gmail.com'], true));
-                                   @endphp
-                                   @if ($mCanAjukan && strtolower($spk['status'] ?? '') === 'draft')
-                                       <button type="button" class="spk-mobile-ajukan" data-id="{{ $spk['id'] }}"><i
-                                               class="fa fa-paper-plane"></i>
-                                           Ajukan</button>
-                                   @endif
-                               </div>
-                           </article>
-                       @empty
-                           <div class="spk-mobile-empty">Tidak ada data SPK</div>
-                       @endforelse
+                       @include('pages.management.partials.inventor_arsip_cards', ['spks' => $spks])
                        <div class="spk-mobile-empty spk-mobile-filter-empty" style="display:none">Tidak ada SPK sesuai
                            filter</div>
                    </div>
+<div id="inventorLazyStatus" class="text-center text-muted py-3" aria-live="polite"></div>
+                   <div id="inventorLazySentinel" style="height:1px"></div>
                </div>
            </div>
        </div>
@@ -1148,7 +913,82 @@
                });
            })();
        </script>
-   @endsection
+   
+<script>
+(function () {
+  const tbody = document.getElementById('inventorLazyTbody');
+  const mobile = document.getElementById('spkMobileList');
+  const sentinel = document.getElementById('inventorLazySentinel');
+  const status = document.getElementById('inventorLazyStatus');
+  if (!tbody || !mobile || !sentinel) return;
+  let cursor = @json($nextCursor);
+  let hasMore = @json($hasMore);
+  let busy = false, generation = 0, debounce = null, failed = false;
+  const base = window.location.pathname;
+  const inputs = ['searchSpk','searchSub','filterStatus','filterSpkType'];
+  function params() {
+    const p = new URLSearchParams({ajax:'1'});
+    const val = id => (document.getElementById(id)?.value || '').trim();
+    if (val('searchSpk')) p.set('search',val('searchSpk'));
+    if (val('searchSub')) p.set('supplier',val('searchSub'));
+    if (val('filterStatus')) p.set('status',val('filterStatus'));
+    if (val('filterSpkType')) p.set('type',val('filterSpkType'));
+    return p;
+  }
+  async function load(reset=false) {
+    if ((busy || !hasMore || failed) && !reset) return;
+    if (reset) { generation++; failed=false; cursor=null; hasMore=true; tbody.innerHTML=''; mobile.querySelectorAll('.spk-mobile-card').forEach(x=>x.remove()); }
+    const token=generation;
+    busy=true; status.textContent='Memuat SPK...';
+    const p=params(); if(cursor) p.set('cursor',cursor);
+    try {
+      const res=await fetch(base+'?'+p.toString(),{headers:{Accept:'application/json'},credentials:'same-origin'});
+      if(!res.ok) throw Error('HTTP '+res.status);
+      const data=await res.json();
+      if(token!==generation) return;
+      failed=false;
+      tbody.insertAdjacentHTML('beforeend',data.desktop);
+      const temp=document.createElement('div');temp.innerHTML=data.mobile;
+      const empty=mobile.querySelector('.spk-mobile-filter-empty');
+      while(temp.firstChild) mobile.insertBefore(temp.firstChild,empty);
+      cursor=data.next_cursor;hasMore=!!data.has_more;
+      tbody.querySelectorAll('tr.spk-row').forEach((tr,i)=>{if(tr.cells[0])tr.cells[0].textContent=i+1;});
+      status.textContent=hasMore?'Scroll ke bawah untuk memuat SPK berikutnya':'Semua SPK sudah dimuat';
+      if(!tbody.querySelector('tr.spk-row') && !hasMore)status.textContent='Tidak ada SPK sesuai filter';
+    } catch(e) { if(token===generation){ failed=true; status.textContent='Gagal memuat: '+e.message+' — ubah filter untuk mencoba lagi'; console.error('Inventor infinite scroll:',e); } }
+    finally {if(token===generation){busy=false;}}
+  }
+  // Only load the next batch after an actual downward user scroll.
+  // No IntersectionObserver and no automatic chaining after fetch.
+  let lastScrollY = window.scrollY;
+  let scrollArmed = false;
+  window.addEventListener('scroll', () => {
+    const currentY = window.scrollY;
+    const movingDown = currentY > lastScrollY;
+    lastScrollY = currentY;
+    if (!movingDown || !scrollArmed || busy || failed || !hasMore) return;
+    const nearBottom = sentinel.getBoundingClientRect().top <= window.innerHeight + 120;
+    if (nearBottom) {
+      scrollArmed = false;
+      load();
+    }
+  }, { passive: true });
+  // Re-arm on genuine scroll intent, including when already at the bottom.
+  window.addEventListener('wheel', e => { if (e.deltaY > 0) scrollArmed = true; }, { passive: true });
+  window.addEventListener('touchstart', () => { scrollArmed = true; }, { passive: true });
+  window.addEventListener('keydown', e => {
+    if (['PageDown','ArrowDown','End',' '].includes(e.key) &&
+        !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) scrollArmed = true;
+  });
+  inputs.forEach(id=>{
+    const input=document.getElementById(id);if(!input)return;
+    input.addEventListener('input',()=>{clearTimeout(debounce);debounce=setTimeout(()=>load(true),350);});
+    input.addEventListener('change',()=>{clearTimeout(debounce);load(true);});
+  });
+  status.textContent=hasMore?'Scroll untuk memuat berikutnya':'Semua SPK sudah dimuat';
+})();
+</script>
+@endsection
 
    <style>
        .spk-row-menu {
