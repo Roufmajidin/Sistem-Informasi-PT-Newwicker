@@ -184,6 +184,22 @@
             min-width: 1100px
         }
 
+        th:nth-child(1),
+        td:nth-child(1) {
+            width: 55px
+        }
+
+        th:nth-child(5),
+        td:nth-child(5) {
+            text-align: center;
+            white-space: nowrap
+        }
+
+        th:nth-child(7),
+        td:nth-child(7) {
+            min-width: 115px
+        }
+
         th {
             background: #f1f5f9;
             color: #475569;
@@ -432,8 +448,9 @@
                             <th>No SPK</th>
                             <th>PO</th>
                             <th>Items Name</th>
-                            <th>Labels</th>
+                            <th>Total</th>
                             <th>Method</th>
+                            <th>Label List</th>
                             <th>User</th>
                             <th>Scanned At</th>
                             <th>Subkon</th>
@@ -441,7 +458,7 @@
                     </thead>
                     <tbody id="rows">
                         <tr>
-                            <td colspan="9" class="muted">Memuat data...</td>
+                            <td colspan="10" class="muted">Memuat data...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -472,7 +489,7 @@
         (() => {
             'use strict';
             const endpoint = @json(route('warehouse.incoming.data'));
-            // Endpoint baru ini perlu ditambahkan di routes/web.php (lihat file controller patch).
+            // Menggunakan endpoint data yang sudah ada, tanpa route baru.
             const labelsEndpoint = endpoint + '?labels_only=1';
             const el = id => document.getElementById(id);
             const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({
@@ -530,9 +547,9 @@
                     el('spkCount').textContent = fmt(result.summary?.spk);
                     const records = Array.isArray(result.rows) ? result.rows : [];
                     el('rows').innerHTML = records.length ? records.map((r, i) =>
-                            `<tr><td>${(page-1)*perPage+i+1}</td><td><strong>${esc(r.no_spk||'—')}</strong></td><td>${esc(r.no_po||'—')}</td><td>${esc(r.item_name||'—')}</td><td><span class="pill">${esc(r.label||'—')}</span></td><td>${esc(r.scan_method||'—')}</td><td>${esc(r.user_name||'—')}</td><td>${esc(r.scanned_at||'—')}</td><td>${esc(r.subkon||'—')}</td></tr>`
+                            `<tr><td>${(page-1)*perPage+i+1}</td><td><strong>${esc(r.no_spk||'—')}</strong></td><td>${esc(r.no_po||'—')}</td><td>${esc(r.item_name||'—')}</td><td>${esc(r.total ?? r.total_qty ?? r.qty ?? '—')}</td><td>${esc(r.scan_method||'—')}</td><td><span class="pill">${esc(r.label||'—')}</span></td><td>${esc(r.user_name||'—')}</td><td>${esc(r.scanned_at||'—')}</td><td>${esc(r.subkon||'—')}</td></tr>`
                             ).join('') :
-                        '<tr><td colspan="9" class="muted">Tidak ada data sesuai pencarian / klasifikasi.</td></tr>';
+                        '<tr><td colspan="10" class="muted">Tidak ada data sesuai pencarian / klasifikasi.</td></tr>';
                     lastPage = Math.max(1, Number(result.pagination?.last_page) || 1);
                     el('pageInfo').textContent =
                         `Halaman ${page} / ${lastPage} · ${fmt(result.pagination?.total)} baris`;
