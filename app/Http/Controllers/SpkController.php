@@ -10780,5 +10780,84 @@ class SpkController extends Controller
             'next_sequence' => $highest + 1,
         ];
     }
+    public function pengajuanTomo()
+{
+    return view('pages.spk.tomo');
+}
 
+public function pengajuanTomoData(Request $request)
+{
+    return response()->json(DB::table('tomo_submissions')
+        ->orderByDesc('id')->limit(2000)->get()->map(function ($row) {
+            $row->rows = json_decode($row->points_json ?: '[]', true) ?: [];
+            unset($row->points_json);
+            return $row;
+        }));
+}
+
+public function pengajuanTomoStatus(Request $request, int $id)
+{
+    $data = $request->validate([
+        'action' => ['required', 'in:confirm,approve,reject'],
+        'review_notes' => ['nullable', 'string', 'max:3000'],
+    ]);
+    if ($data['action'] === 'reject' && blank($data['review_notes'] ?? null)) {
+        throw ValidationException::withMessages(['review_notes' => 'Alasan penolakan wajib diisi.']);
+    }
+    $transitions = [
+        'confirm' => ['from' => 'pending', 'to' => 'diproses'],
+        'approve' => ['from' => 'diproses', 'to' => 'disetujui'],
+        'reject'  => ['from' => 'diproses', 'to' => 'ditolak'],
+    ];
+    $transition = $transitions[$data['action']];
+    $affected = DB::table('tomo_submissions')
+        ->where('id', $id)->where('status', $transition['from'])
+        ->update([
+            'status' => $transition['to'],
+            'reviewed_at' => now(),
+            'review_notes' => $data['review_notes'] ?? null,
+            'updated_at' => now(),
+        ]);
+    if (!$affected) {
+        return response()->json(['message' => 'Status sudah berubah atau pengajuan tidak ditemukan. Refresh halaman.'], 409);
+    }
+    return response()->json(['message' => 'Status berhasil diperbarui.', 'status' => $transition['to']]);
+}
+
+public function pengajuanTomoPoints()
+{
+    return response()->json(DB::table('tomo_points')
+        ->orderBy('sort_order')->orderBy('id')->get(['id', 'name', 'sort_order', 'is_active']));
+}
+
+public function pengajuanTomoPointStore(Request $request)
+{
+    $data = $request->validate([
+        'name' => ['required', 'string', 'max:150'],
+    ]);
+    $id = DB::table('tomo_points')->insertGetId([
+        'name' => trim($data['name']),
+        'sort_order' => ((int) DB::table('tomo_points')->max('sort_order')) + 1,
+        'is_active' => 1,
+        'created_at' => now(), 'updated_at' => now(),
+    ]);
+    return response()->json(['message' => 'Point ditambahkan.', 'id' => $id], 201);
+}
+
+public function pengajuanTomoPointUpdate(Request $request, int $id)
+{
+    $data = $request->validate([
+        'name' => ['required', 'string', 'max:150'],
+        'sort_order' => ['required', 'integer', 'min:0', 'max:999999'],
+        'is_active' => ['required', 'boolean'],
+    ]);
+    $affected = DB::table('tomo_points')->where('id', $id)->update([
+        'name' => trim($data['name']),
+        'sort_order' => $data['sort_order'],
+        'is_active' => $data['is_active'],
+        'updated_at' => now(),
+    ]);
+    if (!$affected) return response()->json(['message' => 'Point tidak ditemukan atau tidak berubah.'], 404);
+    return response()->json(['message' => 'Point diperbarui.']);
+}
 }
