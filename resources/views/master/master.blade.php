@@ -457,6 +457,24 @@
 
                                 </li> --}}
 
+                                {{-- Network monitor: sebelum Messages, tanpa reload halaman --}}
+                                <li class="nav-item" id="nw-network-nav"
+                                    style="display:flex;align-items:center;margin-right:9px">
+                                    <div id="nw-network-indicator" role="status" aria-live="polite"
+                                        title="Memeriksa koneksi internet..."
+                                        style="display:inline-flex;align-items:center;gap:5px;padding:6px 4px;white-space:nowrap;cursor:default">
+                                        <span id="nw-network-dot"
+                                            style="display:inline-block;width:11px;height:11px;border-radius:50%;background:#94a3b8;flex-shrink:0;transition:background .2s"></span>
+                                        <span
+                                            style="display:flex;flex-direction:column;align-items:flex-start;justify-content:center;line-height:1.15;gap:2px">
+                                            <span id="nw-network-ms"
+                                                style="font-size:10px;font-weight:600;color:#64748b;min-width:28px">--</span>
+                                            <span id="nw-network-quality"
+                                                style="font-size:9px;font-weight:600;color:#94a3b8;white-space:nowrap">Checking</span>
+                                        </span>
+                                    </div>
+                                </li>
+
                                 {{-- Pengajuan Harga Messages: sebelum QC Notification --}}
                                 @if ($canNotifyPengajuanHarga)
                                     <li class="nav-item" id="nw-ph-nav"
@@ -1554,6 +1572,93 @@
 
                             });
 
+                        })();
+                    </script>
+
+                    {{-- Network monitor: mandiri, tanpa jQuery, tidak mengubah modul existing --}}
+                    <script>
+                        (function() {
+                            'use strict';
+                            if (window.__nwNetworkMonitorReady) return;
+                            window.__nwNetworkMonitorReady = true;
+
+                            var dot = document.getElementById('nw-network-dot');
+                            var label = document.getElementById('nw-network-ms');
+                            var quality = document.getElementById('nw-network-quality');
+                            var box = document.getElementById('nw-network-indicator');
+                            if (!dot || !label || !quality || !box) return;
+
+                            var INTERVAL = 5000;
+                            var TIMEOUT = 7000;
+                            var busy = false;
+                            var activeController = null;
+
+                            function show(color, text, detail, status) {
+                                dot.style.background = color;
+                                dot.style.boxShadow = '0 0 7px ' + color + '66';
+                                label.textContent = text;
+                                quality.textContent = status || 'Checking';
+                                quality.style.color = color;
+                                box.title = detail;
+                                box.setAttribute('aria-label', detail);
+                            }
+
+                            async function check() {
+                                if (busy) return;
+                                if (!navigator.onLine) {
+                                    show('#ef4444', 'Offline', 'Merah: perangkat tidak terhubung ke jaringan', 'Offline');
+                                    return;
+                                }
+
+                                busy = true;
+                                var controller = new AbortController();
+                                activeController = controller;
+                                var timeoutId = setTimeout(function() {
+                                    controller.abort();
+                                }, TIMEOUT);
+                                var start = performance.now();
+                                try {
+                                    // Probe eksternal, tidak memanggil controller/database Laravel.
+                                    // no-cors: hanya mengukur selesainya request, bukan bandwidth Mbps.
+                                    await fetch('https://www.google.com/generate_204?_=' + Date.now(), {
+                                        method: 'GET',
+                                        mode: 'no-cors',
+                                        cache: 'no-store',
+                                        signal: controller.signal
+                                    });
+                                    if (!navigator.onLine) {
+                                        show('#ef4444', 'Offline', 'Merah: jaringan terputus', 'Offline');
+                                        return;
+                                    }
+                                    var ms = Math.round(performance.now() - start);
+                                    if (ms <= 100) {
+                                        show('#22c55e', ms + ' ms', 'Hijau: respons sangat stabil (' + ms + ' ms)', 'Very Stable');
+                                    } else if (ms <= 300) {
+                                        show('#22c55e', ms + ' ms', 'Hijau: respons stabil (' + ms + ' ms)', 'Stable');
+                                    } else if (ms <= 1500) {
+                                        show('#eab308', ms + ' ms', 'Kuning: respons koneksi melambat (' + ms + ' ms)', 'Slow');
+                                    } else {
+                                        show('#ef4444', ms + ' ms', 'Merah: respons koneksi sangat lambat (' + ms + ' ms)',
+                                            'Very Slow');
+                                    }
+                                } catch (error) {
+                                    show('#ef4444', 'Gagal',
+                                        'Merah: probe gagal/timeout. Bisa karena koneksi atau kebijakan browser/jaringan.',
+                                        'Unavailable');
+                                } finally {
+                                    clearTimeout(timeoutId);
+                                    if (activeController === controller) activeController = null;
+                                    busy = false;
+                                }
+                            }
+
+                            window.addEventListener('offline', function() {
+                                if (activeController) activeController.abort();
+                                show('#ef4444', 'Offline', 'Merah: perangkat tidak terhubung ke jaringan', 'Offline');
+                            });
+                            window.addEventListener('online', check);
+                            check();
+                            setInterval(check, INTERVAL);
                         })();
                     </script>
 
