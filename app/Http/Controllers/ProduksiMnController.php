@@ -3074,18 +3074,28 @@ class ProduksiMnController extends Controller
         return strtolower($jenis);
     }
 
-    // Infinite-scroll: batch query di database, bukan semua SPK.
+    // Inventor: halaman pertama dan endpoint data terpisah.
     public function inventor(Request $request)
     {
-        return $this->inventorLazy($request, false);
+        return $this->inventorLazy($request, false, false);
+    }
+
+    public function inventorData(Request $request)
+    {
+        return $this->inventorLazy($request, false, true);
     }
 
     public function inventorArsip(Request $request)
     {
-        return $this->inventorLazy($request, true);
+        return $this->inventorLazy($request, true, false);
     }
 
-    private function inventorLazy(Request $request, bool $arsip)
+    public function inventorArsipData(Request $request)
+    {
+        return $this->inventorLazy($request, true, true);
+    }
+
+    private function inventorLazy(Request $request, bool $arsip, bool $dataOnly = false)
     {
         $filters = $request->validate([
             'cursor' => ['nullable', 'integer', 'min:0'],
@@ -3093,7 +3103,6 @@ class ProduksiMnController extends Controller
             'supplier' => ['nullable', 'string', 'max:150'],
             'status' => ['nullable', 'in:draft,diajukan'],
             'type' => ['nullable', 'in:NW,NWS'],
-            'ajax' => ['nullable', 'boolean'],
         ]);
         $cursor = isset($filters['cursor']) ? (int) $filters['cursor'] : null;
         $search = mb_strtolower(trim($filters['search'] ?? ''));
@@ -3101,21 +3110,57 @@ class ProduksiMnController extends Controller
         $status = $filters['status'] ?? '';
         $type = $filters['type'] ?? '';
         $limit = 10;
-        $results = collect();
+        $matched = collect();
         $lastId = $cursor;
         $exhausted = false;
 
-        // Chunk maksimal 100 kandidat per query; lanjut sampai 11 SPK cocok
-        // (yang ke-11 menjadi indikator masih ada data).
-        while ($results->count() < $limit + 1) {
-            $query = Spk::query()->orderByDesc('id');
+        // Pass 1: seleksi hanya berdasarkan data SPK, tanpa mengambil signature,
+        // menghitung deadline, atau membuat HTML untuk kandidat yang tidak cocok.
+        while ($matched->count() < $limit + 1) {
+            $query = Spk::query()->select(['id', 'data', 'status'])->orderByDesc('id');
             if ($lastId !== null) $query->where('id', '<', $lastId);
             if ($status !== '') $query->where('status', $status);
             $batch = $query->limit(100)->get();
             if ($batch->isEmpty()) { $exhausted = true; break; }
-            $signatures = SignatureSpk::with(['madeBy', 'checkedBy', 'checkedBy2', 'approvedBy'])
-                ->whereIn('spk_id', $batch->pluck('id'))->get()->keyBy('spk_id');
-            $mapped = $batch->map(function ($spk) use ($signatures) {
+
+            foreach ($batch as $spk) {
+                $lastId = (int) $spk->id;
+                $raw = $spk->data;
+                $payload = is_string($raw) ? json_decode($raw, true) : $raw;
+                $payload = is_array($payload) ? $payload : [];
+                $totalSpk = collect($payload['items'] ?? [])->sum(function ($item) {
+                    $total = (float) ($item['total'] ?? 0);
+                    foreach ($item['custom_columns'] ?? [] as $column) {
+                        $total += (float) ($column['total'] ?? 0);
+                    }
+                    return $total;
+                });
+                $ppnRate = !empty($payload['ppn_enabled']) ? (float) ($payload['ppn_rate'] ?? 0) : 0;
+                $totalSpk += round($totalSpk * $ppnRate / 100, 2);
+                $totalPayment = collect($payload['payments'] ?? [])->sum(fn ($payment) => (float) ($payment['amount'] ?? 0));
+                if (($totalPayment >= $totalSpk) !== $arsip) continue;
+
+                $noSpk = (string) ($payload['no_spk'] ?? '-');
+                $noPo = (string) ($payload['no_po'] ?? '-');
+                $sup = (string) ($payload['sup'] ?? '-');
+                if ($supplier !== '' && !str_contains(mb_strtolower($sup), $supplier)) continue;
+                if ($search !== '' && !str_contains(mb_strtolower($noSpk.' '.$noPo), $search)) continue;
+                if ($type === 'NWS' && !str_contains(strtoupper($noSpk), 'NWS')) continue;
+                if ($type === 'NW' && str_contains(strtoupper($noSpk), 'NWS')) continue;
+                $matched->push($spk);
+                if ($matched->count() >= $limit + 1) break;
+            }
+            if ($batch->count() < 100) { $exhausted = true; break; }
+        }
+
+        $hasMore = $matched->count() > $limit || !$exhausted;
+        $selected = $matched->take($limit)->values();
+        $nextCursor = $selected->isNotEmpty() ? (int) $selected->last()->id : $lastId;
+
+        // Pass 2: enrichment lengkap HANYA untuk 10 SPK yang akan dirender.
+        $signatures = SignatureSpk::with(['madeBy', 'checkedBy', 'checkedBy2', 'approvedBy'])
+            ->whereIn('spk_id', $selected->pluck('id'))->get()->keyBy('spk_id');
+        $spks = $selected->map(function ($spk) use ($signatures) {
                 $data = $spk->data;
                 if (is_string($data)) {
                     $data = json_decode($data, true);
@@ -3288,30 +3333,15 @@ class ProduksiMnController extends Controller
 
                 ];
 
-            });
-            foreach ($mapped as $row) {
-                $lastId = (int) $row['id'];
-                if ((bool) $row['is_finished'] !== $arsip) continue;
-                if ($supplier !== '' && !str_contains(mb_strtolower($row['supplier']), $supplier)) continue;
-                if ($search !== '' && !str_contains(mb_strtolower($row['no_spk'].' '.$row['no_po']), $search)) continue;
-                if ($type !== '' && ($type === 'NWS' ? !str_contains(strtoupper($row['no_spk']), 'NWS') : str_contains(strtoupper($row['no_spk']), 'NWS'))) continue;
-                $results->push($row);
-                if ($results->count() >= $limit + 1) break;
-            }
-            if ($batch->count() < 100) { $exhausted = true; break; }
-        }
-        $hasMore = $results->count() > $limit || !$exhausted;
-        $spks = $results->take($limit)->values()->all();
-        // Cursor selalu mengikuti SPK TERAKHIR yang ditampilkan, bukan kandidat ke-11.
-        $nextCursor = count($spks) ? end($spks)['id'] : $lastId;
+            })->values()->all();
         $processes = [
-            'rangka'=>'Rangka','anyam'=>'Anyam','unfinish'=>'Unfinish',
-            'accessories'=>'Accessories','decor'=>'Decor','ikat'=>'Ikat',
-            'final'=>'Final','packaging'=>'Packaging',
+            'rangka' => 'Rangka', 'anyam' => 'Anyam', 'unfinish' => 'Unfinish',
+            'accessories' => 'Accessories', 'decor' => 'Decor', 'ikat' => 'Ikat',
+            'final' => 'Final', 'packaging' => 'Packaging',
         ];
         $viewName = $arsip ? 'inventor_arsip' : 'inventor';
         $hideHarga = in_array(auth()->user()->email, ['john@gmail.com', 'aji@gmail.com']);
-        if ($request->boolean('ajax')) {
+        if ($dataOnly) {
             return response()->json([
                 'desktop' => view('pages.management.partials.'.$viewName.'_rows', compact('spks', 'hideHarga'))->render(),
                 'mobile' => view('pages.management.partials.'.$viewName.'_cards', compact('spks'))->render(),
@@ -3320,7 +3350,7 @@ class ProduksiMnController extends Controller
                 'count' => count($spks),
             ])->header('Cache-Control', 'no-store');
         }
-        return view('pages.management.'.$viewName, compact('spks','processes','hasMore','nextCursor'));
+        return view('pages.management.'.$viewName, compact('spks', 'processes', 'hasMore', 'nextCursor'));
     }
 
     // Tempel hanya function berikut di dalam ProduksiMnController.

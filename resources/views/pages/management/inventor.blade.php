@@ -112,6 +112,24 @@
 
        @include('pages.management.style')
 
+       {{-- Scroll fix: one vertical page scroll; retain horizontal table scrolling. --}}
+       <style>
+           .inventor-card .inventor-wrapper.table-responsive {
+               height: auto !important;
+               max-height: none !important;
+               min-height: 0 !important;
+               overflow-x: auto !important;
+               overflow-y: hidden !important;
+               overscroll-behavior-y: auto !important;
+           }
+           .inventor-card .card-body {
+               height: auto !important;
+               max-height: none !important;
+               overflow-y: visible !important;
+           }
+       </style>
+
+
        @php
            $hideHarga = in_array(auth()->user()->email, ['john@gmail.com', 'aji@gmail.com']);
        @endphp
@@ -934,11 +952,11 @@
   if (!tbody || !mobile || !sentinel) return;
   let cursor = @json($nextCursor);
   let hasMore = @json($hasMore);
-  let busy = false, generation = 0, debounce = null, failed = false;
-  const base = window.location.pathname;
+  let busy = false, generation = 0, debounce = null, failed = false, pending = null;
+  const base = @json(route('inventor.data'));
   const inputs = ['searchSpk','searchSub','filterStatus','filterSpkType'];
   function params() {
-    const p = new URLSearchParams({ajax:'1'});
+    const p = new URLSearchParams();
     const val = id => (document.getElementById(id)?.value || '').trim();
     if (val('searchSpk')) p.set('search',val('searchSpk'));
     if (val('searchSub')) p.set('supplier',val('searchSub'));
@@ -948,12 +966,13 @@
   }
   async function load(reset=false) {
     if ((busy || !hasMore || failed) && !reset) return;
-    if (reset) { generation++; failed=false; cursor=null; hasMore=true; tbody.innerHTML=''; mobile.querySelectorAll('.spk-mobile-card').forEach(x=>x.remove()); }
+    if (reset) { generation++; if(pending) pending.abort(); busy=false; failed=false; cursor=null; hasMore=true; tbody.innerHTML=''; mobile.querySelectorAll('.spk-mobile-card').forEach(x=>x.remove()); }
     const token=generation;
     busy=true; status.textContent='Memuat SPK...';
     const p=params(); if(cursor) p.set('cursor',cursor);
+    const controller = new AbortController(); pending = controller;
     try {
-      const res=await fetch(base+'?'+p.toString(),{headers:{Accept:'application/json'},credentials:'same-origin'});
+      const res=await fetch(base+'?'+p.toString(),{headers:{Accept:'application/json'},credentials:'same-origin',signal:controller.signal});
       if(!res.ok) throw Error('HTTP '+res.status);
       const data=await res.json();
       if(token!==generation) return;
@@ -966,31 +985,24 @@
       tbody.querySelectorAll('tr.spk-row').forEach((tr,i)=>{if(tr.cells[0])tr.cells[0].textContent=i+1;});
       status.textContent=hasMore?'Scroll ke bawah untuk memuat SPK berikutnya':'Semua SPK sudah dimuat';
       if(!tbody.querySelector('tr.spk-row') && !hasMore)status.textContent='Tidak ada SPK sesuai filter';
-    } catch(e) { if(token===generation){ failed=true; status.textContent='Gagal memuat: '+e.message+' — ubah filter untuk mencoba lagi'; console.error('Inventor infinite scroll:',e); } }
-    finally {if(token===generation){busy=false;}}
+    } catch(e) { if(e.name === 'AbortError') return; if(token===generation){ failed=true; status.textContent='Gagal memuat: '+e.message+' — ubah filter untuk mencoba lagi'; console.error('Inventor infinite scroll:',e); } }
+    finally {if(token===generation){busy=false;pending=null;}}
   }
-  // Only load the next batch after an actual downward user scroll.
-  // No IntersectionObserver and no automatic chaining after fetch.
+  // Hanya aksi scroll pengguna yang boleh memuat batch berikutnya.
   let lastScrollY = window.scrollY;
-  let scrollArmed = false;
-  window.addEventListener('scroll', () => {
+  let lastScrollAt = 0;
+  function onUserScroll(event) {
+    if (event && event.isTrusted === false) return;
+    const now = Date.now();
+    if (now - lastScrollAt < 120) return;
+    lastScrollAt = now;
     const currentY = window.scrollY;
     const movingDown = currentY > lastScrollY;
     lastScrollY = currentY;
-    if (!movingDown || !scrollArmed || busy || failed || !hasMore) return;
-    const nearBottom = sentinel.getBoundingClientRect().top <= window.innerHeight + 120;
-    if (nearBottom) {
-      scrollArmed = false;
-      load();
-    }
-  }, { passive: true });
-  // Re-arm on genuine scroll intent, including when already at the bottom.
-  window.addEventListener('wheel', e => { if (e.deltaY > 0) scrollArmed = true; }, { passive: true });
-  window.addEventListener('touchstart', () => { scrollArmed = true; }, { passive: true });
-  window.addEventListener('keydown', e => {
-    if (['PageDown','ArrowDown','End',' '].includes(e.key) &&
-        !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) scrollArmed = true;
-  });
+    if (!movingDown || busy || failed || !hasMore) return;
+    if (sentinel.getBoundingClientRect().top <= window.innerHeight + 250) load();
+  }
+  window.addEventListener('scroll', onUserScroll, {passive:true});
   inputs.forEach(id=>{
     const input=document.getElementById(id);if(!input)return;
     input.addEventListener('input',()=>{clearTimeout(debounce);debounce=setTimeout(()=>load(true),350);});

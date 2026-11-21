@@ -1375,7 +1375,6 @@ Route::put('/pengajuan-tomo/points/{id}', [SpkController::class, 'pengajuanTomoP
         '/qc-report/{inspectSchedule}',
         [ProduksiMnController::class, 'qcReport']
     )->name('qc.report');
-    Route::get('/produksi/inventor', [ProduksiMnController::class, 'inventor']);
     Route::get(
         '/inventor/spk/{id}',
         [ProduksiMnController::class, 'inventorDetail']
@@ -1508,8 +1507,16 @@ Route::put('/pengajuan-tomo/points/{id}', [SpkController::class, 'pengajuanTomoP
         [ProduksiMnController::class, 'barangJadiRekap']
     )->name('barang.jadi.rekap');
     // new routing
-    Route::get('/produksi/inventor/arsip', [ProduksiMnController::class, 'inventorArsip'])
-        ->name('inventor.arsip');
+ Route::get('/produksi/inventor', [ProduksiMnController::class, 'inventor']);
+
+Route::get('/produksi/inventor/data', [ProduksiMnController::class, 'inventorData'])
+    ->name('inventor.data');
+
+Route::get('/produksi/inventor/arsip', [ProduksiMnController::class, 'inventorArsip'])
+    ->name('inventor.arsip');
+
+Route::get('/produksi/inventor/arsip/data', [ProduksiMnController::class, 'inventorArsipData'])
+    ->name('inventor.arsip.data');
 
     // cog 
 
