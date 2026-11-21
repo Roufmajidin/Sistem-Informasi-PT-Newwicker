@@ -1327,11 +1327,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/produksi/inventor/signature', [InventorSignatureController::class, 'index'])->name('produksi.inventor.signature');
     Route::post('/produksi/inventor/signature/{id}/approve', [InventorSignatureController::class, 'sign'])->name('produksi.inventor.signature.approve');
     Route::post('/produksi/inventor/signature/{id}/reject', [InventorSignatureController::class, 'reject'])->middleware('auth')->name('produksi.inventor.signature.reject');
-Route::post(
-    '/produksi/inventor/signature/{id}/comment',
-    [InventorSignatureController::class, 'comment']
-)
-  ->name('produksi.inventor.signature.comment');
+    Route::post(
+        '/produksi/inventor/signature/{id}/comment',
+        [InventorSignatureController::class, 'comment']
+    )
+        ->name('produksi.inventor.signature.comment');
     Route::post(
         '/spk/change-status/{spk}',
         [SpkController::class, 'changeStatus']
@@ -1347,12 +1347,12 @@ Route::post(
     Route::get('/spkk/timeline', [SpkController::class, 'tima'])->name('spk.time');
     Route::get('/all-spk', [SpkController::class, 'allspk'])->name('spk.all');
     Route::get('/semua-spk', [SpkController::class, 'spk'])->name('spk.semua');
-Route::get('/pengajuan-tomo', [SpkController::class, 'pengajuanTomo'])->name('png.tomo');
-Route::get('/pengajuan-tomo/data', [SpkController::class, 'pengajuanTomoData'])->name('png.tomo.data');
-Route::patch('/pengajuan-tomo/status/{id}', [SpkController::class, 'pengajuanTomoStatus'])->name('png.tomo.status');
-Route::get('/pengajuan-tomo/points', [SpkController::class, 'pengajuanTomoPoints'])->name('png.tomo.points');
-Route::post('/pengajuan-tomo/points', [SpkController::class, 'pengajuanTomoPointStore'])->name('png.tomo.points.store');
-Route::put('/pengajuan-tomo/points/{id}', [SpkController::class, 'pengajuanTomoPointUpdate'])->name('png.tomo.points.update');
+    Route::get('/pengajuan-tomo', [SpkController::class, 'pengajuanTomo'])->name('png.tomo');
+    Route::get('/pengajuan-tomo/data', [SpkController::class, 'pengajuanTomoData'])->name('png.tomo.data');
+    Route::patch('/pengajuan-tomo/status/{id}', [SpkController::class, 'pengajuanTomoStatus'])->name('png.tomo.status');
+    Route::get('/pengajuan-tomo/points', [SpkController::class, 'pengajuanTomoPoints'])->name('png.tomo.points');
+    Route::post('/pengajuan-tomo/points', [SpkController::class, 'pengajuanTomoPointStore'])->name('png.tomo.points.store');
+    Route::put('/pengajuan-tomo/points/{id}', [SpkController::class, 'pengajuanTomoPointUpdate'])->name('png.tomo.points.update');
 
     Route::post('/spk/update/{spk}', [SpkController::class, 'save'])->name('spk.update');
     Route::post('/spk/create/{po}', [SpkController::class, 'save'])->name('spk.create');
@@ -1507,16 +1507,16 @@ Route::put('/pengajuan-tomo/points/{id}', [SpkController::class, 'pengajuanTomoP
         [ProduksiMnController::class, 'barangJadiRekap']
     )->name('barang.jadi.rekap');
     // new routing
- Route::get('/produksi/inventor', [ProduksiMnController::class, 'inventor']);
+    Route::get('/produksi/inventor', [ProduksiMnController::class, 'inventor']);
 
-Route::get('/produksi/inventor/data', [ProduksiMnController::class, 'inventorData'])
-    ->name('inventor.data');
+    Route::get('/produksi/inventor/data', [ProduksiMnController::class, 'inventorData'])
+        ->name('inventor.data');
 
-Route::get('/produksi/inventor/arsip', [ProduksiMnController::class, 'inventorArsip'])
-    ->name('inventor.arsip');
+    Route::get('/produksi/inventor/arsip', [ProduksiMnController::class, 'inventorArsip'])
+        ->name('inventor.arsip');
 
-Route::get('/produksi/inventor/arsip/data', [ProduksiMnController::class, 'inventorArsipData'])
-    ->name('inventor.arsip.data');
+    Route::get('/produksi/inventor/arsip/data', [ProduksiMnController::class, 'inventorArsipData'])
+        ->name('inventor.arsip.data');
 
     // cog 
 
