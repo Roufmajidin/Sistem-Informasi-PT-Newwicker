@@ -482,7 +482,7 @@
                                      <span class="nav-icon"><i class="material-icons">shopping_cart</i></span>
                                      <span class="nav-text">Purchasing</span>
                                  </a>
-                                 
+
 
                                  <ul class="nav-sub">
                                      <li><a href="/semua-spk"><span class="nav-text">SPK</span></a></li>
@@ -495,6 +495,8 @@
                                      </li>
                                      <li><a href="/bom-produksi"><span class="nav-text">COG</span></a></li>
                                      <li><a href="/pengajuan-tomo"><span class="nav-text">Pengajuan Tomo</span></a></li>
+                                     <li><a href="/warehouse/incoming"><span class="nav-text">Barcode incoming</span></a>
+                                     </li>
 
                                  </ul>
                              </li>
@@ -590,11 +592,11 @@
                              <!-- </li>
 
 
-                                                                                                             <a href="/request">
-                                                                                                                 <span class="nav-icon"><i class="material-icons">event_note</i></span>
-                                                                                                                 <span class="nav-text">Agenda</span>
-                                                                                                             </a>
-                                                                                                         </li> -->
+                                                                                                                     <a href="/request">
+                                                                                                                         <span class="nav-icon"><i class="material-icons">event_note</i></span>
+                                                                                                                         <span class="nav-text">Agenda</span>
+                                                                                                                     </a>
+                                                                                                                 </li> -->
 
                              <li>
                                  <a href="/request">
@@ -688,6 +690,8 @@
                                      </li>
                                      <li><a href="/pengajuan-tomo"><span class="nav-text">Pengajuan Tomo</span></a></li>
 
+                                     <li><a href="/warehouse/incoming"><span class="nav-text">Barcode incoming</span></a>
+                                     </li>
 
                                  </ul>
                              </li>
@@ -939,6 +943,8 @@
                                      <span class="nav-text">Mutasi Barang jadi</span>
                                  </a>
                              </li>
+                             <li><a href="/warehouse/incoming"><span class="nav-text">Barcode incoming</span></a></li>
+
                              <li>
                                  <a>
                                      <span class="nav-caret"><i class="fa fa-caret-down"></i></span>

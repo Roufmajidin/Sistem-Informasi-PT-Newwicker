@@ -310,8 +310,17 @@
 
         .label-list {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: 1fr;
             gap: 10px
+        }
+
+        .show-labels {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+            padding: 5px 9px;
+            font-size: 12px;
+            font-weight: 700
         }
 
         .label-option {
@@ -402,6 +411,80 @@
                 grid-template-columns: 1fr
             }
         }
+
+        /* Grid status label barang */
+        .label-status-modal {
+            width: min(100%, 680px);
+        }
+
+        .label-summary {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .label-summary span {
+            background: #f1f5f9;
+            border-radius: 8px;
+            padding: 9px 12px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .label-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .label-tile {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 5px;
+            min-height: 76px;
+            border: 1px solid #86efac;
+            background: #dcfce7;
+            color: #166534;
+            border-radius: 10px;
+            font-weight: 800;
+        }
+
+        .label-tile.missing {
+            border-color: #fca5a5;
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .label-tile small {
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .label-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 18px;
+            margin-top: 16px;
+            font-size: 12px;
+            color: #475569;
+        }
+
+        .legend-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 3px;
+            margin-right: 6px;
+        }
+
+        @media(max-width:420px) {
+            .label-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
     </style>
 </head>
 
@@ -473,16 +556,37 @@
         aria-hidden="true">
         <div class="modal">
             <div class="modal-head">
-                <h3 id="classifyTitle">Klasifikasi Labels</h3><button type="button" class="modal-close"
+                <h3 id="classifyTitle">Klasifikasi SPK / PO / Item</h3><button type="button" class="modal-close"
                     id="closeClassify" aria-label="Tutup">×</button>
             </div>
             <div class="modal-body">
-                <p class="modal-hint">Pilih label untuk menampilkan scan berdasarkan klasifikasi.</p>
+                <p class="modal-hint">Pilih kelompok SPK, PO, dan barang yang sama. Setiap kelompok menampilkan jumlah
+                    scan dan daftar label.</p>
                 <div id="labelList" class="label-list">
                     <div class="loading">Memuat daftar label...</div>
                 </div>
             </div>
             <div class="modal-foot"><button type="button" id="resetClassify">Tampilkan Semua</button></div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop" id="labelsModal" role="dialog" aria-modal="true" aria-labelledby="labelsTitle"
+        aria-hidden="true">
+        <div class="modal label-status-modal">
+            <div class="modal-head">
+                <h3 id="labelsTitle">Daftar Label Barang</h3>
+                <button type="button" class="modal-close" id="closeLabels" aria-label="Tutup">×</button>
+            </div>
+            <div class="modal-body">
+                <div id="labelsDescription" class="modal-hint"></div>
+                <div id="labelsSummary" class="label-summary"></div>
+                <div id="labelsGrid" class="label-grid"></div>
+                <div class="label-legend">
+                    <span><i class="legend-dot" style="background:#22c55e"></i>Sudah scan</span>
+                    <span><i class="legend-dot" style="background:#ef4444"></i>Belum scan</span>
+                </div>
+            </div>
+            <div class="modal-foot"><button type="button" id="doneLabels">Tutup</button></div>
         </div>
     </div>
     <script>
@@ -504,16 +608,18 @@
                 lastPage = 1,
                 requestSeq = 0,
                 controller = null,
-                selectedLabel = '',
+                grouped = false,
+                selectedGroup = null,
                 searchTimer = null,
-                labelsCache = [];
+                groupsCache = [];
             const perPage = 25;
 
             function updateFilter() {
-                el('classifyBtn').classList.toggle('active', !!selectedLabel);
-                el('classifyBtn').textContent = selectedLabel ? '☷ ' + selectedLabel : '☷ Klasifikasi';
-                el('filterInfo').hidden = !selectedLabel;
-                el('filterInfo').textContent = selectedLabel ? 'Klasifikasi aktif: ' + selectedLabel : '';
+                el('classifyBtn').classList.toggle('active', grouped);
+                el('classifyBtn').textContent = grouped ? '☷ Klasifikasi Aktif' : '☷ Klasifikasi';
+                el('filterInfo').hidden = !grouped;
+                el('filterInfo').textContent = grouped ? (selectedGroup ? 'Filter kelompok SPK / PO / Item aktif' :
+                    'Klasifikasi: SPK, PO, dan item sama digabung menjadi satu baris') : '';
             }
 
             function updateClear() {
@@ -529,7 +635,11 @@
                     per_page: String(perPage),
                     search: el('search').value.trim()
                 });
-                if (selectedLabel) params.set('label', selectedLabel);
+                if (grouped) params.set('grouped', '1');
+                if (selectedGroup) {
+                    params.set('group_spk_id', selectedGroup.spk_id);
+                    params.set('group_detail_po_id', selectedGroup.detail_po_id);
+                }
                 try {
                     const response = await fetch(endpoint + '?' + params, {
                         headers: {
@@ -547,8 +657,8 @@
                     el('spkCount').textContent = fmt(result.summary?.spk);
                     const records = Array.isArray(result.rows) ? result.rows : [];
                     el('rows').innerHTML = records.length ? records.map((r, i) =>
-                            `<tr><td>${(page-1)*perPage+i+1}</td><td><strong>${esc(r.no_spk||'—')}</strong></td><td>${esc(r.no_po||'—')}</td><td>${esc(r.item_name||'—')}</td><td>${esc(r.total ?? r.total_qty ?? r.qty ?? '—')}</td><td>${esc(r.scan_method||'—')}</td><td><span class="pill">${esc(r.label||'—')}</span></td><td>${esc(r.user_name||'—')}</td><td>${esc(r.scanned_at||'—')}</td><td>${esc(r.subkon||'—')}</td></tr>`
-                            ).join('') :
+                            `<tr><td>${(page-1)*perPage+i+1}</td><td><strong>${esc(r.no_spk||'—')}</strong></td><td>${esc(r.no_po||'—')}</td><td>${esc(r.item_name||'—')}</td><td>${esc(r.total ?? r.total_qty ?? r.qty ?? '—')}</td><td>${esc(r.scan_method||'—')}</td><td>${Array.isArray(r.labels)?`<button type="button" class="show-labels" data-labels="${esc(JSON.stringify(r.labels))}" data-row="${esc(JSON.stringify({no_spk:r.no_spk,no_po:r.no_po,item_name:r.item_name}))}">Lihat ${r.labels.length} label</button>`:`<span class="pill">${esc(r.label||'—')}</span>`}</td><td>${esc(r.user_name||'—')}</td><td>${esc(r.scanned_at||'—')}</td><td>${esc(r.subkon||'—')}</td></tr>`
+                        ).join('') :
                         '<tr><td colspan="10" class="muted">Tidak ada data sesuai pencarian / klasifikasi.</td></tr>';
                     lastPage = Math.max(1, Number(result.pagination?.last_page) || 1);
                     el('pageInfo').textContent =
@@ -567,26 +677,23 @@
                 }
             }
 
-            function closeModal() {
-                el('classifyModal').classList.remove('open');
-                el('classifyModal').setAttribute('aria-hidden', 'true');
-                el('classifyBtn').focus();
-            }
-
-            function renderLabels() {
+            function renderGroups() {
                 const all = [{
-                    label: '',
+                    spk_id: '',
+                    detail_po_id: '',
+                    no_spk: 'Semua kelompok',
+                    no_po: '',
+                    item_name: '',
                     total: null
-                }, ...labelsCache];
-                el('labelList').innerHTML = all.map(x =>
-                    `<button type="button" class="label-option ${selectedLabel===x.label?'selected':''}" data-label="${esc(x.label)}"><span>${esc(x.label||'Semua Label')}</span>${x.total!==null?`<b class="label-count">${fmt(x.total)}</b>`:''}</button>`
-                    ).join('');
+                }, ...groupsCache];
+                el('labelList').innerHTML = all.map((g, i) =>
+                    `<button type="button" class="label-option" data-group-index="${i}"><span><strong>${esc(g.no_spk)}</strong><br><small>${esc(g.no_po)} ${esc(g.item_name)}</small></span>${g.total!==null?`<b class="label-count">${fmt(g.total)} scan</b>`:''}</button>`
+                ).join('');
             }
             async function openModal() {
                 el('classifyModal').classList.add('open');
                 el('classifyModal').setAttribute('aria-hidden', 'false');
-                el('closeClassify').focus();
-                el('labelList').innerHTML = '<div class="loading">Memuat daftar label...</div>';
+                el('labelList').innerHTML = '<div class="loading">Memuat kelompok...</div>';
                 try {
                     const res = await fetch(labelsEndpoint, {
                         headers: {
@@ -597,19 +704,17 @@
                     });
                     if (!res.ok) throw Error('HTTP ' + res.status);
                     const json = await res.json();
-                    const data = Array.isArray(json) ? json : (json.labels || []);
-                    labelsCache = data.map(x => typeof x === 'string' ? {
-                        label: x,
-                        total: null
-                    } : {
-                        label: String(x.label ?? x.name ?? ''),
-                        total: x.total ?? null
-                    }).filter(x => x.label);
-                    renderLabels();
+                    groupsCache = Array.isArray(json.groups) ? json.groups : [];
+                    renderGroups();
                 } catch (e) {
-                    el('labelList').innerHTML = '<div class="loading">Gagal memuat labels: ' + esc(e.message) +
+                    el('labelList').innerHTML = '<div class="loading">Gagal memuat kelompok: ' + esc(e.message) +
                         '</div>';
                 }
+            }
+
+            function closeModal() {
+                el('classifyModal').classList.remove('open');
+                el('classifyModal').setAttribute('aria-hidden', 'true');
             }
             el('classifyBtn').addEventListener('click', openModal);
             el('closeClassify').addEventListener('click', closeModal);
@@ -620,20 +725,79 @@
                 if (e.key === 'Escape' && el('classifyModal').classList.contains('open')) closeModal();
             });
             el('labelList').addEventListener('click', e => {
-                const btn = e.target.closest('[data-label]');
+                const btn = e.target.closest('[data-group-index]');
                 if (!btn) return;
-                selectedLabel = btn.dataset.label;
+                const i = Number(btn.dataset.groupIndex);
+                const group = i === 0 ? null : groupsCache[i - 1];
+                grouped = true;
+                selectedGroup = group;
                 page = 1;
                 updateFilter();
                 closeModal();
                 load();
             });
             el('resetClassify').addEventListener('click', () => {
-                selectedLabel = '';
+                grouped = false;
+                selectedGroup = null;
                 page = 1;
                 updateFilter();
                 closeModal();
                 load();
+            });
+
+            function closeLabelsModal() {
+                el('labelsModal').classList.remove('open');
+                el('labelsModal').setAttribute('aria-hidden', 'true');
+            }
+
+            function openLabelsModal(labels, row) {
+                const parsed = labels.map(value => {
+                    const match = String(value).trim().match(/^(\d+)\s*\/\s*(\d+)$/);
+                    return match ? {
+                        sequence: Number(match[1]),
+                        qty: Number(match[2])
+                    } : null;
+                }).filter(Boolean);
+                // Total diambil dari penyebut label, bukan jumlah scan.
+                const total = parsed.reduce((max, item) => Math.max(max, item.qty), 0);
+                const scanned = new Set(parsed.filter(item => item.sequence >= 1 && item.sequence <= total).map(item =>
+                    item.sequence));
+                const missing = total - scanned.size;
+                el('labelsDescription').textContent = [row?.no_spk, row?.no_po, row?.item_name].filter(Boolean).join(
+                    ' · ');
+                el('labelsSummary').innerHTML =
+                    `<span>Total ${fmt(total)} label</span><span style="color:#166534">${fmt(scanned.size)} sudah scan</span><span style="color:#b91c1c">${fmt(missing)} belum scan</span>`;
+                el('labelsGrid').innerHTML = total > 0 ?
+                    Array.from({
+                        length: total
+                    }, (_, index) => {
+                        const n = index + 1;
+                        const exists = scanned.has(n);
+                        return `<div class="label-tile ${exists ? '' : 'missing'}"><span>${exists ? '✓' : '✕'}</span><span>${n}/${total}</span><small>${exists ? 'Sudah scan' : 'Belum scan'}</small></div>`;
+                    }).join('') :
+                    '<div class="muted">Nomor urut label tidak tersedia.</div>';
+                el('labelsModal').classList.add('open');
+                el('labelsModal').setAttribute('aria-hidden', 'false');
+                el('closeLabels').focus();
+            }
+            el('rows').addEventListener('click', e => {
+                const btn = e.target.closest('[data-labels]');
+                if (!btn) return;
+                try {
+                    const labels = JSON.parse(btn.dataset.labels);
+                    const row = JSON.parse(btn.dataset.row || '{}');
+                    openLabelsModal(Array.isArray(labels) ? labels : [], row);
+                } catch (error) {
+                    console.error('Gagal membaca label', error);
+                }
+            });
+            el('closeLabels').addEventListener('click', closeLabelsModal);
+            el('doneLabels').addEventListener('click', closeLabelsModal);
+            el('labelsModal').addEventListener('click', e => {
+                if (e.target === el('labelsModal')) closeLabelsModal();
+            });
+            document.addEventListener('keydown', e => {
+                if (e.key === 'Escape' && el('labelsModal').classList.contains('open')) closeLabelsModal();
             });
             el('search').addEventListener('input', () => {
                 updateClear();
