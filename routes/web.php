@@ -344,6 +344,10 @@ Route::middleware('auth')->group(function () {
             // ==========================================
             // HALAMAN UTAMA
             // ==========================================
+            Route::get(
+                '/sample-pictures/articles',
+                'samplePicturesArticles'
+            )->name('sample-pictures.articles');
             Route::get('/sample-pictures', 'samplePictures')
                 ->name('sample-pictures');
 

@@ -65,6 +65,13 @@
 
 
 
+            {{-- Tambahan navigasi: daftar seluruh artikel; tidak mengubah form search existing --}}
+            <div class="rnd-article-shortcut" style="display:flex;align-items:center;gap:10px;margin-left:auto;flex-wrap:wrap">
+                <a href="{{ route('rnd.sample-pictures.articles') }}" style="display:inline-flex;align-items:center;gap:7px;padding:10px 13px;border:1px solid #bfdbfe;border-radius:8px;background:#eff6ff;color:#1d4ed8;text-decoration:none;font-size:12px;font-weight:700;white-space:nowrap">
+                    <i class="fa fa-list-alt"></i> Daftar Artikel
+                </a>
+            </div>
+
             <form method="GET" action="{{ route('rnd.sample-pictures') }}" class="rnd-search">
 
                 <i class="fa fa-search"></i>
