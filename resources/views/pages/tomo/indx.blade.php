@@ -7,7 +7,7 @@
 
         background: #f5f7fb;
 
-        *min-height*: 85vh;
+        min-height: 85vh;
 
         padding: 12px 8px;
 
@@ -18,7 +18,7 @@
 
     .tomo-wrap {
 
-        *max-width*: 1050px;
+        max-width: 1050px;
 
         margin: auto
     }
@@ -29,20 +29,20 @@
 
         background: #e7f0ff;
 
-        *border-radius*: 14px;
+        border-radius: 14px;
 
         padding: 15px;
 
-        *margin-bottom*: 10px
+        margin-bottom: 10px
     }
 
 
 
     .tomo-title h2 {
 
-        *font-size*: 21px;
+        font-size: 21px;
 
-        *font-weight*: 800;
+        font-weight: 800;
 
         margin: 0 0 5px
     }
@@ -51,13 +51,13 @@
 
     .tomo-title p {
 
-        *font-size*: 13px;
+        font-size: 13px;
 
         color: #475569;
 
         margin: 0;
 
-        *line-height*: 1.5
+        line-height: 1.5
     }
 
 
@@ -68,7 +68,7 @@
 
         top: 52px;
 
-        *z-index*: 90;
+        z-index: 90;
 
         background: #f5f7fb;
 
@@ -88,7 +88,7 @@
 
     .tomo-search input {
 
-        *min-width*: 0;
+        min-width: 0;
 
         flex: 1;
 
@@ -98,9 +98,9 @@
 
         border: 1px solid #cbd5e1;
 
-        *border-radius*: 9px;
+        border-radius: 9px;
 
-        *font-size*: 14px
+        font-size: 14px
     }
 
 
@@ -113,11 +113,11 @@
 
         border: 0;
 
-        *border-radius*: 9px;
+        border-radius: 9px;
 
         padding: 9px 14px;
 
-        *font-weight*: 750;
+        font-weight: 750;
 
         cursor: pointer
     }
@@ -130,7 +130,7 @@
 
         gap: 7px;
 
-        *overflow-x*: auto;
+        overflow-x: auto;
 
         margin: 10px 0 13px
     }
@@ -143,13 +143,13 @@
 
         background: white;
 
-        *border-radius*: 9px;
+        border-radius: 9px;
 
         padding: 10px 12px;
 
-        *white-space*: nowrap;
+        white-space: nowrap;
 
-        *font-weight*: 700;
+        font-weight: 700;
 
         cursor: pointer
     }
@@ -162,7 +162,7 @@
 
         color: white;
 
-        *border-color*: #1555b2
+        border-color: #1555b2
     }
 
 
@@ -173,11 +173,11 @@
 
         border: 1px solid #dce4ef;
 
-        *border-radius*: 14px;
+        border-radius: 14px;
 
         overflow: hidden;
 
-        *margin-bottom*: 14px
+        margin-bottom: 14px
     }
 
 
@@ -190,16 +190,16 @@
 
         display: flex;
 
-        *justify-content*: space-between;
+        justify-content: space-between;
 
-        *align-items*: center
+        align-items: center
     }
 
 
 
     .tomo-po-head strong {
 
-        *font-size*: 17px
+        font-size: 17px
     }
 
 
@@ -208,9 +208,9 @@
 
         color: #475569;
 
-        *font-size*: 12px;
+        font-size: 12px;
 
-        *margin-top*: 3px
+        margin-top: 3px
     }
 
 
@@ -230,7 +230,7 @@
 
         display: grid;
 
-        *grid-template-columns*: 86px minmax(0, 1fr);
+        grid-template-columns: 86px minmax(0, 1fr);
 
         gap: 10px;
 
@@ -238,7 +238,7 @@
 
         border: 1px solid #e2e8f0;
 
-        *border-radius*: 12px;
+        border-radius: 12px;
 
         background: white
     }
@@ -251,13 +251,13 @@
 
         height: 86px;
 
-        *object-fit*: contain;
+        object-fit: contain;
 
         background: white;
 
         border: 1px solid #e2e8f0;
 
-        *border-radius*: 9px
+        border-radius: 9px
     }
 
 
@@ -277,24 +277,24 @@
 
     .tomo-name {
 
-        *font-weight*: 800;
+        font-weight: 800;
 
-        *font-size*: 15px;
+        font-size: 15px;
 
-        *line-height*: 1.3;
+        line-height: 1.3;
 
-        *overflow-wrap*: anywhere
+        overflow-wrap: anywhere
     }
 
 
 
     .tomo-meta {
 
-        *font-size*: 12px;
+        font-size: 12px;
 
         color: #64748b;
 
-        *margin-top*: 3px
+        margin-top: 3px
     }
 
 
@@ -303,13 +303,13 @@
 
         display: flex;
 
-        *flex-wrap*: wrap;
+        flex-wrap: wrap;
 
-        *align-items*: center;
+        align-items: center;
 
         gap: 7px;
 
-        *margin-top*: 8px
+        margin-top: 8px
     }
 
 
@@ -320,11 +320,11 @@
 
         border: 0;
 
-        *border-radius*: 9px;
+        border-radius: 9px;
 
         padding: 9px 16px;
 
-        *font-weight*: 800;
+        font-weight: 800;
 
         color: #172033;
 
@@ -341,11 +341,11 @@
 
         border: 1px solid #bad0f4;
 
-        *border-radius*: 9px;
+        border-radius: 9px;
 
         padding: 8px 12px;
 
-        *font-weight*: 800;
+        font-weight: 800;
 
         cursor: pointer
     }
@@ -354,7 +354,7 @@
 
     .tomo-qty {
 
-        *margin-left*: auto;
+        margin-left: auto;
 
         background: #e6f4e4;
 
@@ -362,11 +362,11 @@
 
         padding: 6px 10px;
 
-        *border-radius*: 9px;
+        border-radius: 9px;
 
-        *text-align*: center;
+        text-align: center;
 
-        *font-size*: 11px
+        font-size: 11px
     }
 
 
@@ -375,7 +375,7 @@
 
         display: block;
 
-        *font-size*: 19px
+        font-size: 19px
     }
 
 
@@ -386,17 +386,17 @@
 
         padding: 6px 8px;
 
-        *border-radius*: 7px;
+        border-radius: 7px;
 
-        *margin-top*: 6px;
+        margin-top: 6px;
 
         display: flex;
 
-        *justify-content*: space-between;
+        justify-content: space-between;
 
         gap: 8px;
 
-        *font-size*: 12px
+        font-size: 12px
     }
 
 
@@ -412,13 +412,13 @@
 
         display: inline-block;
 
-        *border-radius*: 20px;
+        border-radius: 20px;
 
         padding: 5px 9px;
 
-        *font-weight*: 800;
+        font-weight: 800;
 
-        *font-size*: 12px
+        font-size: 12px
     }
 
 
@@ -472,13 +472,13 @@
 
         padding: 22px;
 
-        *text-align*: center;
+        text-align: center;
 
         color: #64748b;
 
         background: white;
 
-        *border-radius*: 12px
+        border-radius: 12px
     }
 
 
@@ -491,13 +491,13 @@
 
         inset: 0;
 
-        *z-index*: 99999;
+        z-index: 99999;
 
         background: #0f172ab8;
 
-        *align-items*: center;
+        align-items: center;
 
-        *justify-content*: center;
+        justify-content: center;
 
         padding: 6px
     }
@@ -515,15 +515,15 @@
 
         width: min(100%, 720px);
 
-        *max-height*: calc(100dvh - 12px);
+        max-height: calc(100dvh - 12px);
 
         background: white;
 
-        *border-radius*: 15px;
+        border-radius: 15px;
 
         display: flex;
 
-        *flex-direction*: column;
+        flex-direction: column;
 
         overflow: hidden
     }
@@ -534,15 +534,15 @@
 
         display: flex;
 
-        *justify-content*: space-between;
+        justify-content: space-between;
 
-        *align-items*: center;
+        align-items: center;
 
         gap: 10px;
 
         padding: 12px;
 
-        *border-bottom*: 1px solid #e2e8f0
+        border-bottom: 1px solid #e2e8f0
     }
 
 
@@ -551,9 +551,9 @@
 
         margin: 0;
 
-        *font-size*: 17px;
+        font-size: 17px;
 
-        *font-weight*: 800
+        font-weight: 800
     }
 
 
@@ -568,9 +568,9 @@
 
         background: #eef2f7;
 
-        *border-radius*: 9px;
+        border-radius: 9px;
 
-        *font-size*: 24px;
+        font-size: 24px;
 
         cursor: pointer
     }
@@ -583,7 +583,7 @@
 
         padding: 11px;
 
-        *min-height*: 0
+        min-height: 0
     }
 
 
@@ -592,13 +592,13 @@
 
         padding: 10px;
 
-        *border-top*: 1px solid #e2e8f0;
+        border-top: 1px solid #e2e8f0;
 
         display: flex;
 
         gap: 8px;
 
-        *justify-content*: flex-end
+        justify-content: flex-end
     }
 
 
@@ -609,15 +609,15 @@
 
         gap: 10px;
 
-        *align-items*: center;
+        align-items: center;
 
         background: #f1f6fd;
 
-        *border-radius*: 11px;
+        border-radius: 11px;
 
         padding: 8px;
 
-        *margin-bottom*: 12px
+        margin-bottom: 12px
     }
 
 
@@ -628,11 +628,11 @@
 
         height: 80px;
 
-        *object-fit*: contain;
+        object-fit: contain;
 
         background: white;
 
-        *border-radius*: 8px;
+        border-radius: 8px;
 
         cursor: zoom-in
     }
@@ -641,7 +641,7 @@
 
     .tomo-product strong {
 
-        *font-size*: 14px
+        font-size: 14px
     }
 
 
@@ -652,7 +652,7 @@
 
         color: #64748b;
 
-        *margin-top*: 3px
+        margin-top: 3px
     }
 
 
@@ -661,9 +661,9 @@
 
         width: 100%;
 
-        *border-collapse*: collapse;
+        border-collapse: collapse;
 
-        *table-layout*: fixed
+        table-layout: fixed
     }
 
 
@@ -672,7 +672,7 @@
 
         background: #e9eff7;
 
-        *font-size*: 11px;
+        font-size: 11px;
 
         padding: 8px 2px
     }
@@ -681,20 +681,20 @@
 
     .tomo-table td {
 
-        *border-bottom*: 1px solid #e5e7eb;
+        border-bottom: 1px solid #e5e7eb;
 
         padding: 5px 2px;
 
-        *font-size*: 12px
+        font-size: 12px
     }
 
 
 
     .tomo-table td:first-child {
 
-        *font-weight*: 750;
+        font-weight: 750;
 
-        *overflow-wrap*: anywhere
+        overflow-wrap: anywhere
     }
 
 
@@ -707,28 +707,28 @@
 
         border: 1px solid #cbd5e1;
 
-        *border-radius*: 7px;
+        border-radius: 7px;
 
         padding: 4px;
 
-        *font-size*: 16px;
+        font-size: 16px;
 
-        *text-align*: right;
+        text-align: right;
 
-        *box-sizing*: border-box
+        box-sizing: border-box
     }
 
 
 
     .tomo-result {
 
-        *text-align*: right;
+        text-align: right;
 
-        *font-weight*: 750;
+        font-weight: 750;
 
         color: #166534;
 
-        *overflow-wrap*: anywhere
+        overflow-wrap: anywhere
     }
 
 
@@ -741,19 +741,19 @@
 
         display: flex;
 
-        *justify-content*: space-between;
+        justify-content: space-between;
 
         background: #e3f5e6;
 
         border: 1px solid #bbdfc1;
 
-        *border-radius*: 10px;
+        border-radius: 10px;
 
         padding: 12px;
 
-        *font-weight*: 850;
+        font-weight: 850;
 
-        *margin-top*: 9px
+        margin-top: 9px
     }
 
 
@@ -764,19 +764,19 @@
 
         width: 100%;
 
-        *min-height*: 60px;
+        min-height: 60px;
 
         border: 1px solid #cbd5e1;
 
-        *border-radius*: 9px;
+        border-radius: 9px;
 
         padding: 10px;
 
-        *font-size*: 14px;
+        font-size: 14px;
 
-        *box-sizing*: border-box;
+        box-sizing: border-box;
 
-        *margin-top*: 6px
+        margin-top: 6px
     }
 
 
@@ -785,7 +785,7 @@
 
         border: 1px solid #d7e2f2;
 
-        *border-radius*: 11px;
+        border-radius: 11px;
 
         padding: 12px;
 
@@ -800,7 +800,7 @@
 
         margin: 0 0 7px;
 
-        *font-size*: 15px
+        font-size: 15px
     }
 
 
@@ -809,7 +809,7 @@
 
         margin: 4px 0;
 
-        *font-size*: 13px
+        font-size: 13px
     }
 
 
@@ -822,9 +822,9 @@
 
         padding: 10px;
 
-        *border-radius*: 9px;
+        border-radius: 9px;
 
-        *font-size*: 12px;
+        font-size: 12px;
 
         margin: 9px 0
     }
@@ -841,13 +841,13 @@
 
         background: #0f172af2;
 
-        *z-index*: 100001;
+        z-index: 100001;
 
-        *align-items*: center;
+        align-items: center;
 
-        *justify-content*: center;
+        justify-content: center;
 
-        *flex-direction*: column;
+        flex-direction: column;
 
         gap: 15px;
 
@@ -865,11 +865,11 @@
 
     .tomo-zoom img {
 
-        *max-width*: 94vw;
+        max-width: 94vw;
 
-        *max-height*: 75vh;
+        max-height: 75vh;
 
-        *object-fit*: contain;
+        object-fit: contain;
 
         transform: scale(var(--scale, 1))
     }
@@ -882,9 +882,9 @@
 
         border: 0;
 
-        *border-radius*: 9px;
+        border-radius: 9px;
 
-        *font-weight*: 800
+        font-weight: 800
     }
 
 
@@ -904,15 +904,15 @@
 
         background: white;
 
-        *border-radius*: 12px;
+        border-radius: 12px;
 
         padding: 12px;
 
         display: flex;
 
-        *align-items*: center;
+        align-items: center;
 
-        *justify-content*: space-between;
+        justify-content: space-between;
 
         gap: 10px
     }
@@ -921,7 +921,7 @@
 
     .tomo-history-entry strong {
 
-        *font-size*: 14px
+        font-size: 14px
     }
 
 
@@ -932,7 +932,7 @@
 
         color: #64748b;
 
-        *margin-top*: 4px
+        margin-top: 4px
     }
 
 
@@ -946,27 +946,27 @@
 
     .tomo-help {
 
-        *font-size*: 12px;
+        font-size: 12px;
 
         color: #64748b;
 
-        *margin-top*: 8px
+        margin-top: 8px
     }
 
 
 
-    @media(*max-width*:500px) {
+    @media(max-width:500px) {
 
         .tomo-title h2 {
 
-            *font-size*: 19px
+            font-size: 19px
         }
 
 
 
         .tomo-item {
 
-            *grid-template-columns*: 75px minmax(0, 1fr)
+            grid-template-columns: 75px minmax(0, 1fr)
         }
 
 
@@ -982,7 +982,7 @@
 
         .tomo-name {
 
-            *font-size*: 14px
+            font-size: 14px
         }
 
 
@@ -996,14 +996,14 @@
 
         .tomo-table td {
 
-            *font-size*: 11px
+            font-size: 11px
         }
 
 
 
         .tomo-table th {
 
-            *font-size*: 10px
+            font-size: 10px
         }
 
 
@@ -1014,14 +1014,14 @@
 
             padding: 2px;
 
-            *font-size*: 15px
+            font-size: 15px
         }
 
 
 
         .tomo-result {
 
-            *font-size*: 10px
+            font-size: 10px
         }
 
 
@@ -1041,19 +1041,19 @@
 
         width: 100%;
 
-        *max-width*: 130px;
+        max-width: 130px;
 
-        *margin-top*: 5px;
+        margin-top: 5px;
 
         padding: 5px 6px;
 
         border: 1px solid #cbd5e1;
 
-        *border-radius*: 7px;
+        border-radius: 7px;
 
         background: #f8fafc;
 
-        *font-size*: 12px;
+        font-size: 12px;
 
         color: #334155
     }
@@ -1064,20 +1064,20 @@
 
         display: block;
 
-        *font-size*: 10px;
+        font-size: 10px;
 
         color: #64748b;
 
-        *margin-top*: 3px
+        margin-top: 3px
     }
 
 
 
-    @media(*max-width*:500px) {
+    @media(max-width:500px) {
 
         .tomo-unit {
 
-            *font-size*: 11px;
+            font-size: 11px;
 
             padding: 4px 2px
         }
@@ -1094,26 +1094,26 @@
 
         color: #fff !important;
 
-        *font-size*: 12px;
+        font-size: 12px;
 
-        *font-weight*: 800;
+        font-weight: 800;
 
-        *letter-spacing*: .1px;
+        letter-spacing: .1px;
 
         border: 1px solid #326ba5;
 
         padding: 10px 4px;
 
-        *text-align*: center;
+        text-align: center;
 
-        *white-space*: nowrap
+        white-space: nowrap
     }
 
 
 
     .tomo-dialog .tomo-table thead th:first-child {
 
-        *text-align*: left
+        text-align: left
     }
 
 
@@ -1126,17 +1126,17 @@
 
         height: 40px;
 
-        *box-sizing*: border-box;
+        box-sizing: border-box;
 
         border: 1px solid #cbd5e1;
 
-        *border-radius*: 7px;
+        border-radius: 7px;
 
         padding: 4px 3px;
 
-        *font-size*: 13px;
+        font-size: 13px;
 
-        *text-align*: center;
+        text-align: center;
 
         color: #172b4d;
 
@@ -1147,16 +1147,16 @@
 
     .tomo-dialog .tomo-table td {
 
-        *vertical-align*: middle
+        vertical-align: middle
     }
 
 
 
-    @media(*max-width*:500px) {
+    @media(max-width:500px) {
 
         .tomo-dialog .tomo-table thead th {
 
-            *font-size*: 11px;
+            font-size: 11px;
 
             padding: 9px 2px
         }
@@ -1167,7 +1167,7 @@
 
             height: 39px;
 
-            *font-size*: 12px;
+            font-size: 12px;
 
             padding: 2px
         }
@@ -1176,7 +1176,7 @@
 
         .tomo-dialog .tomo-table td:first-child {
 
-            *font-size*: 11px
+            font-size: 11px
         }
 
     }
@@ -1210,11 +1210,11 @@
 
     body:has(.tomo-page) .page-wrapper {
 
-        *margin-left*: 0 !important;
+        margin-left: 0 !important;
 
-        *padding-top*: 0 !important;
+        padding-top: 0 !important;
 
-        *min-height*: 100vh
+        min-height: 100vh
     }
 
 
@@ -1232,7 +1232,7 @@
 
         color: #fff !important;
 
-        *font-weight*: 800 !important;
+        font-weight: 800 !important;
 
         border: 1px solid #346497 !important
     }
@@ -1250,23 +1250,23 @@
 
         display: block;
 
-        *box-sizing*: border-box;
+        box-sizing: border-box;
 
         width: 100%;
 
         height: 40px;
 
-        *min-width*: 0;
+        min-width: 0;
 
         padding: 3px;
 
         border: 1px solid #cbd5e1;
 
-        *border-radius*: 7px;
+        border-radius: 7px;
 
-        *text-align*: center;
+        text-align: center;
 
-        *font-size*: 13px;
+        font-size: 13px;
 
         background: #fff;
 
@@ -1277,18 +1277,18 @@
 
     .tomo-table .tomo-cost-input {
 
-        *min-width*: 0
+        min-width: 0
     }
 
 
 
-    @media(*max-width*:500px) {
+    @media(max-width:500px) {
 
         .tomo-table .tomo-stn-input {
 
             height: 39px;
 
-            *font-size*: 12px;
+            font-size: 12px;
 
             padding: 2px
         }
@@ -1297,7 +1297,7 @@
 
         .tomo-table .tomo-result {
 
-            *font-size*: 10px
+            font-size: 10px
         }
 
     }
@@ -1310,7 +1310,7 @@
 
         flex: 1;
 
-        *min-width*: 0
+        min-width: 0
     }
 
 
@@ -1319,9 +1319,9 @@
 
         width: 100%;
 
-        *padding-right*: 38px !important;
+        padding-right: 38px !important;
 
-        *box-sizing*: border-box
+        box-sizing: border-box
     }
 
 
@@ -1338,7 +1338,7 @@
 
         border: 0;
 
-        *border-radius*: 50%;
+        border-radius: 50%;
 
         width: 28px;
 
@@ -1348,9 +1348,9 @@
 
         color: #334155;
 
-        *font-size*: 21px;
+        font-size: 21px;
 
-        *line-height*: 26px;
+        line-height: 26px;
 
         cursor: pointer
     }
@@ -1381,29 +1381,29 @@
 
         position: sticky !important;
 
-        top: 51px !important;
+        top: var(--tomo-search-offset, 56px) !important;
 
-        *z-index*: 40;
+        z-index: 40;
 
         background: #dce8fb;
 
-        *box-shadow*: 0 2px 5px rgba(15, 35, 70, .12);
+        box-shadow: 0 2px 5px rgba(15, 35, 70, .12);
 
-        *border-radius*: 13px 13px 0 0
+        border-radius: 13px 13px 0 0
     }
 
 
 
     .tomo-sticky {
 
-        *z-index*: 90 !important;
+        z-index: 90 !important;
 
         top: 0 !important
     }
 
 
 
-    @media(*max-width*:600px) {
+    @media(max-width:600px) {
 
         .tomo-po-head {
 
@@ -1424,6 +1424,214 @@
         font-weight: 700;
         line-height: 1.4;
     }
+
+    /* ===== Tomo refined UI (scoped; existing functions untouched) ===== */
+    .tomo-page {
+        background: #f6f8fc;
+        color: #1e293b;
+    }
+
+    .tomo-wrap {
+        max-width: 1180px;
+    }
+
+    .tomo-title {
+        background: linear-gradient(115deg, #eff6ff, #f8fbff);
+        border: 1px solid #dbeafe;
+        border-radius: 16px;
+        padding: 20px 22px;
+        box-shadow: 0 3px 15px rgba(15, 35, 75, .035);
+    }
+
+    .tomo-title h2 {
+        color: #17355f;
+        letter-spacing: -.45px;
+    }
+
+    .tomo-title p {
+        color: #60738c;
+    }
+
+    .tomo-sticky {
+        background: rgba(246, 248, 252, .97);
+        border-radius: 14px;
+        padding: 9px 0;
+        z-index: 300 !important;
+    }
+
+    .tomo-sticky.tomo-search-fixed {
+        position: fixed !important;
+        top: 0 !important;
+        margin: 0 !important;
+        padding: 9px 12px !important;
+        background: rgba(255, 255, 255, .98);
+        border: 1px solid #dbe5f2;
+        border-radius: 0 0 14px 14px;
+        box-shadow: 0 8px 26px rgba(19, 49, 90, .14);
+    }
+
+    .tomo-search {
+        gap: 10px;
+    }
+
+    .tomo-search-field input {
+        height: 44px;
+        background: #fff;
+        border: 1px solid #d5dfed;
+        border-radius: 11px;
+        padding-left: 15px;
+        outline: none;
+        transition: border-color .2s, box-shadow .2s;
+    }
+
+    .tomo-search-field input:focus {
+        border-color: #397bd0;
+        box-shadow: 0 0 0 3px rgba(57, 123, 208, .12);
+    }
+
+    .tomo-search .tomo-btn {
+        min-width: 88px;
+        border-radius: 11px;
+        background: #1959ae;
+        box-shadow: 0 3px 8px rgba(25, 89, 174, .12);
+    }
+
+    .tomo-tabs {
+        gap: 8px;
+        padding: 2px 0 4px;
+    }
+
+    .tomo-tab {
+        border: 1px solid #dbe4f0;
+        border-radius: 11px;
+        padding: 11px 15px;
+        color: #405875;
+        transition: background .2s, border-color .2s;
+    }
+
+    .tomo-tab.active {
+        background: #1959ae;
+        border-color: #1959ae;
+        box-shadow: 0 4px 12px rgba(25, 89, 174, .15);
+    }
+
+    .tomo-po {
+        border: 1px solid #dfe7f2;
+        border-radius: 15px;
+        box-shadow: 0 4px 18px rgba(19, 49, 90, .045);
+        background: #fff;
+        margin-bottom: 16px;
+    }
+
+    .tomo-po-head {
+        background: #eaf2fd;
+        padding: 14px 16px;
+        border-bottom: 1px solid #dce8f8;
+    }
+
+    .tomo-po-head strong {
+        color: #193e70;
+    }
+
+    .tomo-items {
+        padding: 12px;
+        gap: 10px;
+    }
+
+    .tomo-item {
+        padding: 13px;
+        border: 1px solid #e4ebf4;
+        border-radius: 12px;
+        transition: border-color .18s, box-shadow .18s;
+    }
+
+    .tomo-item:hover {
+        border-color: #c7d9f1;
+        box-shadow: 0 4px 14px rgba(18, 57, 103, .06);
+    }
+
+    .tomo-image {
+        border-color: #e0e8f3;
+        border-radius: 10px;
+    }
+
+    .tomo-name {
+        color: #233b5d;
+    }
+
+    .tomo-meta {
+        color: #73839a;
+    }
+
+    .tomo-spk {
+        background: #f5f8fc;
+        border: 1px solid #e6edf6;
+        border-radius: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .tomo-spk strong {
+        color: #177247;
+    }
+
+    .tomo-repeat-note {
+        background: #eaf7f0;
+        border: 1px solid #cdebd9;
+        border-radius: 8px;
+        color: #167146;
+    }
+
+    .tomo-ajukan {
+        background: #f7b543;
+        border-radius: 9px;
+    }
+
+    .tomo-detail {
+        background: #eff5ff;
+        border-color: #cbdcf6;
+        border-radius: 9px;
+    }
+
+    .tomo-qty {
+        background: #eef9f1;
+        border: 1px solid #d9eedf;
+        border-radius: 9px;
+    }
+
+    .tomo-dialog {
+        box-shadow: 0 22px 75px rgba(7, 25, 52, .23);
+    }
+
+    .tomo-dialog-head {
+        background: #f7faff;
+    }
+
+    .tomo-btn:focus-visible,
+    .tomo-tab:focus-visible,
+    .tomo-ajukan:focus-visible,
+    .tomo-detail:focus-visible {
+        outline: 3px solid rgba(37, 99, 235, .3);
+        outline-offset: 2px;
+    }
+
+    @media(max-width:600px) {
+        .tomo-title {
+            padding: 15px;
+        }
+
+        .tomo-sticky.tomo-search-fixed {
+            padding: 8px !important;
+        }
+
+        .tomo-items {
+            padding: 8px;
+        }
+
+        .tomo-item {
+            padding: 10px;
+        }
+    }
 </style>
 
 @section('content')
@@ -1440,7 +1648,8 @@
 
             </div>
 
-            <div class="tomo-sticky">
+            <div id="tomoSearchAnchor" aria-hidden="true"></div>
+            <div class="tomo-sticky" id="tomoSearchBar">
 
                 <form method="GET" action="{{ route('produksi.tomo') }}" class="tomo-search">
 
@@ -1481,6 +1690,7 @@
                             @forelse($card['items'] as $item)
                                 <div class="tomo-item" data-po="{{ $card['po'] }}" data-name="{{ $item['name'] }}"
                                     data-article="{{ $item['article'] }}" data-image="{{ $item['image'] ?? '' }}"
+                                    data-has-repeat="{{ !empty($item['spks']) ? '1' : '0' }}"
                                     data-qty="{{ $item['qty'] }}"
                                     data-item-id="{{ $item['detail_po_id'] ?? ($item['id'] ?? '') }}">
 
@@ -1523,6 +1733,7 @@
                                                 class="tomo-status unknown tomo-item-status"
                                                 style="display:none"></span><button type="button"
                                                 class="tomo-ajukan tomo-item-ajukan"
+                                                style="{{ !empty($item['spks']) ? 'display:none' : '' }}"
                                                 onclick="tomoOpenForm(this.closest('.tomo-item'))">+ Ajukan</button><button
                                                 type="button" class="tomo-detail tomo-item-detail" style="display:none"
                                                 onclick="tomoOpenItemHistory(this.closest('.tomo-item'))">👁 Lihat
@@ -1579,7 +1790,8 @@
                 <div class="tomo-product"><img id="tomoModalPhoto" src="" alt="Foto produk"
                         onclick="tomoZoomOpen(this.src)" style="display:none">
 
-                    <div><small>NO PO <b id="tomoModalPo">-</b></small><strong id="tomoModalName">-</strong><small>Article:
+                    <div><small>NO PO <b id="tomoModalPo">-</b></small><strong
+                            id="tomoModalName">-</strong><small>Article:
 
                             <b id="tomoModalArticle">-</b> · Qty: <b id="tomoModalQty">-</b></small></div>
 
@@ -1731,13 +1943,13 @@
 
             }
 
-            const rupiah = value *= > * 'Rp ' + new Intl.NumberFormat('id-ID', {
+            const rupiah = value => 'Rp ' + new Intl.NumberFormat('id-ID', {
 
                 maximumFractionDigits: 0
 
             }).format(Number(value) || 0);
 
-            const esc = value *= > * String(value ?? '').replace(/[&<>"']/g, c *= > * ({
+            const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({
 
                 '&': '&amp;',
 
@@ -1817,8 +2029,7 @@
 
                 const key = keyFromElement(el);
 
-                return submissions.filter(s *= > * keyFromSubmission(s) === key).sort((a, b) *= > * Number(b.id) -
-                    Number(a.id))
+                return submissions.filter(s => keyFromSubmission(s) === key).sort((a, b) => Number(b.id) - Number(a.id))
 
             }
 
@@ -1866,7 +2077,7 @@
 
             function renderItems() {
 
-                document.querySelectorAll('.tomo-item').forEach(el *= > * {
+                document.querySelectorAll('.tomo-item').forEach(el => {
 
                     const entries = submissionsForItem(el),
 
@@ -1886,9 +2097,12 @@
 
                     detail.style.display = entries.length ? 'inline-block' : 'none';
 
-                    ajukan.style.display = (!latest || statusClass(latest.status) === 'ditolak') ?
-
-                    'inline-block' : 'none';
+                    // Artikel dengan harga SPK sebelumnya = repeating.
+                    // Jangan tampilkan Ajukan walaupun belum ada submission TOMO.
+                    const isRepeating = el.dataset.hasRepeat === '1';
+                    ajukan.style.display = !isRepeating &&
+                        (!latest || statusClass(latest.status) === 'ditolak') ?
+                        'inline-block' : 'none';
 
                     ajukan.textContent = latest && statusClass(latest.status) === 'ditolak' ? '+ Ajukan Lagi' :
 
@@ -1918,7 +2132,7 @@
 
                 target.replaceChildren();
 
-                submissions.slice().sort((a, b) *= > * Number(b.id) - Number(a.id)).forEach(s *= > * {
+                submissions.slice().sort((a, b) => Number(b.id) - Number(a.id)).forEach(s => {
 
                     const div = document.createElement('div');
 
@@ -1926,15 +2140,15 @@
 
                     div.innerHTML = '<div><strong>PO: ' + esc(s.po_code) + '</strong><small>' + esc(s
 
-                        .item_name) + ' · ' + esc(s.article_code) + '</small><small>' + esc(s.created_at) +
+                            .item_name) + ' · ' + esc(s.article_code) + '</small><small>' + esc(s.created_at) +
 
-                    ' · ' + rupiah(s.total) + '</small><span class="tomo-status ' + statusClass(s.status) +
+                        ' · ' + rupiah(s.total) + '</small><span class="tomo-status ' + statusClass(s.status) +
 
-                    '">' + statusLabel(s.status) +
+                        '">' + statusLabel(s.status) +
 
-                    '</span></div><button type="button" class="tomo-detail">Detail ›</button>';
+                        '</span></div><button type="button" class="tomo-detail">Detail ›</button>';
 
-                    div.querySelector('button').addEventListener('click', () *= > * openDetail(s));
+                    div.querySelector('button').addEventListener('click', () => openDetail(s));
 
                     target.appendChild(div)
 
@@ -1948,8 +2162,7 @@
 
                 document.getElementById('tomoHistoryPanel').classList.toggle('tomo-hidden', tab !== 'history');
 
-                document.querySelectorAll('.tomo-tab').forEach(b *= > * b.classList.toggle('active', b.dataset
-                    .tab ===
+                document.querySelectorAll('.tomo-tab').forEach(b => b.classList.toggle('active', b.dataset.tab ===
 
                     tab))
 
@@ -1993,6 +2206,7 @@
 
                 const requestId = ++tomoPointRequestId;
 
+                if (el.dataset.hasRepeat === '1') return;
                 activeItem = el;
 
                 const data = {
@@ -2081,7 +2295,7 @@
 
                 body.replaceChildren();
 
-                tomoPoints.forEach(point *= > * {
+                tomoPoints.forEach(point => {
 
                     const name = String(point.name),
 
@@ -2091,22 +2305,21 @@
 
                     tr.innerHTML = '<td>' + esc(name) + '</td>' +
 
-                    '<td><input class="tomo-cost-input" type="number" min="0" step="any" inputmode="decimal" aria-label="Harga ' +
+                        '<td><input class="tomo-cost-input" type="number" min="0" step="any" inputmode="decimal" aria-label="Harga ' +
 
-                    esc(name) + '" placeholder="0"></td>' +
+                        esc(name) + '" placeholder="0"></td>' +
 
-                    '<td><input class="tomo-cost-input" type="number" min="0" step="any" inputmode="decimal" aria-label="Qty ' +
+                        '<td><input class="tomo-cost-input" type="number" min="0" step="any" inputmode="decimal" aria-label="Qty ' +
 
-                    esc(name) + '" placeholder="0"></td>' +
+                        esc(name) + '" placeholder="0"></td>' +
 
-                    '<td><input class="tomo-stn-input" type="text" maxlength="30" placeholder="pcs" value="pcs" aria-label="Satuan ' +
+                        '<td><input class="tomo-stn-input" type="text" maxlength="30" placeholder="pcs" value="pcs" aria-label="Satuan ' +
 
-                    esc(name) + '"></td>' +
+                        esc(name) + '"></td>' +
 
-                    '<td class="tomo-result">—</td>';
+                        '<td class="tomo-result">—</td>';
 
-                    tr.querySelectorAll('input[type="number"]').forEach(input *= > * input.addEventListener(
-                        'input',
+                    tr.querySelectorAll('input[type="number"]').forEach(input => input.addEventListener('input',
 
                         recalc));
 
@@ -2122,7 +2335,7 @@
 
             function getRows() {
 
-                return Array.from(document.querySelectorAll('#tomoCostRows tr[data-point-id]')).map(tr *= > * {
+                return Array.from(document.querySelectorAll('#tomoCostRows tr[data-point-id]')).map(tr => {
 
                     const numbers = tr.querySelectorAll('input[type="number"]');
 
@@ -2148,7 +2361,7 @@
 
                 let total = 0;
 
-                document.querySelectorAll('#tomoCostRows tr[data-point-id]').forEach(tr *= > * {
+                document.querySelectorAll('#tomoCostRows tr[data-point-id]').forEach(tr => {
 
                     const inputs = tr.querySelectorAll('input[type="number"]'),
 
@@ -2162,7 +2375,7 @@
 
                     tr.querySelector('.tomo-result').textContent = (inputs[0].value && inputs[1].value) ?
 
-                    rupiah(amount) : '—';
+                        rupiah(amount) : '—';
 
                 });
 
@@ -2176,10 +2389,9 @@
 
                 const rows = getRows();
 
-                if (rows.some(r *= > * r.harga < 0 || r.qty < 0 || !Number.isFinite(r.harga) || !Number
-                        .isFinite(r
+                if (rows.some(r => r.harga < 0 || r.qty < 0 || !Number.isFinite(r.harga) || !Number.isFinite(r
 
-                            .qty))) {
+                        .qty))) {
 
                     alert('Harga dan Qty harus angka positif.');
 
@@ -2187,7 +2399,7 @@
 
                 }
 
-                const total = rows.reduce((a, r) *= > * a + r.harga * r.qty, 0);
+                const total = rows.reduce((a, r) => a + r.harga * r.qty, 0);
 
                 if (total <= 0) {
 
@@ -2307,15 +2519,15 @@
 
                     '</p></div><b>Rincian Biaya Finishing</b><table class="tomo-table"><thead><tr><th>Proses</th><th>Harga</th><th>Qty</th><th>Stn</th><th>Jumlah</th></tr></thead><tbody>';
 
-                rows.forEach(r *= > * {
+                rows.forEach(r => {
 
                     html += '<tr><td>' + esc(r.point_name || r.process || '-') + '</td><td>' + rupiah(r.harga) +
 
-                    '</td><td style="text-align:center">' + esc(r.qty) +
+                        '</td><td style="text-align:center">' + esc(r.qty) +
 
-                    '</td><td style="text-align:center">' + esc(r.satuan || 'pcs') +
+                        '</td><td style="text-align:center">' + esc(r.satuan || 'pcs') +
 
-                    '</td><td class="tomo-result">' + rupiah(Number(r.harga) * Number(r.qty)) + '</td></tr>'
+                        '</td><td class="tomo-result">' + rupiah(Number(r.harga) * Number(r.qty)) + '</td></tr>'
 
                 });
 
@@ -2379,7 +2591,7 @@
 
             };
 
-            document.addEventListener('keydown', e *= > * {
+            document.addEventListener('keydown', e => {
 
                 if (e.key === 'Escape') {
 
@@ -2393,6 +2605,56 @@
 
             loadHistory();
 
+        })();
+    </script>
+
+
+    <script>
+        /* Sticky search fallback: works even when master layout has overflow containers. */
+        (function() {
+            const bar = document.getElementById('tomoSearchBar');
+            const anchor = document.getElementById('tomoSearchAnchor');
+            const wrap = document.querySelector('.tomo-wrap');
+            if (!bar || !anchor || !wrap) return;
+            let frame = 0;
+
+            function syncSearch() {
+                frame = 0;
+                const isOpen = document.body.style.overflow === 'hidden';
+                if (isOpen) return;
+                const fixed = anchor.getBoundingClientRect().top < 0;
+                if (fixed) {
+                    if (!bar.classList.contains('tomo-search-fixed')) {
+                        anchor.style.height = bar.offsetHeight + 'px';
+                        bar.classList.add('tomo-search-fixed');
+                    }
+                    const rect = wrap.getBoundingClientRect();
+                    bar.style.left = Math.max(0, rect.left) + 'px';
+                    bar.style.width = Math.min(rect.width, window.innerWidth) + 'px';
+                } else {
+                    bar.classList.remove('tomo-search-fixed');
+                    bar.style.left = '';
+                    bar.style.width = '';
+                    anchor.style.height = '';
+                }
+                document.documentElement.style.setProperty('--tomo-search-offset', fixed ? bar.offsetHeight + 'px' :
+                    '56px');
+            }
+
+            function schedule() {
+                if (!frame) frame = requestAnimationFrame(syncSearch);
+            }
+            window.addEventListener('scroll', schedule, {
+                passive: true
+            });
+            document.addEventListener('scroll', schedule, {
+                passive: true,
+                capture: true
+            });
+            window.addEventListener('resize', schedule, {
+                passive: true
+            });
+            syncSearch();
         })();
     </script>
 
