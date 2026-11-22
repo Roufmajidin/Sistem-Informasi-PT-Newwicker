@@ -1330,18 +1330,11 @@
         // ===============================
 
         let poSearchDebounce = null;
-        $('#searchPo').on('input', function() {
-
-
-
+        // Debounce pencarian: satu fetch setelah pengguna selesai mengetik.
+        $('#searchPo').off('input.spkSearch').on('input.spkSearch', function() {
             currentKeyword = $(this).val().trim().toLowerCase();
-
-
-
-            loadSpkTable();
-
-
-
+            clearTimeout(poSearchDebounce);
+            poSearchDebounce = setTimeout(() => loadSpkTable(), 350);
         });
 
         $(document).on('click', '.btn-download-spk', function() {
@@ -1409,7 +1402,8 @@
                 method: 'GET',
                 data: params,
                 dataType: 'json',
-                timeout: 25000
+                timeout: 25000,
+                global: false
             });
             poRequest.done(function(res) {
                 if (generation !== poGeneration) return;
@@ -1501,7 +1495,8 @@
                             po_id: cacheData[idx].data_po.id
                         },
                         dataType: 'json',
-                        timeout: 25000
+                        timeout: 25000,
+                        global: false
                     });
                     cacheData[idx] = detail;
                 } catch (error) {
@@ -2556,17 +2551,10 @@
 
 
 
-            let initialType =
-
-                '{{ $isRndSpk ? 'NWS' : 'ALL' }}';
-
-
-
-            loadSpkTable(
-
-                initialType
-
-            );
+            // Inisialisasi hanya sekali; mencegah fetch pertama berulang.
+            if (window.__spkPoListInitialized) return;
+            window.__spkPoListInitialized = true;
+            loadSpkTable();
 
 
 
