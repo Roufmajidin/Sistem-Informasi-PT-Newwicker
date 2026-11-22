@@ -13,68 +13,248 @@ class TomoController extends Controller
     {
         $search = trim((string) $request->query('search', ''));
 
+        // Normalisasi Article Code agar beda huruf besar/kecil
+        // dan spasi tidak mengganggu pencocokan.
+        $normalizeArticle = static function ($value): string {
+            return mb_strtoupper(
+                preg_replace('/\s+/u', '', trim((string) $value))
+            );
+        };
+
+        $getArticle = static function (array $data): string {
+            return (string) (
+                $data['article_nr_']
+                ?? $data['article_nr']
+                ?? $data['article_code']
+                ?? $data['article']
+                ?? $data['code']
+                ?? ''
+            );
+        };
+
+        // ==================================================
+        // 1. AMBIL RIWAYAT SPK TOMO DARI SEMUA PO
+        // ==================================================
+        // Nama tabel 'spk' mengikuti screenshot database.
+        $historicalSpks = DB::table('spk')
+            ->where('data', 'like', '%TOMO FINISHING%')
+            ->orderByDesc('id')
+            ->get(['id', 'po_id', 'data']);
+
+        // ==================================================
+        // 2. AMBIL DETAIL PO HISTORIS
+        // Untuk menemukan Article Code asli berdasarkan
+        // detail_po_id pada setiap SPK.
+        // ==================================================
+        $historicalPoIds = $historicalSpks
+            ->pluck('po_id')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $articleByDetailId = [];
+
+        if (!empty($historicalPoIds)) {
+            Po::query()
+                ->with('detailPos')
+                ->whereIn('id', $historicalPoIds)
+                ->get()
+                ->each(function ($po) use (&$articleByDetailId, $getArticle, $normalizeArticle) {
+                    foreach ($po->detailPos as $detailPo) {
+                        $detail = is_array($detailPo->detail)
+                            ? $detailPo->detail
+                            : json_decode((string) $detailPo->detail, true);
+
+                        if (!is_array($detail)) {
+                            continue;
+                        }
+
+                        $article = $normalizeArticle(
+                            $getArticle($detail)
+                        );
+
+                        if ($article !== '') {
+                            $articleByDetailId[(string) $detailPo->id]
+                                = $article;
+                        }
+                    }
+                });
+        }
+
+        // ==================================================
+        // 3. INDEX HARGA BERDASARKAN ARTICLE CODE
+        // ==================================================
+        $pricesByArticle = [];
+
+        foreach ($historicalSpks as $spk) {
+            $data = is_array($spk->data)
+                ? $spk->data
+                : json_decode((string) $spk->data, true);
+
+            if (!is_array($data)) {
+                continue;
+            }
+
+            $supplier = mb_strtoupper(
+                preg_replace(
+                    '/\s+/u',
+                    ' ',
+                    trim((string) ($data['sup'] ?? ''))
+                )
+            );
+
+            if ($supplier !== 'TOMO FINISHING') {
+                continue;
+            }
+
+            $spkNumber = $data['no_spk']
+                ?? ('SPK #' . $spk->id);
+
+            foreach (($data['items'] ?? []) as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+
+                if (
+                    !isset($row['harga'])
+                    || !is_numeric($row['harga'])
+                ) {
+                    continue;
+                }
+
+                $detailId = (string) (
+                    $row['detail_po_id'] ?? ''
+                );
+
+                // Prioritas: Article Code dari detail PO asli.
+                // Fallback: kode pada JSON SPK.
+                $article = $articleByDetailId[$detailId]
+                    ?? $normalizeArticle($row['kode'] ?? '');
+
+                if ($article === '') {
+                    continue;
+                }
+
+                $pricesByArticle[$article][] = [
+                    'number' => $spkNumber,
+                    'qty' => $row['qty'] ?? null,
+                    'harga' => (float) $row['harga'],
+                    'source_detail_po_id' => $detailId,
+                ];
+            }
+        }
+
+        // ==================================================
+        // 4. QUERY PO EXISTING
+        // ==================================================
         $pos = Po::query()
             ->with(['detailPos', 'spks'])
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($q) use ($search) {
-                    $q->whereRaw('LOWER(`order_no`) LIKE ?', ['%' . mb_strtolower($search) . '%'])
-                      ->orWhereRaw('LOWER(`company_name`) LIKE ?', ['%' . mb_strtolower($search) . '%'])
-                      // Nama barang, article, dan kode tersimpan dalam JSON detail PO.
-                      ->orWhereHas('detailPos', function ($detailQuery) use ($search) {
-                          $detailQuery->whereRaw('LOWER(CAST(`detail` AS CHAR)) LIKE ?', ['%' . mb_strtolower($search) . '%']);
-                      });
+                    $q->where(
+                        'order_no',
+                        'like',
+                        '%' . $search . '%'
+                    )
+                        ->orWhere(
+                            'company_name',
+                            'like',
+                            '%' . $search . '%'
+                        )
+                        ->orWhereHas(
+                            'detailPos',
+                            function ($detailQuery) use ($search) {
+                                $detailQuery->where(
+                                    'detail',
+                                    'like',
+                                    '%' . $search . '%'
+                                );
+                            }
+                        );
                 });
             })
             ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
 
-        $cards = $pos->getCollection()->map(function ($po) {
-            $spkItems = [];
-            foreach ($po->spks as $spk) {
-                $data = is_array($spk->data) ? $spk->data : json_decode((string) $spk->data, true);
-                if (!is_array($data)) continue;
-                // Hanya SPK milik supplier TOMO FINISHING.
-                $supplier = preg_replace('/\s+/u', ' ', trim((string) ($data['sup'] ?? '')));
-                if (mb_strtoupper($supplier) !== 'TOMO FINISHING') continue;
-                foreach (($data['items'] ?? []) as $row) {
-                    if (!is_array($row)) continue;
-                    $detailId = (string) ($row['detail_po_id'] ?? '');
-                    if ($detailId === '') continue;
-                    $spkItems[$detailId][] = [
-                        'number' => $data['no_spk'] ?? $spk->spk_no ?? $spk->no_spk ?? $spk->nomor_spk ?? ('SPK #' . $spk->id),
-                        'qty' => $row['qty'] ?? null,
-                        'harga' => isset($row['harga']) && is_numeric($row['harga']) ? (float) $row['harga'] : null,
-                    ];
-                }
-            }
+        // ==================================================
+        // 5. TAMPILKAN HARGA HISTORIS PADA SEMUA REPEAT PO
+        // ==================================================
+        $cards = $pos->getCollection()
+            ->map(function ($po) use ($pricesByArticle, $getArticle, $normalizeArticle) {
+                return [
+                    'po' => $po->order_no,
+                    'buyer' => $po->company_name ?: '-',
 
-            return [
-                'po' => $po->order_no,
-                'buyer' => $po->company_name ?: '-',
-                'items' => $po->detailPos->map(function ($detailPo) use ($spkItems) {
-                    $data = is_array($detailPo->detail) ? $detailPo->detail : json_decode((string) $detailPo->detail, true);
-                    $data = is_array($data) ? $data : [];
-                    $photo = $data['photo'] ?? null;
-                    if (is_array($photo)) $photo = $photo['url'] ?? $photo['path'] ?? null;
-                    if (is_string($photo) && $photo !== '') {
-                        if (!preg_match('~^(https?://|/)~i', $photo)) {
-                            $photo = asset('storage/' . ltrim($photo, '/'));
-                        }
-                    } else $photo = null;
-                    return [
-                        'id' => $detailPo->id,
-                        'name' => $data['description'] ?? $data['nama'] ?? $data['item'] ?? '-',
-                        'article' => $data['article_nr_'] ?? $data['article_nr'] ?? $data['article_code'] ?? $data['article'] ?? $data['code'] ?? '-',
-                        'qty' => $data['qty'] ?? 0,
-                        'image' => $photo,
-                        'spks' => $spkItems[(string) $detailPo->id] ?? [],
-                    ];
-                })->values()->all(),
-            ];
-        })->values();
+                    'items' => $po->detailPos
+                        ->map(function ($detailPo) use ($pricesByArticle, $getArticle, $normalizeArticle) {
+                            $data = is_array($detailPo->detail)
+                                ? $detailPo->detail
+                                : json_decode(
+                                    (string) $detailPo->detail,
+                                    true
+                                );
 
-        return view('pages.tomo.indx', compact('cards', 'pos', 'search'));
+                            $data = is_array($data) ? $data : [];
+
+                            $article = $getArticle($data);
+                            $articleKey = $normalizeArticle($article);
+
+                            $photo = $data['photo'] ?? null;
+
+                            if (is_array($photo)) {
+                                $photo = $photo['url']
+                                    ?? $photo['path']
+                                    ?? null;
+                            }
+
+                            if (is_string($photo) && $photo !== '') {
+                                if (
+                                    !preg_match(
+                                        '~^(https?://|/)~i',
+                                        $photo
+                                    )
+                                ) {
+                                    $photo = asset(
+                                        'storage/' . ltrim($photo, '/')
+                                    );
+                                }
+                            } else {
+                                $photo = null;
+                            }
+
+                            return [
+                                'id' => $detailPo->id,
+
+                                'name' => $data['description']
+                                    ?? $data['nama']
+                                    ?? $data['item']
+                                    ?? '-',
+
+                                'article' => $article ?: '-',
+
+                                'qty' => $data['qty'] ?? 0,
+
+                                'image' => $photo,
+
+                                // Riwayat dari SEMUA PO,
+                                // bukan hanya detail PO saat ini.
+                                'spks' => $articleKey !== ''
+                                    ? ($pricesByArticle[$articleKey] ?? [])
+                                    : [],
+                            ];
+                        })
+                        ->values()
+                        ->all(),
+                ];
+            })
+            ->values();
+
+        return view(
+            'pages.tomo.indx',
+            compact('cards', 'pos', 'search')
+        );
     }
     // Publik: hanya point aktif. Pengelolaan master point dilakukan admin di database.
     public function points()
@@ -91,8 +271,8 @@ class TomoController extends Controller
             $term = trim((string) $request->query('search'));
             $query->where(function ($q) use ($term) {
                 $q->where('po_code', 'like', "%{$term}%")
-                  ->orWhere('item_name', 'like', "%{$term}%")
-                  ->orWhere('article_code', 'like', "%{$term}%");
+                    ->orWhere('item_name', 'like', "%{$term}%")
+                    ->orWhere('article_code', 'like', "%{$term}%");
             });
         }
         return response()->json($query->limit(1000)->get()->map(function ($s) {
