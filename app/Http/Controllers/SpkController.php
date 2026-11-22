@@ -6571,10 +6571,103 @@ class SpkController extends Controller
 
     public function spk(Request $request)
     {
+        // AJAX khusus halaman ini; endpoint lama spk.all tetap tidak berubah.
+        if ($request->query('ajax') === 'list') {
+            $search = trim((string) $request->query('search', ''));
+            $type = strtoupper((string) $request->query('type', 'ALL'));
+            $poTable = (new Po)->getTable();
+            $detailTable = (new DetailPo)->getTable();
+            $spkTable = (new Spk)->getTable();
+            $query = Po::query()->select('id', 'order_no', 'company_name');
+            if (in_array($type, ['NW', 'NWS'], true)) {
+                $query->where('order_no', 'like', $type . ' %');
+            }
+            if ($search !== '') {
+                $like = '%' . addcslashes($search, '%_\\') . '%';
+                $query->where(function ($q) use ($like, $poTable, $detailTable, $spkTable) {
+                    $q->where('order_no', 'like', $like)
+                        ->orWhere('company_name', 'like', $like)
+                        ->orWhereExists(function ($sub) use ($like, $poTable, $detailTable, $spkTable) {
+                            $sub->selectRaw('1')->from($detailTable)
+                                ->whereColumn($detailTable . '.po_id', $poTable . '.id')
+                                ->where($detailTable . '.detail', 'like', $like);
+                        })
+                        ->orWhereExists(function ($sub) use ($like, $poTable, $detailTable, $spkTable) {
+                            $sub->selectRaw('1')->from($spkTable)
+                                ->whereColumn($spkTable . '.po_id', $poTable . '.id')
+                                ->where($spkTable . '.data', 'like', $like);
+                        });
+                });
+            }
+            // Cursor menggunakan id, stabil walau jumlah PO besar.
+            $page = $query->orderByDesc('id')->cursorPaginate(10);
+            $rows = $page->getCollection();
+            $counts = DB::table($spkTable)->select('po_id')
+                ->selectRaw('COUNT(*) AS total')->whereIn('po_id', $rows->pluck('id'))
+                ->groupBy('po_id')->pluck('total', 'po_id');
+            return response()->json([
+                'rows' => $rows->map(fn($po) => [
+                    'id' => $po->id,
+                    'no_po' => $po->order_no,
+                    'company' => $po->company_name,
+                    'spk_count' => (int) ($counts[$po->id] ?? 0),
+                ])->values(),
+                'next_cursor' => $page->nextCursor()?->encode(),
+                'has_more' => $page->hasMorePages(),
+            ]);
+        }
+        if ($request->query('ajax') === 'detail') {
+            $po = Po::query()->select('id', 'order_no', 'company_name')
+                ->findOrFail($request->integer('po_id'));
+            $summaryByDetail = [];
+            foreach (Spk::query()->select('id', 'data')->where('po_id', $po->id)->cursor() as $spk) {
+                $data = is_array($spk->data) ? $spk->data : json_decode((string) $spk->data, true);
+                if (!is_array($data))
+                    continue;
+                $supplier = $data['sup'] ?? '-';
+                $category = $data['kategori'] ?? '-';
+                foreach (($data['items'] ?? []) as $spkItem) {
+                    if (!is_array($spkItem) || !isset($spkItem['detail_po_id']))
+                        continue;
+                    $id = (string) $spkItem['detail_po_id'];
+                    if (!isset($summaryByDetail[$id][$category][$supplier])) {
+                        $summaryByDetail[$id][$category][$supplier] = ['total_qty' => 0, 'spks' => []];
+                    }
+                    $bucket = &$summaryByDetail[$id][$category][$supplier];
+                    $qty = (int) ($spkItem['qty'] ?? 0);
+                    $bucket['total_qty'] += $qty;
+                    $bucket['spks'][] = [
+                        'spk_id' => $spk->id,
+                        'no_spk' => $data['no_spk'] ?? '-',
+                        'qty' => $qty,
+                        'tgl_selesai' => $data['tgl_selesai'] ?? null,
+                    ];
+                    unset($bucket);
+                }
+            }
+            $items = DetailPo::query()->select('id', 'po_id', 'detail')
+                ->where('po_id', $po->id)->get()->map(function ($item) use ($summaryByDetail) {
+                    $detail = is_array($item->detail) ? $item->detail : json_decode((string) $item->detail, true);
+                    return [
+                        'id' => $item->id,
+                        'detail' => is_array($detail) ? $detail : [],
+                        'summary' => $summaryByDetail[(string) $item->id] ?? []
+                    ];
+                })->values();
+            return response()->json([
+                'data_po' => [
+                    'id' => $po->id,
+                    'no_po' => $po->order_no,
+                    'company' => $po->company_name,
+                    'items' => $items,
+                ]
+            ]);
+        }
         $isRndSpk = $request->spk === 'rnd_spk';
         return view('pages.spk.all', compact('isRndSpk'));
     }
-      public function allspk()
+
+    public function allspk()
     {
         // Ambil kolom yang diperlukan, lalu indeks berdasarkan PO dan detail item.
         $poList = Po::select('id', 'order_no', 'company_name')->get();
@@ -7608,17 +7701,17 @@ class SpkController extends Controller
                 if (!$request->spk) {
 
                     // Log::warning('SPK NOT FOUND', [
-
+    
                     //     'payment_request_id' =>
-
+    
                     //         $request->id,
-
+    
                     //     'spk_id' =>
-
+    
                     //         $request->spk_id,
-
+    
                     // ]);
-
+    
                     return null;
 
                 }
@@ -7844,23 +7937,23 @@ class SpkController extends Controller
                         if (!$request->spk) {
 
                             // Log::warning(
-
+        
                             //     'SPK NOT FOUND IN DRAFT',
-
+        
                             //     [
-
+        
                             //         'payment_request_id' =>
-
+        
                             //             $request->id,
-
+        
                             //         'spk_id' =>
-
+        
                             //             $request->spk_id,
-
+        
                             //     ]
-
+        
                             // );
-
+        
                             return null;
 
                         }
@@ -8341,27 +8434,27 @@ class SpkController extends Controller
                 */
 
                 // Log::info(
-
+    
                 //     'PAYMENT REQUEST DRAFT APPROVERS',
-
+    
                 //     [
-
+    
                 //         'draft_id' =>
-
+    
                 //             $draft->id,
-
+    
                 //         'request_no' =>
-
+    
                 //             $draft->request_no,
-
+    
                 //         'approvals' =>
-
+    
                 //             $approvalList->toArray(),
-
+    
                 //     ]
-
+    
                 // );
-
+    
                 /*
 
                 |--------------------------------------------------------------------------
@@ -10781,83 +10874,85 @@ class SpkController extends Controller
         ];
     }
     public function pengajuanTomo()
-{
-    return view('pages.spk.tomo');
-}
-
-public function pengajuanTomoData(Request $request)
-{
-    return response()->json(DB::table('tomo_submissions')
-        ->orderByDesc('id')->limit(2000)->get()->map(function ($row) {
-            $row->rows = json_decode($row->points_json ?: '[]', true) ?: [];
-            unset($row->points_json);
-            return $row;
-        }));
-}
-
-public function pengajuanTomoStatus(Request $request, int $id)
-{
-    $data = $request->validate([
-        'action' => ['required', 'in:confirm,approve,reject'],
-        'review_notes' => ['nullable', 'string', 'max:3000'],
-    ]);
-    if ($data['action'] === 'reject' && blank($data['review_notes'] ?? null)) {
-        throw ValidationException::withMessages(['review_notes' => 'Alasan penolakan wajib diisi.']);
+    {
+        return view('pages.spk.tomo');
     }
-    $transitions = [
-        'confirm' => ['from' => 'pending', 'to' => 'diproses'],
-        'approve' => ['from' => 'diproses', 'to' => 'disetujui'],
-        'reject'  => ['from' => 'diproses', 'to' => 'ditolak'],
-    ];
-    $transition = $transitions[$data['action']];
-    $affected = DB::table('tomo_submissions')
-        ->where('id', $id)->where('status', $transition['from'])
-        ->update([
-            'status' => $transition['to'],
-            'reviewed_at' => now(),
-            'review_notes' => $data['review_notes'] ?? null,
+
+    public function pengajuanTomoData(Request $request)
+    {
+        return response()->json(DB::table('tomo_submissions')
+            ->orderByDesc('id')->limit(2000)->get()->map(function ($row) {
+                $row->rows = json_decode($row->points_json ?: '[]', true) ?: [];
+                unset($row->points_json);
+                return $row;
+            }));
+    }
+
+    public function pengajuanTomoStatus(Request $request, int $id)
+    {
+        $data = $request->validate([
+            'action' => ['required', 'in:confirm,approve,reject'],
+            'review_notes' => ['nullable', 'string', 'max:3000'],
+        ]);
+        if ($data['action'] === 'reject' && blank($data['review_notes'] ?? null)) {
+            throw ValidationException::withMessages(['review_notes' => 'Alasan penolakan wajib diisi.']);
+        }
+        $transitions = [
+            'confirm' => ['from' => 'pending', 'to' => 'diproses'],
+            'approve' => ['from' => 'diproses', 'to' => 'disetujui'],
+            'reject' => ['from' => 'diproses', 'to' => 'ditolak'],
+        ];
+        $transition = $transitions[$data['action']];
+        $affected = DB::table('tomo_submissions')
+            ->where('id', $id)->where('status', $transition['from'])
+            ->update([
+                'status' => $transition['to'],
+                'reviewed_at' => now(),
+                'review_notes' => $data['review_notes'] ?? null,
+                'updated_at' => now(),
+            ]);
+        if (!$affected) {
+            return response()->json(['message' => 'Status sudah berubah atau pengajuan tidak ditemukan. Refresh halaman.'], 409);
+        }
+        return response()->json(['message' => 'Status berhasil diperbarui.', 'status' => $transition['to']]);
+    }
+
+    public function pengajuanTomoPoints()
+    {
+        return response()->json(DB::table('tomo_points')
+            ->orderBy('sort_order')->orderBy('id')->get(['id', 'name', 'sort_order', 'is_active']));
+    }
+
+    public function pengajuanTomoPointStore(Request $request)
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:150'],
+        ]);
+        $id = DB::table('tomo_points')->insertGetId([
+            'name' => trim($data['name']),
+            'sort_order' => ((int) DB::table('tomo_points')->max('sort_order')) + 1,
+            'is_active' => 1,
+            'created_at' => now(),
             'updated_at' => now(),
         ]);
-    if (!$affected) {
-        return response()->json(['message' => 'Status sudah berubah atau pengajuan tidak ditemukan. Refresh halaman.'], 409);
+        return response()->json(['message' => 'Point ditambahkan.', 'id' => $id], 201);
     }
-    return response()->json(['message' => 'Status berhasil diperbarui.', 'status' => $transition['to']]);
-}
 
-public function pengajuanTomoPoints()
-{
-    return response()->json(DB::table('tomo_points')
-        ->orderBy('sort_order')->orderBy('id')->get(['id', 'name', 'sort_order', 'is_active']));
-}
-
-public function pengajuanTomoPointStore(Request $request)
-{
-    $data = $request->validate([
-        'name' => ['required', 'string', 'max:150'],
-    ]);
-    $id = DB::table('tomo_points')->insertGetId([
-        'name' => trim($data['name']),
-        'sort_order' => ((int) DB::table('tomo_points')->max('sort_order')) + 1,
-        'is_active' => 1,
-        'created_at' => now(), 'updated_at' => now(),
-    ]);
-    return response()->json(['message' => 'Point ditambahkan.', 'id' => $id], 201);
-}
-
-public function pengajuanTomoPointUpdate(Request $request, int $id)
-{
-    $data = $request->validate([
-        'name' => ['required', 'string', 'max:150'],
-        'sort_order' => ['required', 'integer', 'min:0', 'max:999999'],
-        'is_active' => ['required', 'boolean'],
-    ]);
-    $affected = DB::table('tomo_points')->where('id', $id)->update([
-        'name' => trim($data['name']),
-        'sort_order' => $data['sort_order'],
-        'is_active' => $data['is_active'],
-        'updated_at' => now(),
-    ]);
-    if (!$affected) return response()->json(['message' => 'Point tidak ditemukan atau tidak berubah.'], 404);
-    return response()->json(['message' => 'Point diperbarui.']);
-}
+    public function pengajuanTomoPointUpdate(Request $request, int $id)
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:150'],
+            'sort_order' => ['required', 'integer', 'min:0', 'max:999999'],
+            'is_active' => ['required', 'boolean'],
+        ]);
+        $affected = DB::table('tomo_points')->where('id', $id)->update([
+            'name' => trim($data['name']),
+            'sort_order' => $data['sort_order'],
+            'is_active' => $data['is_active'],
+            'updated_at' => now(),
+        ]);
+        if (!$affected)
+            return response()->json(['message' => 'Point tidak ditemukan atau tidak berubah.'], 404);
+        return response()->json(['message' => 'Point diperbarui.']);
+    }
 }
