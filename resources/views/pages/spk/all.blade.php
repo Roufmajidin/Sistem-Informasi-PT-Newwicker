@@ -118,7 +118,7 @@
 
 
                                 <input type="text" id="searchPo" class="form-control"
-                                    placeholder="Cari SPK, Buyer atau PO...">
+                                    placeholder="Cari PO, Buyer, No SPK atau Supplier...">
 
 
 
@@ -600,10 +600,29 @@
                             {{-- TABLE --}}
 
                             <div class="box table-box">
+                                {{-- Navigasi horizontal tabel SPK, khusus detail modal --}}
+                                <div class="spk-horizontal-toolbar" id="spkHorizontalToolbar"
+                                    aria-label="Navigasi tabel SPK">
+                                    <div class="spk-scroll-pill">
+                                        <button type="button" class="spk-scroll-arrow" id="spkScrollLeft"
+                                            aria-label="Geser tabel ke kiri" title="Geser ke kiri"><i
+                                                class="fa fa-chevron-left"></i></button>
+                                        <span class="spk-scroll-instruction"><i class="fa fa-arrows-h"></i> Scroll ke
+                                            samping untuk melihat kategori SPK</span>
+                                        <button type="button" class="spk-scroll-arrow" id="spkScrollRight"
+                                            aria-label="Geser tabel ke kanan" title="Geser ke kanan"><i
+                                                class="fa fa-chevron-right"></i></button>
+                                    </div>
+                                </div>
 
 
 
-                                <div class="table-responsive">
+                                <div class="spk-top-scroll" id="spkTopScroll" tabindex="0"
+                                    aria-label="Geser tabel SPK secara horizontal menggunakan scrollbar atau tombol panah kiri dan kanan">
+                                    <div class="spk-top-scroll-inner" id="spkTopScrollInner"></div>
+                                </div>
+                                <div class="table-responsive" tabindex="0"
+                                    aria-label="Tabel SPK, tekan panah kiri atau kanan untuk menggeser">
 
 
 
@@ -651,7 +670,23 @@
 
 
 
-</div> @endsection
+    </div>
+
+    {{-- Modal detail SPK: konten asli dipindahkan ke sini melalui JavaScript; tidak diduplikasi. --}}
+    <div class="modal fade" id="spkViewModal" tabindex="-1" role="dialog" aria-labelledby="spkViewModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-lg spk-view-dialog" role="document">
+            <div class="modal-content spk-view-content">
+                <div class="modal-header spk-view-header">
+                    <button type="button" class="close spk-modal-close" id="spkModalClose"
+                        aria-label="Tutup Detail SPK" title="Tutup"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title" id="spkViewModalLabel"><i class="fa fa-file-text-o"></i> Detail SPK</h4>
+                </div>
+                <div class="modal-body spk-view-body" id="spkViewModalBody"></div>
+            </div>
+        </div>
+    </div>
+@endsection
 
 @push('scripts')
     <!-- jQuery (WAJIB PERTAMA) -->
@@ -667,6 +702,185 @@
 
 
     <script>
+        // Modal large menggunakan panel detail asli agar fungsi existing tetap bekerja.
+        $(function() {
+            const $detail = $('#detailColumn');
+            $detail.removeClass('col-lg-8 col-md-7 col-lg-12 col-md-12')
+                .addClass('spk-modal-detail-column')
+                .appendTo('#spkViewModalBody');
+            $('#sidebarColumn').removeClass('col-lg-4 col-md-5').addClass('col-xs-12');
+            // Pindahkan toolbar dan scrollbar ke luar .table-box (overflow:hidden).
+            // Keduanya tetap satu kesatuan sticky saat body modal di-scroll vertikal.
+            const $tableBox = $('#spkViewModal .table-box');
+            if ($tableBox.length && !$('#spkStickyHorizontal').length) {
+                const $sticky = $('<div id="spkStickyHorizontal" class="spk-sticky-horizontal"></div>');
+                $sticky.insertBefore($tableBox);
+                $sticky.append($('#spkHorizontalToolbar'), $('#spkTopScroll'));
+                $sticky.append(
+                    '<div id="spkStickyTableHeader" class="spk-sticky-table-header" aria-hidden="true"><div class="spk-sticky-table-header-inner"></div></div>'
+                    );
+            }
+            // Tombol X independen dari data-dismiss agar tidak terganggu Bootstrap versi ganda.
+            $('#spkModalClose').on('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const $modal = $('#spkViewModal');
+                $modal.modal('hide');
+                // Fallback jika handler modal dari tema gagal menutup.
+                setTimeout(function() {
+                    if ($modal.hasClass('in') || $modal.hasClass('show')) {
+                        $modal.removeClass('in show').hide().attr('aria-hidden', 'true');
+                        $('.modal-backdrop').remove();
+                        $('body').removeClass('modal-open').css('padding-right', '');
+                        $modal.trigger('hidden.bs.modal');
+                    }
+                }, 250);
+            });
+        });
+
+        // Kontrol geser horizontal tabel di atas modal (tanpa mengubah data/handler SPK).
+        $(function() {
+            const modal = document.getElementById('spkViewModal');
+            const toolbar = document.getElementById('spkHorizontalToolbar');
+            const left = document.getElementById('spkScrollLeft');
+            const right = document.getElementById('spkScrollRight');
+            const topScroll = document.getElementById('spkTopScroll');
+            const topInner = document.getElementById('spkTopScrollInner');
+            let syncing = false;
+            if (!modal || !toolbar || !left || !right) return;
+
+            function scroller() {
+                return modal.querySelector('.table-box .table-responsive');
+            }
+            // Header tabel asli berada di dalam scroller horizontal, sehingga tidak
+            // bisa sticky terhadap scroll vertikal modal. Buat salinan header saja
+            // di bawah scrollbar atas; seluruh data dan event tetap di tabel asli.
+            const stickyHeader = document.getElementById('spkStickyTableHeader');
+            const stickyInner = stickyHeader ? stickyHeader.querySelector('.spk-sticky-table-header-inner') : null;
+            let headerSource = null;
+            let headerSize = '';
+
+            function syncStickyHeader(force = false) {
+                const el = scroller();
+                const table = el && el.querySelector('#spk-detail-body table');
+                const thead = table && table.querySelector('thead');
+                if (!stickyHeader || !stickyInner || !el || !thead) {
+                    if (stickyHeader) stickyHeader.style.display = 'none';
+                    headerSource = null;
+                    return;
+                }
+                const sourceCells = Array.from(thead.querySelectorAll('th'));
+                const widths = sourceCells.map(th => Math.round(th.getBoundingClientRect().width * 10) / 10);
+                const width = Math.max(table.getBoundingClientRect().width, table.scrollWidth);
+                const size = width + ':' + widths.join(',') + ':' + thead.innerHTML.length;
+                if (force || headerSource !== thead || headerSize !== size) {
+                    const clone = document.createElement('table');
+                    clone.className = table.className;
+                    clone.style.width = width + 'px';
+                    clone.style.minWidth = width + 'px';
+                    clone.style.maxWidth = 'none';
+                    clone.style.margin = '0';
+                    const headClone = thead.cloneNode(true);
+                    headClone.querySelectorAll('th').forEach((th, i) => {
+                        th.style.boxSizing = 'border-box';
+                        th.style.width = widths[i] + 'px';
+                        th.style.minWidth = widths[i] + 'px';
+                    });
+                    clone.appendChild(headClone);
+                    stickyInner.replaceChildren(clone);
+                    headerSource = thead;
+                    headerSize = size;
+                }
+                stickyHeader.style.display = 'block';
+                stickyInner.style.width = width + 'px';
+                stickyInner.style.transform = 'translate3d(' + (-el.scrollLeft) + 'px,0,0)';
+            }
+
+            function updateScrollControls() {
+                const el = scroller();
+                if (!el) return;
+                const max = Math.max(0, el.scrollWidth - el.clientWidth);
+                toolbar.style.display = max > 3 ? 'flex' : 'none';
+                if (topScroll && topInner) {
+                    topInner.style.width = el.scrollWidth + 'px';
+                    topScroll.style.display = max > 3 ? 'block' : 'none';
+                    if (!syncing && Math.abs(topScroll.scrollLeft - el.scrollLeft) > 1) topScroll.scrollLeft = el
+                        .scrollLeft;
+                }
+                left.disabled = el.scrollLeft <= 2;
+                right.disabled = el.scrollLeft >= max - 2;
+                syncStickyHeader();
+            }
+
+            function moveTable(direction) {
+                const el = scroller();
+                if (!el) return;
+                el.scrollBy({
+                    left: direction * Math.max(240, Math.round(el.clientWidth * 0.65)),
+                    behavior: 'smooth'
+                });
+            }
+            if (topScroll) {
+                topScroll.addEventListener('scroll', function() {
+                    const el = scroller();
+                    if (!el || syncing) return;
+                    syncing = true;
+                    el.scrollLeft = topScroll.scrollLeft;
+                    syncing = false;
+                    updateScrollControls();
+                }, {
+                    passive: true
+                });
+            }
+
+            function onHorizontalKey(e) {
+                if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+                const target = e.target;
+                if (target && (target.matches('input, textarea, select, [contenteditable="true"]') || target
+                        .closest('[contenteditable="true"]'))) return;
+                const el = scroller();
+                if (!el || el.scrollWidth <= el.clientWidth + 3) return;
+                e.preventDefault();
+                moveTable(e.key === 'ArrowRight' ? 1 : -1);
+            }
+            modal.addEventListener('keydown', onHorizontalKey);
+            left.addEventListener('click', function() {
+                moveTable(-1);
+            });
+            right.addEventListener('click', function() {
+                moveTable(1);
+            });
+            modal.addEventListener('scroll', function(event) {
+                if (event.target === scroller()) {
+                    const el = scroller();
+                    if (topScroll && !syncing) {
+                        syncing = true;
+                        topScroll.scrollLeft = el.scrollLeft;
+                        syncing = false;
+                    }
+                    updateScrollControls();
+                }
+            }, true);
+            $('#spkViewModal').on('shown.bs.modal', function() {
+                updateScrollControls();
+                setTimeout(updateScrollControls, 120);
+            });
+            // Isi tabel dapat berubah saat memilih PO / filter; sinkronkan navigasi.
+            const body = document.getElementById('spk-detail-body');
+            if (body && window.MutationObserver) {
+                const observer = new MutationObserver(function() {
+                    requestAnimationFrame(updateScrollControls);
+                });
+                observer.observe(body, {
+                    childList: true,
+                    subtree: true
+                });
+            }
+            window.addEventListener('resize', updateScrollControls, {
+                passive: true
+            });
+        });
+
         console.log(window.history.length);
 
         // ===============================
@@ -2056,14 +2270,10 @@
 
 
 
-                    <td rowspan="${maxRow}">
-
-
-
-                        ${d.description ?? '-'}
-
-
-
+                    <td rowspan="${maxRow}" class="spk-description-cell">
+                        <span class="spk-description-ellipsis" title="${escapePoText(d.description ?? '-')}">
+                            ${escapePoText(d.description ?? '-')}
+                        </span>
                     </td>
 
 
@@ -2225,6 +2435,7 @@
             $('#spkDetailBox')
 
                 .show();
+            $('#spkViewModal').modal('show');
 
 
 
@@ -2298,15 +2509,8 @@
 
 
 
-            $('html, body').animate({
-
-
-
-                scrollTop: $('#spkDetailBox').offset().top - 20
-
-
-
-            }, 400);
+            // Modal menangani posisi scroll sendiri, tidak menggulir halaman utama.
+            $('#spkViewModalBody').scrollTop(0);
 
 
 
@@ -2947,6 +3151,7 @@
                                 $('#spkDetailBox')
 
                                     .hide();
+                                $('#spkViewModal').modal('hide');
 
 
 
@@ -3145,6 +3350,7 @@
 
 
                         $('#spkDetailBox').hide();
+                        $('#spkViewModal').modal('hide');
 
 
 
@@ -3195,116 +3401,17 @@
 
 
         let isExpanded = false;
-
-
-
-        $(document).on(
-
-            'click',
-
-            '#btnExpandDetail',
-
-            function() {
-
-
-
-                isExpanded = !isExpanded;
-
-
-
-                if (isExpanded) {
-
-
-
-                    $('#sidebarColumn')
-
-                        .hide();
-
-
-
-                    $('#detailColumn')
-
-                        .removeClass(
-
-                            'col-lg-8 col-md-7'
-
-                        )
-
-                        .addClass(
-
-                            'col-lg-12 col-md-12'
-
-                        );
-
-
-
-                    $(this)
-
-                        .html(`
-
-                    <i class="fa fa-compress"></i>
-
-                `)
-
-                        .attr(
-
-                            'title',
-
-                            'Kembalikan'
-
-                        );
-
-
-
-                } else {
-
-
-
-                    $('#sidebarColumn')
-
-                        .show();
-
-
-
-                    $('#detailColumn')
-
-                        .removeClass(
-
-                            'col-lg-12 col-md-12'
-
-                        )
-
-                        .addClass(
-
-                            'col-lg-8 col-md-7'
-
-                        );
-
-
-
-                    $(this)
-
-                        .html(`
-
-                    <i class="fa fa-expand"></i>
-
-                `)
-
-                        .attr(
-
-                            'title',
-
-                            'Perbesar'
-
-                        );
-
-
-
-                }
-
-
-
-            });
+        $(document).on('click', '#btnExpandDetail', function() {
+            isExpanded = !isExpanded;
+            $('#spkViewModal').toggleClass('spk-modal-maximized', isExpanded);
+            $(this).html(isExpanded ? '<i class="fa fa-compress"></i>' : '<i class="fa fa-expand"></i>')
+                .attr('title', isExpanded ? 'Kembalikan ukuran' : 'Perbesar modal');
+        });
+        $('#spkViewModal').on('hidden.bs.modal', function() {
+            isExpanded = false;
+            $(this).removeClass('spk-modal-maximized');
+            $('#btnExpandDetail').html('<i class="fa fa-expand"></i>').attr('title', 'Perbesar modal');
+        });
     </script>
 
     <style>
@@ -4455,5 +4562,305 @@
             background: #fff;
             border-top: 1px solid #eef2f6;
         }
+
+        /* Large modal: scroll confined to modal; PO widget keeps 10-row fetch. */
+        #spkViewModal {
+            z-index: 1050;
+        }
+
+        #spkViewModal .spk-view-dialog {
+            width: min(96vw, 1450px);
+            max-width: 1450px;
+            margin: 22px auto;
+        }
+
+        #spkViewModal .spk-view-content {
+            border: 0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 18px 60px rgba(15, 33, 64, .24);
+        }
+
+        #spkViewModal .spk-view-header {
+            padding: 13px 18px;
+            border-bottom: 1px solid #e9edf4;
+        }
+
+        #spkViewModal .spk-view-header h4 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #17345f;
+        }
+
+        #spkViewModal .spk-view-body {
+            padding: 16px;
+            max-height: calc(100vh - 115px);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        #spkViewModal .spk-modal-detail-column {
+            float: none;
+            width: 100%;
+            min-width: 0;
+            padding: 0;
+        }
+
+        #spkViewModal .detail-topbar {
+            margin-top: 0;
+        }
+
+        #spkViewModal .table-box .table-responsive {
+            max-height: none;
+            overflow-x: auto;
+            overflow-y: visible;
+        }
+
+        /* Pill navigasi horizontal di atas tabel, tetap terlihat saat modal di-scroll. */
+        #spkViewModal .spk-horizontal-toolbar {
+            display: none;
+            justify-content: flex-end;
+            padding: 8px 10px;
+            background: #f8faff;
+            border-bottom: 1px solid #e5ebf4;
+            position: sticky;
+            top: 0;
+            z-index: 5;
+        }
+
+        #spkViewModal .spk-scroll-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 9px;
+            max-width: 100%;
+            border: 1px solid #c9d9f5;
+            background: #eaf2ff;
+            color: #1b4d9b;
+            border-radius: 999px;
+            padding: 4px;
+            box-shadow: 0 1px 4px rgba(30, 75, 150, .07);
+        }
+
+        #spkViewModal .spk-scroll-instruction {
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #spkViewModal .spk-scroll-instruction i {
+            margin-right: 5px;
+        }
+
+        #spkViewModal .spk-scroll-arrow {
+            width: 27px;
+            height: 27px;
+            border: 0;
+            border-radius: 50%;
+            background: #2563d9;
+            color: white;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto;
+            cursor: pointer;
+        }
+
+        #spkViewModal .spk-scroll-arrow:disabled {
+            background: #c5d2e7;
+            cursor: default;
+        }
+
+        #spkViewModal .spk-scroll-arrow:not(:disabled):hover {
+            background: #164bb5;
+        }
+
+        #spkViewModal .spk-description-cell {
+            max-width: 220px;
+            width: 220px;
+        }
+
+        #spkViewModal .spk-description-ellipsis {
+            display: block;
+            max-width: 220px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: help;
+        }
+
+        #spkViewModal.spk-modal-maximized .spk-view-dialog {
+            width: 99vw;
+            max-width: none;
+            margin: 4px auto;
+        }
+
+        #spkViewModal.spk-modal-maximized .spk-view-body {
+            max-height: calc(100vh - 65px);
+        }
+
+        @media (max-width: 767px) {
+            #spkViewModal .spk-view-dialog {
+                width: calc(100vw - 12px);
+                margin: 6px auto;
+            }
+
+            #spkViewModal .spk-view-body {
+                padding: 10px;
+                max-height: calc(100vh - 75px);
+            }
+
+            #spkViewModal .spk-description-cell {
+                max-width: 155px;
+                width: 155px;
+            }
+
+            #spkViewModal .spk-description-ellipsis {
+                max-width: 155px;
+            }
+        }
     </style>
 @endpush
+
+<style>
+    /* Modal detail hampir fullscreen: hanya ruang kecil untuk margin. */
+    #spkViewModal .modal-dialog.spk-view-dialog {
+        width: calc(100vw - 24px) !important;
+        max-width: none !important;
+        margin: 8px auto !important;
+    }
+
+    #spkViewModal .spk-view-content {
+        height: calc(100vh - 16px);
+        display: flex;
+        flex-direction: column;
+    }
+
+    #spkViewModal .spk-view-header {
+        flex: 0 0 auto;
+    }
+
+    #spkViewModal .spk-view-body {
+        flex: 1 1 auto;
+        min-height: 0;
+        max-height: none !important;
+        overflow-y: auto;
+    }
+
+    /* Scrollbar nyata di atas tabel, tersinkron dengan tabel di bawahnya. */
+    #spkViewModal .spk-top-scroll {
+        display: none;
+        width: 100%;
+        height: 18px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        border-top: 1px solid #e9eef5;
+        background: #f8faff;
+        scrollbar-width: auto;
+        scrollbar-color: #8fa8cf #e9eef6;
+    }
+
+    #spkViewModal .spk-top-scroll-inner {
+        height: 1px;
+    }
+
+    #spkViewModal .spk-top-scroll::-webkit-scrollbar {
+        height: 12px;
+    }
+
+    #spkViewModal .spk-top-scroll::-webkit-scrollbar-thumb {
+        background: #8fa8cf;
+        border-radius: 10px;
+    }
+
+    #spkViewModal .spk-top-scroll::-webkit-scrollbar-track {
+        background: #e9eef6;
+    }
+
+    #spkViewModal .table-box .table-responsive {
+        overflow-x: auto !important;
+    }
+
+    @media(max-width:767px) {
+        #spkViewModal .modal-dialog.spk-view-dialog {
+            width: calc(100vw - 8px) !important;
+            margin: 4px auto !important;
+        }
+
+        #spkViewModal .spk-view-content {
+            height: calc(100vh - 8px);
+        }
+    }
+</style>
+
+
+<style>
+    /* Navigasi horizontal tetap terlihat ketika isi modal digulir ke bawah. */
+    #spkViewModal .spk-sticky-horizontal {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 110 !important;
+        background: #f8faff !important;
+        border-bottom: 1px solid #dbe5f2;
+        box-shadow: 0 2px 5px rgba(21, 45, 84, .07);
+    }
+
+    #spkViewModal .spk-sticky-horizontal .spk-horizontal-toolbar {
+        position: static !important;
+    }
+
+    #spkViewModal .spk-sticky-horizontal .spk-top-scroll {
+        position: static !important;
+    }
+
+    #spkViewModal .spk-view-body {
+        position: relative;
+    }
+
+    #spkViewModal .spk-modal-close {
+        cursor: pointer;
+        position: relative;
+        z-index: 3;
+        opacity: 1;
+    }
+</style>
+
+<style>
+    /* Header kategori tetap menempel bersama pill dan scrollbar atas saat modal scroll. */
+    #spkViewModal .spk-sticky-table-header {
+        display: none;
+        width: 100%;
+        overflow: hidden;
+        background: #fff;
+        border-bottom: 1px solid #dbe5f2;
+    }
+
+    #spkViewModal .spk-sticky-table-header-inner {
+        will-change: transform;
+    }
+
+    #spkViewModal .spk-sticky-table-header table {
+        border-collapse: collapse;
+        table-layout: fixed;
+    }
+
+    #spkViewModal .spk-sticky-table-header th {
+        background: #2c3f51 !important;
+        color: #fff !important;
+        font-weight: 700;
+        vertical-align: middle;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    #spkViewModal .spk-sticky-horizontal {
+        z-index: 130 !important;
+    }
+
+    /* Header asli tidak perlu sticky karena sudah ada salinan yang mengikuti scroll modal. */
+    #spkViewModal #spk-detail-body table thead th {
+        position: static !important;
+    }
+</style>

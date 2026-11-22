@@ -6592,10 +6592,20 @@ class SpkController extends Controller
                                 ->whereColumn($detailTable . '.po_id', $poTable . '.id')
                                 ->where($detailTable . '.detail', 'like', $like);
                         })
-                        ->orWhereExists(function ($sub) use ($like, $poTable, $detailTable, $spkTable) {
+                        // Cari No SPK dan nama supplier dari JSON spks.data.
+                        // Tetap sediakan LIKE pada data mentah untuk SPK lama / variasi struktur JSON.
+                        ->orWhereExists(function ($sub) use ($like, $poTable, $spkTable) {
                             $sub->selectRaw('1')->from($spkTable)
                                 ->whereColumn($spkTable . '.po_id', $poTable . '.id')
-                                ->where($spkTable . '.data', 'like', $like);
+                                ->where(function ($spkQuery) use ($like, $spkTable) {
+                                    $spkQuery->whereRaw(
+                                        "JSON_UNQUOTE(JSON_EXTRACT({$spkTable}.data, '$.no_spk')) LIKE ?",
+                                        [$like]
+                                    )->orWhereRaw(
+                                            "JSON_UNQUOTE(JSON_EXTRACT({$spkTable}.data, '$.sup')) LIKE ?",
+                                            [$like]
+                                        )->orWhere($spkTable . '.data', 'like', $like);
+                                });
                         });
                 });
             }
@@ -6738,6 +6748,7 @@ class SpkController extends Controller
 
         return response()->json($result);
     }
+
 
     // get spk
     public function spkEdit($id)
