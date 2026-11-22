@@ -1632,6 +1632,562 @@
             padding: 10px;
         }
     }
+
+
+    /* ===== Mobile refinement: compact, readable, no overlapping PO header ===== */
+    .tomo-po-head {
+        top: var(--tomo-search-offset, 64px) !important;
+    }
+
+    @media (max-width: 600px) {
+        .tomo-page {
+            padding: 8px 7px 24px;
+            background: #f3f6fb;
+        }
+
+        .tomo-wrap {
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .tomo-title {
+            padding: 13px 14px;
+            margin-bottom: 8px;
+            border-radius: 12px;
+        }
+
+        .tomo-title h2 {
+            font-size: 17px;
+        }
+
+        .tomo-title p {
+            font-size: 11px;
+        }
+
+        .tomo-sticky {
+            padding: 6px 0;
+            border-radius: 11px;
+        }
+
+        .tomo-sticky.tomo-search-fixed {
+            padding: 7px 9px !important;
+            border-radius: 0 0 12px 12px;
+        }
+
+        .tomo-search {
+            gap: 7px;
+            align-items: center;
+        }
+
+        .tomo-search-field input {
+            height: 43px;
+            font-size: 14px;
+            padding: 0 38px 0 12px;
+            border-radius: 10px;
+        }
+
+        .tomo-search .tomo-btn {
+            min-width: 69px;
+            padding: 0 12px;
+            height: 43px;
+            font-size: 13px;
+            border-radius: 10px;
+        }
+
+        .tomo-tabs {
+            margin: 7px 0 10px;
+            gap: 7px;
+        }
+
+        .tomo-tab {
+            padding: 9px 11px;
+            font-size: 12px;
+        }
+
+        .tomo-po {
+            border-radius: 13px;
+            margin-bottom: 12px;
+            overflow: visible;
+        }
+
+        /* A sticky PO header was being hidden under the fixed search on phones.
+           Keep PO headers in document flow on mobile. */
+        .tomo-po-head {
+            position: relative !important;
+            top: auto !important;
+            z-index: 1 !important;
+            padding: 11px 12px;
+            border-radius: 12px 12px 0 0;
+            box-shadow: none !important;
+            gap: 10px;
+        }
+
+        .tomo-po-head strong {
+            font-size: 15px;
+            line-height: 1.25;
+        }
+
+        .tomo-po-head small {
+            white-space: nowrap;
+            font-size: 11px;
+            color: #526b89;
+        }
+
+        .tomo-buyer {
+            font-size: 11px;
+        }
+
+        .tomo-items {
+            padding: 8px;
+            gap: 8px;
+        }
+
+        .tomo-item {
+            grid-template-columns: 68px minmax(0, 1fr);
+            gap: 9px;
+            padding: 10px 9px;
+            border-radius: 11px;
+        }
+
+        .tomo-image {
+            width: 68px;
+            height: 68px;
+            border-radius: 9px;
+        }
+
+        .tomo-name {
+            font-size: 13px;
+            font-weight: 750;
+            line-height: 1.38;
+        }
+
+        .tomo-meta {
+            font-size: 11px;
+            margin: 4px 0 7px;
+            overflow-wrap: anywhere;
+        }
+
+        .tomo-spk {
+            display: flex;
+            align-items: flex-start;
+            gap: 4px 8px;
+            padding: 7px 8px;
+            margin-top: 5px;
+            font-size: 10.5px;
+            line-height: 1.35;
+            border-radius: 8px;
+        }
+
+        .tomo-spk span {
+            min-width: 0;
+            flex: 1 1 130px;
+            overflow-wrap: anywhere;
+        }
+
+        .tomo-spk strong {
+            white-space: nowrap;
+            margin-left: auto;
+            font-size: 11px;
+        }
+
+        .tomo-repeat-note {
+            font-size: 10px;
+            padding: 5px 7px;
+            line-height: 1.3;
+            margin-top: 7px;
+        }
+
+        .tomo-actions {
+            margin-top: 8px;
+            gap: 6px;
+        }
+
+        .tomo-qty {
+            margin-left: 0;
+            padding: 5px 9px;
+            font-size: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .tomo-qty b {
+            display: inline;
+            font-size: 15px;
+        }
+
+        .tomo-ajukan,
+        .tomo-detail {
+            padding: 7px 10px;
+            font-size: 11px;
+        }
+
+        .tomo-status {
+            font-size: 10px;
+            padding: 5px 7px;
+        }
+
+        .tomo-dialog {
+            border-radius: 12px;
+        }
+
+        .tomo-dialog-head {
+            padding: 10px;
+        }
+
+        .tomo-dialog-head h3 {
+            font-size: 15px;
+        }
+    }
+
+    @media (max-width: 360px) {
+        .tomo-item {
+            grid-template-columns: 58px minmax(0, 1fr);
+            gap: 7px;
+            padding: 8px 7px;
+        }
+
+        .tomo-image {
+            width: 58px;
+            height: 58px;
+        }
+
+        .tomo-name {
+            font-size: 12px;
+        }
+
+        .tomo-spk strong {
+            font-size: 10px;
+        }
+    }
+
+    /* Compact search + underline tabbar, based on mobile references. */
+    .tomo-sticky {
+        background: #fff !important;
+        padding: 9px 12px 0 !important;
+        border: 1px solid #e3e9f0;
+        border-radius: 12px;
+    }
+
+    .tomo-sticky.tomo-search-fixed {
+        padding: 8px 12px 0 !important;
+        border-radius: 0 0 10px 10px !important;
+    }
+
+    .tomo-search {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+    }
+
+    .tomo-search-field {
+        position: relative;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .tomo-search-field .tomo-search-icon {
+        position: absolute;
+        left: 11px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 15px;
+        height: 15px;
+        color: #64748b;
+        pointer-events: none;
+    }
+
+    .tomo-search-field input {
+        height: 36px !important;
+        width: 100%;
+        padding: 0 33px 0 34px !important;
+        border: 1px solid #dce4ec !important;
+        border-radius: 7px !important;
+        background: #f8fafc !important;
+        font-size: 12px !important;
+        box-shadow: none !important;
+    }
+
+    .tomo-search-field input:focus {
+        border-color: #6e9dd6 !important;
+        background: #fff !important;
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, .09) !important;
+    }
+
+    .tomo-search-clear {
+        width: 23px;
+        height: 23px;
+        font-size: 17px;
+        line-height: 21px;
+        right: 6px;
+    }
+
+    .tomo-search .tomo-search-submit {
+        height: 36px !important;
+        min-width: 52px !important;
+        padding: 0 10px !important;
+        border-radius: 7px !important;
+        font-size: 12px !important;
+        box-shadow: none !important;
+    }
+
+    .tomo-tabs {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr;
+        gap: 0 !important;
+        overflow: visible !important;
+        margin: 8px 0 0 !important;
+        padding: 0 !important;
+        border-bottom: 1px solid #dce5ed;
+    }
+
+    .tomo-tab {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        min-width: 0;
+        min-height: 35px;
+        border: 0 !important;
+        border-bottom: 2px solid transparent !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        color: #64748b !important;
+        font-size: 12px !important;
+        font-weight: 600;
+        padding: 8px 5px !important;
+        white-space: nowrap;
+        box-shadow: none !important;
+    }
+
+    .tomo-tab.active {
+        color: #155e45 !important;
+        border-bottom-color: #15803d !important;
+        background: rgba(22, 163, 74, .035) !important;
+    }
+
+    .tomo-tab:focus-visible {
+        outline: 2px solid #60a5fa;
+        outline-offset: -2px;
+    }
+
+    @media(max-width:600px) {
+        .tomo-sticky {
+            padding: 7px 8px 0 !important;
+        }
+
+        .tomo-sticky.tomo-search-fixed {
+            padding: 7px 8px 0 !important;
+        }
+
+        .tomo-search-field input {
+            height: 33px !important;
+            font-size: 11px !important;
+        }
+
+        .tomo-search .tomo-search-submit {
+            height: 33px !important;
+            min-width: 47px !important;
+            font-size: 11px !important;
+        }
+
+        .tomo-tabs {
+            margin-top: 6px !important;
+        }
+
+        .tomo-tab {
+            min-height: 32px;
+            font-size: 11px !important;
+        }
+    }
+
+
+    /* Mobile compact item rows: photo | details | actions (reference layout) */
+    @media (max-width: 600px) {
+        .tomo-items {
+            gap: 0 !important;
+            padding: 0 9px 7px !important;
+            background: #fff;
+        }
+
+        .tomo-item {
+            display: grid !important;
+            grid-template-columns: 48px minmax(0, 1fr) !important;
+            align-items: start !important;
+            gap: 9px !important;
+            padding: 11px 3px !important;
+            margin: 0 !important;
+            border: 0 !important;
+            border-bottom: 1px solid #e9edf2 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            background: #fff !important;
+        }
+
+        .tomo-item:last-child {
+            border-bottom: 0 !important;
+        }
+
+        .tomo-item>div:first-child {
+            width: 48px;
+            min-width: 0;
+        }
+
+        .tomo-image,
+        .tomo-photo {
+            width: 48px !important;
+            height: 48px !important;
+            border-radius: 50% !important;
+        }
+
+        .tomo-image {
+            object-fit: cover !important;
+            font-size: 9px !important;
+        }
+
+        .tomo-item>div:nth-child(2) {
+            min-width: 0;
+        }
+
+        .tomo-name {
+            font-size: 12px !important;
+            font-weight: 700 !important;
+            line-height: 1.35 !important;
+            color: #182b44 !important;
+            margin: 0 0 3px !important;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            overflow-wrap: anywhere;
+        }
+
+        .tomo-meta {
+            font-size: 10px !important;
+            margin: 0 0 5px !important;
+            color: #7a8799 !important;
+        }
+
+        .tomo-spk {
+            display: flex !important;
+            align-items: center !important;
+            gap: 5px !important;
+            margin: 3px 0 0 !important;
+            padding: 3px 0 !important;
+            border: 0 !important;
+            background: transparent !important;
+            border-radius: 0 !important;
+            font-size: 10px !important;
+        }
+
+        .tomo-spk span {
+            flex: 1;
+            min-width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .tomo-spk strong {
+            font-size: 10px !important;
+            font-weight: 700 !important;
+            color: #16734c !important;
+            white-space: nowrap;
+        }
+
+        .tomo-repeat-note {
+            display: inline-block !important;
+            max-width: 100%;
+            font-size: 9px !important;
+            padding: 3px 6px !important;
+            margin: 4px 0 0 !important;
+            border-radius: 5px !important;
+            font-weight: 600 !important;
+        }
+
+        .tomo-actions {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            gap: 5px !important;
+            margin-top: 6px !important;
+            align-items: center !important;
+        }
+
+        .tomo-qty {
+            margin: 0 !important;
+            padding: 3px 7px !important;
+            border-radius: 6px !important;
+            font-size: 10px !important;
+            gap: 4px !important;
+        }
+
+        .tomo-qty b {
+            font-size: 11px !important;
+        }
+
+        .tomo-status {
+            padding: 3px 6px !important;
+            font-size: 9px !important;
+        }
+
+        .tomo-ajukan,
+        .tomo-detail {
+            padding: 5px 8px !important;
+            font-size: 10px !important;
+            border-radius: 6px !important;
+        }
+
+        .tomo-po {
+            overflow: visible !important;
+        }
+
+        .tomo-po-head {
+            padding: 9px 12px !important;
+        }
+
+        .tomo-po-head strong {
+            font-size: 12px !important;
+        }
+
+        .tomo-buyer,
+        .tomo-po-head small {
+            font-size: 10px !important;
+        }
+
+        /* Search and tabs stay as one sticky unit; PO headers remain in normal flow. */
+        .tomo-sticky {
+            z-index: 300 !important;
+        }
+
+        .tomo-po-head {
+            position: relative !important;
+            top: auto !important;
+            z-index: 1 !important;
+        }
+    }
+
+
+    /* FINAL FIX: PO header sticks beneath the compact search + tab bar on phones. */
+    @media (max-width: 600px) {
+        #tomoItemsPanel .tomo-po {
+            overflow: visible !important;
+            position: relative !important;
+        }
+
+        #tomoItemsPanel .tomo-po>.tomo-po-head {
+            position: sticky !important;
+            top: var(--tomo-search-offset, 72px) !important;
+            z-index: 80 !important;
+            background: #eaf2fd !important;
+            box-shadow: 0 2px 8px rgba(25, 62, 112, .10) !important;
+            border-radius: 8px 8px 0 0 !important;
+        }
+
+        #tomoSearchBar {
+            z-index: 300 !important;
+        }
+    }
 </style>
 
 @section('content')
@@ -1650,24 +2206,29 @@
 
             <div id="tomoSearchAnchor" aria-hidden="true"></div>
             <div class="tomo-sticky" id="tomoSearchBar">
-
-                <form method="GET" action="{{ route('produksi.tomo') }}" class="tomo-search">
-
-                    <div class="tomo-search-field"><input id="tomoSearchInput" type="search" name="search"
-                            value="{{ $search ?? '' }}" placeholder="Cari PO / nama item..."
-                            aria-label="Cari PO atau nama item" oninput="tomoToggleSearchClear()"><button
-                            id="tomoSearchClear" class="tomo-search-clear" type="button" aria-label="Hapus pencarian"
+                <form method="GET" action="{{ route('produksi.tomo') }}" class="tomo-search" role="search">
+                    <div class="tomo-search-field">
+                        <svg class="tomo-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" aria-hidden="true">
+                            <circle cx="11" cy="11" r="7"></circle>
+                            <path d="m20 20-4-4"></path>
+                        </svg>
+                        <input id="tomoSearchInput" type="search" name="search" value="{{ $search ?? '' }}"
+                            placeholder="Search PO, article, item..." aria-label="Cari PO, article, atau nama item"
+                            oninput="tomoToggleSearchClear()">
+                        <button id="tomoSearchClear" class="tomo-search-clear" type="button" aria-label="Hapus pencarian"
                             title="Hapus pencarian" onclick="tomoClearSearch()"
-                            {{ empty($search) ? 'hidden' : '' }}>×</button></div><button class="tomo-btn">Cari</button>
-
+                            {{ empty($search) ? 'hidden' : '' }}>×</button>
+                    </div>
+                    <button class="tomo-btn tomo-search-submit" type="submit" aria-label="Cari">Cari</button>
                 </form>
-
+                <div class="tomo-tabs" role="tablist" aria-label="Navigasi Tomo">
+                    <button type="button" role="tab" aria-selected="true" class="tomo-tab active" data-tab="items"
+                        onclick="tomoSwitchTab('items')">Daftar PO</button>
+                    <button type="button" role="tab" aria-selected="false" class="tomo-tab" data-tab="history"
+                        onclick="tomoSwitchTab('history')">Riwayat Pengajuan <span id="tomoHistoryCount"></span></button>
+                </div>
             </div>
-
-            <div class="tomo-tabs"><button type="button" class="tomo-tab active" data-tab="items"
-                    onclick="tomoSwitchTab('items')">🏠 Daftar PO</button><button type="button" class="tomo-tab"
-                    data-tab="history" onclick="tomoSwitchTab('history')">📋 Riwayat Pengajuan <span
-                        id="tomoHistoryCount"></span></button></div>
 
             <div id="tomoItemsPanel">
 
@@ -2162,9 +2723,11 @@
 
                 document.getElementById('tomoHistoryPanel').classList.toggle('tomo-hidden', tab !== 'history');
 
-                document.querySelectorAll('.tomo-tab').forEach(b => b.classList.toggle('active', b.dataset.tab ===
-
-                    tab))
+                document.querySelectorAll('.tomo-tab').forEach(b => {
+                    const active = b.dataset.tab === tab;
+                    b.classList.toggle('active', active);
+                    b.setAttribute('aria-selected', String(active));
+                })
 
             };
 
@@ -2637,8 +3200,8 @@
                     bar.style.width = '';
                     anchor.style.height = '';
                 }
-                document.documentElement.style.setProperty('--tomo-search-offset', fixed ? bar.offsetHeight + 'px' :
-                    '56px');
+                document.documentElement.style.setProperty('--tomo-search-offset', fixed ? bar.offsetHeight + 'px' : bar
+                    .offsetHeight + 'px');
             }
 
             function schedule() {
