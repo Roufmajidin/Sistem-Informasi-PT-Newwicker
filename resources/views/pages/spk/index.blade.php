@@ -12,8 +12,8 @@
 
     <style>
         /* =========================================================
-               DOWNLOAD EXCEL - PREMIUM UI
-               ========================================================= */
+                   DOWNLOAD EXCEL - PREMIUM UI
+                   ========================================================= */
 
         .btn-download-excel {
             position: relative;
@@ -127,10 +127,10 @@
 
         <
         /* =========================================================
-                           SPK EXPORT / SCREENSHOT / COPY - A4 LANDSCAPE
-                           PREMIUM CLEAN DOCUMENT UI
-                           KHUSUS OUTPUT SCREENSHOT / COPY
-                           ========================================================= */
+                               SPK EXPORT / SCREENSHOT / COPY - A4 LANDSCAPE
+                               PREMIUM CLEAN DOCUMENT UI
+                               KHUSUS OUTPUT SCREENSHOT / COPY
+                               ========================================================= */
 
         .bahan-keterangan-spinner {
             width: 16px;
@@ -149,8 +149,8 @@
         }
 
         /* =========================================================
-                       ROOT CANVAS
-                       ========================================================= */
+                           ROOT CANVAS
+                           ========================================================= */
 
         .spk-excel-image {
             width: 1123px !important;
@@ -182,8 +182,8 @@
         }
 
         /* =========================================================
-                       HEADER
-                       ========================================================= */
+                           HEADER
+                           ========================================================= */
 
         .spk-excel-top {
             width: 100% !important;
@@ -255,8 +255,8 @@
         }
 
         /* =========================================================
-                       INFO SPK
-                       ========================================================= */
+                           INFO SPK
+                           ========================================================= */
 
         .spk-excel-info {
             width: 100% !important;
@@ -325,8 +325,8 @@
         }
 
         /* =========================================================
-                       ITEM AREA
-                       ========================================================= */
+                           ITEM AREA
+                           ========================================================= */
 
         .spk-excel-item-area {
             width: 100% !important;
@@ -339,8 +339,8 @@
         }
 
         /* =========================================================
-                       ITEM TABLE
-                       ========================================================= */
+                           ITEM TABLE
+                           ========================================================= */
 
         .spk-excel-items {
             width: 100% !important;
@@ -471,8 +471,8 @@
         }
 
         /* =========================================================
-                       TEXT
-                       ========================================================= */
+                           TEXT
+                           ========================================================= */
 
         .excel-code-text {
             width: 100% !important;
@@ -536,8 +536,8 @@
         }
 
         /* =========================================================
-                       IMAGE
-                       ========================================================= */
+                           IMAGE
+                           ========================================================= */
 
         .excel-image-cell {
             width: 100% !important;
@@ -580,8 +580,8 @@
         }
 
         /* =========================================================
-                       EXTRA ROW
-                       ========================================================= */
+                           EXTRA ROW
+                           ========================================================= */
 
         .spk-excel-item-row td {
             height: 62px !important;
@@ -592,8 +592,8 @@
         }
 
         /* =========================================================
-                       SPACER
-                       ========================================================= */
+                           SPACER
+                           ========================================================= */
 
         .spk-excel-spacer td {
             padding: 0 !important;
@@ -608,8 +608,8 @@
         }
 
         /* =========================================================
-                       GRAND TOTAL
-                       ========================================================= */
+                           GRAND TOTAL
+                           ========================================================= */
 
         .ex-grand-total td {
             height: 23px !important;
@@ -647,8 +647,8 @@
         }
 
         /* =========================================================
-                       BOTTOM AREA
-                       ========================================================= */
+                           BOTTOM AREA
+                           ========================================================= */
 
         .spk-excel-bottom {
             width: 100% !important;
@@ -668,8 +668,8 @@
         }
 
         /* =========================================================
-                       TERMS
-                       ========================================================= */
+                           TERMS
+                           ========================================================= */
 
         .spk-excel-terms {
             padding: 2px 10px 0 2px !important;
@@ -696,8 +696,8 @@
         }
 
         /* =========================================================
-                       PAYMENT
-                       ========================================================= */
+                           PAYMENT
+                           ========================================================= */
 
         .spk-excel-payment {
             padding-left: 0 !important;
@@ -769,9 +769,14 @@
             width: 30% !important;
         }
 
+        .spk-excel-payment td:last-child {
+            white-space: normal !important;
+            overflow: visible !important;
+        }
+
         /* =========================================================
-                       SIGNATURE
-                       ========================================================= */
+                           SIGNATURE
+                           ========================================================= */
 
         .spk-excel-signature {
             width: 100% !important;
@@ -850,8 +855,8 @@
         }
 
         /* =========================================================
-                           PUSHER REALTIME MOUSE CURSOR
-                           ========================================================= */
+                               PUSHER REALTIME MOUSE CURSOR
+                               ========================================================= */
         .spk-search-input:empty::before {
             content: attr(data-placeholder);
             color: #94a3b8;
@@ -922,8 +927,8 @@
         }
 
         /* =========================================================
-                                           SPK PRODUKSI - CLEAN MODERN LAYOUT (Matching preview.html)
-                                           ========================================================= */
+                                               SPK PRODUKSI - CLEAN MODERN LAYOUT (Matching preview.html)
+                                               ========================================================= */
         :root {
             --spk-navy: #50b95a;
             --spk-blue: #6f7174;
@@ -951,8 +956,8 @@
         }
 
         /* =========================================================
-                           FLOATING SPK ACTION
-                           ========================================================= */
+                               FLOATING SPK ACTION
+                               ========================================================= */
 
         .spk-floating-actions {
             position: fixed;
@@ -986,8 +991,8 @@
 
 
         /* =========================================================
-                           HEADER / DRAG HANDLE
-                           ========================================================= */
+                               HEADER / DRAG HANDLE
+                               ========================================================= */
 
         .spk-floating-header {
 
@@ -1055,8 +1060,8 @@
 
 
         /* =========================================================
-                           BODY
-                           ========================================================= */
+                               BODY
+                               ========================================================= */
 
         .spk-floating-body {
 
@@ -1072,8 +1077,8 @@
 
 
         /* =========================================================
-                           BUTTON
-                           ========================================================= */
+                               BUTTON
+                               ========================================================= */
 
         .spk-floating-btn {
 
@@ -1164,8 +1169,8 @@
 
 
         /* =========================================================
-                           SIGNATURE
-                           ========================================================= */
+                               SIGNATURE
+                               ========================================================= */
 
         .spk-btn-signature {
 
@@ -1197,8 +1202,8 @@
 
 
         /* =========================================================
-                           SAVE
-                           ========================================================= */
+                               SAVE
+                               ========================================================= */
 
         .spk-btn-save {
 
@@ -1230,8 +1235,8 @@
 
 
         /* =========================================================
-                           CLOSE
-                           ========================================================= */
+                               CLOSE
+                               ========================================================= */
 
         .spk-btn-close {
 
@@ -1263,8 +1268,8 @@
 
 
         /* =========================================================
-                           DRAGGING
-                           ========================================================= */
+                               DRAGGING
+                               ========================================================= */
 
         .spk-floating-actions.is-dragging {
 
@@ -1290,8 +1295,8 @@
 
 
         /* =========================================================
-                           MOBILE
-                           ========================================================= */
+                               MOBILE
+                               ========================================================= */
 
         @media (max-width: 767px) {
 
@@ -1523,8 +1528,8 @@
         }
 
         /* =========================================================
-                           SUPPLIER SEARCH LOADING
-                           ========================================================= */
+                               SUPPLIER SEARCH LOADING
+                               ========================================================= */
 
         .supplier-loading {
             display: flex;
@@ -2178,8 +2183,8 @@
         }
 
         /* =========================================================
-                                   JUMP TO SIGNATURE HIGHLIGHT
-                                   ========================================================= */
+                                       JUMP TO SIGNATURE HIGHLIGHT
+                                       ========================================================= */
         .spk-signature-card.spk-jump-highlight {
             animation: spkSignatureFlash 1.4s ease;
         }
@@ -2275,9 +2280,9 @@
 
 
         /* =========================================================
-                               PUSHER LIVE MESSAGE / COLLABORATION
-                               Ctrl + Shift + Z
-                               ========================================================= */
+                                   PUSHER LIVE MESSAGE / COLLABORATION
+                                   Ctrl + Shift + Z
+                                   ========================================================= */
         .spk-live-message-modal {
             position: fixed;
             inset: 0;
@@ -2499,9 +2504,9 @@
     <div id="spkRemoteCursors"></div>
 
     <!-- =========================================================
-                             PUSHER LIVE MESSAGE MODAL
-                             Hanya aktif pada SPK yang sedang dibuka.
-                             ========================================================= -->
+                                 PUSHER LIVE MESSAGE MODAL
+                                 Hanya aktif pada SPK yang sedang dibuka.
+                                 ========================================================= -->
     <div id="spkLiveMessageModal" class="spk-live-message-modal" aria-hidden="true">
         <div class="spk-live-message-card" role="dialog" aria-modal="true" aria-labelledby="spkLiveMessageTitle">
             <div class="spk-live-message-head">
@@ -3243,7 +3248,7 @@
                                         <small
                                             style="color:#64748b;">{{ $sign->approved_at
                                                 ? $sign->approved_at->format('d/m/Y
-                                                                                                                                                                                                                                                                                                H:i')
+                                                                                                                                                                                                                                                                                                                                            H:i')
                                                 : 'Pending' }}</small>
                                     </td>
                                     <td>
@@ -3272,8 +3277,8 @@
         </div>
     </div>
     <!-- =========================================================
-                 FLOATING ACTION PANEL
-                 ========================================================= -->
+                     FLOATING ACTION PANEL
+                     ========================================================= -->
     <div id="spkFloatingActions" class="spk-floating-actions">
 
         <div class="spk-floating-header" id="spkFloatingDrag">
@@ -5927,11 +5932,11 @@
         ${(item.images && item.images.length)
                     ? item.images.map(function (img) {
                         return `
-                                    <img
-                                        src="${escapeHtml(img)}"
-                                        class="preview-img"
-                                        onerror="this.style.display='none'">
-                                `;
+                                        <img
+                                            src="${escapeHtml(img)}"
+                                            class="preview-img"
+                                            onerror="this.style.display='none'">
+                                    `;
                     }).join('')
                     : (
                         item.photo
@@ -7021,29 +7026,29 @@
             <tr>
                 ${index === 0
                         ? `
-                                <td rowspan="${item.rows.length}">
-                                    ${item.kode}
-                                </td>
-                                `
+                                    <td rowspan="${item.rows.length}">
+                                        ${item.kode}
+                                    </td>
+                                    `
                         : ''
                     }
                 ${index === 0
                         ? `
-                                <td rowspan="${item.rows.length}">
-                                    ${item.images.length
-                                        ? `<img src="${item.images[0]}" style="max-width:90px">`
-                                        : ''
-                                    }
-                                </td>
-                                `
+                                    <td rowspan="${item.rows.length}">
+                                        ${item.images.length
+                                            ? `<img src="${item.images[0]}" style="max-width:90px">`
+                                            : ''
+                                        }
+                                    </td>
+                                    `
                         : ''
                     }
                 ${index === 0
                         ? `
-                                <td rowspan="${item.rows.length}">
-                                    ${item.nama}
-                                </td>
-                                `
+                                    <td rowspan="${item.rows.length}">
+                                        ${item.nama}
+                                    </td>
+                                    `
                         : ''
                     }
                 ${customCols}
@@ -7060,10 +7065,10 @@
                 <td>${detail.total}</td>
                 ${index === 0
                         ? `
-                                <td rowspan="${item.rows.length}">
-                                    ${item.catatan}
-                                </td>
-                                `
+                                    <td rowspan="${item.rows.length}">
+                                        ${item.catatan}
+                                    </td>
+                                    `
                         : ''
                     }
             </tr>
@@ -7567,7 +7572,9 @@
                     amount: cleanText(row.querySelector('.total-amount')?.innerText),
                     date: cleanText(row.querySelector('.date-isian')?.innerText),
                     type: cleanText(row.querySelector('.payment-type')?.value),
-                    note: cleanText(row.querySelector('.note-tambahan')?.innerText)
+                    note: cleanText(row.querySelector('.note-tambahan')?.innerText),
+                    adjustment: Number(row.dataset.adjustment || 0),
+                    is_request: !!row.querySelector('.payment-request-check')?.checked
                 });
             });
 
@@ -7857,7 +7864,7 @@
                 'border:1px solid #d5dce5;padding:6px 5px;vertical-align:top;white-space:normal !important;overflow-wrap:anywhere !important;word-break:break-word !important;overflow:visible;line-height:1.35;height:auto;max-width:0;';
             const th = headings.map(h =>
                 `<th style="background:#26374d;color:#fff;border:1px solid #d5dce5;padding:5px 4px;text-align:center;white-space:normal;overflow-wrap:anywhere;word-break:break-word;">${excelEscape(h)}</th>`
-                ).join('');
+            ).join('');
             const body = rows.map(row => {
                 const cells = Array.from(row.children).slice(0, 8).map(td =>
                     `<td style="${cellStyle}"><div style="display:block;width:100%;min-width:0;white-space:normal;overflow-wrap:anywhere;word-break:break-word;">${excelEscape(cleanText(td.innerText))}</div></td>`
@@ -8046,13 +8053,15 @@
                     <div class="spk-excel-payment">
                         <table>
                             <colgroup>
-                                <col class="ex-pay-amount">
-                                <col class="ex-pay-date">
-                                <col class="ex-pay-note">
+                                <col style="width:28%">
+                                <col style="width:28%">
+                                <col style="width:22%">
+                                <col style="width:22%">
                             </colgroup>
                             <thead>
                                 <tr>
-                                    <th>Ammount</th>
+                                    <th>Amount</th>
+                                    <th>TRF by Finance</th>
                                     <th>Date</th>
                                     <th>Note</th>
                                 </tr>
@@ -8064,9 +8073,11 @@
                 data.payments : [{}, {}, {}, {}];
 
             paymentRows.forEach(pay => {
+                const adjustment = Math.max(0, Number(pay.adjustment || 0));
                 html += `
                 <tr>
                     <td class="excel-money">${pay.amount ? excelMoney(pay.amount) : ''}</td>
+                    <td class="excel-money" style="color:#15803d;font-weight:700;">${adjustment > 0 ? excelMoney(adjustment) : ''}</td>
                     <td>${excelEscape(pay.date || '')}</td>
                     <td>${excelEscape(pay.note || pay.type || '')}</td>
                 </tr>
@@ -8934,7 +8945,7 @@
                         if (isMagicApproval && response.redirected) {
                             throw new Error(
                                 'Approval mungkin sudah diproses, tetapi server mengalihkan halaman. Ubah return akhir approveSpkMagic() menjadi response()->json(...) dan periksa tanda tangan sebelum mencoba ulang.'
-                                );
+                            );
                         }
                         const data = await response.json().catch(() => ({}));
                         if (!response.ok || (isMagicApproval && data.success !== true)) {
@@ -10654,7 +10665,7 @@
                                     'input[name="spkMagicRole"]:checked');
                                 if (!role) {
                                     Swal.showValidationMessage(
-                                    'Pilih approver yang masih pending.');
+                                        'Pilih approver yang masih pending.');
                                     return false;
                                 }
                                 return role.value;

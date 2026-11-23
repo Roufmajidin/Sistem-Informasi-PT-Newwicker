@@ -9739,7 +9739,7 @@ class SpkController extends Controller
             'need_date' => $draft->need_date,
             'grand_total' => $draft->grand_total,
             'items' => $items,
-            'is_finance' => auth()->id() == 134,
+            'is_finance' => auth()->id() == 211,
             'approvals' => $approvals->map(function ($row) {
                 return [
                     'id' => $row->id,
