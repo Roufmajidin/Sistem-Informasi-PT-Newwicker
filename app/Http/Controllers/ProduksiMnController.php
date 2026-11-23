@@ -3074,33 +3074,98 @@ class ProduksiMnController extends Controller
         return strtolower($jenis);
     }
 
-    public function inventor()
+    // Inventor: halaman pertama dan endpoint data terpisah.
+    public function inventor(Request $request)
     {
-        $processes = [
-            'rangka' => 'Rangka',
-            'anyam' => 'Anyam',
-            'unfinish' => 'Unfinish',
-            'accessories' => 'Accessories',
-            'decor' => 'Decor',
-            'ikat' => 'Ikat',
-            'final' => 'Final',
-            'packaging' => 'Packaging',
-        ];
-        $signatures = SignatureSpk::with([
-            'madeBy',
-            'checkedBy',
-            'checkedBy2',
-            'approvedBy',
-        ])
-            ->get()
-            ->keyBy('spk_id');
-        $spks = \App\Models\Spk::latest()
-            ->get()
-            ->map(function ($spk) use ($signatures) {
+        return $this->inventorLazy($request, false, false);
+    }
+
+    public function inventorData(Request $request)
+    {
+        return $this->inventorLazy($request, false, true);
+    }
+
+    public function inventorArsip(Request $request)
+    {
+        return $this->inventorLazy($request, true, false);
+    }
+
+    public function inventorArsipData(Request $request)
+    {
+        return $this->inventorLazy($request, true, true);
+    }
+
+    private function inventorLazy(Request $request, bool $arsip, bool $dataOnly = false)
+    {
+        $filters = $request->validate([
+            'cursor' => ['nullable', 'integer', 'min:0'],
+            'search' => ['nullable', 'string', 'max:150'],
+            'supplier' => ['nullable', 'string', 'max:150'],
+            'status' => ['nullable', 'in:draft,diajukan'],
+            'type' => ['nullable', 'in:NW,NWS'],
+        ]);
+        $cursor = isset($filters['cursor']) ? (int) $filters['cursor'] : null;
+        $search = mb_strtolower(trim($filters['search'] ?? ''));
+        $supplier = mb_strtolower(trim($filters['supplier'] ?? ''));
+        $status = $filters['status'] ?? '';
+        $type = $filters['type'] ?? '';
+        $limit = 10;
+        $matched = collect();
+        $lastId = $cursor;
+        $exhausted = false;
+
+        // Pass 1: seleksi hanya berdasarkan data SPK, tanpa mengambil signature,
+        // menghitung deadline, atau membuat HTML untuk kandidat yang tidak cocok.
+        while ($matched->count() < $limit + 1) {
+            $query = Spk::query()->select(['id', 'data', 'status'])->orderByDesc('id');
+            if ($lastId !== null) $query->where('id', '<', $lastId);
+            if ($status !== '') $query->where('status', $status);
+            $batch = $query->limit(100)->get();
+            if ($batch->isEmpty()) { $exhausted = true; break; }
+
+            foreach ($batch as $spk) {
+                $lastId = (int) $spk->id;
+                $raw = $spk->data;
+                $payload = is_string($raw) ? json_decode($raw, true) : $raw;
+                $payload = is_array($payload) ? $payload : [];
+                $totalSpk = collect($payload['items'] ?? [])->sum(function ($item) {
+                    $total = (float) ($item['total'] ?? 0);
+                    foreach ($item['custom_columns'] ?? [] as $column) {
+                        $total += (float) ($column['total'] ?? 0);
+                    }
+                    return $total;
+                });
+                $ppnRate = !empty($payload['ppn_enabled']) ? (float) ($payload['ppn_rate'] ?? 0) : 0;
+                $totalSpk += round($totalSpk * $ppnRate / 100, 2);
+                $totalPayment = collect($payload['payments'] ?? [])->sum(fn ($payment) => (float) ($payment['amount'] ?? 0));
+                if (($totalPayment >= $totalSpk) !== $arsip) continue;
+
+                $noSpk = (string) ($payload['no_spk'] ?? '-');
+                $noPo = (string) ($payload['no_po'] ?? '-');
+                $sup = (string) ($payload['sup'] ?? '-');
+                if ($supplier !== '' && !str_contains(mb_strtolower($sup), $supplier)) continue;
+                if ($search !== '' && !str_contains(mb_strtolower($noSpk.' '.$noPo), $search)) continue;
+                if ($type === 'NWS' && !str_contains(strtoupper($noSpk), 'NWS')) continue;
+                if ($type === 'NW' && str_contains(strtoupper($noSpk), 'NWS')) continue;
+                $matched->push($spk);
+                if ($matched->count() >= $limit + 1) break;
+            }
+            if ($batch->count() < 100) { $exhausted = true; break; }
+        }
+
+        $hasMore = $matched->count() > $limit || !$exhausted;
+        $selected = $matched->take($limit)->values();
+        $nextCursor = $selected->isNotEmpty() ? (int) $selected->last()->id : $lastId;
+
+        // Pass 2: enrichment lengkap HANYA untuk 10 SPK yang akan dirender.
+        $signatures = SignatureSpk::with(['madeBy', 'checkedBy', 'checkedBy2', 'approvedBy'])
+            ->whereIn('spk_id', $selected->pluck('id'))->get()->keyBy('spk_id');
+        $spks = $selected->map(function ($spk) use ($signatures) {
                 $data = $spk->data;
                 if (is_string($data)) {
                     $data = json_decode($data, true);
                 }
+                $data = is_array($data) ? $data : [];
                 $signature = $signatures->get($spk->id);
 
                 $deadlinePercent = 0;
@@ -3268,231 +3333,24 @@ class ProduksiMnController extends Controller
 
                 ];
 
-            })
-            ->values()
-            ->toArray();
-        $spks = collect($spks)
-            ->where('is_finished', false)
-            ->values()
-            ->toArray();
-
-        // dd($spks);
-        return view(
-            'pages.management.inventor',
-            compact(
-                'spks',
-                'processes'
-            )
-        );
-    }
-
-    // arsip
-    public function inventorArsip()
-    {
+            })->values()->all();
         $processes = [
-            'rangka' => 'Rangka',
-            'anyam' => 'Anyam',
-            'unfinish' => 'Unfinish',
-            'accessories' => 'Accessories',
-            'decor' => 'Decor',
-            'ikat' => 'Ikat',
-            'final' => 'Final',
-            'packaging' => 'Packaging',
+            'rangka' => 'Rangka', 'anyam' => 'Anyam', 'unfinish' => 'Unfinish',
+            'accessories' => 'Accessories', 'decor' => 'Decor', 'ikat' => 'Ikat',
+            'final' => 'Final', 'packaging' => 'Packaging',
         ];
-        $signatures = SignatureSpk::with([
-            'madeBy',
-            'checkedBy',
-            'checkedBy2',
-            'approvedBy',
-        ])
-            ->get()
-            ->keyBy('spk_id');
-        $spks = \App\Models\Spk::latest()
-            ->get()
-            ->map(function ($spk) use ($signatures) {
-                $data = $spk->data;
-                if (is_string($data)) {
-                    $data = json_decode($data, true);
-                }
-                $signature = $signatures->get($spk->id);
-
-                $deadlinePercent = 0;
-                $deadlineColor = 'secondary';
-                $deadlineText = 'No Deadline';
-
-                $tglTerima = $this->parseDate(
-                    $data['tgl_terima'] ?? null
-                );
-
-                $tglSelesai = $this->parseDate(
-                    $data['tgl_selesai'] ?? null
-                );
-
-                if ($tglTerima && $tglSelesai) {
-
-                    $today = now();
-
-                    $totalHari = max(
-                        $tglTerima->diffInDays($tglSelesai),
-                        1
-                    );
-
-                    $hariBerjalan = max(
-                        $tglTerima->diffInDays(
-                            $today,
-                            false
-                        ),
-                        0
-                    );
-
-                    $deadlinePercent = min(
-                        round(
-                            ($hariBerjalan / $totalHari) * 100
-                        ),
-                        100
-                    );
-
-                    $sisaHari = (int) $today->diffInDays(
-                        $tglSelesai,
-                        false
-                    );
-
-                    if ($sisaHari < 0) {
-
-                        $deadlineColor = 'danger';
-                        $deadlineText =
-                            'Overdue ' .
-                            abs($sisaHari) .
-                            ' Hari';
-
-                        $deadlinePercent = 100;
-
-                    } elseif ($sisaHari <= 3) {
-
-                        $deadlineColor = 'danger';
-                        $deadlineText =
-                            'Critical (' .
-                            $sisaHari .
-                            ' hari)';
-
-                    } elseif ($sisaHari <= 7) {
-
-                        $deadlineColor = 'warning';
-                        $deadlineText =
-                            'Warning (' .
-                            $sisaHari .
-                            ' hari)';
-
-                    } elseif ($sisaHari <= 14) {
-
-                        $deadlineColor = 'info';
-                        $deadlineText =
-                            'Normal (' .
-                            $sisaHari .
-                            ' hari)';
-
-                    } else {
-
-                        $deadlineColor = 'success';
-                        $deadlineText =
-                            'Safe (' .
-                            $sisaHari .
-                            ' hari)';
-                    }
-                }
-
-                $items = collect($data['items'] ?? [])
-                    ->map(function ($item) {
-                        return [
-                            'nama' => $item['nama'] ?? '-',
-                            'kode' => $item['kode'] ?? '-',
-                            'qty' => $item['qty'] ?? 0,
-                            'satuan' => $item['satuan'] ?? 'pcs',
-
-                            'l' => $item['l'] ?? '-',
-                            'p' => $item['p'] ?? '-',
-                            't' => $item['t'] ?? '-',
-                            'material' => $item['material'] ?? '-',
-                            'images' => $item['images'] ?? [],
-                            'detail_po_id' => $item['detail_po_id'] ?? null,
-                        ];
-                    })
-                    ->values()
-                    ->toArray();
-                // payment blm selesai
-                $totalSpk = collect($data['items'] ?? [])->sum(function ($item) {
-
-                    $total = floatval($item['total'] ?? 0);
-
-                    foreach ($item['custom_columns'] ?? [] as $col) {
-                        $total += floatval($col['total'] ?? 0);
-                    }
-
-                    return $total;
-                });
-
-                // Tambahkan PPN hanya jika diaktifkan pada SPK.
-                $ppnRate = !empty($data['ppn_enabled']) ? (float) ($data['ppn_rate'] ?? 0) : 0;
-                $totalSpk += round($totalSpk * $ppnRate / 100, 2);
-
-                $totalPayment = collect($data['payments'] ?? [])->sum(function ($pay) {
-                    return floatval($pay['amount'] ?? 0);
-                });
-
-                $isFinished = $totalPayment >= $totalSpk;
-
-                return [
-                    'is_finished' => $isFinished,
-                    'id' => $spk->id,
-                    'no_spk' => $data['no_spk'] ?? '-',
-                    'supplier' => $data['sup'] ?? '-',
-                    'supplier_id' => $data['sup_id'] ?? null,
-                    'kategori' => $data['kategori'] ?? '-',
-                    'no_po' => $data['no_po'] ?? '-',
-                    'status' => $spk->status ?? '-',
-                    'tgl_terima' => $tglTerima
-                        ? $tglTerima->format('d/m/y')
-                        : '-',
-
-                    'tgl_selesai' => $tglSelesai
-                        ? $tglSelesai->format('d/m/y')
-                        : '-',
-                    'items' => $items,
-                    'deadline_percent' => $deadlinePercent,
-                    'deadline_color' => $deadlineColor,
-                    'deadline_text' => $deadlineText,
-                    // signature
-    
-                    'signature' => [
-                        'made_at' => $signature?->made_at,
-                        'checked_at' => $signature?->checked_at,
-                        'checked_at_2' => $signature?->checked_at_2,
-                        'approved_at' => $signature?->approved_at,
-
-                        'made_by' => $signature?->madeBy?->name,
-                        'checked_by' => $signature?->checkedBy?->name,
-                        'checked_by_2' => $signature?->checkedBy2?->name,
-                        'approved_by' => $signature?->approvedBy?->name,
-                    ],
-
-                ];
-
-            })
-            ->values()
-            ->toArray();
-        $spks = collect($spks)
-            ->where('is_finished', true)
-            ->values()
-            ->toArray();
-
-        // dd($spks);
-        return view(
-            'pages.management.inventor_arsip',
-            compact(
-                'spks',
-                'processes'
-            )
-        );
+        $viewName = $arsip ? 'inventor_arsip' : 'inventor';
+        $hideHarga = in_array(auth()->user()->email, ['john@gmail.com', 'aji@gmail.com']);
+        if ($dataOnly) {
+            return response()->json([
+                'desktop' => view('pages.management.partials.'.$viewName.'_rows', compact('spks', 'hideHarga'))->render(),
+                'mobile' => view('pages.management.partials.'.$viewName.'_cards', compact('spks'))->render(),
+                'next_cursor' => $nextCursor,
+                'has_more' => $hasMore,
+                'count' => count($spks),
+            ])->header('Cache-Control', 'no-store');
+        }
+        return view('pages.management.'.$viewName, compact('spks', 'processes', 'hasMore', 'nextCursor'));
     }
 
     // Tempel hanya function berikut di dalam ProduksiMnController.
