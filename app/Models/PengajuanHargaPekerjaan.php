@@ -43,6 +43,8 @@ class PengajuanHargaPekerjaan extends Model
 
         // User yang membuat
         'created_by',
+        'submission_by',  //isi tomo kalau Tomo isi (no auth)
+        'tomo_submission_id'
     ];
 
     protected $casts = [
@@ -109,6 +111,14 @@ class PengajuanHargaPekerjaan extends Model
         return $this->belongsTo(
             User::class,
             'created_by',
+            'id'
+        );
+    }
+    public function tomoSubmission(): BelongsTo
+    {
+        return $this->belongsTo(
+            TomoSubmission::class,
+            'tomo_submission_id',
             'id'
         );
     }

@@ -1050,7 +1050,13 @@
                                                                             placeholder="0"
                                                                             @disabled($isFactory ? $field !== 'director_price' : $field === 'director_price')><small
                                                                             class="ph-price-date"
-                                                                            data-date="{{ $field }}" title="{{ $field === 'ppic_price' ? 'Tanggal update PPIC' : ($field === 'director_price' ? 'Tanggal update Director' : 'Tanggal pengajuan Sub') }}">{{ $job->{$field === 'ppic_price' ? 'ppic_date' : ($field === 'director_price' ? 'directur_date' : 'sub_date')}?->format('d-m-Y H:i') ?? '—' }}</small>
+                                                                            data-date="{{ $field }}"
+                                                                            title="{{ $field === 'ppic_price' ? 'Tanggal update PPIC' : ($field === 'director_price' ? 'Tanggal update Director' : 'Tanggal pengajuan Sub') }}">{{ $job->{$field === 'ppic_price' ? 'ppic_date' : ($field === 'director_price' ? 'directur_date' : 'sub_date')}?->format('d-m-Y H:i') ?? '—' }}</small>
+                                                                        @if ($field === 'pengajuan_sub_price' && strtoupper(trim((string) ($job->submission_by ?? ''))) === 'TOMO')
+                                                                            <small class="ph-price-date"
+                                                                                style="display:block;color:#2563eb;font-weight:600">Submission
+                                                                                by Tomo</small>
+                                                                        @endif
 
                                                                     </div>
                                                                 @endforeach
@@ -1127,7 +1133,8 @@
                                                                             placeholder="0"
                                                                             @disabled($isFactory ? $field !== 'director_price' : $field === 'director_price')><small
                                                                             class="ph-price-date"
-                                                                            data-date="{{ $field }}" title="{{ $field === 'ppic_price' ? 'Tanggal update PPIC' : ($field === 'director_price' ? 'Tanggal update Director' : 'Tanggal pengajuan Sub') }}">—</small>
+                                                                            data-date="{{ $field }}"
+                                                                            title="{{ $field === 'ppic_price' ? 'Tanggal update PPIC' : ($field === 'director_price' ? 'Tanggal update Director' : 'Tanggal pengajuan Sub') }}">—</small>
 
                                                                     </div>
                                                                 @endforeach
@@ -2258,7 +2265,8 @@
                 status = document.getElementById('phMonitorStatus');
             const endpoint = @json(route('pengajuan-harga.monitor'));
             const closeEndpoint = @json(route('pengajuan-harga.monitor.close'));
-            const csrfMonitor = document.querySelector('meta[name="csrf-token"]')?.content || @json(csrf_token());
+            const csrfMonitor = document.querySelector('meta[name="csrf-token"]')?.content ||
+                @json(csrf_token());
             let controller = null;
             async function load(url) {
                 if (controller) controller.abort();
@@ -2331,7 +2339,9 @@
                             'Accept': 'application/json',
                             'X-CSRF-TOKEN': csrfMonitor
                         },
-                        body: JSON.stringify({id})
+                        body: JSON.stringify({
+                            id
+                        })
                     });
                     const result = await response.json().catch(() => ({}));
                     if (!response.ok) throw new Error(result.message || 'Gagal close pengajuan');

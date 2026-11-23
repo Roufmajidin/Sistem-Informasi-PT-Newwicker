@@ -9,6 +9,13 @@ use Illuminate\Validation\ValidationException;
 
 class TomoController extends Controller
 {
+    public function masterPoints()
+    {
+        return response()->json(DB::table('tomo_points')
+            ->orderBy('sort_order')->orderBy('id')
+            ->get(['id', 'name', 'harga_mutlak', 'satuan', 'sort_order', 'is_active']));
+    }
+
     public function index(Request $request)
     {
         $search = trim((string) $request->query('search', ''));
@@ -257,12 +264,56 @@ class TomoController extends Controller
         );
     }
     // Publik: hanya point aktif. Pengelolaan master point dilakukan admin di database.
+    public function pointUpdate(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'harga_mutlak' => ['required', 'numeric', 'min:0', 'max:999999999'],
+            'satuan' => ['required', 'string', 'max:30'],
+            'sort_order' => ['nullable', 'integer', 'min:0'],
+            'is_active' => ['sometimes', 'boolean'],
+        ]);
+
+        $exists = DB::table('tomo_points')->where('id', $id)->exists();
+        if (!$exists) {
+            return response()->json(['message' => 'Master point tidak ditemukan.'], 404);
+        }
+
+        $changes = [
+            'name' => trim($validated['name']),
+            'harga_mutlak' => $validated['harga_mutlak'],
+            'satuan' => trim($validated['satuan']),
+            'sort_order' => $validated['sort_order'] ?? 0,
+            'updated_at' => now(),
+        ];
+        if ($request->exists('is_active')) {
+            $changes['is_active'] = $request->boolean('is_active') ? 1 : 0;
+        }
+        DB::table('tomo_points')->where('id', $id)->update($changes);
+
+        return response()->json([
+            'message' => 'Master point berhasil diperbarui.',
+            'point' => DB::table('tomo_points')->where('id', $id)->first(),
+        ]);
+    }
+
     public function points()
     {
-        return response()->json(DB::table('tomo_points')
-            ->where('is_active', 1)->orderBy('sort_order')->orderBy('id')
-            ->get(['id', 'name', 'sort_order']));
+        $points = DB::table('tomo_points')
+            ->where('is_active', 1)
+            ->orderBy('sort_order', 'asc')
+            ->orderBy('id', 'asc')
+            ->get([
+                'id',
+                'name',
+                'harga_mutlak',
+                'satuan',
+                'sort_order',
+            ]);
+
+        return response()->json($points);
     }
+
 
     public function submissions(Request $request)
     {
@@ -282,8 +333,14 @@ class TomoController extends Controller
         }));
     }
 
+
+
     public function store(Request $request)
     {
+        // ==========================================
+        // 1. VALIDASI INPUT
+        // ==========================================
+
         $data = $request->validate([
             'po_code' => ['required', 'string', 'max:150'],
             'detail_po_id' => ['required', 'integer', 'min:1'],
@@ -292,73 +349,316 @@ class TomoController extends Controller
             'qty' => ['required', 'numeric', 'min:0'],
             'image' => ['nullable', 'string', 'max:2048'],
             'notes' => ['nullable', 'string', 'max:3000'],
+
             'rows' => ['required', 'array', 'min:1', 'max:100'],
             'rows.*.point_id' => ['required', 'integer', 'min:1'],
             'rows.*.satuan' => ['required', 'string', 'max:30'],
-            'rows.*.harga' => ['required', 'numeric', 'min:0', 'max:999999999'],
-            'rows.*.qty' => ['required', 'numeric', 'min:0', 'max:999999'],
+            'rows.*.harga' => [
+                'required',
+                'numeric',
+                'min:0',
+                'max:999999999'
+            ],
+            'rows.*.qty' => [
+                'required',
+                'numeric',
+                'min:0',
+                'max:999999'
+            ],
         ]);
-        $ids = array_map('intval', array_column($data['rows'], 'point_id'));
+
+        // ==========================================
+        // 2. VALIDASI MASTER POINTS
+        // ==========================================
+
+        $ids = array_map(
+            'intval',
+            array_column($data['rows'], 'point_id')
+        );
+
         if (count($ids) !== count(array_unique($ids))) {
-            throw ValidationException::withMessages(['rows' => 'Point tidak boleh duplikat.']);
+            throw ValidationException::withMessages([
+                'rows' => 'Point finishing tidak boleh duplikat.',
+            ]);
         }
-        $points = DB::table('tomo_points')->where('is_active', 1)
-            ->whereIn('id', $ids)->get(['id', 'name', 'sort_order'])->keyBy('id');
+
+        $points = DB::table('tomo_points')
+            ->where('is_active', 1)
+            ->whereIn('id', $ids)
+            ->get([
+                'id',
+                'name',
+                'sort_order',
+                'harga_mutlak',
+                'satuan',
+            ])
+            ->keyBy('id');
+
         if ($points->count() !== count($ids)) {
-            throw ValidationException::withMessages(['rows' => 'Master point berubah. Refresh halaman sebelum mengajukan.']);
+            throw ValidationException::withMessages([
+                'rows' => 'Master point berubah. Refresh halaman.',
+            ]);
         }
-        $po = Po::query()->where('order_no', $data['po_code'])->first();
-        $detail = $po?->detailPos()->whereKey($data['detail_po_id'])->first();
+
+        // ==========================================
+        // 3. CARI PO BERDASARKAN NOMOR PO
+        // Contoh: NW 26 - 79 / NWS 26 - 73
+        // ==========================================
+
+        $poCode = trim($data['po_code']);
+
+        $po = Po::query()
+            ->where('order_no', $poCode)
+            ->first();
+
+        if (!$po) {
+            throw ValidationException::withMessages([
+                'po_code' =>
+                    'Nomor PO tidak ditemukan: ' . $poCode,
+            ]);
+        }
+
+        // ==========================================
+        // 4. VALIDASI DETAIL ITEM PO
+        // ==========================================
+
+        $detail = $po->detailPos()
+            ->whereKey($data['detail_po_id'])
+            ->first();
+
         if (!$detail) {
-            throw ValidationException::withMessages(['detail_po_id' => 'Item PO tidak ditemukan. Refresh halaman.']);
+            throw ValidationException::withMessages([
+                'detail_po_id' =>
+                    'Item tidak ditemukan pada PO ' . $poCode,
+            ]);
         }
-        $item = is_array($detail->detail) ? $detail->detail : json_decode((string) $detail->detail, true);
+
+        $item = is_array($detail->detail)
+            ? $detail->detail
+            : json_decode((string) $detail->detail, true);
+
         $item = is_array($item) ? $item : [];
-        $article = (string) ($item['article_nr_'] ?? $item['article_nr'] ?? $item['article_code'] ?? $item['article'] ?? $item['code'] ?? '-');
-        $name = (string) ($item['description'] ?? $item['nama'] ?? $item['item'] ?? '-');
+
+        $article = (string) (
+            $item['article_nr_']
+            ?? $item['article_nr']
+            ?? $item['article_code']
+            ?? $item['article']
+            ?? $item['code']
+            ?? '-'
+        );
+
+        $name = (string) (
+            $item['description']
+            ?? $item['nama']
+            ?? $item['item']
+            ?? '-'
+        );
+
         $qty = (float) ($item['qty'] ?? 0);
-        // Nama point di-snapshot dari server, bukan dipercayakan pada browser.
+
+        // ==========================================
+        // 5. HITUNG TOTAL FINISHING
+        // ==========================================
+
         $snapshot = [];
+
         foreach ($data['rows'] as $row) {
-            $point = $points->get((int) $row['point_id']);
-            $harga = (float) $row['harga'];
+            $point = $points->get(
+                (int) $row['point_id']
+            );
+
+            // Harga dan satuan dari master point
+            $harga = (float) $point->harga_mutlak;
+            $satuan = trim((string) $point->satuan);
             $jumlahQty = (float) $row['qty'];
+
             $snapshot[] = [
                 'point_id' => (int) $point->id,
                 'point_name' => $point->name,
-                'satuan' => trim((string) $row['satuan']),
-                'process' => $point->name, // kompatibel dengan tampilan riwayat lama
+                'satuan' => $satuan,
+                'process' => $point->name,
                 'harga' => $harga,
                 'qty' => $jumlahQty,
-                'jumlah' => round($harga * $jumlahQty, 2),
+                'jumlah' => round(
+                    $harga * $jumlahQty,
+                    2
+                ),
             ];
         }
-        $total = round(array_sum(array_column($snapshot, 'jumlah')), 2);
+
+        $total = round(
+            array_sum(array_column($snapshot, 'jumlah')),
+            2
+        );
+
         if ($total <= 0) {
-            throw ValidationException::withMessages(['rows' => 'Isi minimal satu biaya finishing.']);
-        }
-        $id = DB::transaction(function () use ($data, $po, $name, $article, $qty, $total, $snapshot) {
-            $po->detailPos()->whereKey($data['detail_po_id'])->lockForUpdate()->first();
-            $exists = DB::table('tomo_submissions')->where('detail_po_id', $data['detail_po_id'])
-                ->whereIn('status', ['pending', 'diproses', 'disetujui'])->exists();
-            if ($exists) {
-                throw ValidationException::withMessages(['item' => 'Barang ini sudah memiliki pengajuan aktif.']);
-            }
-            return DB::table('tomo_submissions')->insertGetId([
-                'po_code' => $po->order_no,
-                'detail_po_id' => $data['detail_po_id'],
-                'article_code' => $article,
-                'item_name' => $name,
-                'qty' => $qty,
-                'image' => $data['image'] ?? null,
-                'notes' => $data['notes'] ?? null,
-                'points_json' => json_encode($snapshot, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
-                'total' => $total,
-                'status' => 'pending',
-                'created_at' => now(),
-                'updated_at' => now(),
+            throw ValidationException::withMessages([
+                'rows' =>
+                    'Total biaya finishing harus lebih dari 0.',
             ]);
-        });
-        return response()->json(['message' => 'Pengajuan berhasil dikirim', 'id' => $id, 'status' => 'pending'], 201);
+        }
+
+        // ==========================================
+        // 6. SIMPAN KE DUA TABEL
+        // ==========================================
+
+        $result = DB::transaction(function () use ($data, $po, $detail, $article, $name, $qty, $total, $snapshot) {
+            // Lock item PO untuk mencegah submit bersamaan
+            $lockedDetail = $po->detailPos()
+                ->whereKey($detail->id)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$lockedDetail) {
+                throw ValidationException::withMessages([
+                    'detail_po_id' =>
+                        'Item PO tidak ditemukan.',
+                ]);
+            }
+
+            // ======================================
+            // CEK DUPLIKAT TOMO SUBMISSIONS
+            // ======================================
+
+            $exists = DB::table('tomo_submissions')
+                ->where('detail_po_id', $detail->id)
+                ->whereIn('status', [
+                    'pending',
+                    'diproses',
+                    'disetujui',
+                ])
+                ->exists();
+
+            if ($exists) {
+                throw ValidationException::withMessages([
+                    'item' =>
+                        'Barang ini sudah memiliki pengajuan Tomo aktif.',
+                ]);
+            }
+
+            // ======================================
+            // CEK DUPLIKAT PENGAJUAN HARGA TOMO
+            // ======================================
+
+            $hargaExists = DB::table(
+                'pengajuan_harga_pekerjaans'
+            )
+                ->where('po_id', $po->id)
+                ->where('detail_po_id', $detail->id)
+                ->where('sub_name', 'TOMO')
+                ->where('submission_by', 'TOMO')
+                ->where('closed', 0)
+                ->exists();
+
+            if ($hargaExists) {
+                throw ValidationException::withMessages([
+                    'item' =>
+                        'Pengajuan harga TOMO untuk item ini sudah ada.',
+                ]);
+            }
+
+            // ======================================
+            // A. SIMPAN KE TOMO_SUBMISSIONS
+            // ======================================
+
+            $submittedAt = now();
+
+            $tomoId = DB::table('tomo_submissions')
+                ->insertGetId([
+                    'po_code' => $po->order_no,
+                    'detail_po_id' => $detail->id,
+                    'article_code' => $article,
+                    'item_name' => $name,
+                    'qty' => $qty,
+                    'image' => $data['image'] ?? null,
+                    'notes' => $data['notes'] ?? null,
+
+                    'points_json' => json_encode(
+                        $snapshot,
+                        JSON_UNESCAPED_UNICODE
+                        | JSON_THROW_ON_ERROR
+                    ),
+
+                    'total' => $total,
+                    'status' => 'pending',
+
+                    'created_at' => $submittedAt,
+                    'updated_at' => $submittedAt,
+                ]);
+
+            // ======================================
+            // B. SIMPAN KE PENGAJUAN_HARGA_PEKERJAANS
+            // ======================================
+
+            $pengajuanHargaId = DB::table(
+                'pengajuan_harga_pekerjaans'
+            )->insertGetId([
+                        // Relasi ke pengajuan Tomo
+                        'tomo_submission_id' => $tomoId,
+
+                        // Data PO
+                        'po_id' => $po->id,
+                        'detail_po_id' => $detail->id,
+                        'po_code' => $po->order_no,
+                        'article_code' => $article,
+
+                        // Kategori pekerjaan TOMO
+                        'bahan_kategori_id' => 10,
+
+                        // Identitas pengajuan
+                        'sub_name' => 'TOMO',
+                        'submission_by' => 'TOMO',
+
+                        // Harga pengajuan sub
+                        'pengajuan_sub_price' => $total,
+
+                        // TANGGAL SUBMIT TOMO
+                        'sub_date' => $submittedAt,
+
+                        // Catatan
+                        'sub_remark' => $data['notes'] ?? null,
+
+                        // Status awal
+                        'closed' => 0,
+
+                        'created_at' => $submittedAt,
+                        'updated_at' => $submittedAt,
+                    ]);
+
+            return [
+                'tomo_id' => $tomoId,
+                'pengajuan_harga_id' => $pengajuanHargaId,
+                'submitted_at' => $submittedAt,
+            ];
+        }, 3);
+
+        // ==========================================
+        // 7. RESPONSE BERHASIL
+        // ==========================================
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Pengajuan Tomo berhasil disimpan.',
+
+            'id' => $result['tomo_id'],
+            'tomo_submission_id' => $result['tomo_id'],
+            'pengajuan_harga_id' =>
+                $result['pengajuan_harga_id'],
+
+            'po_id' => $po->id,
+            'po_code' => $po->order_no,
+            'detail_po_id' => $detail->id,
+
+            'bahan_kategori_id' => 10,
+            'sub_name' => 'TOMO',
+            'submission_by' => 'TOMO',
+
+            'total' => $total,
+            'sub_date' => $result['submitted_at']->toDateTimeString(),
+            'status' => 'pending',
+        ], 201);
     }
+
+
 }

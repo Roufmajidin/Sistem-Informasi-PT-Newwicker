@@ -1330,6 +1330,10 @@
                             {{ (float) $p->pengajuan_sub_price == 0.0 ? 'N/A' : number_format((float) $p->pengajuan_sub_price, 2, ',', '.') }}
 
                             <small class="dp-price-date">{{ $p->sub_date?->format('d-m-y H:i') ?? '—' }}</small>
+                            @if (strtoupper(trim((string) ($p->submission_by ?? ''))) === 'TOMO')
+                                <small class="dp-price-date" style="color:#2563eb;font-weight:600">Submission by
+                                    Tomo</small>
+                            @endif
 
                             @php $priceHist = data_get($p->price_history ?? [], 'pengajuan_sub_price', []); @endphp
 

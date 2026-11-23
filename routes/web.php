@@ -1351,12 +1351,45 @@ Route::middleware('auth')->group(function () {
     Route::get('/spkk/timeline', [SpkController::class, 'tima'])->name('spk.time');
     Route::get('/all-spk', [SpkController::class, 'allspk'])->name('spk.all');
     Route::get('/semua-spk', [SpkController::class, 'spk'])->name('spk.semua');
-    Route::get('/pengajuan-tomo', [SpkController::class, 'pengajuanTomo'])->name('png.tomo');
-    Route::get('/pengajuan-tomo/data', [SpkController::class, 'pengajuanTomoData'])->name('png.tomo.data');
-    Route::patch('/pengajuan-tomo/status/{id}', [SpkController::class, 'pengajuanTomoStatus'])->name('png.tomo.status');
-    Route::get('/pengajuan-tomo/points', [SpkController::class, 'pengajuanTomoPoints'])->name('png.tomo.points');
-    Route::post('/pengajuan-tomo/points', [SpkController::class, 'pengajuanTomoPointStore'])->name('png.tomo.points.store');
-    Route::put('/pengajuan-tomo/points/{id}', [SpkController::class, 'pengajuanTomoPointUpdate'])->name('png.tomo.points.update');
+  
+// ==========================================
+// PENGAJUAN TOMO
+// ==========================================
+
+// Halaman utama
+Route::get('/pengajuan-tomo',
+    [SpkController::class, 'pengajuanTomo']
+)->name('png.tomo');
+
+// Data pengajuan
+Route::get('/pengajuan-tomo/data',
+    [SpkController::class, 'pengajuanTomoData']
+)->name('png.tomo.data');
+
+// Update status pengajuan
+Route::patch('/pengajuan-tomo/status/{id}',
+    [SpkController::class, 'pengajuanTomoStatus']
+)->name('png.tomo.status');
+
+// ==========================================
+// MASTER POINTS FINISHING
+// Controller: TomoController
+// ==========================================
+
+// Ambil daftar master points
+Route::get('/pengajuan-tomo/points',
+    [TomoController::class, 'masterPoints']
+)->name('png.tomo.points');
+
+// Simpan master point baru
+Route::post('/pengajuan-tomo/points',
+    [TomoController::class, 'pointStore']
+)->name('png.tomo.points.store');
+
+// Update master point
+Route::put('/pengajuan-tomo/points/{id}',
+    [TomoController::class, 'pointUpdate']
+)->name('png.tomo.points.update');
 
     Route::post('/spk/update/{spk}', [SpkController::class, 'save'])->name('spk.update');
     Route::post('/spk/create/{po}', [SpkController::class, 'save'])->name('spk.create');

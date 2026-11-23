@@ -2188,6 +2188,15 @@
             z-index: 300 !important;
         }
     }
+
+    /* Harga mutlak ditampilkan, tetapi tidak dapat diubah pengguna. */
+    .tomo-dialog .tomo-row-harga[readonly],
+    .tomo-dialog .tomo-stn-input[readonly] {
+        background: #eef2f7 !important;
+        color: #334155 !important;
+        cursor: not-allowed;
+        opacity: 1;
+    }
 </style>
 
 @section('content')
@@ -2366,9 +2375,9 @@
 
                             <col style="width:27%">
 
-                            <col style="width:20%">
-
                             <col style="width:14%">
+
+                            <col style="width:20%">
 
                             <col style="width:13%">
 
@@ -2382,9 +2391,9 @@
 
                                 <th>Proses</th>
 
-                                <th>Harga</th>
-
                                 <th>Qty</th>
+
+                                <th>Harga</th>
 
                                 <th>Stn</th>
 
@@ -2499,6 +2508,11 @@
                 const points = await res.json();
 
                 if (!Array.isArray(points) || !points.length) throw Error('Belum ada master point aktif');
+
+                // NULL berarti harga master belum diisi, bukan API rusak.
+                if (points.some(p => !Object.prototype.hasOwnProperty.call(p, 'harga_mutlak'))) {
+                    throw Error('API master point tidak memiliki kolom harga_mutlak.');
+                }
 
                 tomoPoints = points;
 
@@ -2853,97 +2867,67 @@
 
 
             function buildRows() {
-
                 const body = document.getElementById('tomoCostRows');
-
                 body.replaceChildren();
 
                 tomoPoints.forEach(point => {
-
-                    const name = String(point.name),
-
-                        tr = document.createElement('tr');
-
+                    const name = String(point.name ?? '');
+                    const harga = point.harga_mutlak === null || point.harga_mutlak === '' ? null : Number(point
+                        .harga_mutlak);
+                    const satuan = String(point.satuan ?? '').trim();
+                    const tr = document.createElement('tr');
                     tr.dataset.pointId = point.id;
 
                     tr.innerHTML = '<td>' + esc(name) + '</td>' +
-
-                        '<td><input class="tomo-cost-input" type="number" min="0" step="any" inputmode="decimal" aria-label="Harga ' +
-
-                        esc(name) + '" placeholder="0"></td>' +
-
-                        '<td><input class="tomo-cost-input" type="number" min="0" step="any" inputmode="decimal" aria-label="Qty ' +
-
-                        esc(name) + '" placeholder="0"></td>' +
-
-                        '<td><input class="tomo-stn-input" type="text" maxlength="30" placeholder="pcs" value="pcs" aria-label="Satuan ' +
-
+                        '<td><input class="tomo-cost-input tomo-row-qty" type="number" min="0" step="any" inputmode="decimal" aria-label="Qty ' +
+                        esc(name) + '" value="0"></td>' +
+                        '<td><input class="tomo-cost-input tomo-row-harga" type="number" min="0" step="any" aria-label="Harga mutlak ' +
+                        esc(name) +
+                        '" readonly tabindex="-1" title="Harga dari master point, tidak dapat diedit"></td>' +
+                        '<td><input class="tomo-stn-input" type="text" maxlength="30" readonly tabindex="-1" aria-label="Satuan ' +
                         esc(name) + '"></td>' +
-
                         '<td class="tomo-result">—</td>';
 
-                    tr.querySelectorAll('input[type="number"]').forEach(input => input.addEventListener('input',
-
-                        recalc));
-
+                    // Nilai harga dan satuan bersumber dari API master point.
+                    tr.querySelector('.tomo-row-harga').value = harga !== null && Number.isFinite(harga) &&
+                        harga >= 0 ? harga : '';
+                    if (harga === null || !Number.isFinite(harga) || harga < 0 || !satuan) {
+                        tr.querySelector('.tomo-row-qty').disabled = true;
+                        tr.querySelector('.tomo-row-qty').title =
+                            'Lengkapi harga dan satuan pada Master Points terlebih dahulu';
+                        tr.querySelector('.tomo-row-qty').value = '0';
+                        tr.querySelector('.tomo-row-harga').placeholder = '—';
+                        tr.title = 'Harga atau satuan master belum diisi';
+                    }
+                    tr.querySelector('.tomo-stn-input').value = satuan;
+                    tr.querySelector('.tomo-row-qty').addEventListener('input', recalc);
                     body.appendChild(tr);
-
                 });
-
                 recalc();
-
             }
-
-
 
             function getRows() {
-
-                return Array.from(document.querySelectorAll('#tomoCostRows tr[data-point-id]')).map(tr => {
-
-                    const numbers = tr.querySelectorAll('input[type="number"]');
-
-                    return {
-
-                        point_id: Number(tr.dataset.pointId),
-
-                        satuan: tr.querySelector('.tomo-stn-input').value.trim() || 'pcs',
-
-                        harga: Number(numbers[0].value) || 0,
-
-                        qty: Number(numbers[1].value) || 0
-
-                    };
-
-                })
-
+                return Array.from(document.querySelectorAll('#tomoCostRows tr[data-point-id]')).filter(tr => !tr
+                    .querySelector('.tomo-row-qty').disabled).map(tr => ({
+                    point_id: Number(tr.dataset.pointId),
+                    satuan: tr.querySelector('.tomo-stn-input').value.trim(),
+                    harga: Number(tr.querySelector('.tomo-row-harga').value),
+                    qty: Number(tr.querySelector('.tomo-row-qty').value)
+                }));
             }
 
-
-
             function recalc() {
-
                 let total = 0;
-
                 document.querySelectorAll('#tomoCostRows tr[data-point-id]').forEach(tr => {
-
-                    const inputs = tr.querySelectorAll('input[type="number"]'),
-
-                        a = Number(inputs[0].value) || 0,
-
-                        b = Number(inputs[1].value) || 0,
-
-                        amount = a * b;
-
+                    const qtyInput = tr.querySelector('.tomo-row-qty');
+                    const hargaInput = tr.querySelector('.tomo-row-harga');
+                    const qty = Number(qtyInput.value) || 0;
+                    const harga = Number(hargaInput.value) || 0;
+                    const amount = qty * harga;
                     total += amount;
-
-                    tr.querySelector('.tomo-result').textContent = (inputs[0].value && inputs[1].value) ?
-
-                        rupiah(amount) : '—';
-
+                    tr.querySelector('.tomo-result').textContent = qty > 0 ? rupiah(amount) : '—';
                 });
-
-                document.getElementById('tomoGrandTotal').textContent = rupiah(total)
-
+                document.getElementById('tomoGrandTotal').textContent = rupiah(total);
             }
 
             window.tomoSubmit = async function() {
