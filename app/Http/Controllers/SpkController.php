@@ -9171,7 +9171,7 @@ class SpkController extends Controller
                 ['user_id' => 178, 'role' => 'Production Manager'],
                 ['user_id' => 191, 'role' => 'Director'],
                 ['user_id' => 141, 'role' => 'General Manager'],
-                ['user_id' => 134, 'role' => 'Finance'],
+                ['user_id' => 211, 'role' => 'Record by Finance'],
                 ['user_id' => 190, 'role' => 'CEO'],
             ];
 
