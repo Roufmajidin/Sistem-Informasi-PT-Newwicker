@@ -9171,7 +9171,7 @@ class SpkController extends Controller
                 ['user_id' => 178, 'role' => 'Production Manager'],
                 ['user_id' => 191, 'role' => 'Director'],
                 ['user_id' => 141, 'role' => 'General Manager'],
-                ['user_id' => 211, 'role' => 'Record by Finance'],
+                ['user_id' => 215, 'role' => 'Record by Finance'],
                 ['user_id' => 190, 'role' => 'CEO'],
             ];
 
@@ -9739,7 +9739,8 @@ class SpkController extends Controller
             'need_date' => $draft->need_date,
             'grand_total' => $draft->grand_total,
             'items' => $items,
-            'is_finance' => auth()->id() == 211,
+            'is_finance' => in_array((int) auth()->id(), [215, 211], true),
+
             'approvals' => $approvals->map(function ($row) {
                 return [
                     'id' => $row->id,
