@@ -3278,7 +3278,7 @@ class ProduksiMnController extends Controller
 
         // dd($spks);
         return view(
-            'pages.management.inve  ntor',
+            'pages.management.inventor',
             compact(
                 'spks',
                 'processes'
