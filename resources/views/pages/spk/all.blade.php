@@ -1429,7 +1429,7 @@
                 poCursor = res.next_cursor || null;
                 poHasMore = !!res.has_more && !!poCursor;
                 if (!cacheData.length) $('#po-table-body').html(
-                    '<tr><td colspan="5" class="text-center text-muted">Tidak ada PO yang cocok.</td></tr>');
+                    '<tr><td colspan="5" class="text-center text-muted">Eitz, rouf ganteng</td></tr>');
                 setPoStatus(poHasMore ? 'Scroll di daftar PO untuk memuat 10 berikutnya' : 'Semua PO sudah dimuat');
             }).fail(function(xhr, status) {
                 if (generation === poGeneration && status !== 'abort') setPoStatus(
