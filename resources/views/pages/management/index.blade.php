@@ -1679,11 +1679,11 @@
 
     <script>
         /*
-                                |--------------------------------------------------------------------------
-                                | MONITORING AJAX FILTER
-                                |--------------------------------------------------------------------------
-                                | NW/NWS/NWR/NWD, ASC/DESC dan search berjalan tanpa reload halaman.
-                                */
+                                    |--------------------------------------------------------------------------
+                                    | MONITORING AJAX FILTER
+                                    |--------------------------------------------------------------------------
+                                    | NW/NWS/NWR/NWD, ASC/DESC dan search berjalan tanpa reload halaman.
+                                    */
 
         (function() {
 
@@ -1795,8 +1795,7 @@
                     lazyPoList = Array.isArray(parsed) ?
                         parsed.filter(function(po) {
                             return po && po.id;
-                        }) :
-                        [];
+                        }) : [];
 
                 } catch (error) {
                     console.error('PO list parse error:', error, meta.textContent);
@@ -2873,6 +2872,268 @@
                 }
             );
         });
+    </script>
+
+
+    {{-- Image preview: independent of monitoring AJAX and existing modal handlers. --}}
+    <style>
+        .mn-photo-preview {
+            position: relative;
+            display: inline-flex;
+            vertical-align: middle;
+            padding: 0;
+            border: 0;
+            background: transparent;
+            border-radius: 8px;
+            cursor: zoom-in;
+            max-width: 100%;
+        }
+
+        .mn-photo-preview .mn-photo-icon {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            background: rgba(15, 23, 42, .48);
+            color: white;
+            opacity: 0;
+            transition: opacity .15s;
+            pointer-events: none;
+        }
+
+        .mn-photo-preview:hover .mn-photo-icon,
+        .mn-photo-preview:focus-visible .mn-photo-icon {
+            opacity: 1;
+        }
+
+        #mnPhotoViewer {
+            position: fixed;
+            inset: 0;
+            z-index: 2147483647;
+            background: rgba(15, 23, 42, .95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            gap: 12px;
+        }
+
+        #mnPhotoViewer[hidden] {
+            display: none !important;
+        }
+
+        #mnPhotoStage {
+            flex: 1;
+            min-height: 0;
+            width: 100%;
+            display: grid;
+            place-items: center;
+            overflow: auto;
+            overscroll-behavior: contain;
+        }
+
+        #mnPhotoCanvas {
+            display: grid;
+            place-items: center;
+            flex-shrink: 0;
+        }
+
+        #mnPhotoLarge {
+            display: block;
+            object-fit: contain;
+            max-width: none;
+            max-height: none;
+        }
+
+        #mnPhotoControls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            color: white;
+        }
+
+        #mnPhotoControls button {
+            border: 0;
+            border-radius: 8px;
+            background: #fff;
+            color: #172033;
+            padding: 9px 14px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        #mnPhotoControls button:disabled {
+            opacity: .45;
+            cursor: default;
+        }
+    </style>
+    <script>
+        (function() {
+            function initPhotoPreview() {
+                if (document.getElementById('mnPhotoViewer')) return;
+                const viewer = document.createElement('div');
+                viewer.id = 'mnPhotoViewer';
+                viewer.hidden = true;
+                viewer.setAttribute('role', 'dialog');
+                viewer.setAttribute('aria-modal', 'true');
+                viewer.setAttribute('aria-label', 'Preview foto produk');
+                viewer.innerHTML =
+                    `<div id="mnPhotoStage"><div id="mnPhotoCanvas"><img id="mnPhotoLarge" alt="Foto produk"></div></div>
+                <div id="mnPhotoControls"><button type="button" data-zoom="out" aria-label="Zoom out">−</button><span id="mnPhotoPercent">100%</span><button type="button" data-zoom="in" aria-label="Zoom in">+</button><button type="button" data-zoom="reset">Reset</button><button type="button" data-zoom="close">Tutup ×</button></div>`;
+                document.body.appendChild(viewer);
+                const stage = viewer.querySelector('#mnPhotoStage'),
+                    canvas = viewer.querySelector('#mnPhotoCanvas'),
+                    img = viewer.querySelector('#mnPhotoLarge');
+                let scale = 1,
+                    previousFocus = null,
+                    previousOverflow = '';
+
+                function decorate() {
+                    document.querySelectorAll('.mn-erp-page img.product-image').forEach(photo => {
+                        if (photo.closest('.mn-photo-preview')) return;
+                        const wrap = document.createElement('span');
+                        wrap.className = 'mn-photo-preview';
+                        wrap.tabIndex = 0;
+                        wrap.setAttribute('role', 'button');
+                        wrap.setAttribute('aria-label', 'Perbesar foto produk');
+                        photo.before(wrap);
+                        wrap.appendChild(photo);
+                        const icon = document.createElement('span');
+                        icon.className = 'mn-photo-icon';
+                        icon.setAttribute('aria-hidden', 'true');
+                        icon.innerHTML =
+                            '<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="10" r="6"/><path d="m15 15 6 6M7 10h6m-3-3v6"/></svg>';
+                        wrap.appendChild(icon);
+                    });
+                }
+
+                function renderZoom() {
+                    if (!img.naturalWidth || viewer.hidden) return;
+                    const fit = Math.min(stage.clientWidth / img.naturalWidth, stage.clientHeight / img.naturalHeight);
+                    const w = Math.max(1, Math.round(img.naturalWidth * fit * scale)),
+                        h = Math.max(1, Math.round(img.naturalHeight * fit * scale));
+                    img.style.width = w + 'px';
+                    img.style.height = h + 'px';
+                    canvas.style.width = Math.max(w, stage.clientWidth) + 'px';
+                    canvas.style.height = Math.max(h, stage.clientHeight) + 'px';
+                    viewer.querySelector('#mnPhotoPercent').textContent = Math.round(scale * 100) + '%';
+                    viewer.querySelector('[data-zoom="out"]').disabled = scale <= .5;
+                    viewer.querySelector('[data-zoom="in"]').disabled = scale >= 4;
+                }
+
+                function change(delta) {
+                    scale = Math.max(.5, Math.min(4, scale + delta));
+                    renderZoom();
+                }
+
+                function open(wrap) {
+                    const photo = wrap.querySelector('img');
+                    const url = photo && (photo.currentSrc || photo.src);
+                    if (!url) return;
+                    previousFocus = wrap;
+                    previousOverflow = document.body.style.overflow;
+                    document.body.style.overflow = 'hidden';
+                    scale = 1;
+                    viewer.hidden = false;
+                    img.src = url;
+                    img.alt = photo.alt || 'Foto produk';
+                    renderZoom();
+                    stage.scrollTop = stage.scrollLeft = 0;
+                    viewer.querySelector('[data-zoom="close"]').focus();
+                }
+
+                function close() {
+                    if (viewer.hidden) return;
+                    viewer.hidden = true;
+                    img.removeAttribute('src');
+                    document.body.style.overflow = previousOverflow;
+                    if (previousFocus && previousFocus.isConnected) previousFocus.focus();
+                }
+                img.addEventListener('load', renderZoom);
+                document.addEventListener('click', e => {
+                    const wrap = e.target.closest('.mn-photo-preview');
+                    if (wrap) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        open(wrap);
+                    }
+                }, true);
+                document.addEventListener('keydown', e => {
+                    if (!viewer.hidden && e.key === 'Escape') {
+                        e.preventDefault();
+                        e.stopImmediatePropagation();
+                        close();
+                        return;
+                    }
+                    if (!viewer.hidden && e.key === 'Tab') {
+                        const buttons = Array.from(viewer.querySelectorAll('button:not(:disabled)'));
+                        const first = buttons[0],
+                            last = buttons[buttons.length - 1];
+                        if (e.shiftKey && document.activeElement === first) {
+                            e.preventDefault();
+                            last.focus();
+                        } else if (!e.shiftKey && document.activeElement === last) {
+                            e.preventDefault();
+                            first.focus();
+                        }
+                        return;
+                    }
+                    const wrap = e.target.closest('.mn-photo-preview');
+                    if (viewer.hidden && wrap && (e.key === 'Enter' || e.key === ' ')) {
+                        e.preventDefault();
+                        open(wrap);
+                    }
+                }, true);
+                viewer.addEventListener('click', e => {
+                    const btn = e.target.closest('[data-zoom]');
+                    if (btn) {
+                        switch (btn.dataset.zoom) {
+                            case 'in':
+                                change(.25);
+                                break;
+                            case 'out':
+                                change(-.25);
+                                break;
+                            case 'reset':
+                                scale = 1;
+                                renderZoom();
+                                stage.scrollTop = stage.scrollLeft = 0;
+                                break;
+                            case 'close':
+                                close();
+                        }
+                    } else if (e.target === viewer || e.target === stage || e.target === canvas) close();
+                });
+                stage.addEventListener('wheel', e => {
+                    e.preventDefault();
+                    change(e.deltaY < 0 ? .25 : -.25);
+                }, {
+                    passive: false
+                });
+                window.addEventListener('resize', renderZoom);
+                decorate();
+                let pending = false;
+                new MutationObserver(() => {
+                    if (!pending) {
+                        pending = true;
+                        requestAnimationFrame(() => {
+                            pending = false;
+                            decorate();
+                        });
+                    }
+                }).observe(document.querySelector('.mn-erp-page') || document.body, {
+                    childList: true,
+                    subtree: true
+                });
+            }
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initPhotoPreview);
+            else initPhotoPreview();
+        })();
     </script>
 
 @endsection
