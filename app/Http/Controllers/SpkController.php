@@ -6590,7 +6590,15 @@ class SpkController extends Controller
                         ->orWhereExists(function ($sub) use ($like, $poTable, $detailTable, $spkTable) {
                             $sub->selectRaw('1')->from($detailTable)
                                 ->whereColumn($detailTable . '.po_id', $poTable . '.id')
-                                ->where($detailTable . '.detail', 'like', $like);
+                                ->where(function ($detailQuery) use ($like, $detailTable) {
+                                    $detailQuery->where($detailTable . '.detail', 'like', $like);
+                                    foreach (['article_nr_', 'article_code', 'nw_code', 'description', 'kode', 'nama'] as $field) {
+                                        $detailQuery->orWhereRaw(
+                                            "LOWER(JSON_UNQUOTE(JSON_EXTRACT({$detailTable}.detail, '$.{$field}'))) LIKE LOWER(?)",
+                                            [$like]
+                                        );
+                                    }
+                                });
                         })
                         // Cari No SPK dan nama supplier dari JSON spks.data.
                         // Tetap sediakan LIKE pada data mentah untuk SPK lama / variasi struktur JSON.
@@ -6605,6 +6613,12 @@ class SpkController extends Controller
                                             "JSON_UNQUOTE(JSON_EXTRACT({$spkTable}.data, '$.sup')) LIKE ?",
                                             [$like]
                                         )->orWhere($spkTable . '.data', 'like', $like);
+                                    foreach (['kode', 'article_code', 'article_nr_', 'nw_code', 'nama', 'description'] as $field) {
+                                        $spkQuery->orWhereRaw(
+                                            "LOWER(JSON_UNQUOTE(JSON_EXTRACT({$spkTable}.data, '$.items[*].{$field}'))) LIKE LOWER(?)",
+                                            [$like]
+                                        );
+                                    }
                                 });
                         });
                 });
@@ -6676,6 +6690,113 @@ class SpkController extends Controller
         $isRndSpk = $request->spk === 'rnd_spk';
         return view('pages.spk.all', compact('isRndSpk'));
     }
+    // public function spk(Request $request)
+    // {
+    //     // AJAX khusus halaman ini; endpoint lama spk.all tetap tidak berubah.
+    //     if ($request->query('ajax') === 'list') {
+    //         $search = trim((string) $request->query('search', ''));
+    //         $type = strtoupper((string) $request->query('type', 'ALL'));
+    //         $poTable = (new Po)->getTable();
+    //         $detailTable = (new DetailPo)->getTable();
+    //         $spkTable = (new Spk)->getTable();
+    //         $query = Po::query()->select('id', 'order_no', 'company_name');
+    //         if (in_array($type, ['NW', 'NWS'], true)) {
+    //             $query->where('order_no', 'like', $type . ' %');
+    //         }
+    //         if ($search !== '') {
+    //             $like = '%' . addcslashes($search, '%_\\') . '%';
+    //             $query->where(function ($q) use ($like, $poTable, $detailTable, $spkTable) {
+    //                 $q->where('order_no', 'like', $like)
+    //                     ->orWhere('company_name', 'like', $like)
+    //                     ->orWhereExists(function ($sub) use ($like, $poTable, $detailTable, $spkTable) {
+    //                         $sub->selectRaw('1')->from($detailTable)
+    //                             ->whereColumn($detailTable . '.po_id', $poTable . '.id')
+    //                             ->where($detailTable . '.detail', 'like', $like);
+    //                     })
+    //                     // Cari No SPK dan nama supplier dari JSON spks.data.
+    //                     // Tetap sediakan LIKE pada data mentah untuk SPK lama / variasi struktur JSON.
+    //                     ->orWhereExists(function ($sub) use ($like, $poTable, $spkTable) {
+    //                         $sub->selectRaw('1')->from($spkTable)
+    //                             ->whereColumn($spkTable . '.po_id', $poTable . '.id')
+    //                             ->where(function ($spkQuery) use ($like, $spkTable) {
+    //                                 $spkQuery->whereRaw(
+    //                                     "JSON_UNQUOTE(JSON_EXTRACT({$spkTable}.data, '$.no_spk')) LIKE ?",
+    //                                     [$like]
+    //                                 )->orWhereRaw(
+    //                                         "JSON_UNQUOTE(JSON_EXTRACT({$spkTable}.data, '$.sup')) LIKE ?",
+    //                                         [$like]
+    //                                     )->orWhere($spkTable . '.data', 'like', $like);
+    //                             });
+    //                     });
+    //             });
+    //         }
+    //         // Cursor menggunakan id, stabil walau jumlah PO besar.
+    //         $page = $query->orderByDesc('id')->cursorPaginate(10);
+    //         $rows = $page->getCollection();
+    //         $counts = DB::table($spkTable)->select('po_id')
+    //             ->selectRaw('COUNT(*) AS total')->whereIn('po_id', $rows->pluck('id'))
+    //             ->groupBy('po_id')->pluck('total', 'po_id');
+    //         return response()->json([
+    //             'rows' => $rows->map(fn($po) => [
+    //                 'id' => $po->id,
+    //                 'no_po' => $po->order_no,
+    //                 'company' => $po->company_name,
+    //                 'spk_count' => (int) ($counts[$po->id] ?? 0),
+    //             ])->values(),
+    //             'next_cursor' => $page->nextCursor()?->encode(),
+    //             'has_more' => $page->hasMorePages(),
+    //         ]);
+    //     }
+    //     if ($request->query('ajax') === 'detail') {
+    //         $po = Po::query()->select('id', 'order_no', 'company_name')
+    //             ->findOrFail($request->integer('po_id'));
+    //         $summaryByDetail = [];
+    //         foreach (Spk::query()->select('id', 'data')->where('po_id', $po->id)->cursor() as $spk) {
+    //             $data = is_array($spk->data) ? $spk->data : json_decode((string) $spk->data, true);
+    //             if (!is_array($data))
+    //                 continue;
+    //             $supplier = $data['sup'] ?? '-';
+    //             $category = $data['kategori'] ?? '-';
+    //             foreach (($data['items'] ?? []) as $spkItem) {
+    //                 if (!is_array($spkItem) || !isset($spkItem['detail_po_id']))
+    //                     continue;
+    //                 $id = (string) $spkItem['detail_po_id'];
+    //                 if (!isset($summaryByDetail[$id][$category][$supplier])) {
+    //                     $summaryByDetail[$id][$category][$supplier] = ['total_qty' => 0, 'spks' => []];
+    //                 }
+    //                 $bucket = &$summaryByDetail[$id][$category][$supplier];
+    //                 $qty = (int) ($spkItem['qty'] ?? 0);
+    //                 $bucket['total_qty'] += $qty;
+    //                 $bucket['spks'][] = [
+    //                     'spk_id' => $spk->id,
+    //                     'no_spk' => $data['no_spk'] ?? '-',
+    //                     'qty' => $qty,
+    //                     'tgl_selesai' => $data['tgl_selesai'] ?? null,
+    //                 ];
+    //                 unset($bucket);
+    //             }
+    //         }
+    //         $items = DetailPo::query()->select('id', 'po_id', 'detail')
+    //             ->where('po_id', $po->id)->get()->map(function ($item) use ($summaryByDetail) {
+    //                 $detail = is_array($item->detail) ? $item->detail : json_decode((string) $item->detail, true);
+    //                 return [
+    //                     'id' => $item->id,
+    //                     'detail' => is_array($detail) ? $detail : [],
+    //                     'summary' => $summaryByDetail[(string) $item->id] ?? []
+    //                 ];
+    //             })->values();
+    //         return response()->json([
+    //             'data_po' => [
+    //                 'id' => $po->id,
+    //                 'no_po' => $po->order_no,
+    //                 'company' => $po->company_name,
+    //                 'items' => $items,
+    //             ]
+    //         ]);
+    //     }
+    //     $isRndSpk = $request->spk === 'rnd_spk';
+    //     return view('pages.spk.all', compact('isRndSpk'));
+    // }
 
     public function allspk()
     {
