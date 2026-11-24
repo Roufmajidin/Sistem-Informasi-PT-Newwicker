@@ -155,10 +155,10 @@ class TomoController extends Controller
                         );
                 });
             })
-            ->orderByRaw("CAST(TRIM(SUBSTRING_INDEX(TRIM(SUBSTRING_INDEX(order_no, '-', 1)), ' ', -1)) AS UNSIGNED) ASC")
-            ->orderByRaw("CAST(TRIM(SUBSTRING_INDEX(order_no, '-', -1)) AS UNSIGNED) ASC")
-            ->orderBy('order_no')
-            ->orderBy('id')
+            ->orderByRaw("CAST(TRIM(SUBSTRING_INDEX(TRIM(SUBSTRING_INDEX(order_no, '-', 1)), ' ', -1)) AS UNSIGNED) DESC")
+            ->orderByRaw("CAST(TRIM(SUBSTRING_INDEX(order_no, '-', -1)) AS UNSIGNED) DESC")
+            ->orderByDesc('order_no')
+            ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
         // ==================================================
