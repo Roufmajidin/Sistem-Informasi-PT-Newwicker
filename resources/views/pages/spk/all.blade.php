@@ -51,6 +51,7 @@
 
 
                         <select id="spkTypeFilter" class="form-control" style="width:220px;display:inline-block"
+
                             {{ $isRndSpk ? 'disabled' : '' }}>
 
                             <option value="ALL" {{ !$isRndSpk ? 'selected' : '' }}>
@@ -118,6 +119,7 @@
 
 
                                 <input type="text" id="searchPo" class="form-control"
+
                                     placeholder="Cari PO, Buyer, No SPK atau Supplier...">
 
 
@@ -215,7 +217,7 @@
 
 
                             </div>
-                            <div id="poLoadStatus" class="po-fetch-status" role="status">Memuat PO...</div>
+<div id="poLoadStatus" class="po-fetch-status" role="status">Memuat PO...</div>
 
 
 
@@ -601,28 +603,18 @@
 
                             <div class="box table-box">
                                 {{-- Navigasi horizontal tabel SPK, khusus detail modal --}}
-                                <div class="spk-horizontal-toolbar" id="spkHorizontalToolbar"
-                                    aria-label="Navigasi tabel SPK">
+                                <div class="spk-horizontal-toolbar" id="spkHorizontalToolbar" aria-label="Navigasi tabel SPK">
                                     <div class="spk-scroll-pill">
-                                        <button type="button" class="spk-scroll-arrow" id="spkScrollLeft"
-                                            aria-label="Geser tabel ke kiri" title="Geser ke kiri"><i
-                                                class="fa fa-chevron-left"></i></button>
-                                        <span class="spk-scroll-instruction"><i class="fa fa-arrows-h"></i> Scroll ke
-                                            samping untuk melihat kategori SPK</span>
-                                        <button type="button" class="spk-scroll-arrow" id="spkScrollRight"
-                                            aria-label="Geser tabel ke kanan" title="Geser ke kanan"><i
-                                                class="fa fa-chevron-right"></i></button>
+                                        <button type="button" class="spk-scroll-arrow" id="spkScrollLeft" aria-label="Geser tabel ke kiri" title="Geser ke kiri"><i class="fa fa-chevron-left"></i></button>
+                                        <span class="spk-scroll-instruction"><i class="fa fa-arrows-h"></i> Scroll ke samping untuk melihat kategori SPK</span>
+                                        <button type="button" class="spk-scroll-arrow" id="spkScrollRight" aria-label="Geser tabel ke kanan" title="Geser ke kanan"><i class="fa fa-chevron-right"></i></button>
                                     </div>
                                 </div>
 
 
 
-                                <div class="spk-top-scroll" id="spkTopScroll" tabindex="0"
-                                    aria-label="Geser tabel SPK secara horizontal menggunakan scrollbar atau tombol panah kiri dan kanan">
-                                    <div class="spk-top-scroll-inner" id="spkTopScrollInner"></div>
-                                </div>
-                                <div class="table-responsive" tabindex="0"
-                                    aria-label="Tabel SPK, tekan panah kiri atau kanan untuk menggeser">
+                                <div class="spk-top-scroll" id="spkTopScroll" tabindex="0" aria-label="Geser tabel SPK secara horizontal menggunakan scrollbar atau tombol panah kiri dan kanan"><div class="spk-top-scroll-inner" id="spkTopScrollInner"></div></div>
+                                <div class="table-responsive" tabindex="0" aria-label="Tabel SPK, tekan panah kiri atau kanan untuk menggeser">
 
 
 
@@ -670,40 +662,40 @@
 
 
 
-    </div>
+</div>
 
-    {{-- Modal detail SPK: konten asli dipindahkan ke sini melalui JavaScript; tidak diduplikasi. --}}
-    <div class="modal fade" id="spkViewModal" tabindex="-1" role="dialog" aria-labelledby="spkViewModalLabel"
-        aria-hidden="true">
-        <div class="modal-dialog modal-lg spk-view-dialog" role="document">
-            <div class="modal-content spk-view-content">
-                <div class="modal-header spk-view-header">
-                    <button type="button" class="close spk-modal-close" id="spkModalClose"
-                        aria-label="Tutup Detail SPK" title="Tutup"><span aria-hidden="true">&times;</span></button>
-                    <h4 class="modal-title" id="spkViewModalLabel"><i class="fa fa-file-text-o"></i> Detail SPK</h4>
-                </div>
-                <div class="modal-body spk-view-body" id="spkViewModalBody"></div>
+{{-- Modal detail SPK: konten asli dipindahkan ke sini melalui JavaScript; tidak diduplikasi. --}}
+<div class="modal fade" id="spkViewModal" tabindex="-1" role="dialog" aria-labelledby="spkViewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg spk-view-dialog" role="document">
+        <div class="modal-content spk-view-content">
+            <div class="modal-header spk-view-header">
+                <button type="button" class="close spk-modal-close" id="spkModalClose" aria-label="Tutup Detail SPK" title="Tutup"><span aria-hidden="true">&times;</span></button>
+                <h4 class="modal-title" id="spkViewModalLabel"><i class="fa fa-file-text-o"></i> Detail SPK</h4>
             </div>
+            <div class="modal-body spk-view-body" id="spkViewModalBody"></div>
         </div>
     </div>
+</div>
 @endsection
 
 @push('scripts')
+
     <!-- jQuery (WAJIB PERTAMA) -->
 
 
 
-    <script src="https\://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
-    <script src="https\://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/js/bootstrap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/js/bootstrap.min.js"></script>
 
-    <script src="https\://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 
 
     <script>
+
         // Modal large menggunakan panel detail asli agar fungsi existing tetap bekerja.
-        $(function() {
+        $(function () {
             const $detail = $('#detailColumn');
             $detail.removeClass('col-lg-8 col-md-7 col-lg-12 col-md-12')
                 .addClass('spk-modal-detail-column')
@@ -716,18 +708,16 @@
                 const $sticky = $('<div id="spkStickyHorizontal" class="spk-sticky-horizontal"></div>');
                 $sticky.insertBefore($tableBox);
                 $sticky.append($('#spkHorizontalToolbar'), $('#spkTopScroll'));
-                $sticky.append(
-                    '<div id="spkStickyTableHeader" class="spk-sticky-table-header" aria-hidden="true"><div class="spk-sticky-table-header-inner"></div></div>'
-                    );
+                $sticky.append('<div id="spkStickyTableHeader" class="spk-sticky-table-header" aria-hidden="true"><div class="spk-sticky-table-header-inner"></div></div>');
             }
             // Tombol X independen dari data-dismiss agar tidak terganggu Bootstrap versi ganda.
-            $('#spkModalClose').on('click', function(e) {
+            $('#spkModalClose').on('click', function (e) {
                 e.preventDefault();
                 e.stopPropagation();
                 const $modal = $('#spkViewModal');
                 $modal.modal('hide');
                 // Fallback jika handler modal dari tema gagal menutup.
-                setTimeout(function() {
+                setTimeout(function () {
                     if ($modal.hasClass('in') || $modal.hasClass('show')) {
                         $modal.removeClass('in show').hide().attr('aria-hidden', 'true');
                         $('.modal-backdrop').remove();
@@ -739,7 +729,7 @@
         });
 
         // Kontrol geser horizontal tabel di atas modal (tanpa mengubah data/handler SPK).
-        $(function() {
+        $(function () {
             const modal = document.getElementById('spkViewModal');
             const toolbar = document.getElementById('spkHorizontalToolbar');
             const left = document.getElementById('spkScrollLeft');
@@ -759,7 +749,6 @@
             const stickyInner = stickyHeader ? stickyHeader.querySelector('.spk-sticky-table-header-inner') : null;
             let headerSource = null;
             let headerSize = '';
-
             function syncStickyHeader(force = false) {
                 const el = scroller();
                 const table = el && el.querySelector('#spk-detail-body table');
@@ -794,8 +783,17 @@
                 stickyHeader.style.display = 'block';
                 stickyInner.style.width = width + 'px';
                 stickyInner.style.transform = 'translate3d(' + (-el.scrollLeft) + 'px,0,0)';
+                const frozen = Array.from(thead.querySelectorAll('.spk-freeze'));
+                let offset = 0;
+                frozen.forEach(th => {
+                    const name = ['no', 'article', 'description'].find(n => th.classList.contains('spk-freeze-' + n));
+                    table.style.setProperty('--spk-left-' + name, offset + 'px');
+                    offset += th.getBoundingClientRect().width;
+                });
+                stickyInner.querySelectorAll('.spk-freeze').forEach(th => {
+                    th.style.left = el.scrollLeft + 'px';
+                });
             }
-
             function updateScrollControls() {
                 const el = scroller();
                 if (!el) return;
@@ -804,53 +802,40 @@
                 if (topScroll && topInner) {
                     topInner.style.width = el.scrollWidth + 'px';
                     topScroll.style.display = max > 3 ? 'block' : 'none';
-                    if (!syncing && Math.abs(topScroll.scrollLeft - el.scrollLeft) > 1) topScroll.scrollLeft = el
-                        .scrollLeft;
+                    if (!syncing && Math.abs(topScroll.scrollLeft - el.scrollLeft) > 1) topScroll.scrollLeft = el.scrollLeft;
                 }
                 left.disabled = el.scrollLeft <= 2;
                 right.disabled = el.scrollLeft >= max - 2;
                 syncStickyHeader();
             }
-
             function moveTable(direction) {
                 const el = scroller();
                 if (!el) return;
-                el.scrollBy({
-                    left: direction * Math.max(240, Math.round(el.clientWidth * 0.65)),
-                    behavior: 'smooth'
-                });
+                el.scrollBy({ left: direction * Math.max(240, Math.round(el.clientWidth * 0.65)), behavior: 'smooth' });
             }
             if (topScroll) {
-                topScroll.addEventListener('scroll', function() {
+                topScroll.addEventListener('scroll', function () {
                     const el = scroller();
                     if (!el || syncing) return;
                     syncing = true;
                     el.scrollLeft = topScroll.scrollLeft;
                     syncing = false;
                     updateScrollControls();
-                }, {
-                    passive: true
-                });
+                }, { passive: true });
             }
-
             function onHorizontalKey(e) {
                 if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
                 const target = e.target;
-                if (target && (target.matches('input, textarea, select, [contenteditable="true"]') || target
-                        .closest('[contenteditable="true"]'))) return;
+                if (target && (target.matches('input, textarea, select, [contenteditable="true"]') || target.closest('[contenteditable="true"]'))) return;
                 const el = scroller();
                 if (!el || el.scrollWidth <= el.clientWidth + 3) return;
                 e.preventDefault();
                 moveTable(e.key === 'ArrowRight' ? 1 : -1);
             }
             modal.addEventListener('keydown', onHorizontalKey);
-            left.addEventListener('click', function() {
-                moveTable(-1);
-            });
-            right.addEventListener('click', function() {
-                moveTable(1);
-            });
-            modal.addEventListener('scroll', function(event) {
+            left.addEventListener('click', function () { moveTable(-1); });
+            right.addEventListener('click', function () { moveTable(1); });
+            modal.addEventListener('scroll', function (event) {
                 if (event.target === scroller()) {
                     const el = scroller();
                     if (topScroll && !syncing) {
@@ -861,24 +846,17 @@
                     updateScrollControls();
                 }
             }, true);
-            $('#spkViewModal').on('shown.bs.modal', function() {
+            $('#spkViewModal').on('shown.bs.modal', function () {
                 updateScrollControls();
                 setTimeout(updateScrollControls, 120);
             });
             // Isi tabel dapat berubah saat memilih PO / filter; sinkronkan navigasi.
             const body = document.getElementById('spk-detail-body');
             if (body && window.MutationObserver) {
-                const observer = new MutationObserver(function() {
-                    requestAnimationFrame(updateScrollControls);
-                });
-                observer.observe(body, {
-                    childList: true,
-                    subtree: true
-                });
+                const observer = new MutationObserver(function () { requestAnimationFrame(updateScrollControls); });
+                observer.observe(body, { childList: true, subtree: true });
             }
-            window.addEventListener('resize', updateScrollControls, {
-                passive: true
-            });
+            window.addEventListener('resize', updateScrollControls, { passive: true });
         });
 
         console.log(window.history.length);
@@ -1083,9 +1061,9 @@
 
                             String(supplierName)
 
-                            .toLowerCase()
+                                .toLowerCase()
 
-                            .includes(keyword)
+                                .includes(keyword)
 
                         ) {
 
@@ -1367,12 +1345,8 @@
 
         function escapePoText(value) {
             return String(value ?? '').replace(/[&<>"']/g, ch => ({
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                '"': '&quot;',
-                "'": '&#39;'
-            } [ch]));
+                '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+            }[ch]));
         }
 
         function loadSpkTable(reset = true) {
@@ -1391,35 +1365,17 @@
             poBusy = true;
             const generation = poGeneration;
             setPoStatus('Memuat 10 PO...');
-            const params = {
-                ajax: 'list',
-                type: currentType,
-                search: currentKeyword
-            };
+            const params = { ajax:'list', type:currentType, search:currentKeyword };
             if (poCursor) params.cursor = poCursor;
-            poRequest = $.ajax({
-                url: poEndpoint,
-                method: 'GET',
-                data: params,
-                dataType: 'json',
-                timeout: 25000,
-                global: false
-            });
+            poRequest = $.ajax({url:poEndpoint, method:'GET', data:params, dataType:'json', timeout:25000, global:false});
             poRequest.done(function(res) {
                 if (generation !== poGeneration) return;
                 const rows = Array.isArray(res.rows) ? res.rows : [];
                 let html = '';
                 rows.forEach(row => {
                     const index = cacheData.length;
-                    cacheData.push({
-                        data_po: {
-                            id: row.id,
-                            no_po: row.no_po,
-                            company: row.company
-                        }
-                    });
-                    html +=
-                        `<tr class="po-row"><td class="text-center">${index+1}</td>
+                    cacheData.push({data_po:{id:row.id, no_po:row.no_po, company:row.company}});
+                    html += `<tr class="po-row"><td class="text-center">${index+1}</td>
                         <td><div class="buyer-name">${escapePoText(row.company || '-')}</div></td>
                         <td><span class="po-number">${escapePoText(row.no_po || '-')}</span></td>
                         <td class="text-center"><button type="button" class="btn btn-outline-primary btn-sm btn-view-spk" data-index="${index}">Lihat SPK (${Number(row.spk_count || 0)})</button></td>
@@ -1428,27 +1384,19 @@
                 $('#po-table-body').append(html);
                 poCursor = res.next_cursor || null;
                 poHasMore = !!res.has_more && !!poCursor;
-                if (!cacheData.length) $('#po-table-body').html(
-                    '<tr><td colspan="5" class="text-center text-muted">Tidak ada PO yang cocok.</td></tr>');
+                if (!cacheData.length) $('#po-table-body').html('<tr><td colspan="5" class="text-center text-muted">Tidak ada PO yang cocok.</td></tr>');
                 setPoStatus(poHasMore ? 'Scroll di daftar PO untuk memuat 10 berikutnya' : 'Semua PO sudah dimuat');
             }).fail(function(xhr, status) {
-                if (generation === poGeneration && status !== 'abort') setPoStatus(
-                    'Gagal memuat. Klik untuk coba lagi.', true);
+                if (generation === poGeneration && status !== 'abort') setPoStatus('Gagal memuat. Klik untuk coba lagi.', true);
             }).always(function() {
-                if (generation === poGeneration) {
-                    poBusy = false;
-                    poRequest = null;
-                }
+                if (generation === poGeneration) {poBusy = false; poRequest = null;}
             });
         }
 
-        $('#poLoadStatus').on('click', () => {
-            if (!poBusy && poHasMore) loadSpkTable(false);
-        });
+        $('#poLoadStatus').on('click', () => {if (!poBusy && poHasMore) loadSpkTable(false);});
         const poPanel = document.querySelector('.spk-sidebar .sidebar-table');
         if (poPanel) {
             let frame = false;
-
             function maybeFetchMore() {
                 if (poBusy || !poHasMore) return;
                 if (poPanel.scrollHeight - poPanel.scrollTop - poPanel.clientHeight <= 100) loadSpkTable(false);
@@ -1456,22 +1404,13 @@
             poPanel.addEventListener('scroll', () => {
                 if (frame) return;
                 frame = true;
-                requestAnimationFrame(() => {
-                    frame = false;
-                    maybeFetchMore();
-                });
-            }, {
-                passive: true
-            });
+                requestAnimationFrame(() => {frame = false; maybeFetchMore();});
+            }, {passive:true});
             // When only 10 rows fit exactly, a downward wheel still loads next 10.
             poPanel.addEventListener('wheel', e => {
                 if (e.deltaY > 0) maybeFetchMore();
-            }, {
-                passive: true
-            });
-            poPanel.addEventListener('touchend', maybeFetchMore, {
-                passive: true
-            });
+            }, {passive:true});
+            poPanel.addEventListener('touchend', maybeFetchMore, {passive:true});
         }
 
         // ===============================
@@ -1488,23 +1427,12 @@
                 if (btn.data('loading')) return;
                 btn.data('loading', true).prop('disabled', true);
                 try {
-                    const detail = await $.ajax({
-                        url: poEndpoint,
-                        data: {
-                            ajax: 'detail',
-                            po_id: cacheData[idx].data_po.id
-                        },
-                        dataType: 'json',
-                        timeout: 25000,
-                        global: false
-                    });
+                    const detail = await $.ajax({url:poEndpoint, data:{ajax:'detail', po_id:cacheData[idx].data_po.id}, dataType:'json', timeout:25000, global:false});
                     cacheData[idx] = detail;
                 } catch (error) {
                     alert('Gagal memuat detail PO. Silakan coba lagi.');
                     return;
-                } finally {
-                    btn.data('loading', false).prop('disabled', false);
-                }
+                } finally {btn.data('loading', false).prop('disabled', false);}
             }
 
 
@@ -1743,7 +1671,7 @@
 
 
 
-                    <th rowspan="2">
+                    <th rowspan="2" class="spk-freeze spk-freeze-no">
 
                         No
 
@@ -1751,7 +1679,7 @@
 
 
 
-                    <th rowspan="2">
+                    <th rowspan="2" class="spk-freeze spk-freeze-article">
 
                         Article
 
@@ -1759,7 +1687,7 @@
 
 
 
-                    <th rowspan="2">
+                    <th rowspan="2" class="spk-freeze spk-freeze-description">
 
                         Description
 
@@ -1809,9 +1737,9 @@
 
                    ${categories.map(cat => `
 
-            <th>${cat}</th>
+        <th>${cat}</th>
 
-        `).join('')}
+    `).join('')}
 
 
 
@@ -2169,7 +2097,7 @@
 
 
 
-                    <td rowspan="${maxRow}">
+                    <td rowspan="${maxRow}" class="spk-freeze spk-freeze-no">
 
 
 
@@ -2181,7 +2109,7 @@
 
 
 
-                   <td rowspan="${maxRow}"
+                   <td rowspan="${maxRow}" class="spk-freeze spk-freeze-article"
 
     style="
 
@@ -2209,39 +2137,39 @@
 
         ? `
 
-                    <img
+                <img
 
-                        src="${d.images[0]}"
+                    src="${d.images[0]}"
 
-                        class="article-image">
+                    class="article-image">
 
-                `
+            `
 
         : d.photo
 
         ? `
 
-                    <img
+                <img
 
-                        src="${d.photo}"
+                    src="${d.photo}"
 
-                        class="article-image">
+                    class="article-image">
 
-                `
+            `
 
         : `
 
-                    <div class="article-no-image">
+                <div class="article-no-image">
 
 
 
-                        No Image
+                    No Image
 
 
 
-                    </div>
+                </div>
 
-                `
+            `
 
     }
 
@@ -2265,7 +2193,7 @@
 
 
 
-                    <td rowspan="${maxRow}" class="spk-description-cell">
+                    <td rowspan="${maxRow}" class="spk-description-cell spk-freeze spk-freeze-description">
                         <span class="spk-description-ellipsis" title="${escapePoText(d.description ?? '-')}">
                             ${escapePoText(d.description ?? '-')}
                         </span>
@@ -3389,1466 +3317,1173 @@
 
 
         let isExpanded = false;
-        $(document).on('click', '#btnExpandDetail', function() {
+        $(document).on('click', '#btnExpandDetail', function () {
             isExpanded = !isExpanded;
             $('#spkViewModal').toggleClass('spk-modal-maximized', isExpanded);
             $(this).html(isExpanded ? '<i class="fa fa-compress"></i>' : '<i class="fa fa-expand"></i>')
                 .attr('title', isExpanded ? 'Kembalikan ukuran' : 'Perbesar modal');
         });
-        $('#spkViewModal').on('hidden.bs.modal', function() {
+        $('#spkViewModal').on('hidden.bs.modal', function () {
             isExpanded = false;
             $(this).removeClass('spk-modal-maximized');
             $('#btnExpandDetail').html('<i class="fa fa-expand"></i>').attr('title', 'Perbesar modal');
         });
+
     </script>
 
     <style>
-        /* =========================================================
 
-       ALL SPK — PREMIUM UI / UX V2
+/* =========================================================
 
-       Styling only. Blade + JavaScript preserved.
+   ALL SPK — PREMIUM UI / UX V2
 
-       ========================================================= */
+   Styling only. Blade + JavaScript preserved.
 
+   ========================================================= */
 
 
-        :root {
 
-            --bg: #f5f7fb;
+:root{
 
-            --card: #ffffff;
+    --bg:#f5f7fb;
 
-            --line: #e6ebf2;
+    --card:#ffffff;
 
-            --line2: #eef2f6;
+    --line:#e6ebf2;
 
-            --text: #172033;
+    --line2:#eef2f6;
 
-            --muted: #718096;
+    --text:#172033;
 
-            --primary: #3158c9;
+    --muted:#718096;
 
-            --primary2: #2447ad;
+    --primary:#3158c9;
 
-            --primary-soft: #eef3ff;
+    --primary2:#2447ad;
 
-            --success: #159957;
+    --primary-soft:#eef3ff;
 
-            --warning: #d98b18;
+    --success:#159957;
 
-            --danger: #d64545;
+    --warning:#d98b18;
 
-            --shadow: 0 10px 30px rgba(30, 45, 70, .055);
+    --danger:#d64545;
 
-            --shadow-sm: 0 3px 12px rgba(30, 45, 70, .045);
+    --shadow:0 10px 30px rgba(30,45,70,.055);
 
-            --radius: 12px;
+    --shadow-sm:0 3px 12px rgba(30,45,70,.045);
 
-        }
+    --radius:12px;
 
+}
 
 
-        /* PAGE */
 
-        body {
+/* PAGE */
 
-            background: var(--bg);
+body{
 
-            color: var(--text);
+    background:var(--bg);
 
-            *font-family*: Arial, sans-serif;
+    color:var(--text);
 
-            *font-size*: 12px;
+    font-family:Arial,sans-serif;
 
-        }
+    font-size:12px;
 
-        .padding {
-            padding: 16px
-        }
+}
 
-        .box {
-            background: transparent !important;
-            border: 0 !important;
-            *box-shadow*: none !important
-        }
+.padding{padding:16px}
 
+.box{background:transparent!important;border:0!important;box-shadow:none!important}
 
 
-        /* TOP HEADER */
 
-        .box>.box-header {
+/* TOP HEADER */
 
-            position: relative;
+.box>.box-header{
 
-            background: linear-gradient(180deg, #fff 0%, #fbfcfe 100%);
+    position:relative;
 
-            border: 1px solid var(--line);
+    background:linear-gradient(180deg,#fff 0%,#fbfcfe 100%);
 
-            *border-radius*: var(--radius);
+    border:1px solid var(--line);
 
-            padding: 14px 16px;
+    border-radius:var(--radius);
 
-            *margin-bottom*: 12px;
+    padding:14px 16px;
 
-            *box-shadow*: var(--shadow);
+    margin-bottom:12px;
 
-        }
+    box-shadow:var(--shadow);
 
-        .box>.box-header:before {
+}
 
-            content: "";
+.box>.box-header:before{
 
-            position: absolute;
+    content:"";
 
-            left: 0;
-            top: 12px;
-            bottom: 12px;
+    position:absolute;
 
-            width: 3px;
+    left:0;top:12px;bottom:12px;
 
-            *border-radius*: 0 4px 4px 0;
+    width:3px;
 
-            background: var(--primary);
+    border-radius:0 4px 4px 0;
 
-        }
+    background:var(--primary);
 
-        .box-header h2 {
+}
 
-            margin: 0;
+.box-header h2{
 
-            color: var(--text);
+    margin:0;
 
-            *font-size*: 17px;
+    color:var(--text);
 
-            *font-weight*: 750;
+    font-size:17px;
 
-            *letter-spacing*: -.25px;
+    font-weight:750;
 
-        }
+    letter-spacing:-.25px;
 
-        .box-header small {
+}
 
-            color: var(--muted);
+.box-header small{
 
-            *font-size*: 10px;
+    color:var(--muted);
 
-        }
+    font-size:10px;
 
+}
 
 
-        /* FILTER */
 
-        \#spkTypeFilter {
+/* FILTER */
 
-            height: 36px !important;
+#spkTypeFilter{
 
-            *min-width*: 170px;
+    height:36px!important;
 
-            border: 1px solid #dbe2eb !important;
+    min-width:170px;
 
-            *border-radius*: 8px !important;
+    border:1px solid #dbe2eb!important;
 
-            background: #fff !important;
+    border-radius:8px!important;
 
-            color: #344054;
+    background:#fff!important;
 
-            *font-size*: 11px;
+    color:#344054;
 
-            *box-shadow*: none !important;
+    font-size:11px;
 
-        }
+    box-shadow:none!important;
 
-        \#spkTypeFilter:hover {
-            *border-color*: #c5d0df !important
-        }
+}
 
-        \#spkTypeFilter:focus {
+#spkTypeFilter:hover{border-color:#c5d0df!important}
 
-            *border-color*: #91aef0 !important;
+#spkTypeFilter:focus{
 
-            *box-shadow*: 0 0 0 3px rgba(49, 88, 201, .08) !important;
+    border-color:#91aef0!important;
 
-        }
+    box-shadow:0 0 0 3px rgba(49,88,201,.08)!important;
 
+}
 
 
-        /* MAIN PANELS */
 
-        .spk-sidebar,
-        .detail-card,
-        .table-box {
+/* MAIN PANELS */
 
-            background: var(--card);
+.spk-sidebar,.detail-card,.table-box{
 
-            border: 1px solid var(--line);
+    background:var(--card);
 
-            *border-radius*: var(--radius);
+    border:1px solid var(--line);
 
-            *box-shadow*: var(--shadow);
+    border-radius:var(--radius);
 
-        }
+    box-shadow:var(--shadow);
 
+}
 
 
-        /* SIDEBAR */
 
-        .spk-sidebar {
-            overflow: hidden
-        }
+/* SIDEBAR */
 
-        .sidebar-toolbar {
+.spk-sidebar{overflow:hidden}
 
-            padding: 11px;
+.sidebar-toolbar{
 
-            background: #fff;
+    padding:11px;
 
-            *border-bottom*: 1px solid var(--line2);
+    background:#fff;
 
-        }
+    border-bottom:1px solid var(--line2);
 
-        .sidebar-toolbar input {
+}
 
-            height: 36px !important;
+.sidebar-toolbar input{
 
-            border: 1px solid #dce3ec !important;
+    height:36px!important;
 
-            *border-radius*: 8px !important;
+    border:1px solid #dce3ec!important;
 
-            padding: 0 11px !important;
+    border-radius:8px!important;
 
-            background: #fbfcfe !important;
+    padding:0 11px!important;
 
-            color: var(--text);
+    background:#fbfcfe!important;
 
-            *font-size*: 11px;
+    color:var(--text);
 
-            *box-shadow*: none !important;
+    font-size:11px;
 
-        }
+    box-shadow:none!important;
 
-        .sidebar-toolbar input:focus {
+}
 
-            background: #fff !important;
+.sidebar-toolbar input:focus{
 
-            *border-color*: #91aef0 !important;
+    background:#fff!important;
 
-            *box-shadow*: 0 0 0 3px rgba(49, 88, 201, .07) !important;
+    border-color:#91aef0!important;
 
-        }
+    box-shadow:0 0 0 3px rgba(49,88,201,.07)!important;
 
-        .sidebar-toolbar input::placeholder {
-            color: #a0aaba
-        }
+}
 
-        .sidebar-table {
+.sidebar-toolbar input::placeholder{color:#a0aaba}
 
-            *max-height*: 70vh;
+.sidebar-table{
 
-            overflow: auto;
+    max-height:70vh;
 
-        }
+    overflow:auto;
 
+}
 
 
-        /* LEFT TABLE */
 
-        .table-spk {
+/* LEFT TABLE */
 
-            width: 100%;
+.table-spk{
 
-            margin: 0 !important;
+    width:100%;
 
-            *border-collapse*: separate;
+    margin:0!important;
 
-            *border-spacing*: 0;
+    border-collapse:separate;
 
-        }
+    border-spacing:0;
 
-        .table-spk thead th {
+}
 
-            position: sticky;
+.table-spk thead th{
 
-            top: 0;
+    position:sticky;
 
-            *z-index*: 20;
+    top:0;
 
-            background: #f8fafc !important;
+    z-index:20;
 
-            color: #7a8798 !important;
+    background:#f8fafc!important;
 
-            border: 0 !important;
+    color:#7a8798!important;
 
-            *border-bottom*: 1px solid var(--line) !important;
+    border:0!important;
 
-            padding: 8px 8px !important;
+    border-bottom:1px solid var(--line)!important;
 
-            *font-size*: 8px !important;
+    padding:8px 8px!important;
 
-            *font-weight*: 750 !important;
+    font-size:8px!important;
 
-            *text-transform*: uppercase;
+    font-weight:750!important;
 
-            *letter-spacing*: .5px;
+    text-transform:uppercase;
 
-            *white-space*: nowrap;
+    letter-spacing:.5px;
 
-        }
+    white-space:nowrap;
 
-        .table-spk tbody td {
+}
 
-            padding: 8px !important;
+.table-spk tbody td{
 
-            border: 0 !important;
+    padding:8px!important;
 
-            *border-bottom*: 1px solid #f0f3f7 !important;
+    border:0!important;
 
-            color: #3b4656;
+    border-bottom:1px solid #f0f3f7!important;
 
-            *font-size*: 10px;
+    color:#3b4656;
 
-            *vertical-align*: middle !important;
+    font-size:10px;
 
-        }
+    vertical-align:middle!important;
 
-        .table-spk tbody tr {
+}
 
-            position: relative;
+.table-spk tbody tr{
 
-            cursor: pointer;
+    position:relative;
 
-            transition: background .12s ease;
+    cursor:pointer;
 
-        }
+    transition:background .12s ease;
 
-        .table-spk tbody tr:hover {
-            background: #fafcff !important
-        }
+}
 
-        .table-spk tbody tr.selected-row {
-            background: var(--primary-soft) !important
-        }
+.table-spk tbody tr:hover{background:#fafcff!important}
 
-        .table-spk tbody tr.selected-row td {
-            color: #2851b9;
-            *border-bottom-color*: #dfe7fa !important
-        }
+.table-spk tbody tr.selected-row{background:var(--primary-soft)!important}
 
-        .table-spk tbody tr.selected-row td:first-child {
+.table-spk tbody tr.selected-row td{color:#2851b9;border-bottom-color:#dfe7fa!important}
 
-            *box-shadow*: inset 3px 0 0 var(--primary);
+.table-spk tbody tr.selected-row td:first-child{
 
-        }
+    box-shadow:inset 3px 0 0 var(--primary);
 
-        .table-spk tbody td:first-child {
+}
 
-            width: 34px;
+.table-spk tbody td:first-child{
 
-            *text-align*: center;
+    width:34px;
 
-            color: #9aa6b5;
+    text-align:center;
 
-            *font-size*: 9px;
+    color:#9aa6b5;
 
-            *font-weight*: 700;
+    font-size:9px;
 
-        }
+    font-weight:700;
 
-        .buyer-name {
+}
 
-            display: block;
+.buyer-name{
 
-            *max-width*: 145px;
+    display:block;
 
-            overflow: hidden;
+    max-width:145px;
 
-            *text-overflow*: ellipsis;
+    overflow:hidden;
 
-            *white-space*: nowrap;
+    text-overflow:ellipsis;
 
-            color: #263244;
+    white-space:nowrap;
 
-            *font-size*: 10px;
+    color:#263244;
 
-            *font-weight*: 700;
+    font-size:10px;
 
-        }
+    font-weight:700;
 
-        .selected-row .buyer-name {
-            color: #2851b9
-        }
+}
 
-        .po-number {
+.selected-row .buyer-name{color:#2851b9}
 
-            display: inline-flex;
+.po-number{
 
-            *align-items*: center;
+    display:inline-flex;
 
-            *max-width*: 105px;
+    align-items:center;
 
-            padding: 3px 6px;
+    max-width:105px;
 
-            overflow: hidden;
+    padding:3px 6px;
 
-            *text-overflow*: ellipsis;
+    overflow:hidden;
 
-            *white-space*: nowrap;
+    text-overflow:ellipsis;
 
-            background: #f3f5f8;
+    white-space:nowrap;
 
-            color: #667085;
+    background:#f3f5f8;
 
-            border: 1px solid #e8ecf1;
+    color:#667085;
 
-            *border-radius*: 5px;
+    border:1px solid #e8ecf1;
 
-            *font-size*: 8px;
+    border-radius:5px;
 
-            *font-weight*: 750;
+    font-size:8px;
 
-        }
+    font-weight:750;
 
-        .selected-row .po-number {
+}
 
-            background: #e1eaff;
+.selected-row .po-number{
 
-            color: #2851b9;
+    background:#e1eaff;
 
-            *border-color*: #cbd9fb;
+    color:#2851b9;
 
-        }
+    border-color:#cbd9fb;
 
-        .btn-view-spk {
+}
 
-            padding: 3px 7px !important;
+.btn-view-spk{
 
-            border: 1px solid #cbd8f6 !important;
+    padding:3px 7px!important;
 
-            *border-radius*: 6px !important;
+    border:1px solid #cbd8f6!important;
 
-            background: #fff !important;
+    border-radius:6px!important;
 
-            color: var(--primary) !important;
+    background:#fff!important;
 
-            *font-size*: 8px !important;
+    color:var(--primary)!important;
 
-            *font-weight*: 700 !important;
+    font-size:8px!important;
 
-            transition: .12s ease;
+    font-weight:700!important;
 
-        }
+    transition:.12s ease;
 
-        .btn-view-spk:hover {
+}
 
-            background: var(--primary) !important;
+.btn-view-spk:hover{
 
-            color: #fff !important;
+    background:var(--primary)!important;
 
-            *border-color*: var(--primary) !important;
+    color:#fff!important;
 
-        }
+    border-color:var(--primary)!important;
 
-        .table-spk .btn-link {
+}
 
-            color: #a0aaba;
+.table-spk .btn-link{
 
-            padding: 3px 5px;
+    color:#a0aaba;
 
-        }
+    padding:3px 5px;
 
-        .table-spk .btn-link:hover {
+}
 
-            color: #42526a;
+.table-spk .btn-link:hover{
 
-            background: #f3f5f8;
+    color:#42526a;
 
-        }
+    background:#f3f5f8;
 
+}
 
 
-        /* DETAIL ACTIONS */
 
-        .detail-topbar {
+/* DETAIL ACTIONS */
 
-            display: flex;
+.detail-topbar{
 
-            *justify-content*: flex-end;
+    display:flex;
 
-            *align-items*: center;
+    justify-content:flex-end;
 
-            gap: 6px;
+    align-items:center;
 
-            *margin-bottom*: 9px;
+    gap:6px;
 
-        }
+    margin-bottom:9px;
 
-        .detail-topbar .btn {
+}
 
-            height: 34px;
+.detail-topbar .btn{
 
-            *border-radius*: 7px !important;
+    height:34px;
 
-            *font-size*: 10px;
+    border-radius:7px!important;
 
-            *font-weight*: 700;
+    font-size:10px;
 
-        }
+    font-weight:700;
 
-        \#btnCreateSpk {
+}
 
-            padding: 0 11px;
+#btnCreateSpk{
 
-            background: var(--primary);
+    padding:0 11px;
 
-            *border-color*: var(--primary);
+    background:var(--primary);
 
-            *box-shadow*: 0 3px 8px rgba(49, 88, 201, .12);
+    border-color:var(--primary);
 
-        }
+    box-shadow:0 3px 8px rgba(49,88,201,.12);
 
-        \#btnCreateSpk:hover {
-            background: var(--primary2);
-            *border-color*: var(--primary2)
-        }
+}
 
-        \#btnExpandDetail {
+#btnCreateSpk:hover{background:var(--primary2);border-color:var(--primary2)}
 
-            width: 34px;
+#btnExpandDetail{
 
-            padding: 0 !important;
+    width:34px;
 
-        }
+    padding:0!important;
 
+}
 
 
-        /* DETAIL HEADER */
 
-        .detail-card {
+/* DETAIL HEADER */
 
-            padding: 13px;
+.detail-card{
 
-            *margin-bottom*: 10px;
+    padding:13px;
 
-        }
+    margin-bottom:10px;
 
-        .detail-header {
+}
 
-            display: flex;
+.detail-header{
 
-            *justify-content*: space-between;
+    display:flex;
 
-            *align-items*: flex-start;
+    justify-content:space-between;
 
-            gap: 10px;
+    align-items:flex-start;
 
-            *margin-bottom*: 8px;
+    gap:10px;
 
-        }
+    margin-bottom:8px;
 
-        .detail-header h5,
-        .detail-header h2 {
+}
 
-            margin: 0;
+.detail-header h5,.detail-header h2{
 
-            color: var(--text);
+    margin:0;
 
-            *font-size*: 14px;
+    color:var(--text);
 
-            *font-weight*: 750;
+    font-size:14px;
 
-        }
+    font-weight:750;
 
-        .detail-po {
+}
 
-            *margin-top*: 3px;
+.detail-po{
 
-            color: #8290a3;
+    margin-top:3px;
 
-            *font-size*: 10px;
+    color:#8290a3;
 
-        }
+    font-size:10px;
 
+}
 
 
-        /* SUMMARY */
 
-        .summary-row {
-            margin: 7px -3px 0 !important
-        }
+/* SUMMARY */
 
-        .summary-row>div {
-            padding: 0 3px !important
-        }
+.summary-row{margin:7px -3px 0!important}
 
-        .summary-card {
+.summary-row>div{padding:0 3px!important}
 
-            display: flex;
+.summary-card{
 
-            *align-items*: center;
+    display:flex;
 
-            gap: 8px;
+    align-items:center;
 
-            *min-height*: 55px !important;
+    gap:8px;
 
-            height: 55px !important;
+    min-height:55px!important;
 
-            padding: 7px 9px !important;
+    height:55px!important;
 
-            background: #fff;
+    padding:7px 9px!important;
 
-            border: 1px solid var(--line2);
+    background:#fff;
 
-            *border-radius*: 9px !important;
+    border:1px solid var(--line2);
 
-            *box-shadow*: var(--shadow-sm) !important;
+    border-radius:9px!important;
 
-        }
+    box-shadow:var(--shadow-sm)!important;
 
-        .summary-icon {
+}
 
-            width: 32px !important;
+.summary-icon{
 
-            height: 32px !important;
+    width:32px!important;
 
-            *min-width*: 32px !important;
+    height:32px!important;
 
-            *min-height*: 32px !important;
+    min-width:32px!important;
 
-            *border-radius*: 8px !important;
+    min-height:32px!important;
 
-            display: flex;
+    border-radius:8px!important;
 
-            *align-items*: center;
+    display:flex;
 
-            *justify-content*: center;
+    align-items:center;
 
-            color: #fff;
+    justify-content:center;
 
-            *font-size*: 12px !important;
+    color:#fff;
 
-        }
+    font-size:12px!important;
 
-        .summary-icon.blue {
-            background: #3158c9
-        }
+}
 
-        .summary-icon.green {
-            background: #159957
-        }
+.summary-icon.blue{background:#3158c9}
 
-        .summary-icon.purple {
-            background: #7452c8
-        }
+.summary-icon.green{background:#159957}
 
-        .summary-icon.orange {
-            background: #d98218
-        }
+.summary-icon.purple{background:#7452c8}
 
-        .summary-card small {
+.summary-icon.orange{background:#d98218}
 
-            display: block;
+.summary-card small{
 
-            margin: 0 0 2px !important;
+    display:block;
 
-            color: #8490a0;
+    margin:0 0 2px!important;
 
-            *font-size*: 8px !important;
+    color:#8490a0;
 
-            *line-height*: 1.1 !important;
+    font-size:8px!important;
 
-            *white-space*: nowrap;
+    line-height:1.1!important;
 
-        }
+    white-space:nowrap;
 
-        .summary-card h3 {
+}
 
-            margin: 0 !important;
+.summary-card h3{
 
-            color: #253044;
+    margin:0!important;
 
-            *font-size*: 16px !important;
+    color:#253044;
 
-            *font-weight*: 750;
+    font-size:16px!important;
 
-            *line-height*: 1 !important;
+    font-weight:750;
 
-        }
+    line-height:1!important;
 
+}
 
 
-        /* DETAIL TABLE */
 
-        .table-box {
-            overflow: hidden
-        }
+/* DETAIL TABLE */
 
-        .table-box .table-responsive {
+.table-box{overflow:hidden}
 
-            *max-height*: 67vh;
+.table-box .table-responsive{
 
-            overflow: auto;
+    max-height:67vh;
 
-        }
+    overflow:auto;
 
-        \#spk-detail-body {
-            background: #fff
-        }
+}
 
-        \#spk-detail-body>tr>td {
-            padding: 0 !important;
-            border: 0 !important
-        }
+#spk-detail-body{background:#fff}
 
-        \#spk-detail-body table {
+#spk-detail-body>tr>td{padding:0!important;border:0!important}
 
-            width: 100%;
+#spk-detail-body table{
 
-            margin: 0 !important;
+    width:100%;
 
-            *border-collapse*: separate;
+    margin:0!important;
 
-            *border-spacing*: 0;
+    border-collapse:separate;
 
-        }
+    border-spacing:0;
 
-        \#spk-detail-body table thead th {
+}
 
-            position: sticky;
+#spk-detail-body table thead th{
 
-            top: 0;
+    position:sticky;
 
-            *z-index*: 15;
+    top:0;
 
-            background: #f7f9fc !important;
+    z-index:15;
 
-            color: #7a8798 !important;
+    background:#f7f9fc!important;
 
-            border: 0 !important;
+    color:#7a8798!important;
 
-            *border-bottom*: 1px solid var(--line) !important;
+    border:0!important;
 
-            padding: 8px 7px !important;
+    border-bottom:1px solid var(--line)!important;
 
-            *font-size*: 8px !important;
+    padding:8px 7px!important;
 
-            *font-weight*: 750 !important;
+    font-size:8px!important;
 
-            *text-transform*: uppercase;
+    font-weight:750!important;
 
-            *letter-spacing*: .45px;
+    text-transform:uppercase;
 
-            *white-space*: nowrap;
+    letter-spacing:.45px;
 
-        }
+    white-space:nowrap;
 
-        \#spk-detail-body table tbody td {
+}
 
-            padding: 8px 7px !important;
+#spk-detail-body table tbody td{
 
-            border: 0 !important;
+    padding:8px 7px!important;
 
-            *border-bottom*: 1px solid #f0f3f7 !important;
+    border:0!important;
 
-            color: #455164;
+    border-bottom:1px solid #f0f3f7!important;
 
-            *font-size*: 9px;
+    color:#455164;
 
-            *vertical-align*: top;
+    font-size:9px;
 
-        }
+    vertical-align:top;
 
-        \#spk-detail-body table tbody tr:hover {
-            background: #fbfcfe
-        }
+}
 
+#spk-detail-body table tbody tr:hover{background:#fbfcfe}
 
 
-        /* ARTICLE */
 
-        .article-box {
+/* ARTICLE */
 
-            display: flex;
+.article-box{
 
-            *flex-direction*: column;
+    display:flex;
 
-            *align-items*: center;
+    flex-direction:column;
 
-            gap: 3px;
+    align-items:center;
 
-        }
+    gap:3px;
 
-        .article-image,
-        .article-no-image {
+}
 
-            width: 54px !important;
+.article-image,.article-no-image{
 
-            height: 54px !important;
+    width:54px!important;
 
-            *border-radius*: 7px !important;
+    height:54px!important;
 
-            *object-fit*: cover;
+    border-radius:7px!important;
 
-            border: 1px solid #e5e9ef;
+    object-fit:cover;
 
-            background: #f8fafc;
+    border:1px solid #e5e9ef;
 
-        }
+    background:#f8fafc;
 
-        .article-no-image {
+}
 
-            display: flex;
+.article-no-image{
 
-            *align-items*: center;
+    display:flex;
 
-            *justify-content*: center;
+    align-items:center;
 
-            color: #a0aaba;
+    justify-content:center;
 
-            *font-size*: 7px;
+    color:#a0aaba;
 
-        }
+    font-size:7px;
 
-        .article-code {
+}
 
-            *margin-top*: 1px !important;
+.article-code{
 
-            color: #697789;
+    margin-top:1px!important;
 
-            *font-size*: 8px !important;
+    color:#697789;
 
-            *font-weight*: 700;
+    font-size:8px!important;
 
-            *text-align*: center;
+    font-weight:700;
 
-            *word-break*: break-word;
+    text-align:center;
 
-        }
+    word-break:break-word;
 
-        \#spk-detail-body td:nth-child(3) {
+}
 
-            color: #4d596b;
+#spk-detail-body td:nth-child(3){
 
-            *line-height*: 1.35;
+    color:#4d596b;
 
-        }
+    line-height:1.35;
 
-        \#spk-detail-body td:nth-child(4),
+}
 
-        \#spk-detail-body td:nth-child(5) {
+#spk-detail-body td:nth-child(4),
 
-            *text-align*: center;
+#spk-detail-body td:nth-child(5){
 
-            *white-space*: nowrap;
+    text-align:center;
 
-        }
+    white-space:nowrap;
 
-        \#spk-detail-body td:nth-child(4) {
-            color: #263244;
-            *font-weight*: 750
-        }
+}
 
-        \#spk-detail-body td:nth-child(5) {
+#spk-detail-body td:nth-child(4){color:#263244;font-weight:750}
 
-            color: #738095;
+#spk-detail-body td:nth-child(5){
 
-            *font-family*: ui-monospace, SFMono-Regular, Menlo, monospace;
+    color:#738095;
 
-        }
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
 
+}
 
 
-        /* SPK CARDS */
 
-        .spk-card {
+/* SPK CARDS */
 
-            position: relative;
+.spk-card{
 
-            margin: 1px 0;
+    position:relative;
 
-            padding: 7px 8px;
+    margin:1px 0;
 
-            background: #fff;
+    padding:7px 8px;
 
-            border: 1px solid #e4e9f0;
+    background:#fff;
 
-            *border-radius*: 7px;
+    border:1px solid #e4e9f0;
 
-            *box-shadow*: 0 1px 3px rgba(20, 35, 55, .025);
+    border-radius:7px;
 
-            transition: .12s ease;
+    box-shadow:0 1px 3px rgba(20,35,55,.025);
 
-        }
+    transition:.12s ease;
 
-        .spk-card:hover {
+}
 
-            *border-color*: #c8d6f6;
+.spk-card:hover{
 
-            *box-shadow*: 0 4px 10px rgba(49, 88, 201, .07);
+    border-color:#c8d6f6;
 
-        }
+    box-shadow:0 4px 10px rgba(49,88,201,.07);
 
-        .spk-card b {
+}
 
-            color: #263244;
+.spk-card b{
 
-            *font-size*: 8px;
+    color:#263244;
 
-            *font-weight*: 750;
+    font-size:8px;
 
-        }
+    font-weight:750;
 
-        .spk-card small {
+}
 
-            color: #7b8798;
+.spk-card small{
 
-            *font-size*: 7px;
+    color:#7b8798;
 
-            *line-height*: 1.3;
+    font-size:7px;
 
-        }
+    line-height:1.3;
 
-        .spk-btn-group {
+}
 
-            display: flex;
+.spk-btn-group{
 
-            *align-items*: center;
+    display:flex;
 
-            gap: 3px;
+    align-items:center;
 
-            *margin-top*: 4px;
+    gap:3px;
 
-        }
+    margin-top:4px;
 
-        .spk-btn-group .btn {
+}
 
-            padding: 2px 5px !important;
+.spk-btn-group .btn{
 
-            *border-radius*: 4px !important;
+    padding:2px 5px!important;
 
-            *font-size*: 7px !important;
+    border-radius:4px!important;
 
-            *line-height*: 1.4;
+    font-size:7px!important;
 
-        }
+    line-height:1.4;
 
-        .spk-btn-group .btn-warning {
+}
 
-            color: #95600d;
+.spk-btn-group .btn-warning{
 
-            background: #fff9ed;
+    color:#95600d;
 
-            *border-color*: #f5ddb2;
+    background:#fff9ed;
 
-        }
+    border-color:#f5ddb2;
 
-        .spk-btn-group .btn-danger {
+}
 
-            color: #b83333;
+.spk-btn-group .btn-danger{
 
-            background: #fff5f5;
+    color:#b83333;
 
-            *border-color*: #f2caca;
+    background:#fff5f5;
 
-        }
+    border-color:#f2caca;
 
-        .hold-progress {
+}
 
-            position: absolute;
+.hold-progress{
 
-            left: 0;
+    position:absolute;
 
-            bottom: 0;
+    left:0;
 
-            height: 2px;
+    bottom:0;
 
-            width: 0;
+    height:2px;
 
-            background: #df4545;
+    width:0;
 
-            *border-radius*: 0 0 7px 7px;
+    background:#df4545;
 
-            opacity: 0;
+    border-radius:0 0 7px 7px;
 
-        }
+    opacity:0;
 
-        .spk-card.selected-spk {
+}
 
-            *border-color*: #9db4ed;
+.spk-card.selected-spk{
 
-            background: #f8faff;
+    border-color:#9db4ed;
 
-            *box-shadow*: 0 0 0 2px rgba(49, 88, 201, .06);
+    background:#f8faff;
 
-        }
+    box-shadow:0 0 0 2px rgba(49,88,201,.06);
 
+}
 
 
-        /* GLOBAL BUTTONS */
 
-        .btn {
-            *border-radius*: 7px
-        }
+/* GLOBAL BUTTONS */
 
-        .btn-primary {
-            background: var(--primary);
-            *border-color*: var(--primary)
-        }
+.btn{border-radius:7px}
 
-        .btn-primary:hover {
-            background: var(--primary2);
-            *border-color*: var(--primary2)
-        }
+.btn-primary{background:var(--primary);border-color:var(--primary)}
 
-        .btn-outline-primary {
+.btn-primary:hover{background:var(--primary2);border-color:var(--primary2)}
 
-            color: var(--primary);
+.btn-outline-primary{
 
-            *border-color*: #cbd8f6;
+    color:var(--primary);
 
-            background: #fff;
+    border-color:#cbd8f6;
 
-        }
+    background:#fff;
 
-        .btn-outline-primary:hover {
+}
 
-            background: var(--primary);
+.btn-outline-primary:hover{
 
-            *border-color*: var(--primary);
+    background:var(--primary);
 
-            color: #fff;
+    border-color:var(--primary);
 
-        }
+    color:#fff;
 
+}
 
 
-        /* SCROLLBAR */
 
-        .sidebar-table::-webkit-scrollbar,
+/* SCROLLBAR */
 
-        .table-box .table-responsive::-webkit-scrollbar {
+.sidebar-table::-webkit-scrollbar,
 
-            width: 6px;
-            height: 6px;
+.table-box .table-responsive::-webkit-scrollbar{
 
-        }
+    width:6px;height:6px;
 
-        .sidebar-table::-webkit-scrollbar-thumb,
+}
 
-        .table-box .table-responsive::-webkit-scrollbar-thumb {
+.sidebar-table::-webkit-scrollbar-thumb,
 
-            background: #cbd3df;
+.table-box .table-responsive::-webkit-scrollbar-thumb{
 
-            *border-radius*: 20px;
+    background:#cbd3df;
 
-        }
+    border-radius:20px;
 
-        .sidebar-table::-webkit-scrollbar-track,
+}
 
-        .table-box .table-responsive::-webkit-scrollbar-track {
-            background: transparent
-        }
+.sidebar-table::-webkit-scrollbar-track,
 
+.table-box .table-responsive::-webkit-scrollbar-track{background:transparent}
 
 
-        /* EMPTY */
 
-        \#po-table-body td[colspan],
+/* EMPTY */
 
-        \#spk-detail-body td[colspan] {
+#po-table-body td[colspan],
 
-            color: #98a3b2;
+#spk-detail-body td[colspan]{
 
-            *font-size*: 10px;
+    color:#98a3b2;
 
-        }
+    font-size:10px;
 
+}
 
 
-        /* RESPONSIVE */
 
-        @media(*max-width*:991px) {
+/* RESPONSIVE */
 
-            .padding {
-                padding: 11px
-            }
+@media(max-width:991px){
 
-            .sidebar-table {
-                *max-height*: 360px
-            }
+    .padding{padding:11px}
 
-            .table-box .table-responsive {
-                *max-height*: 60vh
-            }
+    .sidebar-table{max-height:360px}
 
-            .detail-topbar {
-                *margin-top*: 8px
-            }
+    .table-box .table-responsive{max-height:60vh}
 
-        }
+    .detail-topbar{margin-top:8px}
 
-        @media(*max-width*:767px) {
+}
 
-            .box>.box-header {
-                padding: 12px
-            }
+@media(max-width:767px){
 
-            .box-header .row>div {
-                *text-align*: left !important
-            }
+    .box>.box-header{padding:12px}
 
-            #spkTypeFilter {
-                width: 100% !important;
-                *margin-top*: 9px
-            }
+    .box-header .row>div{text-align:left!important}
 
-            .detail-card {
-                padding: 10px
-            }
+    #spkTypeFilter{width:100%!important;margin-top:9px}
 
-            .summary-card {
-                *min-height*: 52px !important;
-                height: 52px !important
-            }
+    .detail-card{padding:10px}
 
-            .summary-icon {
+    .summary-card{min-height:52px!important;height:52px!important}
 
-                width: 29px !important;
-                height: 29px !important;
+    .summary-icon{
 
-                *min-width*: 29px !important;
-                *min-height*: 29px !important;
+        width:29px!important;height:29px!important;
 
-                *font-size*: 11px !important
-            }
+        min-width:29px!important;min-height:29px!important;
 
-            .summary-card h3 {
-                *font-size*: 15px !important
-            }
+        font-size:11px!important
 
-            .summary-card small {
-                *font-size*: 7px !important
-            }
+    }
 
-        }
+    .summary-card h3{font-size:15px!important}
 
+    .summary-card small{font-size:7px!important}
 
-        /* PO sidebar owns its own scroll; the browser page does not trigger PO fetching. */
-        .spk-sidebar .sidebar-table {
-            height: min(66vh, 610px) !important;
-            max-height: none !important;
-            min-height: 340px !important;
-            overflow-y: auto !important;
-            overflow-x: auto !important;
-            overscroll-behavior-y: contain;
-        }
+}
 
-        .po-fetch-status {
-            padding: 10px;
-            text-align: center;
-            font-size: 10px;
-            cursor: pointer;
-            background: #fff;
-            border-top: 1px solid #eef2f6;
-        }
 
-        /* Large modal: scroll confined to modal; PO widget keeps 10-row fetch. */
-        #spkViewModal {
-            z-index: 1050;
-        }
+/* PO sidebar owns its own scroll; the browser page does not trigger PO fetching. */
+.spk-sidebar .sidebar-table {height: min(66vh, 610px) !important;max-height: none !important;min-height: 340px !important;overflow-y:auto !important;overflow-x:auto !important;overscroll-behavior-y:contain;}
+.po-fetch-status {padding:10px;text-align:center;font-size:10px;cursor:pointer;background:#fff;border-top:1px solid #eef2f6;}
 
-        #spkViewModal .spk-view-dialog {
-            width: min(96vw, 1450px);
-            max-width: 1450px;
-            margin: 22px auto;
-        }
+/* Large modal: scroll confined to modal; PO widget keeps 10-row fetch. */
+#spkViewModal { z-index: 1050; }
+#spkViewModal .spk-view-dialog { width: min(96vw, 1450px); max-width: 1450px; margin: 22px auto; }
+#spkViewModal .spk-view-content { border: 0; border-radius: 12px; overflow: hidden; box-shadow: 0 18px 60px rgba(15, 33, 64, .24); }
+#spkViewModal .spk-view-header { padding: 13px 18px; border-bottom: 1px solid #e9edf4; }
+#spkViewModal .spk-view-header h4 { font-size: 16px; font-weight: 700; color: #17345f; }
+#spkViewModal .spk-view-body { padding: 16px; max-height: calc(100vh - 115px); overflow-y: auto; overflow-x: hidden; }
+#spkViewModal .spk-modal-detail-column { float: none; width: 100%; min-width: 0; padding: 0; }
+#spkViewModal .detail-topbar { margin-top: 0; }
+#spkViewModal .table-box .table-responsive { max-height: none; overflow-x: auto; overflow-y: visible; }
+/* Pill navigasi horizontal di atas tabel, tetap terlihat saat modal di-scroll. */
+#spkViewModal .spk-horizontal-toolbar { display: none; justify-content: flex-end; padding: 8px 10px; background: #f8faff; border-bottom: 1px solid #e5ebf4; position: sticky; top: 0; z-index: 5; }
+#spkViewModal .spk-scroll-pill { display: inline-flex; align-items: center; gap: 9px; max-width: 100%; border: 1px solid #c9d9f5; background: #eaf2ff; color: #1b4d9b; border-radius: 999px; padding: 4px; box-shadow: 0 1px 4px rgba(30,75,150,.07); }
+#spkViewModal .spk-scroll-instruction { font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#spkViewModal .spk-scroll-instruction i { margin-right: 5px; }
+#spkViewModal .spk-scroll-arrow { width: 27px; height: 27px; border: 0; border-radius: 50%; background: #2563d9; color: white; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; cursor: pointer; }
+#spkViewModal .spk-scroll-arrow:disabled { background: #c5d2e7; cursor: default; }
+#spkViewModal .spk-scroll-arrow:not(:disabled):hover { background: #164bb5; }
+#spkViewModal .spk-description-cell { max-width: 220px; width: 220px; }
+#spkViewModal .spk-description-ellipsis { display: block; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: help; }
+#spkViewModal.spk-modal-maximized .spk-view-dialog { width: 99vw; max-width: none; margin: 4px auto; }
+#spkViewModal.spk-modal-maximized .spk-view-body { max-height: calc(100vh - 65px); }
+@media (max-width: 767px) {
+    #spkViewModal .spk-view-dialog { width: calc(100vw - 12px); margin: 6px auto; }
+    #spkViewModal .spk-view-body { padding: 10px; max-height: calc(100vh - 75px); }
+    #spkViewModal .spk-description-cell { max-width: 155px; width: 155px; }
+    #spkViewModal .spk-description-ellipsis { max-width: 155px; }
+}
 
-        #spkViewModal .spk-view-content {
-            border: 0;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 18px 60px rgba(15, 33, 64, .24);
-        }
+</style>
 
-        #spkViewModal .spk-view-header {
-            padding: 13px 18px;
-            border-bottom: 1px solid #e9edf4;
-        }
-
-        #spkViewModal .spk-view-header h4 {
-            font-size: 16px;
-            font-weight: 700;
-            color: #17345f;
-        }
-
-        #spkViewModal .spk-view-body {
-            padding: 16px;
-            max-height: calc(100vh - 115px);
-            overflow-y: auto;
-            overflow-x: hidden;
-        }
-
-        #spkViewModal .spk-modal-detail-column {
-            float: none;
-            width: 100%;
-            min-width: 0;
-            padding: 0;
-        }
-
-        #spkViewModal .detail-topbar {
-            margin-top: 0;
-        }
-
-        #spkViewModal .table-box .table-responsive {
-            max-height: none;
-            overflow-x: auto;
-            overflow-y: visible;
-        }
-
-        /* Pill navigasi horizontal di atas tabel, tetap terlihat saat modal di-scroll. */
-        #spkViewModal .spk-horizontal-toolbar {
-            display: none;
-            justify-content: flex-end;
-            padding: 8px 10px;
-            background: #f8faff;
-            border-bottom: 1px solid #e5ebf4;
-            position: sticky;
-            top: 0;
-            z-index: 5;
-        }
-
-        #spkViewModal .spk-scroll-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 9px;
-            max-width: 100%;
-            border: 1px solid #c9d9f5;
-            background: #eaf2ff;
-            color: #1b4d9b;
-            border-radius: 999px;
-            padding: 4px;
-            box-shadow: 0 1px 4px rgba(30, 75, 150, .07);
-        }
-
-        #spkViewModal .spk-scroll-instruction {
-            font-size: 11px;
-            font-weight: 600;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        #spkViewModal .spk-scroll-instruction i {
-            margin-right: 5px;
-        }
-
-        #spkViewModal .spk-scroll-arrow {
-            width: 27px;
-            height: 27px;
-            border: 0;
-            border-radius: 50%;
-            background: #2563d9;
-            color: white;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            flex: 0 0 auto;
-            cursor: pointer;
-        }
-
-        #spkViewModal .spk-scroll-arrow:disabled {
-            background: #c5d2e7;
-            cursor: default;
-        }
-
-        #spkViewModal .spk-scroll-arrow:not(:disabled):hover {
-            background: #164bb5;
-        }
-
-        #spkViewModal .spk-description-cell {
-            max-width: 220px;
-            width: 220px;
-        }
-
-        #spkViewModal .spk-description-ellipsis {
-            display: block;
-            max-width: 220px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            cursor: help;
-        }
-
-        #spkViewModal.spk-modal-maximized .spk-view-dialog {
-            width: 99vw;
-            max-width: none;
-            margin: 4px auto;
-        }
-
-        #spkViewModal.spk-modal-maximized .spk-view-body {
-            max-height: calc(100vh - 65px);
-        }
-
-        @media (max-width: 767px) {
-            #spkViewModal .spk-view-dialog {
-                width: calc(100vw - 12px);
-                margin: 6px auto;
-            }
-
-            #spkViewModal .spk-view-body {
-                padding: 10px;
-                max-height: calc(100vh - 75px);
-            }
-
-            #spkViewModal .spk-description-cell {
-                max-width: 155px;
-                width: 155px;
-            }
-
-            #spkViewModal .spk-description-ellipsis {
-                max-width: 155px;
-            }
-        }
-    </style>
 @endpush
 
 <style>
-    /* Modal detail hampir fullscreen: hanya ruang kecil untuk margin. */
-    #spkViewModal .modal-dialog.spk-view-dialog {
-        width: calc(100vw - 24px) !important;
-        max-width: none !important;
-        margin: 8px auto !important;
-    }
-
-    #spkViewModal .spk-view-content {
-        height: calc(100vh - 16px);
-        display: flex;
-        flex-direction: column;
-    }
-
-    #spkViewModal .spk-view-header {
-        flex: 0 0 auto;
-    }
-
-    #spkViewModal .spk-view-body {
-        flex: 1 1 auto;
-        min-height: 0;
-        max-height: none !important;
-        overflow-y: auto;
-    }
-
-    /* Scrollbar nyata di atas tabel, tersinkron dengan tabel di bawahnya. */
-    #spkViewModal .spk-top-scroll {
-        display: none;
-        width: 100%;
-        height: 18px;
-        overflow-x: auto;
-        overflow-y: hidden;
-        border-top: 1px solid #e9eef5;
-        background: #f8faff;
-        scrollbar-width: auto;
-        scrollbar-color: #8fa8cf #e9eef6;
-    }
-
-    #spkViewModal .spk-top-scroll-inner {
-        height: 1px;
-    }
-
-    #spkViewModal .spk-top-scroll::-webkit-scrollbar {
-        height: 12px;
-    }
-
-    #spkViewModal .spk-top-scroll::-webkit-scrollbar-thumb {
-        background: #8fa8cf;
-        border-radius: 10px;
-    }
-
-    #spkViewModal .spk-top-scroll::-webkit-scrollbar-track {
-        background: #e9eef6;
-    }
-
-    #spkViewModal .table-box .table-responsive {
-        overflow-x: auto !important;
-    }
-
-    @media(max-width:767px) {
-        #spkViewModal .modal-dialog.spk-view-dialog {
-            width: calc(100vw - 8px) !important;
-            margin: 4px auto !important;
-        }
-
-        #spkViewModal .spk-view-content {
-            height: calc(100vh - 8px);
-        }
-    }
+/* Modal detail hampir fullscreen: hanya ruang kecil untuk margin. */
+#spkViewModal .modal-dialog.spk-view-dialog { width: calc(100vw - 24px) !important; max-width: none !important; margin: 8px auto !important; }
+#spkViewModal .spk-view-content { height: calc(100vh - 16px); display: flex; flex-direction: column; }
+#spkViewModal .spk-view-header { flex: 0 0 auto; }
+#spkViewModal .spk-view-body { flex: 1 1 auto; min-height: 0; max-height: none !important; overflow-y: auto; }
+/* Scrollbar nyata di atas tabel, tersinkron dengan tabel di bawahnya. */
+#spkViewModal .spk-top-scroll { display: none; width: 100%; height: 18px; overflow-x: auto; overflow-y: hidden; border-top: 1px solid #e9eef5; background: #f8faff; scrollbar-width: auto; scrollbar-color: #8fa8cf #e9eef6; }
+#spkViewModal .spk-top-scroll-inner { height: 1px; }
+#spkViewModal .spk-top-scroll::-webkit-scrollbar { height: 12px; }
+#spkViewModal .spk-top-scroll::-webkit-scrollbar-thumb { background: #8fa8cf; border-radius: 10px; }
+#spkViewModal .spk-top-scroll::-webkit-scrollbar-track { background: #e9eef6; }
+#spkViewModal .table-box .table-responsive { overflow-x: auto !important; }
+@media(max-width:767px){ #spkViewModal .modal-dialog.spk-view-dialog { width: calc(100vw - 8px) !important; margin: 4px auto !important; } #spkViewModal .spk-view-content { height: calc(100vh - 8px); } }
 </style>
 
 
 <style>
-    /* Navigasi horizontal tetap terlihat ketika isi modal digulir ke bawah. */
-    #spkViewModal .spk-sticky-horizontal {
-        position: sticky !important;
-        top: 0 !important;
-        z-index: 110 !important;
-        background: #f8faff !important;
-        border-bottom: 1px solid #dbe5f2;
-        box-shadow: 0 2px 5px rgba(21, 45, 84, .07);
-    }
-
-    #spkViewModal .spk-sticky-horizontal .spk-horizontal-toolbar {
-        position: static !important;
-    }
-
-    #spkViewModal .spk-sticky-horizontal .spk-top-scroll {
-        position: static !important;
-    }
-
-    #spkViewModal .spk-view-body {
-        position: relative;
-    }
-
-    #spkViewModal .spk-modal-close {
-        cursor: pointer;
-        position: relative;
-        z-index: 3;
-        opacity: 1;
-    }
+/* Navigasi horizontal tetap terlihat ketika isi modal digulir ke bawah. */
+#spkViewModal .spk-sticky-horizontal {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 110 !important;
+    background: #f8faff !important;
+    border-bottom: 1px solid #dbe5f2;
+    box-shadow: 0 2px 5px rgba(21,45,84,.07);
+}
+#spkViewModal .spk-sticky-horizontal .spk-horizontal-toolbar {
+    position: static !important;
+}
+#spkViewModal .spk-sticky-horizontal .spk-top-scroll {
+    position: static !important;
+}
+#spkViewModal .spk-view-body { position: relative; }
+#spkViewModal .spk-modal-close { cursor: pointer; position: relative; z-index: 3; opacity: 1; }
 </style>
 
 <style>
-    /* Header kategori tetap menempel bersama pill dan scrollbar atas saat modal scroll. */
-    #spkViewModal .spk-sticky-table-header {
-        display: none;
-        width: 100%;
-        overflow: hidden;
-        background: #fff;
-        border-bottom: 1px solid #dbe5f2;
-    }
+/* Header kategori tetap menempel bersama pill dan scrollbar atas saat modal scroll. */
+#spkViewModal .spk-sticky-table-header {
+    display:none;
+    width:100%;
+    overflow:hidden;
+    background:#fff;
+    border-bottom:1px solid #dbe5f2;
+}
+#spkViewModal .spk-sticky-table-header-inner {will-change:transform;}
+#spkViewModal .spk-sticky-table-header table {border-collapse:collapse; table-layout:fixed;}
+#spkViewModal .spk-sticky-table-header th {
+    background:#2c3f51 !important;
+    color:#fff !important;
+    font-weight:700;
+    vertical-align:middle;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+#spkViewModal .spk-sticky-horizontal {z-index:130 !important;}
+/* Header asli tidak perlu sticky karena sudah ada salinan yang mengikuti scroll modal. */
+#spkViewModal #spk-detail-body table thead th {position:static !important;}
+</style>
 
-    #spkViewModal .spk-sticky-table-header-inner {
-        will-change: transform;
-    }
-
-    #spkViewModal .spk-sticky-table-header table {
-        border-collapse: collapse;
-        table-layout: fixed;
-    }
-
-    #spkViewModal .spk-sticky-table-header th {
-        background: #2c3f51 !important;
-        color: #fff !important;
-        font-weight: 700;
-        vertical-align: middle;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    #spkViewModal .spk-sticky-horizontal {
-        z-index: 130 !important;
-    }
-
-    /* Header asli tidak perlu sticky karena sudah ada salinan yang mengikuti scroll modal. */
-    #spkViewModal #spk-detail-body table thead th {
-        position: static !important;
-    }
+<style>
+/* Freeze only the three explicit identity columns, including rowspan cells. */
+#spkViewModal #spk-detail-body table { border-collapse: separate; border-spacing: 0; }
+#spkViewModal #spk-detail-body table .spk-freeze { position: sticky !important; z-index: 12; background: #fff !important; }
+#spkViewModal #spk-detail-body table thead th.spk-freeze { position: sticky !important; z-index: 16; background: #f7f9fc !important; }
+#spkViewModal #spk-detail-body table .spk-freeze-no { left: var(--spk-left-no, 0px); min-width: 36px; }
+#spkViewModal #spk-detail-body table .spk-freeze-article { left: var(--spk-left-article, 36px); }
+#spkViewModal #spk-detail-body table .spk-freeze-description { left: var(--spk-left-description, 156px); box-shadow: 3px 0 5px rgba(20,40,70,.13); }
+#spkViewModal .spk-sticky-table-header th.spk-freeze { position: relative !important; z-index: 3; background: #2c3f51 !important; }
+#spkViewModal .spk-sticky-table-header th.spk-freeze-description { box-shadow: 3px 0 5px rgba(20,40,70,.18); }
+@media(max-width:600px) {
+ #spkViewModal #spk-detail-body table .spk-freeze-article { width: 85px !important; min-width:85px !important; max-width:85px !important; }
+ #spkViewModal #spk-detail-body table .spk-freeze-description { width: 105px; min-width:105px; max-width:105px; }
+ #spkViewModal #spk-detail-body table .spk-description-ellipsis { max-width: 90px; }
+}
 </style>
