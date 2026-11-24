@@ -1134,11 +1134,22 @@
 
                     status = $('trStatus').value;
 
-                const shown = records.filter(r => (!status || r.status === status) && (!term || [r.po_code, r.item_name,
-
-                    r.article_code
-
-                ].some(v => String(v || '').toLowerCase().includes(term))));
+                const shown = records.filter(r =>
+                    (!status || r.status === status) &&
+                    (!term || [
+                        r.po_code,
+                        r.item_name,
+                        r.article_code
+                    ].some(v => String(v || '').toLowerCase().includes(term)))
+                ).sort((a, b) => {
+                    return String(a.po_code ?? '').localeCompare(
+                        String(b.po_code ?? ''),
+                        'id', {
+                            numeric: true,
+                            sensitivity: 'base'
+                        }
+                    ) || Number(a.id) - Number(b.id);
+                });
 
                 if (!shown.length) {
 
