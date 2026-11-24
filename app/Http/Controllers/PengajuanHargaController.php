@@ -114,77 +114,213 @@ class PengajuanHargaController extends Controller
         $category = BahanKategori::create(['name' => $name]);
         return response()->json(['id' => $category->id, 'name' => $category->name], 201);
     }
-
     public function index(Request $request)
     {
+
         $search = trim((string) $request->input('q', ''));
+
         $company = trim((string) $request->input('company', ''));
+
         $release = in_array($request->input('release'), ['asc', 'desc'], true)
+
             ? $request->input('release') : 'desc';
 
         // Direct link dari notifikasi: tampilkan PO yang memuat pekerjaan tersebut.
+
         $highlightJobId = filter_var($request->query('highlight_job'), FILTER_VALIDATE_INT, [
+
             'options' => ['min_range' => 1],
+
         ]);
+
         $highlightJob = $highlightJobId
+
             ? PengajuanHargaPekerjaan::query()->find($highlightJobId)
+
             : null;
+
         $highlightPoId = $highlightJob
+
             ? DetailPo::query()->whereKey($highlightJob->detail_po_id)->value('po_id')
+
             : null;
 
         $posQuery = Po::query()->with('details');
+
         if ($highlightPoId) {
+
             // Abaikan filter lama agar PO target tetap ditemukan.
+
             $posQuery->whereKey($highlightPoId);
+
         } else {
+
             if ($search !== '') {
-                $normalizedSearch = mb_strtolower(preg_replace('/[\s\-]+/u', '', $search));
+
+                $normalizedSearch = mb_strtolower(preg_replace('/[\s\\-]+/u', '', $search));
+
                 $posQuery->where(function ($query) use ($search, $normalizedSearch) {
+
                     $query->whereRaw(
+
                         "LOWER(REPLACE(REPLACE(order_no, ' ', ''), '-', '')) LIKE ?",
+
                         ['%' . $normalizedSearch . '%']
+
                     )->orWhere('company_name', 'LIKE', '%' . $search . '%')
+
                         ->orWhereHas('details', function ($detailQuery) use ($search) {
-                            $detailQuery->where('detail', 'LIKE', '%' . $search . '%');
+
+                            $detailQuery->where(function ($itemQuery) use ($search) {
+                                // Keep the existing JSON-wide search for article codes.
+                                $itemQuery->where('detail', 'LIKE', '%' . $search . '%');
+
+                                $pattern = '%' . mb_strtolower($search) . '%';
+                                foreach (['nw_description', 'description', 'buyer_desc', 'item_name', 'name', 'nama_item'] as $key) {
+                                    $itemQuery->orWhereRaw(
+                                        "LOWER(JSON_UNQUOTE(JSON_EXTRACT(CASE WHEN JSON_VALID(detail) THEN detail ELSE NULL END, ?))) LIKE ?",
+                                        ['$.' . $key, $pattern]
+                                    );
+                                }
+                            });
+
                         });
+
                 });
+
             }
+
             if ($company !== '') {
+
                 $posQuery->whereRaw(
+
                     "UPPER(REPLACE(order_no, ' ', '')) LIKE ?",
+
                     [strtoupper($company) . '%']
+
                 );
+
             }
+
         }
 
         $pos = $posQuery->orderBy('release_date', $release)
+
             ->orderByDesc('id')->paginate(10)->withQueryString();
+
         $detailIds = $pos->getCollection()->flatMap(fn($po) => $po->details->pluck('id'))->unique()->values();
+
         $pekerjaan = PengajuanHargaPekerjaan::query()->whereIn('detail_po_id', $detailIds)
+
             ->orderBy('id')->get()->groupBy('detail_po_id');
+
         $masterPekerjaan = BahanKategori::query()->orderBy('name')->get();
 
         // Ambil semua alternatif kode pada item yang sedang tampil.
+
         $codes = $pos->getCollection()->flatMap(function ($po) {
+
             return $po->details->flatMap(fn($item) => $this->itemCodes($item->detail));
+
         })->unique()->values();
 
         [$cogMatches, $bomSampleMatches] = $this->bomLookup($codes);
+
         $isFactory = $this->isFactory($request);
 
         return view('pages.pengajuan_harga.index', compact(
+
             'pos',
+
             'pekerjaan',
+
             'masterPekerjaan',
+
             'search',
+
             'company',
+
             'release',
+
             'cogMatches',
+
             'bomSampleMatches',
+
             'isFactory'
+
         ));
+
     }
+    // public function index(Request $request)
+    // {
+    //     $search = trim((string) $request->input('q', ''));
+    //     $company = trim((string) $request->input('company', ''));
+    //     $release = in_array($request->input('release'), ['asc', 'desc'], true)
+    //         ? $request->input('release') : 'desc';
+
+    //     // Direct link dari notifikasi: tampilkan PO yang memuat pekerjaan tersebut.
+    //     $highlightJobId = filter_var($request->query('highlight_job'), FILTER_VALIDATE_INT, [
+    //         'options' => ['min_range' => 1],
+    //     ]);
+    //     $highlightJob = $highlightJobId
+    //         ? PengajuanHargaPekerjaan::query()->find($highlightJobId)
+    //         : null;
+    //     $highlightPoId = $highlightJob
+    //         ? DetailPo::query()->whereKey($highlightJob->detail_po_id)->value('po_id')
+    //         : null;
+
+    //     $posQuery = Po::query()->with('details');
+    //     if ($highlightPoId) {
+    //         // Abaikan filter lama agar PO target tetap ditemukan.
+    //         $posQuery->whereKey($highlightPoId);
+    //     } else {
+    //         if ($search !== '') {
+    //             $normalizedSearch = mb_strtolower(preg_replace('/[\s\-]+/u', '', $search));
+    //             $posQuery->where(function ($query) use ($search, $normalizedSearch) {
+    //                 $query->whereRaw(
+    //                     "LOWER(REPLACE(REPLACE(order_no, ' ', ''), '-', '')) LIKE ?",
+    //                     ['%' . $normalizedSearch . '%']
+    //                 )->orWhere('company_name', 'LIKE', '%' . $search . '%')
+    //                     ->orWhereHas('details', function ($detailQuery) use ($search) {
+    //                         $detailQuery->where('detail', 'LIKE', '%' . $search . '%');
+    //                     });
+    //             });
+    //         }
+    //         if ($company !== '') {
+    //             $posQuery->whereRaw(
+    //                 "UPPER(REPLACE(order_no, ' ', '')) LIKE ?",
+    //                 [strtoupper($company) . '%']
+    //             );
+    //         }
+    //     }
+
+    //     $pos = $posQuery->orderBy('release_date', $release)
+    //         ->orderByDesc('id')->paginate(10)->withQueryString();
+    //     $detailIds = $pos->getCollection()->flatMap(fn($po) => $po->details->pluck('id'))->unique()->values();
+    //     $pekerjaan = PengajuanHargaPekerjaan::query()->whereIn('detail_po_id', $detailIds)
+    //         ->orderBy('id')->get()->groupBy('detail_po_id');
+    //     $masterPekerjaan = BahanKategori::query()->orderBy('name')->get();
+
+    //     // Ambil semua alternatif kode pada item yang sedang tampil.
+    //     $codes = $pos->getCollection()->flatMap(function ($po) {
+    //         return $po->details->flatMap(fn($item) => $this->itemCodes($item->detail));
+    //     })->unique()->values();
+
+    //     [$cogMatches, $bomSampleMatches] = $this->bomLookup($codes);
+    //     $isFactory = $this->isFactory($request);
+
+    //     return view('pages.pengajuan_harga.index', compact(
+    //         'pos',
+    //         'pekerjaan',
+    //         'masterPekerjaan',
+    //         'search',
+    //         'company',
+    //         'release',
+    //         'cogMatches',
+    //         'bomSampleMatches',
+    //         'isFactory'
+    //     ));
+    // }
 
     public function updateKategori(Request $request, $id)
     {

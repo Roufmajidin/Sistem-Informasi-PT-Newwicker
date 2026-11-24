@@ -1679,11 +1679,11 @@
 
     <script>
         /*
-                                    |--------------------------------------------------------------------------
-                                    | MONITORING AJAX FILTER
-                                    |--------------------------------------------------------------------------
-                                    | NW/NWS/NWR/NWD, ASC/DESC dan search berjalan tanpa reload halaman.
-                                    */
+                                            |--------------------------------------------------------------------------
+                                            | MONITORING AJAX FILTER
+                                            |--------------------------------------------------------------------------
+                                            | NW/NWS/NWR/NWD, ASC/DESC dan search berjalan tanpa reload halaman.
+                                            */
 
         (function() {
 
@@ -3133,6 +3133,234 @@
             }
             if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initPhotoPreview);
             else initPhotoPreview();
+        })();
+    </script>
+
+
+    <style>
+        .mn-erp-page .mn-card {
+            overflow: visible;
+        }
+
+        .mn-erp-page .mn-filter {
+            position: sticky;
+            top: var(--mn-top, 0px);
+            z-index: 40;
+        }
+
+        .mn-erp-page .mn-header {
+            position: sticky;
+            top: var(--mn-filter-bottom, 0px);
+            z-index: 30;
+            border-radius: 10px 10px 0 0;
+        }
+
+        .mn-erp-page .mn-table tbody>tr>td:first-child {
+            position: sticky;
+            left: 0;
+            z-index: 4;
+            background: #fafafa;
+            box-shadow: 2px 0 4px #00000012;
+        }
+
+        .mn-erp-page .mn-table thead th.mn-image-head {
+            position: sticky;
+            left: 0;
+            z-index: 8;
+            background: #334155;
+            color: white;
+        }
+
+        .mn-erp-page .mn-floating-head {
+            position: fixed;
+            z-index: 29;
+            overflow: hidden;
+            pointer-events: none;
+            background: #334155;
+        }
+
+        .mn-erp-page .mn-floating-head .mn-table {
+            margin: 0;
+        }
+
+        .mn-erp-page .mn-floating-head th {
+            background: #334155;
+            color: #fff;
+        }
+
+        .mn-erp-page .mn-floating-head th.mn-image-head {
+            z-index: 9;
+        }
+
+        @media (max-width: 768px) {
+            .mn-erp-page.container-fluid {
+                padding: 4px 2px 16px !important;
+                margin-top: 4px !important;
+            }
+
+            .mn-erp-page>.container-fluid {
+                padding: 4px 2px !important;
+            }
+
+            .mn-erp-page .mn-filter {
+                padding: 8px !important;
+                margin-bottom: 8px !important;
+            }
+
+            .mn-erp-page .mn-toolbar {
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+                gap: 5px;
+            }
+
+            .mn-erp-page .mn-brand-filter {
+                grid-column: 1 / -1;
+            }
+
+            .mn-erp-page .mn-actions {
+                grid-column: auto;
+            }
+
+            .mn-erp-page .mn-search-help {
+                display: none;
+            }
+
+            .mn-erp-page .mn-search-box,
+            .mn-erp-page .mn-brand-group,
+            .mn-erp-page .mn-sort-btn,
+            .mn-erp-page .btn-mn-filter,
+            .mn-erp-page .btn-mn-reset {
+                height: 34px;
+            }
+
+            .mn-erp-page .mn-brand-btn {
+                height: 26px;
+            }
+
+            .mn-erp-page .mn-header {
+                min-height: 38px;
+                padding: 5px 8px;
+            }
+        }
+    </style>
+    <script>
+        (function() {
+            function initMonitoringSticky() {
+                const page = document.querySelector('.mn-erp-page');
+                if (!page) return;
+                const filter = page.querySelector('.mn-filter');
+                const result = page.querySelector('#monitoringResult');
+                if (!filter || !result) return;
+                const floating = document.createElement('div');
+                floating.className = 'mn-floating-head';
+                floating.setAttribute('aria-hidden', 'true');
+                floating.hidden = true;
+                page.appendChild(floating);
+                let active = null,
+                    clone = null,
+                    pending = false;
+
+                function update() {
+                    pending = false;
+                    let top = 0;
+                    document.querySelectorAll('header, .navbar, #kt_header, #kt_app_header, .app-header, .header')
+                        .forEach(el => {
+                            if (page.contains(el)) return;
+                            const r = el.getBoundingClientRect(),
+                                pos = getComputedStyle(el).position;
+                            if ((pos === 'fixed' || pos === 'sticky') && r.top <= top + 2 && r.bottom > top && r
+                                .width > 100 && r.height < 180) top = r.bottom;
+                        });
+                    page.style.setProperty('--mn-top', top + 'px');
+                    const bottom = Math.max(top, filter.getBoundingClientRect().bottom);
+                    page.style.setProperty('--mn-filter-bottom', bottom + 'px');
+                    let selected = null;
+                    for (const card of result.querySelectorAll('.mn-card')) {
+                        const table = card.querySelector('.mn-table'),
+                            header = card.querySelector('.mn-header');
+                        if (!table || !table.tHead || !header || !table.getClientRects().length) continue;
+                        for (const row of table.tHead.rows) {
+                            const first = row.cells[0];
+                            if (first && /gambar|image|foto/i.test(first.textContent)) first.classList.add(
+                                'mn-image-head');
+                        }
+                        const wrap = table.closest('.table-responsive');
+                        if (!wrap) continue;
+                        const y = Math.max(bottom, header.getBoundingClientRect().bottom);
+                        const h = table.tHead.getBoundingClientRect().height;
+                        const tr = table.getBoundingClientRect();
+                        if (table.tHead.getBoundingClientRect().top < y - 1 && tr.bottom > y + h && card
+                            .getBoundingClientRect().top <= bottom + 2) selected = {
+                            table,
+                            wrap,
+                            y,
+                            h
+                        };
+                    }
+                    if (!selected) {
+                        floating.hidden = true;
+                        active = null;
+                        return;
+                    }
+                    const {
+                        table,
+                        wrap,
+                        y,
+                        h
+                    } = selected;
+                    if (active !== table) {
+                        clone = table.cloneNode(false);
+                        clone.removeAttribute('id');
+                        const cg = table.querySelector('colgroup');
+                        if (cg) clone.appendChild(cg.cloneNode(true));
+                        clone.appendChild(table.tHead.cloneNode(true));
+                        clone.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
+                        floating.replaceChildren(clone);
+                        active = table;
+                    }
+                    const r = wrap.getBoundingClientRect();
+                    floating.style.left = r.left + 'px';
+                    floating.style.top = y + 'px';
+                    floating.style.width = wrap.clientWidth + 'px';
+                    floating.style.height = h + 'px';
+                    clone.style.setProperty('width', table.getBoundingClientRect().width + 'px', 'important');
+                    clone.style.minWidth = table.getBoundingClientRect().width + 'px';
+                    Array.from(table.tHead.rows).forEach((row, i) => Array.from(row.cells).forEach((cell, j) => {
+                        const target = clone.tHead.rows[i].cells[j];
+                        target.style.width = cell.getBoundingClientRect().width + 'px';
+                        target.style.height = cell.getBoundingClientRect().height + 'px';
+                        target.style.backgroundColor = getComputedStyle(cell).backgroundColor ===
+                            'rgba(0, 0, 0, 0)' ? getComputedStyle(row).backgroundColor : getComputedStyle(
+                                cell).backgroundColor;
+                        target.style.color = getComputedStyle(cell).color;
+                    }));
+                    floating.hidden = false;
+                    floating.scrollLeft = wrap.scrollLeft;
+                }
+
+                function schedule() {
+                    if (!pending) {
+                        pending = true;
+                        requestAnimationFrame(update);
+                    }
+                }
+                window.addEventListener('scroll', schedule, {
+                    passive: true,
+                    capture: true
+                });
+                window.addEventListener('resize', schedule, {
+                    passive: true
+                });
+                new MutationObserver(schedule).observe(result, {
+                    childList: true,
+                    subtree: true,
+                    attributes: true,
+                    attributeFilter: ['class', 'style', 'hidden']
+                });
+                if (window.ResizeObserver) new ResizeObserver(schedule).observe(filter);
+                schedule();
+            }
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initMonitoringSticky);
+            else initMonitoringSticky();
         })();
     </script>
 
