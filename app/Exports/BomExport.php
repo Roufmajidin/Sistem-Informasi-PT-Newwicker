@@ -1,622 +1,705 @@
 <?php
 
-    namespace App\Exports;
+namespace App\Exports;
 
-    use Maatwebsite\Excel\Concerns\WithEvents;
-    use Maatwebsite\Excel\Concerns\WithCustomStartCell;
-    use Maatwebsite\Excel\Events\AfterSheet;
-    use PhpOffice\PhpSpreadsheet\Style\Alignment;
-    use PhpOffice\PhpSpreadsheet\Style\Border;
-    use PhpOffice\PhpSpreadsheet\Style\Fill;
-    use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
-    use Carbon\Carbon;
-    use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
-    class BomExport implements WithEvents, WithCustomStartCell
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Concerns\WithCustomStartCell;
+use Maatwebsite\Excel\Events\AfterSheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
+use Carbon\Carbon;
+use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
+class BomExport implements WithEvents, WithCustomStartCell
+{
+    protected $bom;
+
+    public function __construct($bom)
     {
-        protected $bom;
 
-        public function __construct($bom)
-        {
-          
-            $this->bom = json_decode(json_encode($bom));
-        }
-
-        public function startCell(): string
-        {
-            return 'A1';
-        }
-
-        public function registerEvents(): array
-        {
-            return [
-                AfterSheet::class => function (AfterSheet $event) {
-                    $sheet = $event->sheet->getDelegate();
-                    $bom = $this->bom;
-
-                    // --- Page Setup ---
-                    $sheet->getPageSetup()->setOrientation(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::ORIENTATION_PORTRAIT);
-                    $sheet->getPageSetup()->setPaperSize(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::PAPERSIZE_A4);
-                    $sheet->getPageSetup()->setFitToPage(true);
-                    $sheet->getPageSetup()->setFitToWidth(1);
-                    $sheet->getPageSetup()->setFitToHeight(0);
-                    $sheet->setShowGridlines(true);
-
-                    // --- Column Widths ---
-                    $widths = ['A' => 28, 'B' => 4, 'C' => 12, 'D' => 12, 'E' => 15, 'F' => 18, 'G' => 8, 'H' => 12];
-                    foreach ($widths as $col => $width) {
-                        $sheet->getColumnDimension($col)->setWidth($width);
-                    }
-
-                    // --- Styles Definition ---
-                    $fontFamily = 'Arial';
-                    $boldFont = ['name' => $fontFamily, 'size' => 10, 'bold' => true];
-                    $regularFont = ['name' => $fontFamily, 'size' => 10];
-                    $italicFont = ['name' => $fontFamily, 'size' => 10, 'italic' => true];
-                    $monoFont = ['name' => $fontFamily, 'size' => 9];
-
-                    $borderThin = [
-                        'borders' => [
-                            'allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => 'FFD0D0D0']]
-                        ]
-                    ];
-
-                    $borderCellBox = [
-                        'borders' => [
-                            'outline' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['argb' => 'FF000000']]
-                        ]
-                    ];
-
-                    $alignCenter = ['vertical' => Alignment::VERTICAL_CENTER, 'horizontal' => Alignment::HORIZONTAL_CENTER];
-                    $alignLeft   = ['vertical' => Alignment::VERTICAL_CENTER, 'horizontal' => Alignment::HORIZONTAL_LEFT];
-                    $alignRight  = ['vertical' => Alignment::VERTICAL_CENTER, 'horizontal' => Alignment::HORIZONTAL_RIGHT];
-
-                    $numFormatCurrency = '#,##0.00';
-                    $numFormatQty = '#,##0.00';
-
-                    // --- ROW 1: HEADER ITEM ---
-                    $sheet->getRowDimension(1)->setRowHeight(25);
-                    $sheet->setCellValue('A1', 'ITEM')->getStyle('A1')->getFont()->applyFromArray($boldFont);
-                    $sheet->setCellValue('B1', ':')->getStyle('B1')->getFont()->applyFromArray($boldFont);
-                    $sheet->getStyle('B1')->getAlignment()->applyFromArray($alignCenter);
-
-                    $sheet->setCellValue('C1', $bom->name);
-                    $sheet->getStyle('C1')->getFont()->applyFromArray(array_merge($boldFont, ['size' => 12]));
-                    $sheet->mergeCells('C1:E1');
-                    $sheet->setCellValue('C2', $bom->article_number);
-
-                    $sheet->getStyle('A2')->getFont()->setBold(true);
-                    $sheet->getStyle('B2')->getFont()->setBold(true);
-                    $sheet->getStyle('C2')->getFont()->setBold(true);
-                    // Date Right Side
-                    $formattedDate = Carbon::parse($bom->date)->isoFormat('dddd, MMMM D, YYYY');
-                    $sheet->setCellValue('G1', $formattedDate);
-                    $sheet->getStyle('G1')->getFont()->applyFromArray(['name' => $fontFamily, 'size' => 9, 'bold' => true]);
-                    $sheet->getStyle('G1')->getAlignment()->applyFromArray($alignRight);
-                    $sheet->mergeCells('G1:H1');
-
-                    // --- ROW 2: DIMENSION ---
-                    $sheet->getRowDimension(2)->setRowHeight(22);
-                    $sheet->setCellValue('A2', 'DIMENSION')->getStyle('A2')->getFont()->applyFromArray($boldFont);
-                    $sheet->setCellValue('B2', ':')->getStyle('B2')->getAlignment()->applyFromArray($alignCenter);
-                    $sheet->getStyle('B2')->getFont()->applyFromArray($boldFont);
-
-                    foreach (['C' => $bom->panjang, 'D' => $bom->lebar, 'E' => $bom->tinggi] as $col => $val) {
-                        $sheet->setCellValue($col.'2', $val);
-                        $sheet->getStyle($col.'2')->getAlignment()->applyFromArray($alignCenter);
-                        $sheet->getStyle($col.'2')->getFont()->applyFromArray($boldFont);
-                        $sheet->getStyle($col.'2')->applyFromArray($borderCellBox);
-                    }
-                    $sheet->setCellValue('F2', 'cm')->getStyle('F2')->getFont()->applyFromArray($regularFont);
-                    $sheet->getStyle('F2')->getAlignment()->applyFromArray($alignLeft);
-
-                    // --- ROW 3: CARTON SIZE ---
-                    $sheet->getRowDimension(3)->setRowHeight(22);
-                    $sheet->setCellValue('A3', 'CARTON SIZE')->getStyle('A3')->getFont()->applyFromArray($boldFont);
-                    $sheet->setCellValue('B3', ':')->getStyle('B3')->getAlignment()->applyFromArray($alignCenter);
-                    $sheet->getStyle('B3')->getFont()->applyFromArray($boldFont);
-
-                    foreach (['C' => $bom->carton_panjang, 'D' => $bom->carton_lebar, 'E' => $bom->carton_tinggi] as $col => $val) {
-                        $sheet->setCellValue($col.'3', $val);
-                        $sheet->getStyle($col.'3')->getAlignment()->applyFromArray($alignCenter);
-                        $sheet->getStyle($col.'3')->getFont()->applyFromArray($boldFont);
-                        $sheet->getStyle($col.'3')->applyFromArray($borderCellBox);
-                    }
-                    $sheet->setCellValue('F3', 'cm')->getStyle('F3')->getFont()->applyFromArray($regularFont);
-                    $sheet->getStyle('F3')->getAlignment()->applyFromArray($alignLeft);
-
-                    // --- ROW 4: LOADABILITY ---
-                    $sheet->getRowDimension(4)->setRowHeight(22);
-                    $sheet->setCellValue('A4', 'LOADABILITY')->getStyle('A4')->getFont()->applyFromArray($boldFont);
-                    $sheet->setCellValue('B4', ':')->getStyle('B4')->getAlignment()->applyFromArray($alignCenter);
-                    $sheet->getStyle('B4')->getFont()->applyFromArray($boldFont);
-
-                    $sheet->setCellValue('C4', $bom->loadability_pcs);
-                    $sheet->getStyle('C4')->getAlignment()->applyFromArray($alignCenter);
-                    $sheet->getStyle('C4')->getFont()->applyFromArray($boldFont);
-                    $sheet->getStyle('C4')->applyFromArray($borderCellBox);
-
-                    $sheet->setCellValue('D4', 'pcs')->getStyle('D4')->getFont()->applyFromArray($regularFont);
-                    $sheet->getStyle('D4')->getAlignment()->applyFromArray($alignLeft);
-
-                    $sheet->setCellValue('E4', $bom->loadability_cbm);
-                    $sheet->getStyle('E4')->getAlignment()->applyFromArray($alignCenter);
-                    $sheet->getStyle('E4')->getFont()->applyFromArray($boldFont);
-                    $sheet->getStyle('E4')->applyFromArray($borderCellBox);
-                    $sheet->getStyle('E4')->getNumberFormat()->setFormatCode('0.000');
-
-                    $sheet->setCellValue('F4', 'cbm')->getStyle('F4')->getFont()->applyFromArray($regularFont);
-                    $sheet->getStyle('F4')->getAlignment()->applyFromArray($alignLeft);
-    // Spacing Row 5
-    $sheet->getRowDimension(5)->setRowHeight(15);
-
-    // ============================
-    // INSERT PRODUCT IMAGE
-    // ============================
-    if (!empty($bom->image)) {
-
-        $imagePath = storage_path('app/public/' . $bom->image);
-
-        if (file_exists($imagePath)) {
-
-            $drawing = new Drawing();
-
-            $drawing->setName('Product Image');
-            $drawing->setDescription('Product Image');
-
-            $drawing->setPath($imagePath);
-
-            // Posisi gambar
-            $drawing->setCoordinates('G2');
-
-            // Ukuran
-            $drawing->setHeight(120);
-
-            $drawing->setResizeProportional(true);
-
-            $drawing->setWorksheet($sheet);
-        }
+        $this->bom = json_decode(json_encode($bom));
     }
 
-    // --- ROW 6: MASTER HEADER ---
-    $sheet->getRowDimension(6)->setRowHeight(28);
-    $sheet->mergeCells('A6:F6');
-                    // Spacing Row 5
-                    $sheet->getRowDimension(5)->setRowHeight(15);
-
-                    // --- ROW 6: MASTER HEADER ---
-                    $sheet->getRowDimension(6)->setRowHeight(28);
-                    $sheet->mergeCells('A6:F6');
-                    $sheet->setCellValue('A6', 'LABOUR & MATERIAL');
-                    $sheet->getStyle('A6')->getFont()->applyFromArray(['name' => $fontFamily, 'size' => 11, 'bold' => true, 'color' => ['argb' => 'FFFFFFFF']]);
-                    $sheet->getStyle('A6')->getAlignment()->applyFromArray($alignCenter);
-                    $sheet->getStyle('A6:F6')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF374151');
-
-                    $currentRow = 7;
-                    $groupRowsInfo = [];
-                    $laborRows = [];
-                    // --- GROUPS LOOP ---
-                    foreach ($bom->groups as $group) {
-                        $group = is_array($group) ? (object) $group : $group;
-
-                        $sheet->getRowDimension($currentRow)->setRowHeight(24);
-                        $sheet->mergeCells("A{$currentRow}:E{$currentRow}");
-                        $sheet->setCellValue("A{$currentRow}", 'UPAH ' . strtoupper($group->name));
-                        $sheet->getStyle("A{$currentRow}")->getFont()->applyFromArray($boldFont);
-                        $sheet->getStyle("A{$currentRow}")->getAlignment()->applyFromArray($alignLeft);
-
-                    // Group Background Gray
-    $sheet->getStyle("A{$currentRow}:F{$currentRow}")
-        ->getFill()
-        ->setFillType(Fill::FILL_SOLID)
-        ->getStartColor()
-        ->setARGB('FFE5E7EB');
-
-    // Header hanya nama group
-    $sheet->mergeCells("A{$currentRow}:F{$currentRow}");
-
-    $sheet->setCellValue(
-        "A{$currentRow}",
-        strtoupper($group->name)
-    );
-
-    $sheet->getStyle("A{$currentRow}")
-        ->getFont()
-        ->applyFromArray($boldFont);
-
-    $sheet->getStyle("A{$currentRow}")
-        ->getAlignment()
-        ->applyFromArray($alignLeft);
-
-    $groupTitleRowIndex = $currentRow;
-    $currentRow++;
-
-    // =====================================
-    // SUB HARGA UTAMA (bom_groups)
-    // =====================================
-    if (!empty($group->sub_prices)) {
-
-        $mainSub = is_array($group->sub_prices[0]) ? (object)$group->sub_prices[0] : $group->sub_prices[0];
-
-        $sheet->getRowDimension($currentRow)->setRowHeight(20);
-        $sheet->mergeCells("A{$currentRow}:E{$currentRow}");
-        $sheet->setCellValue("A{$currentRow}", $mainSub->name);
-        $sheet->getStyle("A{$currentRow}")->getFont()->applyFromArray($regularFont);
-        $sheet->getStyle("A{$currentRow}")->getAlignment()->applyFromArray($alignLeft);
-
-        $sheet->setCellValue("F{$currentRow}", $mainSub->price);
-        // warna
-        // Background
-            $sheet->getStyle("A{$currentRow}:F{$currentRow}")
-                ->getFill()
-                ->setFillType(Fill::FILL_SOLID)
-                ->getStartColor()
-                ->setARGB('FFE8F5E9'); // hijau muda
-
-            // Bold
-            $sheet->getStyle("A{$currentRow}:F{$currentRow}")
-                ->getFont()
-                ->setBold(true);
-        $laborRows[] = $currentRow;
-
-        $sheet->getStyle("F{$currentRow}")->getAlignment()->applyFromArray($alignRight);
-        $sheet->getStyle("F{$currentRow}")->getNumberFormat()->setFormatCode($numFormatCurrency);
-
-        $currentRow++;
+    public function startCell(): string
+    {
+        return 'A1';
     }
 
-    foreach (array_slice($group->sub_prices ?? [],1) as $sub){
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function (AfterSheet $event) {
+                $sheet = $event->sheet->getDelegate();
+                $bom = $this->bom;
 
-        $sub = is_array($sub) ? (object)$sub : $sub;
+                // --- Page Setup ---
+                $sheet->getPageSetup()->setOrientation(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::ORIENTATION_PORTRAIT);
+                $sheet->getPageSetup()->setPaperSize(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::PAPERSIZE_A4);
+                $sheet->getPageSetup()->setFitToPage(true);
+                $sheet->getPageSetup()->setFitToWidth(1);
+                $sheet->getPageSetup()->setFitToHeight(0);
+                $sheet->setShowGridlines(true);
 
-        $sheet->getRowDimension($currentRow)->setRowHeight(20);
-        $sheet->mergeCells("A{$currentRow}:E{$currentRow}");
-        $sheet->setCellValue("A{$currentRow}", $sub->name);
-        $sheet->getStyle("A{$currentRow}")->getFont()->applyFromArray($regularFont);
-        $sheet->getStyle("A{$currentRow}")->getAlignment()->applyFromArray($alignLeft);
-
-        $sheet->setCellValue("F{$currentRow}", $sub->price);
-        // warna
-        // Background
-$sheet->getStyle("A{$currentRow}:F{$currentRow}")
-    ->getFill()
-    ->setFillType(Fill::FILL_SOLID)
-    ->getStartColor()
-    ->setARGB('FFE8F5E9'); // hijau muda
-
-// Bold
-$sheet->getStyle("A{$currentRow}:F{$currentRow}")
-    ->getFont()
-    ->setBold(true);
-        $laborRows[] = $currentRow;
-        $sheet->getStyle("F{$currentRow}")->getAlignment()->applyFromArray($alignRight);
-        $sheet->getStyle("F{$currentRow}")->getNumberFormat()->setFormatCode($numFormatCurrency);
-
-        $currentRow++;
-    }
-
-    $itemStartRowIndex = $currentRow;
-
-    if (count($group->items) > 0) {
-
-        foreach ($group->items as $item) {
-
-            $item = is_array($item) ? (object) $item : $item;
-
-            $sheet->getRowDimension($currentRow)->setRowHeight(20);
-
-            // =========================
-            // Nama Material
-            // =========================
-            $sheet->setCellValue("A{$currentRow}", $item->name);
-            $sheet->getStyle("A{$currentRow}")
-                ->getFont()
-                ->applyFromArray($regularFont);
-
-            $sheet->getStyle("A{$currentRow}")
-                ->getAlignment()
-                ->applyFromArray($alignLeft);
-
-            // =========================
-            // Qty
-            // =========================
-            $sheet->setCellValue("C{$currentRow}", (float) $item->qty);
-
-            $sheet->getStyle("C{$currentRow}")
-                ->getFont()
-                ->applyFromArray($regularFont);
-
-            $sheet->getStyle("C{$currentRow}")
-                ->getAlignment()
-                ->applyFromArray($alignCenter);
-
-            $sheet->getStyle("C{$currentRow}")
-                ->getNumberFormat()
-                ->setFormatCode($numFormatQty);
-
-            // =========================
-            // Unit
-            // =========================
-            $sheet->setCellValue("D{$currentRow}", $item->unit);
-
-            $sheet->getStyle("D{$currentRow}")
-                ->getFont()
-                ->applyFromArray($regularFont);
-
-            $sheet->getStyle("D{$currentRow}")
-                ->getAlignment()
-                ->applyFromArray($alignCenter);
-
-            // =========================
-            // PRICE
-            // =========================
-            $price = $item->price;
-
-            if (is_string($price)) {
-
-                $price = trim($price);
-
-                // jika ada koma desimal (5,13)
-                if (strpos($price, ',') !== false && strpos($price, '.') === false) {
-
-                    $price = str_replace(',', '.', $price);
-
+                // --- Column Widths ---
+                $widths = ['A' => 28, 'B' => 4, 'C' => 12, 'D' => 12, 'E' => 15, 'F' => 18, 'G' => 8, 'H' => 12];
+                foreach ($widths as $col => $width) {
+                    $sheet->getColumnDimension($col)->setWidth($width);
                 }
 
-                $price = (float) $price;
+                // --- Styles Definition ---
+                $fontFamily = 'Arial';
+                $boldFont = ['name' => $fontFamily, 'size' => 10, 'bold' => true];
+                $regularFont = ['name' => $fontFamily, 'size' => 10];
+                $italicFont = ['name' => $fontFamily, 'size' => 10, 'italic' => true];
+                $monoFont = ['name' => $fontFamily, 'size' => 9];
 
-            }
+                $borderThin = [
+                    'borders' => [
+                        'allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => 'FFD0D0D0']]
+                    ]
+                ];
 
-            $sheet->setCellValue("E{$currentRow}", $price);
+                $borderCellBox = [
+                    'borders' => [
+                        'outline' => ['borderStyle' => Border::BORDER_MEDIUM, 'color' => ['argb' => 'FF000000']]
+                    ]
+                ];
 
-            $sheet->getStyle("E{$currentRow}")
-                ->getFont()
-                ->applyFromArray($regularFont);
+                $alignCenter = ['vertical' => Alignment::VERTICAL_CENTER, 'horizontal' => Alignment::HORIZONTAL_CENTER];
+                $alignLeft = ['vertical' => Alignment::VERTICAL_CENTER, 'horizontal' => Alignment::HORIZONTAL_LEFT];
+                $alignRight = ['vertical' => Alignment::VERTICAL_CENTER, 'horizontal' => Alignment::HORIZONTAL_RIGHT];
 
-            $sheet->getStyle("E{$currentRow}")
-                ->getAlignment()
-                ->applyFromArray($alignRight);
+                $numFormatCurrency = '#,##0.00';
+                $numFormatQty = '#,##0.00';
 
-            $sheet->getStyle("E{$currentRow}")
-                ->getNumberFormat()
-                ->setFormatCode($numFormatCurrency);
+                // --- ROW 1: HEADER ITEM ---
+                $sheet->getRowDimension(1)->setRowHeight(25);
+                $sheet->setCellValue('A1', 'ITEM')->getStyle('A1')->getFont()->applyFromArray($boldFont);
+                $sheet->setCellValue('B1', ':')->getStyle('B1')->getFont()->applyFromArray($boldFont);
+                $sheet->getStyle('B1')->getAlignment()->applyFromArray($alignCenter);
 
-            // =========================
-            // TOTAL
-            // =========================
-            $sheet->setCellValue("F{$currentRow}", "=C{$currentRow}*E{$currentRow}");
+                $sheet->setCellValue('C1', $bom->name);
+                $sheet->getStyle('C1')->getFont()->applyFromArray(array_merge($boldFont, ['size' => 12]));
+                $sheet->mergeCells('C1:E1');
+                $sheet->setCellValue('C2', $bom->article_number);
 
-            $sheet->getStyle("F{$currentRow}")
-                ->getFont()
-                ->applyFromArray($regularFont);
+                $sheet->getStyle('A2')->getFont()->setBold(true);
+                $sheet->getStyle('B2')->getFont()->setBold(true);
+                $sheet->getStyle('C2')->getFont()->setBold(true);
+                // Date Right Side
+                $formattedDate = Carbon::parse($bom->date)->isoFormat('dddd, MMMM D, YYYY');
+                $sheet->setCellValue('G1', $formattedDate);
+                $sheet->getStyle('G1')->getFont()->applyFromArray(['name' => $fontFamily, 'size' => 9, 'bold' => true]);
+                $sheet->getStyle('G1')->getAlignment()->applyFromArray($alignRight);
+                $sheet->mergeCells('G1:H1');
 
-            $sheet->getStyle("F{$currentRow}")
-                ->getAlignment()
-                ->applyFromArray($alignRight);
+                // --- ROW 2: DIMENSION ---
+                $sheet->getRowDimension(2)->setRowHeight(22);
+                $sheet->setCellValue('A2', 'DIMENSION')->getStyle('A2')->getFont()->applyFromArray($boldFont);
+                $sheet->setCellValue('B2', ':')->getStyle('B2')->getAlignment()->applyFromArray($alignCenter);
+                $sheet->getStyle('B2')->getFont()->applyFromArray($boldFont);
 
-            $sheet->getStyle("F{$currentRow}")
-                ->getNumberFormat()
-                ->setFormatCode($numFormatCurrency);
+                foreach (['C' => $bom->panjang, 'D' => $bom->lebar, 'E' => $bom->tinggi] as $col => $val) {
+                    $sheet->setCellValue($col . '2', $val);
+                    $sheet->getStyle($col . '2')->getAlignment()->applyFromArray($alignCenter);
+                    $sheet->getStyle($col . '2')->getFont()->applyFromArray($boldFont);
+                    $sheet->getStyle($col . '2')->applyFromArray($borderCellBox);
+                }
+                $sheet->setCellValue('F2', 'cm')->getStyle('F2')->getFont()->applyFromArray($regularFont);
+                $sheet->getStyle('F2')->getAlignment()->applyFromArray($alignLeft);
 
-            // =========================
-            // Category
-            // =========================
-            $catCode = ($item->material_type ?? '') === 'raw' ? 'R' : 'S';
+                // --- ROW 3: CARTON SIZE ---
+                $sheet->getRowDimension(3)->setRowHeight(22);
+                $sheet->setCellValue('A3', 'CARTON SIZE')->getStyle('A3')->getFont()->applyFromArray($boldFont);
+                $sheet->setCellValue('B3', ':')->getStyle('B3')->getAlignment()->applyFromArray($alignCenter);
+                $sheet->getStyle('B3')->getFont()->applyFromArray($boldFont);
 
-            $sheet->getStyle("G{$currentRow}")
-                ->getAlignment()
-                ->applyFromArray($alignCenter);
+                foreach (['C' => $bom->carton_panjang, 'D' => $bom->carton_lebar, 'E' => $bom->carton_tinggi] as $col => $val) {
+                    $sheet->setCellValue($col . '3', $val);
+                    $sheet->getStyle($col . '3')->getAlignment()->applyFromArray($alignCenter);
+                    $sheet->getStyle($col . '3')->getFont()->applyFromArray($boldFont);
+                    $sheet->getStyle($col . '3')->applyFromArray($borderCellBox);
+                }
+                $sheet->setCellValue('F3', 'cm')->getStyle('F3')->getFont()->applyFromArray($regularFont);
+                $sheet->getStyle('F3')->getAlignment()->applyFromArray($alignLeft);
 
-            // =========================
-            // Notes
-            // =========================
-            if (!empty($item->notes)) {
+                // --- ROW 4: LOADABILITY ---
+                $sheet->getRowDimension(4)->setRowHeight(22);
+                $sheet->setCellValue('A4', 'LOADABILITY')->getStyle('A4')->getFont()->applyFromArray($boldFont);
+                $sheet->setCellValue('B4', ':')->getStyle('B4')->getAlignment()->applyFromArray($alignCenter);
+                $sheet->getStyle('B4')->getFont()->applyFromArray($boldFont);
 
-                $sheet->setCellValue("H{$currentRow}", $item->notes);
+                $sheet->setCellValue('C4', $bom->loadability_pcs);
+                $sheet->getStyle('C4')->getAlignment()->applyFromArray($alignCenter);
+                $sheet->getStyle('C4')->getFont()->applyFromArray($boldFont);
+                $sheet->getStyle('C4')->applyFromArray($borderCellBox);
 
-                $sheet->getStyle("H{$currentRow}")
-                    ->getFont()
-                    ->applyFromArray($italicFont);
+                $sheet->setCellValue('D4', 'pcs')->getStyle('D4')->getFont()->applyFromArray($regularFont);
+                $sheet->getStyle('D4')->getAlignment()->applyFromArray($alignLeft);
 
-                $sheet->getStyle("H{$currentRow}")
-                    ->getAlignment()
-                    ->applyFromArray($alignLeft);
+                $sheet->setCellValue('E4', $bom->loadability_cbm);
+                $sheet->getStyle('E4')->getAlignment()->applyFromArray($alignCenter);
+                $sheet->getStyle('E4')->getFont()->applyFromArray($boldFont);
+                $sheet->getStyle('E4')->applyFromArray($borderCellBox);
+                $sheet->getStyle('E4')->getNumberFormat()->setFormatCode('0.000');
 
-            }
+                $sheet->setCellValue('F4', 'cbm')->getStyle('F4')->getFont()->applyFromArray($regularFont);
+                $sheet->getStyle('F4')->getAlignment()->applyFromArray($alignLeft);
+                // Spacing Row 5
+                $sheet->getRowDimension(5)->setRowHeight(15);
 
-            // =========================
-            // Border
-            // =========================
-            foreach (['A','C','D','E','F','G'] as $col) {
+                // ============================
+                // INSERT PRODUCT IMAGE
+                // ============================
+                if (!empty($bom->image)) {
 
-                $sheet->getStyle("{$col}{$currentRow}")
-                    ->applyFromArray($borderThin);
+                    $imagePath = storage_path('app/public/' . $bom->image);
 
-            }
+                    if (file_exists($imagePath)) {
 
-            $currentRow++;
-        }
+                        $drawing = new Drawing();
 
-                            // Spacing Row
-                            $sheet->getRowDimension($currentRow)->setRowHeight(12);
-                            $currentRow++;
+                        $drawing->setName('Product Image');
+                        $drawing->setDescription('Product Image');
 
-                            // Sub Total Material Row
-                            $sheet->getRowDimension($currentRow)->setRowHeight(22);
-                            $sheet->mergeCells("A{$currentRow}:E{$currentRow}");
-                            $sheet->setCellValue("A{$currentRow}", '    Sub Total Material');
-                            $sheet->getStyle("A{$currentRow}")->getFont()->applyFromArray($boldFont);
-                            $sheet->getStyle("A{$currentRow}")->getAlignment()->applyFromArray($alignLeft);
+                        $drawing->setPath($imagePath);
 
-                            $sheet->setCellValue("F{$currentRow}", "=SUM(F{$itemStartRowIndex}:F" . ($currentRow - 2) . ")");
-                            $sheet->getStyle("F{$currentRow}")->getFont()->applyFromArray($boldFont);
-                            $sheet->getStyle("F{$currentRow}")->getAlignment()->applyFromArray($alignRight);
-                            $sheet->getStyle("F{$currentRow}")->getNumberFormat()->setFormatCode($numFormatCurrency);
+                        // Posisi gambar
+                        $drawing->setCoordinates('G2');
 
-                            // Fill Soft Green
-                            $sheet->getStyle("A{$currentRow}:F{$currentRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFECFDF5');
+                        // Ukuran
+                        $drawing->setHeight(120);
 
-                            // Border Green Mint
-                            $borderSubTotal = [
-                                'borders' => [
-                                    'top' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => 'FF10B981']],
-                                    'bottom' => ['borderStyle' => Border::BORDER_DOUBLE, 'color' => ['argb' => 'FF10B981']]
-                                ]
-                            ];
-                            $sheet->getStyle("A{$currentRow}")->applyFromArray($borderSubTotal);
-                            $sheet->getStyle("F{$currentRow}")->applyFromArray($borderSubTotal);
+                        $drawing->setResizeProportional(true);
 
-                            $groupRowsInfo[] = [
-                                'groupName' => $group->name,
-                                'startRow' => $itemStartRowIndex,
-                                'endRow' => $currentRow - 2,
-                                'laborRow' => $groupTitleRowIndex,
-                            ];
+                        $drawing->setWorksheet($sheet);
+                    }
+                }
 
-                            $currentRow++;
-                        } else {
-                            $groupRowsInfo[] = [
-                                'groupName' => $group->name,
-                                'startRow' => 0,
-                                'endRow' => 0,
-                                'laborRow' => $groupTitleRowIndex,
-                            ];
-                        }
+                // --- ROW 6: MASTER HEADER ---
+                $sheet->getRowDimension(6)->setRowHeight(28);
+                $sheet->mergeCells('A6:F6');
+                // Spacing Row 5
+                $sheet->getRowDimension(5)->setRowHeight(15);
 
-                        $sheet->getRowDimension($currentRow)->setRowHeight(12);
+                // --- ROW 6: MASTER HEADER ---
+                $sheet->getRowDimension(6)->setRowHeight(28);
+                $sheet->mergeCells('A6:F6');
+                $sheet->setCellValue('A6', 'LABOUR & MATERIAL');
+                $sheet->getStyle('A6')->getFont()->applyFromArray(['name' => $fontFamily, 'size' => 11, 'bold' => true, 'color' => ['argb' => 'FFFFFFFF']]);
+                $sheet->getStyle('A6')->getAlignment()->applyFromArray($alignCenter);
+                $sheet->getStyle('A6:F6')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF374151');
+
+                $currentRow = 7;
+                $groupRowsInfo = [];
+                $laborRows = [];
+                // --- GROUPS LOOP ---
+                foreach ($bom->groups as $group) {
+                    $group = is_array($group) ? (object) $group : $group;
+
+                    $sheet->getRowDimension($currentRow)->setRowHeight(24);
+                    $sheet->mergeCells("A{$currentRow}:E{$currentRow}");
+                    $sheet->setCellValue("A{$currentRow}", 'UPAH ' . strtoupper($group->name));
+                    $sheet->getStyle("A{$currentRow}")->getFont()->applyFromArray($boldFont);
+                    $sheet->getStyle("A{$currentRow}")->getAlignment()->applyFromArray($alignLeft);
+
+                    // Group Background Gray
+                    $sheet->getStyle("A{$currentRow}:F{$currentRow}")
+                        ->getFill()
+                        ->setFillType(Fill::FILL_SOLID)
+                        ->getStartColor()
+                        ->setARGB('FFE5E7EB');
+
+                    // Header hanya nama group
+                    $sheet->mergeCells("A{$currentRow}:F{$currentRow}");
+
+                    $sheet->setCellValue(
+                        "A{$currentRow}",
+                        strtoupper($group->name)
+                    );
+
+                    $sheet->getStyle("A{$currentRow}")
+                        ->getFont()
+                        ->applyFromArray($boldFont);
+
+                    $sheet->getStyle("A{$currentRow}")
+                        ->getAlignment()
+                        ->applyFromArray($alignLeft);
+
+                    $groupTitleRowIndex = $currentRow;
+                    $currentRow++;
+
+                    // =====================================
+                    // SUB HARGA UTAMA (bom_groups)
+                    // =====================================
+                    if (!empty($group->sub_prices)) {
+
+                        $mainSub = is_array($group->sub_prices[0]) ? (object) $group->sub_prices[0] : $group->sub_prices[0];
+
+                        $sheet->getRowDimension($currentRow)->setRowHeight(20);
+                        $sheet->mergeCells("A{$currentRow}:E{$currentRow}");
+                        $sheet->setCellValue("A{$currentRow}", $mainSub->name);
+                        $sheet->getStyle("A{$currentRow}")->getFont()->applyFromArray($regularFont);
+                        $sheet->getStyle("A{$currentRow}")->getAlignment()->applyFromArray($alignLeft);
+
+                        $sheet->setCellValue("F{$currentRow}", $mainSub->price);
+                        // warna
+                        // Background
+                        $sheet->getStyle("A{$currentRow}:F{$currentRow}")
+                            ->getFill()
+                            ->setFillType(Fill::FILL_SOLID)
+                            ->getStartColor()
+                            ->setARGB('FFE8F5E9'); // hijau muda
+    
+                        // Bold
+                        $sheet->getStyle("A{$currentRow}:F{$currentRow}")
+                            ->getFont()
+                            ->setBold(true);
+                        $laborRows[] = $currentRow;
+
+                        $sheet->getStyle("F{$currentRow}")->getAlignment()->applyFromArray($alignRight);
+                        $sheet->getStyle("F{$currentRow}")->getNumberFormat()->setFormatCode($numFormatCurrency);
+
                         $currentRow++;
                     }
 
-                    // --- GRAND TOTAL CALCULATIONS SECTIONS ---
-                    $borderBottomBlack = ['borders' => ['bottom' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => 'FF000000']]]];
+                    foreach (array_slice($group->sub_prices ?? [], 1) as $sub) {
 
-                    // Row: LABOUR
-                    $labourRowIndex = $currentRow;
-                    $sheet->getRowDimension($currentRow)->setRowHeight(24);
-                    $sheet->mergeCells("A{$currentRow}:E{$currentRow}");
-                    $sheet->setCellValue("A{$currentRow}", 'LABOUR')->getStyle("A{$currentRow}")->getFont()->applyFromArray($boldFont);
+                        $sub = is_array($sub) ? (object) $sub : $sub;
 
-                    $laborFormulaParts = collect($laborRows)
-                        ->map(fn($row) => "F{$row}")
-                        ->implode('+');
-                    $sheet->setCellValue("F{$currentRow}", "=" . ($laborFormulaParts ?: '0'));
-                    $sheet->getStyle("F{$currentRow}")->getFont()->applyFromArray($boldFont);
-                    $sheet->getStyle("F{$currentRow}")->getAlignment()->applyFromArray($alignRight);
-                    $sheet->getStyle("F{$currentRow}")->getNumberFormat()->setFormatCode($numFormatCurrency);
-                    $sheet->getStyle("A{$currentRow}")->applyFromArray($borderBottomBlack);
-                    $sheet->getStyle("F{$currentRow}")->applyFromArray($borderBottomBlack);
-                    $currentRow++;
+                        $sheet->getRowDimension($currentRow)->setRowHeight(20);
+                        $sheet->mergeCells("A{$currentRow}:E{$currentRow}");
+                        $sheet->setCellValue("A{$currentRow}", $sub->name);
+                        $sheet->getStyle("A{$currentRow}")->getFont()->applyFromArray($regularFont);
+                        $sheet->getStyle("A{$currentRow}")->getAlignment()->applyFromArray($alignLeft);
 
-                    // Row: MATERIAL
-                    $materialRowIndex = $currentRow;
-                    $sheet->getRowDimension($currentRow)->setRowHeight(24);
-                    $sheet->mergeCells("A{$currentRow}:E{$currentRow}");
-                    $sheet->setCellValue("A{$currentRow}", 'MATERIAL')->getStyle("A{$currentRow}")->getFont()->applyFromArray($boldFont);
+                        $sheet->setCellValue("F{$currentRow}", $sub->price);
+                        // warna
+                        // Background
+                        $sheet->getStyle("A{$currentRow}:F{$currentRow}")
+                            ->getFill()
+                            ->setFillType(Fill::FILL_SOLID)
+                            ->getStartColor()
+                            ->setARGB('FFE8F5E9'); // hijau muda
+    
+                        // Bold
+                        $sheet->getStyle("A{$currentRow}:F{$currentRow}")
+                            ->getFont()
+                            ->setBold(true);
+                        $laborRows[] = $currentRow;
+                        $sheet->getStyle("F{$currentRow}")->getAlignment()->applyFromArray($alignRight);
+                        $sheet->getStyle("F{$currentRow}")->getNumberFormat()->setFormatCode($numFormatCurrency);
 
-                    $materialSubtotals = collect($groupRowsInfo)->filter(fn($info) => $info['startRow'] > 0)->map(fn($info) => "F".($info['endRow'] + 2))->implode('+');
-                    $sheet->setCellValue("F{$currentRow}", "=" . ($materialSubtotals ?: '0'));
-                    $sheet->getStyle("F{$currentRow}")->getFont()->applyFromArray($boldFont);
-                    $sheet->getStyle("F{$currentRow}")->getAlignment()->applyFromArray($alignRight);
-                    $sheet->getStyle("F{$currentRow}")->getNumberFormat()->setFormatCode($numFormatCurrency);
-                    $sheet->getStyle("A{$currentRow}")->applyFromArray($borderBottomBlack);
-                    $sheet->getStyle("F{$currentRow}")->applyFromArray($borderBottomBlack);
-                    $currentRow++;
+                        $currentRow++;
+                    }
 
-                    // // Indented Row: RAW MATERIAL
-                    // $sheet->getRowDimension($currentRow)->setRowHeight(22);
-                    // $sheet->mergeCells("A{$currentRow}:E{$currentRow}");
-                    // $sheet->setCellValue("A{$currentRow}", '    RAW MATERIAL')->getStyle("A{$currentRow}")->getFont()->applyFromArray($italicFont);
+                    $itemStartRowIndex = $currentRow;
 
-                    // $rawGroupSubtotals = collect($groupRowsInfo)
-                    //     ->filter(fn($info) => $info['startRow'] > 0 && (str_contains(strtoupper($info['groupName']), 'DECOR') || str_contains(strtoupper($info['groupName']), 'FINISHING') || str_contains(strtoupper($info['groupName']), 'KAYU')))
-                    //     ->map(fn($info) => "F".($info['endRow'] + 2))->implode('+');
-                    // $sheet->setCellValue("F{$currentRow}", "=" . ($rawGroupSubtotals ?: '0'));
-                    // $sheet->getStyle("F{$currentRow}")->getFont()->applyFromArray($italicFont);
-                    // $sheet->getStyle("F{$currentRow}")->getAlignment()->applyFromArray($alignRight);
-                    // $sheet->getStyle("F{$currentRow}")->getNumberFormat()->setFormatCode($numFormatCurrency);
-                    // $currentRow++;
+                    if (count($group->items) > 0) {
 
-                    // // Indented Row: SUPPORT MATERIAL
-                    // $sheet->getRowDimension($currentRow)->setRowHeight(22);
-                    // $sheet->mergeCells("A{$currentRow}:E{$currentRow}");
-                    // $sheet->setCellValue("A{$currentRow}", '    SUPPORT MATERIAL')->getStyle("A{$currentRow}")->getFont()->applyFromArray($italicFont);
+                        foreach ($group->items as $item) {
 
-                    $supportGroupSubtotals = collect($groupRowsInfo)
-                        ->filter(fn($info) => $info['startRow'] > 0 && str_contains(strtoupper($info['groupName']), 'PACKING'))
-                        ->map(fn($info) => "F".($info['endRow'] + 2))->implode('+');
-                    // $sheet->setCellValue("F{$currentRow}", "=" . ($supportGroupSubtotals ?: '0'));
-                    $sheet->getStyle("F{$currentRow}")->getFont()->applyFromArray($italicFont);
-                    $sheet->getStyle("F{$currentRow}")->getAlignment()->applyFromArray($alignRight);
-                    $sheet->getStyle("F{$currentRow}")->getNumberFormat()->setFormatCode($numFormatCurrency);
-                    $currentRow++;
+                            $item = is_array($item) ? (object) $item : $item;
 
-                    // --- ROW: SUMMARY BAR ---
-                    $summaryRowIndex = $currentRow;
-                    $sheet->getRowDimension($currentRow)->setRowHeight(26);
-                    $sheet->mergeCells("A{$currentRow}:E{$currentRow}");
-                    $sheet->setCellValue("A{$currentRow}", 'SUMMARY');
-                    $sheet->getStyle("A{$currentRow}")->getFont()->applyFromArray(array_merge($boldFont, ['color' => ['argb' => 'FFFFFFFF']]));
+                            $sheet->getRowDimension($currentRow)->setRowHeight(20);
 
-                    $sheet->setCellValue("F{$currentRow}", "=F{$labourRowIndex}+F{$materialRowIndex}");
-                    $sheet->getStyle("F{$currentRow}")->getFont()->applyFromArray(array_merge($boldFont, ['color' => ['argb' => 'FFFFFFFF']]));
-                    $sheet->getStyle("F{$currentRow}")->getAlignment()->applyFromArray($alignRight);
-                    $sheet->getStyle("F{$currentRow}")->getNumberFormat()->setFormatCode($numFormatCurrency);
-                    $sheet->getStyle("A{$currentRow}:F{$currentRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF2E7D32');
-                    $currentRow++;
+                            // =========================
+                            // Nama Material
+                            // =========================
+                            $sheet->setCellValue("A{$currentRow}", $item->name);
+                            $sheet->getStyle("A{$currentRow}")
+                                ->getFont()
+                                ->applyFromArray($regularFont);
 
-                    // --- BOTTOM GREEN TABLE ---
-                    foreach (($bom->summaries ?? []) as $index => $sumItem) {
-                        $sumItem = is_array($sumItem) ? (object) $sumItem : $sumItem;
+                            $sheet->getStyle("A{$currentRow}")
+                                ->getAlignment()
+                                ->applyFromArray($alignLeft);
+
+                            // =========================
+                            // Qty
+                            // =========================
+                            $sheet->setCellValue("C{$currentRow}", (float) $item->qty);
+
+                            $sheet->getStyle("C{$currentRow}")
+                                ->getFont()
+                                ->applyFromArray($regularFont);
+
+                            $sheet->getStyle("C{$currentRow}")
+                                ->getAlignment()
+                                ->applyFromArray($alignCenter);
+
+                            $sheet->getStyle("C{$currentRow}")
+                                ->getNumberFormat()
+                                ->setFormatCode($numFormatQty);
+
+                            // =========================
+                            // Unit
+                            // =========================
+                            $sheet->setCellValue("D{$currentRow}", $item->unit);
+
+                            $sheet->getStyle("D{$currentRow}")
+                                ->getFont()
+                                ->applyFromArray($regularFont);
+
+                            $sheet->getStyle("D{$currentRow}")
+                                ->getAlignment()
+                                ->applyFromArray($alignCenter);
+
+                            // =========================
+                            // PRICE
+                            // =========================
+                            $price = $item->price;
+
+                            if (is_string($price)) {
+
+                                $price = trim($price);
+
+                                // jika ada koma desimal (5,13)
+                                if (strpos($price, ',') !== false && strpos($price, '.') === false) {
+
+                                    $price = str_replace(',', '.', $price);
+
+                                }
+
+                                $price = (float) $price;
+
+                            }
+
+                            $sheet->setCellValue("E{$currentRow}", $price);
+
+                            $sheet->getStyle("E{$currentRow}")
+                                ->getFont()
+                                ->applyFromArray($regularFont);
+
+                            $sheet->getStyle("E{$currentRow}")
+                                ->getAlignment()
+                                ->applyFromArray($alignRight);
+
+                            $sheet->getStyle("E{$currentRow}")
+                                ->getNumberFormat()
+                                ->setFormatCode($numFormatCurrency);
+
+                            // =========================
+                            // TOTAL
+                            // =========================
+                            $sheet->setCellValue("F{$currentRow}", "=C{$currentRow}*E{$currentRow}");
+
+                            $sheet->getStyle("F{$currentRow}")
+                                ->getFont()
+                                ->applyFromArray($regularFont);
+
+                            $sheet->getStyle("F{$currentRow}")
+                                ->getAlignment()
+                                ->applyFromArray($alignRight);
+
+                            $sheet->getStyle("F{$currentRow}")
+                                ->getNumberFormat()
+                                ->setFormatCode($numFormatCurrency);
+
+                            // =========================
+                            // Category
+                            // =========================
+                            $catCode = ($item->material_type ?? '') === 'raw' ? 'R' : 'S';
+
+                            $sheet->getStyle("G{$currentRow}")
+                                ->getAlignment()
+                                ->applyFromArray($alignCenter);
+
+                            // =========================
+                            // Notes
+                            // =========================
+                            if (!empty($item->notes)) {
+
+                                $sheet->setCellValue("H{$currentRow}", $item->notes);
+
+                                $sheet->getStyle("H{$currentRow}")
+                                    ->getFont()
+                                    ->applyFromArray($italicFont);
+
+                                $sheet->getStyle("H{$currentRow}")
+                                    ->getAlignment()
+                                    ->applyFromArray($alignLeft);
+
+                            }
+
+                            // =========================
+                            // Border
+                            // =========================
+                            foreach (['A', 'C', 'D', 'E', 'F', 'G'] as $col) {
+
+                                $sheet->getStyle("{$col}{$currentRow}")
+                                    ->applyFromArray($borderThin);
+
+                            }
+
+                            $currentRow++;
+                        }
+
+                        // Spacing Row
+                        $sheet->getRowDimension($currentRow)->setRowHeight(12);
+                        $currentRow++;
+
+                        // Sub Total Material Row
                         $sheet->getRowDimension($currentRow)->setRowHeight(22);
-                        $sheet->getStyle("A{$currentRow}:F{$currentRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFD9EAD3');
+                        $sheet->mergeCells("A{$currentRow}:E{$currentRow}");
+                        $sheet->setCellValue("A{$currentRow}", '    Sub Total Material');
+                        $sheet->getStyle("A{$currentRow}")->getFont()->applyFromArray($boldFont);
+                        $sheet->getStyle("A{$currentRow}")->getAlignment()->applyFromArray($alignLeft);
 
-                        $sheet->setCellValue("A{$currentRow}", $sumItem->name)->getStyle("A{$currentRow}")->getFont()->applyFromArray($boldFont);
-                        $sheet->setCellValue("C{$currentRow}", $sumItem->qty ?? 1)->getStyle("C{$currentRow}")->getFont()->applyFromArray($regularFont);
-                        $sheet->getStyle("C{$currentRow}")->getAlignment()->applyFromArray($alignCenter);
-                        $sheet->getStyle("C{$currentRow}")->getNumberFormat()->setFormatCode($numFormatQty);
-
-                        $sheet->setCellValue("E{$currentRow}", $sumItem->price ?? 0)->getStyle("E{$currentRow}")->getFont()->applyFromArray($boldFont);
-                        $sheet->getStyle("E{$currentRow}")->getAlignment()->applyFromArray($alignRight);
-                        $sheet->getStyle("E{$currentRow}")->getNumberFormat()->setFormatCode($numFormatCurrency);
-
-                        // Running Total Formula
-                        $prevRowRef = ($index === 0) ? "F{$summaryRowIndex}" : "F" . ($currentRow - 1);
-                        $sheet->setCellValue("F{$currentRow}", "={$prevRowRef}+(C{$currentRow}*E{$currentRow})");
+                        $sheet->setCellValue("F{$currentRow}", "=SUM(F{$itemStartRowIndex}:F" . ($currentRow - 2) . ")");
                         $sheet->getStyle("F{$currentRow}")->getFont()->applyFromArray($boldFont);
                         $sheet->getStyle("F{$currentRow}")->getAlignment()->applyFromArray($alignRight);
                         $sheet->getStyle("F{$currentRow}")->getNumberFormat()->setFormatCode($numFormatCurrency);
 
-                        $borderGreenBox = [
-                            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => 'FF93C47D']]]
+                        // Fill Soft Green
+                        $sheet->getStyle("A{$currentRow}:F{$currentRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFECFDF5');
+
+                        // Border Green Mint
+                        $borderSubTotal = [
+                            'borders' => [
+                                'top' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => 'FF10B981']],
+                                'bottom' => ['borderStyle' => Border::BORDER_DOUBLE, 'color' => ['argb' => 'FF10B981']]
+                            ]
                         ];
-                        foreach (['A', 'C', 'E', 'F'] as $col) {
-                            $sheet->getStyle("{$col}{$currentRow}")->applyFromArray($borderGreenBox);
-                        }
+                        $sheet->getStyle("A{$currentRow}")->applyFromArray($borderSubTotal);
+                        $sheet->getStyle("F{$currentRow}")->applyFromArray($borderSubTotal);
+
+                        $groupRowsInfo[] = [
+                            'groupName' => $group->name,
+                            'startRow' => $itemStartRowIndex,
+                            'endRow' => $currentRow - 2,
+                            'laborRow' => $groupTitleRowIndex,
+                        ];
+
                         $currentRow++;
+                    } else {
+                        $groupRowsInfo[] = [
+                            'groupName' => $group->name,
+                            'startRow' => 0,
+                            'endRow' => 0,
+                            'laborRow' => $groupTitleRowIndex,
+                        ];
                     }
 
-                    // --- FINAL ROW: TOTAL HPP ---
-                    $sheet->getRowDimension($currentRow)->setRowHeight(28);
-                    $sheet->mergeCells("A{$currentRow}:E{$currentRow}");
-                    $sheet->setCellValue("A{$currentRow}", 'TOTAL HPP');
-                    $sheet->getStyle("A{$currentRow}")->getFont()->applyFromArray(['name' => $fontFamily, 'size' => 11, 'bold' => true, 'color' => ['argb' => 'FFFFFFFF']]);
-                    $sheet->getStyle("A{$currentRow}")->getAlignment()->applyFromArray($alignCenter);
+                    $sheet->getRowDimension($currentRow)->setRowHeight(12);
+                    $currentRow++;
+                }
 
-                    $sheet->setCellValue("F{$currentRow}", "=F" . ($currentRow - 1));
-                    $sheet->getStyle("F{$currentRow}")->getFont()->applyFromArray(['name' => $fontFamily, 'size' => 11, 'bold' => true, 'color' => ['argb' => 'FFFFFFFF']]);
+                // --- GRAND TOTAL CALCULATIONS SECTIONS ---
+                $borderBottomBlack = ['borders' => ['bottom' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => 'FF000000']]]];
+
+                // Row: LABOUR
+                $labourRowIndex = $currentRow;
+                $sheet->getRowDimension($currentRow)->setRowHeight(24);
+                $sheet->mergeCells("A{$currentRow}:E{$currentRow}");
+                $sheet->setCellValue("A{$currentRow}", 'LABOUR')->getStyle("A{$currentRow}")->getFont()->applyFromArray($boldFont);
+
+                $laborFormulaParts = collect($laborRows)
+                    ->map(fn($row) => "F{$row}")
+                    ->implode('+');
+                $sheet->setCellValue("F{$currentRow}", "=" . ($laborFormulaParts ?: '0'));
+                $sheet->getStyle("F{$currentRow}")->getFont()->applyFromArray($boldFont);
+                $sheet->getStyle("F{$currentRow}")->getAlignment()->applyFromArray($alignRight);
+                $sheet->getStyle("F{$currentRow}")->getNumberFormat()->setFormatCode($numFormatCurrency);
+                $sheet->getStyle("A{$currentRow}")->applyFromArray($borderBottomBlack);
+                $sheet->getStyle("F{$currentRow}")->applyFromArray($borderBottomBlack);
+                $currentRow++;
+
+                // Row: MATERIAL
+                $materialRowIndex = $currentRow;
+                $sheet->getRowDimension($currentRow)->setRowHeight(24);
+                $sheet->mergeCells("A{$currentRow}:E{$currentRow}");
+                $sheet->setCellValue("A{$currentRow}", 'MATERIAL')->getStyle("A{$currentRow}")->getFont()->applyFromArray($boldFont);
+
+                $materialSubtotals = collect($groupRowsInfo)->filter(fn($info) => $info['startRow'] > 0)->map(fn($info) => "F" . ($info['endRow'] + 2))->implode('+');
+                $sheet->setCellValue("F{$currentRow}", "=" . ($materialSubtotals ?: '0'));
+                $sheet->getStyle("F{$currentRow}")->getFont()->applyFromArray($boldFont);
+                $sheet->getStyle("F{$currentRow}")->getAlignment()->applyFromArray($alignRight);
+                $sheet->getStyle("F{$currentRow}")->getNumberFormat()->setFormatCode($numFormatCurrency);
+                $sheet->getStyle("A{$currentRow}")->applyFromArray($borderBottomBlack);
+                $sheet->getStyle("F{$currentRow}")->applyFromArray($borderBottomBlack);
+                $currentRow++;
+
+                // // Indented Row: RAW MATERIAL
+                // $sheet->getRowDimension($currentRow)->setRowHeight(22);
+                // $sheet->mergeCells("A{$currentRow}:E{$currentRow}");
+                // $sheet->setCellValue("A{$currentRow}", '    RAW MATERIAL')->getStyle("A{$currentRow}")->getFont()->applyFromArray($italicFont);
+    
+                // $rawGroupSubtotals = collect($groupRowsInfo)
+                //     ->filter(fn($info) => $info['startRow'] > 0 && (str_contains(strtoupper($info['groupName']), 'DECOR') || str_contains(strtoupper($info['groupName']), 'FINISHING') || str_contains(strtoupper($info['groupName']), 'KAYU')))
+                //     ->map(fn($info) => "F".($info['endRow'] + 2))->implode('+');
+                // $sheet->setCellValue("F{$currentRow}", "=" . ($rawGroupSubtotals ?: '0'));
+                // $sheet->getStyle("F{$currentRow}")->getFont()->applyFromArray($italicFont);
+                // $sheet->getStyle("F{$currentRow}")->getAlignment()->applyFromArray($alignRight);
+                // $sheet->getStyle("F{$currentRow}")->getNumberFormat()->setFormatCode($numFormatCurrency);
+                // $currentRow++;
+    
+                // // Indented Row: SUPPORT MATERIAL
+                // $sheet->getRowDimension($currentRow)->setRowHeight(22);
+                // $sheet->mergeCells("A{$currentRow}:E{$currentRow}");
+                // $sheet->setCellValue("A{$currentRow}", '    SUPPORT MATERIAL')->getStyle("A{$currentRow}")->getFont()->applyFromArray($italicFont);
+    
+                $supportGroupSubtotals = collect($groupRowsInfo)
+                    ->filter(fn($info) => $info['startRow'] > 0 && str_contains(strtoupper($info['groupName']), 'PACKING'))
+                    ->map(fn($info) => "F" . ($info['endRow'] + 2))->implode('+');
+                // $sheet->setCellValue("F{$currentRow}", "=" . ($supportGroupSubtotals ?: '0'));
+                $sheet->getStyle("F{$currentRow}")->getFont()->applyFromArray($italicFont);
+                $sheet->getStyle("F{$currentRow}")->getAlignment()->applyFromArray($alignRight);
+                $sheet->getStyle("F{$currentRow}")->getNumberFormat()->setFormatCode($numFormatCurrency);
+                $currentRow++;
+
+                // --- ROW: SUMMARY BAR ---
+                $summaryRowIndex = $currentRow;
+                $sheet->getRowDimension($currentRow)->setRowHeight(26);
+                $sheet->mergeCells("A{$currentRow}:E{$currentRow}");
+                $sheet->setCellValue("A{$currentRow}", 'SUMMARY');
+                $sheet->getStyle("A{$currentRow}")->getFont()->applyFromArray(array_merge($boldFont, ['color' => ['argb' => 'FFFFFFFF']]));
+
+                $sheet->setCellValue("F{$currentRow}", "=F{$labourRowIndex}+F{$materialRowIndex}");
+                $sheet->getStyle("F{$currentRow}")->getFont()->applyFromArray(array_merge($boldFont, ['color' => ['argb' => 'FFFFFFFF']]));
+                $sheet->getStyle("F{$currentRow}")->getAlignment()->applyFromArray($alignRight);
+                $sheet->getStyle("F{$currentRow}")->getNumberFormat()->setFormatCode($numFormatCurrency);
+                $sheet->getStyle("A{$currentRow}:F{$currentRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF2E7D32');
+                $currentRow++;
+
+                // --- BOTTOM GREEN TABLE ---
+                foreach (($bom->summaries ?? []) as $index => $sumItem) {
+                    $sumItem = is_array($sumItem) ? (object) $sumItem : $sumItem;
+                    $sheet->getRowDimension($currentRow)->setRowHeight(22);
+                    $sheet->getStyle("A{$currentRow}:F{$currentRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFD9EAD3');
+
+                    $sheet->setCellValue("A{$currentRow}", $sumItem->name)->getStyle("A{$currentRow}")->getFont()->applyFromArray($boldFont);
+                    $sheet->setCellValue("C{$currentRow}", $sumItem->qty ?? 1)->getStyle("C{$currentRow}")->getFont()->applyFromArray($regularFont);
+                    $sheet->getStyle("C{$currentRow}")->getAlignment()->applyFromArray($alignCenter);
+                    $sheet->getStyle("C{$currentRow}")->getNumberFormat()->setFormatCode($numFormatQty);
+
+                    $sheet->setCellValue("E{$currentRow}", $sumItem->price ?? 0)->getStyle("E{$currentRow}")->getFont()->applyFromArray($boldFont);
+                    $sheet->getStyle("E{$currentRow}")->getAlignment()->applyFromArray($alignRight);
+                    $sheet->getStyle("E{$currentRow}")->getNumberFormat()->setFormatCode($numFormatCurrency);
+
+                    // Running Total Formula
+                    $prevRowRef = ($index === 0) ? "F{$summaryRowIndex}" : "F" . ($currentRow - 1);
+                    $sheet->setCellValue("F{$currentRow}", "={$prevRowRef}+(C{$currentRow}*E{$currentRow})");
+                    $sheet->getStyle("F{$currentRow}")->getFont()->applyFromArray($boldFont);
                     $sheet->getStyle("F{$currentRow}")->getAlignment()->applyFromArray($alignRight);
                     $sheet->getStyle("F{$currentRow}")->getNumberFormat()->setFormatCode($numFormatCurrency);
 
-                    $sheet->getStyle("A{$currentRow}:F{$currentRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF1E293B');
-
-                    $borderTotalHpp = [
-                        'borders' => [
-                            'top' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => 'FFFFFFFF']],
-                            'bottom' => ['borderStyle' => Border::BORDER_DOUBLE, 'color' => ['argb' => 'FFFFFFFF']]
-                        ]
+                    $borderGreenBox = [
+                        'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => 'FF93C47D']]]
                     ];
-                    $sheet->getStyle("A{$currentRow}")->applyFromArray($borderTotalHpp);
-                    $sheet->getStyle("F{$currentRow}")->applyFromArray($borderTotalHpp);
-                },
-            ];
-        }
+                    foreach (['A', 'C', 'E', 'F'] as $col) {
+                        $sheet->getStyle("{$col}{$currentRow}")->applyFromArray($borderGreenBox);
+                    }
+                    $currentRow++;
+                }
+
+                // --- FINAL ROW: TOTAL HPP ---
+                $sheet->getRowDimension($currentRow)->setRowHeight(28);
+                $sheet->mergeCells("A{$currentRow}:E{$currentRow}");
+                $sheet->setCellValue("A{$currentRow}", 'TOTAL HPP');
+                $sheet->getStyle("A{$currentRow}")->getFont()->applyFromArray(['name' => $fontFamily, 'size' => 11, 'bold' => true, 'color' => ['argb' => 'FFFFFFFF']]);
+                $sheet->getStyle("A{$currentRow}")->getAlignment()->applyFromArray($alignCenter);
+
+                $sheet->setCellValue("F{$currentRow}", "=F" . ($currentRow - 1));
+                $sheet->getStyle("F{$currentRow}")->getFont()->applyFromArray(['name' => $fontFamily, 'size' => 11, 'bold' => true, 'color' => ['argb' => 'FFFFFFFF']]);
+                $sheet->getStyle("F{$currentRow}")->getAlignment()->applyFromArray($alignRight);
+                $sheet->getStyle("F{$currentRow}")->getNumberFormat()->setFormatCode($numFormatCurrency);
+
+                $sheet->getStyle("A{$currentRow}:F{$currentRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF1E293B');
+
+                $borderTotalHpp = [
+                    'borders' => [
+                        'top' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => 'FFFFFFFF']],
+                        'bottom' => ['borderStyle' => Border::BORDER_DOUBLE, 'color' => ['argb' => 'FFFFFFFF']]
+                    ]
+                ];
+                $sheet->getStyle("A{$currentRow}")->applyFromArray($borderTotalHpp);
+                $sheet->getStyle("F{$currentRow}")->applyFromArray($borderTotalHpp);
+
+                // Additional HPP display only; existing total remains unchanged.
+                $hppRow = $currentRow++;
+                $sheet->mergeCells("A{$currentRow}:E{$currentRow}");
+                $sheet->setCellValue("A{$currentRow}", 'TOTAL HPP + 10%');
+                $sheet->setCellValue("F{$currentRow}", "=F{$hppRow}*110%");
+                $sheet->getRowDimension($currentRow)->setRowHeight(32);
+                $sheet->getStyle("A{$currentRow}:F{$currentRow}")->getFont()->applyFromArray([
+                    'name' => $fontFamily,
+                    'size' => 13,
+                    'bold' => true,
+                    'color' => ['argb' => 'FFFFFFFF']
+                ]);
+                $sheet->getStyle("A{$currentRow}:F{$currentRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FF0F172A');
+                $sheet->getStyle("A{$currentRow}")->getAlignment()->applyFromArray($alignCenter);
+                $sheet->getStyle("F{$currentRow}")->getAlignment()->applyFromArray($alignRight);
+                $sheet->getStyle("F{$currentRow}")->getNumberFormat()->setFormatCode($numFormatCurrency);
+                $sheet->getStyle("A{$hppRow}:F{$hppRow}")->getFont()->setSize(12);
+
+                // Keep column H available for existing material notes.
+                $photos = $bom->timbangan ?? [];
+                if (!empty($photos)) {
+                    foreach (range('J', 'O') as $col) {
+                        $sheet->getColumnDimension($col)->setWidth(10);
+                    }
+                    $sheet->mergeCells('J7:O7');
+                    $sheet->setCellValue('J7', 'FOTO TIMBANGAN');
+                    $sheet->getStyle('J7:O7')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setARGB('FFFFFF00');
+                    $sheet->getStyle('J7')->getFont()->applyFromArray($boldFont);
+                    $sheet->getStyle('J7')->getAlignment()->applyFromArray($alignLeft);
+                    $columns = ['J', 'L', 'N'];
+                    $index = 0;
+                    foreach ($photos as $photo) {
+                        $path = storage_path('app/public/' . ltrim($photo->image ?? '', '/'));
+                        if (!is_file($path) || !is_readable($path))
+                            continue;
+                        $info = @getimagesize($path);
+                        if (!$info || !$info[0] || !$info[1])
+                            continue;
+                        try {
+                            if ($info[2] === IMAGETYPE_WEBP && function_exists('imagecreatefromwebp')) {
+                                $resource = @imagecreatefromwebp($path);
+                                if (!$resource)
+                                    continue;
+                                $drawing = new \PhpOffice\PhpSpreadsheet\Worksheet\MemoryDrawing();
+                                $drawing->setImageResource($resource);
+                                $drawing->setRenderingFunction(\PhpOffice\PhpSpreadsheet\Worksheet\MemoryDrawing::RENDERING_PNG);
+                                $drawing->setMimeType(\PhpOffice\PhpSpreadsheet\Worksheet\MemoryDrawing::MIMETYPE_PNG);
+                            } elseif (in_array($info[2], [IMAGETYPE_JPEG, IMAGETYPE_PNG], true)) {
+                                $drawing = new Drawing();
+                                $drawing->setPath($path);
+                            } else {
+                                continue;
+                            }
+                            // Anchor each gallery row by actual worksheet row heights.
+                            $remaining = intdiv($index, 3) * 104 + 6;
+                            $row = 8;
+                            while (true) {
+                                $height = $sheet->getRowDimension($row)->getRowHeight();
+                                if ($height <= 0)
+                                    $height = 15;
+                                $pixels = max(1, (int) round($height * 96 / 72));
+                                if ($remaining < $pixels)
+                                    break;
+                                $remaining -= $pixels;
+                                $row++;
+                            }
+                            $drawing->setName('Foto Timbangan ' . ($index + 1));
+                            $drawing->setDescription('Foto Timbangan');
+                            $drawing->setCoordinates($columns[$index % 3] . $row);
+                            $drawing->setOffsetX(4);
+                            $drawing->setOffsetY($remaining);
+                            $drawing->setResizeProportional(true);
+                            $scale = min(124 / $info[0], 94 / $info[1]);
+                            $drawing->setWidth(max(1, (int) floor($info[0] * $scale)));
+                            $drawing->setWorksheet($sheet);
+                            $index++;
+                        } catch (\Throwable $e) {
+                            report($e);
+                        }
+                    }
+                }
+
+            },
+        ];
     }
+}

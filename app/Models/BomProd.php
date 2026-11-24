@@ -20,4 +20,8 @@ class BomProd extends Model
     {
         return $this->hasMany(BomProdSummary::class, 'bom_id');
     }
+    public function timbangan()
+    {
+        return $this->hasMany(BomTimbangan::class, 'bom_id')->where('bom_type', 'production')->orderBy('sort_order')->orderBy('id');
+    }
 }

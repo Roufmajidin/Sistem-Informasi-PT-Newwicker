@@ -215,9 +215,7 @@ class PengajuanHargaController extends Controller
             ->orderBy('id')->get()->groupBy('detail_po_id');
 
         $masterPekerjaan = BahanKategori::query()->orderBy('name')->get();
-
-        // Ambil semua alternatif kode pada item yang sedang tampil.
-
+ 
         $codes = $pos->getCollection()->flatMap(function ($po) {
 
             return $po->details->flatMap(fn($item) => $this->itemCodes($item->detail));

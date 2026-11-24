@@ -734,6 +734,8 @@
 
                 </div>
 
+                @include('pages.shared.bom_timbangan', ['timbanganType' => 'sample'])
+
             </div>
 
         </div>
@@ -889,6 +891,9 @@
                     </label>
 
                     <input type="text" id="total-hpp" class="form-control" readonly value="0">
+                </div>
+                <div class="bom-total-hpp bom-hpp-extra"><label for="bom-hpp-plus">TOTAL HPP + 10%</label><input
+                        id="bom-hpp-plus" class="form-control" readonly value="0">
 
                 </div>
 
@@ -1075,6 +1080,18 @@
         });
 
         let totalHpp = labour + material + summary;
+        $('#bom-hpp-plus').val((totalHpp * 1.10).toLocaleString('id-ID', {
+            maximumFractionDigits: 3
+        }));
+        $('#bom-sections .bom-section').each(function() {
+            let subtotal = 0;
+            $(this).find('.child-body .material-total').each(function() {
+                subtotal += parseFloat(unFormat($(this).val())) || 0;
+            });
+            $(this).find('.bom-group-subtotal-value').text(subtotal.toLocaleString('id-ID', {
+                maximumFractionDigits: 4
+            }));
+        });
 
         $('#total-hpp').val(
             totalHpp.toLocaleString('id-ID')
@@ -1334,6 +1351,7 @@
                     <tbody class="child-body">
                     </tbody>
 
+                    <tbody class="bom-group-subtotal"><tr><td colspan="4" class="text-end">Subtotal Material</td><td class="bom-group-subtotal-value">0</td><td colspan="2"></td></tr></tbody>
                     <tbody class="sub-price-body">
                     </tbody>
                 </table>
@@ -1422,9 +1440,7 @@
 <td>
     <button
         type="button"
-        class="btn btn-danger btn-sm btn-remove-child">
-        Delete
-    </button>
+        class="btn btn-danger btn-sm btn-remove-child"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M5 6l1 14h12l1-14M10 10v6M14 10v6"/></svg><span class="bom-delete-label">Hapus</span></button>
 </td>
 </tr>
 `;
@@ -1445,7 +1461,7 @@
             tbody.append(`
             <tr class="table-success sub-price-row">
 
-                <td colspan="5">
+                <td colspan="4">
                     <input
                         type="text"
                         class="form-control sub-price-name"
@@ -1459,12 +1475,11 @@
                         value="0">
                 </td>
 
+                <td></td>
                 <td>
                     <button
                         type="button"
-                        class="btn btn-danger btn-sm btn-remove-sub-price">
-                        Delete
-                    </button>
+                        class="btn btn-danger btn-sm btn-remove-sub-price"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M5 6l1 14h12l1-14M10 10v6M14 10v6"/></svg><span class="bom-delete-label">Hapus</span></button>
                 </td>
 
             </tr>
@@ -1558,6 +1573,7 @@
 
         }
 
+        window.bomTimbanganAppend?.(formData);
         $.ajax({
 
             url: "/bom/store",
@@ -1571,6 +1587,7 @@
             contentType: false,
 
             success: function(res) {
+                if (res?.success) window.bomTimbanganAck?.(formData);
 
                 Swal.fire({
                     toast: true,
@@ -1657,6 +1674,7 @@
 
         });
     $(document).on('paste', function(e) {
+        if ($(e.target).closest('#bt-gallery').length) return;
 
         let clipboardData = e.originalEvent.clipboardData || window.clipboardData;
 
@@ -1805,6 +1823,7 @@
 
                     <tbody class="child-body"></tbody>
 
+                    <tbody class="bom-group-subtotal"><tr><td colspan="4" class="text-end">Subtotal Material</td><td class="bom-group-subtotal-value">0</td><td colspan="2"></td></tr></tbody>
                     <tbody class="sub-price-body"></tbody>
 
                 </table>
@@ -1899,11 +1918,7 @@
 
         <button
             type="button"
-            class="btn btn-danger btn-sm btn-remove-child">
-
-            Delete
-
-        </button>
+            class="btn btn-danger btn-sm btn-remove-child"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M5 6l1 14h12l1-14M10 10v6M14 10v6"/></svg><span class="bom-delete-label">Hapus</span></button>
 
     </td>
 
@@ -1920,7 +1935,7 @@
                 subBody.append(`
 <tr class="table-success sub-price-row">
 
-    <td colspan="5">
+    <td colspan="4">
 
         <input
             type="text"
@@ -1939,15 +1954,12 @@
 
     </td>
 
+    <td></td>
     <td>
 
         <button
             type="button"
-            class="btn btn-danger btn-sm btn-remove-sub-price">
-
-            Delete
-
-        </button>
+            class="btn btn-danger btn-sm btn-remove-sub-price"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M5 6l1 14h12l1-14M10 10v6M14 10v6"/></svg><span class="bom-delete-label">Hapus</span></button>
 
     </td>
 
@@ -2015,11 +2027,7 @@
 
         <button
             type="button"
-            class="btn btn-danger btn-sm btn-remove-summary">
-
-            Delete
-
-        </button>
+            class="btn btn-danger btn-sm btn-remove-summary"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M5 6l1 14h12l1-14M10 10v6M14 10v6"/></svg><span class="bom-delete-label">Hapus</span></button>
 
     </td>
 
@@ -2236,6 +2244,7 @@
 
             }
 
+            window.bomTimbanganAppend?.(formData);
             $.ajax({
 
                 url: '/bom/update/' + bomId,
@@ -2249,6 +2258,7 @@
                 contentType: false,
 
                 success: function(res) {
+                    if (res?.success) window.bomTimbanganAck?.(formData);
 
                     Swal.fire({
                         toast: true,
@@ -2355,9 +2365,7 @@
     <td>
         <button
             type="button"
-            class="btn btn-danger btn-sm btn-remove-summary">
-            Delete
-        </button>
+            class="btn btn-danger btn-sm btn-remove-summary"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M5 6l1 14h12l1-14M10 10v6M14 10v6"/></svg><span class="bom-delete-label">Hapus</span></button>
     </td>
 
 </tr>
@@ -2441,11 +2449,7 @@
 
         <button
             type="button"
-            class="btn btn-danger btn-sm btn-remove-summary">
-
-            Delete
-
-        </button>
+            class="btn btn-danger btn-sm btn-remove-summary"><svg aria-hidden="true" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M5 6l1 14h12l1-14M10 10v6M14 10v6"/></svg><span class="bom-delete-label">Hapus</span></button>
 
     </td>
 
@@ -2956,13 +2960,15 @@
             const image = imageInput && imageInput.files ? imageInput.files[0] : null;
             if (image) formData.append('image', image);
 
+            window.bomTimbanganAppend?.(formData);
             $.ajax({
                 url: '/bom/update/' + normalBomId,
                 type: 'POST',
                 data: formData,
                 processData: false,
                 contentType: false,
-                success: function() {
+                success: function(res) {
+                    if (res?.success) window.bomTimbanganAck?.(formData);
                     if (normalChangeVersion === versionAtRequest) {
                         normalAutoSaveDirty = false;
                     }
@@ -3022,6 +3028,7 @@
             );
 
             $(document).on('change', '#bom_image', normalMarkDirty);
+            document.getElementById('bt-gallery')?.addEventListener('bt-change', normalMarkDirty);
 
             // Watch DOM rows created by existing renderDraft/add-header handlers.
             const sectionRoot = document.getElementById('bom-sections');
@@ -3077,5 +3084,122 @@
 
     .bom-drag-chosen {
         cursor: grabbing;
+    }
+</style>
+
+
+<style>
+    /* Sticky group headers: UI only; existing BOM handlers remain untouched. */
+    .bom-compact-page .bom-main-card,
+    .bom-compact-page #bom-sections,
+    .bom-compact-page #bom-sections>.bom-section.card {
+        overflow: visible !important;
+    }
+
+    .bom-compact-page #bom-sections>.bom-section>.card-header {
+        position: sticky;
+        top: var(--bom-group-sticky-top, 0px);
+        z-index: 20;
+        background: #fff !important;
+        border-radius: 6px 6px 0 0;
+        box-shadow: 0 2px 4px rgba(16, 24, 40, .06);
+    }
+</style>
+<script>
+    (function() {
+        const page = document.querySelector('.bom-compact-page');
+        if (!page) return;
+        const header = document.querySelector('#content > .app-header') ||
+            document.querySelector('.app-header');
+
+        function updateBomStickyTop() {
+            let scrollRoot = page.parentElement;
+            while (scrollRoot && scrollRoot !== document.body && scrollRoot !== document.documentElement) {
+                const style = getComputedStyle(scrollRoot);
+                if (/auto|scroll|hidden|overlay/.test(style.overflowY)) break;
+                scrollRoot = scrollRoot.parentElement;
+            }
+            const rootTop = scrollRoot && scrollRoot !== document.body && scrollRoot !== document.documentElement ?
+                scrollRoot.getBoundingClientRect().top + scrollRoot.clientTop : 0;
+            let offset = 0;
+            if (header && /fixed|sticky/.test(getComputedStyle(header).position)) {
+                const rect = header.getBoundingClientRect();
+                if (rect.height && rect.top <= rootTop + 1) offset = Math.max(0, rect.bottom - rootTop);
+            }
+            page.style.setProperty('--bom-group-sticky-top', Math.ceil(offset) + 'px');
+        }
+        updateBomStickyTop();
+        window.addEventListener('resize', updateBomStickyTop, {
+            passive: true
+        });
+        window.addEventListener('load', updateBomStickyTop, {
+            once: true
+        });
+        if (header && window.ResizeObserver) new ResizeObserver(updateBomStickyTop).observe(header);
+    })();
+</script>
+
+<style>
+    .bom-compact-page .bom-delete-label {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0
+    }
+
+    .bom-compact-page :is(.btn-remove-child, .btn-remove-sub-price, .btn-remove-summary) {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 26px;
+        padding: 5px 7px !important
+    }
+
+    .bom-compact-page .bom-group-subtotal td {
+        background: #eef2f7;
+        color: #172b45;
+        font-weight: 800;
+        text-align: right;
+        font-size: 11px
+    }
+
+    .bom-compact-page .sub-price-value {
+        text-align: right
+    }
+
+    .bom-compact-page #total-hpp,
+    .bom-compact-page #bom-hpp-plus {
+        color: #142c4b !important;
+        font-size: 17px !important;
+        font-weight: 800 !important;
+        width: 190px;
+        text-align: right;
+        min-height: 38px
+    }
+
+    .bom-compact-page .bom-total-hpp label {
+        font-size: 12px;
+        color: #142c4b;
+        font-weight: 800
+    }
+
+    .bom-compact-page .bom-hpp-extra {
+        background: #e8eef7;
+        border-top: 2px solid #253d60;
+        margin-top: 0
+    }
+
+    @media(max-width:576px) {
+
+        .bom-compact-page #total-hpp,
+        .bom-compact-page #bom-hpp-plus {
+            width: 145px;
+            font-size: 15px !important
+        }
     }
 </style>
