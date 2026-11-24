@@ -117,8 +117,19 @@
                         <th>No</th>
                         <th>No Pengajuan</th>
                         <th>Uploaded By</th>
-                        <th>Status</th>
-                        <th>peng. v</th>
+                        <th>
+                            <div style="display:flex;align-items:center;gap:6px;white-space:nowrap;">
+                                <label for="filter-status" style="margin:0;">Status</label>
+                                <select id="filter-status" class="form-control form-control-sm"
+                                    style="width:90px;min-width:0;height:24px;padding:1px 3px;font-size:11px;flex:none;">
+                                    <option value="">All</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="approved">Approved</option>
+                                </select>
+                            </div>
+                        </th>
+                        <th>Keterangan</th>
+                        <th>status</th>
                         <th>Created At</th>
                         <th>Qr</th>
                         <th>#</th>
@@ -1357,11 +1368,12 @@
                 `;
 
                             html += `
-                    <tr>
+                    <tr data-pengajuan-status="${item.status === 'approved' ? 'approved' : 'pending'}">
                         <td>${i+1}</td>
                         <td><b>A-${item.id}</b></td>
                         <td>${item.user ? item.user.name : '-'}</td>
                         <td>${statusHtml}</td>
+                        <td style="min-width:120px;max-width:260px;white-space:normal;overflow-wrap:anywhere;">${$('<div>').text(item.keterangan || '-').html()}</td>
                           <td>
         ${item.urgent == 1
             ? '<span class="badge bg-danger">Urgent</span>'
@@ -1369,12 +1381,13 @@
     </td>
 
                         <td>${formatDate(item.created_at)}</td>
-                        <td>${btnView}</td>
+                        <td colspan="2">${btnView}</td>
                     </tr>
                 `;
                         });
 
                         $('#table-body').html(html);
+                        applyPengajuanStatusFilter();
                     },
                     error: function(err) {
 
@@ -1387,7 +1400,7 @@
                             // 🔥 kosongkan tabel biar gak misleading
                             $('#table-body').html(`
                 <tr>
-                    <td colspan="6" style="text-align:center; padding:20px; color:#999;">
+                    <td colspan="9" style="text-align:center; padding:20px; color:#999;">
                         Tidak ada data
                     </td>
                 </tr>
@@ -2081,15 +2094,21 @@
             $('#btn-qr').on('click', function() {
                 alert('Open QR Scanner'); // nanti bisa arahkan ke scanner
             });
-            $('#search-pengajuan').on('keyup', function() {
-
-                let keyword = $(this).val().toLowerCase();
-
-                $('#table-body tr').filter(function() {
-                    $(this).toggle($(this).text().toLowerCase().indexOf(keyword) > -1);
+            // Filter lokal: tidak mengubah data, API, atau approval.
+            function applyPengajuanStatusFilter() {
+                const status = $('#filter-status').val() || '';
+                const keyword = String($('#search-pengajuan').val() || '').toLowerCase();
+                let visibleNo = 0;
+                $('#table-body tr[data-pengajuan-status]').each(function() {
+                    const row = $(this);
+                    const visible = (!status || row.attr('data-pengajuan-status') === status) &&
+                        row.text().toLowerCase().includes(keyword);
+                    row.toggle(visible);
+                    if (visible) row.children('td').first().text(++visibleNo);
                 });
-
-            });
+            }
+            $(document).on('change', '#filter-status', applyPengajuanStatusFilter);
+            $('#search-pengajuan').on('keyup', applyPengajuanStatusFilter);
 
 
             // =========================
