@@ -2407,8 +2407,12 @@
 
                     </table>
 
-                    <div class="tomo-total"><span>Total Biaya</span><span id="tomoGrandTotal">Rp 0</span></div><label
-                        style="display:block;margin-top:12px;font-weight:700">Catatan (opsional)
+                    <div class="tomo-total"><span>Total Biaya + 10%</span>
+                        <div style="text-align:right">
+                            <div id="tomoTotalBreakdown" style="font-size:12px;font-weight:600">Rp 0 + Rp 0</div>
+                            <div id="tomoGrandTotal" style="font-size:16px;font-weight:850">Rp 0</div>
+                        </div>
+                    </div><label style="display:block;margin-top:12px;font-weight:700">Catatan (opsional)
 
                         <textarea id="tomoNotes" class="tomo-note" placeholder="Tuliskan catatan jika ada..."></textarea>
 
@@ -2822,7 +2826,7 @@
 
                     '<tr><td colspan="5" style="padding:20px;text-align:center">Memuat master point terbaru...</td></tr>';
 
-                document.getElementById('tomoGrandTotal').textContent = rupiah(0);
+                tomoUpdateTotal(0);
 
                 modalOpen(); // buka modal terlebih dahulu, kemudian AJAX GET master point
 
@@ -2916,6 +2920,12 @@
                 }));
             }
 
+            function tomoUpdateTotal(subtotal) {
+                const extra = subtotal * 0.10;
+                document.getElementById('tomoTotalBreakdown').textContent = rupiah(subtotal) + ' + ' + rupiah(extra);
+                document.getElementById('tomoGrandTotal').textContent = rupiah(subtotal + extra);
+            }
+
             function recalc() {
                 let total = 0;
                 document.querySelectorAll('#tomoCostRows tr[data-point-id]').forEach(tr => {
@@ -2927,7 +2937,7 @@
                     total += amount;
                     tr.querySelector('.tomo-result').textContent = qty > 0 ? rupiah(amount) : '—';
                 });
-                document.getElementById('tomoGrandTotal').textContent = rupiah(total);
+                tomoUpdateTotal(total);
             }
 
             window.tomoSubmit = async function() {
@@ -2964,7 +2974,8 @@
 
                 }
 
-                if (!confirm('Kirim pengajuan biaya ' + rupiah(total) + '?')) return;
+                if (!confirm('Kirim pengajuan biaya ' + rupiah(total + total * 0.10) + ' (termasuk 10%)?'))
+                    return;
 
                 const btn = document.getElementById('tomoSubmitBtn');
 
