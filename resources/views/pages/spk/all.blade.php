@@ -118,7 +118,7 @@
 
 
                                 <input type="text" id="searchPo" class="form-control"
-                                    placeholder="Cari PO, Buyer, SPK, Supplier, Article Code, Description...">
+                                    placeholder="Cari PO, Buyer, No SPK atau Supplier...">
 
 
 
@@ -718,7 +718,7 @@
                 $sticky.append($('#spkHorizontalToolbar'), $('#spkTopScroll'));
                 $sticky.append(
                     '<div id="spkStickyTableHeader" class="spk-sticky-table-header" aria-hidden="true"><div class="spk-sticky-table-header-inner"></div></div>'
-                );
+                    );
             }
             // Tombol X independen dari data-dismiss agar tidak terganggu Bootstrap versi ganda.
             $('#spkModalClose').on('click', function(e) {
@@ -1429,7 +1429,7 @@
                 poCursor = res.next_cursor || null;
                 poHasMore = !!res.has_more && !!poCursor;
                 if (!cacheData.length) $('#po-table-body').html(
-                    '<tr><td colspan="5" class="text-center text-muted">rouf ganteng</td></tr>');
+                    '<tr><td colspan="5" class="text-center text-muted">Tidak ada PO yang cocok.</td></tr>');
                 setPoStatus(poHasMore ? 'Scroll di daftar PO untuk memuat 10 berikutnya' : 'Semua PO sudah dimuat');
             }).fail(function(xhr, status) {
                 if (generation === poGeneration && status !== 'abort') setPoStatus(
@@ -1809,9 +1809,9 @@
 
                    ${categories.map(cat => `
 
-                <th>${cat}</th>
+            <th>${cat}</th>
 
-            `).join('')}
+        `).join('')}
 
 
 
@@ -2209,39 +2209,39 @@
 
         ? `
 
-                        <img
+                    <img
 
-                            src="${d.images[0]}"
+                        src="${d.images[0]}"
 
-                            class="article-image">
+                        class="article-image">
 
-                    `
+                `
 
         : d.photo
 
         ? `
 
-                        <img
+                    <img
 
-                            src="${d.photo}"
+                        src="${d.photo}"
 
-                            class="article-image">
+                        class="article-image">
 
-                    `
+                `
 
         : `
 
-                        <div class="article-no-image">
+                    <div class="article-no-image">
 
 
 
-                            No Image
+                        No Image
 
 
 
-                        </div>
+                    </div>
 
-                    `
+                `
 
     }
 
@@ -3405,11 +3405,11 @@
     <style>
         /* =========================================================
 
-           ALL SPK — PREMIUM UI / UX V2
+       ALL SPK — PREMIUM UI / UX V2
 
-           Styling only. Blade + JavaScript preserved.
+       Styling only. Blade + JavaScript preserved.
 
-           ========================================================= */
+       ========================================================= */
 
 
 
