@@ -9,6 +9,51 @@
 @endphp
 {{-- script --}}
 <script>
+    // One navigation owner; NW and NWS intentionally share their draft pane.
+    $(document).on('click.paymentPane', '#payment-request-nav [data-payment-tab]', function(e){
+        e.preventDefault();
+        const target = this.getAttribute('data-bs-target');
+        const pane = document.querySelector(target);
+        if (!pane) return;
+        $('#payment-request-nav .nav-link').removeClass('active').attr('aria-selected','false');
+        $(this).addClass('active').attr('aria-selected','true');
+        $('#payment-request-panes > .tab-pane').removeClass('show active');
+        $(pane).addClass('show active');
+        if (target === '#draft-request-tab') {
+            $('.draft-wrapper').stop(true,true).scrollLeft(0);
+            $('#btnBackDraftList').removeClass('is-visible').hide();
+        }
+    });
+    $(function(){
+        const params = new URLSearchParams(location.search);
+        if (params.get('request') || params.get('no_req')) return;
+        const target = sessionStorage.getItem('paymentFinanceReturn');
+        if (target) { sessionStorage.removeItem('paymentFinanceReturn'); $('#payment-request-nav [data-bs-target="'+target+'"]').first().trigger('click'); }
+    });
+    function refreshPendingRecon(){
+        const totals={}; let count=0;
+        $('#pending-recon-body tr').each(function(){const d=this.dataset, remaining=Math.max(0,Number(d.original)-Number(d.recon)); const t=totals[d.reconDraft] ||= [0,0]; t[d.hold==='1'?0:1]+=remaining; if(remaining>0) { count++; $(this).find(".pending-recon-no").text(count); }});
+        $('.draft-row').each(function(){const t=totals[this.dataset.id]||[0,0]; $(this).find('.pending-pay').text(t[0].toLocaleString('id-ID')); $(this).find('.partial-pay').text(t[1].toLocaleString('id-ID'));});
+        $('#pending-recon-empty').toggle(count===0);
+    }
+    $(refreshPendingRecon);
+    $(document).on('click', '.pending-transfer-submit', async function(){
+        const button=$(this), row=button.closest('tr'), d=row[0].dataset;
+        const amount=Number(row.find('.pending-transfer-amount').val()), date=row.find('.pending-transfer-date').val();
+        if (!Number.isSafeInteger(amount)||amount<=0||amount>Number(d.original)-Number(d.recon)||!date) return Swal.fire('Nominal / tanggal tidak valid','','warning');
+        if(button.data('busy')) return;
+        button.data('busy',true).prop('disabled',true);
+        try {
+            const confirm=await Swal.fire({title:'Validasi transfer By Finance?',text:'Rp '+amount.toLocaleString('id-ID')+' — '+date,icon:'question',showCancelButton:true});
+            if(!confirm.isConfirmed) return;
+            const key=button.data('transferKey')||crypto.randomUUID(); button.data('transferKey',key);
+            await $.post('/payment-request/finance-adjustment',{_token:$('meta[name="csrf-token"]').attr('content'),mode:'pending_transfer',spk_id:d.reconSpk,payment_id:d.reconPayment,draft_id:d.reconDraft,transfer_amount:amount,transfer_date:date,transfer_key:key});
+            sessionStorage.setItem('paymentFinanceReturn', '#has-payment-tab');
+            location.reload();
+        } catch(e){Swal.fire('Transfer belum terkonfirmasi',e.responseJSON?.message||'Coba ulang dengan nominal yang sama.','error');}
+        finally {button.data('busy',false).prop('disabled',false);}
+    });
+
     // Format tanggal API tanpa menggeser hari akibat timezone.
     function formatPaymentDateDMY(value) {
         if (!value) return '';
@@ -257,24 +302,7 @@
                         : '';
                     let html = `
 <div id="printArea">
-     <div class="alert alert-info mb-3 no-print print-instructions">
-
-        <i class="fa fa-info-circle"></i>
-
-        <b>Petunjuk :</b>
-
-        • Scroll ke bawah hingga bagian <b>Signature</b>, lalu klik
-        <b>Approve</b>.
-
-        <br>
-
-        • Klik <b>Description (SPK)</b> untuk melihat detail SPK terkait.
-
-        <br>
-
-        • Untuk kembali ke daftar Payment Request, klik tombol <b>← Back</b> di samping judul Payment Requests.
-
-    </div>
+   
 
                     <div style="background:white;
         padding:20px;
@@ -404,7 +432,7 @@
                                     <th>Unit Price</th>
                                 <th>Amount</th>
                                 <th>Status</th>
-                                <th class="finance-adjustment-column">Recon Fin</th>
+                                <th class="finance-adjustment-column">Recon Fin</th><th class="recon-remaining">Sisa</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -418,10 +446,10 @@
                             item.payment_amount || 0
                         );
                         totalPaymentRequest += Number(
-                            item.payment_request_amount || 0
+                            item.payment_request_amount ?? item.payment_amount ?? 0
                         );
                         html += `
-        <tr style="font-size:11px;">
+        <tr class="${item.recon_hold ? 'recon-hold-row' : ''}" style="font-size:11px;">
             <td>${index + 1}</td>
             <td>${item.no_po ?? ''}</td>
             <td>${formatPaymentDateDMY(item.tanggal)}</td>
@@ -432,7 +460,7 @@
                     ${item.spk_no ?? ''}
                 </a>
             </td>
-            <td>${item.payment_note ?? ''}</td>
+            <td>${item.payment_note ?? ''}${Number(item.finance_followup || 0)>0 ? `<div class="${item.recon_hold ? 'text-danger' : 'text-primary'}">By Finance: Rp ${Number(item.recon_hold ? 0 : (item.payment_request_amount ?? item.payment_amount ?? 0)).toLocaleString('id-ID')} (${item.recon_hold ? 'HOLD' : 'Recons'})</div><div class="text-success">Rp ${Number(item.finance_followup).toLocaleString('id-ID')} (Has Payment)</div>` : ''}</td>
             <td class="text-center">1</td>
             <td class="text-center">-</td>
             <td class="text-end">Rp ${Number(item.payment_amount || 0).toLocaleString('id-ID')}</td>
@@ -445,18 +473,21 @@
                 res.is_finance
                 ? `
                     <input
-                        type="number"
+                        type="text" inputmode="decimal" list="recon-fin-options"
                         class="form-control form-control-sm finance-adjustment"
                         data-spk="${item.spk_id}"
                         data-payment="${item.payment_id}"
-                        value="${item.payment_request_amount}">
+                        ${Number(item.finance_followup || 0)>0 ? 'readonly title="Recon awal dikunci setelah transfer By Finance"' : ''}
+                        data-saved="${item.recon_hold ? '0' : (Number(item.adjustment || 0) ? Number(item.adjustment) : '')}"
+                        placeholder="${Number(item.payment_amount || 0)}"
+                        value="${item.recon_hold ? '0' : (Number(item.adjustment || 0) ? Number(item.adjustment) : '')}">
                 `
                 : `
-                    ${Number(item.payment_request_amount)
-                        .toLocaleString('id-ID')}
+                    ${item.recon_hold ? 'HOLD / 0' : Number(item.payment_request_amount ?? item.payment_amount ?? 0).toLocaleString('id-ID')}
                 `
             }
             </td>
+            <td class="recon-remaining text-end">Rp ${ (Math.max(0, Number(item.payment_amount || 0) - Number(item.payment_request_amount ?? item.payment_amount ?? 0) - Number(item.finance_followup || 0))).toLocaleString('id-ID')}</td>
         </tr>
     `;
                     });
@@ -643,7 +674,7 @@
                     `;
 
                     html += `</div>`; // #printArea
-                    $('#draftDetailArea').html(html);
+                    $('#draftDetailArea').html(html + '<datalist id="recon-fin-options"><option value="0">HOLD / 0</option></datalist>');
 
                     setTimeout(function() {
                         const wrapper = $('.draft-wrapper')[0];
@@ -986,48 +1017,51 @@
     );
 </script>
 <script>
-    // adjustment finance
-    $(document).on(
-        'keypress',
-        '.finance-adjustment',
-        function(e) {
-
-            if (e.which != 13) {
-                return;
-            }
-
-            let input = $(this);
-
-            $.post(
-                '/payment-request/finance-adjustment', {
-                    _token: $('meta[name="csrf-token"]')
-                        .attr('content'),
-
-                    spk_id: input.data('spk'),
-
-                    payment_id: input.data('payment'),
-
-                    adjustment: input.val()
-                },
-                function() {
-
-                    Swal.fire({
-
-                        icon: 'success',
-
-                        title: 'Saved',
-
-                        timer: 1000,
-
-                        showConfirmButton: false
-
-                    });
-
-                }
-            );
-
+    // Recon finance: simpan saat Enter atau blur, tanpa request ganda.
+    $(document).on('keydown', '.finance-adjustment', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); this.blur(); }
+    });
+    $(document).on('change blur', '.finance-adjustment', function() {
+        const input = $(this), cell = input.closest('td'), row = cell.closest('tr');
+        let raw = String(input.val()).trim();
+        if (/^hold(?:\s*\/\s*0)?$/i.test(raw)) raw = '0';
+        const original = Number(cell.attr('data-original-amount'));
+        if (input.data('busy') || raw === String(input.attr('data-saved'))) return;
+        if (raw !== '' && (!/^\d+(?:[.,]\d+)?$/.test(raw) || Number(raw.replace(',', '.')) > original)) {
+            input.val(input.attr('data-saved'));
+            Swal.fire('Nominal tidak valid', 'Recon harus antara 0 dan nominal awal.', 'warning'); return;
         }
-    );
+        input.data('busy', true).prop('disabled', true);
+        $.post('/payment-request/finance-adjustment', {
+            _token: $('meta[name="csrf-token"]').attr('content'),
+            spk_id: input.data('spk'), payment_id: input.data('payment'),
+            adjustment: raw.replace(',', '.')
+        }).done(function(res) {
+            if (!res.success) { input.val(input.attr('data-saved')); return; }
+            input.attr('data-saved', raw).val(raw);
+            cell.attr('data-recon-amount', res.amount);
+            row.toggleClass('recon-hold-row', !!res.hold);
+            $('#pending-recon-body tr').filter(function(){return String(this.dataset.reconSpk)===String(input.data('spk')) && String(this.dataset.reconPayment)===String(input.data('payment'));}).each(function(){
+                this.dataset.recon=res.amount; this.dataset.hold=res.hold?'1':'0';
+                $(this).toggleClass('recon-hold-row',!!res.hold).toggle(Number(this.dataset.original)>Number(res.amount));
+                $(this).find('.pending-recon-value').text(Number(res.amount).toLocaleString('id-ID'));
+                $(this).find('.pending-recon-sisa').text((Number(this.dataset.original)-Number(res.amount)).toLocaleString('id-ID'));
+                $(this).find('.pending-recon-status').text(res.hold?'HOLD':'Partial');
+            });
+            refreshPendingRecon();
+            row.find('.recon-remaining').text('Rp ' + (original - Number(res.amount)).toLocaleString('id-ID'));
+            let total = 0, sisa = 0;
+            cell.closest('table').find('tbody td.finance-adjustment-column').each(function() {
+                const amount = Number(this.dataset.reconAmount);
+                total += amount; sisa += Number(this.dataset.originalAmount) - amount;
+            });
+            cell.closest('table').find('.recon-total').text('Rp ' + total.toLocaleString('id-ID'));
+            cell.closest('table').find('.recon-total-sisa').text('Rp ' + sisa.toLocaleString('id-ID'));
+        }).fail(function(xhr) {
+            input.val(input.attr('data-saved'));
+            Swal.fire('Gagal menyimpan', xhr.responseJSON?.message || 'Coba lagi.', 'error');
+        }).always(function() { input.data('busy', false).prop('disabled', false); });
+    });
     // approve
     $(document).on(
         'click',
@@ -1158,17 +1192,18 @@
         });
         // Recon Fin hanya dicetak untuk baris dengan nominal recon berbeda.
         // Jika semua nominal sama, hilangkan kolom sepenuhnya.
+        copy.querySelectorAll('.recon-remaining, datalist').forEach(el => el.remove());
         const reconCells = Array.from(copy.querySelectorAll('.payment-print-table tbody td.finance-adjustment-column'));
         const hasChangedRecon = reconCells.some(td => {
             const original = Number(td.dataset.originalAmount || 0);
             const input = td.querySelector('.finance-adjustment');
-            const recon = Number(input ? input.value : td.dataset.reconAmount);
+            const recon = Number(td.dataset.reconAmount);
             return Number.isFinite(recon) && Math.abs(original - recon) > 0.005;
         });
         reconCells.forEach(td => {
             const original = Number(td.dataset.originalAmount || 0);
             const input = td.querySelector('.finance-adjustment');
-            const recon = Number(input ? input.value : td.dataset.reconAmount);
+            const recon = Number(td.dataset.reconAmount);
             if (!hasChangedRecon || !Number.isFinite(recon) || Math.abs(original - recon) <= 0.005) {
                 td.remove();
             } else {

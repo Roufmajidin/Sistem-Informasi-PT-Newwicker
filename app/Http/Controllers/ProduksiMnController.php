@@ -4011,25 +4011,27 @@ class ProduksiMnController extends Controller
 
                         $adjustment,
 
+                    'recon_hold' => (bool) ($payment['recon_hold'] ?? false),
+
 
 
                     'payment_request_amount' =>
 
-                        $adjustment > 0
+                        !empty($payment['recon_hold']) ? 0 : ($adjustment > 0
 
                         ? $adjustment
 
-                        : $amount,
+                        : $amount),
 
 
 
                     'remaining_amount' =>
 
-                        $adjustment > 0
+                        !empty($payment['recon_hold']) ? $amount : ($adjustment > 0
 
                         ? ($amount - $adjustment)
 
-                        : 0,
+                        : 0),
 
 
 
@@ -6465,9 +6467,9 @@ class ProduksiMnController extends Controller
                     );
 
                     $paymentValue =
-                        $adjustment > 0
+                        !empty($payment['recon_hold']) ? 0 : ($adjustment > 0
                         ? $adjustment
-                        : $amount;
+                        : $amount);
 
                     if ($paymentValue <= 0) {
                         continue;

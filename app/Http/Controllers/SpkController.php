@@ -6236,6 +6236,14 @@ class SpkController extends Controller
             // =================================================
             // UPDATE
             // =================================================
+            $financeRows = collect($beforeData['payments'] ?? [])->filter(fn($r) => !empty($r['finance_parent']));
+            if ($financeRows->isNotEmpty()) {
+                $protectedIds = $financeRows->pluck('finance_parent')->merge($financeRows->pluck('payment_id'))->all();
+                $afterData['payments'] = array_values(array_filter($afterData['payments'] ?? [], fn($r) => !in_array($r['payment_id'] ?? null, $protectedIds, true)));
+                foreach ($beforeData['payments'] as $r) {
+                    if (in_array($r['payment_id'] ?? null, $protectedIds, true)) $afterData['payments'][] = $r;
+                }
+            }
             $changes =
                 $this->diffRecursive(
                     $beforeData,
@@ -8250,6 +8258,11 @@ class SpkController extends Controller
 
                                 $payment['note'] ?? '-',
 
+                             'spk_id' => $request->spk_id,
+                            'finance_followup' => collect($spkData['payments'] ?? [])->where('finance_parent', $request->payment_id)->sum('amount'),
+                            'finance_history' => collect($spkData['payments'] ?? [])->where('finance_parent', $request->payment_id)->values()->all(),
+                            'recon_hold' => (bool) ($payment['recon_hold'] ?? false),
+                            'recon_amount' => !empty($payment['recon_hold']) ? 0 : ((float) ($payment['adjustment'] ?? 0) > 0 ? (float) $payment['adjustment'] : (float) ($payment['amount'] ?? 0)),
                             'payment_amount' =>
 
                                 (float) (
@@ -9828,10 +9841,12 @@ class SpkController extends Controller
                     'payment_note' => $payment['note'] ?? '-',
                     'payment_id' => $request->payment_id,
                     'adjustment' => $payment['adjustment'] ?? 0,
+                    'finance_followup' => collect($spkData['payments'] ?? [])->where('finance_parent', $request->payment_id)->sum('amount'),
                     'payment_amount' => (float) ($payment['amount'] ?? 0),
-                    'payment_request_amount' => !empty($payment['adjustment'])
+                    'recon_hold' => (bool) ($payment['recon_hold'] ?? false),
+                    'payment_request_amount' => !empty($payment['recon_hold']) ? 0 : (!empty($payment['adjustment'])
                         ? (float) ($payment['adjustment'])
-                        : (float) ($payment['amount'] ?? 0),
+                        : (float) ($payment['amount'] ?? 0)),
                     'spk_items' => $spkItems,
                 ];
             })
@@ -9860,7 +9875,7 @@ class SpkController extends Controller
             'need_date' => $draft->need_date,
             'grand_total' => $draft->grand_total,
             'items' => $items,
-            'is_finance' => in_array((int) auth()->id(), [215, 211], true),
+            'is_finance' => in_array((int) auth()->id(), [215, 211, 134], true),
 
             'approvals' => $approvals->map(function ($row) {
                 return [
@@ -10331,60 +10346,77 @@ class SpkController extends Controller
     //     ]);
 // }
 // finance adusment
-    public function financeAdjustment(
-        Request $request
-    ) {
-        $spk = Spk::findOrFail(
-            $request->spk_id
-        );
-
-        $data = is_string(
-            $spk->data
-        )
-            ? json_decode(
-                $spk->data,
-                true
-            )
-            : $spk->data;
-
-        foreach (
-            $data['payments']
-            as &$payment
-        ) {
-
-            if (
-                $payment['payment_id']
-                ==
-                $request->payment_id
-            ) {
-
-                $payment['adjustment'] =
-                    (float) 
-                    $request->adjustment;
-
-                $payment['adjustment_by'] =
-                    auth()->id();
-
-                $payment['adjustment_at'] =
-                    now()
-                        ->format(
-                            'Y-m-d H:i:s'
-                        );
+    private function pendingFinanceTransfer(Request $request)
+    {
+        $v = $request->validate([
+            'spk_id' => 'required|integer', 'payment_id' => 'required|string',
+            'draft_id' => 'required|integer', 'transfer_amount' => 'required|integer|min:1',
+            'transfer_date' => 'required|date_format:Y-m-d|before_or_equal:today',
+            'transfer_key' => 'required|uuid',
+        ]);
+        return DB::transaction(function () use ($v) {
+            $draft = PaymentRequestSaved::findOrFail($v['draft_id']);
+            $pr = PaymentRequest::whereIn('id', $draft->payment_request_ids ?? [])
+                ->where('spk_id', $v['spk_id'])->where('payment_id', $v['payment_id'])->firstOrFail();
+            $spk = Spk::lockForUpdate()->findOrFail($v['spk_id']);
+            $data = $spk->data;
+            if (is_string($data)) $data = json_decode($data, true);
+            $payments = $data['payments'] ?? [];
+            $parent = collect($payments)->firstWhere('payment_id', $v['payment_id']);
+            abort_unless($parent, 404, 'Payment tidak ditemukan.');
+            $id = 'fin_' . $v['transfer_key'];
+            foreach ($payments as $row) {
+                if (($row['payment_id'] ?? '') === $id) {
+                    abort_unless(($row['finance_parent'] ?? '') === $v['payment_id'] && (float)$row['amount'] === (float)$v['transfer_amount'], 409);
+                    return response()->json(['success' => true]);
+                }
             }
-        }
+            $original = (float) ($parent['amount'] ?? 0);
+            $recon = !empty($parent['recon_hold']) ? 0 : ((float)($parent['adjustment'] ?? 0) > 0 ? (float)$parent['adjustment'] : $original);
+            $follow = collect($payments)->where('finance_parent', $v['payment_id'])->sum('amount');
+            abort_if($v['transfer_amount'] > max(0, $original - $recon - $follow), 422, 'Nominal melebihi sisa pengajuan.');
+            $payments[] = [
+                'payment_id' => $id, 'finance_parent' => $v['payment_id'], 'finance_draft_id' => $draft->id,
+                'amount' => $v['transfer_amount'], 'adjustment' => $v['transfer_amount'], 'recon_hold' => false,
+                'date' => Carbon::createFromFormat('Y-m-d', $v['transfer_date'])->format('d/m/Y'),
+                'note' => $parent['note'] ?? '', 'note_tambahan' => 'By Finance',
+                'is_request' => true, 'pr_id' => null, 'finance_approved' => true,
+                'adjustment_by' => auth()->id(), 'adjustment_at' => now()->toDateTimeString(),
+            ];
+            $data['payments'] = array_values($payments);
+            $spk->update(['data' => $data]);
+            return response()->json(['success' => true]);
+        });
+    }
 
-        $spk->update([
-
-            'data' => $data
-
-
+    public function financeAdjustment(Request $request)
+    {
+        abort_unless(in_array((int) auth()->id(), [215, 211, 134], true), 403);
+        if ($request->input('mode') === 'pending_transfer') return $this->pendingFinanceTransfer($request);
+        $validated = $request->validate([
+            'spk_id' => 'required|integer',
+            'payment_id' => 'required',
+            'adjustment' => 'nullable|numeric|min:0',
         ]);
-
-        return response()->json([
-
-            'success' => true
-
-        ]);
+        return DB::transaction(function () use ($validated) {
+            $spk = Spk::lockForUpdate()->findOrFail($validated['spk_id']);
+            $data = is_string($spk->data) ? json_decode($spk->data, true) : $spk->data;
+            $value = $validated['adjustment'] ?? null;
+            foreach ($data['payments'] ?? [] as $key => $payment) {
+                if ((string) ($payment['payment_id'] ?? '') !== (string) $validated['payment_id']) continue;
+                abort_if(collect($data['payments'])->contains('finance_parent', $validated['payment_id']), 409, 'Sudah ada transfer By Finance. Recon awal dikunci.');
+                $original = (float) ($payment['amount'] ?? 0);
+                abort_if($value !== null && (float) $value > $original, 422, 'Recon melebihi nominal awal.');
+                $payment['adjustment'] = $value === null ? 0 : (float) $value;
+                $payment['recon_hold'] = $value !== null && (float) $value === 0.0;
+                $payment['adjustment_by'] = auth()->id();
+                $payment['adjustment_at'] = now()->format('Y-m-d H:i:s');
+                $data['payments'][$key] = $payment;
+                $spk->update(['data' => $data]);
+                return response()->json(['success' => true, 'amount' => $value === null ? $original : (float) $value, 'hold' => $payment['recon_hold']]);
+            }
+            abort(404, 'Payment tidak ditemukan.');
+        });
     }
     // approve
     public function signSignature(Request $request, $id)

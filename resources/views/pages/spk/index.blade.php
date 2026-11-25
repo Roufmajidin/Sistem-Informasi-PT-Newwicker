@@ -3047,7 +3047,7 @@
                                         @php
                                             $paymentId = $pay['payment_id'] ?? 'pay_' . uniqid();
                                         @endphp
-                                        <tr class="payment-row" data-adjustment="{{ $pay['adjustment'] ?? 0 }}"
+                                        <tr class="payment-row" data-adjustment="{{ $pay['adjustment'] ?? 0 }}" data-recon-hold="{{ !empty($pay['recon_hold']) ? 1 : 0 }}"
                                             data-payment-id="{{ $paymentId }}"
                                             data-pr-id="{{ $pay['pr_id'] ?? '' }}">
                                             <td class="text-center">
@@ -3099,7 +3099,11 @@
                                                 {{ $pay['note_tambahan'] ?? '' }}
                                             </td>
                                             <td>
-                                                @if (($pay['adjustment'] ?? 0) > 0)
+                                                @if (!empty($pay['recon_hold']))
+                                                    <span style="color:#dc2626;font-weight:700;">HOLD</span>
+                                                    <div>Bayar: Rp 0</div>
+                                                    <div>Sisa: Rp {{ number_format($pay['amount'] ?? 0, 0, ',', '.') }}</div>
+                                                @elseif (($pay['adjustment'] ?? 0) > 0)
                                                     <div style="color:#16a34a; font-weight:bold; font-size:9px;">
                                                         Bayar: Rp {{ number_format($pay['adjustment'], 0, ',', '.') }}
                                                     </div>
@@ -6236,7 +6240,7 @@
             document.querySelectorAll('.payment-row').forEach(row => {
                 let originalAmount = parseNumber(row.querySelector('.total-amount')?.innerText);
                 let adjustment = parseFloat(row.dataset.adjustment || 0);
-                let amount = adjustment > 0 ? adjustment : originalAmount;
+                let amount = row.dataset.reconHold === '1' ? 0 : (adjustment > 0 ? adjustment : originalAmount);
                 const type = row.querySelector('.payment-type')?.value;
 
                 switch (type) {
@@ -6614,7 +6618,7 @@
             document.querySelectorAll('.payment-row').forEach(row => {
                 let originalAmount = parseNumber(row.querySelector('.total-amount')?.innerText);
                 let adjustment = parseFloat(row.dataset.adjustment || 0);
-                let amount = adjustment > 0 ? adjustment : originalAmount;
+                let amount = row.dataset.reconHold === '1' ? 0 : (adjustment > 0 ? adjustment : originalAmount);
                 let type = row.querySelector('.payment-type')?.value;
 
                 if (type === 'ppn') totalPpn += amount;
@@ -6715,6 +6719,7 @@
                 payments.push({
                     amount: originalAmount,
                     adjustment: adjustment,
+                    recon_hold: row.dataset.reconHold === '1',
                     payment_request_amount: adjustment,
                     remaining_amount: originalAmount - adjustment,
                     date: row.querySelector('.date-isian')?.innerText.trim() || '',
@@ -7574,6 +7579,7 @@
                     type: cleanText(row.querySelector('.payment-type')?.value),
                     note: cleanText(row.querySelector('.note-tambahan')?.innerText),
                     adjustment: Number(row.dataset.adjustment || 0),
+                    recon_hold: row.dataset.reconHold === '1',
                     is_request: !!row.querySelector('.payment-request-check')?.checked
                 });
             });
@@ -8077,7 +8083,7 @@
                 html += `
                 <tr>
                     <td class="excel-money">${pay.amount ? excelMoney(pay.amount) : ''}</td>
-                    <td class="excel-money" style="color:#15803d;font-weight:700;">${adjustment > 0 ? excelMoney(adjustment) : ''}</td>
+                    <td class="excel-money" style="color:#15803d;font-weight:700;">${pay.recon_hold ? 'HOLD' : (adjustment > 0 ? excelMoney(adjustment) : '')}</td>
                     <td>${excelEscape(pay.date || '')}</td>
                     <td>${excelEscape(pay.note || pay.type || '')}</td>
                 </tr>

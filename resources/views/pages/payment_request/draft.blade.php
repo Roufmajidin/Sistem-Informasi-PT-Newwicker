@@ -9,26 +9,62 @@
     @endsection
     <div class="box-body spk-wrapper">
         <!-- navigasi -->
-        <ul class="nav nav-tabs mb-3 mt-4">
+        <ul class="nav nav-tabs mb-3 mt-4" id="payment-request-nav">
             <li class="nav-item">
-                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#draft-request-tab">
+                <button class="nav-link" data-payment-tab="true" data-bs-target="#draft-request-tab">
                     Payment Request
                 </button>
             </li>
             <li class="nav-item">
-                <button class="nav-link active draft-production-tab" data-bs-toggle="tab"
+                <button class="nav-link active draft-production-tab" data-payment-tab="true"
                     data-bs-target="#payment-request-tab" data-production-filter="NW">
                     Draft NW
                 </button>
             </li>
             <li class="nav-item">
-                <button class="nav-link draft-production-tab" data-bs-toggle="tab" data-bs-target="#payment-request-tab"
+                <button class="nav-link draft-production-tab" data-payment-tab="true" data-bs-target="#payment-request-tab"
                     data-production-filter="NWS">
                     Draft NWS
                 </button>
             </li>
+            <li class="nav-item"><button class="nav-link" data-payment-tab="true" data-bs-target="#pending-request-tab">Pending / Partial</button></li>
+            <li class="nav-item"><button type="button" class="nav-link" data-payment-tab="true" data-bs-target="#has-payment-tab">Payment History (partial/pending)</button></li>
         </ul>
-        <div class="tab-content">
+        <div class="tab-content" id="payment-request-panes">
+            <div class="tab-pane fade" id="has-payment-tab">
+                <div class="card p-3"><h5>Detail Has Payment — By Finance</h5>
+                <div class="table-responsive"><table class="table table-bordered payment-print-table" style="font-size:11px">
+                <thead><tr><th>No</th><th>Draft No</th><th>PO</th><th>TGL Transfer</th><th>Supplier</th><th>Payment</th><th>Description</th><th>Note</th><th>Keterangan</th><th>Qty</th><th>Sat</th><th>Unit Price</th><th>Amount</th></tr></thead><tbody>
+                @php $historyNo = 0; $historySeen = []; $historyTotal = 0; @endphp
+                @foreach($draftRequests as $draft)
+                    @foreach($draft['items'] as $item)
+                        @foreach(($item['finance_history'] ?? []) as $transfer)
+                            @php $historyKey = $item['spk_id'].'|'.($transfer['payment_id'] ?? ''); @endphp
+                            @if(isset($historySeen[$historyKey]) || (isset($transfer['finance_draft_id']) && (string)$transfer['finance_draft_id'] !== (string)$draft['id'])) @continue @endif
+                            @php $historySeen[$historyKey] = true; $historyTotal += (float)($transfer['amount'] ?? 0); @endphp
+                            <tr><td>{{ ++$historyNo }}</td><td>{{ $draft['request_no'] }}</td><td>{{ $item['no_po'] }}</td><td>{{ $transfer['date'] ?? '-' }}</td><td>{{ $item['supplier'] }}</td><td>Transfer</td><td><a href="{{ url('/spk/views/'.$item['spk_id']) }}">{{ $item['spk_no'] }}</a></td><td>{{ $transfer['note'] ?? $item['payment_note'] }}</td><td>By Finance</td><td>1</td><td>-</td><td>{{ number_format((float)($transfer['amount'] ?? 0),0,',','.') }}</td><td>{{ number_format((float)($transfer['amount'] ?? 0),0,',','.') }}</td></tr>
+                        @endforeach
+                    @endforeach
+                @endforeach
+                @if(!$historyNo)<tr><td colspan="13" class="text-center text-muted">Belum ada pembayaran By Finance.</td></tr>@endif
+                </tbody><tfoot><tr><th colspan="12" class="text-end">Total By Finance</th><th>{{ number_format($historyTotal,0,',','.') }}</th></tr></tfoot></table></div></div>
+            </div>
+            <div class="tab-pane fade" id="pending-request-tab">
+                <div class="card p-3"><h5>Detail Pending / Partial Payment</h5><div class="table-responsive"><table class="table table-bordered payment-print-table" style="font-size:11px"><thead><tr><th>No</th><th>Draft No</th><th>PO</th><th>Supplier</th><th>Payment</th><th>Description</th><th>Keterangan</th><th>Qty</th><th>Sat</th><th>Unit Price</th><th>Amount</th><th>Status</th><th>Recon Fin</th><th>Sisa</th><th>Transfer Finance</th><th>Tanggal Transfer</th><th>Action</th></tr></thead><tbody id="pending-recon-body">
+                @php $pendingNo = 0; @endphp
+                @foreach($draftRequests as $draft)
+                    @foreach($draft['items'] as $item)
+                        @php $original = (float) $item['payment_amount']; $follow = (float) ($item['finance_followup'] ?? 0); $recon = (float) $item['recon_amount'] + $follow; $remaining = max(0,$original-$recon); @endphp
+                        <tr data-recon-draft="{{ $draft['id'] }}" data-recon-spk="{{ $item['spk_id'] }}" data-recon-payment="{{ $item['payment_id'] }}" data-original="{{ $original }}" data-recon="{{ $recon }}" data-follow="{{ $follow }}" data-hold="{{ $recon == 0 ? 1 : 0 }}" style="{{ $remaining > 0 ? '' : 'display:none' }}" class="{{ $recon == 0 ? 'recon-hold-row' : '' }}">
+                        <td class="pending-recon-no">{{ ++$pendingNo }}</td><td>{{ $draft['request_no'] }}</td><td>{{ $item['no_po'] }}</td><td>{{ $item['supplier'] }}</td><td>Transfer</td><td><a href="{{ url('/spk/views/'.$item['spk_id']) }}">{{ $item['spk_no'] }}</a></td><td>{{ $item['payment_note'] }}</td><td>1</td><td>-</td><td>{{ number_format($original,0,',','.') }}</td><td>{{ number_format($original,0,',','.') }}</td><td class="pending-recon-status">{{ $recon == 0 ? 'HOLD' : 'Partial' }}</td><td class="pending-recon-value">{{ number_format($recon,0,',','.') }}</td><td class="pending-recon-sisa">{{ number_format($remaining,0,',','.') }}</td>
+                        @if(in_array((int)auth()->id(), [215,211,134], true))
+                        <td><input class="form-control form-control-sm pending-transfer-amount" type="number" min="1" step="1" style="min-width:120px"></td><td><input class="form-control form-control-sm pending-transfer-date" type="date" value="{{ now()->toDateString() }}"></td><td><button type="button" class="btn btn-sm btn-primary pending-transfer-submit">Validasi</button></td>
+                        @else<td colspan="3">-</td>@endif
+                        </tr>
+                    @endforeach
+                @endforeach
+                </tbody></table></div><div id="pending-recon-empty" class="text-muted">Tidak ada pending payment.</div></div>
+            </div>
             <div class="tab-pane fade show active" id="payment-request-tab">
                 <div
                     style="
@@ -557,7 +593,7 @@
                             </button>
 
                             <h5 class="mb-0">
-                                Payment Requests
+                               Detail Payment Requests
                             </h5>
                         </div>
                         {{-- 
@@ -585,7 +621,7 @@
                                             <th>Request Date</th>
                                             <th>Need Date</th>
                                             <th>Total baris</th>
-                                            <th>Grand Total</th>
+                                            <th>Grand Total</th><th>Pending Pay</th><th>Partial Pay</th>
                                             <th>Status</th>
 
                                             <th>Pending Sign</th>
@@ -698,6 +734,8 @@
                                                     Rp
                                                     {{ number_format($draft['grand_total'], 0, ',', '.') }}
                                                 </td>
+                                                <td class="pending-pay text-danger">{{ number_format(collect($draft['items'])->sum(fn($i) => $i['recon_hold'] ? max(0,$i['payment_amount']-$i['recon_amount']) : 0),0,',','.') }}</td>
+                                                <td class="partial-pay text-warning">{{ number_format(collect($draft['items'])->sum(fn($i) => !$i['recon_hold'] ? max(0,$i['payment_amount']-$i['recon_amount']) : 0),0,',','.') }}</td>
 
                                                 <td>
                                                     {{ $draft['status'] }}
@@ -711,7 +749,7 @@
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="11" class="text-center">
+                                                <td colspan="13" class="text-center">
                                                     Belum ada draft request
                                                 </td>
                                             </tr>
@@ -854,6 +892,10 @@
 </div>
 {{-- PRINT SUPPORT: tampilan layar tetap menggunakan CSS semula --}}
 <style>
+    #payment-request-panes > .tab-pane:not(.active) { display:none !important; }
+    #payment-request-panes > .tab-pane.active { display:block !important; opacity:1; }
+    #pending-recon-body .recon-hold-row > td { background:#fee2e2 !important; color:#991b1b !important; }
+
     @media print {
 
         .no-print,
@@ -2337,6 +2379,11 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>
+#draftDetailArea .recon-hold-row > td { background:#fee2e2 !important; color:#991b1b !important; }
+#draftDetailArea .finance-adjustment { min-width:95px; }
+#draftDetailArea .recon-remaining { white-space:nowrap; }
+</style>
 @include('pages.payment_request.script')
 <script>
     $(document).on(
@@ -2904,6 +2951,7 @@
          * - jika adjustment kosong/null/0 -> payment_amount
          */
         function effectiveAmount(payment) {
+            if (payment?.recon_hold) return 0;
             const adjustmentRaw = payment && payment.adjustment;
 
             if (

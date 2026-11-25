@@ -53,6 +53,7 @@ use App\Http\Controllers\ScanController;
 use App\Http\Controllers\IncomingWarehouseController;
 use App\Http\Controllers\ArController2026;
 use App\Http\Controllers\TomoController;
+//
 Route::get('/produksi/tomo', [TomoController::class, 'index'])
     ->name('produksi.tomo');
 
@@ -66,7 +67,7 @@ Route::get('/produksi/tomo/submissions', [TomoController::class, 'submissions'])
 
 Route::post('/produksi/tomo/submissions', [TomoController::class, 'store'])
     ->middleware('throttle:10,1')
-    ->name('produksi.tomo.submissions.store');
+    ->name('produksi.tomo.submissions.store');  
 Route::middleware(['auth'])
     ->prefix('warehouse/incoming')
     ->name('warehouse.incoming.')

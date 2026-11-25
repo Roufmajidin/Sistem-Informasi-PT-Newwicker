@@ -1565,8 +1565,7 @@
 
                            const isAngsuran = String(pay.payment_type || pay.type || pay.note || '')
                                .trim().toLowerCase() === 'angsuran';
-                           const nilaiRaw = parseFloat(pay.payment_request_amount || pay.amount ||
-                               0) || 0;
+                           const nilaiRaw = parseFloat(pay.recon_hold ? 0 : (pay.payment_request_amount || pay.amount || 0)) || 0;
                            let nilai = isAngsuran ? Math.abs(nilaiRaw) : nilaiRaw;
 
                            if (pay.note == 'bahan') {
@@ -1647,7 +1646,7 @@
             <td>
 
             ${
-                pay.adjustment > 0
+                pay.recon_hold ? `<span class="badge bg-danger">HOLD</span><div>Paid: Rp 0</div><small class="text-danger">Sisa: Rp ${Number(pay.remaining_amount ?? pay.amount ?? 0).toLocaleString('id-ID')}</small>` : pay.adjustment > 0
                 ? `
                                                                                                    <div>
                                                                                                        Paid :
