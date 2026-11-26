@@ -1118,6 +1118,20 @@
 
     }
 
+    // Format tampilan saja; nilai kalkulasi tetap disimpan terpisah.
+    function formatBomRupiah(value) {
+        return Number(value || 0).toLocaleString('id-ID', { maximumFractionDigits: 0 });
+    }
+
+    function readBomTotal(input) {
+        const raw = input.attr('data-raw-total');
+        return raw === undefined ? unFormat(input.val()) : Number(raw) || 0;
+    }
+
+    function writeBomTotal(input, value) {
+        input.attr('data-raw-total', value).val(formatBomRupiah(value));
+    }
+
     function updateTotalHpp() {
 
         let labour = 0;
@@ -1135,7 +1149,7 @@
         $('.material-total').each(function() {
 
             material += parseFloat(
-                unFormat($(this).val())
+                readBomTotal($(this))
             ) || 0;
 
         });
@@ -1143,27 +1157,23 @@
         $('.summary-total').each(function() {
 
             summary += parseFloat(
-                unFormat($(this).val())
+                readBomTotal($(this))
             ) || 0;
 
         });
 
         let totalHpp = labour + material + summary;
-        $('#bom-hpp-plus').val((totalHpp * 1.10).toLocaleString('id-ID', {
-            maximumFractionDigits: 3
-        }));
+        $('#bom-hpp-plus').val(formatBomRupiah(totalHpp * 1.10));
         $('#bom-sections .bom-section').each(function() {
             let subtotal = 0;
             $(this).find('.child-body .material-total').each(function() {
-                subtotal += parseFloat(unFormat($(this).val())) || 0;
+                subtotal += parseFloat(readBomTotal($(this))) || 0;
             });
-            $(this).find('.bom-group-subtotal-value').text(subtotal.toLocaleString('id-ID', {
-                maximumFractionDigits: 4
-            }));
+            $(this).find('.bom-group-subtotal-value').text(formatBomRupiah(subtotal));
         });
 
         $('#total-hpp').val(
-            totalHpp.toLocaleString('id-ID')
+            formatBomRupiah(totalHpp)
         );
         console.log($('#total-hpp').val());
     }
@@ -1604,9 +1614,7 @@
 
         let total = qty * price;
 
-        row.find('.material-total').val(
-            total.toLocaleString('id-ID')
-        );
+        writeBomTotal(row.find('.material-total'), total);
 
     }
     // search material di modal
@@ -2319,7 +2327,8 @@
         type="text"
         readonly
         class="form-control material-total"
-        value="${Number(item.total || 0).toLocaleString('id-ID')}">
+            data-raw-total="${Number(item.total || 0)}"
+            value="${formatBomRupiah(item.total)}">
 
     </td>
 
@@ -2436,7 +2445,8 @@
             type="text"
             readonly
             class="form-control summary-total"
-            value="${Number(summary.total || 0).toLocaleString('id-ID')}">
+            data-raw-total="${Number(summary.total || 0)}"
+            value="${formatBomRupiah(summary.total)}">
 
     </td>
 
@@ -2517,10 +2527,7 @@
                             .find('.unit')
                             .val(),
 
-                        total: $(this)
-                            .find('.material-total')
-                            .val()
-                            .replace(/\./g, ''),
+                        total: readBomTotal($(this).find('.material-total')),
 
                         notes: $(this)
                             .find('.specification')
@@ -2579,11 +2586,7 @@
                     .val()
                 ),
 
-                total: unFormat(
-                    $(this)
-                    .find('.summary-total')
-                    .val()
-                ),
+                total: readBomTotal($(this).find('.summary-total')),
 
             });
 
@@ -3029,23 +3032,17 @@
         $('.material-total').each(function() {
 
             material += parseFloat(
-                unFormat($(this).val())
+                readBomTotal($(this))
             ) || 0;
 
         });
 
         $('#labour-total').text(
-            labour.toLocaleString('id-ID', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            })
+            formatBomRupiah(labour)
         );
 
         $('#material-total-all').text(
-            material.toLocaleString('id-ID', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            })
+            formatBomRupiah(material)
         );
 
     }
@@ -3114,9 +3111,7 @@
 
             let total = qty * price;
 
-            row.find('.summary-total').val(
-                formatNumber(total)
-            );
+            writeBomTotal(row.find('.summary-total'), total);
             updateTotalHpp();
             saveDraft();
 
@@ -3285,9 +3280,7 @@
 
             let total = qty * price;
 
-            row.find('.summary-total').val(
-                formatNumber(Math.round(total))
-            );
+            writeBomTotal(row.find('.summary-total'), Math.round(total));
 
             updateTotalHpp();
             saveDraft();
@@ -3332,9 +3325,7 @@
 
         let price = unFormat($(this).val());
 
-        row.find('.summary-total').val(
-            formatNumber(qty * price)
-        );
+        writeBomTotal(row.find('.summary-total'), qty * price);
 
         updateTotalHpp();
         saveDraft();
