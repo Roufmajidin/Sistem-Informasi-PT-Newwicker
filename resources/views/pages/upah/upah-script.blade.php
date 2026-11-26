@@ -868,6 +868,9 @@
                         return;
                     }
 
+                    if (typeof window.validateInsertQtyLimit === 'function' && !window.validateInsertQtyLimit()) {
+                        return;
+                    }
                     isSubmittingUpah = true;
 
                     const button =
@@ -924,6 +927,7 @@
                         tanggal: $('#insert_tanggal').val(),
 
                         pekerjaan: pekerjaan,
+                        inspect: $('#insert_inspect').is(':checked') ? 1 : 0,
                         create_master_upah: !$('#insert_pekerjaan_new').hasClass('d-none') ? 1 : 0,
 
                         person: $('#insert_person').val(),
@@ -2083,6 +2087,7 @@
             editingUpahId = parseInt(button.attr('data-id'), 10) || null;
             window.editingUpahId = editingUpahId;
             $('#insert_upah_id').val(editingUpahId || '');
+            $('#insert_inspect').prop('checked', false);
 
             // Buang hasil validasi transaksi sebelumnya.
             if (typeof window.resetUpahQtyCheckState === 'function') {
@@ -3831,6 +3836,12 @@ $(document).off('click.upahAjaxPage', '#upahPagination a')
                 return;
             }
 
+            if ($('#insert_inspect').is(':checked') && data.valid) {
+                message.removeClass('text-danger text-muted').addClass('text-success')
+                    .text('Inspect aktif — batas maksimal Qty PO tidak berlaku.');
+                $('#insert_qty').removeClass('is-invalid');
+                return;
+            }
             if (!data.valid || data.over || requested > remaining) {
                 message
                     .removeClass('text-success text-muted')
@@ -3891,45 +3902,31 @@ $(document).off('click.upahAjaxPage', '#upahPagination a')
             lastAlertKey = alertKey;
             lastAlertAt = now;
 
-            if (typeof Swal !== 'undefined') {
+            var message = 'Qty PO: ' + formatQty(data.qty_po) +
+                ' | Sisa: ' + formatQty(remaining) +
+                ' | Input: ' + formatQty(requested);
+            var title = data.found === false ? 'Validasi Qty' : 'Qty Melebihi Sisa';
+            if (data.found === false) message = data.message || 'Detail PO tidak ditemukan.';
+
+            if (typeof toastr !== 'undefined' && typeof toastr.warning === 'function') {
+                toastr.warning(escHtml(message), title, {
+                    positionClass: 'toast-top-right', timeOut: 4000,
+                    extendedTimeOut: 1000, closeButton: true, progressBar: true
+                });
+            } else if (typeof Swal !== 'undefined') {
                 Swal.fire({
-                    imageUrl: '{{ asset('storage/rouf.jpeg') }}',
-                    imageWidth: 75,
-                    imageHeight: 90,
-                    imageAlt: 'Foto item',
-
-                    title: 'Qty Melebihi Sisa',
-
-                    html: '<div style="text-align:left">' +
-                        '<div><b>Article:</b> ' + escHtml(article) + '</div>' +
-                        '<div><b>No PO:</b> ' + escHtml(noPo) + '</div>' +
-                        '<div><b>Pekerjaan:</b> ' + escHtml(pekerjaan) + '</div>' +
-                        '<hr style="margin:8px 0">' +
-                        '<div><b>Qty PO:</b> ' + escHtml(formatQty(data.qty_po)) + '</div>' +
-                        '<div><b>Sudah Upah:</b> ' +
-                        escHtml(formatQty(
-                            data.used_qty_total != null ? data.used_qty_total : data.used_qty
-                        )) +
-                        '</div>' +
-                        '<div><b>Sisa:</b> ' + escHtml(formatQty(remaining)) + '</div>' +
-                        '<div><b>Input:</b> ' + escHtml(formatQty(requested)) + '</div>' +
-                        '</div>',
-
-                    confirmButtonText: 'OK'
+                    toast: true, position: 'top-end', icon: 'warning',
+                    title: title, text: message, showConfirmButton: false,
+                    timer: 4000, timerProgressBar: true
                 });
             } else {
-                alert(
-                    'Qty melebihi sisa.\n\n' +
-                    'Qty PO: ' + formatQty(data.qty_po) + '\n' +
-                    'Sudah Upah: ' +
-                    formatQty(
-                        data.used_qty_total != null ?
-                        data.used_qty_total :
-                        data.used_qty
-                    ) + '\n' +
-                    'Sisa: ' + formatQty(remaining) + '\n' +
-                    'Input: ' + formatQty(requested)
-                );
+                var toast = $('<div>', {role: 'alert'}).css({
+                    position: 'fixed', top: '16px', right: '16px', zIndex: 99999,
+                    background: '#92400e', color: '#fff', padding: '12px 16px',
+                    borderRadius: '8px', maxWidth: '320px', boxShadow: '0 4px 16px #0003'
+                }).append($('<strong>').text(title), $('<div>').text(message));
+                $('body').append(toast);
+                setTimeout(function() { toast.fadeOut(200, function() { toast.remove(); }); }, 4000);
             }
         }
 
@@ -3978,6 +3975,7 @@ $(document).off('click.upahAjaxPage', '#upahPagination a')
             }
 
             var requestEditId = excludeId;
+            var inspect = $('#insert_inspect').is(':checked');
 
             qtyCheckRequest = $.ajax({
                 url: window.checkQtyUpahUrl,
@@ -3988,7 +3986,8 @@ $(document).off('click.upahAjaxPage', '#upahPagination a')
                     no_po: noPo,
                     pekerjaan: pekerjaan,
                     qty: qty,
-                    exclude_id: excludeId
+                    exclude_id: excludeId,
+                    inspect: inspect ? 1 : 0
                 }
             }).done(function(res) {
 
@@ -4013,13 +4012,13 @@ $(document).off('click.upahAjaxPage', '#upahPagination a')
                  */
                 var currentQty = getQtyValue();
 
-                if (currentQty !== qty) {
+                if (currentQty !== qty || inspect !== $('#insert_inspect').is(':checked')) {
                     return;
                 }
 
                 res.requested_qty = qty;
                 res.over = !res.valid ||
-                    (res.remaining_qty !== null &&
+                    (!inspect && res.remaining_qty !== null &&
                         qty > toNumber(res.remaining_qty));
 
                 lastQtyLimit = res;
@@ -4090,6 +4089,7 @@ $(document).off('click.upahAjaxPage', '#upahPagination a')
             var currentQty = getQtyValue();
 
             if (
+                !$('#insert_inspect').is(':checked') &&
                 lastQtyLimit &&
                 lastQtyLimit.found &&
                 lastQtyLimit.remaining_qty !== null
@@ -4194,6 +4194,11 @@ $(document).off('click.upahAjaxPage', '#upahPagination a')
                 window.checkInsertQtyLimit(true);
             });
 
+        $(document).on('change.upahInspect', '#insert_inspect', function() {
+            window.resetUpahQtyCheckState();
+            window.checkInsertQtyLimit(true);
+        });
+
         window.validateInsertQtyLimit = function() {
             var qty = getQtyValue();
 
@@ -4203,7 +4208,7 @@ $(document).off('click.upahAjaxPage', '#upahPagination a')
 
             var remaining = toNumber(lastQtyLimit.remaining_qty);
 
-            if (!lastQtyLimit.valid || qty > remaining) {
+            if (!lastQtyLimit.valid || (!$('#insert_inspect').is(':checked') && qty > remaining)) {
                 lastQtyLimit.requested_qty = qty;
                 lastQtyLimit.over = true;
                 showInlineInfo(lastQtyLimit);

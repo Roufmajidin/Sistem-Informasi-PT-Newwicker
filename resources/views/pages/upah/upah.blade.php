@@ -475,7 +475,12 @@
                         <div class="row">
                             <div class="col-md-4">
                                 <div class="upah-form-group">
-                                    <label class="upah-form-label">Pekerjaan <span class="required">*</span></label>
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <label class="upah-form-label">Pekerjaan <span class="required">*</span></label>
+                                        <label class="upah-form-label d-inline-flex align-items-center" for="insert_inspect" style="gap:4px;white-space:nowrap;cursor:pointer;">
+                                            <input type="checkbox" id="insert_inspect" name="inspect" value="1"> Inspect
+                                        </label>
+                                    </div>
                                     <select id="insert_pekerjaan" name="pekerjaan" class="form-control">
                                         <option value="">Pilih pekerjaan...</option>
                                     </select>
