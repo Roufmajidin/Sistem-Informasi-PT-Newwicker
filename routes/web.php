@@ -53,7 +53,15 @@ use App\Http\Controllers\ScanController;
 use App\Http\Controllers\IncomingWarehouseController;
 use App\Http\Controllers\ArController2026;
 use App\Http\Controllers\TomoController;
+use App\Http\Controllers\ProgressReportController;
+
 //
+Route::middleware('auth')->group(function () {
+    Route::post('progress-report/{progress_report}/publish', [ProgressReportController::class,'publish'])->name('progress-report.publish');
+    Route::get('progress-report/{progress_report}/pdf', [ProgressReportController::class,'pdf'])->name('progress-report.pdf');
+    Route::resource('progress-report', ProgressReportController::class)->parameters(['progress-report'=>'progress_report']);
+});
+
 Route::get('/produksi/tomo', [TomoController::class, 'index'])
     ->name('produksi.tomo');
 
@@ -67,7 +75,7 @@ Route::get('/produksi/tomo/submissions', [TomoController::class, 'submissions'])
 
 Route::post('/produksi/tomo/submissions', [TomoController::class, 'store'])
     ->middleware('throttle:10,1')
-    ->name('produksi.tomo.submissions.store');  
+    ->name('produksi.tomo.submissions.store');
 Route::middleware(['auth'])
     ->prefix('warehouse/incoming')
     ->name('warehouse.incoming.')
@@ -128,7 +136,7 @@ Route::prefix('ars2026')->name('ars2026.')->group(function () {
 require_once base_path('routes/channels.php');
 Route::middleware('auth')->prefix('mom')->name('mom.')->group(function () {
 
-    // 
+    //
     Route::get('/', [MomController::class, 'index'])->name('index');
     Route::get('/list', [MomController::class, 'listing'])->name('list');
     Route::post('/autosave', [MomController::class, 'autosave'])->name('autosave');
@@ -355,7 +363,7 @@ Route::middleware('auth')->group(function () {
             // ==========================================
             // QUEUE UPLOAD - TARUH SEBELUM {po}
             // ==========================================
-    
+
             // Mengecek apakah slot buffer upload tersedia
             Route::get(
                 '/sample-pictures/upload-slot',
@@ -1286,7 +1294,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/qc/export/{kategori}/{po_id}', [QcController::class, 'exportPdf']);
 
-    // neww routing 
+    // neww routing
     Route::get('/supplier', [SupplierController::class, 'index']);
     Route::get('/supplier/{id}/spk-preview', [
         SupplierController::class,
@@ -1352,7 +1360,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/spkk/timeline', [SpkController::class, 'tima'])->name('spk.time');
     Route::get('/all-spk', [SpkController::class, 'allspk'])->name('spk.all');
     Route::get('/semua-spk', [SpkController::class, 'spk'])->name('spk.semua');
-  
+
 // ==========================================
 // PENGAJUAN TOMO
 // ==========================================
@@ -1556,7 +1564,7 @@ Route::put('/pengajuan-tomo/points/{id}',
     Route::get('/produksi/inventor/arsip/data', [ProduksiMnController::class, 'inventorArsipData'])
         ->name('inventor.arsip.data');
 
-    // cog 
+    // cog
 
     /*
     |--------------------------------------------------------------------------
@@ -1828,7 +1836,7 @@ Route::put('/pengajuan-tomo/points/{id}',
 
 
 
-    // subkon 
+    // subkon
     Route::prefix('subkon')
         ->name('subkon.')
         ->group(function () {
@@ -1881,7 +1889,7 @@ Route::put('/pengajuan-tomo/points/{id}',
             ])->name('timeline');
         });
 
-    // finance export 
+    // finance export
     Route::get(
         '/payment-request-saved/{id}/export',
         [SpkController::class, 'exportPengajuanSpk']

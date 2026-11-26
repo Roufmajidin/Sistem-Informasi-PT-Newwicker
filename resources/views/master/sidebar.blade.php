@@ -43,6 +43,16 @@
                          </a>
 
                      </li>
+                      @if (auth()->user()->role == 'factory' || auth()->user()->role == 'coo'  || auth()->user()->role == 'office')
+                                 <li>
+                                     <a href="/progress-report">
+                                         <span class="nav-icon">
+                                             <i class="material-icons">assignment</i>
+                                         </span>
+                                         <span class="nav-text">Production Report</span>
+                                     </a>
+                                 </li>
+                     @endif
                      @php
                          use App\Models\Karyawan;
 
@@ -1055,6 +1065,14 @@
                          @auth
                              @if (auth()->user()->role == 'factory' || auth()->user()->role == 'coo')
                                  <li>
+                                     <a href="/report-production">
+                                         <span class="nav-icon">
+                                             <i class="material-icons">assignment</i>
+                                         </span>
+                                         <span class="nav-text">Production Report</span>
+                                     </a>
+                                 </li>
+                                 <li>
                                      <a href="/produksi/inventor">
                                          <span class="nav-icon">
                                              <i class="material-icons">assignment</i>
@@ -1185,7 +1203,7 @@
    HANYA AKTIF:
       /spk/create
       /spk/edit/*
-   
+
    HALAMAN SPK LAIN TETAP NORMAL
    ============================================================ */
 

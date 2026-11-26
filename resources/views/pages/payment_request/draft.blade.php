@@ -67,7 +67,7 @@
             </div>
             <div class="tab-pane fade show active" id="payment-request-tab">
                 <div
-                    style="
+                    style="F
             background:white;
             padding:20px;
             font-family:Arial;
@@ -81,7 +81,7 @@
                             {{-- LOGO --}}
                             <td width="25%">
                                 <img src="{{ asset('/assets/images/NEWWICKER WHITE.png') }}" height="80">
-
+F
 
                             </td>
                             {{-- TITLE --}}
@@ -104,7 +104,7 @@
                                         <td
                                             style="
                                     border:1px solid black;
-                                    padding:4px;
+                                    padding:4 px;
                                     font-size:11px;
                                 ">
                                             Need by Date :
@@ -596,7 +596,7 @@
                                Detail Payment Requests
                             </h5>
                         </div>
-                        {{-- 
+                        {{--
                             <small class="text-success">
                                 <i class="fa fa-info-circle"></i>
                                 Klik <b>Detail</b> pada pengajuan paling atas <b>(NEW)</b>. Setelah halaman detail terbuka,
