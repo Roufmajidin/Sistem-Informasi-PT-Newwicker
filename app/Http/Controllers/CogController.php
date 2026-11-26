@@ -24,7 +24,7 @@ use App\Models\BomProdItem;
 
 use App\Models\BomProdGroup;
 
-use App\Models\BomGroupSubPrice;
+
 
 // BomProdSummary
 
@@ -623,7 +623,7 @@ class CogController extends Controller
 
 
 
-                    BomGroupSubPrice::create([
+                    BomProdGroupSubPrice::create([
 
 
 
@@ -1428,7 +1428,7 @@ class CogController extends Controller
 
 
 
-                    BomGroupSubPrice::create([
+                    BomProdGroupSubPrice::create([
 
 
 
