@@ -1377,7 +1377,8 @@ class UpahController extends Controller
         ?string $noPo,
         string $pekerjaan,
         float $requestedQty,
-        ?int $excludeId = null
+        ?int $excludeId = null,
+        bool $inspect = false
     ): array {
         $detailPo = $this->findDetailPoByArticleAndPo($article, $noPo);
 
@@ -1426,7 +1427,7 @@ class UpahController extends Controller
 
         $remainingQty = max(0, $qtyPo - $usedQty);
 
-        if (($usedQty + $requestedQty) > $qtyPo) {
+        if (!$inspect && ($usedQty + $requestedQty) > $qtyPo) {
             return [
                 'found' => true,
                 'valid' => false,
@@ -1475,8 +1476,8 @@ class UpahController extends Controller
         if ($keyword !== '') {
             $query->where(function ($q) use ($keyword) {
                 $q->where('no_po', 'like', '%' . $keyword . '%')
-                  ->orWhere('article', 'like', '%' . $keyword . '%')
-                  ->orWhere('description', 'like', '%' . $keyword . '%');
+                    ->orWhere('article', 'like', '%' . $keyword . '%')
+                    ->orWhere('description', 'like', '%' . $keyword . '%');
             });
         }
 
@@ -1495,15 +1496,18 @@ class UpahController extends Controller
                 })->whereNotNull('detail')->get();
             foreach ($details as $detailPo) {
                 $detail = $detailPo->detail;
-                if (!is_array($detail)) continue;
+                if (!is_array($detail))
+                    continue;
                 $po = trim((string) optional($detailPo->po)->order_no);
                 $article = '';
                 foreach (['article_code', 'article_code_', 'article_nr', 'article_nr_', 'article', 'article_no', 'article_number', 'sku', 'item_code', 'code'] as $key) {
                     if (isset($detail[$key]) && trim((string) $detail[$key]) !== '') {
-                        $article = trim((string) $detail[$key]); break;
+                        $article = trim((string) $detail[$key]);
+                        break;
                     }
                 }
-                if ($po === '' || $article === '') continue;
+                if ($po === '' || $article === '')
+                    continue;
                 $key = mb_strtolower($po . '|' . $article);
                 $poQty[$key] = ($poQty[$key] ?? 0) + $this->getDetailPoQty($detailPo);
             }
@@ -1515,10 +1519,12 @@ class UpahController extends Controller
             $qty = $poQty[mb_strtolower($po . '|' . $article)] ?? null;
             $used = (float) $r->used_qty;
             return [
-                'po' => $po, 'article' => $article,
+                'po' => $po,
+                'article' => $article,
                 'description' => (string) ($r->description ?? ''),
                 'pekerjaan' => (string) ($r->pekerjaan ?? ''),
-                'qty_po' => $qty, 'used_qty' => $used,
+                'qty_po' => $qty,
+                'used_qty' => $used,
                 'remaining_qty' => $qty === null ? null : max(0, $qty - $used),
                 'progress' => $qty > 0 ? min(100, $used / $qty * 100) : null,
             ];
@@ -1540,6 +1546,7 @@ class UpahController extends Controller
             'no_po' => 'nullable|string|max:100',
             'qty' => 'required|numeric|min:0',
             'exclude_id' => 'nullable|integer',
+            'inspect' => 'nullable|boolean',
         ]);
 
         $result = $this->validateUpahQtyLimit(
@@ -1547,13 +1554,15 @@ class UpahController extends Controller
             $request->no_po,
             $request->pekerjaan,
             (float) $request->qty,
-            $request->exclude_id
+            $request->exclude_id,
+            $request->boolean('inspect')
         );
 
         return response()->json([
             'success' => true,
             ...$result,
             'over' => !$result['valid'] || (
+                !$request->boolean('inspect') &&
                 $result['remaining_qty'] !== null &&
                 (float) $request->qty > (float) $result['remaining_qty']
             ),
@@ -1622,6 +1631,8 @@ class UpahController extends Controller
                 'max:100',
             ],
 
+            'inspect' => 'nullable|boolean',
+
             'create_master_upah' => [
                 'nullable',
                 'boolean',
@@ -1646,7 +1657,8 @@ class UpahController extends Controller
                     $validated['no_po'] ?? null,
                     $validated['pekerjaan'],
                     (float) $validated['qty'],
-                    !empty($validated['id']) ? (int) $validated['id'] : null
+                    !empty($validated['id']) ? (int) $validated['id'] : null,
+                    (bool) ($validated['inspect'] ?? false)
                 );
 
                 if (!$qtyCheck['valid']) {
@@ -1716,7 +1728,7 @@ class UpahController extends Controller
 
                 // Jangan ikut disimpan sebagai kolom Upah jika field ini
                 // tidak tersedia pada tabel transaksi.
-                unset($validated['create_master_upah']);
+                unset($validated['create_master_upah'], $validated['inspect']);
 
                 $validated['updated_by'] = [
                     [
