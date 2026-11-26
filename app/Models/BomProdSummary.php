@@ -6,12 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class BomProdSummary extends Model
 {
-  protected $table = 'bom_summaries_prod';
+    protected $table = 'bom_summaries_prod';
 
-  protected $guarded = [];
+    protected $guarded = [];
 
     public function bom()
     {
-        return $this->belongsTo(BomProd::class);
+        return $this->belongsTo(BomProd::class, 'bom_id');
     }
 }

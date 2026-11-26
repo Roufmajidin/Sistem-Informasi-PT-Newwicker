@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class BomGroupSubPrice extends Model
 {
+    protected $table = 'bom_group_sub_prices';
+
     protected $fillable = [
         'group_id',
         'name',
@@ -19,6 +21,6 @@ class BomGroupSubPrice extends Model
 
     public function group()
     {
-        return $this->belongsTo(BomProdGroup::class, 'group_id');
+        return $this->belongsTo(BomGroup::class, 'group_id');
     }
 }

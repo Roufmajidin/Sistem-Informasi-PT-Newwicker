@@ -6,15 +6,16 @@ use Illuminate\Database\Eloquent\Model;
 
 class BomProdGroupSubPrice extends Model
 {
-    protected $table = 'bom_group_sub_prices';
+    protected $table = 'bom_group_sub_prices_prod';
 
     protected $guarded = [];
+
     protected $casts = [
         'price' => 'decimal:2',
     ];
 
     public function group()
     {
-        return $this->belongsTo(BomGroupProd::class, 'group_id');
+        return $this->belongsTo(BomProdGroup::class, 'group_id');
     }
 }
