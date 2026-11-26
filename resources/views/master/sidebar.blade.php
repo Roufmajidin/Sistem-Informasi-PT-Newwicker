@@ -1658,4 +1658,76 @@
      #aside .nav>li.active>.nav-sub {
          display: block !important;
      }
+
  </style>
+<style>
+    /* =========================================
+       FIX MOBILE SIDEBAR SCROLL
+    ========================================= */
+
+    @media (max-width: 991.98px) {
+
+        #aside .left.navside {
+            display: flex !important;
+            flex-direction: column !important;
+
+            height: 100vh !important;
+            height: 100dvh !important;
+
+            min-height: 0 !important;
+            overflow: hidden !important;
+        }
+
+        /* Logo tetap di atas */
+        #aside .left.navside > .navbar {
+            flex: 0 0 auto !important;
+        }
+
+        /* Area menu bisa di-scroll */
+        #aside .left.navside > .hide-scroll {
+            flex: 1 1 0% !important;
+
+            min-height: 0 !important;
+            height: auto !important;
+
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-y: contain;
+            touch-action: pan-y;
+        }
+
+        #aside .hide-scroll > nav.scroll {
+            position: relative !important;
+
+            width: 100% !important;
+            height: auto !important;
+            max-height: none !important;
+
+            overflow: visible !important;
+
+            padding-bottom: calc(
+                24px + env(safe-area-inset-bottom, 0px)
+            );
+        }
+
+        #aside .nav {
+            margin-bottom: 0 !important;
+        }
+
+        /* Scrollbar */
+        #aside .hide-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        #aside .hide-scroll::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, .25);
+            border-radius: 10px;
+        }
+
+        #spkSidebarToggle {
+            display: none !important;
+        }
+    }
+</style>
