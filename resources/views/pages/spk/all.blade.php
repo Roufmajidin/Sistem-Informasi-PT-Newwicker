@@ -50,9 +50,7 @@
 
 
 
-                        <select id="spkTypeFilter" class="form-control" style="width:220px;display:inline-block"
-
-                            {{ $isRndSpk ? 'disabled' : '' }}>
+                        <select id="spkTypeFilter" class="form-control" style="width:220px;display:inline-block" {{ $isRndSpk ? 'disabled' : '' }}>
 
                             <option value="ALL" {{ !$isRndSpk ? 'selected' : '' }}>
 
@@ -119,8 +117,7 @@
 
 
                                 <input type="text" id="searchPo" class="form-control"
-
-                                    placeholder="Cari PO, Buyer, No SPK atau Supplier...">
+                                    placeholder="Search 26-23 (without spasi / auto spasi)">
 
 
 
@@ -217,7 +214,7 @@
 
 
                             </div>
-<div id="poLoadStatus" class="po-fetch-status" role="status">Memuat PO...</div>
+                            <div id="poLoadStatus" class="po-fetch-status" role="status">Memuat PO...</div>
 
 
 
@@ -249,29 +246,23 @@
 
 
 
-                <a
-
-                    href="javascript:void(0)"
-
-                    id="btnBackSidebar"
-
-                    class="btn-back">
+                                    <a href="javascript:void(0)" id="btnBackSidebar" class="btn-back">
 
 
 
-                    <i class="fa fa-arrow-left"></i>
+                                        <i class="fa fa-arrow-left"></i>
 
 
 
-                    Kembali ke daftar SPK
+                                        Kembali ke daftar SPK
 
 
 
-                </a>
+                                    </a>
 
 
 
-            </div> --}}
+                                </div> --}}
 
 
 
@@ -279,21 +270,19 @@
 
 
 
-                                    {{-- <button
-
-                    class="btn btn-outline-primary">
+                                    {{-- <button class="btn btn-outline-primary">
 
 
 
-                    <i class="fa fa-download"></i>
+                                        <i class="fa fa-download"></i>
 
 
 
-                    Download All
+                                        Download All
 
 
 
-                </button> --}}
+                                    </button> --}}
 
 
 
@@ -603,18 +592,28 @@
 
                             <div class="box table-box">
                                 {{-- Navigasi horizontal tabel SPK, khusus detail modal --}}
-                                <div class="spk-horizontal-toolbar" id="spkHorizontalToolbar" aria-label="Navigasi tabel SPK">
+                                <div class="spk-horizontal-toolbar" id="spkHorizontalToolbar"
+                                    aria-label="Navigasi tabel SPK">
                                     <div class="spk-scroll-pill">
-                                        <button type="button" class="spk-scroll-arrow" id="spkScrollLeft" aria-label="Geser tabel ke kiri" title="Geser ke kiri"><i class="fa fa-chevron-left"></i></button>
-                                        <span class="spk-scroll-instruction"><i class="fa fa-arrows-h"></i> Scroll ke samping untuk melihat kategori SPK</span>
-                                        <button type="button" class="spk-scroll-arrow" id="spkScrollRight" aria-label="Geser tabel ke kanan" title="Geser ke kanan"><i class="fa fa-chevron-right"></i></button>
+                                        <button type="button" class="spk-scroll-arrow" id="spkScrollLeft"
+                                            aria-label="Geser tabel ke kiri" title="Geser ke kiri"><i
+                                                class="fa fa-chevron-left"></i></button>
+                                        <span class="spk-scroll-instruction"><i class="fa fa-arrows-h"></i> Scroll ke
+                                            samping untuk melihat kategori SPK</span>
+                                        <button type="button" class="spk-scroll-arrow" id="spkScrollRight"
+                                            aria-label="Geser tabel ke kanan" title="Geser ke kanan"><i
+                                                class="fa fa-chevron-right"></i></button>
                                     </div>
                                 </div>
 
 
 
-                                <div class="spk-top-scroll" id="spkTopScroll" tabindex="0" aria-label="Geser tabel SPK secara horizontal menggunakan scrollbar atau tombol panah kiri dan kanan"><div class="spk-top-scroll-inner" id="spkTopScrollInner"></div></div>
-                                <div class="table-responsive" tabindex="0" aria-label="Tabel SPK, tekan panah kiri atau kanan untuk menggeser">
+                                <div class="spk-top-scroll" id="spkTopScroll" tabindex="0"
+                                    aria-label="Geser tabel SPK secara horizontal menggunakan scrollbar atau tombol panah kiri dan kanan">
+                                    <div class="spk-top-scroll-inner" id="spkTopScrollInner"></div>
+                                </div>
+                                <div class="table-responsive" tabindex="0"
+                                    aria-label="Tabel SPK, tekan panah kiri atau kanan untuk menggeser">
 
 
 
@@ -662,20 +661,22 @@
 
 
 
-</div>
+    </div>
 
-{{-- Modal detail SPK: konten asli dipindahkan ke sini melalui JavaScript; tidak diduplikasi. --}}
-<div class="modal fade" id="spkViewModal" tabindex="-1" role="dialog" aria-labelledby="spkViewModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg spk-view-dialog" role="document">
-        <div class="modal-content spk-view-content">
-            <div class="modal-header spk-view-header">
-                <button type="button" class="close spk-modal-close" id="spkModalClose" aria-label="Tutup Detail SPK" title="Tutup"><span aria-hidden="true">&times;</span></button>
-                <h4 class="modal-title" id="spkViewModalLabel"><i class="fa fa-file-text-o"></i> Detail SPK</h4>
+    {{-- Modal detail SPK: konten asli dipindahkan ke sini melalui JavaScript; tidak diduplikasi. --}}
+    <div class="modal fade" id="spkViewModal" tabindex="-1" role="dialog" aria-labelledby="spkViewModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-lg spk-view-dialog" role="document">
+            <div class="modal-content spk-view-content">
+                <div class="modal-header spk-view-header">
+                    <button type="button" class="close spk-modal-close" id="spkModalClose" aria-label="Tutup Detail SPK"
+                        title="Tutup"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title" id="spkViewModalLabel"><i class="fa fa-file-text-o"></i> Detail SPK</h4>
+                </div>
+                <div class="modal-body spk-view-body" id="spkViewModalBody"></div>
             </div>
-            <div class="modal-body spk-view-body" id="spkViewModalBody"></div>
         </div>
     </div>
-</div>
 @endsection
 
 @push('scripts')
@@ -1309,13 +1310,14 @@
 
         let poSearchDebounce = null;
         // Debounce pencarian: satu fetch setelah pengguna selesai mengetik.
-        $('#searchPo').off('input.spkSearch').on('input.spkSearch', function() {
+        $('#searchPo').off('input.spkSearch').on('input.spkSearch', function () {
+            // Normalisasi keyword saja; tampilan input tidak diubah.
             currentKeyword = $(this).val().trim().toLowerCase();
             clearTimeout(poSearchDebounce);
             poSearchDebounce = setTimeout(() => loadSpkTable(), 350);
         });
 
-        $(document).on('click', '.btn-download-spk', function() {
+        $(document).on('click', '.btn-download-spk', function () {
 
             const spkId = $(this).data('id');
 
@@ -1333,6 +1335,8 @@
 
         // PO list: cursor pagination 10 records, loaded only on sidebar scroll.
         let poCursor = null;
+        let poSearchVariants = [];
+        let poSearchVariantIndex = 0;
         let poBusy = false;
         let poHasMore = true;
         let poRequest = null;
@@ -1345,7 +1349,7 @@
 
         function escapePoText(value) {
             return String(value ?? '').replace(/[&<>"']/g, ch => ({
-                '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
             }[ch]));
         }
 
@@ -1356,6 +1360,14 @@
                 poRequest = null;
                 poBusy = false;
                 poCursor = null;
+                const keyword = currentKeyword.trim();
+                poSearchVariants = [...new Set([
+                    keyword.replace(/\s*-\s*/g, '- '),
+                    keyword.replace(/\s*-\s*/g, '-'),
+                    keyword.replace(/\s*-\s*/g, ' - ').trim(),
+                    keyword
+                ])];
+                poSearchVariantIndex = 0;
                 poHasMore = true;
                 cacheData = [];
                 $('#po-table-body').empty();
@@ -1365,35 +1377,46 @@
             poBusy = true;
             const generation = poGeneration;
             setPoStatus('Memuat 10 PO...');
-            const params = { ajax:'list', type:currentType, search:currentKeyword };
+            const params = { ajax: 'list', type: currentType, search: poSearchVariants[poSearchVariantIndex] ?? currentKeyword };
             if (poCursor) params.cursor = poCursor;
-            poRequest = $.ajax({url:poEndpoint, method:'GET', data:params, dataType:'json', timeout:25000, global:false});
-            poRequest.done(function(res) {
+            let retrySearch = false;
+            poRequest = $.ajax({ url: poEndpoint, method: 'GET', data: params, dataType: 'json', timeout: 25000, global: false });
+            poRequest.done(function (res) {
                 if (generation !== poGeneration) return;
                 const rows = Array.isArray(res.rows) ? res.rows : [];
+                if (!rows.length && !cacheData.length && !poCursor &&
+                    !res.has_more && poSearchVariantIndex + 1 < poSearchVariants.length) {
+                    poSearchVariantIndex++;
+                    retrySearch = true;
+                    return;
+                }
                 let html = '';
                 rows.forEach(row => {
                     const index = cacheData.length;
-                    cacheData.push({data_po:{id:row.id, no_po:row.no_po, company:row.company}});
-                    html += `<tr class="po-row"><td class="text-center">${index+1}</td>
-                        <td><div class="buyer-name">${escapePoText(row.company || '-')}</div></td>
-                        <td><span class="po-number">${escapePoText(row.no_po || '-')}</span></td>
-                        <td class="text-center"><button type="button" class="btn btn-outline-primary btn-sm btn-view-spk" data-index="${index}">Lihat SPK (${Number(row.spk_count || 0)})</button></td>
-                        <td width="40" class="text-center"><button type="button" class="btn btn-link p-0"><i class="fa fa-ellipsis-v"></i></button></td></tr>`;
+                    cacheData.push({ data_po: { id: row.id, no_po: row.no_po, company: row.company } });
+                    html += `<tr class="po-row"><td class="text-center">${index + 1}</td>
+                            <td><div class="buyer-name">${escapePoText(row.company || '-')}</div></td>
+                            <td><span class="po-number">${escapePoText(row.no_po || '-')}</span></td>
+                            <td class="text-center"><button type="button" class="btn btn-outline-primary btn-sm btn-view-spk" data-index="${index}">Lihat SPK (${Number(row.spk_count || 0)})</button></td>
+                            <td width="40" class="text-center"><button type="button" class="btn btn-link p-0"><i class="fa fa-ellipsis-v"></i></button></td></tr>`;
                 });
                 $('#po-table-body').append(html);
                 poCursor = res.next_cursor || null;
                 poHasMore = !!res.has_more && !!poCursor;
-                if (!cacheData.length) $('#po-table-body').html('<tr><td colspan="5" class="text-center text-muted">Tidak ada PO yang cocok.</td></tr>');
+                if (!cacheData.length) $('#po-table-body').html('<tr><td colspan="5" class="text-center text-muted">Tidak ada PO atau SPK yang cocok.</td></tr>');
                 setPoStatus(poHasMore ? 'Scroll di daftar PO untuk memuat 10 berikutnya' : 'Semua PO sudah dimuat');
-            }).fail(function(xhr, status) {
+            }).fail(function (xhr, status) {
                 if (generation === poGeneration && status !== 'abort') setPoStatus('Gagal memuat. Klik untuk coba lagi.', true);
-            }).always(function() {
-                if (generation === poGeneration) {poBusy = false; poRequest = null;}
+            }).always(function () {
+                if (generation === poGeneration) {
+                    poBusy = false;
+                    poRequest = null;
+                    if (retrySearch) loadSpkTable(false);
+                }
             });
         }
 
-        $('#poLoadStatus').on('click', () => {if (!poBusy && poHasMore) loadSpkTable(false);});
+        $('#poLoadStatus').on('click', () => { if (!poBusy && poHasMore) loadSpkTable(false); });
         const poPanel = document.querySelector('.spk-sidebar .sidebar-table');
         if (poPanel) {
             let frame = false;
@@ -1404,13 +1427,13 @@
             poPanel.addEventListener('scroll', () => {
                 if (frame) return;
                 frame = true;
-                requestAnimationFrame(() => {frame = false; maybeFetchMore();});
-            }, {passive:true});
+                requestAnimationFrame(() => { frame = false; maybeFetchMore(); });
+            }, { passive: true });
             // When only 10 rows fit exactly, a downward wheel still loads next 10.
             poPanel.addEventListener('wheel', e => {
                 if (e.deltaY > 0) maybeFetchMore();
-            }, {passive:true});
-            poPanel.addEventListener('touchend', maybeFetchMore, {passive:true});
+            }, { passive: true });
+            poPanel.addEventListener('touchend', maybeFetchMore, { passive: true });
         }
 
         // ===============================
@@ -1419,7 +1442,7 @@
 
         // ===============================
 
-        $(document).on('click', '.btn-view-spk', async function() {
+        $(document).on('click', '.btn-view-spk', async function () {
             const btn = $(this);
             const idx = Number(btn.data('index'));
             if (!cacheData[idx]) return;
@@ -1427,12 +1450,12 @@
                 if (btn.data('loading')) return;
                 btn.data('loading', true).prop('disabled', true);
                 try {
-                    const detail = await $.ajax({url:poEndpoint, data:{ajax:'detail', po_id:cacheData[idx].data_po.id}, dataType:'json', timeout:25000, global:false});
+                    const detail = await $.ajax({ url: poEndpoint, data: { ajax: 'detail', po_id: cacheData[idx].data_po.id }, dataType: 'json', timeout: 25000, global: false });
                     cacheData[idx] = detail;
                 } catch (error) {
                     alert('Gagal memuat detail PO. Silakan coba lagi.');
                     return;
-                } finally {btn.data('loading', false).prop('disabled', false);}
+                } finally { btn.data('loading', false).prop('disabled', false); }
             }
 
 
@@ -1659,103 +1682,103 @@
 
 
 
-        <table class="table table-sm table-bordered">
+            <table class="table table-sm table-bordered">
 
 
 
-            <thead>
+                <thead>
 
 
 
-                <tr>
+                    <tr>
 
 
 
-                    <th rowspan="2" class="spk-freeze spk-freeze-no">
+                        <th rowspan="2" class="spk-freeze spk-freeze-no">
 
-                        No
+                            No
 
-                    </th>
+                        </th>
 
 
 
-                    <th rowspan="2" class="spk-freeze spk-freeze-article">
+                        <th rowspan="2" class="spk-freeze spk-freeze-article">
 
-                        Article
+                            Article
 
-                    </th>
+                        </th>
 
 
 
-                    <th rowspan="2" class="spk-freeze spk-freeze-description">
+                        <th rowspan="2" class="spk-freeze spk-freeze-description">
 
-                        Description
+                            Description
 
-                    </th>
+                        </th>
 
 
 
-                    <th rowspan="2">
+                        <th rowspan="2">
 
-                        Qty
+                            Qty
 
-                    </th>
+                        </th>
 
 
 
-                    <th rowspan="2">
+                        <th rowspan="2">
 
-                        CBM
+                            CBM
 
-                    </th>
+                        </th>
 
 
 
-                    <th colspan="${totalCategory}">
+                        <th colspan="${totalCategory}">
 
-                        SPK
+                            SPK
 
-                    </th>
+                        </th>
 
 
 
-                    <th rowspan="2">
+                        <th rowspan="2">
 
-                        Act
+                            Act
 
-                    </th>
+                        </th>
 
 
 
-                </tr>
+                    </tr>
 
 
 
-                <tr>
+                    <tr>
 
 
 
-                   ${categories.map(cat => `
+                       ${categories.map(cat => `
 
-        <th>${cat}</th>
+            <th>${cat}</th>
 
-    `).join('')}
+        `).join('')}
 
 
 
-                </tr>
+                    </tr>
 
 
 
-            </thead>
+                </thead>
 
 
 
-            <tbody>
+                <tbody>
 
 
 
-    `;
+        `;
 
 
 
@@ -1871,101 +1894,109 @@
 
 
 
-                        <div class="spk-card"
+                            <div class="spk-card"
 
-                             data-id="${spk.spk_id}"
+                                 data-id="${spk.spk_id}"
 
-                             data-no="${spk.no_spk}">
-
-
-
-                            <b>
-
-                                ${supplier}
-
-                            </b>
+                                 data-no="${spk.no_spk}">
 
 
 
-                            (${spk.qty})
+                                <b>
+
+                                    ${supplier}
+
+                                </b>
 
 
 
-                            <br>
+                                (${spk.qty})
 
 
 
-                            <small>
+                                <br>
 
 
 
-                                ${spk.no_spk}
+                                <small>
 
 
 
-                            </small>
+                                    ${spk.no_spk}
 
 
 
-                            <br>
+                                </small>
 
 
 
-                            <small>
+                                <br>
 
 
 
-                                ${deadline}
+                                <small>
 
 
 
-                            </small>
+                                    ${deadline}
 
 
 
-                            <br>
+                                </small>
 
 
 
-                            <div class="spk-btn-group">
+                                <br>
 
 
+
+                                <div class="spk-btn-group">
 
 
 
 
 
-                                <button
-
-                                    class="btn btn-xs btn-warning btn-edit-spk"
-
-                                    data-id="${spk.spk_id}">
 
 
+                                    <button
 
-                                    Edit
+                                        class="btn btn-xs btn-warning btn-edit-spk"
+
+                                        data-id="${spk.spk_id}">
+
+
+
+                                        Edit
+
+
+
+                                    </button>
+
+                                     <button
+
+                                    class="btn btn-xs btn-danger btn-delete-spk"
+
+                                    data-id="${spk.spk_id}"
+
+                                    data-no="${spk.no_spk}"
+
+                                    title="Delete">
+
+
+
+                                    <i class="fa fa-trash"></i>
 
 
 
                                 </button>
 
-                                 <button
 
-                                class="btn btn-xs btn-danger btn-delete-spk"
 
-                                data-id="${spk.spk_id}"
-
-                                data-no="${spk.no_spk}"
-
-                                title="Delete">
+                                </div>
 
 
 
-                                <i class="fa fa-trash"></i>
-
-
-
-                            </button>
+                                <div class="hold-progress"></div>
 
 
 
@@ -1973,15 +2004,7 @@
 
 
 
-                            <div class="hold-progress"></div>
-
-
-
-                        </div>
-
-
-
-                    `;
+                        `;
 
 
 
@@ -2097,135 +2120,133 @@
 
 
 
-                    <td rowspan="${maxRow}" class="spk-freeze spk-freeze-no">
+                        <td rowspan="${maxRow}" class="spk-freeze spk-freeze-no">
 
 
 
-                        ${i + 1}
+                            ${i + 1}
 
 
 
-                    </td>
+                        </td>
 
 
 
-                   <td rowspan="${maxRow}" class="spk-freeze spk-freeze-article"
+                       <td rowspan="${maxRow}" class="spk-freeze spk-freeze-article"
 
-    style="
+        style="
 
-        text-align:center;
+            text-align:center;
 
-        width:120px;
+            width:120px;
 
-        min-width:120px;
+            min-width:120px;
 
-        max-width:120px;
+            max-width:120px;
 
-        vertical-align:top;
+            vertical-align:top;
 
-    ">
-
-
-
-                       <div class="article-box">
+        ">
 
 
 
-    ${
-
-        d.images && d.images.length
-
-        ? `
-
-                <img
-
-                    src="${d.images[0]}"
-
-                    class="article-image">
-
-            `
-
-        : d.photo
-
-        ? `
-
-                <img
-
-                    src="${d.photo}"
-
-                    class="article-image">
-
-            `
-
-        : `
-
-                <div class="article-no-image">
+                           <div class="article-box">
 
 
 
-                    No Image
+        ${d.images && d.images.length
+
+                                ? `
+
+                    <img
+
+                        src="${d.images[0]}"
+
+                        class="article-image">
+
+                `
+
+                                : d.photo
+
+                                    ? `
+
+                    <img
+
+                        src="${d.photo}"
+
+                        class="article-image">
+
+                `
+
+                                    : `
+
+                    <div class="article-no-image">
 
 
 
-                </div>
-
-            `
-
-    }
+                        No Image
 
 
 
-    <div class="article-code">
+                    </div>
+
+                `
+
+                            }
 
 
 
-        ${d.article_nr_ ?? '-'}
+        <div class="article-code">
+
+
+
+            ${d.article_nr_ ?? '-'}
+
+
+
+        </div>
 
 
 
     </div>
 
-
-
-</div>
-
-                    </td>
+                        </td>
 
 
 
-                    <td rowspan="${maxRow}" class="spk-description-cell spk-freeze spk-freeze-description">
-                        <span class="spk-description-ellipsis" title="${escapePoText(d.description ?? '-')}">
-                            ${escapePoText(d.description ?? '-')}
-                        </span>
-                    </td>
+                        <td rowspan="${maxRow}" class="spk-description-cell spk-freeze spk-freeze-description">
+                            <span class="spk-description-ellipsis" title="${escapePoText(d.description ?? '-')}">
+                                ${escapePoText(d.description ?? '-')}
+                            </span>
+                        </td>
 
 
 
-                    <td rowspan="${maxRow}">
+                        <td rowspan="${maxRow}">
 
 
 
-                        ${d.qty ?? 0}
+                            ${d.qty ?? 0}
 
 
 
-                    </td>
+                        </td>
 
 
 
-                    <td rowspan="${maxRow}">
+                        <td rowspan="${maxRow}">
 
 
 
-                        ${parseFloat(d.total_cbm ?? 0).toFixed(3)}
+                            ${parseFloat(d.total_cbm ?? 0).toFixed(3)}
 
 
 
-                    </td>
+                        </td>
 
 
 
-                `;
+                    `;
 
 
 
@@ -2251,13 +2272,13 @@
 
                         html += `
 
-                <td>
+                    <td>
 
-                    ${map[cat][r] || ''}
+                        ${map[cat][r] || ''}
 
-                </td>
+                    </td>
 
-            `;
+                `;
 
 
 
@@ -2285,29 +2306,29 @@
 
 
 
-                    <td rowspan="${maxRow}">
+                        <td rowspan="${maxRow}">
 
 
 
-                        <button
+                            <button
 
-                            class="btn btn-sm btn-primary">
-
-
-
-                            Action
+                                class="btn btn-sm btn-primary">
 
 
 
-                        </button>
+                                Action
 
 
 
-                    </td>
+                            </button>
 
 
 
-                `;
+                        </td>
+
+
+
+                    `;
 
 
 
@@ -2331,15 +2352,15 @@
 
 
 
-            </tbody>
+                </tbody>
 
 
 
-        </table>
+            </table>
 
 
 
-    `;
+        `;
 
 
 
@@ -2366,27 +2387,27 @@
 
 
 
-        <b>
+            <b>
 
 
 
-            ${po.data_po.no_po}
+                ${po.data_po.no_po}
 
 
 
-        </b>
+            </b>
 
 
 
-        •
+            •
 
 
 
-        ${po.data_po.company}
+            ${po.data_po.company}
 
 
 
-    `);
+        `);
 
 
 
@@ -2394,29 +2415,29 @@
 
 
 
-        <tr>
+            <tr>
 
 
 
-            <td colspan="3"
+                <td colspan="3"
 
-                style="padding:0;border:none">
-
-
-
-                ${html}
+                    style="padding:0;border:none">
 
 
 
-            </td>
+                    ${html}
 
 
 
-        </tr>
+                </td>
 
 
 
-    `);
+            </tr>
+
+
+
+        `);
 
 
 
@@ -2447,7 +2468,7 @@
 
         // ===============================
 
-        $(document).on('click', '.btn-edit-spk', function() {
+        $(document).on('click', '.btn-edit-spk', function () {
 
             let spkId = $(this).data('id');
 
@@ -2457,7 +2478,7 @@
 
 
 
-        $(document).on('click', '.spk-link', function() {
+        $(document).on('click', '.spk-link', function () {
 
             let spkId = $(this).data('spk-id');
 
@@ -2475,7 +2496,7 @@
 
 
 
-        $(document).ready(function() {
+        $(document).ready(function () {
 
 
 
@@ -2488,7 +2509,7 @@
 
         });
 
-        $('#spkTypeFilter').on('change', function() {
+        $('#spkTypeFilter').on('change', function () {
 
 
 
@@ -2632,23 +2653,23 @@
 
 
 
-            <span style="
+                <span style="
 
-                color:green;
+                    color:green;
 
-                font-weight:600;
+                    font-weight:600;
 
-            ">
-
-
-
-                ✅ Hari ini
+                ">
 
 
 
-            </span>
+                    ✅ Hari ini
 
-        `;
+
+
+                </span>
+
+            `;
 
             }
 
@@ -2674,25 +2695,25 @@
 
 
 
-            <span style="
+                <span style="
 
-                color:red;
+                    color:red;
 
-                font-weight:600;
+                    font-weight:600;
 
-            ">
-
-
-
-                ⚠️ Telat
-
-                ${Math.abs(diff)} hari
+                ">
 
 
 
-            </span>
+                    ⚠️ Telat
 
-        `;
+                    ${Math.abs(diff)} hari
+
+
+
+                </span>
+
+            `;
 
             }
 
@@ -2718,23 +2739,23 @@
 
 
 
-            <span style="
+                <span style="
 
-                color:red;
+                    color:red;
 
-                font-weight:600;
+                    font-weight:600;
 
-            ">
-
-
-
-                ⏳ ${diff} hari lagi
+                ">
 
 
 
-            </span>
+                    ⏳ ${diff} hari lagi
 
-        `;
+
+
+                </span>
+
+            `;
 
             }
 
@@ -2756,21 +2777,21 @@
 
 
 
-        <span style="
+            <span style="
 
-            color:#6b7280;
+                color:#6b7280;
 
-        ">
-
-
-
-            ⏳ ${diff} hari lagi
+            ">
 
 
 
-        </span>
+                ⏳ ${diff} hari lagi
 
-    `;
+
+
+            </span>
+
+        `;
 
         }
 
@@ -2788,7 +2809,7 @@
 
             '.spk-card',
 
-            function(e) {
+            function (e) {
 
 
 
@@ -2796,9 +2817,9 @@
 
                     $(e.target)
 
-                    .closest('button')
+                        .closest('button')
 
-                    .length
+                        .length
 
                 ) {
 
@@ -2832,7 +2853,7 @@
 
         );
 
-        $(document).on('pointerdown', '.spk-card', function(e) {
+        $(document).on('pointerdown', '.spk-card', function (e) {
 
 
 
@@ -2928,7 +2949,7 @@
 
 
 
-            holdInterval = setInterval(function() {
+            holdInterval = setInterval(function () {
 
 
 
@@ -2962,7 +2983,7 @@
 
 
 
-            holdTimer = setTimeout(function() {
+            holdTimer = setTimeout(function () {
 
 
 
@@ -2992,13 +3013,13 @@
 
                     html: `
 
-                SPK :
+                    SPK :
 
-                <br>
+                    <br>
 
-                <b>${spkNo}</b>
+                    <b>${spkNo}</b>
 
-            `,
+                `,
 
                     icon: 'warning',
 
@@ -3040,7 +3061,7 @@
 
 
 
-                            success: function(res) {
+                            success: function (res) {
 
 
 
@@ -3075,7 +3096,7 @@
 
 
 
-                            error: function() {
+                            error: function () {
 
 
 
@@ -3137,7 +3158,7 @@
 
             '.spk-card',
 
-            function() {
+            function () {
 
 
 
@@ -3181,7 +3202,7 @@
 
         );
 
-        $(document).on('click', '.btn-delete-spk', function() {
+        $(document).on('click', '.btn-delete-spk', function () {
 
 
 
@@ -3199,11 +3220,11 @@
 
                 html: `
 
-            SPK <b>${spkNo}</b><br>
+                SPK <b>${spkNo}</b><br>
 
-            akan dihapus.
+                akan dihapus.
 
-        `,
+            `,
 
                 icon: 'warning',
 
@@ -3245,7 +3266,7 @@
 
 
 
-                    success: function(res) {
+                    success: function (res) {
 
 
 
@@ -3274,7 +3295,7 @@
 
 
 
-                    error: function() {
+                    error: function () {
 
 
 
@@ -3332,1158 +3353,1515 @@
     </script>
 
     <style>
+        /* =========================================================
 
-/* =========================================================
+       ALL SPK — PREMIUM UI / UX V2
 
-   ALL SPK — PREMIUM UI / UX V2
+       Styling only. Blade + JavaScript preserved.
 
-   Styling only. Blade + JavaScript preserved.
+       ========================================================= */
 
-   ========================================================= */
 
 
+        :root {
 
-:root{
+            --bg: #f5f7fb;
 
-    --bg:#f5f7fb;
+            --card: #ffffff;
 
-    --card:#ffffff;
+            --line: #e6ebf2;
 
-    --line:#e6ebf2;
+            --line2: #eef2f6;
 
-    --line2:#eef2f6;
+            --text: #172033;
 
-    --text:#172033;
+            --muted: #718096;
 
-    --muted:#718096;
+            --primary: #3158c9;
 
-    --primary:#3158c9;
+            --primary2: #2447ad;
 
-    --primary2:#2447ad;
+            --primary-soft: #eef3ff;
 
-    --primary-soft:#eef3ff;
+            --success: #159957;
 
-    --success:#159957;
+            --warning: #d98b18;
 
-    --warning:#d98b18;
+            --danger: #d64545;
 
-    --danger:#d64545;
+            --shadow: 0 10px 30px rgba(30, 45, 70, .055);
 
-    --shadow:0 10px 30px rgba(30,45,70,.055);
+            --shadow-sm: 0 3px 12px rgba(30, 45, 70, .045);
 
-    --shadow-sm:0 3px 12px rgba(30,45,70,.045);
+            --radius: 12px;
 
-    --radius:12px;
+        }
 
-}
 
 
+        /* PAGE */
 
-/* PAGE */
+        body {
 
-body{
+            background: var(--bg);
 
-    background:var(--bg);
+            color: var(--text);
 
-    color:var(--text);
+            font-family: Arial, sans-serif;
 
-    font-family:Arial,sans-serif;
+            font-size: 12px;
 
-    font-size:12px;
+        }
 
-}
+        .padding {
+            padding: 16px
+        }
 
-.padding{padding:16px}
+        .box {
+            background: transparent !important;
+            border: 0 !important;
+            box-shadow: none !important
+        }
 
-.box{background:transparent!important;border:0!important;box-shadow:none!important}
 
 
+        /* TOP HEADER */
 
-/* TOP HEADER */
+        .box>.box-header {
 
-.box>.box-header{
+            position: relative;
 
-    position:relative;
+            background: linear-gradient(180deg, #fff 0%, #fbfcfe 100%);
 
-    background:linear-gradient(180deg,#fff 0%,#fbfcfe 100%);
+            border: 1px solid var(--line);
 
-    border:1px solid var(--line);
+            border-radius: var(--radius);
 
-    border-radius:var(--radius);
+            padding: 14px 16px;
 
-    padding:14px 16px;
+            margin-bottom: 12px;
 
-    margin-bottom:12px;
+            box-shadow: var(--shadow);
 
-    box-shadow:var(--shadow);
+        }
 
-}
+        .box>.box-header:before {
 
-.box>.box-header:before{
+            content: "";
 
-    content:"";
+            position: absolute;
 
-    position:absolute;
+            left: 0;
+            top: 12px;
+            bottom: 12px;
 
-    left:0;top:12px;bottom:12px;
+            width: 3px;
 
-    width:3px;
+            border-radius: 0 4px 4px 0;
 
-    border-radius:0 4px 4px 0;
+            background: var(--primary);
 
-    background:var(--primary);
+        }
 
-}
+        .box-header h2 {
 
-.box-header h2{
+            margin: 0;
 
-    margin:0;
+            color: var(--text);
 
-    color:var(--text);
+            font-size: 17px;
 
-    font-size:17px;
+            font-weight: 750;
 
-    font-weight:750;
+            letter-spacing: -.25px;
 
-    letter-spacing:-.25px;
+        }
 
-}
+        .box-header small {
 
-.box-header small{
+            color: var(--muted);
 
-    color:var(--muted);
+            font-size: 10px;
 
-    font-size:10px;
+        }
 
-}
 
 
+        /* FILTER */
 
-/* FILTER */
+        #spkTypeFilter {
 
-#spkTypeFilter{
+            height: 36px !important;
 
-    height:36px!important;
+            min-width: 170px;
 
-    min-width:170px;
+            border: 1px solid #dbe2eb !important;
 
-    border:1px solid #dbe2eb!important;
+            border-radius: 8px !important;
 
-    border-radius:8px!important;
+            background: #fff !important;
 
-    background:#fff!important;
+            color: #344054;
 
-    color:#344054;
+            font-size: 11px;
 
-    font-size:11px;
+            box-shadow: none !important;
 
-    box-shadow:none!important;
+        }
 
-}
+        #spkTypeFilter:hover {
+            border-color: #c5d0df !important
+        }
 
-#spkTypeFilter:hover{border-color:#c5d0df!important}
+        #spkTypeFilter:focus {
 
-#spkTypeFilter:focus{
+            border-color: #91aef0 !important;
 
-    border-color:#91aef0!important;
+            box-shadow: 0 0 0 3px rgba(49, 88, 201, .08) !important;
 
-    box-shadow:0 0 0 3px rgba(49,88,201,.08)!important;
+        }
 
-}
 
 
+        /* MAIN PANELS */
 
-/* MAIN PANELS */
+        .spk-sidebar,
+        .detail-card,
+        .table-box {
 
-.spk-sidebar,.detail-card,.table-box{
+            background: var(--card);
 
-    background:var(--card);
+            border: 1px solid var(--line);
 
-    border:1px solid var(--line);
+            border-radius: var(--radius);
 
-    border-radius:var(--radius);
+            box-shadow: var(--shadow);
 
-    box-shadow:var(--shadow);
+        }
 
-}
 
 
+        /* SIDEBAR */
 
-/* SIDEBAR */
+        .spk-sidebar {
+            overflow: hidden
+        }
 
-.spk-sidebar{overflow:hidden}
+        .sidebar-toolbar {
 
-.sidebar-toolbar{
+            padding: 11px;
 
-    padding:11px;
+            background: #fff;
 
-    background:#fff;
+            border-bottom: 1px solid var(--line2);
 
-    border-bottom:1px solid var(--line2);
+        }
 
-}
+        .sidebar-toolbar input {
 
-.sidebar-toolbar input{
+            height: 36px !important;
 
-    height:36px!important;
+            border: 1px solid #dce3ec !important;
 
-    border:1px solid #dce3ec!important;
+            border-radius: 8px !important;
 
-    border-radius:8px!important;
+            padding: 0 11px !important;
 
-    padding:0 11px!important;
+            background: #fbfcfe !important;
 
-    background:#fbfcfe!important;
+            color: var(--text);
 
-    color:var(--text);
+            font-size: 11px;
 
-    font-size:11px;
+            box-shadow: none !important;
 
-    box-shadow:none!important;
+        }
 
-}
+        .sidebar-toolbar input:focus {
 
-.sidebar-toolbar input:focus{
+            background: #fff !important;
 
-    background:#fff!important;
+            border-color: #91aef0 !important;
 
-    border-color:#91aef0!important;
+            box-shadow: 0 0 0 3px rgba(49, 88, 201, .07) !important;
 
-    box-shadow:0 0 0 3px rgba(49,88,201,.07)!important;
+        }
 
-}
+        .sidebar-toolbar input::placeholder {
+            color: #a0aaba
+        }
 
-.sidebar-toolbar input::placeholder{color:#a0aaba}
+        .sidebar-table {
 
-.sidebar-table{
+            max-height: 70vh;
 
-    max-height:70vh;
+            overflow: auto;
 
-    overflow:auto;
+        }
 
-}
 
 
+        /* LEFT TABLE */
 
-/* LEFT TABLE */
+        .table-spk {
 
-.table-spk{
+            width: 100%;
 
-    width:100%;
+            margin: 0 !important;
 
-    margin:0!important;
+            border-collapse: separate;
 
-    border-collapse:separate;
+            border-spacing: 0;
 
-    border-spacing:0;
+        }
 
-}
+        .table-spk thead th {
 
-.table-spk thead th{
+            position: sticky;
 
-    position:sticky;
+            top: 0;
 
-    top:0;
+            z-index: 20;
 
-    z-index:20;
+            background: #f8fafc !important;
 
-    background:#f8fafc!important;
+            color: #7a8798 !important;
 
-    color:#7a8798!important;
+            border: 0 !important;
 
-    border:0!important;
+            border-bottom: 1px solid var(--line) !important;
 
-    border-bottom:1px solid var(--line)!important;
+            padding: 8px 8px !important;
 
-    padding:8px 8px!important;
+            font-size: 8px !important;
 
-    font-size:8px!important;
+            font-weight: 750 !important;
 
-    font-weight:750!important;
+            text-transform: uppercase;
 
-    text-transform:uppercase;
+            letter-spacing: .5px;
 
-    letter-spacing:.5px;
+            white-space: nowrap;
 
-    white-space:nowrap;
+        }
 
-}
+        .table-spk tbody td {
 
-.table-spk tbody td{
+            padding: 8px !important;
 
-    padding:8px!important;
+            border: 0 !important;
 
-    border:0!important;
+            border-bottom: 1px solid #f0f3f7 !important;
 
-    border-bottom:1px solid #f0f3f7!important;
+            color: #3b4656;
 
-    color:#3b4656;
+            font-size: 10px;
 
-    font-size:10px;
+            vertical-align: middle !important;
 
-    vertical-align:middle!important;
+        }
 
-}
+        .table-spk tbody tr {
 
-.table-spk tbody tr{
+            position: relative;
 
-    position:relative;
+            cursor: pointer;
 
-    cursor:pointer;
+            transition: background .12s ease;
 
-    transition:background .12s ease;
+        }
 
-}
+        .table-spk tbody tr:hover {
+            background: #fafcff !important
+        }
 
-.table-spk tbody tr:hover{background:#fafcff!important}
+        .table-spk tbody tr.selected-row {
+            background: var(--primary-soft) !important
+        }
 
-.table-spk tbody tr.selected-row{background:var(--primary-soft)!important}
+        .table-spk tbody tr.selected-row td {
+            color: #2851b9;
+            border-bottom-color: #dfe7fa !important
+        }
 
-.table-spk tbody tr.selected-row td{color:#2851b9;border-bottom-color:#dfe7fa!important}
+        .table-spk tbody tr.selected-row td:first-child {
 
-.table-spk tbody tr.selected-row td:first-child{
+            box-shadow: inset 3px 0 0 var(--primary);
 
-    box-shadow:inset 3px 0 0 var(--primary);
+        }
 
-}
+        .table-spk tbody td:first-child {
 
-.table-spk tbody td:first-child{
+            width: 34px;
 
-    width:34px;
+            text-align: center;
 
-    text-align:center;
+            color: #9aa6b5;
 
-    color:#9aa6b5;
+            font-size: 9px;
 
-    font-size:9px;
+            font-weight: 700;
 
-    font-weight:700;
+        }
 
-}
+        .buyer-name {
 
-.buyer-name{
+            display: block;
 
-    display:block;
+            max-width: 145px;
 
-    max-width:145px;
+            overflow: hidden;
 
-    overflow:hidden;
+            text-overflow: ellipsis;
 
-    text-overflow:ellipsis;
+            white-space: nowrap;
 
-    white-space:nowrap;
+            color: #263244;
 
-    color:#263244;
+            font-size: 10px;
 
-    font-size:10px;
+            font-weight: 700;
 
-    font-weight:700;
+        }
 
-}
+        .selected-row .buyer-name {
+            color: #2851b9
+        }
 
-.selected-row .buyer-name{color:#2851b9}
+        .po-number {
 
-.po-number{
+            display: inline-flex;
 
-    display:inline-flex;
+            align-items: center;
 
-    align-items:center;
+            max-width: 105px;
 
-    max-width:105px;
+            padding: 3px 6px;
 
-    padding:3px 6px;
+            overflow: hidden;
 
-    overflow:hidden;
+            text-overflow: ellipsis;
 
-    text-overflow:ellipsis;
+            white-space: nowrap;
 
-    white-space:nowrap;
+            background: #f3f5f8;
 
-    background:#f3f5f8;
+            color: #667085;
 
-    color:#667085;
+            border: 1px solid #e8ecf1;
 
-    border:1px solid #e8ecf1;
+            border-radius: 5px;
 
-    border-radius:5px;
+            font-size: 8px;
 
-    font-size:8px;
+            font-weight: 750;
 
-    font-weight:750;
+        }
 
-}
+        .selected-row .po-number {
 
-.selected-row .po-number{
+            background: #e1eaff;
 
-    background:#e1eaff;
+            color: #2851b9;
 
-    color:#2851b9;
+            border-color: #cbd9fb;
 
-    border-color:#cbd9fb;
+        }
 
-}
+        .btn-view-spk {
 
-.btn-view-spk{
+            padding: 3px 7px !important;
 
-    padding:3px 7px!important;
+            border: 1px solid #cbd8f6 !important;
 
-    border:1px solid #cbd8f6!important;
+            border-radius: 6px !important;
 
-    border-radius:6px!important;
+            background: #fff !important;
 
-    background:#fff!important;
+            color: var(--primary) !important;
 
-    color:var(--primary)!important;
+            font-size: 8px !important;
 
-    font-size:8px!important;
+            font-weight: 700 !important;
 
-    font-weight:700!important;
+            transition: .12s ease;
 
-    transition:.12s ease;
+        }
 
-}
+        .btn-view-spk:hover {
 
-.btn-view-spk:hover{
+            background: var(--primary) !important;
 
-    background:var(--primary)!important;
+            color: #fff !important;
 
-    color:#fff!important;
+            border-color: var(--primary) !important;
 
-    border-color:var(--primary)!important;
+        }
 
-}
+        .table-spk .btn-link {
 
-.table-spk .btn-link{
+            color: #a0aaba;
 
-    color:#a0aaba;
+            padding: 3px 5px;
 
-    padding:3px 5px;
+        }
 
-}
+        .table-spk .btn-link:hover {
 
-.table-spk .btn-link:hover{
+            color: #42526a;
 
-    color:#42526a;
+            background: #f3f5f8;
 
-    background:#f3f5f8;
+        }
 
-}
 
 
+        /* DETAIL ACTIONS */
 
-/* DETAIL ACTIONS */
+        .detail-topbar {
 
-.detail-topbar{
+            display: flex;
 
-    display:flex;
+            justify-content: flex-end;
 
-    justify-content:flex-end;
+            align-items: center;
 
-    align-items:center;
+            gap: 6px;
 
-    gap:6px;
+            margin-bottom: 9px;
 
-    margin-bottom:9px;
+        }
 
-}
+        .detail-topbar .btn {
 
-.detail-topbar .btn{
+            height: 34px;
 
-    height:34px;
+            border-radius: 7px !important;
 
-    border-radius:7px!important;
+            font-size: 10px;
 
-    font-size:10px;
+            font-weight: 700;
 
-    font-weight:700;
+        }
 
-}
+        #btnCreateSpk {
 
-#btnCreateSpk{
+            padding: 0 11px;
 
-    padding:0 11px;
+            background: var(--primary);
 
-    background:var(--primary);
+            border-color: var(--primary);
 
-    border-color:var(--primary);
+            box-shadow: 0 3px 8px rgba(49, 88, 201, .12);
 
-    box-shadow:0 3px 8px rgba(49,88,201,.12);
+        }
 
-}
+        #btnCreateSpk:hover {
+            background: var(--primary2);
+            border-color: var(--primary2)
+        }
 
-#btnCreateSpk:hover{background:var(--primary2);border-color:var(--primary2)}
+        #btnExpandDetail {
 
-#btnExpandDetail{
+            width: 34px;
 
-    width:34px;
+            padding: 0 !important;
 
-    padding:0!important;
+        }
 
-}
 
 
+        /* DETAIL HEADER */
 
-/* DETAIL HEADER */
+        .detail-card {
 
-.detail-card{
+            padding: 13px;
 
-    padding:13px;
+            margin-bottom: 10px;
 
-    margin-bottom:10px;
+        }
 
-}
+        .detail-header {
 
-.detail-header{
+            display: flex;
 
-    display:flex;
+            justify-content: space-between;
 
-    justify-content:space-between;
+            align-items: flex-start;
 
-    align-items:flex-start;
+            gap: 10px;
 
-    gap:10px;
+            margin-bottom: 8px;
 
-    margin-bottom:8px;
+        }
 
-}
+        .detail-header h5,
+        .detail-header h2 {
 
-.detail-header h5,.detail-header h2{
+            margin: 0;
 
-    margin:0;
+            color: var(--text);
 
-    color:var(--text);
+            font-size: 14px;
 
-    font-size:14px;
+            font-weight: 750;
 
-    font-weight:750;
+        }
 
-}
+        .detail-po {
 
-.detail-po{
+            margin-top: 3px;
 
-    margin-top:3px;
+            color: #8290a3;
 
-    color:#8290a3;
+            font-size: 10px;
 
-    font-size:10px;
+        }
 
-}
 
 
+        /* SUMMARY */
 
-/* SUMMARY */
+        .summary-row {
+            margin: 7px -3px 0 !important
+        }
 
-.summary-row{margin:7px -3px 0!important}
+        .summary-row>div {
+            padding: 0 3px !important
+        }
 
-.summary-row>div{padding:0 3px!important}
+        .summary-card {
 
-.summary-card{
+            display: flex;
 
-    display:flex;
+            align-items: center;
 
-    align-items:center;
+            gap: 8px;
 
-    gap:8px;
+            min-height: 55px !important;
 
-    min-height:55px!important;
+            height: 55px !important;
 
-    height:55px!important;
+            padding: 7px 9px !important;
 
-    padding:7px 9px!important;
+            background: #fff;
 
-    background:#fff;
+            border: 1px solid var(--line2);
 
-    border:1px solid var(--line2);
+            border-radius: 9px !important;
 
-    border-radius:9px!important;
+            box-shadow: var(--shadow-sm) !important;
 
-    box-shadow:var(--shadow-sm)!important;
+        }
 
-}
+        .summary-icon {
 
-.summary-icon{
+            width: 32px !important;
 
-    width:32px!important;
+            height: 32px !important;
 
-    height:32px!important;
+            min-width: 32px !important;
 
-    min-width:32px!important;
+            min-height: 32px !important;
 
-    min-height:32px!important;
+            border-radius: 8px !important;
 
-    border-radius:8px!important;
+            display: flex;
 
-    display:flex;
+            align-items: center;
 
-    align-items:center;
+            justify-content: center;
 
-    justify-content:center;
+            color: #fff;
 
-    color:#fff;
+            font-size: 12px !important;
 
-    font-size:12px!important;
+        }
 
-}
+        .summary-icon.blue {
+            background: #3158c9
+        }
 
-.summary-icon.blue{background:#3158c9}
+        .summary-icon.green {
+            background: #159957
+        }
 
-.summary-icon.green{background:#159957}
+        .summary-icon.purple {
+            background: #7452c8
+        }
 
-.summary-icon.purple{background:#7452c8}
+        .summary-icon.orange {
+            background: #d98218
+        }
 
-.summary-icon.orange{background:#d98218}
+        .summary-card small {
 
-.summary-card small{
+            display: block;
 
-    display:block;
+            margin: 0 0 2px !important;
 
-    margin:0 0 2px!important;
+            color: #8490a0;
 
-    color:#8490a0;
+            font-size: 8px !important;
 
-    font-size:8px!important;
+            line-height: 1.1 !important;
 
-    line-height:1.1!important;
+            white-space: nowrap;
 
-    white-space:nowrap;
+        }
 
-}
+        .summary-card h3 {
 
-.summary-card h3{
+            margin: 0 !important;
 
-    margin:0!important;
+            color: #253044;
 
-    color:#253044;
+            font-size: 16px !important;
 
-    font-size:16px!important;
+            font-weight: 750;
 
-    font-weight:750;
+            line-height: 1 !important;
 
-    line-height:1!important;
+        }
 
-}
 
 
+        /* DETAIL TABLE */
 
-/* DETAIL TABLE */
+        .table-box {
+            overflow: hidden
+        }
 
-.table-box{overflow:hidden}
+        .table-box .table-responsive {
 
-.table-box .table-responsive{
+            max-height: 67vh;
 
-    max-height:67vh;
+            overflow: auto;
 
-    overflow:auto;
+        }
 
-}
+        #spk-detail-body {
+            background: #fff
+        }
 
-#spk-detail-body{background:#fff}
+        #spk-detail-body>tr>td {
+            padding: 0 !important;
+            border: 0 !important
+        }
 
-#spk-detail-body>tr>td{padding:0!important;border:0!important}
+        #spk-detail-body table {
 
-#spk-detail-body table{
+            width: 100%;
 
-    width:100%;
+            margin: 0 !important;
 
-    margin:0!important;
+            border-collapse: separate;
 
-    border-collapse:separate;
+            border-spacing: 0;
 
-    border-spacing:0;
+        }
 
-}
+        #spk-detail-body table thead th {
 
-#spk-detail-body table thead th{
+            position: sticky;
 
-    position:sticky;
+            top: 0;
 
-    top:0;
+            z-index: 15;
 
-    z-index:15;
+            background: #f7f9fc !important;
 
-    background:#f7f9fc!important;
+            color: #7a8798 !important;
 
-    color:#7a8798!important;
+            border: 0 !important;
 
-    border:0!important;
+            border-bottom: 1px solid var(--line) !important;
 
-    border-bottom:1px solid var(--line)!important;
+            padding: 8px 7px !important;
 
-    padding:8px 7px!important;
+            font-size: 8px !important;
 
-    font-size:8px!important;
+            font-weight: 750 !important;
 
-    font-weight:750!important;
+            text-transform: uppercase;
 
-    text-transform:uppercase;
+            letter-spacing: .45px;
 
-    letter-spacing:.45px;
+            white-space: nowrap;
 
-    white-space:nowrap;
+        }
 
-}
+        #spk-detail-body table tbody td {
 
-#spk-detail-body table tbody td{
+            padding: 8px 7px !important;
 
-    padding:8px 7px!important;
+            border: 0 !important;
 
-    border:0!important;
+            border-bottom: 1px solid #f0f3f7 !important;
 
-    border-bottom:1px solid #f0f3f7!important;
+            color: #455164;
 
-    color:#455164;
+            font-size: 9px;
 
-    font-size:9px;
+            vertical-align: top;
 
-    vertical-align:top;
+        }
 
-}
+        #spk-detail-body table tbody tr:hover {
+            background: #fbfcfe
+        }
 
-#spk-detail-body table tbody tr:hover{background:#fbfcfe}
 
 
+        /* ARTICLE */
 
-/* ARTICLE */
+        .article-box {
 
-.article-box{
+            display: flex;
 
-    display:flex;
+            flex-direction: column;
 
-    flex-direction:column;
+            align-items: center;
 
-    align-items:center;
+            gap: 3px;
 
-    gap:3px;
+        }
 
-}
+        .article-image,
+        .article-no-image {
 
-.article-image,.article-no-image{
+            width: 54px !important;
 
-    width:54px!important;
+            height: 54px !important;
 
-    height:54px!important;
+            border-radius: 7px !important;
 
-    border-radius:7px!important;
+            object-fit: cover;
 
-    object-fit:cover;
+            border: 1px solid #e5e9ef;
 
-    border:1px solid #e5e9ef;
+            background: #f8fafc;
 
-    background:#f8fafc;
+        }
 
-}
+        .article-no-image {
 
-.article-no-image{
+            display: flex;
 
-    display:flex;
+            align-items: center;
 
-    align-items:center;
+            justify-content: center;
 
-    justify-content:center;
+            color: #a0aaba;
 
-    color:#a0aaba;
+            font-size: 7px;
 
-    font-size:7px;
+        }
 
-}
+        .article-code {
 
-.article-code{
+            margin-top: 1px !important;
 
-    margin-top:1px!important;
+            color: #697789;
 
-    color:#697789;
+            font-size: 8px !important;
 
-    font-size:8px!important;
+            font-weight: 700;
 
-    font-weight:700;
+            text-align: center;
 
-    text-align:center;
+            word-break: break-word;
 
-    word-break:break-word;
+        }
 
-}
+        #spk-detail-body td:nth-child(3) {
 
-#spk-detail-body td:nth-child(3){
+            color: #4d596b;
 
-    color:#4d596b;
+            line-height: 1.35;
 
-    line-height:1.35;
+        }
 
-}
+        #spk-detail-body td:nth-child(4),
 
-#spk-detail-body td:nth-child(4),
+        #spk-detail-body td:nth-child(5) {
 
-#spk-detail-body td:nth-child(5){
+            text-align: center;
 
-    text-align:center;
+            white-space: nowrap;
 
-    white-space:nowrap;
+        }
 
-}
+        #spk-detail-body td:nth-child(4) {
+            color: #263244;
+            font-weight: 750
+        }
 
-#spk-detail-body td:nth-child(4){color:#263244;font-weight:750}
+        #spk-detail-body td:nth-child(5) {
 
-#spk-detail-body td:nth-child(5){
+            color: #738095;
 
-    color:#738095;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 
-    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+        }
 
-}
 
 
+        /* SPK CARDS */
 
-/* SPK CARDS */
+        .spk-card {
 
-.spk-card{
+            position: relative;
 
-    position:relative;
+            margin: 1px 0;
 
-    margin:1px 0;
+            padding: 7px 8px;
 
-    padding:7px 8px;
+            background: #fff;
 
-    background:#fff;
+            border: 1px solid #e4e9f0;
 
-    border:1px solid #e4e9f0;
+            border-radius: 7px;
 
-    border-radius:7px;
+            box-shadow: 0 1px 3px rgba(20, 35, 55, .025);
 
-    box-shadow:0 1px 3px rgba(20,35,55,.025);
+            transition: .12s ease;
 
-    transition:.12s ease;
+        }
 
-}
+        .spk-card:hover {
 
-.spk-card:hover{
+            border-color: #c8d6f6;
 
-    border-color:#c8d6f6;
+            box-shadow: 0 4px 10px rgba(49, 88, 201, .07);
 
-    box-shadow:0 4px 10px rgba(49,88,201,.07);
+        }
 
-}
+        .spk-card b {
 
-.spk-card b{
+            color: #263244;
 
-    color:#263244;
+            font-size: 8px;
 
-    font-size:8px;
+            font-weight: 750;
 
-    font-weight:750;
+        }
 
-}
+        .spk-card small {
 
-.spk-card small{
+            color: #7b8798;
 
-    color:#7b8798;
+            font-size: 7px;
 
-    font-size:7px;
+            line-height: 1.3;
 
-    line-height:1.3;
+        }
 
-}
+        .spk-btn-group {
 
-.spk-btn-group{
+            display: flex;
 
-    display:flex;
+            align-items: center;
 
-    align-items:center;
+            gap: 3px;
 
-    gap:3px;
+            margin-top: 4px;
 
-    margin-top:4px;
+        }
 
-}
+        .spk-btn-group .btn {
 
-.spk-btn-group .btn{
+            padding: 2px 5px !important;
 
-    padding:2px 5px!important;
+            border-radius: 4px !important;
 
-    border-radius:4px!important;
+            font-size: 7px !important;
 
-    font-size:7px!important;
+            line-height: 1.4;
 
-    line-height:1.4;
+        }
 
-}
+        .spk-btn-group .btn-warning {
 
-.spk-btn-group .btn-warning{
+            color: #95600d;
 
-    color:#95600d;
+            background: #fff9ed;
 
-    background:#fff9ed;
+            border-color: #f5ddb2;
 
-    border-color:#f5ddb2;
+        }
 
-}
+        .spk-btn-group .btn-danger {
 
-.spk-btn-group .btn-danger{
+            color: #b83333;
 
-    color:#b83333;
+            background: #fff5f5;
 
-    background:#fff5f5;
+            border-color: #f2caca;
 
-    border-color:#f2caca;
+        }
 
-}
+        .hold-progress {
 
-.hold-progress{
+            position: absolute;
 
-    position:absolute;
+            left: 0;
 
-    left:0;
+            bottom: 0;
 
-    bottom:0;
+            height: 2px;
 
-    height:2px;
+            width: 0;
 
-    width:0;
+            background: #df4545;
 
-    background:#df4545;
+            border-radius: 0 0 7px 7px;
 
-    border-radius:0 0 7px 7px;
+            opacity: 0;
 
-    opacity:0;
+        }
 
-}
+        .spk-card.selected-spk {
 
-.spk-card.selected-spk{
+            border-color: #9db4ed;
 
-    border-color:#9db4ed;
+            background: #f8faff;
 
-    background:#f8faff;
+            box-shadow: 0 0 0 2px rgba(49, 88, 201, .06);
 
-    box-shadow:0 0 0 2px rgba(49,88,201,.06);
+        }
 
-}
 
 
+        /* GLOBAL BUTTONS */
 
-/* GLOBAL BUTTONS */
+        .btn {
+            border-radius: 7px
+        }
 
-.btn{border-radius:7px}
+        .btn-primary {
+            background: var(--primary);
+            border-color: var(--primary)
+        }
 
-.btn-primary{background:var(--primary);border-color:var(--primary)}
+        .btn-primary:hover {
+            background: var(--primary2);
+            border-color: var(--primary2)
+        }
 
-.btn-primary:hover{background:var(--primary2);border-color:var(--primary2)}
+        .btn-outline-primary {
 
-.btn-outline-primary{
+            color: var(--primary);
 
-    color:var(--primary);
+            border-color: #cbd8f6;
 
-    border-color:#cbd8f6;
+            background: #fff;
 
-    background:#fff;
+        }
 
-}
+        .btn-outline-primary:hover {
 
-.btn-outline-primary:hover{
+            background: var(--primary);
 
-    background:var(--primary);
+            border-color: var(--primary);
 
-    border-color:var(--primary);
+            color: #fff;
 
-    color:#fff;
+        }
 
-}
 
 
+        /* SCROLLBAR */
 
-/* SCROLLBAR */
+        .sidebar-table::-webkit-scrollbar,
 
-.sidebar-table::-webkit-scrollbar,
+        .table-box .table-responsive::-webkit-scrollbar {
 
-.table-box .table-responsive::-webkit-scrollbar{
+            width: 6px;
+            height: 6px;
 
-    width:6px;height:6px;
+        }
 
-}
+        .sidebar-table::-webkit-scrollbar-thumb,
 
-.sidebar-table::-webkit-scrollbar-thumb,
+        .table-box .table-responsive::-webkit-scrollbar-thumb {
 
-.table-box .table-responsive::-webkit-scrollbar-thumb{
+            background: #cbd3df;
 
-    background:#cbd3df;
+            border-radius: 20px;
 
-    border-radius:20px;
+        }
 
-}
+        .sidebar-table::-webkit-scrollbar-track,
 
-.sidebar-table::-webkit-scrollbar-track,
+        .table-box .table-responsive::-webkit-scrollbar-track {
+            background: transparent
+        }
 
-.table-box .table-responsive::-webkit-scrollbar-track{background:transparent}
 
 
+        /* EMPTY */
 
-/* EMPTY */
+        #po-table-body td[colspan],
 
-#po-table-body td[colspan],
+        #spk-detail-body td[colspan] {
 
-#spk-detail-body td[colspan]{
+            color: #98a3b2;
 
-    color:#98a3b2;
+            font-size: 10px;
 
-    font-size:10px;
+        }
 
-}
 
 
+        /* RESPONSIVE */
 
-/* RESPONSIVE */
+        @media(max-width:991px) {
 
-@media(max-width:991px){
+            .padding {
+                padding: 11px
+            }
 
-    .padding{padding:11px}
+            .sidebar-table {
+                max-height: 360px
+            }
 
-    .sidebar-table{max-height:360px}
+            .table-box .table-responsive {
+                max-height: 60vh
+            }
 
-    .table-box .table-responsive{max-height:60vh}
+            .detail-topbar {
+                margin-top: 8px
+            }
 
-    .detail-topbar{margin-top:8px}
+        }
 
-}
+        @media(max-width:767px) {
 
-@media(max-width:767px){
+            .box>.box-header {
+                padding: 12px
+            }
 
-    .box>.box-header{padding:12px}
+            .box-header .row>div {
+                text-align: left !important
+            }
 
-    .box-header .row>div{text-align:left!important}
+            #spkTypeFilter {
+                width: 100% !important;
+                margin-top: 9px
+            }
 
-    #spkTypeFilter{width:100%!important;margin-top:9px}
+            .detail-card {
+                padding: 10px
+            }
 
-    .detail-card{padding:10px}
+            .summary-card {
+                min-height: 52px !important;
+                height: 52px !important
+            }
 
-    .summary-card{min-height:52px!important;height:52px!important}
+            .summary-icon {
 
-    .summary-icon{
+                width: 29px !important;
+                height: 29px !important;
 
-        width:29px!important;height:29px!important;
+                min-width: 29px !important;
+                min-height: 29px !important;
 
-        min-width:29px!important;min-height:29px!important;
+                font-size: 11px !important
+            }
 
-        font-size:11px!important
+            .summary-card h3 {
+                font-size: 15px !important
+            }
 
-    }
+            .summary-card small {
+                font-size: 7px !important
+            }
 
-    .summary-card h3{font-size:15px!important}
+        }
 
-    .summary-card small{font-size:7px!important}
 
-}
+        /* PO sidebar owns its own scroll; the browser page does not trigger PO fetching. */
+        .spk-sidebar .sidebar-table {
+            height: min(66vh, 610px) !important;
+            max-height: none !important;
+            min-height: 340px !important;
+            overflow-y: auto !important;
+            overflow-x: auto !important;
+            overscroll-behavior-y: contain;
+        }
 
+        .po-fetch-status {
+            padding: 10px;
+            text-align: center;
+            font-size: 10px;
+            cursor: pointer;
+            background: #fff;
+            border-top: 1px solid #eef2f6;
+        }
 
-/* PO sidebar owns its own scroll; the browser page does not trigger PO fetching. */
-.spk-sidebar .sidebar-table {height: min(66vh, 610px) !important;max-height: none !important;min-height: 340px !important;overflow-y:auto !important;overflow-x:auto !important;overscroll-behavior-y:contain;}
-.po-fetch-status {padding:10px;text-align:center;font-size:10px;cursor:pointer;background:#fff;border-top:1px solid #eef2f6;}
+        /* Large modal: scroll confined to modal; PO widget keeps 10-row fetch. */
+        #spkViewModal {
+            z-index: 1050;
+        }
 
-/* Large modal: scroll confined to modal; PO widget keeps 10-row fetch. */
-#spkViewModal { z-index: 1050; }
-#spkViewModal .spk-view-dialog { width: min(96vw, 1450px); max-width: 1450px; margin: 22px auto; }
-#spkViewModal .spk-view-content { border: 0; border-radius: 12px; overflow: hidden; box-shadow: 0 18px 60px rgba(15, 33, 64, .24); }
-#spkViewModal .spk-view-header { padding: 13px 18px; border-bottom: 1px solid #e9edf4; }
-#spkViewModal .spk-view-header h4 { font-size: 16px; font-weight: 700; color: #17345f; }
-#spkViewModal .spk-view-body { padding: 16px; max-height: calc(100vh - 115px); overflow-y: auto; overflow-x: hidden; }
-#spkViewModal .spk-modal-detail-column { float: none; width: 100%; min-width: 0; padding: 0; }
-#spkViewModal .detail-topbar { margin-top: 0; }
-#spkViewModal .table-box .table-responsive { max-height: none; overflow-x: auto; overflow-y: visible; }
-/* Pill navigasi horizontal di atas tabel, tetap terlihat saat modal di-scroll. */
-#spkViewModal .spk-horizontal-toolbar { display: none; justify-content: flex-end; padding: 8px 10px; background: #f8faff; border-bottom: 1px solid #e5ebf4; position: sticky; top: 0; z-index: 5; }
-#spkViewModal .spk-scroll-pill { display: inline-flex; align-items: center; gap: 9px; max-width: 100%; border: 1px solid #c9d9f5; background: #eaf2ff; color: #1b4d9b; border-radius: 999px; padding: 4px; box-shadow: 0 1px 4px rgba(30,75,150,.07); }
-#spkViewModal .spk-scroll-instruction { font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#spkViewModal .spk-scroll-instruction i { margin-right: 5px; }
-#spkViewModal .spk-scroll-arrow { width: 27px; height: 27px; border: 0; border-radius: 50%; background: #2563d9; color: white; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; cursor: pointer; }
-#spkViewModal .spk-scroll-arrow:disabled { background: #c5d2e7; cursor: default; }
-#spkViewModal .spk-scroll-arrow:not(:disabled):hover { background: #164bb5; }
-#spkViewModal .spk-description-cell { max-width: 220px; width: 220px; }
-#spkViewModal .spk-description-ellipsis { display: block; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: help; }
-#spkViewModal.spk-modal-maximized .spk-view-dialog { width: 99vw; max-width: none; margin: 4px auto; }
-#spkViewModal.spk-modal-maximized .spk-view-body { max-height: calc(100vh - 65px); }
-@media (max-width: 767px) {
-    #spkViewModal .spk-view-dialog { width: calc(100vw - 12px); margin: 6px auto; }
-    #spkViewModal .spk-view-body { padding: 10px; max-height: calc(100vh - 75px); }
-    #spkViewModal .spk-description-cell { max-width: 155px; width: 155px; }
-    #spkViewModal .spk-description-ellipsis { max-width: 155px; }
-}
+        #spkViewModal .spk-view-dialog {
+            width: min(96vw, 1450px);
+            max-width: 1450px;
+            margin: 22px auto;
+        }
 
-</style>
+        #spkViewModal .spk-view-content {
+            border: 0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 18px 60px rgba(15, 33, 64, .24);
+        }
+
+        #spkViewModal .spk-view-header {
+            padding: 13px 18px;
+            border-bottom: 1px solid #e9edf4;
+        }
+
+        #spkViewModal .spk-view-header h4 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #17345f;
+        }
+
+        #spkViewModal .spk-view-body {
+            padding: 16px;
+            max-height: calc(100vh - 115px);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        #spkViewModal .spk-modal-detail-column {
+            float: none;
+            width: 100%;
+            min-width: 0;
+            padding: 0;
+        }
+
+        #spkViewModal .detail-topbar {
+            margin-top: 0;
+        }
+
+        #spkViewModal .table-box .table-responsive {
+            max-height: none;
+            overflow-x: auto;
+            overflow-y: visible;
+        }
+
+        /* Pill navigasi horizontal di atas tabel, tetap terlihat saat modal di-scroll. */
+        #spkViewModal .spk-horizontal-toolbar {
+            display: none;
+            justify-content: flex-end;
+            padding: 8px 10px;
+            background: #f8faff;
+            border-bottom: 1px solid #e5ebf4;
+            position: sticky;
+            top: 0;
+            z-index: 5;
+        }
+
+        #spkViewModal .spk-scroll-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 9px;
+            max-width: 100%;
+            border: 1px solid #c9d9f5;
+            background: #eaf2ff;
+            color: #1b4d9b;
+            border-radius: 999px;
+            padding: 4px;
+            box-shadow: 0 1px 4px rgba(30, 75, 150, .07);
+        }
+
+        #spkViewModal .spk-scroll-instruction {
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #spkViewModal .spk-scroll-instruction i {
+            margin-right: 5px;
+        }
+
+        #spkViewModal .spk-scroll-arrow {
+            width: 27px;
+            height: 27px;
+            border: 0;
+            border-radius: 50%;
+            background: #2563d9;
+            color: white;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto;
+            cursor: pointer;
+        }
+
+        #spkViewModal .spk-scroll-arrow:disabled {
+            background: #c5d2e7;
+            cursor: default;
+        }
+
+        #spkViewModal .spk-scroll-arrow:not(:disabled):hover {
+            background: #164bb5;
+        }
+
+        #spkViewModal .spk-description-cell {
+            max-width: 220px;
+            width: 220px;
+        }
+
+        #spkViewModal .spk-description-ellipsis {
+            display: block;
+            max-width: 220px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: help;
+        }
+
+        #spkViewModal.spk-modal-maximized .spk-view-dialog {
+            width: 99vw;
+            max-width: none;
+            margin: 4px auto;
+        }
+
+        #spkViewModal.spk-modal-maximized .spk-view-body {
+            max-height: calc(100vh - 65px);
+        }
+
+        @media (max-width: 767px) {
+            #spkViewModal .spk-view-dialog {
+                width: calc(100vw - 12px);
+                margin: 6px auto;
+            }
+
+            #spkViewModal .spk-view-body {
+                padding: 10px;
+                max-height: calc(100vh - 75px);
+            }
+
+            #spkViewModal .spk-description-cell {
+                max-width: 155px;
+                width: 155px;
+            }
+
+            #spkViewModal .spk-description-ellipsis {
+                max-width: 155px;
+            }
+        }
+    </style>
 
 @endpush
 
 <style>
-/* Modal detail hampir fullscreen: hanya ruang kecil untuk margin. */
-#spkViewModal .modal-dialog.spk-view-dialog { width: calc(100vw - 24px) !important; max-width: none !important; margin: 8px auto !important; }
-#spkViewModal .spk-view-content { height: calc(100vh - 16px); display: flex; flex-direction: column; }
-#spkViewModal .spk-view-header { flex: 0 0 auto; }
-#spkViewModal .spk-view-body { flex: 1 1 auto; min-height: 0; max-height: none !important; overflow-y: auto; }
-/* Scrollbar nyata di atas tabel, tersinkron dengan tabel di bawahnya. */
-#spkViewModal .spk-top-scroll { display: none; width: 100%; height: 18px; overflow-x: auto; overflow-y: hidden; border-top: 1px solid #e9eef5; background: #f8faff; scrollbar-width: auto; scrollbar-color: #8fa8cf #e9eef6; }
-#spkViewModal .spk-top-scroll-inner { height: 1px; }
-#spkViewModal .spk-top-scroll::-webkit-scrollbar { height: 12px; }
-#spkViewModal .spk-top-scroll::-webkit-scrollbar-thumb { background: #8fa8cf; border-radius: 10px; }
-#spkViewModal .spk-top-scroll::-webkit-scrollbar-track { background: #e9eef6; }
-#spkViewModal .table-box .table-responsive { overflow-x: auto !important; }
-@media(max-width:767px){ #spkViewModal .modal-dialog.spk-view-dialog { width: calc(100vw - 8px) !important; margin: 4px auto !important; } #spkViewModal .spk-view-content { height: calc(100vh - 8px); } }
+    /* Modal detail hampir fullscreen: hanya ruang kecil untuk margin. */
+    #spkViewModal .modal-dialog.spk-view-dialog {
+        width: calc(100vw - 24px) !important;
+        max-width: none !important;
+        margin: 8px auto !important;
+    }
+
+    #spkViewModal .spk-view-content {
+        height: calc(100vh - 16px);
+        display: flex;
+        flex-direction: column;
+    }
+
+    #spkViewModal .spk-view-header {
+        flex: 0 0 auto;
+    }
+
+    #spkViewModal .spk-view-body {
+        flex: 1 1 auto;
+        min-height: 0;
+        max-height: none !important;
+        overflow-y: auto;
+    }
+
+    /* Scrollbar nyata di atas tabel, tersinkron dengan tabel di bawahnya. */
+    #spkViewModal .spk-top-scroll {
+        display: none;
+        width: 100%;
+        height: 18px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        border-top: 1px solid #e9eef5;
+        background: #f8faff;
+        scrollbar-width: auto;
+        scrollbar-color: #8fa8cf #e9eef6;
+    }
+
+    #spkViewModal .spk-top-scroll-inner {
+        height: 1px;
+    }
+
+    #spkViewModal .spk-top-scroll::-webkit-scrollbar {
+        height: 12px;
+    }
+
+    #spkViewModal .spk-top-scroll::-webkit-scrollbar-thumb {
+        background: #8fa8cf;
+        border-radius: 10px;
+    }
+
+    #spkViewModal .spk-top-scroll::-webkit-scrollbar-track {
+        background: #e9eef6;
+    }
+
+    #spkViewModal .table-box .table-responsive {
+        overflow-x: auto !important;
+    }
+
+    @media(max-width:767px) {
+        #spkViewModal .modal-dialog.spk-view-dialog {
+            width: calc(100vw - 8px) !important;
+            margin: 4px auto !important;
+        }
+
+        #spkViewModal .spk-view-content {
+            height: calc(100vh - 8px);
+        }
+    }
 </style>
 
 
 <style>
-/* Navigasi horizontal tetap terlihat ketika isi modal digulir ke bawah. */
-#spkViewModal .spk-sticky-horizontal {
-    position: sticky !important;
-    top: 0 !important;
-    z-index: 110 !important;
-    background: #f8faff !important;
-    border-bottom: 1px solid #dbe5f2;
-    box-shadow: 0 2px 5px rgba(21,45,84,.07);
-}
-#spkViewModal .spk-sticky-horizontal .spk-horizontal-toolbar {
-    position: static !important;
-}
-#spkViewModal .spk-sticky-horizontal .spk-top-scroll {
-    position: static !important;
-}
-#spkViewModal .spk-view-body { position: relative; }
-#spkViewModal .spk-modal-close { cursor: pointer; position: relative; z-index: 3; opacity: 1; }
+    /* Navigasi horizontal tetap terlihat ketika isi modal digulir ke bawah. */
+    #spkViewModal .spk-sticky-horizontal {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 110 !important;
+        background: #f8faff !important;
+        border-bottom: 1px solid #dbe5f2;
+        box-shadow: 0 2px 5px rgba(21, 45, 84, .07);
+    }
+
+    #spkViewModal .spk-sticky-horizontal .spk-horizontal-toolbar {
+        position: static !important;
+    }
+
+    #spkViewModal .spk-sticky-horizontal .spk-top-scroll {
+        position: static !important;
+    }
+
+    #spkViewModal .spk-view-body {
+        position: relative;
+    }
+
+    #spkViewModal .spk-modal-close {
+        cursor: pointer;
+        position: relative;
+        z-index: 3;
+        opacity: 1;
+    }
 </style>
 
 <style>
-/* Header kategori tetap menempel bersama pill dan scrollbar atas saat modal scroll. */
-#spkViewModal .spk-sticky-table-header {
-    display:none;
-    width:100%;
-    overflow:hidden;
-    background:#fff;
-    border-bottom:1px solid #dbe5f2;
-}
-#spkViewModal .spk-sticky-table-header-inner {will-change:transform;}
-#spkViewModal .spk-sticky-table-header table {border-collapse:collapse; table-layout:fixed;}
-#spkViewModal .spk-sticky-table-header th {
-    background:#2c3f51 !important;
-    color:#fff !important;
-    font-weight:700;
-    vertical-align:middle;
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
-}
-#spkViewModal .spk-sticky-horizontal {z-index:130 !important;}
-/* Header asli tidak perlu sticky karena sudah ada salinan yang mengikuti scroll modal. */
-#spkViewModal #spk-detail-body table thead th {position:static !important;}
+    /* Header kategori tetap menempel bersama pill dan scrollbar atas saat modal scroll. */
+    #spkViewModal .spk-sticky-table-header {
+        display: none;
+        width: 100%;
+        overflow: hidden;
+        background: #fff;
+        border-bottom: 1px solid #dbe5f2;
+    }
+
+    #spkViewModal .spk-sticky-table-header-inner {
+        will-change: transform;
+    }
+
+    #spkViewModal .spk-sticky-table-header table {
+        border-collapse: collapse;
+        table-layout: fixed;
+    }
+
+    #spkViewModal .spk-sticky-table-header th {
+        background: #2c3f51 !important;
+        color: #fff !important;
+        font-weight: 700;
+        vertical-align: middle;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    #spkViewModal .spk-sticky-horizontal {
+        z-index: 130 !important;
+    }
+
+    /* Header asli tidak perlu sticky karena sudah ada salinan yang mengikuti scroll modal. */
+    #spkViewModal #spk-detail-body table thead th {
+        position: static !important;
+    }
 </style>
 
 <style>
-/* Freeze only the three explicit identity columns, including rowspan cells. */
-#spkViewModal #spk-detail-body table { border-collapse: separate; border-spacing: 0; }
-#spkViewModal #spk-detail-body table .spk-freeze { position: sticky !important; z-index: 12; background: #fff !important; }
-#spkViewModal #spk-detail-body table thead th.spk-freeze { position: sticky !important; z-index: 16; background: #f7f9fc !important; }
-#spkViewModal #spk-detail-body table .spk-freeze-no { left: var(--spk-left-no, 0px); min-width: 36px; }
-#spkViewModal #spk-detail-body table .spk-freeze-article { left: var(--spk-left-article, 36px); }
-#spkViewModal #spk-detail-body table .spk-freeze-description { left: var(--spk-left-description, 156px); box-shadow: 3px 0 5px rgba(20,40,70,.13); }
-#spkViewModal .spk-sticky-table-header th.spk-freeze { position: relative !important; z-index: 3; background: #2c3f51 !important; }
-#spkViewModal .spk-sticky-table-header th.spk-freeze-description { box-shadow: 3px 0 5px rgba(20,40,70,.18); }
-@media(max-width:600px) {
- #spkViewModal #spk-detail-body table .spk-freeze-article { width: 85px !important; min-width:85px !important; max-width:85px !important; }
- #spkViewModal #spk-detail-body table .spk-freeze-description { width: 105px; min-width:105px; max-width:105px; }
- #spkViewModal #spk-detail-body table .spk-description-ellipsis { max-width: 90px; }
-}
+    /* Freeze only the three explicit identity columns, including rowspan cells. */
+    #spkViewModal #spk-detail-body table {
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    #spkViewModal #spk-detail-body table .spk-freeze {
+        position: sticky !important;
+        z-index: 12;
+        background: #fff !important;
+    }
+
+    #spkViewModal #spk-detail-body table thead th.spk-freeze {
+        position: sticky !important;
+        z-index: 16;
+        background: #f7f9fc !important;
+    }
+
+    #spkViewModal #spk-detail-body table .spk-freeze-no {
+        left: var(--spk-left-no, 0px);
+        min-width: 36px;
+    }
+
+    #spkViewModal #spk-detail-body table .spk-freeze-article {
+        left: var(--spk-left-article, 36px);
+    }
+
+    #spkViewModal #spk-detail-body table .spk-freeze-description {
+        left: var(--spk-left-description, 156px);
+        box-shadow: 3px 0 5px rgba(20, 40, 70, .13);
+    }
+
+    #spkViewModal .spk-sticky-table-header th.spk-freeze {
+        position: relative !important;
+        z-index: 3;
+        background: #2c3f51 !important;
+    }
+
+    #spkViewModal .spk-sticky-table-header th.spk-freeze-description {
+        box-shadow: 3px 0 5px rgba(20, 40, 70, .18);
+    }
+
+    @media(max-width:600px) {
+        #spkViewModal #spk-detail-body table .spk-freeze-article {
+            width: 85px !important;
+            min-width: 85px !important;
+            max-width: 85px !important;
+        }
+
+        #spkViewModal #spk-detail-body table .spk-freeze-description {
+            width: 105px;
+            min-width: 105px;
+            max-width: 105px;
+        }
+
+        #spkViewModal #spk-detail-body table .spk-description-ellipsis {
+            max-width: 90px;
+        }
+    }
 </style>
