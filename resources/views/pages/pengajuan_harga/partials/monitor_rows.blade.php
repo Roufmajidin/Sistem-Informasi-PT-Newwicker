@@ -1,5 +1,20 @@
 <div class="ph-monitor-scroll">
     <table class="ph-monitor-table">
+        <colgroup>
+            <col>
+            <col>
+            <col>
+            <col>
+            <col>
+            <col>
+            <col>
+            <col>
+            <col>
+            <col>
+            <col>
+            <col>
+            <col>
+        </colgroup>
         <thead>
             <tr>
                 <th>No</th>

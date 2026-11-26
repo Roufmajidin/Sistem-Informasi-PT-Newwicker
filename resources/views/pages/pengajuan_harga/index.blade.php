@@ -963,9 +963,9 @@
                                             @if ($photo)
                                                 <img class="ph-thumb"
                                                     src="{{ filter_var($photo, FILTER_VALIDATE_URL) ? $photo : asset(ltrim((string) $photo, '/')) }}"
-                                                alt="Foto {{ $article }}" loading="lazy">@else<span
-                                                    style="color:#8ca0b9">No image</span>
-                                            @endif
+                                            alt="Foto {{ $article }}" loading="lazy">@else<span style="color:#8ca0b9">No
+                                                    image</span>
+                                                @endif
 
                                         </td>
 
@@ -982,8 +982,8 @@
                                                 @if ($foundCog)
                                                     <span class="ph-bom-found">✓ Found COG</span>
 
-                                                    <a href="{{ url('/bom-produksi/show/' . $foundCog->id) }}"
-                                                        target="_blank" rel="noopener noreferrer">Detail (click) ↗</a>
+                                                    <a href="{{ url('/bom-produksi/show/' . $foundCog->id) }}" target="_blank"
+                                                        rel="noopener noreferrer">Detail (click) ↗</a>
                                                 @elseif($foundSample)
                                                     <span class="ph-bom-sample">✓ Found BOM Samples</span>
 
@@ -999,8 +999,8 @@
 
                                         <td>
 
-                                            <div class="ph-work" data-po-id="{{ $po->id }}"
-                                                data-detail-id="{{ $item->id }}" data-article="{{ $article }}">
+                                            <div class="ph-work" data-po-id="{{ $po->id }}" data-detail-id="{{ $item->id }}"
+                                                data-article="{{ $article }}">
 
                                                 <div class="ph-jobs">
 
@@ -1011,14 +1011,12 @@
 
                                                                 <div><label class="ph-label">Pekerjaan</label>
 
-                                                                    <div class="ph-combo"
-                                                                        data-selected="{{ $job->bahan_kategori_id }}">
+                                                                    <div class="ph-combo" data-selected="{{ $job->bahan_kategori_id }}">
 
                                                                         <input type="hidden" class="job-category"
-                                                                            value="{{ $job->bahan_kategori_id }}"><input
-                                                                            type="text" class="ph-input ph-combo-input"
-                                                                            placeholder="Cari / ketik pekerjaan..."
-                                                                            autocomplete="off"
+                                                                            value="{{ $job->bahan_kategori_id }}"><input type="text"
+                                                                            class="ph-input ph-combo-input"
+                                                                            placeholder="Cari / ketik pekerjaan..." autocomplete="off"
                                                                             value="{{ $masterPekerjaan->firstWhere('id', $job->bahan_kategori_id)?->name ?? '' }}"><button
                                                                             type="button" class="ph-combo-arrow"
                                                                             aria-label="Pilih pekerjaan">▾</button>
@@ -1033,24 +1031,19 @@
 
                                                                         Name</label>
 
-                                                                    <input type="text" class="ph-input job-sub-name"
-                                                                        maxlength="255" placeholder="Nama subkontraktor"
-                                                                        value="{{ $job->sub_name ?? '' }}"
-                                                                        @disabled($isFactory)>
+                                                                    <input type="text" class="ph-input job-sub-name" maxlength="255"
+                                                                        placeholder="Nama subkontraktor"
+                                                                        value="{{ $job->sub_name ?? '' }}" @disabled($isFactory)>
 
                                                                 </div>
 
                                                                 @foreach (['ppic_price' => 'PPIC Price', 'pengajuan_sub_price' => 'Pengajuan Sub', 'director_price' => 'Director Price'] as $field => $label)
-                                                                    <div><label
-                                                                            class="ph-label">{{ $label }}</label><input
-                                                                            type="text" inputmode="decimal"
-                                                                            class="ph-input ph-price"
+                                                                    <div><label class="ph-label">{{ $label }}</label><input type="text"
+                                                                            inputmode="decimal" class="ph-input ph-price"
                                                                             data-field="{{ $field }}"
                                                                             value="{{ $job->{$field} !== null ? number_format((float) $job->{$field}, 2, ',', '.') : '' }}"
-                                                                            placeholder="0"
-                                                                            @disabled($isFactory ? $field !== 'director_price' : $field === 'director_price')><small
-                                                                            class="ph-price-date"
-                                                                            data-date="{{ $field }}"
+                                                                            placeholder="0" @disabled($isFactory ? $field !== 'director_price' : $field === 'director_price')><small
+                                                                            class="ph-price-date" data-date="{{ $field }}"
                                                                             title="{{ $field === 'ppic_price' ? 'Tanggal update PPIC' : ($field === 'director_price' ? 'Tanggal update Director' : 'Tanggal pengajuan Sub') }}">{{ $job->{$field === 'ppic_price' ? 'ppic_date' : ($field === 'director_price' ? 'directur_date' : 'sub_date')}?->format('d-m-Y H:i') ?? '—' }}</small>
                                                                         @if ($field === 'pengajuan_sub_price' && strtoupper(trim((string) ($job->submission_by ?? ''))) === 'TOMO')
                                                                             <small class="ph-price-date"
@@ -1073,16 +1066,16 @@
 
                                                             </div>
 
-                                                            <button type="button" class="ph-remark-toggle"
-                                                                aria-expanded="false">▸ Show Remark</button>
+                                                            <button type="button" class="ph-remark-toggle" aria-expanded="false">▸ Show
+                                                                Remark</button>
 
                                                             <div class="ph-remarks" hidden>
 
                                                                 @foreach (['ppic_remark' => 'PPIC Remark', 'sub_remark' => 'Sub Remark', 'director_remark' => 'Director Remark'] as $field => $label)
-                                                                    <div><label
-                                                                            class="ph-label">{{ $label }}</label>
+                                                                    <div><label class="ph-label">{{ $label }}</label>
 
-                                                                        <textarea class="ph-textarea ph-remark" data-field="{{ $field }}" @disabled($isFactory ? $field !== 'director_remark' : $field === 'director_remark')
+                                                                        <textarea class="ph-textarea ph-remark" data-field="{{ $field }}"
+                                                                            @disabled($isFactory ? $field !== 'director_remark' : $field === 'director_remark')
                                                                             placeholder="{{ $label }}">{{ $job->{$field} ?? '' }}</textarea>
 
                                                                     </div>
@@ -1100,9 +1093,9 @@
 
                                                                 <div><label class="ph-label">Pekerjaan</label>
 
-                                                                    <div class="ph-combo" data-selected=""><input
-                                                                            type="hidden" class="job-category"><input
-                                                                            type="text" class="ph-input ph-combo-input"
+                                                                    <div class="ph-combo" data-selected=""><input type="hidden"
+                                                                            class="job-category"><input type="text"
+                                                                            class="ph-input ph-combo-input"
                                                                             placeholder="Cari / ketik pekerjaan..."
                                                                             autocomplete="off"><button type="button"
                                                                             class="ph-combo-arrow"
@@ -1118,22 +1111,16 @@
 
                                                                         Name</label>
 
-                                                                    <input type="text" class="ph-input job-sub-name"
-                                                                        maxlength="255" placeholder="Nama subkontraktor"
-                                                                        @disabled($isFactory)>
+                                                                    <input type="text" class="ph-input job-sub-name" maxlength="255"
+                                                                        placeholder="Nama subkontraktor" @disabled($isFactory)>
 
                                                                 </div>
 
                                                                 @foreach (['ppic_price' => 'PPIC Price', 'pengajuan_sub_price' => 'Pengajuan Sub', 'director_price' => 'Director Price'] as $field => $label)
-                                                                    <div><label
-                                                                            class="ph-label">{{ $label }}</label><input
-                                                                            type="text" inputmode="decimal"
-                                                                            class="ph-input ph-price"
-                                                                            data-field="{{ $field }}"
-                                                                            placeholder="0"
-                                                                            @disabled($isFactory ? $field !== 'director_price' : $field === 'director_price')><small
-                                                                            class="ph-price-date"
-                                                                            data-date="{{ $field }}"
+                                                                    <div><label class="ph-label">{{ $label }}</label><input type="text"
+                                                                            inputmode="decimal" class="ph-input ph-price"
+                                                                            data-field="{{ $field }}" placeholder="0" @disabled($isFactory ? $field !== 'director_price' : $field === 'director_price')><small
+                                                                            class="ph-price-date" data-date="{{ $field }}"
                                                                             title="{{ $field === 'ppic_price' ? 'Tanggal update PPIC' : ($field === 'director_price' ? 'Tanggal update Director' : 'Tanggal pengajuan Sub') }}">—</small>
 
                                                                     </div>
@@ -1151,16 +1138,16 @@
 
                                                             </div>
 
-                                                            <button type="button" class="ph-remark-toggle"
-                                                                aria-expanded="false">▸ Show Remark</button>
+                                                            <button type="button" class="ph-remark-toggle" aria-expanded="false">▸ Show
+                                                                Remark</button>
 
                                                             <div class="ph-remarks" hidden>
 
                                                                 @foreach (['ppic_remark' => 'PPIC Remark', 'sub_remark' => 'Sub Remark', 'director_remark' => 'Director Remark'] as $field => $label)
-                                                                    <div><label
-                                                                            class="ph-label">{{ $label }}</label>
+                                                                    <div><label class="ph-label">{{ $label }}</label>
 
-                                                                        <textarea class="ph-textarea ph-remark" data-field="{{ $field }}" @disabled($isFactory ? $field !== 'director_remark' : $field === 'director_remark')
+                                                                        <textarea class="ph-textarea ph-remark" data-field="{{ $field }}"
+                                                                            @disabled($isFactory ? $field !== 'director_remark' : $field === 'director_remark')
                                                                             placeholder="{{ $label }}"></textarea>
 
                                                                     </div>
@@ -1173,8 +1160,8 @@
 
                                                 </div>
 
-                                                <div class="ph-actions"><button type="button"
-                                                        class="ph-btn ph-outline ph-add">+ Tambah Pekerjaan</button></div>
+                                                <div class="ph-actions"><button type="button" class="ph-btn ph-outline ph-add">+
+                                                        Tambah Pekerjaan</button></div>
 
                                             </div>
 
@@ -1213,7 +1200,7 @@
     </div>
 
     <script>
-        (function() {
+        (function () {
 
             'use strict';
 
@@ -1279,7 +1266,7 @@
 
                     "'": '&#39;'
 
-                } [c]));
+                }[c]));
 
             }
 
@@ -1975,7 +1962,7 @@
     </style>
 
     <script>
-        (function() {
+        (function () {
 
             function focusDirectorUpdate() {
 
@@ -2081,8 +2068,10 @@
         }
 
         .ph-monitor-dialog {
-            width: min(1700px, 98vw);
-            height: min(90vh, 950px);
+            width: 100%;
+            max-width: none;
+            height: 94vh;
+            height: 94dvh;
             background: #fff;
             border-radius: 13px;
             display: flex;
@@ -2129,20 +2118,78 @@
         .ph-monitor-body {
             flex: 1;
             min-height: 0;
-            overflow: auto
+            display: flex;
+            flex-direction: column;
+            overflow: hidden
         }
 
         .ph-monitor-scroll {
             overflow: auto;
-            max-height: 100%
+            flex: 1 1 auto;
+            min-height: 0;
+            max-width: 100%;
+            overscroll-behavior: contain
         }
 
         .ph-monitor-table {
             border-collapse: separate;
             border-spacing: 0;
-            min-width: 1700px;
-            width: 100%;
+            min-width: 2416px;
+            table-layout: fixed;
+            width: 2416px;
             font-size: 12px
+        }
+
+        .ph-monitor-table col:nth-child(1) {
+            width: 56px;
+        }
+
+        .ph-monitor-table col:nth-child(2) {
+            width: 110px;
+        }
+
+        .ph-monitor-table col:nth-child(3) {
+            width: 220px;
+        }
+
+        .ph-monitor-table col:nth-child(4) {
+            width: 190px;
+        }
+
+        .ph-monitor-table col:nth-child(5) {
+            width: 180px;
+        }
+
+        .ph-monitor-table col:nth-child(6) {
+            width: 150px;
+        }
+
+        .ph-monitor-table col:nth-child(7) {
+            width: 150px;
+        }
+
+        .ph-monitor-table col:nth-child(8) {
+            width: 155px;
+        }
+
+        .ph-monitor-table col:nth-child(9) {
+            width: 340px;
+        }
+
+        .ph-monitor-table col:nth-child(10) {
+            width: 280px;
+        }
+
+        .ph-monitor-table col:nth-child(11) {
+            width: 320px;
+        }
+
+        .ph-monitor-table col:nth-child(12) {
+            width: 110px;
+        }
+
+        .ph-monitor-table col:nth-child(13) {
+            width: 155px;
         }
 
         .ph-monitor-table th {
@@ -2160,18 +2207,70 @@
             padding: 10px;
             border-bottom: 1px solid #e2e8f0;
             vertical-align: top;
-            min-width: 95px
+            min-width: 0;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: normal;
+            line-height: 1.5
+        }
+
+        .ph-monitor-table tbody tr:hover td {
+            background: #eef5ff;
         }
 
         .ph-monitor-table tbody tr:nth-child(even) {
             background: #f8fafd
         }
 
+        /* Freeze the first four columns in the monitoring modal only. */
+        .ph-monitor-table :is(th, td):nth-child(-n+4):not([colspan]) {
+            position: sticky;
+            z-index: 3;
+        }
+
+        .ph-monitor-table tbody td:nth-child(-n+4):not([colspan]) {
+            background: #fff;
+        }
+
+        .ph-monitor-table tbody tr:nth-child(even) td:nth-child(-n+4):not([colspan]) {
+            background: #f8fafd;
+        }
+
+        .ph-monitor-table tbody tr:hover td:nth-child(-n+4):not([colspan]) {
+            background: #eef5ff;
+        }
+
+        .ph-monitor-table thead th:nth-child(-n+4) {
+            z-index: 4;
+            background: #203c5c;
+        }
+
+        .ph-monitor-table :is(th, td):nth-child(1):not([colspan]) {
+            left: 0px;
+        }
+
+        .ph-monitor-table :is(th, td):nth-child(2):not([colspan]) {
+            left: 56px;
+        }
+
+        .ph-monitor-table :is(th, td):nth-child(3):not([colspan]) {
+            left: 166px;
+        }
+
+        .ph-monitor-table :is(th, td):nth-child(4):not([colspan]) {
+            left: 386px;
+        }
+
+        .ph-monitor-table :is(th, td):nth-child(4) {
+            box-shadow: 3px 0 5px -3px #64748b;
+        }
+
         .ph-monitor-remark {
-            min-width: 180px;
-            max-width: 250px;
+            min-width: 0;
+            max-width: none;
             white-space: pre-wrap;
-            overflow-wrap: anywhere
+            overflow-wrap: anywhere;
+            word-break: normal
         }
 
         .ph-monitor-muted {
@@ -2202,6 +2301,7 @@
         }
 
         .ph-monitor-footer {
+            flex: 0 0 auto;
             justify-content: space-between;
             border-top: 1px solid #e2e8f0;
             border-bottom: 0
