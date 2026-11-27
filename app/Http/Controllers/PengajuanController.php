@@ -262,7 +262,7 @@ class PengajuanController extends Controller
                 // =========================
                 // 🔥 APPROVAL STEP
                 // =========================
-                
+
                 $steps = [
 
                     [
@@ -1074,7 +1074,7 @@ class PengajuanController extends Controller
 
     private function canDeleteFinanceDetail(): bool
     {
-        return auth()->check() && in_array(strtolower(trim((string) auth()->user()->role)), ['fin', 'finance', 'finance acc'], true);
+        return auth()->check() && in_array(strtolower(trim((string) auth()->user()->role)), ['finance acc'], true);
     }
 
     public function destroyFinanceDetail($id, $detailId)
