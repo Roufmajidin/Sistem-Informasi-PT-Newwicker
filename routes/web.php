@@ -1258,9 +1258,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/pengajuan/approve/{id}', [PengajuanController::class, 'approveStep']);
         Route::post('/pengajuan/approve-all/{id}', [PengajuanController::class, 'approveAll']);
         Route::get('/dashboard/pending-approval', [PengajuanController::class, 'pendingMyApproval']);
+        Route::delete('/pengajuan/{id}/finance-detail/{detailId}', [PengajuanController::class, 'destroyFinanceDetail']);
     });
-
-    // cad
+        // cad
 
     Route::get('/cad/{id}', [CadController::class, 'index'])->name('cad.index');
     Route::post('/cad/upload', [CadController::class, 'upload']);

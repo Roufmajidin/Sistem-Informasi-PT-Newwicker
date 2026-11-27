@@ -614,6 +614,9 @@ class PengajuanController extends Controller
             $data->meta->qty_on_hold = $qtyOnHold;
         }
 
+        $data->setAttribute('can_delete_finance_detail', $this->canDeleteFinanceDetail()
+            && $data->type_pengajuan === 'Finance');
+
         return response()->json($data);
     }
     public function approveAll($id)
@@ -1067,6 +1070,53 @@ class PengajuanController extends Controller
         $drawing->setOffsetX(10);
         $drawing->setOffsetY(5);
         $drawing->setWorksheet($sheet);
+    }
+
+    private function canDeleteFinanceDetail(): bool
+    {
+        return auth()->check() && in_array(strtolower(trim((string) auth()->user()->role)), ['fin', 'finance', 'finance acc'], true);
+    }
+
+    public function destroyFinanceDetail($id, $detailId)
+    {
+        $paths = [];
+        try {
+            $result = DB::transaction(function () use ($id, $detailId, &$paths) {
+                $parent = Pengajuan::whereKey($id)->lockForUpdate()->firstOrFail();
+                abort_unless($this->canDeleteFinanceDetail() && $parent->type_pengajuan === 'Finance', 403, 'Hanya role Finance / Finance ACC yang dapat menghapus item Finance');
+                $rows = PengajuanDetail::where('pengajuan_id', $id)->lockForUpdate()->get();
+                $detail = $rows->firstWhere('id', $detailId);
+                abort_unless($detail, 404, 'Item tidak ditemukan');
+                // Match both keys: never delete attachments belonging to another item.
+                $files = DB::table('pengajuan_files')->where('pengajuan_id', $id)->where('pengajuan_detail_id', $detailId);
+                $paths = $files->pluck('file_path')->unique()->values()->all();
+                $files->delete();
+                $detail->delete();
+
+                // Totals are derived by the existing detail view; meta has no total columns.
+                return ['status' => true, 'message' => 'Item berhasil dihapus'];
+            });
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e) {
+            return response()->json(['status' => false, 'message' => $e->getMessage()], $e->getStatusCode());
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['status' => false, 'message' => 'Data tidak ditemukan'], 404);
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json(['status' => false, 'message' => app()->isLocal() ? 'Gagal menghapus item: ' . $e->getMessage() : 'Gagal menghapus item. Periksa log Laravel.'], 500);
+        }
+        foreach ($paths as $path) {
+            try {
+                if ($path && !DB::table('pengajuan_files')->where('file_path', $path)->exists()) {
+                    if (Storage::disk('public')->exists($path) && !Storage::disk('public')->delete($path)) {
+                        throw new \RuntimeException('Gagal menghapus file lampiran: ' . $path);
+                    }
+                }
+            } catch (\Throwable $e) {
+                report($e);
+                $result['message'] = 'Item berhasil dihapus, tetapi sebagian file fisik belum dapat dibersihkan. Periksa log Laravel.';
+            }
+        }
+        return response()->json($result);
     }
 
     public function destroy($id)

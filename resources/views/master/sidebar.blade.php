@@ -44,23 +44,23 @@
 
                      </li>
                       @php
-    $emailLogin = strtolower(trim(auth()->user()->email ?? ''));
-@endphp
+                        $emailLogin = strtolower(trim(auth()->user()->email ?? ''));
+                        @endphp
 
-@if (
-    str_starts_with($emailLogin, 'factory@') ||
-    str_starts_with($emailLogin, 'office@') ||
-    str_starts_with($emailLogin, 'info@')
-)
-    <li class="{{ request()->is('progress-report*') ? 'active' : '' }}">
-        <a href="{{ url('/progress-report') }}">
-            <span class="nav-icon">
-                <i class="material-icons">assignment</i>
-            </span>
-            <span class="nav-text">Production Report</span>
-        </a>
-    </li>
-@endif
+                        @if (
+                            str_starts_with($emailLogin, 'factory@') ||
+                            str_starts_with($emailLogin, 'office@') ||
+                            str_starts_with($emailLogin, 'info@')
+                        )
+                            <li class="{{ request()->is('progress-report*') ? 'active' : '' }}">
+                                <a href="{{ url('/progress-report') }}">
+                                    <span class="nav-icon">
+                                        <i class="material-icons">assignment</i>
+                                    </span>
+                                    <span class="nav-text">Production Report</span>
+                                </a>
+                            </li>
+                        @endif
                      @php
                          use App\Models\Karyawan;
 

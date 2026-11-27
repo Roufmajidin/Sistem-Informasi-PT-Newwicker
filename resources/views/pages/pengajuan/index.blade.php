@@ -1424,6 +1424,37 @@
                 return urlParams.get(param);
             }
             //    open MOdal
+            window.deleteFinanceRowAction = function(button) {
+                if (button.dataset.allowed !== '1') {
+                    Swal.fire('Tidak dapat menghapus', 'Hanya role Finance / Finance ACC yang dapat menghapus item Finance.', 'warning');
+                    return;
+                }
+                deleteFinanceRow(button, button.dataset.parent, button.dataset.detail);
+            };
+            async function deleteFinanceRow(button, parentId, detailId) {
+                if (button.disabled) return;
+                button.disabled = true;
+                try {
+                    const result = await Swal.fire({
+                        title: 'Hapus item ini?', text: 'Hanya baris ini beserta lampirannya yang akan dihapus.',
+                        icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33',
+                        confirmButtonText: 'Ya, hapus', cancelButtonText: 'Batal'
+                    });
+                    if (!result.isConfirmed) return;
+                    const res = await $.ajax({
+                        url: '/pengajuan/' + parentId + '/finance-detail/' + detailId,
+                        method: 'DELETE', headers: {'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')}
+                    });
+                    if (!res.status) throw new Error(res.message);
+                    if (String(currentPengajuanId) === String(parentId) && $('#modal-view').hasClass('active')) {
+                        openPengajuanDetail(parentId);
+                    }
+                    Swal.fire('Berhasil', res.message, 'success');
+                } catch (err) {
+                    Swal.fire('Gagal', err.responseJSON?.message || err.message || 'Item tidak dapat dihapus', 'error');
+                } finally { button.disabled = false; }
+            }
+
             function openPengajuanDetail(id) {
 
                 $.ajax({
@@ -1489,6 +1520,7 @@
                         // 🔥 FINANCE → TABLE
                         // =========================
                         if (res.type_pengajuan === 'Finance') {
+                            const canDeleteRow = res.can_delete_finance_detail === true;
 
                             contentHtml += `
                     <div class="excel-wrapper">
@@ -1569,7 +1601,7 @@
             <td>${d.no_po}</td>
             <td>${d.no_inv}</td>
             <td>${d.type_biaya}</td>
-            <td>${d.nama_barang}</td>
+            <td><div style="display:flex;align-items:center;gap:8px">${canDeleteRow ? `<button type="button" class="btn-delete-finance-row" style="flex:0 0 auto;display:inline-block;background:#fff;color:#b91c1c;border:1px solid #b91c1c;padding:4px 7px;cursor:pointer;font-size:12px" title="Hapus item" aria-label="Hapus item" data-parent="${res.id}" data-detail="${d.id}" data-allowed="${canDeleteRow ? '1' : '0'}" onclick="event.stopPropagation(); window.deleteFinanceRowAction(this)" ondblclick="event.stopPropagation()">Hapus</button>` : ''}<span>${d.nama_barang}</span></div></td>
             <td>${d.qty}</td>
             <td>${formatRupiah(d.harga_satuan)}</td>
             <td>${formatRupiah(harga)}</td>
@@ -1622,8 +1654,8 @@
                             // =========================
                             // 🔥 FOOTER GRAND TOTAL
                             // =========================
-                            let grandTotal = res.meta?.grand_total ?? total;
-                            let onHold = Number(res.meta?.on_hold ?? 0);
+                            let grandTotal = total;
+                            let onHold = finalDetails.reduce((sum, d) => sum + (Number(d.qty) === 0 ? Number(d.total_harga || 0) : 0), 0);
 
                             contentHtml += `
 <tr style="background:#111; color:#fff;">
